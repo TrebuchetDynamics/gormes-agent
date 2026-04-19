@@ -7,33 +7,7 @@ import (
 	"testing"
 )
 
-var landingPageTargets = []string{
-	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
-	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
-	"superpowers/specs/2026-04-19-gormes-landing-page-design.md",
-	"superpowers/plans/2026-04-19-gormes-landing-page.md",
-}
-
-func TestTargetsIncludeLandingPageDocs(t *testing.T) {
-	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-landing-page-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-landing-page.md":        false,
-	}
-
-	for _, target := range landingPageTargets {
-		if _, ok := want[target]; ok {
-			want[target] = true
-		}
-	}
-
-	for rel, seen := range want {
-		if !seen {
-			t.Fatalf("docs target missing %s", rel)
-		}
-	}
-}
-
-func TestTargetsIncludeAICutoverDocs(t *testing.T) {
+func TestAICutoverDocsExistAndCarryExpectedTitles(t *testing.T) {
 	spec := readDoc(t, "superpowers/specs/2026-04-19-gormes-ai-cutover-design.md")
 	if !strings.Contains(spec, "Gormes.ai Hard Cutover Design Spec") {
 		t.Fatalf("cutover spec missing its title")
@@ -45,9 +19,11 @@ func TestTargetsIncludeAICutoverDocs(t *testing.T) {
 	}
 }
 
-func TestLandingPageDesignDocCoversApprovedStory(t *testing.T) {
+func TestLandingPageDesignDocDescribesCurrentGormesAIModule(t *testing.T) {
 	raw := readDoc(t, "superpowers/specs/2026-04-19-gormes-landing-page-design.md")
 	wants := []string{
+		"# Gormes.ai Landing Page Design Spec",
+		"`www.gormes.ai`",
 		"The Agent That GOes With You.",
 		"Phase 1 uses your existing Hermes backend.",
 		"Pure single-binary Go arrives later in the roadmap.",
@@ -61,14 +37,16 @@ func TestLandingPageDesignDocCoversApprovedStory(t *testing.T) {
 	}
 }
 
-func TestLandingPagePlanDocReferencesAICutoverImplementationFilesAndCommands(t *testing.T) {
+func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T) {
 	raw := readDoc(t, "superpowers/plans/2026-04-19-gormes-landing-page.md")
 	wants := []string{
+		"# Gormes.ai Landing Page Implementation Plan",
 		"www.gormes.ai/internal/site/assets.go",
 		"www.gormes.ai/internal/site/content.go",
 		"www.gormes.ai/internal/site/server.go",
 		"www.gormes.ai/internal/site/templates/*.tmpl",
 		"www.gormes.ai/internal/site/static/*",
+		"www.gormes.ai/README.md",
 		"www.gormes.ai/tests/home.spec.mjs",
 		"cd gormes && go test ./docs",
 		"npm run test:e2e",

@@ -1,15 +1,15 @@
-# Gormes.io Landing Page Design Spec
+# Gormes.ai Landing Page Design Spec
 
 **Date:** 2026-04-19
 **Author:** Xel (via Codex brainstorm)
 **Status:** Approved design direction; ready for planning
-**Scope:** A simple, high-performance public landing page for `www.gormes.io`, built in Go and targeted at current Hermes users evaluating the Phase 1 Go port.
+**Scope:** A simple, high-performance public landing page for `www.gormes.ai`, built in Go and targeted at current Hermes users evaluating the Phase 1 Go port.
 
 ---
 
 ## 1. Purpose
 
-`www.gormes.io` must explain Gormes in one screenful to the right audience:
+`www.gormes.ai` must explain Gormes in one screenful to the right audience:
 
 - existing Hermes users who want a faster terminal experience now;
 - contributors and early adopters who want to help finish the Go port.
