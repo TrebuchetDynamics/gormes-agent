@@ -1,7 +1,12 @@
-.PHONY: build test test-live lint fmt clean
+.PHONY: build run test test-live lint fmt clean
 
+# Strict static build: CGO disabled so the binary has zero C-library
+# dependencies and runs on Termux, Alpine, minimal Ubuntu LTS, etc.
 build:
-	go build -o bin/gormes ./cmd/gormes
+	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/gormes ./cmd/gormes
+
+run: build
+	./bin/gormes
 
 test:
 	go test ./...
