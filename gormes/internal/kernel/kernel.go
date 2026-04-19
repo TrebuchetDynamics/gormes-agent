@@ -154,95 +154,164 @@ func (k *Kernel) runTurn(ctx context.Context, text string) {
 	k.emitFrame("connecting")
 	prov.LogPOSTSent(k.log)
 
-	// 4. Retry loop — Route-B reconnect per spec §9.2.
-	retryBudget := NewRetryBudget()
+	// 4. Tool loop — wraps the Route-B retry loop. On finish_reason=="tool_calls"
+	// we execute the tools in-process and issue a follow-up stream with the
+	// tool results appended to the message history. Capped at MaxToolIterations
+	// to prevent runaway agent loops.
 	request := hermes.ChatRequest{
 		Model:     k.cfg.Model,
 		SessionID: k.sessionID,
 		Stream:    true,
 		Messages:  []hermes.Message{{Role: "user", Content: text}},
 	}
+	if k.cfg.Tools != nil {
+		descs := k.cfg.Tools.Descriptors()
+		wireDescs := make([]hermes.ToolDescriptor, len(descs))
+		for i, d := range descs {
+			wireDescs[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
+		}
+		request.Tools = wireDescs
+	}
+	maxIter := k.cfg.MaxToolIterations
+	if maxIter <= 0 {
+		maxIter = 10
+	}
 
 	var (
-		cancelled          bool
-		fatalErr           error
-		finalDelta         hermes.Event
-		gotFinal           bool
-		replaceOnNextToken bool // set when re-entering after reconnect
-		latestSessionID    string
+		cancelled       bool
+		fatalErr        error
+		finalDelta      hermes.Event
+		gotFinal        bool
+		latestSessionID string
+		toolIteration   = 0
 	)
 
 	start := time.Now()
 	k.tm.StartTurn()
 
-retryLoop:
+toolLoop:
 	for {
-		// Fresh per-attempt context so a cancelled stream doesn't poison the next attempt.
-		runCtx, cancelRun := context.WithCancel(ctx)
+		// Fresh retry budget each tool iteration — reconnect retries are for
+		// network drops, not for multi-round agent reasoning.
+		retryBudget := NewRetryBudget()
+		var replaceOnNextToken bool
 
-		stream, err := k.client.OpenStream(runCtx, request)
-		if err != nil {
+	retryLoop:
+		for {
+			runCtx, cancelRun := context.WithCancel(ctx)
+
+			stream, err := k.client.OpenStream(runCtx, request)
+			if err != nil {
+				cancelRun()
+				if hermes.Classify(err) == hermes.ClassRetryable && !retryBudget.Exhausted() {
+					k.phase = PhaseReconnecting
+					k.lastError = "reconnecting: " + err.Error()
+					k.emitFrame("reconnecting")
+					delay := retryBudget.NextDelay()
+					if werr := Wait(ctx, delay); werr != nil {
+						cancelled = true
+						break toolLoop
+					}
+					replaceOnNextToken = true
+					continue retryLoop
+				}
+				prov.ErrorClass = hermes.Classify(err).String()
+				prov.ErrorText = err.Error()
+				prov.LogError(k.log)
+				k.phase = PhaseFailed
+				k.lastError = err.Error()
+				k.emitFrame("open stream failed")
+				return
+			}
+
+			k.phase = PhaseStreaming
+			k.emitFrame("streaming")
+
+			outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken)
+			_ = stream.Close()
+			if sid := stream.SessionID(); sid != "" {
+				latestSessionID = sid
+			}
 			cancelRun()
-			if hermes.Classify(err) == hermes.ClassRetryable && !retryBudget.Exhausted() {
+
+			switch outcome {
+			case streamOutcomeDone:
+				break retryLoop
+			case streamOutcomeCancelled:
+				break toolLoop
+			case streamOutcomeFatal:
+				break toolLoop
+			case streamOutcomeRetryable:
+				if retryBudget.Exhausted() {
+					k.phase = PhaseFailed
+					k.lastError = "reconnect budget exhausted"
+					k.emitFrame("reconnect budget exhausted")
+					return
+				}
 				k.phase = PhaseReconnecting
-				k.lastError = "reconnecting: " + err.Error()
 				k.emitFrame("reconnecting")
 				delay := retryBudget.NextDelay()
 				if werr := Wait(ctx, delay); werr != nil {
 					cancelled = true
-					break retryLoop
+					break toolLoop
 				}
 				replaceOnNextToken = true
 				continue retryLoop
 			}
-			prov.ErrorClass = hermes.Classify(err).String()
-			prov.ErrorText = err.Error()
-			prov.LogError(k.log)
+		}
+
+		// retryLoop exited cleanly (EventDone received). Inspect finish_reason.
+		if !gotFinal {
+			fatalErr = fmt.Errorf("stream closed without finish_reason")
+			break toolLoop
+		}
+
+		if finalDelta.FinishReason != "tool_calls" {
+			// Normal end of turn. Exit the tool loop to finalise.
+			break toolLoop
+		}
+
+		// tool_calls round. Execute tools and append results to the request.
+		toolIteration++
+		if toolIteration > maxIter {
 			k.phase = PhaseFailed
-			k.lastError = err.Error()
-			k.emitFrame("open stream failed")
+			k.lastError = fmt.Sprintf("tool iteration limit exceeded (%d)", maxIter)
+			k.emitFrame(k.lastError)
 			return
 		}
 
-		k.phase = PhaseStreaming
-		k.emitFrame("streaming")
-
-		outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken)
-		_ = stream.Close()
-		if sid := stream.SessionID(); sid != "" {
-			latestSessionID = sid
-		}
+		runCtx, cancelRun := context.WithCancel(ctx)
+		results := k.executeToolCalls(runCtx, finalDelta.ToolCalls)
 		cancelRun()
 
-		switch outcome {
-		case streamOutcomeDone:
-			break retryLoop
-		case streamOutcomeCancelled:
-			break retryLoop
-		case streamOutcomeFatal:
-			// streamInner already set phase/lastError/emitted and populated fatalErr.
-			// Fall through to finalisation with fatalErr set so it logs and returns.
-			break retryLoop
-		case streamOutcomeRetryable:
-			if retryBudget.Exhausted() {
-				k.phase = PhaseFailed
-				k.lastError = "reconnect budget exhausted"
-				k.emitFrame("reconnect budget exhausted")
-				return
-			}
-			k.phase = PhaseReconnecting
-			k.emitFrame("reconnecting")
-			delay := retryBudget.NextDelay()
-			if werr := Wait(ctx, delay); werr != nil {
-				cancelled = true
-				break retryLoop
-			}
-			replaceOnNextToken = true
-			continue retryLoop
+		// Append the assistant's tool-requesting message plus one tool-result
+		// message per call. The draft so far is captured in the assistant
+		// message.
+		assistantMsg := hermes.Message{
+			Role:      "assistant",
+			Content:   k.draft,
+			ToolCalls: finalDelta.ToolCalls,
 		}
+		request.Messages = append(request.Messages, assistantMsg)
+		for _, r := range results {
+			request.Messages = append(request.Messages, hermes.Message{
+				Role:       "tool",
+				ToolCallID: r.ID,
+				Name:       r.Name,
+				Content:    r.Content,
+			})
+		}
+
+		// Clear draft between tool iterations — the next LLM response is a
+		// fresh continuation; the assistant message we appended captures
+		// what we had so far.
+		k.draft = ""
+		gotFinal = false
+		finalDelta = hermes.Event{}
+		k.emitFrame("executing tools")
 	}
 
-	// 5. Finalisation.
+	// 5. Finalisation (unchanged shape from Route-B).
 	latency := time.Since(start)
 	k.tm.FinishTurn(latency)
 	prov.LatencyMs = int(latency / time.Millisecond)
