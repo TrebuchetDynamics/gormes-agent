@@ -1,8 +1,18 @@
 # Gormes — Ignition (M0 + M1) Design Spec
 
+> **⚠️ SUPERSEDED — 2026-04-18**
+>
+> This spec described a greenfield parallel implementation where Gormes called OpenRouter directly. After a recon pass discovered that Hermes already exposes an **OpenAI-compatible HTTP+SSE server** (`gateway/platforms/api_server.py`, port 8642), the project pivoted to a Ship-of-Theseus strangler-fig architecture: Gormes is a Go *frontend adapter* that consumes Python's existing API, not a parallel rewrite.
+>
+> **Replaced by:** [`2026-04-18-gormes-frontend-adapter-design.md`](./2026-04-18-gormes-frontend-adapter-design.md)
+>
+> The content below is retained as historical record only. Do **not** implement from this document.
+
+---
+
 **Date:** 2026-04-18
 **Author:** Xel (via Claude Code brainstorm)
-**Status:** Approved for plan phase
+**Status:** SUPERSEDED — see header
 **Scope:** Milestones M0 (scaffolding) + M1 (TUI + one LLM provider) of the Gormes program.
 **Parent program:** Gormes — Go port of Hermes Agent. Upstream: `NousResearch/hermes-agent`. Fork: `XelHaku/golang-hermes-agent`.
 

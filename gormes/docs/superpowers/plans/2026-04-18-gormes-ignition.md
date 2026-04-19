@@ -1,5 +1,13 @@
 # Gormes Ignition (M0 + M1) Implementation Plan
 
+> **⚠️ DISCARDED — 2026-04-18**
+>
+> This plan implemented the superseded `2026-04-18-gormes-ignition-design.md`, which greenfield-rebuilt an OpenRouter client, SQLite schema, session layer, and prompt builder. Post-recon, all of that was found to already exist in the Python codebase and reachable via an OpenAI-compatible HTTP+SSE server. A new plan will be produced from `2026-04-18-gormes-frontend-adapter-design.md`.
+>
+> Do **not** execute the tasks below.
+
+---
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a Go binary at `gormes/cmd/gormes` that boots a Bubble Tea Debug/Dashboard TUI, streams one LLM turn against OpenRouter, and persists the conversation in SQLite — the vertical slice described in spec `docs/superpowers/specs/2026-04-18-gormes-ignition-design.md`.
