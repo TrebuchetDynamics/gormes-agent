@@ -418,68 +418,63 @@ A nil `Tools` registry means the kernel sends `ChatRequest.Tools = nil` and trea
 
 ---
 
-## 9. FeCIM Lattice Connector — Hysteresis + Crossbar
+## 9. External Tool Integration Shape (generic)
 
-`internal/tools/fecim/` ships **two** concrete Tool stubs, matching the two primary FeCIM operations the user has flagged:
+**Gormes ships NO domain-specific tools.** The built-ins in §6 (Echo, Now, RandInt) are the entirety of Gormes's tool surface in Phase 2.A. Scientific or business-domain tools — FeCIM (ferroelectrics), any Trebuchet Dynamics physics package, any third-party Go module — live in **their own repositories** and ship as **separate Go modules** that consumers import alongside Gormes.
 
-### 9.1 `HysteresisTool` (`fecim.HysteresisTool`)
+This decision is a first-class boundary, not an oversight:
 
-Models ferroelectric polarization under cyclic electric field. Tool schema (indicative):
+- **Gormes stays domain-neutral.** The public binary includes only general-purpose agent skills, which keeps the package tree, test matrix, and documentation focused on agentic capabilities. Scientific tooling evolves on its own release cycle.
+- **Licensing + IP cleanliness.** Private scientific packages don't end up vendored into a public agent binary. The user imports them explicitly in their own `cmd/gormes` fork when needed.
+- **Clean `tools.Tool` interface.** The interface is stable enough that external packages can satisfy it without any Gormes-side changes.
 
-```json
-{
-  "type": "object",
-  "properties": {
-    "material":         {"type": "string", "description": "ferroelectric stack id (e.g. 'PZT-4')"},
-    "field_amplitude":  {"type": "number", "description": "peak electric field in MV/m"},
-    "temperature_K":    {"type": "number", "default": 300},
-    "cycles":           {"type": "integer", "default": 10, "minimum": 1, "maximum": 1000}
-  },
-  "required": ["material", "field_amplitude"]
+### 9.1 How an external package wraps itself as a Tool
+
+Any Go package (`example.com/mylab/lattice`) exposes a Tool by defining a type that satisfies `tools.Tool`:
+
+```go
+package latticetool
+
+import (
+    "context"
+    "encoding/json"
+    "time"
+
+    "github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+    "example.com/mylab/lattice"
+)
+
+type HysteresisTool struct{}
+
+var _ tools.Tool = (*HysteresisTool)(nil)
+
+func (*HysteresisTool) Name() string                { return "lattice_hysteresis" }
+func (*HysteresisTool) Description() string         { return "..." }
+func (*HysteresisTool) Schema() json.RawMessage     { return json.RawMessage(`{...}`) }
+func (*HysteresisTool) Timeout() time.Duration      { return 30 * time.Second }
+func (*HysteresisTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
+    // unmarshal args, call into lattice package, marshal result
+    return json.Marshal(lattice.ComputeHysteresis(/* ... */))
 }
 ```
 
-Stubbed `Execute` returns a canned result:
-```json
-{"coercive_field_MV_per_m": 1.2, "remnant_P_uC_per_cm2": 25.4, "fatigue_factor": 0.97}
+The consumer's fork of Gormes registers it at startup:
+
+```go
+// cmd/gormes/main.go in the consumer's private fork
+reg := tools.NewRegistry()
+reg.MustRegister(&tools.EchoTool{})
+reg.MustRegister(&tools.NowTool{})
+reg.MustRegister(&tools.RandIntTool{})
+reg.MustRegister(&latticetool.HysteresisTool{})  // third-party
 ```
 
-Real implementation calls into the FeCIM Go package once F-1..F-5 are answered.
+### 9.2 What this means for Phase 2.A
 
-### 9.2 `CrossbarTool` (`fecim.CrossbarTool`)
-
-Queries a ferroelectric crossbar array's read/write characteristics. Tool schema (indicative):
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "array_size":    {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2, "description": "[rows, cols]"},
-    "cell_stack":    {"type": "string"},
-    "read_voltage_V":{"type": "number", "default": 0.2},
-    "precision":     {"type": "integer", "enum": [1, 2, 4, 8], "default": 4}
-  },
-  "required": ["array_size", "cell_stack"]
-}
-```
-
-Stubbed `Execute` returns a canned MVM (matrix-vector multiplication) benchmark:
-```json
-{"throughput_TOPS": 42.0, "cell_snr_dB": 28.5, "sneak_path_error_pct": 0.3}
-```
-
-### 9.3 Why two tools, not one
-
-FeCIM exposes distinct operations with different argument shapes and return schemas. Modelling them as two Tools lets the LLM reason about "should I measure hysteresis or query a crossbar?" as a real semantic choice, rather than one mega-tool with a union-type `operation` discriminator. This matches OpenAI's tool-calling best practice: **narrow, single-purpose tools.**
-
-### 9.4 Integration path
-
-- `internal/tools/fecim/fecim.go` — shared helpers (schema constants, error types)
-- `internal/tools/fecim/hysteresis.go` — `HysteresisTool` implementation
-- `internal/tools/fecim/crossbar.go` — `CrossbarTool` implementation
-- Compile-time checks: `var _ tools.Tool = (*HysteresisTool)(nil)` + `var _ tools.Tool = (*CrossbarTool)(nil)`
-
-When real FeCIM Go packages are imported, each `Execute` method's body changes but the interface does not. No other file in the repo changes. This is the template for every future power-user Tool (Trebuchet simulations, lattice dynamics, etc.).
+- No `internal/tools/fecim/` directory is created.
+- No `internal/tools/<any-domain>/` is created.
+- Phase 2.A's test matrix uses only the three built-ins plus `MockTool` for kernel integration tests.
+- The "Scientific Handshake" test in §11.2 is renamed **Tool-Call Handshake** and uses the built-in `Echo` tool — same end-to-end proof that the Kernel↔Tool contract works, no domain entanglement.
 
 ---
 
@@ -510,8 +505,8 @@ None of these crash the kernel or the process.
   - `TestRegistry_DescriptorsSorted` — Descriptors() is deterministic by name
 - `tools/builtin_test.go`: exercise Echo, Now, Rand happy paths + arg-validation edges.
 - `tools/mock_test.go`: **MockTool** implementation shared across kernel tests (see §11.4).
-- `tools/fecim/hysteresis_test.go`: compile-time interface check + canned Execute returns the documented schema shape.
-- `tools/fecim/crossbar_test.go`: compile-time interface check + canned Execute returns the documented schema shape.
+<!-- No fecim tests — Gormes ships no domain-specific tools (see §9). -->
+
 - `kernel/toolexec_test.go`:
   - `TestExecuteToolCalls_UnknownToolReturnsErrorResult`
   - `TestExecuteToolCalls_PanicRecovered`
@@ -564,7 +559,7 @@ These two tests are the user-requested invariant-preservation guard: tool-callin
 ## 12. Success Criteria
 
 1. `gormes/internal/tools/` compiles with `Tool` + `Registry` + 3 built-in tools + `MockTool` test double.
-2. `gormes/internal/tools/fecim/` compiles with `HysteresisTool` + `CrossbarTool` stubs, each satisfying `tools.Tool` via compile-time `var _ tools.Tool = ...` checks.
+2. No `gormes/internal/tools/<domain>/` subdirectory exists — domain-specific tools are external modules (see §9).
 3. `hermes.ChatRequest.Tools`, `hermes.Event.ToolCalls`, `hermes.Message.ToolCalls`/`ToolCallID`/`Name` fields exist and serialise correctly (per-field JSON tags verified by round-trip tests).
 4. `stream.go` accumulates tool-call deltas and emits a single `EventDone` with `ToolCalls` populated when `finish_reason == "tool_calls"`.
 5. `Kernel.Config` gains `Tools`, `MaxToolIterations`, `MaxToolDuration`.

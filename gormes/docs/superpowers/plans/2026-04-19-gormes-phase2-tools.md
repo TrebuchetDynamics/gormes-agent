@@ -677,7 +677,16 @@ EOF
 
 ---
 
-## Task 4: FeCIM tools — HysteresisTool + CrossbarTool stubs
+## Task 4: ~~FeCIM tools~~ — SUPERSEDED (SKIP)
+
+**Superseded 2026-04-19** per user clarification: FeCIM and Gormes are separate entities. Gormes ships no domain-specific tools; external Go modules register themselves as `tools.Tool` implementers in consumer forks. See spec §9 (revised).
+
+**Do not execute Task 4.** Proceed directly from Task 3 to Task 5. The entire original Task 4 content below is retained solely for historical reference.
+
+<details>
+<summary>Original Task 4 content (historical — do not implement)</summary>
+
+## Task 4 (HISTORICAL — do not execute): FeCIM tools — HysteresisTool + CrossbarTool stubs
 
 **Files:**
 - Create: `gormes/internal/tools/fecim/fecim.go`
@@ -970,6 +979,8 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
+
+</details>
 
 ---
 
@@ -1954,7 +1965,9 @@ EOF
 
 ---
 
-## Task 9: Kernel — invariant-preservation + Scientific Handshake tests
+## Task 9: Kernel — invariant-preservation + Tool-Call Handshake tests
+
+**Revised 2026-04-19:** FeCIM is external to Gormes (see spec §9 revision). The handshake test now uses the built-in `EchoTool` — same end-to-end proof that the Kernel↔Tool contract works, no domain entanglement.
 
 **Files:**
 - Create: `gormes/internal/kernel/tools_invariants_test.go`
@@ -1963,7 +1976,7 @@ EOF
 Two distinct tests in this task:
 
 1. **Invariant-preservation** — prove a tool call doesn't break Phase-1.5 replace-latest or Route-B. Ships PASSING.
-2. **Scientific Handshake** — end-to-end test using a MockTool that mimics the FeCIM Hysteresis response shape. Ships `t.Skip`'d only if the implementation can't satisfy it yet; aim to ship PASSING given Tasks 5–8 are complete.
+2. **Tool-Call Handshake** — end-to-end test using the built-in `EchoTool` from Task 2. Proves Gormes can call its own tools and resume the conversation perfectly.
 
 - [ ] **Step 1:** Create `gormes/internal/kernel/tools_invariants_test.go`:
 
@@ -2075,7 +2088,7 @@ func TestToolLoop_DoesNotBreakReplaceLatestMailbox(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2:** Create `gormes/internal/kernel/tools_test.go` — the Scientific Handshake. This test uses a MockTool that mimics the FeCIM Hysteresis response so the kernel can "think with scientific data" before the real FeCIM package is linked.
+- [ ] **Step 2:** Create `gormes/internal/kernel/tools_test.go` — the Tool-Call Handshake. This test uses the built-in `EchoTool` to prove Gormes can call its own tools and resume the conversation perfectly.
 
 ```go
 package kernel
@@ -2093,52 +2106,44 @@ import (
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
 )
 
-// TestKernel_FeCIMHysteresisHandshake is the "Scientific Handshake" test:
-// a MockTool mimicking the FeCIM HysteresisTool response shape proves that
-// the full SSE → tool-execution → history-append → response-finalisation
-// path works end-to-end before any real FeCIM code is linked.
+// TestKernel_ToolCallHandshake_Echo is the "Tool-Call Handshake" test:
+// proves the full SSE → tool-execution → history-append → response-
+// finalisation path works end-to-end using Gormes's own built-in EchoTool.
 //
-// This test pins down the contract between the Kernel and any future
-// scientific Tool: as long as a Tool returns JSON matching its advertised
-// schema, the Kernel should relay it back to the LLM and append the final
-// answer to history cleanly.
-func TestKernel_FeCIMHysteresisHandshake(t *testing.T) {
+// This test pins the Kernel↔Tool contract: as long as a Tool returns JSON
+// matching its schema, the Kernel relays it into the next LLM round and
+// finalises the assistant message in history cleanly. External domain
+// tools (scientific simulators, business-logic wrappers) inherit this
+// contract by satisfying the same Tool interface.
+func TestKernel_ToolCallHandshake_Echo(t *testing.T) {
 	mc := hermes.NewMockClient()
 
-	// Round 1: LLM requests the fecim_hysteresis tool with realistic args.
+	// Round 1: LLM requests the built-in `echo` tool with a deterministic arg.
 	mc.Script([]hermes.Event{
 		{
 			Kind: hermes.EventDone, FinishReason: "tool_calls",
 			ToolCalls: []hermes.ToolCall{
 				{
-					ID:        "call_hysteresis_1",
-					Name:      "fecim_hysteresis",
-					Arguments: json.RawMessage(`{"material":"PZT-4","field_amplitude":5.0,"temperature_K":300,"cycles":100}`),
+					ID:        "call_echo_1",
+					Name:      "echo",
+					Arguments: json.RawMessage(`{"text":"GoCo factory online"}`),
 				},
 			},
 		},
-	}, "sess-fecim")
+	}, "sess-echo")
 
-	// Round 2: LLM's final answer referencing the hysteresis data.
-	finalAnswer := "Coercive field 1.2 MV/m, remnant polarization 25.4 uC/cm^2, fatigue factor 0.97 over 100 cycles."
+	// Round 2: LLM's final answer referencing the echoed text.
+	finalAnswer := "Tool said: GoCo factory online."
 	events := []hermes.Event{}
 	for _, ch := range finalAnswer {
 		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: string(ch), TokensOut: 1})
 	}
 	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(finalAnswer)})
-	mc.Script(events, "sess-fecim")
+	mc.Script(events, "sess-echo")
 
-	// Mock tool mimicking FeCIM HysteresisTool's canned response.
+	// Register Gormes's own built-in EchoTool — no external/domain tools involved.
 	reg := tools.NewRegistry()
-	var capturedArgs json.RawMessage
-	reg.MustRegister(&tools.MockTool{
-		NameStr: "fecim_hysteresis",
-		Desc:    "mock FeCIM hysteresis",
-		ExecuteFn: func(_ context.Context, args json.RawMessage) (json.RawMessage, error) {
-			capturedArgs = args
-			return json.RawMessage(`{"coercive_field_MV_per_m":1.2,"remnant_P_uC_per_cm2":25.4,"fatigue_factor":0.97}`), nil
-		},
-	})
+	reg.MustRegister(&tools.EchoTool{})
 
 	k := New(Config{
 		Model:             "hermes-agent",
@@ -2154,7 +2159,7 @@ func TestKernel_FeCIMHysteresisHandshake(t *testing.T) {
 	go k.Run(ctx)
 
 	<-k.Render() // initial idle
-	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "measure hysteresis of PZT-4 at 5 MV/m, 100 cycles"}); err != nil {
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "echo 'GoCo factory online'"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2166,20 +2171,18 @@ func TestKernel_FeCIMHysteresisHandshake(t *testing.T) {
 		a := lastAssistantMessage(f.History)
 		return a != nil && a.Content == finalAnswer
 	}, 5*time.Second)
-	_ = final
 
-	// Assert the tool received the exact args the "LLM" sent.
-	if !strings.Contains(string(capturedArgs), `"material":"PZT-4"`) {
-		t.Errorf("capturedArgs = %s, want to contain material=PZT-4", capturedArgs)
-	}
-	if !strings.Contains(string(capturedArgs), `"field_amplitude":5`) {
-		t.Errorf("capturedArgs = %s, want to contain field_amplitude=5", capturedArgs)
+	// Assert the LAST assistant message is the round-2 response (not a hybrid).
+	a := lastAssistantMessage(final.History)
+	if a == nil || a.Content != finalAnswer {
+		t.Fatalf("final assistant content = %q, want %q", a.Content, finalAnswer)
 	}
 
-	// Assert the request history now includes role=tool with the FeCIM result.
-	// (We inspect via the assistant's content — it references the tool output,
-	// which proves the tool-result message made it into round 2's prompt.)
-	// This is the "Scientific Handshake": the agent thought with physics data.
+	// Sanity: the assistant content references the echoed text, which could
+	// only be true if the tool-result message made it into round 2's prompt.
+	if !strings.Contains(a.Content, "GoCo factory online") {
+		t.Errorf("final answer doesn't reference the echoed payload: %q", a.Content)
+	}
 }
 ```
 
@@ -2192,7 +2195,7 @@ cd gormes
 go test -race ./internal/kernel/... -run "TestToolLoop_DoesNotBreakReplaceLatestMailbox|TestKernel_FeCIMHysteresisHandshake" -v -timeout 60s
 ```
 
-Both PASS. If `TestKernel_FeCIMHysteresisHandshake` fails, investigate — most likely cause is that the kernel's tool loop isn't advancing to round 2, which is an implementation defect in Task 8.
+Both PASS. If `TestKernel_ToolCallHandshake_Echo` fails, investigate — most likely cause is that the kernel's tool loop isn't advancing to round 2, which is an implementation defect in Task 8.
 
 - [ ] **Step 4:** If a Route-B-with-tool test is additionally desired, add one more test here using the `stableProxy` + `fiveTokenHandler` helpers from `reconnect_helpers_test.go`. **Optional**: the mid-stream drop path is already heavily tested in `reconnect_test.go`; the tool-loop orthogonally tested in step 1–2 is sufficient for Phase-2.A. Skip step 4 unless implementing the additional test is quick.
 
@@ -2211,7 +2214,7 @@ All PASS. No DATA RACE. `vet` clean.
 cd ..
 git add gormes/internal/kernel/tools_invariants_test.go gormes/internal/kernel/tools_test.go
 git commit -m "$(cat <<'EOF'
-test(gormes/kernel): Phase-1.5 invariants + Scientific Handshake (FeCIM mock)
+test(gormes/kernel): Phase-1.5 invariants + Tool-Call Handshake (EchoTool)
 
 Two tests lock the Phase-2.A guarantees:
 
@@ -2221,19 +2224,21 @@ Two tests lock the Phase-2.A guarantees:
    the peeked frame after the stall must be latest state, never
    stale mid-stream.
 
-2. TestKernel_FeCIMHysteresisHandshake — the "Scientific Handshake"
-   proof. A MockTool mimicking FeCIM HysteresisTool's response shape
-   ({coercive_field_MV_per_m, remnant_P_uC_per_cm2, fatigue_factor})
-   fires round 1; round 2 streams a natural-language answer citing
-   those numbers. Asserts:
-     - the tool received the exact args the LLM sent
-     - the assistant's final history message cites the physics
-   This pins the Kernel↔Tool contract before any real FeCIM code
-   is linked: if any scientific Tool returns JSON matching its
-   schema, the Kernel will relay it into the next LLM round and
-   finalize cleanly.
+2. TestKernel_ToolCallHandshake_Echo — the Tool-Call Handshake.
+   Round 1: LLM requests the built-in "echo" tool with deterministic
+   args ({"text":"GoCo factory online"}). Round 2: LLM streams a
+   natural-language answer quoting the echoed text. Asserts:
+     - the final assistant history message is the round-2 response
+     - the answer references the echoed payload (proving the
+       tool-result made it into round 2's prompt)
+   Pins the Kernel↔Tool contract: any Tool returning JSON matching
+   its schema is relayed into the next LLM round and the turn
+   finalises cleanly. External domain tools inherit this contract
+   by satisfying the same interface; Gormes ships no such tools.
 
-Phase-2.A is now fully test-covered and ready for FeCIM integration.
+Phase-2.A is now fully test-covered. Domain-specific tools (scientific,
+business) live in separate repos and register themselves in consumer
+forks (spec §9).
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
