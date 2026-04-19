@@ -7,13 +7,20 @@ import (
 	"testing"
 )
 
+var landingPageTargets = []string{
+	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
+	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
+	"superpowers/specs/2026-04-19-gormes-landing-page-design.md",
+	"superpowers/plans/2026-04-19-gormes-landing-page.md",
+}
+
 func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-landing-page-design.md": false,
 		"superpowers/plans/2026-04-19-gormes-landing-page.md":        false,
 	}
 
-	for _, target := range targets {
+	for _, target := range landingPageTargets {
 		if _, ok := want[target]; ok {
 			want[target] = true
 		}

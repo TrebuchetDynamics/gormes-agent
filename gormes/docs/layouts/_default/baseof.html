@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="{{ site.Language.LanguageCode | default "en" }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+    {{ with .Params.description }}<meta name="description" content="{{ . }}">{{ end }}
+    <link rel="stylesheet" href="{{ "site.css" | relURL }}">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="{{ "/" | relURL }}">{{ site.Title }}</a>
+      <nav class="site-nav" aria-label="Sections">
+        <a href="{{ "/getting-started/" | relURL }}">Getting Started</a>
+        <a href="{{ "/user-guide/" | relURL }}">User Guide</a>
+        <a href="{{ "/guides/" | relURL }}">Guides</a>
+        <a href="{{ "/reference/" | relURL }}">Reference</a>
+      </nav>
+    </header>
+    <main class="site-main">
+      {{ block "main" . }}{{ end }}
+    </main>
+  </body>
+</html>

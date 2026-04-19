@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -12,69 +13,259 @@ import (
 	"github.com/yuin/goldmark/extension"
 )
 
-// Portability rules from spec §21.3: these patterns break some SSGs.
-var bannedPatterns = []struct {
-	name    string
-	pattern *regexp.Regexp
-}{
-	{"github-admonition", regexp.MustCompile(`^> \[!(NOTE|WARNING|TIP|IMPORTANT|CAUTION)\]`)},
-	{"root-relative-link", regexp.MustCompile(`\]\(/[^)]+\)`)},
-	{"raw-html-block", regexp.MustCompile(`(?m)^<(div|span|details|summary|section)\b`)},
+const (
+	sourceDocsRoot = "../../website/docs"
+	hugoContentRoot = "./content"
+)
+
+var (
+	bannedPatterns = []struct {
+		name    string
+		pattern *regexp.Regexp
+	}{
+		{"docusaurus-admonition", regexp.MustCompile(`(?m)^:::`)},
+		{"jsx-comment", regexp.MustCompile(`\{/\*.*\*/\}`)},
+		{"jsx-class-name", regexp.MustCompile(`className=`)},
+		{"root-relative-link", regexp.MustCompile(`\]\(/[^)]+\)`)},
+		{"raw-react-component", regexp.MustCompile(`(?m)^<[A-Z][A-Za-z0-9]*(?:\s|/|>)`)},
+	}
+	markdownLinkPattern = regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
+)
+
+func TestMirroredDocsCoverage(t *testing.T) {
+	sourcePaths := collectSourceDocs(t)
+	contentPaths := collectContentDocs(t)
+
+	expected := make(map[string]struct{}, len(sourcePaths))
+	for _, rel := range sourcePaths {
+		expected[mapSourceToContent(rel)] = struct{}{}
+	}
+
+	seen := make(map[string]struct{}, len(contentPaths))
+	for _, rel := range contentPaths {
+		seen[rel] = struct{}{}
+	}
+
+	for rel := range expected {
+		if _, ok := seen[rel]; !ok {
+			t.Fatalf("missing mirrored path %s", rel)
+		}
+	}
+	for rel := range seen {
+		if _, ok := expected[rel]; !ok {
+			t.Fatalf("unexpected content file %s", rel)
+		}
+	}
 }
 
-var targets = []string{
-	"ARCH_PLAN.md",
-	"THEORETICAL_ADVANTAGES_GORMES_HERMES.md",
-	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
-	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
-	"superpowers/specs/2026-04-19-gormes-landing-page-design.md",
-	"superpowers/plans/2026-04-19-gormes-landing-page.md",
-}
+func TestHugoContentRendersViaGoldmark(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(extension.GFM, extension.Table, extension.Strikethrough))
 
-func TestMarkdownRendersCleanViaGoldmark(t *testing.T) {
-	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM, extension.Table, extension.Strikethrough),
-	)
-	for _, rel := range targets {
+	for _, rel := range collectContentDocs(t) {
 		t.Run(rel, func(t *testing.T) {
-			raw, err := os.ReadFile(filepath.Join(".", rel))
+			raw, err := os.ReadFile(filepath.Join(hugoContentRoot, rel))
 			if err != nil {
 				t.Fatalf("read %s: %v", rel, err)
 			}
+
 			var buf bytes.Buffer
 			if err := md.Convert(raw, &buf); err != nil {
-				t.Errorf("goldmark render %s: %v", rel, err)
+				t.Fatalf("goldmark render %s: %v", rel, err)
 			}
 			if buf.Len() == 0 {
-				t.Errorf("goldmark produced empty output for %s", rel)
+				t.Fatalf("goldmark produced empty output for %s", rel)
 			}
 		})
 	}
 }
 
-func TestMarkdownAvoidsPortabilityHazards(t *testing.T) {
-	for _, rel := range targets {
+func TestHugoContentAvoidsPortabilityHazards(t *testing.T) {
+	for _, rel := range collectContentDocs(t) {
 		t.Run(rel, func(t *testing.T) {
-			raw, err := os.ReadFile(filepath.Join(".", rel))
+			raw, err := os.ReadFile(filepath.Join(hugoContentRoot, rel))
 			if err != nil {
 				t.Fatalf("read %s: %v", rel, err)
 			}
-			inFence := false
-			for i, line := range strings.Split(string(raw), "\n") {
-				trimmed := strings.TrimSpace(line)
-				if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-					inFence = !inFence
-					continue
-				}
-				if inFence {
-					continue
-				}
-				for _, b := range bannedPatterns {
-					if b.pattern.MatchString(line) {
-						t.Errorf("%s:%d %s — %q", rel, i+1, b.name, line)
-					}
-				}
-			}
+
+			scanForHazards(t, rel, string(raw))
 		})
 	}
+}
+
+func TestHugoInternalLinksResolve(t *testing.T) {
+	for _, rel := range collectContentDocs(t) {
+		raw, err := os.ReadFile(filepath.Join(hugoContentRoot, rel))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+
+		inFence := false
+		for _, line := range strings.Split(string(raw), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+				inFence = !inFence
+				continue
+			}
+			if inFence {
+				continue
+			}
+
+			for _, match := range markdownLinkPattern.FindAllStringSubmatch(line, -1) {
+				if strings.HasPrefix(strings.TrimSpace(line), "![") {
+					continue
+				}
+				link := strings.TrimSpace(match[1])
+				if link == "" || isExternalLink(link) || strings.HasPrefix(link, "#") {
+					continue
+				}
+				if strings.HasPrefix(link, "/") {
+					t.Fatalf("%s: root-relative internal link %q", rel, link)
+				}
+				if err := resolveContentLink(rel, link); err != nil {
+					t.Fatalf("%s: unresolved internal link %q: %v", rel, link, err)
+				}
+			}
+		}
+	}
+}
+
+func collectSourceDocs(t *testing.T) []string {
+	t.Helper()
+
+	var paths []string
+	err := filepath.WalkDir(sourceDocsRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(sourceDocsRoot, path)
+		if err != nil {
+			return err
+		}
+		if !isMirroredSourceFile(rel) {
+			return nil
+		}
+		paths = append(paths, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk source docs: %v", err)
+	}
+	sort.Strings(paths)
+
+	return paths
+}
+
+func collectContentDocs(t *testing.T) []string {
+	t.Helper()
+
+	var paths []string
+	err := filepath.WalkDir(hugoContentRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) != ".md" {
+			return nil
+		}
+		rel, err := filepath.Rel(hugoContentRoot, path)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk hugo content: %v", err)
+	}
+	sort.Strings(paths)
+
+	return paths
+}
+
+func isMirroredSourceFile(rel string) bool {
+	switch filepath.Base(rel) {
+	case "_category_.json", "index.md":
+		return true
+	}
+	return filepath.Ext(rel) == ".md"
+}
+
+func mapSourceToContent(rel string) string {
+	rel = filepath.ToSlash(rel)
+	if rel == "index.md" {
+		return "_index.md"
+	}
+	if strings.HasSuffix(rel, "/index.md") {
+		return strings.TrimSuffix(rel, "index.md") + "_index.md"
+	}
+	if strings.HasSuffix(rel, "/_category_.json") {
+		return strings.TrimSuffix(rel, "_category_.json") + "_index.md"
+	}
+	return rel
+}
+
+func scanForHazards(t *testing.T, rel, raw string) {
+	t.Helper()
+
+	inFence := false
+	for i, line := range strings.Split(raw, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		for _, hazard := range bannedPatterns {
+			if hazard.pattern.MatchString(line) {
+				t.Fatalf("%s:%d %s: %q", rel, i+1, hazard.name, line)
+			}
+		}
+	}
+}
+
+func isExternalLink(link string) bool {
+	switch {
+	case strings.HasPrefix(link, "http://"),
+		strings.HasPrefix(link, "https://"),
+		strings.HasPrefix(link, "mailto:"),
+		strings.HasPrefix(link, "tel:"),
+		strings.HasPrefix(link, "ftp://"),
+		strings.HasPrefix(link, "//"):
+		return true
+	default:
+		return false
+	}
+}
+
+func resolveContentLink(sourceRel, link string) error {
+	sourceDir := filepath.Dir(filepath.Join(hugoContentRoot, sourceRel))
+	target := link
+	if idx := strings.IndexAny(target, "?#"); idx >= 0 {
+		target = target[:idx]
+	}
+	candidate := filepath.Clean(filepath.Join(sourceDir, target))
+
+	checks := []string{
+		candidate + ".md",
+		filepath.Join(candidate, "_index.md"),
+		filepath.Join(candidate, "index.md"),
+	}
+	if strings.HasSuffix(target, "/") {
+		checks = append([]string{filepath.Join(candidate, "_index.md")}, checks...)
+	}
+
+	for _, check := range checks {
+		if _, err := os.Stat(check); err == nil {
+			return nil
+		}
+	}
+
+	return os.ErrNotExist
 }
