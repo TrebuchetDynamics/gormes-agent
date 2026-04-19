@@ -7,15 +7,6 @@ import (
 	"testing"
 )
 
-var targets = []string{
-	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
-	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
-	"superpowers/specs/2026-04-19-gormes-landing-page-design.md",
-	"superpowers/plans/2026-04-19-gormes-landing-page.md",
-	"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md",
-	"superpowers/plans/2026-04-19-gormes-ai-cutover.md",
-}
-
 func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 	want := map[string]bool{
 		"superpowers/specs/2026-04-19-gormes-landing-page-design.md": false,
