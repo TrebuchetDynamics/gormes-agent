@@ -59,10 +59,20 @@ type orMessage struct {
 	Content string `json:"content"`
 }
 
+type orToolDescriptor struct {
+	Type     string `json:"type"`
+	Function struct {
+		Name        string          `json:"name"`
+		Description string          `json:"description"`
+		Parameters  json.RawMessage `json:"parameters"`
+	} `json:"function"`
+}
+
 type orChatRequest struct {
-	Model    string      `json:"model"`
-	Messages []orMessage `json:"messages"`
-	Stream   bool        `json:"stream"`
+	Model    string              `json:"model"`
+	Messages []orMessage         `json:"messages"`
+	Stream   bool                `json:"stream"`
+	Tools    []orToolDescriptor  `json:"tools,omitempty"`
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
@@ -70,7 +80,18 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 	for i, m := range req.Messages {
 		msgs[i] = orMessage{Role: m.Role, Content: m.Content}
 	}
-	body, err := json.Marshal(orChatRequest{Model: req.Model, Messages: msgs, Stream: true})
+	tools := make([]orToolDescriptor, len(req.Tools))
+	for i, t := range req.Tools {
+		tools[i] = orToolDescriptor{
+			Type: "function",
+			Function: struct {
+				Name        string          `json:"name"`
+				Description string          `json:"description"`
+				Parameters  json.RawMessage `json:"parameters"`
+			}{Name: t.Name, Description: t.Description, Parameters: t.Schema},
+		}
+	}
+	body, err := json.Marshal(orChatRequest{Model: req.Model, Messages: msgs, Stream: true, Tools: tools})
 	if err != nil {
 		return nil, err
 	}

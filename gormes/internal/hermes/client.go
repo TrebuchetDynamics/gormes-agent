@@ -39,11 +39,47 @@ type ChatRequest struct {
 	Messages  []Message
 	SessionID string
 	Stream    bool
+	Tools     []ToolDescriptor // omitempty at wire time via the Marshal path in http_client
+}
+
+// ToolDescriptor mirrors tools.ToolDescriptor so hermes stays
+// dependency-free of the tools package. Serialised shape is
+// OpenAI's {"type":"function","function":{...}} wrapper — the
+// kernel populates Tools by calling tools.Registry.Descriptors()
+// and converting them.
+type ToolDescriptor struct {
+	Name        string
+	Description string
+	Schema      json.RawMessage
+}
+
+// MarshalJSON for ToolDescriptor wraps in OpenAI's function envelope.
+func (d ToolDescriptor) MarshalJSON() ([]byte, error) {
+	inner := struct {
+		Name        string          `json:"name"`
+		Description string          `json:"description"`
+		Parameters  json.RawMessage `json:"parameters"`
+	}{Name: d.Name, Description: d.Description, Parameters: d.Schema}
+	wrap := struct {
+		Type     string `json:"type"`
+		Function any    `json:"function"`
+	}{Type: "function", Function: inner}
+	return json.Marshal(wrap)
 }
 
 type Message struct {
-	Role    string // "system" | "user" | "assistant"
-	Content string
+	Role       string     `json:"role"`
+	Content    string     `json:"content"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`   // set only on assistant messages that requested tools
+	ToolCallID string     `json:"tool_call_id,omitempty"` // set only on "tool" role messages replying to a call
+	Name       string     `json:"name,omitempty"`         // set only on "tool" role messages; echoes the tool name
+}
+
+// ToolCall is one function-call request made by the LLM.
+type ToolCall struct {
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
 }
 
 type Event struct {
@@ -53,6 +89,7 @@ type Event struct {
 	FinishReason string
 	TokensIn     int
 	TokensOut    int
+	ToolCalls    []ToolCall // populated only on EventDone with FinishReason=="tool_calls"
 	Raw          json.RawMessage
 }
 
