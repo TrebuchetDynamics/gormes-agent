@@ -71,9 +71,12 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 
 	tm := telemetry.New()
 	k := kernel.New(kernel.Config{
-		Model:     cfg.Hermes.Model,
-		Endpoint:  cfg.Hermes.Endpoint,
-		Admission: kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
+		Model:             cfg.Hermes.Model,
+		Endpoint:          cfg.Hermes.Endpoint,
+		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
+		Tools:             buildDefaultRegistry(),
+		MaxToolIterations: 10,
+		MaxToolDuration:   30 * time.Second,
 	}, c, store.NewNoop(), tm, slog.Default())
 
 	go k.Run(rootCtx)
