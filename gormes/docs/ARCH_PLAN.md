@@ -36,7 +36,7 @@ During Phases 1–4, Go is the chassis (orchestrator, state, persistence, platfo
 
 | Phase | Status | Deliverable |
 |---|---|---|
-| Phase 1 — The Dashboard (Face) | 🔨 in progress | Go TUI over Python's `api_server` HTTP+SSE boundary |
+| Phase 1 — The Dashboard (Face) | ✅ complete | Go TUI over Python's `api_server` HTTP+SSE boundary |
 | Phase 2 — The Wiring Harness (Gateway) | ⏳ planned | Multi-platform adapters in Go (Telegram, Discord, Slack, …) |
 | Phase 3 — The Black Box (Memory) | ⏳ planned | SQLite + FTS5 + ontological graph in Go |
 | Phase 4 — The Powertrain (Brain Transplant) | ⏳ planned | Native Go agent orchestrator + prompt builder |
