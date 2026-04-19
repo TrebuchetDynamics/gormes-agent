@@ -1,10 +1,8 @@
 package site
 
 import (
+	"io/fs"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -38,42 +36,33 @@ func TestServer_RendersApprovedPhase1Story(t *testing.T) {
 	}
 }
 
-func TestServer_RendersWithoutModuleRootTemplates(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+func TestEmbeddedTemplates_ArePresentAndParse(t *testing.T) {
+	files := []string{
+		"templates/layout.tmpl",
+		"templates/index.tmpl",
+		"templates/partials/code_block.tmpl",
+		"templates/partials/feature_card.tmpl",
+		"templates/partials/phase_item.tmpl",
 	}
 
-	root := filepath.Join(filepath.Dir(file), "..", "..")
-	templatesDir := filepath.Join(root, "templates")
-	hiddenDir := templatesDir + ".hidden-for-test"
-
-	if _, err := os.Stat(templatesDir); err == nil {
-		if err := os.Rename(templatesDir, hiddenDir); err != nil {
-			t.Fatalf("hide module-root templates: %v", err)
+	for _, name := range files {
+		body, err := fs.ReadFile(templateFS, name)
+		if err != nil {
+			t.Fatalf("embedded template %q missing: %v", name, err)
 		}
-		defer func() {
-			if err := os.Rename(hiddenDir, templatesDir); err != nil {
-				t.Fatalf("restore module-root templates: %v", err)
-			}
-		}()
-	} else if !os.IsNotExist(err) {
-		t.Fatalf("stat module-root templates: %v", err)
+		if len(body) == 0 {
+			t.Fatalf("embedded template %q is empty", name)
+		}
 	}
 
-	handler, err := NewServer()
+	templates, err := parseTemplates()
 	if err != nil {
-		t.Fatalf("NewServer: %v", err)
+		t.Fatalf("parseTemplates: %v", err)
 	}
 
-	req := httptest.NewRequest("GET", "/", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != 200 {
-		t.Fatalf("status = %d, want 200", rr.Code)
-	}
-	if !strings.Contains(rr.Body.String(), "The Agent That GOes With You.") {
-		t.Fatalf("body missing embedded landing page content:\n%s", rr.Body.String())
+	for _, want := range []string{"layout", "index", "code_block", "feature_card", "phase_item"} {
+		if templates.Lookup(want) == nil {
+			t.Fatalf("parsed templates missing %q", want)
+		}
 	}
 }
