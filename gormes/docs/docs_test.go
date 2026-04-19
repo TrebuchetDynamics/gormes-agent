@@ -3,6 +3,7 @@ package docs_test
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -14,7 +15,7 @@ import (
 )
 
 const (
-	sourceDocsRoot = "../../website/docs"
+	sourceDocsRoot  = "../../website/docs"
 	hugoContentRoot = "./content"
 )
 
@@ -215,6 +216,7 @@ func scanForHazards(t *testing.T, rel, raw string) {
 	inFence := false
 	for i, line := range strings.Split(raw, "\n") {
 		trimmed := strings.TrimSpace(line)
+		isImageLine := strings.HasPrefix(trimmed, "![")
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
 			inFence = !inFence
 			continue
@@ -223,6 +225,9 @@ func scanForHazards(t *testing.T, rel, raw string) {
 			continue
 		}
 		for _, hazard := range bannedPatterns {
+			if hazard.name == "root-relative-link" && isImageLine {
+				continue
+			}
 			if hazard.pattern.MatchString(line) {
 				t.Fatalf("%s:%d %s: %q", rel, i+1, hazard.name, line)
 			}
@@ -268,4 +273,46 @@ func resolveContentLink(sourceRel, link string) error {
 	}
 
 	return os.ErrNotExist
+}
+
+func TestHugoBuildProducesRenderedContent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skip Hugo build in short mode")
+	}
+
+	dest := t.TempDir()
+	cmd := exec.Command("go", "run", "github.com/gohugoio/hugo@v0.160.1", "--panicOnWarning", "--cleanDestinationDir", "--destination", dest)
+	cmd.Dir = "."
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("hugo build failed: %v\n%s", err, output)
+	}
+
+	checks := map[string][]string{
+		"index.html": {
+			"Hermes Agent Documentation",
+			"Messaging Gateway",
+		},
+		filepath.Join("user-guide", "cli", "index.html"): {
+			"Stylized preview of the Hermes CLI layout",
+			"The Hermes CLI banner, conversation stream, and fixed input prompt",
+		},
+		filepath.Join("user-guide", "sessions", "index.html"): {
+			"Stylized preview of the Previous Conversation recap panel",
+			"Resume mode shows a compact recap panel",
+		},
+	}
+
+	for rel, wants := range checks {
+		raw, err := os.ReadFile(filepath.Join(dest, rel))
+		if err != nil {
+			t.Fatalf("read rendered %s: %v", rel, err)
+		}
+		content := string(raw)
+		for _, want := range wants {
+			if !strings.Contains(content, want) {
+				t.Fatalf("rendered %s missing %q", rel, want)
+			}
+		}
+	}
 }

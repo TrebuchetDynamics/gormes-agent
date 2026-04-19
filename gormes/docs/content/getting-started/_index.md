@@ -1,6 +1,14 @@
 ---
 title: "Getting Started"
 description: "Get up and running with Hermes Agent in minutes."
+weight: 1
 ---
 
-This section mirrors the Hermes docs IA from `website/docs/getting-started` in Hugo-safe stub form.
+{
+  "label": "Getting Started",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "Get up and running with Hermes Agent in minutes."
+  }
+}

@@ -1,6 +1,11 @@
 ---
 title: "Guides & Tutorials"
-description: "Mirrored section for the Hermes docs source category guides."
+weight: 2
 ---
 
-This section mirrors the Hermes docs IA from `website/docs/guides` in Hugo-safe stub form.
+{
+  "label": "Guides & Tutorials",
+  "position": 2,
+  "collapsible": true,
+  "collapsed": false
+}

@@ -1,6 +1,14 @@
 ---
 title: "User Guide"
 description: "Learn how to use Hermes Agent effectively."
+weight: 2
 ---
 
-This section mirrors the Hermes docs IA from `website/docs/user-guide` in Hugo-safe stub form.
+{
+  "label": "User Guide",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Learn how to use Hermes Agent effectively."
+  }
+}

@@ -1,6 +1,14 @@
 ---
 title: "Developer Guide"
 description: "Contribute to Hermes Agent — architecture, tools, skills, and more."
+weight: 3
 ---
 
-This section mirrors the Hermes docs IA from `website/docs/developer-guide` in Hugo-safe stub form.
+{
+  "label": "Developer Guide",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "Contribute to Hermes Agent — architecture, tools, skills, and more."
+  }
+}

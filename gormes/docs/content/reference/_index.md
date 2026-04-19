@@ -1,6 +1,14 @@
 ---
 title: "Reference"
 description: "Complete reference for CLI commands, environment variables, and configuration."
+weight: 4
 ---
 
-This section mirrors the Hermes docs IA from `website/docs/reference` in Hugo-safe stub form.
+{
+  "label": "Reference",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Complete reference for CLI commands, environment variables, and configuration."
+  }
+}

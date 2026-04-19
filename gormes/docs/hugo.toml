@@ -1,4 +1,6 @@
-baseURL = "https://example.org/"
+baseURL = "https://docs.gormes.io/"
 languageCode = "en-us"
 title = "Gormes Docs"
 
+[markup.goldmark.renderer]
+unsafe = true

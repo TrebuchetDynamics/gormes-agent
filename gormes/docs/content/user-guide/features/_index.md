@@ -1,6 +1,14 @@
 ---
 title: "Features"
 description: "Explore the powerful features of Hermes Agent."
+weight: 4
 ---
 
-This section mirrors the Hermes docs IA from `website/docs/user-guide/features` in Hugo-safe stub form.
+{
+  "label": "Features",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Explore the powerful features of Hermes Agent."
+  }
+}
