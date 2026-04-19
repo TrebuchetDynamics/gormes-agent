@@ -1,17 +1,17 @@
 {{define "index"}}
-<section aria-labelledby="hero-title">
-  <p>Hermes<br>Agent</p>
-  <p>{{.HeroBadge}}</p>
+<section class="hero" aria-labelledby="hero-title">
+  <p class="hero-mark">Hermes<br>Agent</p>
+  <p class="hero-badge">{{.HeroBadge}}</p>
   <h1 id="hero-title">{{.HeroHeadline}}</h1>
   {{range .HeroCopy}}
-  <p>{{.}}</p>
+  <p class="hero-copy">{{.}}</p>
   {{end}}
-  <p>
-    <a href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
-    <a href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
-    <a href="{{.TertiaryCTA.Href}}">{{.TertiaryCTA.Label}}</a>
+  <p class="hero-cta-row">
+    <a class="hero-cta hero-cta-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
+    <a class="hero-cta hero-cta-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
+    <a class="hero-cta hero-cta-secondary" href="{{.TertiaryCTA.Href}}">{{.TertiaryCTA.Label}}</a>
   </p>
-  <p>{{.PhaseNote}}</p>
+  <p class="hero-phase-note">{{.PhaseNote}}</p>
 </section>
 
 <section id="quickstart" aria-labelledby="quickstart-title">
