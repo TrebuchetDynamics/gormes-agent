@@ -24,6 +24,7 @@ var bannedPatterns = []struct {
 
 var targets = []string{
 	"ARCH_PLAN.md",
+	"THEORETICAL_ADVANTAGES_GORMES_HERMES.md",
 	"superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md",
 	"superpowers/plans/2026-04-18-gormes-phase1-frontend-adapter.md",
 }
