@@ -1,10 +1,13 @@
 # Gormes — Phase 1 Frontend Adapter Design Spec
 
 **Date:** 2026-04-18
-**Author:** Xel (via Claude Code brainstorm, post-recon)
+**Author:** Xel (via Claude Code brainstorm, post-recon + kernel-discipline merge)
 **Status:** Draft — awaiting approval
 **Scope:** Phase 1 of the 5-phase Ship-of-Theseus port: the "GoCo Dashboard".
-**Supersedes:** [`2026-04-18-gormes-ignition-design.md`](./2026-04-18-gormes-ignition-design.md)
+**Supersedes:** [`2026-04-18-gormes-ignition-design.md`](./2026-04-18-gormes-ignition-design.md) (greenfield, pre-recon)
+**Absorbs:** [`2026-04-18-gormes-ignition-deterministic-kernel-design.md`](./2026-04-18-gormes-ignition-deterministic-kernel-design.md) — kernel disciplines only; its Phase-4-shaped architecture is retained in that file as the Phase-4 target.
+
+**Architectural stance:** macro-architecture = Ship of Theseus (Python owns LLM/state; Go is a client in Phase 1). Micro-architecture = deterministic kernel (single-owner state, bounded mailboxes, pull-based streams, render-frame coalescing, admission before execution, cancellation leak-freedom). Even though Go is "just a client", its internal state machine is built with the discipline of a backend — so Phase 4 absorbs the agent loop without a rewrite.
 
 ---
 
@@ -49,6 +52,18 @@ Preserved from superseded spec: all Go dependencies are pure-Go for static cross
 ### 3.5 HTTP contract stability
 Upstream Python may refactor `api_server.py` internals freely. The OpenAI-compatible wire contract is stable by virtue of being public OpenAI-compatible — LobeChat, Open WebUI, and others depend on it. Gormes shares that moat.
 
+### 3.6 Single-Owner Kernel (Micro-Architecture)
+One goroutine — the **kernel** — owns the turn state machine, the assistant draft buffer, the current phase, and the render snapshot. Every other goroutine (TUI loop, HTTP client, SSE reader, telemetry ticker) is an **edge adapter** that communicates with the kernel through explicitly-bounded mailboxes. No cross-ownership, no shared mutexes outside well-defined edge adapters, no goroutine reaches into the kernel's fields. Phase 4 replaces the kernel's "POST and stream" body with "call the LLM and stream" without touching any adapter — that's what single-owner discipline buys.
+
+### 3.7 Bounded Mailboxes, Explicit Saturation
+Every channel has a capacity and a saturation policy (block, drop-oldest, replace-latest, or fail-fast with a deadline). There are no unbounded queues anywhere in Gormes. The LLM can produce 200 tokens/sec bursts and the TUI can stall on a resize — neither failure mode can OOM the other.
+
+### 3.8 Admission Before Execution
+The kernel rejects work at the edge of Go, not at the edge of Python. Oversized pastes, empty inputs, and in-flight-turn-collisions are rejected in-kernel before the HTTP POST fires. Python's `context-length` errors are treated as a local admission bug, not a normal control path. In Phase 1 the admission rules are lightweight (byte/line/concurrency limits); Phase 4 absorbs the full context planner from the deterministic-kernel spec.
+
+### 3.9 Cancellation Leak-Freedom
+Every active turn gets a child context. Every mailbox send is `select { case mailbox <- msg: ; case <-ctx.Done(): return }`. Every goroutine exits on ctx cancellation. Testing asserts zero goroutine leaks after cancel, zero mailbox growth under provider overrun, and zero process hangs under stalled-adapter scenarios (§15.5).
+
 ---
 
 ## 4. Prerequisites
@@ -72,60 +87,71 @@ Gormes reports a clear error if the api_server is unreachable and suggests the e
 ## 5. Process Model
 
 ```
-┌──────────────────────────────────────────┐       ┌──────────────────────────────────┐
-│            gormes (Go, pid N)             │       │   hermes gateway (Python, pid M) │
-│                                           │       │                                  │
-│   ┌──────────┐   UIUpdate   ┌──────────┐ │       │   ┌──────────────┐              │
-│   │   TUI    │◄─────────────│   hub    │ │ HTTP  │   │ api_server   │              │
-│   │(bubbleT) │──UserInput──►│(orch+evt)│─┼──POST ┼──►│ :8642        │              │
-│   └──────────┘              └────┬─────┘ │       │   └──────┬───────┘              │
-│                                  │       │       │          │                       │
-│                            ┌─────▼─────┐ │ SSE   │   ┌──────▼───────┐              │
-│                            │   SSE     │◄┼───────┼───│   Agent      │              │
-│                            │  client   │ │       │   │  (litellm,   │              │
-│                            └───────────┘ │       │   │   skills,    │              │
-│                                           │       │   │   memory)    │              │
-└───────────────────────────────────────────┘       │   └──────────────┘              │
-                                                    │          │                       │
-                                                    │     state.db (owned by Python)  │
-                                                    └──────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐       ┌──────────────────────────────────┐
+│                 gormes (Go, pid N)                     │       │   hermes gateway (Python, pid M) │
+│                                                        │       │                                  │
+│   ┌──────────┐   RenderFrame   ┌──────────────┐      │       │   ┌──────────────┐              │
+│   │   TUI    │◄────(cap=1)─────│              │      │       │   │ api_server   │              │
+│   │(bubbleT) │────PlatformEvt─►│   KERNEL     │ HTTP │       │   │ :8642        │              │
+│   └──────────┘    (cap=16)    │ (single-owner)│──POST┼──────►│   └──────┬───────┘              │
+│                                │ state machine│      │       │          │                       │
+│                                │              │ pull │ SSE   │          ▼                       │
+│                                │   Recv() ────┼──────┼───────┼── Agent (litellm, skills,       │
+│                                │              │      │       │          memory)                  │
+│                                └──────────────┘      │       │          │                       │
+│                                       ▲              │       │     state.db (owned by Python)   │
+│                            StoreCmd   │ Ack (≤250ms) │       │                                  │
+│                             (cap=16)  │              │       │                                  │
+│                                       ▼              │       │                                  │
+│                                (no-op store stub     │       │                                  │
+│                                 in Phase 1; real     │       │                                  │
+│                                 store lands Phase 3) │       │                                  │
+└───────────────────────────────────────────────────────┘       └──────────────────────────────────┘
 ```
 
-Three Go actors, all channel-based:
+**Four actors. One owns state; three are edge adapters.**
 
-- **TUI actor** — Bubble Tea loop. Consumes `UIUpdate`; emits `UserInput`.
-- **Hub actor** — one goroutine that owns turn lifecycle: POSTs `/v1/chat/completions`, opens the SSE body, feeds deltas into the TUI. Also owns the `/v1/runs/{id}/events` subscription when a run is in flight.
-- **SSE client** — per-request goroutine that parses server-sent events and publishes them on a channel the hub consumes.
+- **KERNEL** (single-owner goroutine) — owns the phase state machine (§7.5), the assistant draft buffer, the render snapshot, and turn cancellation. Never touched directly by adapters.
+- **TUI adapter** (Bubble Tea loop) — consumes `RenderFrame` from a capacity-1 mailbox with *replace-latest* saturation; emits `PlatformEvent` to the kernel through a capacity-16 mailbox with *fail-fast* saturation.
+- **HTTP+SSE adapter** (`internal/hermes`) — per-turn goroutine. Kernel calls `client.OpenStream(ctx, req)` and pulls events via `Recv(ctx)`. The adapter exits on ctx cancel or stream EOF; the kernel owns pacing.
+- **Store adapter** (no-op in Phase 1; stub interface present) — accepts persistence commands on a capacity-16 mailbox with an ack deadline. If ack is not received within 250 ms, the kernel stops admitting new turns and transitions to `Failed`. This matches the deterministic-kernel discipline from day one, even though Phase 1's store is a no-op.
 
 ---
 
 ## 6. Directory Layout
 
-Compared to the superseded spec, **4 packages disappear entirely** (`db`, `session`, `provider`, `pybridge`), and `agent` shrinks to a thin hub.
-
 ```
 gormes/
 ├── cmd/gormes/main.go
 ├── internal/
-│   ├── hermes/                    # HTTP+SSE client for api_server
-│   │   ├── client.go              # POST /v1/chat/completions, /v1/runs
-│   │   ├── sse.go                 # SSE frame parser
-│   │   ├── events.go              # /v1/runs/{id}/events subscriber
+│   ├── kernel/                    # single-owner state machine + render snapshot
+│   │   ├── kernel.go              # Run loop; Phase enum; mailbox wiring
+│   │   ├── frame.go               # RenderFrame type + coalescing (16ms flush)
+│   │   ├── admission.go           # local input admission (byte/line/concurrency)
+│   │   ├── provenance.go          # in-memory correlation: local RunID ↔ server IDs
+│   │   └── kernel_test.go
+│   ├── hermes/                    # HTTP+SSE edge adapter
+│   │   ├── client.go              # Client with OpenStream() pull-based API
+│   │   ├── stream.go              # Stream interface + Recv()
+│   │   ├── sse.go                 # SSE frame parser (bounded read buffer)
+│   │   ├── events.go              # /v1/runs/{id}/events subscriber (pull)
 │   │   ├── errors.go              # Classify(), HTTPError
 │   │   └── client_test.go
-│   ├── hub/                       # turn orchestrator (no LLM logic)
-│   │   ├── hub.go
-│   │   └── hub_test.go
+│   ├── store/                     # no-op store stub (Phase 1) + interface
+│   │   ├── store.go               # Store interface + NoopStore impl
+│   │   └── store_test.go
+│   ├── pybridge/                  # runtime seam stub (Phase 5 target)
+│   │   └── pybridge.go            # Runtime interface + Invocation stubs
 │   ├── tui/
-│   │   ├── model.go
+│   │   ├── model.go               # TUI Model — renders newest RenderFrame ONLY
 │   │   ├── view.go
 │   │   ├── update.go
 │   │   └── tui_test.go
 │   ├── config/
-│   │   ├── config.go              # env + XDG + flags + TOML
+│   │   ├── config.go
 │   │   └── config_test.go
 │   └── telemetry/
-│       ├── telemetry.go           # counters derived from SSE events
+│       ├── telemetry.go           # snapshot type consumed by RenderFrame
 │       └── telemetry_test.go
 ├── pkg/gormes/
 │   └── types.go                   # public re-exports
@@ -135,49 +161,112 @@ gormes/
 │   └── superpowers/
 │       ├── specs/*.md
 │       └── plans/*.md
-├── go.mod                         # module: github.com/XelHaku/golang-hermes-agent/gormes
-├── README.md                      # "Rosetta Stone" explainer
+├── go.mod
+├── README.md
 └── Makefile
 ```
 
-**Reserved-but-empty for later phases:** `internal/db`, `internal/session`, `internal/agent`, `internal/gateway`, `internal/pybridge`. Phase 1 does not create these; the directory layout anticipates them so later phases add packages without restructuring.
+**What changed from the pre-merge draft:**
+- `hub/` → `kernel/`. The package is no longer a "hub" (a routing hub implies multiple owners); it is a kernel (single-owner state machine).
+- `kernel/frame.go`, `kernel/admission.go`, `kernel/provenance.go` are new files enforcing the deterministic-kernel disciplines.
+- `store/` is added as a stub. Phase 1's `NoopStore` satisfies the interface but writes nothing. Phase 3 replaces the impl behind the interface with real SQLite; no other package changes.
+- `pybridge/` returns as a Phase-5 runtime-seam stub (lifecycle-oriented, not the simpler `Tool.Call` stub from the original spec).
+- `hermes/stream.go` is new — it holds the pull-based `Stream` interface separate from the HTTP `Client`.
+
+**Reserved-but-empty:** `internal/agent/` (Phase 4 — the actual LLM-routing + prompt-builder Go code), `internal/gateway/` (Phase 2). These directories are not created in Phase 1.
 
 ---
 
 ## 7. Core Interfaces
 
-```go
-// HermesClient is the Phase-1 contract with the Python api_server.
-// It is the ONLY piece of code that speaks HTTP in Gormes. Everything else
-// consumes the channel-based output of Stream().
-type HermesClient interface {
-    // Stream POSTs to /v1/chat/completions with stream=true and returns a
-    // channel of Deltas. The channel is closed when streaming ends.
-    // Session continuity: if req.SessionID is non-empty, it is sent as the
-    // X-Hermes-Session-Id request header; the server's returned session_id
-    // is surfaced on the first Delta.
-    Stream(ctx context.Context, req ChatRequest) (<-chan Delta, error)
+### 7.1 HTTP+SSE Client — pull-based, not channel-returning
 
-    // Health pings /health; used at startup to surface a clear error if
-    // the Python api_server isn't running.
+```go
+// Client is the ONLY piece of code that speaks HTTP in Gormes. It returns a
+// Stream that the kernel pulls from — never a channel the kernel drains
+// passively. Pull-based consumption lets the kernel pace intake against
+// render-frame coalescing and cancellation.
+type Client interface {
+    // OpenStream POSTs /v1/chat/completions?stream=true and returns a Stream
+    // whose Recv() yields token/reasoning/finalization events.
+    // Session continuity: if req.SessionID is non-empty, sent as
+    // X-Hermes-Session-Id; the canonical server session id is available via
+    // Stream.SessionID() after the first Recv() succeeds.
+    OpenStream(ctx context.Context, req ChatRequest) (Stream, error)
+
+    // OpenRunEvents subscribes to /v1/runs/{run_id}/events. Returns nil
+    // (disabled gracefully) if the server responds with 404 — non-Hermes
+    // OpenAI-compatible servers (LM Studio, Open WebUI) don't implement it.
+    OpenRunEvents(ctx context.Context, runID string) (RunEventStream, error)
+
+    // Health pings /health with a 2s timeout.
     Health(ctx context.Context) error
 }
 
-type ChatRequest struct {
-    Model     string
-    Messages  []Message          // role+content; Gormes only appends the latest user msg
-    SessionID string             // "" for new conversation; echoed back on first Delta
-    Stream    bool               // always true in Phase 1
+type Stream interface {
+    // Recv returns the next event or io.EOF when the stream ends cleanly.
+    // On ctx.Done(), returns ctx.Err() without closing any shared state.
+    // Caller must invoke Close() exactly once when done (successful or not).
+    Recv(ctx context.Context) (Event, error)
+
+    // SessionID returns the canonical server-assigned session id. Zero
+    // value until the first successful Recv() that carries the
+    // X-Hermes-Session-Id header was observed.
+    SessionID() string
+
+    // Close releases the underlying HTTP body. Safe to call multiple times.
+    Close() error
 }
 
-type Delta struct {
-    Token        string
-    Reasoning    string           // populated when api_server forwards reasoning
-    SessionID    string           // set on first Delta of a stream
-    Done         bool
-    FinishReason string
-    RawEnvelope  json.RawMessage  // retained for diagnostics; NOT persisted in Phase 1
-    Err          error
+type RunEventStream interface {
+    Recv(ctx context.Context) (RunEvent, error)
+    Close() error
+}
+```
+
+### 7.2 Event Types
+
+```go
+type Event struct {
+    Kind         EventKind
+    Token        string           // when Kind == EventToken
+    Reasoning    string           // when Kind == EventReasoning
+    FinishReason string           // when Kind == EventDone
+    TokensIn     int              // final delta only
+    TokensOut    int              // running count; final on Done
+    Raw          json.RawMessage  // retained for diagnostics / provenance
+}
+
+type EventKind int
+const (
+    EventToken EventKind = iota
+    EventReasoning
+    EventDone
+)
+
+type RunEvent struct {
+    Type     RunEventType
+    ToolName string     // for ToolStarted / ToolCompleted
+    Preview  string     // tool args preview (truncated to 60 chars server-side)
+    Reasoning string    // for ReasoningAvailable
+    Raw      json.RawMessage
+}
+
+type RunEventType int
+const (
+    RunEventToolStarted RunEventType = iota
+    RunEventToolCompleted
+    RunEventReasoningAvailable
+    RunEventUnknown
+)
+
+type ChatRequest struct {
+    Model     string
+    Messages  []Message
+    SessionID string
+    // Stream is always true in Phase 1; kept for forward-compat when non-
+    // streaming single-shot calls land later.
+    Stream    bool
 }
 
 type Message struct {
@@ -186,36 +275,132 @@ type Message struct {
 }
 ```
 
-**Run events** are a separate subscription used for the Soul Monitor (§10):
+### 7.3 Store Stub (Phase 1 no-op; Phase 3 real)
 
 ```go
-// Events subscribes to /v1/runs/{run_id}/events via SSE. Used alongside
-// Stream when the user opts into the /v1/runs flow (future Phase 1.5).
-// For Phase 1, Gormes consumes the event stream inline with a chat completion
-// when the api_server emits runs-style events in parallel.
-type EventClient interface {
-    Events(ctx context.Context, runID string) (<-chan RunEvent, error)
+// Store is the persistence seam. Phase 1 ships NoopStore (silently accepts
+// everything, never errors). Phase 3 replaces NoopStore with a SQLite impl
+// behind the SAME interface — no kernel changes.
+type Store interface {
+    // Exec submits a command and blocks until ack or ctx deadline. The
+    // kernel enforces a 250ms ack deadline before transitioning to Failed.
+    Exec(ctx context.Context, cmd Command) (Ack, error)
 }
 
-type RunEvent struct {
-    Type    RunEventType        // see §10.2
-    ToolName string             // for ToolStarted / ToolCompleted
-    Preview  string             // tool args preview
-    Reasoning string            // for ReasoningAvailable
-    Raw      json.RawMessage
+type Command struct {
+    Kind    CommandKind   // AppendUserTurn | AppendAssistantDraft | FinalizeTurn
+    Payload json.RawMessage
 }
 
-type RunEventType int
-
-const (
-    EventToolStarted RunEventType = iota  // SSE event: "tool.started"
-    EventToolCompleted                     // SSE event: "tool.completed"
-    EventReasoningAvailable                // SSE event: "reasoning.available"
-    EventUnknown                           // forward-compatible: render as raw
-)
+type Ack struct {
+    TurnID int64 // 0 from NoopStore; populated in Phase 3
+}
 ```
 
-No `Session`, no `Provider`, no `Tool` in Phase 1. Python owns those concepts.
+### 7.4 Runtime Seam Stub (Phase 5 target; compile-checked in Phase 1)
+
+```go
+// Runtime is the lifecycle-oriented seam for Python subprocesses. Phase 1
+// only declares the types so Phase 5 can plug an impl behind them. No impl
+// is shipped; callers receive ErrNotImplemented.
+type Runtime interface {
+    ID() string
+    Start(ctx context.Context) error
+    Stop(ctx context.Context) error
+    Health(ctx context.Context) error
+    Catalog(ctx context.Context) (ToolCatalog, error)
+    Invoke(ctx context.Context, req InvocationRequest) (Invocation, error)
+}
+
+type Invocation interface {
+    Events() <-chan InvocationEvent
+    Wait(ctx context.Context) (InvocationResult, error)
+    Cancel() error
+}
+
+var ErrNotImplemented = errors.New("gormes/pybridge: runtime lands in Phase 5")
+```
+
+(Support structs `ToolCatalog`, `InvocationRequest`, `InvocationEvent`, `InvocationResult` defined in the package; shapes match `2026-04-18-gormes-ignition-deterministic-kernel-design.md` §8.2.)
+
+### 7.5 Kernel Phase State Machine
+
+```
+                 submit (admission pass)
+   ┌───────────► Idle ─────────────────────► Connecting
+   │              ▲                              │
+   │              │                              │ 200 + first Recv
+   │ store ack    │                              ▼
+   │              │                          Streaming
+   │              │                              │
+   │           Finalizing ◄──────────────────────┤ Recv(EventDone)
+   │              ▲                              │
+   │              │ drain budget ≤2s             │ Ctrl+C
+   │              │                              ▼
+   │              └── Cancelling ◄───────────────┤
+   │                                             │
+   │                                             │ any retryable error
+   │                                             ▼
+   │                                      (auto-reconnect, §9.2)
+   │                                             │
+   │                                             │ fatal error, or
+   │                                             │ retry budget exhausted
+   └──────── Failed ◄────────────────────────────┘
+```
+
+Rules:
+- Exactly one run active per session. A second `PlatformEventSubmit` during `Streaming | Cancelling | Finalizing` is **rejected** in-kernel with a UI error ("still processing previous turn") — not queued. Queuing is M1.5 work.
+- Phase transitions happen on the kernel goroutine only. Adapters propose transitions via events; the kernel decides.
+- Every `RenderFrame` carries a monotonically increasing `Seq`. The TUI renders only the newest received frame.
+- Store ack timeout (250 ms) in Phase 1 is trivially met by `NoopStore`. In Phase 3 the real SQLite impl must honor the same deadline.
+
+### 7.6 RenderFrame — the TUI's only input
+
+```go
+// RenderFrame is a complete snapshot of visible TUI state. The TUI never
+// assembles assistant text from raw provider events — it renders this frame.
+// Mailbox capacity is 1 with replace-latest saturation: a slow TUI drops
+// stale frames instead of backpressuring the kernel.
+type RenderFrame struct {
+    Seq         uint64            // monotonic per Gormes process; strictly increasing
+    Phase       Phase             // Idle | Connecting | Streaming | ...
+    DraftText   string            // assistant buffer accumulated so far (current turn)
+    History     []Message         // turns OBSERVED by THIS Gormes process since launch.
+                                  // Python's state.db holds the canonical record;
+                                  // Gormes does not fetch prior history in Phase 1.
+                                  // On Gormes restart this field starts empty — Python
+                                  // still knows the session thanks to X-Hermes-Session-Id.
+    Telemetry   TelemetrySnapshot
+    StatusText  string            // one-line kernel status
+    SessionID   string
+    Model       string
+    LastError   string            // empty when no error
+    SoulEvents  []SoulEntry       // ring buffer (last 10) — driven by RunEvent feed
+}
+```
+
+### 7.7 Kernel Flush Policy
+
+- Coalesce `EventToken` / `EventReasoning` into the in-memory `DraftText`.
+- Flush a new `RenderFrame` at most every **16 ms** (≈60 Hz).
+- Flush **immediately** on semantic edges: phase transitions, `EventDone`, any `RunEvent`, any error.
+- If the render mailbox (capacity 1) already holds a pending frame, replace it with the newer frame. The TUI only ever sees the latest.
+
+Net effect: a 200 tok/s provider burst produces ~3 render frames per second of visible UI change (because characters accumulate faster than 16 ms frame windows), while the actual-token counter in the telemetry pane ticks in real time through the same flush mechanism. The TUI cannot backpressure the kernel; the kernel cannot firehose the TUI.
+
+### 7.8 Mailbox Catalog
+
+| Mailbox | From | To | Capacity | Saturation policy |
+|---|---|---|---|---|
+| render | kernel | TUI | 1 | **replace-latest** (drop old) |
+| platform-events | TUI | kernel | 16 | **fail-fast**: TUI disables input briefly if full |
+| store-commands | kernel | Store | 16 | **fail-fast**: kernel transitions to `Failed` if send blocked >250 ms |
+| sse-events | hermes adapter | kernel (pulled) | n/a — pull-based | kernel paces via `Recv(ctx)` |
+| run-events | hermes adapter | kernel (pulled) | n/a — pull-based | kernel paces via `Recv(ctx)` |
+
+**There are no other channels in Gormes.** If a future package adds one, it must be documented in this table with capacity and saturation policy.
+
+No `Session`, no `Provider`, no `Tool` as Phase-1 consumer-facing types. Python owns those concepts; `Runtime` (§7.4) is the future seam.
 
 ---
 
@@ -382,6 +567,46 @@ Same as superseded spec §10.3: `defer recover()` in `main.go` dumps to `$XDG_DA
 ### 12.3 Cancellation contract
 Same as superseded spec §10.4: signal-derived root ctx, 2-second shutdown budget, exit code 3 if budget exceeded.
 
+### 12.4 Local Input Admission
+
+Kernel rejects a `PlatformEventSubmit` **before** any HTTP call fires if any of these hold:
+
+| Rule | Default | Override |
+|---|---|---|
+| Empty / whitespace-only | reject | — |
+| Byte length > `GORMES_MAX_INPUT_BYTES` | reject with "input too large (N bytes, limit M)" | env or `[input]` in config.toml |
+| Line count > `GORMES_MAX_INPUT_LINES` | reject | same |
+| A run is already active in the session | reject with "still processing previous turn" | — |
+
+Defaults: 200 KB, 10 000 lines. These are deliberately generous — the real purpose of the admission rule is to make pathological paste-the-whole-file-by-accident inputs a clear failure with a precise message, not a 413 from Python that takes ten seconds to time out. Phase 4 replaces this with the full context planner from the deterministic-kernel spec §6.
+
+A rejection produces a `RenderFrame` with `LastError` set and `Phase` remaining `Idle`. The TUI re-focuses the editor with the user's text preserved.
+
+### 12.5 Local Provenance & Correlation IDs
+
+Every admitted turn is assigned a **local run ID** (UUIDv7, 30 bytes hex). The kernel logs via `slog` at `INFO` the correlation:
+
+```
+turn admitted   local_run_id=01JH... session_hint=...
+turn POST sent  local_run_id=01JH... endpoint=http://127.0.0.1:8642/v1/chat/completions
+turn SSE start  local_run_id=01JH... server_session_id=... model=hermes-agent
+turn done       local_run_id=01JH... server_session_id=... finish=stop tokens=3/5 latency=312ms
+turn error      local_run_id=01JH... class=retryable err=...
+```
+
+The correlation is in-memory (a map[local_run_id]Correlation) and log-backed — **no DB writes in Phase 1**. Phase 3 promotes this to a `runs` table (schema from the deterministic-kernel spec §7.2) through the Store seam. In Phase 1 the log stream is the audit trail.
+
+Log output goes to `$XDG_DATA_HOME/gormes/gormes.log` with daily rotation (stdlib `log/slog` + a custom rotating `io.Writer`). Setting `GORMES_LOG_LEVEL=DEBUG` adds SSE-chunk-level granularity for debugging.
+
+### 12.6 Leak Freedom Assertions
+
+Every test that exercises cancel or error paths asserts:
+- Zero goroutine leak 200 ms after cancel (baseline-subtract comparison).
+- No mailbox remains with pending items at kernel exit.
+- HTTP body Close() was called on every opened Stream (verified by a counting `http.Transport` wrapper in tests).
+
+See §15.5 for the discipline-specific test list.
+
 ---
 
 ## 13. Configuration
@@ -445,6 +670,32 @@ Renderer unchanged from superseded spec §12.
 
 ### 15.4 Coverage target
 ≥ 70 % line coverage on `internal/` excluding `tui/`. `tui/` is validated by `teatest` behavioral tests rather than line coverage.
+
+### 15.5 Kernel-Discipline Tests (required)
+
+The following tests MUST pass. Each asserts one of the deterministic-kernel invariants under stress.
+
+1. **Provider outpaces TUI.** `MockStream` emits 2000 `EventToken`s in 10 ms. Render mailbox capacity is 1. TUI `teatest` harness deliberately stalls 100 ms on `Update`. Assert: (a) no goroutine leak, (b) final `DraftText` equals the concatenation of all tokens, (c) TUI rendered fewer than 200 frames (coalescing worked), (d) kernel did not block.
+
+2. **TUI permanently stalled.** Render mailbox consumer stops receiving. Kernel continues to receive SSE events and accumulates them into `DraftText`. Assert: memory use remains bounded (one frame in mailbox); kernel completes the turn; on ctx cancel, kernel exits cleanly.
+
+3. **Store ack delayed.** `NoopStore` is wrapped with a `SlowStore` that delays ack by 500 ms (beyond the 250 ms deadline). Kernel submits one turn. Assert: kernel transitions to `Failed`, emits a final `RenderFrame{Phase: Failed, LastError: "store ack timeout"}`, and does not accept further submissions until reset.
+
+4. **Cancel mid-stream, zero goroutine leak.** User submits turn. SSE emits 5 tokens. User sends `Ctrl+C`. Assert: no goroutine from `hermes`, `kernel`, or `store` is leaked 200 ms after cancel (counted by `runtime.NumGoroutine()` delta). HTTP body Close was called.
+
+5. **HTTP drop mid-stream with auto-reconnect.** Fake server closes SSE mid-stream. Assert: kernel emits `interrupted` Soul event, schedules reconnect, tries up to 5 attempts with backoff, then transitions to `Failed` if all fail.
+
+6. **Unknown RunEvent type.** Fake server emits `event: subagent.started`. Assert: kernel records `RunEventUnknown`, Soul Monitor renders `? subagent.started`, no panic.
+
+7. **Input admission rejection.** User submits 300 KB of text (above the 200 KB default). Assert: kernel returns `RenderFrame{LastError: "input too large..."}`, no HTTP POST fires, `Phase` stays `Idle`.
+
+8. **Second submit during streaming.** User submits turn 1. Before turn 1 completes, user submits turn 2. Assert: turn 2 is rejected with "still processing previous turn", turn 1 completes normally.
+
+9. **Health check failure on startup.** `gormes` launched with no `api_server` running. Assert: startup completes, TUI renders, Soul Monitor shows actionable error (`API_SERVER_ENABLED=true hermes gateway start`), further submits rejected until next successful health re-check.
+
+10. **Render frame Seq monotonicity.** 50 rapid turns. Assert: every emitted `RenderFrame.Seq` is strictly greater than the previous one observed by the TUI.
+
+These ten tests, combined with the standard teatest scenarios (§15.2), are the production-readiness bar for Phase 1.
 
 ---
 
@@ -516,6 +767,8 @@ Phase 1 is "dashboard-live" when **all** hold:
 11. The Markdown lint at `gormes/docs/docs_test.go` passes on ARCH_PLAN.md, this spec, and the Phase 1 plan.
 12. **No Python file in the repo has been modified.**
 13. **`gormes.db`, `state.db`, or any SQLite file under Go control does not exist.** (verified by a post-build find: `find ~/.local/share/gormes -name '*.db' -print` returns empty).
+14. **All ten kernel-discipline tests from §15.5 pass.** Specifically: provider-outpaces-TUI coalescing works, ctx cancellation leaves zero goroutine leak, store-ack-timeout transitions to Failed, render-frame Seq is strictly monotonic.
+15. **No unbounded channel exists in the Go code.** Enforced by a Go-test-based lint at `gormes/internal/discipline_test.go` that uses `go/ast` to walk every `make(chan ...)` call in `internal/` and asserts a capacity literal > 0 is present, OR the channel is on the whitelist (documented in §7.8's mailbox catalog).
 
 ---
 

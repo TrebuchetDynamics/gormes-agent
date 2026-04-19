@@ -1,8 +1,20 @@
 # Gormes — Ignition (M0 + M1) Deterministic Kernel Design
 
+> **⚠️ SUPERSEDED — 2026-04-18 — MERGED INTO PHASE 1 ADAPTER**
+>
+> This spec's **disciplines** (single-owner kernel, bounded mailboxes, pull-based provider stream, render-frame coalescing, input admission, cancellation leak-freedom, runtime-seam-not-tool-seam) have been **absorbed into** the Phase 1 frontend-adapter spec.
+>
+> This spec's **architectural assumptions** (Go owns OpenRouter, Go owns SQLite, Go owns the full agent loop in M1) are NOT absorbed — they conflict with the post-recon Ship-of-Theseus strategy where Python's existing `api_server.py` (port 8642) serves the LLM and owns `state.db` through Phase 3.
+>
+> **Merged into:** [`2026-04-18-gormes-frontend-adapter-design.md`](./2026-04-18-gormes-frontend-adapter-design.md) — sections §3.6 (single-owner kernel), §7 (pull-based Stream), §8 (RenderFrame + bounded mailboxes), §11 (local admission), §12.5 (local provenance), §13 (runtime seam stub).
+>
+> This document is retained as the authoritative source for Phase-4 architecture. When Phase 4 arrives, Go absorbs the agent loop / context planner / persistence ownership from Python — at which point §4 (Kernel State Machine), §6 (Context Window Physics), §7 (4-table persistence schema), §8 (Runtime seam full implementation) of this spec become the Phase-4 implementation target. **Do not delete this file.**
+
+---
+
 **Date:** 2026-04-18
 **Author:** Xel (via Codex brainstorm)
-**Status:** Approved design direction; ready for planning
+**Status:** SUPERSEDED for Phase 1 — RETAINED as Phase 4 architectural target
 **Supersedes:** `2026-04-18-gormes-ignition-design.md`
 **Scope:** Milestones M0 (scaffolding) + M1 (TUI + one LLM provider) of the Gormes program.
 
