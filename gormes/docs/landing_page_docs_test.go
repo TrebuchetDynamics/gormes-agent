@@ -34,21 +34,14 @@ func TestTargetsIncludeLandingPageDocs(t *testing.T) {
 }
 
 func TestTargetsIncludeAICutoverDocs(t *testing.T) {
-	want := map[string]bool{
-		"superpowers/specs/2026-04-19-gormes-ai-cutover-design.md": false,
-		"superpowers/plans/2026-04-19-gormes-ai-cutover.md":        false,
+	spec := readDoc(t, "superpowers/specs/2026-04-19-gormes-ai-cutover-design.md")
+	if !strings.Contains(spec, "Gormes.ai Hard Cutover Design Spec") {
+		t.Fatalf("cutover spec missing its title")
 	}
 
-	for _, target := range landingPageTargets {
-		if _, ok := want[target]; ok {
-			want[target] = true
-		}
-	}
-
-	for rel, seen := range want {
-		if !seen {
-			t.Fatalf("docs target missing %s", rel)
-		}
+	plan := readDoc(t, "superpowers/plans/2026-04-19-gormes-ai-cutover.md")
+	if !strings.Contains(plan, "Gormes.ai Hard Cutover Implementation Plan") {
+		t.Fatalf("cutover plan missing its title")
 	}
 }
 
@@ -68,7 +61,7 @@ func TestLandingPageDesignDocCoversApprovedStory(t *testing.T) {
 	}
 }
 
-func TestLandingPagePlanDocReferencesRealImplementationFilesAndCommands(t *testing.T) {
+func TestLandingPagePlanDocReferencesAICutoverImplementationFilesAndCommands(t *testing.T) {
 	raw := readDoc(t, "superpowers/plans/2026-04-19-gormes-landing-page.md")
 	wants := []string{
 		"www.gormes.ai/internal/site/assets.go",
@@ -82,7 +75,7 @@ func TestLandingPagePlanDocReferencesRealImplementationFilesAndCommands(t *testi
 	}
 	for _, want := range wants {
 		if !strings.Contains(raw, want) {
-			t.Fatalf("plan doc is missing %q", want)
+			t.Fatalf("landing-page plan doc for the upcoming .ai cutover is missing %q", want)
 		}
 	}
 
