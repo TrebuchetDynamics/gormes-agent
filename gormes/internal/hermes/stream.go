@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -18,13 +19,24 @@ type chatStream struct {
 	// that carries both `reasoning` and `content` in one delta). Drained FIFO
 	// before the next SSE frame is read.
 	pending []Event
+
+	// Pending tool-call accumulator, keyed by upstream index field.
+	// Populated across partial tool_calls deltas; flushed on finish_reason=="tool_calls".
+	pendingCalls map[int]*pendingToolCall
+}
+
+type pendingToolCall struct {
+	id        string
+	name      string
+	arguments strings.Builder
 }
 
 func newChatStream(body io.ReadCloser, sessionID string) *chatStream {
 	return &chatStream{
-		body:      body,
-		sse:       newSSEReader(body),
-		sessionID: sessionID,
+		body:         body,
+		sse:          newSSEReader(body),
+		sessionID:    sessionID,
+		pendingCalls: make(map[int]*pendingToolCall),
 	}
 }
 
@@ -43,8 +55,19 @@ func (s *chatStream) Close() error {
 }
 
 type orChunkDelta struct {
-	Content   string `json:"content"`
-	Reasoning string `json:"reasoning"`
+	Content   string            `json:"content"`
+	Reasoning string            `json:"reasoning"`
+	ToolCalls []orChunkToolCall `json:"tool_calls,omitempty"`
+}
+
+type orChunkToolCall struct {
+	Index    int    `json:"index"`
+	ID       string `json:"id,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Function struct {
+		Name      string `json:"name,omitempty"`
+		Arguments string `json:"arguments,omitempty"`
+	} `json:"function"`
 }
 
 type orChunkChoice struct {
@@ -98,6 +121,27 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 		}
 		c := chunk.Choices[0]
 		raw := json.RawMessage(f.data)
+
+		// Accumulate tool-call deltas across chunks. Multiple deltas per stream
+		// carry partial tool_calls data keyed by .index; we buffer until
+		// finish_reason=="tool_calls" arrives, then emit as a single EventDone.
+		for _, tc := range c.Delta.ToolCalls {
+			p, ok := s.pendingCalls[tc.Index]
+			if !ok {
+				p = &pendingToolCall{}
+				s.pendingCalls[tc.Index] = p
+			}
+			if tc.ID != "" {
+				p.id = tc.ID
+			}
+			if tc.Function.Name != "" {
+				p.name = tc.Function.Name
+			}
+			if tc.Function.Arguments != "" {
+				p.arguments.WriteString(tc.Function.Arguments)
+			}
+		}
+
 		var events []Event
 		if c.Delta.Reasoning != "" {
 			events = append(events, Event{Kind: EventReasoning, Reasoning: c.Delta.Reasoning, Raw: raw})
@@ -111,6 +155,10 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 				ev.TokensIn = chunk.Usage.PromptTokens
 				ev.TokensOut = chunk.Usage.CompletionTokens
 			}
+			if c.FinishReason == "tool_calls" && len(s.pendingCalls) > 0 {
+				ev.ToolCalls = flushPending(s.pendingCalls)
+				s.pendingCalls = make(map[int]*pendingToolCall) // reset for possible reuse
+			}
 			events = append(events, ev)
 		}
 		if len(events) == 0 {
@@ -122,4 +170,23 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 		}
 		return head, nil
 	}
+}
+
+// flushPending converts the accumulator map into a sorted, finalised ToolCall slice.
+func flushPending(m map[int]*pendingToolCall) []ToolCall {
+	indexes := make([]int, 0, len(m))
+	for idx := range m {
+		indexes = append(indexes, idx)
+	}
+	sort.Ints(indexes)
+	out := make([]ToolCall, 0, len(indexes))
+	for _, idx := range indexes {
+		p := m[idx]
+		out = append(out, ToolCall{
+			ID:        p.id,
+			Name:      p.name,
+			Arguments: json.RawMessage(p.arguments.String()),
+		})
+	}
+	return out
 }
