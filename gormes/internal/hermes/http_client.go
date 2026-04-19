@@ -24,10 +24,16 @@ type httpClient struct {
 // The returned client streams without a global timeout so long turns
 // (minutes, with tool use) are not truncated; see per-phase timeouts inside.
 func NewHTTPClient(baseURL, apiKey string) Client {
+	// Clone the default transport and enforce the header-phase budget via
+	// ResponseHeaderTimeout. This caps time-to-first-byte WITHOUT affecting
+	// the streaming body read afterwards — unlike wrapping the request
+	// context, which would cancel body reads mid-stream.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 5 * time.Second
 	return &httpClient{
 		baseURL: baseURL,
 		apiKey:  apiKey,
-		http:    &http.Client{Timeout: 0},
+		http:    &http.Client{Timeout: 0, Transport: transport},
 	}
 }
 
@@ -69,11 +75,11 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 		return nil, err
 	}
 
-	// The response-header phase has a 5s budget; the streaming body does not.
-	headCtx, headCancel := context.WithTimeout(ctx, 5*time.Second)
-	httpReq, err := http.NewRequestWithContext(headCtx, http.MethodPost, c.baseURL+defaultChatCompletionsPath, bytes.NewReader(body))
+	// Header-phase budget enforced by Transport.ResponseHeaderTimeout (5s).
+	// The request ctx governs the full response lifetime including body reads —
+	// do NOT cancel it after Do returns or streaming breaks.
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+defaultChatCompletionsPath, bytes.NewReader(body))
 	if err != nil {
-		headCancel()
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -86,7 +92,6 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 	}
 
 	resp, err := c.http.Do(httpReq)
-	headCancel()
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +107,11 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 // OpenRunEvents subscribes to SSE stream for a run's events.
 // 404 returns ErrRunEventsNotSupported for non-Hermes servers.
 func (c *httpClient) OpenRunEvents(ctx context.Context, runID string) (RunEventStream, error) {
-	// Use a short header-phase budget; the body stays open indefinitely for streaming.
-	headCtx, headCancel := context.WithTimeout(ctx, 5*time.Second)
-	req, err := http.NewRequestWithContext(headCtx, http.MethodGet, fmt.Sprintf("%s/v1/runs/%s/events", c.baseURL, runID), nil)
+	// Header-phase budget enforced by Transport.ResponseHeaderTimeout (5s).
+	// The request ctx governs the full response lifetime including body reads —
+	// do NOT cancel it after Do returns or streaming breaks.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/runs/%s/events", c.baseURL, runID), nil)
 	if err != nil {
-		headCancel()
 		return nil, err
 	}
 	req.Header.Set("Accept", "text/event-stream")
@@ -114,7 +119,6 @@ func (c *httpClient) OpenRunEvents(ctx context.Context, runID string) (RunEventS
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 	resp, err := c.http.Do(req)
-	headCancel()
 	if err != nil {
 		return nil, err
 	}
