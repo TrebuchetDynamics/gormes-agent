@@ -565,7 +565,7 @@ The M0 + M1 slice is "ignition-complete" when **all** the following hold:
 5. The conversation persists in `gormes.db`. **Session-resume rule for M1:** on launch, if any session exists in the DB, Gormes attaches to the most-recent one and loads its history into the conversation viewport; otherwise it creates a new session. A session-picker and `--new` / `--session <id>` flags are M1.5 work.
 6. `Ctrl+C` mid-stream cancels cleanly; the cancelled turn is persisted with `status='cancelled'`.
 7. `make test` passes with ≥ 70 % coverage on `internal/` (excluding `tui/`).
-8. `gormes/docs/ARCH_PLAN.md` exists and captures the 5-milestone vision.
+8. `gormes/docs/ARCH_PLAN.md` exists and contains all six required subsections from §21.2; the Markdown-lint test at `gormes/docs/docs_test.go` passes on `ARCH_PLAN.md` and on this spec.
 9. No Python file in the repo has been modified.
 10. Resizing the terminal during streaming does not crash the process (verified by `teatest` resize test).
 11. Completed assistant turns persist `reasoning` (when the provider emits it) and `metadata` (raw envelope) alongside visible content — verified by a DB inspection test.
@@ -590,3 +590,92 @@ The M0 + M1 slice is "ignition-complete" when **all** the following hold:
 After this spec is user-approved, the `superpowers:writing-plans` skill produces the implementation plan with concrete, reviewable tasks. The plan is the input to the `executing-plans` (or `subagent-driven-development`) skill — **not** this spec.
 
 This spec is the source of truth for *what* M0 + M1 are. The plan is the source of truth for *how* they are built.
+
+---
+
+## 21. Documentation Strategy
+
+Gormes is a public fork; documentation is a first-class deliverable, not an afterthought. Three artifacts, three audiences.
+
+### 21.1 Artifact Inventory
+
+| File | Audience | Purpose |
+|---|---|---|
+| `gormes/README.md` | GitHub visitors | 60-second pitch; install + "hello world"; links to ARCH_PLAN |
+| `gormes/docs/ARCH_PLAN.md` | Forkers, Python-side contributors, public-site readers | Executive roadmap: program vision, "Why Go", milestones, hybrid manifesto |
+| `gormes/docs/superpowers/specs/*.md` | Implementation agents + reviewers | Per-milestone source of truth (what each spec builds) |
+
+`ARCH_PLAN.md` is the **Executive Roadmap** — rarely changing, high-signal, the one doc a visitor reads before deciding to fork.
+
+### 21.2 ARCH_PLAN.md — Required Sections (M0 Deliverable)
+
+M0 ships `gormes/docs/ARCH_PLAN.md` containing **all** of the following, in this order:
+
+1. **Rosetta Stone Declaration.** Verbatim:
+   > "The repository root is the **Reference Implementation** (Python, upstream `NousResearch/hermes-agent`). The `gormes/` directory is the **High-Performance Implementation** (Go). Neither replaces the other; they co-evolve as a translation pair."
+
+2. **Why Go — addressed to a Python developer.** Five concrete bullet points, no hype:
+   - **Binary portability.** One 15–30 MB static binary. No `uv`, `pip`, venv, or system Python on the target host. `scp`-and-run on a $5 VPS or Termux.
+   - **Static types + compile-time contracts.** Tool schemas, Provider envelopes, and MCP payloads become typed structs. Schema drift is a compile error, not a silent agent-loop failure.
+   - **True concurrency.** Goroutines over channels replace `asyncio`. The gateway handles 10+ platform connections without event-loop starvation.
+   - **Lower idle footprint.** Target ≈ 10 MB RSS at idle vs. ≈ 80+ MB for Python Hermes. Meaningful for always-on / low-spec hosts.
+   - **Explicit trade-off acknowledged.** The Python AI-library moat (`litellm`, `instructor`, heavyweight ML, research skills) stays in Python; M4's Python Bridge is the seam, not an afterthought.
+
+3. **Hybrid Manifesto — the Motherboard Strategy.**
+   - **Go = chassis:** orchestrator, state, persistence, platform I/O, agent cognition.
+   - **Python = peripheral library:** research tools, legacy skills, ML heavy lifting.
+   - **M4 Python Bridge** is the PCIe slot; M1 ships the interface stub (`internal/pybridge`). Delegating agent cognition to subprocess RPC was considered and rejected — every turn would pay IPC latency, and the agent's identity would couple to disk I/O.
+
+4. **5-Milestone Live Status Table.**
+
+   | Milestone | Status | Deliverable |
+   |---|---|---|
+   | M0 — Scaffold | 🔨 in progress | Go module, interfaces, migrations, ARCH_PLAN |
+   | M1 — TUI + LLM | 🔨 in progress | Bubble Tea Dashboard streaming OpenRouter turn |
+   | M2 — Ontological Memory | ⏳ planned | FTS5, fact-triples, semantic recall |
+   | M3 — Multi-Platform Gateway | ⏳ planned | Telegram / Discord / Slack concurrent adapters |
+   | M4 — Python Bridge | ⏳ planned | Subprocess RPC; skills & research tools plug in |
+
+   Status emoji legend: 🔨 in progress · ✅ complete · ⏳ planned · ⏸ deferred. The status column is updated whenever a milestone transitions; that update is a committed change to `ARCH_PLAN.md`.
+
+5. **Project Boundaries.** Verbatim restatement of the hard rule from §16 (no Python file modified; all Gormes work under `gormes/`; one-time README-root exception is explicitly deferred).
+
+6. **Public site pointer.** The intended public home is `https://gormes.io`. The spec does not assume any DNS / CDN / deployment is live; site deployment is explicitly M1.5 work (see §21.3).
+
+### 21.3 Public-Site Rendering (gormes.io)
+
+**Honest answer on Cloudflare Pages:** Cloudflare Pages serves static files but does **not** render Markdown on its own. Dropping `.md` files in a Pages project shows them as plain text. To render `ARCH_PLAN.md` on `gormes.io`, a static-site generator must convert Markdown → HTML at build time, and Pages serves the resulting `site/` directory.
+
+**Compatibility of the current Markdown:** `ARCH_PLAN.md` and this spec are authored in **CommonMark + GFM extensions** (tables, fenced code, task lists, strikethrough). That subset renders correctly under every mainstream SSG:
+
+| SSG | Compatible | Deployment notes |
+|---|---|---|
+| **MkDocs Material** | ✅ | ⭐ Recommended. `pip install mkdocs-material`, 10-line `mkdocs.yml`, `mkdocs build` → `site/` → Cloudflare Pages |
+| Hugo | ✅ | Single-binary build; matches the Gormes CGO-free portability ethos |
+| Astro Starlight | ✅ | TypeScript build, best theme; heavier toolchain |
+| Docusaurus | ✅ | Overkill for a docs site of this size |
+| Raw Pages serving `.md` | ❌ | Not rendered — shown as text. Avoid |
+
+**M1 contract:** docs render correctly on GitHub as plain Markdown. Public-site (`gormes.io`) deployment is **M1.5** — not blocking ignition. The M1 constraint is only: write Markdown in a dialect any SSG can consume cleanly, and avoid GitHub-only features.
+
+**M1 Markdown avoidance list** (to keep docs SSG-portable):
+- No raw HTML tags, except `<br>` inside table cells when strictly needed.
+- No GitHub-only admonition blocks (`> [!NOTE]`, `> [!WARNING]`). Use a bold-header callout instead.
+- Relative links are repo-relative (`./foo.md`) or absolute URLs — never root-relative (`/docs/…`), because SSGs handle the prefix differently.
+- Images live at `gormes/docs/images/` and are referenced by relative paths.
+- No emoji in headings (breaks some SSG slug generators).
+
+### 21.4 Maintenance
+
+`ARCH_PLAN.md` changes only when:
+- A milestone transitions state (🔨 → ✅, ⏳ → 🔨).
+- The hybrid strategy changes at a principle level.
+- A new milestone is added or a deferred feature is re-scoped.
+
+Per-milestone specs under `docs/superpowers/specs/` are append-only after approval. A spec that needs substantive change is superseded by a new dated spec; the old one is kept for history.
+
+### 21.5 Success Criteria Additions for §18
+
+Item 8 of §18 is extended: `gormes/docs/ARCH_PLAN.md` exists **and** contains all six required subsections from §21.2 **and** passes a lint that rejects the five items from the §21.3 avoidance list.
+
+Lint is enforced by a simple Go test at `gormes/docs/docs_test.go` that scans `ARCH_PLAN.md` and this spec for the avoidance-list patterns and fails on any match. Adding the test is part of M0.
