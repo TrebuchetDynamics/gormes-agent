@@ -152,10 +152,13 @@ type Request struct {
 }
 
 type Delta struct {
-    Token     string        // incremental content chunk
+    Token     string        // incremental content chunk (visible assistant content)
+    Reasoning string        // incremental reasoning chunk (hidden thinking), empty if none
     TokensIn  int           // set on final delta only
     TokensOut int           // running count; final value on Done
     Done      bool
+    FinishReason string     // set on Done: "stop" | "length" | "tool_calls" | "error" | ...
+    RawEnvelope json.RawMessage // provider-specific final payload (stored verbatim in metadata)
     Err       error         // non-nil → terminal error
 }
 
@@ -212,8 +215,22 @@ func (s *Session) AppendTurn(role, content string) (turnID int64, err error)
 // Only turns with status='complete' are returned; cancelled/error turns are skipped.
 func (s *Session) History(ctx context.Context, limit int) ([]Message, error)
 func (s *Session) UpdateTurnStats(id int64, tokensIn, tokensOut, latencyMs int) error
+func (s *Session) UpdateTurnMetadata(id int64, reasoning string, envelope json.RawMessage) error
 func (s *Session) MarkTurnStatus(id int64, status string) error
 ```
+
+### 6.1 System Prompt Assembly (the "Soul" for M1)
+
+Hermes's Python `agent/prompt_builder.py` does heavy lifting — personality files, self-nudges, memory injection, tool-schema rendering. **None of that lands in M1.** The Soul logic stays in Go (not delegated to the Python bridge) because it is orchestrator territory; the bridge is for tools, not for the agent's own cognition.
+
+**M1 contract:**
+- `internal/agent` exposes `buildSystemPrompt(cfg Config) string` — pure function, no I/O.
+- Default body: a short built-in string (~120 tokens) that identifies the agent as Gormes and states it has no tools yet. Lives in `internal/agent/default_prompt.go` as a `const`.
+- Override via `[agent].system_prompt` in `config.toml` or `GORMES_SYSTEM_PROMPT` env var (overrides config file).
+- **No file-based personality loading in M1** — that's a Hermes feature (`personality/*.md`) deferred to M2 alongside skills.
+- The assembled system prompt is prepended to `Request.Messages` as `Message{Role: "system"}` on every turn.
+
+**M2+ growth path:** `internal/agent/prompt/` becomes a package with composable sections (identity, personality, tool-schema, memory-recall, self-nudges). M1 writes the seam, M2 fills it.
 
 ---
 
@@ -245,8 +262,9 @@ For each delta from provider:
 Stream closes (Done=true):
   1. session.AppendTurn("assistant", fullText)        → turn_id = 43
   2. session.UpdateTurnStats(43, in, out, latency)
-  3. UIUpdate{Kind: TurnComplete, Telemetry: final}
-  4. UIUpdate{Kind: SoulEvent, SoulEvent: "idle"}
+  3. session.UpdateTurnMetadata(43, reasoningBuf, finalDelta.RawEnvelope)
+  4. UIUpdate{Kind: TurnComplete, Telemetry: final}
+  5. UIUpdate{Kind: SoulEvent, SoulEvent: "idle"}
 ```
 
 **Cancellation:** if ctx is cancelled mid-stream, the agent:
@@ -274,7 +292,9 @@ CREATE TABLE turns (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     role        TEXT NOT NULL CHECK (role IN ('system','user','assistant')),
-    content     TEXT NOT NULL,
+    content     TEXT NOT NULL,                -- visible assistant/user text
+    reasoning   TEXT,                         -- provider-emitted thinking (o1, <think>, etc.); NULL if none
+    metadata    TEXT,                         -- JSON blob: provider envelope, finish_reason, tool_calls, …
     tokens_in   INTEGER,
     tokens_out  INTEGER,
     latency_ms  INTEGER,
@@ -289,7 +309,12 @@ CREATE TABLE schema_version (version INTEGER PRIMARY KEY);
 INSERT INTO schema_version VALUES (1);
 ```
 
-FTS5 virtual table deferred to M2.
+**Why `reasoning` and `metadata` exist in M1 even though nothing reads them:**
+Adding them later would require a migration across existing user data. The cost in M1 is one nullable column each and one extra UPDATE per turn. The benefit is M2 can build the fact-triple store (subject-predicate-object) by parsing `metadata` JSON without a schema change — Triples will live in their own `triples` table, but they derive *from* `turns.metadata` and `turns.content`. Reasoning tokens also become first-class for the TUI's Soul Monitor deep-dive view (future M1.5 enhancement).
+
+`metadata` is stored as raw JSON text, not normalized columns, because the provider envelope shape varies per provider (OpenRouter, Anthropic, OpenAI, Gemini) and normalizing it would force breaking changes every time a provider adds a field.
+
+FTS5 virtual table deferred to M2. FTS5 will index `turns.content` and the flattened fact-triples — not `metadata` JSON.
 
 ### 8.2 Migration Strategy
 On startup, `db.Open()`:
@@ -329,10 +354,15 @@ Migrations live in `internal/db/migrations/*.sql` and are embedded via `//go:emb
 - **Editor** (`bubbles/textarea`): multiline, Enter sends, Shift+Enter newline, placeholder hint.
 - **Status line** (bottom of editor): current model name, session id.
 
-### 9.3 Responsive Rules
+### 9.3 Responsive Rules & SIGWINCH Handling
+
 - Width ≥ 100 cols: full layout.
 - 80–99 cols: sidebar shrinks to 24 cols.
 - < 80 cols: sidebar collapses; telemetry + soul compress into a one-line status strip above the editor.
+
+**Resize mechanics:** Bubble Tea handles `SIGWINCH` internally and delivers a `tea.WindowSizeMsg` to the Model's `Update` method. The Gormes TUI Model stores the last-seen `width`/`height` and recomputes layout on every `WindowSizeMsg`. No raw signal handling in user code. No partial-render state is kept across resizes — `View()` is pure over `(Model, width, height)`. Rapid resize events (drag) are not throttled in M1; `lipgloss` re-render is fast enough.
+
+**Explicit non-crash contract:** resizing the terminal — at any rate, to any size ≥ 20 cols × 10 rows — MUST NOT panic or exit the process. Widths below 20 cols render a single-line "terminal too narrow" banner and suppress editor input; recovery is automatic once width increases. This is covered by `tui/tui_test.go` resize tests.
 
 ### 9.4 Key Bindings
 | Key | Action |
@@ -537,6 +567,8 @@ The M0 + M1 slice is "ignition-complete" when **all** the following hold:
 7. `make test` passes with ≥ 70 % coverage on `internal/` (excluding `tui/`).
 8. `gormes/docs/ARCH_PLAN.md` exists and captures the 5-milestone vision.
 9. No Python file in the repo has been modified.
+10. Resizing the terminal during streaming does not crash the process (verified by `teatest` resize test).
+11. Completed assistant turns persist `reasoning` (when the provider emits it) and `metadata` (raw envelope) alongside visible content — verified by a DB inspection test.
 
 ---
 
