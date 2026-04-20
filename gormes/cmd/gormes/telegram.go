@@ -110,14 +110,15 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 
 	var recallProv kernel.RecallProvider
 
-	// Phase 3.D — semantic fusion wiring. Activated only when both the
-	// feature flag is true AND an embedding model is named. Defaults to
-	// Hermes.Endpoint if SemanticEndpoint is empty (Ollama often hosts
-	// both /v1/chat/completions and /v1/embeddings on the same port).
+	recallActive := cfg.Telegram.RecallEnabled && cfg.Telegram.AllowedChatID != 0
+
+	// Phase 3.D — semantic fusion wiring. Activated only when recall is
+	// active AND the feature flag is set AND an embedding model is named.
+	// Falls back to Hermes.Endpoint when SemanticEndpoint is empty
+	// (Ollama often hosts both /v1/chat/completions and /v1/embeddings).
 	var semCache *memory.SemanticCache
 	var ec *memory.EmbedClient
-	if cfg.Telegram.RecallEnabled && cfg.Telegram.AllowedChatID != 0 &&
-		cfg.Telegram.SemanticEnabled && cfg.Telegram.SemanticModel != "" {
+	if recallActive && cfg.Telegram.SemanticEnabled && cfg.Telegram.SemanticModel != "" {
 		endpoint := cfg.Telegram.SemanticEndpoint
 		if endpoint == "" {
 			endpoint = cfg.Hermes.Endpoint
@@ -126,7 +127,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		semCache = memory.NewSemanticCache()
 	}
 
-	if cfg.Telegram.RecallEnabled && cfg.Telegram.AllowedChatID != 0 {
+	if recallActive {
 		memProv := memory.NewRecall(mstore, memory.RecallConfig{
 			WeightThreshold:       cfg.Telegram.RecallWeightThreshold,
 			MaxFacts:              cfg.Telegram.RecallMaxFacts,
@@ -199,8 +200,8 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		}, slog.Default(), semCache)
 		go embedder.Run(rootCtx)
 		defer func() {
-			shutdownCtx, cancelSd := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
-			defer cancelSd()
+			shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+			defer cancelShutdown()
 			if err := embedder.Close(shutdownCtx); err != nil {
 				slog.Warn("embedder close", "err", err)
 			}

@@ -97,6 +97,16 @@ func (c *semanticCache) ensureLoaded(ctx context.Context, db *sql.DB, model stri
 	return nil
 }
 
+// SemanticCache is the cmd-visible alias for semanticCache. Pass the
+// same *SemanticCache into both NewEmbedder and Provider.WithEmbedClient
+// so bumps land in one place.
+type SemanticCache = semanticCache
+
+// NewSemanticCache constructs an empty SemanticCache.
+func NewSemanticCache() *SemanticCache {
+	return newSemanticCache()
+}
+
 // semanticSeeds runs the Top-K cosine-similarity scan over the cached
 // vectors for the given model. queryVec must already be L2-normalized by
 // the caller (matching the invariant for stored vectors). Returns entity IDs
@@ -111,16 +121,6 @@ func (c *semanticCache) ensureLoaded(ctx context.Context, db *sql.DB, model stri
 //
 // Empty DB returns (nil, nil) — not an error. Dim mismatch between queryVec
 // and a cached entry skips that entry (model-switch race survives gracefully).
-// SemanticCache is the cmd-visible alias for semanticCache. Pass the
-// same *SemanticCache into both NewEmbedder and Provider.WithEmbedClient
-// so bumps land in one place.
-type SemanticCache = semanticCache
-
-// NewSemanticCache constructs an empty SemanticCache.
-func NewSemanticCache() *SemanticCache {
-	return newSemanticCache()
-}
-
 func semanticSeeds(
 	ctx context.Context,
 	db *sql.DB,

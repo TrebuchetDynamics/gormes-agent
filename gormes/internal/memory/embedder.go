@@ -214,8 +214,8 @@ func (e *Embedder) embedAndStore(ctx context.Context, row embedderRow) error {
 	input := buildEmbedInput(row)
 	vec, err := e.ec.Embed(callCtx, e.cfg.Model, input)
 	if err != nil {
-		// TODO(T8): differentiate errEmbedModelNotFound from transient errors for
-		// log throttling — both currently surface as WARN in loopOnce.
+		// TODO(post-3.D): differentiate errEmbedModelNotFound from transient errors
+		// for log throttling — both currently surface as WARN in loopOnce.
 		return fmt.Errorf("embed: %w", err)
 	}
 	if len(vec) == 0 {
