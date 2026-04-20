@@ -41,9 +41,21 @@ jobs:
           test -f dist/install.sh
           test -f dist/static/site.css
 
+      # First-run safety: create the Pages project if it doesn't
+      # already exist under this account. Subsequent runs will see
+      # the "project already exists" error and skip past it via
+      # continue-on-error. Idempotent.
+      - name: Ensure Pages project exists
+        uses: cloudflare/wrangler-action@v3
+        continue-on-error: true
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create gormes-agent-landing --production-branch=main
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy gormes/www.gormes.ai/dist --project-name=gormes-agent-landing --branch=main
+          command: pages deploy gormes/www.gormes.ai/dist --project-name=gormes-agent-landing --branch=main --commit-dirty=true
