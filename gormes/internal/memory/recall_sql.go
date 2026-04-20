@@ -7,6 +7,26 @@ import (
 	"strings"
 )
 
+// weightExpr returns the SQL expression that substitutes for r.weight
+// in WHERE / ORDER BY clauses. When horizonDays <= 0, decay is
+// disabled and the raw column reference is returned. Otherwise a
+// linear-decay expression with one bound parameter (horizonSec) is
+// returned; callers are responsible for binding horizonSec in the
+// correct argument position.
+//
+// The expression: MAX(0, r.weight * (1 - age_seconds / horizon_seconds))
+//   - CAST forces float division (integer division snaps to 0/1 at
+//     the day boundary).
+//   - MAX(0, ...) clamps rows older than horizon to exactly zero;
+//     no wrap-around in ORDER BY.
+//   - Uses r.updated_at (existing column); no schema change.
+func weightExpr(horizonDays int) string {
+	if horizonDays <= 0 {
+		return "r.weight"
+	}
+	return "MAX(0, r.weight * (1 - CAST(strftime('%s','now') - r.updated_at AS REAL) / ?))"
+}
+
 // seedsExactName returns up to `limit` entity IDs whose name (lower-fold)
 // matches any of the provided candidates. Silently drops short candidates
 // (<3 chars) before sending to SQL. Empty candidates list returns
@@ -119,11 +139,14 @@ func scanIDs(rows *sql.Rows) ([]int64, error) {
 
 // traverseNeighborhood runs the Recursive CTE that expands a set of seed
 // entity IDs into a depth-bounded neighborhood, filtered by relationship
-// weight >= threshold, sorted by depth ASC then updated_at DESC, capped
-// at maxFacts.
+// weight (decay-aware) >= threshold, sorted by depth ASC then updated_at
+// DESC, capped at maxFacts.
+//
+// horizonDays controls Phase 3.E.6 decay. <= 0 disables decay and uses
+// the raw weight column as the filter.
 //
 // Depth 0 = seeds themselves.
-// Depth N = reachable via N hops along edges with weight >= threshold.
+// Depth N = reachable via N hops along edges with effective weight >= threshold.
 func traverseNeighborhood(
 	ctx context.Context,
 	db *sql.DB,
@@ -131,6 +154,7 @@ func traverseNeighborhood(
 	depth int,
 	threshold float64,
 	maxFacts int,
+	horizonDays int,
 ) ([]recalledEntity, error) {
 	if len(seedIDs) == 0 {
 		return nil, nil
@@ -139,9 +163,16 @@ func traverseNeighborhood(
 	// Build the seeds VALUES() clause: (?), (?), ...
 	seedValues := strings.Repeat("(?),", len(seedIDs))
 	seedValues = seedValues[:len(seedValues)-1]
-	args := make([]any, 0, len(seedIDs)+3)
+
+	// Args layout depends on whether decay is active:
+	//   disabled: [seed IDs], threshold, depth, maxFacts
+	//   enabled:  [seed IDs], horizonSec, threshold, depth, maxFacts
+	args := make([]any, 0, len(seedIDs)+4)
 	for _, id := range seedIDs {
 		args = append(args, id)
+	}
+	if horizonDays > 0 {
+		args = append(args, int64(horizonDays)*86400)
 	}
 	args = append(args, threshold, depth, maxFacts)
 
@@ -158,7 +189,7 @@ func traverseNeighborhood(
 				FROM neighborhood n
 				JOIN relationships r
 					ON (r.source_id = n.entity_id OR r.target_id = n.entity_id)
-				   AND r.weight >= ?
+				   AND %s >= ?
 				WHERE n.depth < ?
 			),
 			dedup_neighborhood AS (
@@ -170,7 +201,7 @@ func traverseNeighborhood(
 		FROM dedup_neighborhood dn
 		JOIN entities e ON e.id = dn.entity_id
 		ORDER BY dn.depth ASC, e.updated_at DESC
-		LIMIT ?`, seedValues)
+		LIMIT ?`, seedValues, weightExpr(horizonDays))
 
 	rows, err := db.QueryContext(ctx, q, args...)
 	if err != nil {

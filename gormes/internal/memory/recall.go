@@ -182,7 +182,8 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 
 	// 4. CTE traversal.
 	entities, err := traverseNeighborhood(ctx, p.store.db,
-		seeds, p.cfg.Depth, p.cfg.WeightThreshold, p.cfg.MaxFacts)
+		seeds, p.cfg.Depth, p.cfg.WeightThreshold, p.cfg.MaxFacts,
+		p.cfg.DecayHorizonDays)
 	if err != nil {
 		p.log.Warn("recall: CTE traversal failed", "err", err)
 		return ""

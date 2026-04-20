@@ -179,7 +179,7 @@ func hasEntityNamed(list []recalledEntity, name string) bool {
 func TestTraverse_OneDegreeFromA(t *testing.T) {
 	s, ids := openGraphWithEdges(t)
 	got, err := traverseNeighborhood(context.Background(), s.db,
-		[]int64{ids["A"]}, 1, 1.0, 10)
+		[]int64{ids["A"]}, 1, 1.0, 10, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestTraverse_OneDegreeFromA(t *testing.T) {
 func TestTraverse_TwoDegreeFromA(t *testing.T) {
 	s, ids := openGraphWithEdges(t)
 	got, _ := traverseNeighborhood(context.Background(), s.db,
-		[]int64{ids["A"]}, 2, 1.0, 10)
+		[]int64{ids["A"]}, 2, 1.0, 10, 0)
 	if !hasEntityNamed(got, "C") {
 		t.Errorf("depth-2 should include C; got %v", got)
 	}
@@ -206,7 +206,7 @@ func TestTraverse_TwoDegreeFromA(t *testing.T) {
 func TestTraverse_ThreeDegreeReachesD(t *testing.T) {
 	s, ids := openGraphWithEdges(t)
 	got, _ := traverseNeighborhood(context.Background(), s.db,
-		[]int64{ids["A"]}, 3, 1.0, 10)
+		[]int64{ids["A"]}, 3, 1.0, 10, 0)
 	if !hasEntityNamed(got, "D") {
 		t.Errorf("depth-3 should include D; got %v", got)
 	}
@@ -215,7 +215,7 @@ func TestTraverse_ThreeDegreeReachesD(t *testing.T) {
 func TestTraverse_WeightThresholdFiltersWeakEdges(t *testing.T) {
 	s, ids := openGraphWithEdges(t)
 	got, _ := traverseNeighborhood(context.Background(), s.db,
-		[]int64{ids["A"]}, 2, 1.0, 10)
+		[]int64{ids["A"]}, 2, 1.0, 10, 0)
 	if hasEntityNamed(got, "E") {
 		t.Errorf("weight=0.5 edge should have been excluded at threshold=1.0; got %v", got)
 	}
@@ -224,7 +224,7 @@ func TestTraverse_WeightThresholdFiltersWeakEdges(t *testing.T) {
 func TestTraverse_MaxFactsCap(t *testing.T) {
 	s, ids := openGraphWithEdges(t)
 	got, _ := traverseNeighborhood(context.Background(), s.db,
-		[]int64{ids["A"]}, 5, 0.0, 2)
+		[]int64{ids["A"]}, 5, 0.0, 2, 0)
 	if len(got) > 2 {
 		t.Errorf("len = %d, want <= 2 (MaxFacts)", len(got))
 	}
@@ -233,7 +233,7 @@ func TestTraverse_MaxFactsCap(t *testing.T) {
 func TestTraverse_EmptySeedsReturnsEmpty(t *testing.T) {
 	s, _ := openGraphWithEdges(t)
 	got, err := traverseNeighborhood(context.Background(), s.db,
-		nil, 2, 1.0, 10)
+		nil, 2, 1.0, 10, 0)
 	if err != nil {
 		t.Errorf("err = %v, want nil for empty seeds", err)
 	}
@@ -323,5 +323,107 @@ func TestSeedsFTS5_HandlesQuestionMarkInMessage(t *testing.T) {
 		"tell me about AzulVigia?", "telegram:42", 5)
 	if err != nil {
 		t.Errorf("seedsFTS5 with ?-suffixed message returned err: %v", err)
+	}
+}
+
+// seedDecayGraph inserts entities + one relationship with an explicit
+// updated_at timestamp so tests can age rows deterministically. Returns
+// the source and target entity IDs.
+func seedDecayGraph(t *testing.T, s *SqliteStore, srcName, predicate, tgtName string, weight float64, updatedAtUnix int64) (int64, int64) {
+	t.Helper()
+	now := time.Now().Unix()
+	_, err := s.db.Exec(
+		`INSERT INTO entities(name,type,updated_at) VALUES(?, 'PERSON', ?)`,
+		srcName, now)
+	if err != nil {
+		t.Fatalf("insert src entity: %v", err)
+	}
+	_, err = s.db.Exec(
+		`INSERT INTO entities(name,type,updated_at) VALUES(?, 'PERSON', ?)`,
+		tgtName, now)
+	if err != nil {
+		t.Fatalf("insert tgt entity: %v", err)
+	}
+	var srcID, tgtID int64
+	_ = s.db.QueryRow(`SELECT id FROM entities WHERE name = ?`, srcName).Scan(&srcID)
+	_ = s.db.QueryRow(`SELECT id FROM entities WHERE name = ?`, tgtName).Scan(&tgtID)
+	_, err = s.db.Exec(
+		`INSERT INTO relationships(source_id, target_id, predicate, weight, updated_at)
+		 VALUES(?, ?, ?, ?, ?)`,
+		srcID, tgtID, predicate, weight, updatedAtUnix)
+	if err != nil {
+		t.Fatalf("insert relationship: %v", err)
+	}
+	return srcID, tgtID
+}
+
+func TestTraverseNeighborhood_DecayFiltersStaleEdges(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "memory.db")
+	s, _ := OpenSqlite(path, 0, nil)
+	defer s.Close(context.Background())
+
+	now := time.Now().Unix()
+	stale := now - 400*86400 // 400 days old
+
+	// Stale edge: A2 -> C, weight 5.0, updated_at=400d ago.
+	// With horizon=180d, effective = MAX(0, 5 * (1 - 400/180)) = 0.
+	_, _ = seedDecayGraph(t, s, "A2", "KNOWS", "C", 5.0, stale)
+
+	var a2ID int64
+	_ = s.db.QueryRow(`SELECT id FROM entities WHERE name = 'A2'`).Scan(&a2ID)
+
+	// Expand from A2 with horizon=180 days, threshold=0.5.
+	// C's effective weight is 0, so C should NOT be in the neighborhood.
+	entities, err := traverseNeighborhood(context.Background(), s.db,
+		[]int64{a2ID}, 2, 0.5, 10, 180)
+	if err != nil {
+		t.Fatalf("traverseNeighborhood: %v", err)
+	}
+
+	// Should contain A2 (seed, depth 0) but NOT C (stale, decayed to 0).
+	var foundA2, foundC bool
+	for _, e := range entities {
+		if e.Name == "A2" {
+			foundA2 = true
+		}
+		if e.Name == "C" {
+			foundC = true
+		}
+	}
+	if !foundA2 {
+		t.Error("expected seed A2 in result at depth 0")
+	}
+	if foundC {
+		t.Error("stale edge expanded to C; decay should have filtered it (effective=0)")
+	}
+}
+
+func TestRecall_DecayDisabledWhenHorizonNegative(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "memory.db")
+	s, _ := OpenSqlite(path, 0, nil)
+	defer s.Close(context.Background())
+
+	now := time.Now().Unix()
+	stale := now - 400*86400
+
+	// Same setup — one stale edge.
+	srcID, _ := seedDecayGraph(t, s, "X", "KNOWS", "Y", 5.0, stale)
+
+	// horizonDays = -1 → decay disabled → raw-weight filter only.
+	// With raw weight 5.0 and threshold 0.5, Y must appear.
+	entities, err := traverseNeighborhood(context.Background(), s.db,
+		[]int64{srcID}, 2, 0.5, 10, -1)
+	if err != nil {
+		t.Fatalf("traverseNeighborhood: %v", err)
+	}
+
+	var foundY bool
+	for _, e := range entities {
+		if e.Name == "Y" {
+			foundY = true
+		}
+	}
+	if !foundY {
+		t.Error("with horizon=-1 (disabled), stale but high-weight edge must pass filter")
 	}
 }
