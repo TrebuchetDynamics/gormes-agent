@@ -269,9 +269,9 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 		"../www.gormes.ai/internal/site/server.go",
 		"../www.gormes.ai/internal/site/templates/index.tmpl",
 		"../www.gormes.ai/internal/site/templates/layout.tmpl",
-		"../www.gormes.ai/internal/site/templates/partials/code_block.tmpl",
 		"../www.gormes.ai/internal/site/templates/partials/feature_card.tmpl",
-		"../www.gormes.ai/internal/site/templates/partials/phase_item.tmpl",
+		"../www.gormes.ai/internal/site/templates/partials/install_step.tmpl",
+		"../www.gormes.ai/internal/site/templates/partials/roadmap_phase.tmpl",
 		"../www.gormes.ai/internal/site/static/site.css",
 		"../www.gormes.ai/tests/home.spec.mjs",
 	} {
@@ -288,19 +288,22 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 
 func TestReadmeDocumentsDoctorAndArchitecturalEdge(t *testing.T) {
 	raw := readDoc(t, "../README.md")
+	// Assert stable README invariants only — things that should not drift
+	// across phase boundaries. Binary size, Go minor version, and specific
+	// architectural terms (coalescing mailbox ms, Route-B) are too brittle;
+	// they belong in docs/ARCH_PLAN.md or per-phase specs, not README.
+	// Asserts stable invariants of gormes/README.md (the technical docs),
+	// NOT the repo-root README.md (the marketing landing page).
+	// Brittle assertions removed:
+	//   - "7.9 MB static binary" / specific sizes — drifts with each phase
+	//   - "Go 1.22+" — drifts with Go toolchain bumps (now 1.25+)
+	//   - Specific phase spec links — drift with phase progression
 	wants := []string{
 		"# Gormes",
-		"7.9 MB static binary",
-		"Go 1.22+",
+		"single static binary",
 		"zero-CGO",
-		"Zero-dependencies inside the process boundary",
+		"Go 1.25+",
 		"./bin/gormes doctor --offline",
-		"Route-B reconnect",
-		"16 ms coalescing mailbox",
-		"[Why Gormes](docs/content/why-gormes.md)",
-		"[Phase 2.A — Tool Registry](docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)",
-		"[Phase 2.B.1 — Telegram Scout](docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)",
-		"[Phase 2.C — Thin Mapping Persistence](docs/superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md)",
 	}
 	for _, want := range wants {
 		if !strings.Contains(raw, want) {

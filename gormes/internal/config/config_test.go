@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -235,5 +236,106 @@ func TestLoad_SemanticDefaults(t *testing.T) {
 	}
 	if cfg.Telegram.QueryEmbedTimeout != 60*time.Millisecond {
 		t.Errorf("QueryEmbedTimeout default = %v, want 60ms", cfg.Telegram.QueryEmbedTimeout)
+	}
+}
+
+func TestLoad_ConfigVersionDefault(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ConfigVersion != CurrentConfigVersion {
+		t.Errorf("ConfigVersion = %d, want %d (defaults())", cfg.ConfigVersion, CurrentConfigVersion)
+	}
+}
+
+func TestLoad_ConfigVersionMissingInFileTreatedAsV1(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+
+	cfgDir := filepath.Join(cfgHome, "gormes")
+	_ = os.MkdirAll(cfgDir, 0o755)
+	// TOML file with no _config_version key.
+	tomlBody := "[hermes]\nendpoint = \"http://1.2.3.4:5678\"\n"
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.toml"), []byte(tomlBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	// Missing version should auto-promote to CurrentConfigVersion after
+	// migrations run; endpoint override from file must be preserved.
+	if cfg.ConfigVersion != CurrentConfigVersion {
+		t.Errorf("ConfigVersion = %d, want %d (post-migration)", cfg.ConfigVersion, CurrentConfigVersion)
+	}
+	if cfg.Hermes.Endpoint != "http://1.2.3.4:5678" {
+		t.Errorf("Endpoint = %q, want the file value", cfg.Hermes.Endpoint)
+	}
+}
+
+func TestLegacyHermesHome_HermesHomeEnvWins(t *testing.T) {
+	t.Setenv("HERMES_HOME", "/some/custom/hermes/path")
+	got, ok := LegacyHermesHome()
+	if !ok {
+		t.Fatal("expected detection when HERMES_HOME set")
+	}
+	if got != "/some/custom/hermes/path" {
+		t.Errorf("got = %q, want the HERMES_HOME value", got)
+	}
+}
+
+func TestLegacyHermesHome_FallsBackToDefaultHomeDir(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HERMES_HOME", "")
+	t.Setenv("HOME", fakeHome)
+
+	// Without ~/.hermes, should not detect.
+	if _, ok := LegacyHermesHome(); ok {
+		t.Errorf("expected no detection when ~/.hermes absent")
+	}
+
+	// Create ~/.hermes — should detect.
+	if err := os.MkdirAll(filepath.Join(fakeHome, ".hermes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := LegacyHermesHome()
+	if !ok {
+		t.Fatal("expected detection when ~/.hermes exists")
+	}
+	if got != filepath.Join(fakeHome, ".hermes") {
+		t.Errorf("got = %q, want ~/.hermes path", got)
+	}
+}
+
+func TestLegacyHermesHome_NotDetectedWhenNothingIsThere(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HERMES_HOME", "")
+	t.Setenv("HOME", fakeHome)
+	// ~/.hermes does not exist inside fakeHome.
+	if _, ok := LegacyHermesHome(); ok {
+		t.Errorf("expected no detection in empty fakeHome")
+	}
+}
+
+func TestLoad_ConfigVersionFromFutureBinaryErrors(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+
+	cfgDir := filepath.Join(cfgHome, "gormes")
+	_ = os.MkdirAll(cfgDir, 0o755)
+	tomlBody := "_config_version = 9999\n[hermes]\nendpoint = \"http://1.2.3.4:5678\"\n"
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.toml"), []byte(tomlBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(nil)
+	if err == nil {
+		t.Fatal("expected error for config from future binary")
+	}
+	if !strings.Contains(err.Error(), "_config_version=9999") {
+		t.Errorf("err = %v, want mention of version 9999", err)
 	}
 }

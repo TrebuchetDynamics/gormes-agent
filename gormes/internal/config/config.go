@@ -6,13 +6,24 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
 )
 
+// CurrentConfigVersion is the schema version this binary writes + accepts.
+// When a breaking change to the TOML schema lands, bump this constant and
+// add a migration in runMigrations() so older files stay readable.
+const CurrentConfigVersion = 1
+
 type Config struct {
+	// ConfigVersion is the schema version of the loaded TOML file. Read
+	// before any struct fields so migrations can run against the raw
+	// document. Absent in TOML = treated as 1.
+	ConfigVersion int `toml:"_config_version"`
+
 	Hermes   HermesCfg   `toml:"hermes"`
 	TUI      TUICfg      `toml:"tui"`
 	Input    InputCfg    `toml:"input"`
@@ -75,7 +86,14 @@ type InputCfg struct {
 // Load resolves configuration from (in precedence order) CLI flags, env vars,
 // a TOML file at $XDG_CONFIG_HOME/gormes/config.toml, and built-in defaults.
 // Pass os.Args[1:] as args; pass nil to skip flag parsing entirely (useful in tests).
+//
+// Before anything else, dotenv files at (in decreasing precedence) the
+// Gormes XDG config dir and the legacy Hermes home are read into the
+// process environment — any key NOT already in the shell env is set
+// from the file. This lets operators migrating from Hermes keep their
+// `~/.hermes/.env` working without re-keying ~170 secrets.
 func Load(args []string) (Config, error) {
+	loadDotenvFiles() // populates os.Setenv for unset keys BEFORE loadEnv reads them
 	cfg := defaults()
 	if err := loadFile(&cfg); err != nil {
 		return cfg, err
@@ -89,6 +107,7 @@ func Load(args []string) (Config, error) {
 
 func defaults() Config {
 	return Config{
+		ConfigVersion: CurrentConfigVersion,
 		Hermes: HermesCfg{
 			Endpoint: "http://127.0.0.1:8642",
 			Model:    "hermes-agent",
@@ -130,7 +149,36 @@ func loadFile(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
-	return toml.Unmarshal(data, cfg)
+	if err := toml.Unmarshal(data, cfg); err != nil {
+		return err
+	}
+	// Absent _config_version in TOML = treat as v1 (pre-versioning files).
+	// Defaults() set it to CurrentConfigVersion, but unmarshal overwrites
+	// with 0 when the key isn't present.
+	if cfg.ConfigVersion == 0 {
+		cfg.ConfigVersion = 1
+	}
+	return migrateConfig(cfg)
+}
+
+// migrateConfig applies version-gated schema migrations in sequence,
+// bumping cfg.ConfigVersion after each step. A config written by a
+// newer binary (version > CurrentConfigVersion) is rejected with a
+// clear error so operators know to upgrade — silently downgrading
+// would quietly drop unknown fields.
+func migrateConfig(cfg *Config) error {
+	if cfg.ConfigVersion > CurrentConfigVersion {
+		return fmt.Errorf(
+			"config: _config_version=%d is from a newer binary (this binary knows up to v%d); upgrade gormes or hand-edit the file",
+			cfg.ConfigVersion, CurrentConfigVersion)
+	}
+	// No migrations defined yet (v1 is the first version). When a v1->v2
+	// schema change ships, add:
+	//   if cfg.ConfigVersion == 1 { migrate1to2(cfg); cfg.ConfigVersion = 2 }
+	// Each step is idempotent because it only runs when ConfigVersion
+	// matches its source version.
+	cfg.ConfigVersion = CurrentConfigVersion
+	return nil
 }
 
 func loadEnv(cfg *Config) {
@@ -214,4 +262,30 @@ func SessionDBPath() string {
 // ~/.local/share/gormes/memory.db.
 func MemoryDBPath() string {
 	return filepath.Join(xdgDataHome(), "gormes", "memory.db")
+}
+
+// LegacyHermesHome reports an upstream Hermes state directory if one is
+// discoverable. Returns the path and true when either $HERMES_HOME is
+// set OR ~/.hermes/ exists. Gormes does NOT read state from this path
+// at runtime — it uses XDG directories exclusively — but surfacing the
+// detection at startup lets operators know their Hermes state wasn't
+// silently ignored.
+//
+// Planned: Phase 5.O will add a `gormes migrate --from-hermes` command
+// that copies relevant state (sessions, memory snapshots) across.
+// Until then, operators see a one-line info log and can migrate
+// manually.
+func LegacyHermesHome() (string, bool) {
+	if v := strings.TrimSpace(os.Getenv("HERMES_HOME")); v != "" {
+		return v, true
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return "", false
+	}
+	candidate := filepath.Join(home, ".hermes")
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+		return candidate, true
+	}
+	return "", false
 }
