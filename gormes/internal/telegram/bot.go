@@ -2,7 +2,9 @@ package telegram
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -94,8 +96,36 @@ func (b *Bot) handleUpdate(ctx context.Context, u tgbotapi.Update) {
 		return
 	}
 
-	// Task 5 replaces this no-op with command parsing + kernel.Submit.
-	b.log.Info("inbound message", "chat_id", chatID, "text", u.Message.Text)
+	// Command routing + kernel submission (Phase 2.B.1 T5).
+	text := strings.TrimSpace(u.Message.Text)
+	switch {
+	case text == "/start":
+		_, _ = b.client.Send(tgbotapi.NewMessage(chatID,
+			"Gormes is online. Send a message to start a turn. Commands: /stop /new"))
+	case text == "/stop":
+		_ = b.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
+	case text == "/new":
+		if err := b.kernel.ResetSession(); err != nil {
+			if errors.Is(err, kernel.ErrResetDuringTurn) {
+				_, _ = b.client.Send(tgbotapi.NewMessage(chatID,
+					"Cannot reset during active turn — send /stop first."))
+			} else {
+				_, _ = b.client.Send(tgbotapi.NewMessage(chatID,
+					"Session reset failed: "+err.Error()))
+			}
+			return
+		}
+		_, _ = b.client.Send(tgbotapi.NewMessage(chatID,
+			"Session reset. Next message starts fresh."))
+	case strings.HasPrefix(text, "/"):
+		_, _ = b.client.Send(tgbotapi.NewMessage(chatID, "unknown command"))
+	default:
+		err := b.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: text})
+		if err != nil {
+			_, _ = b.client.Send(tgbotapi.NewMessage(chatID,
+				"Busy — try again in a second."))
+		}
+	}
 }
 
 // runOutbound consumes k.Render() and pushes frames into the coalescer.

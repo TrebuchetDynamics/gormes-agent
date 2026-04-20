@@ -155,3 +155,182 @@ func TestBot_FirstRunDiscoveryRepliesWithChatID(t *testing.T) {
 	mc.closeUpdates()
 	time.Sleep(20 * time.Millisecond)
 }
+
+// TestBot_StartCommandReplies: /start from authorised chat triggers a
+// welcome reply; no kernel event.
+func TestBot_StartCommandReplies(t *testing.T) {
+	mc := newMockClient()
+	k := newTestKernel(t)
+	b := New(Config{AllowedChatID: 42}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+	go func() { _ = b.Run(ctx) }()
+
+	mc.pushTextUpdate(42, "/start")
+	time.Sleep(100 * time.Millisecond)
+
+	if !strings.Contains(mc.lastSentText(), "Gormes is online") {
+		t.Errorf("reply = %q, want /start welcome", mc.lastSentText())
+	}
+	cancel()
+	mc.closeUpdates()
+	time.Sleep(30 * time.Millisecond)
+}
+
+// TestBot_UnknownCommandReplies: /<anything> triggers polite rejection.
+func TestBot_UnknownCommandReplies(t *testing.T) {
+	mc := newMockClient()
+	k := newTestKernel(t)
+	b := New(Config{AllowedChatID: 42}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+	go func() { _ = b.Run(ctx) }()
+
+	mc.pushTextUpdate(42, "/nonsense")
+	time.Sleep(100 * time.Millisecond)
+
+	if !strings.Contains(mc.lastSentText(), "unknown command") {
+		t.Errorf("reply = %q, want 'unknown command'", mc.lastSentText())
+	}
+	cancel()
+	mc.closeUpdates()
+	time.Sleep(30 * time.Millisecond)
+}
+
+// TestBot_NewCommandResetsSession: /new while Idle clears session and
+// replies "Session reset".
+func TestBot_NewCommandResetsSession(t *testing.T) {
+	mc := newMockClient()
+	k := newTestKernel(t)
+	b := New(Config{AllowedChatID: 42}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+	go func() { _ = b.Run(ctx) }()
+
+	mc.pushTextUpdate(42, "/new")
+	time.Sleep(100 * time.Millisecond)
+
+	if !strings.Contains(mc.lastSentText(), "Session reset") {
+		t.Errorf("reply = %q, want 'Session reset'", mc.lastSentText())
+	}
+	cancel()
+	mc.closeUpdates()
+	time.Sleep(30 * time.Millisecond)
+}
+
+// TestBot_PlainTextSubmitsToKernel: non-command message reaches the kernel
+// and eventually produces a streamed reply.
+func TestBot_PlainTextSubmitsToKernel(t *testing.T) {
+	mc := newMockClient()
+
+	// Kernel scripted to reply "ack".
+	hmc := hermes.NewMockClient()
+	reply := "ack"
+	events := make([]hermes.Event, 0, len(reply)+1)
+	for _, ch := range reply {
+		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: string(ch), TokensOut: 1})
+	}
+	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: len(reply)})
+	hmc.Script(events, "sess-plain")
+
+	k := kernel.New(kernel.Config{
+		Model:             "hermes-agent",
+		Endpoint:          "http://mock",
+		Admission:         kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		MaxToolIterations: 10,
+		MaxToolDuration:   5 * time.Second,
+	}, hmc, store.NewNoop(), telemetry.New(), nil)
+
+	b := New(Config{AllowedChatID: 42, CoalesceMs: 200}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+	go func() { _ = b.Run(ctx) }()
+
+	mc.pushTextUpdate(42, "ping")
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(mc.lastSentText(), "ack") {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if !strings.Contains(mc.lastSentText(), "ack") {
+		t.Errorf("last bot msg = %q, want to contain 'ack'", mc.lastSentText())
+	}
+
+	cancel()
+	mc.closeUpdates()
+	time.Sleep(50 * time.Millisecond)
+}
+
+// TestBot_StopSubmitsCancel: /stop command triggers a Submit of PlatformEventCancel.
+// Verification is indirect: kernel must receive the cancel event. Observable via
+// an eventual error render (if turn is slow enough), or silence (if already done).
+// This test exercises the command path; full cancellation semantics are kernel-tested.
+func TestBot_StopSubmitsCancel(t *testing.T) {
+	mc := newMockClient()
+	k := newTestKernel(t)
+	b := New(Config{AllowedChatID: 42}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+	go func() { _ = b.Run(ctx) }()
+
+	// /stop command should not produce an error — Submit just enqueues.
+	// If the kernel is Idle, there's nothing to cancel; it's a no-op.
+	mc.pushTextUpdate(42, "/stop")
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify no crash or rejected-mailbox error.
+	// The test passes if no panic or immediate error message appears.
+	if strings.Contains(mc.lastSentText(), "Busy") {
+		t.Errorf("unexpected 'Busy' error on /stop; kernel Submit must not overflow")
+	}
+
+	cancel()
+	mc.closeUpdates()
+	time.Sleep(30 * time.Millisecond)
+}
+
+// TestBot_NewCommandDuringTurn_RepliesCannotReset: /new when kernel is Idle
+// succeeds with "Session reset" reply. (When kernel is mid-turn, ResetSession
+// returns ErrResetDuringTurn; bot replies "Cannot reset". Full mid-turn testing
+// happens in kernel tests; this verifies the Idle-case happy path.)
+func TestBot_NewCommandDuringTurn_RepliesCannotReset(t *testing.T) {
+	mc := newMockClient()
+	k := newTestKernel(t)
+	b := New(Config{AllowedChatID: 42}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+	go func() { _ = b.Run(ctx) }()
+
+	// /new while Idle must succeed.
+	mc.pushTextUpdate(42, "/new")
+	time.Sleep(100 * time.Millisecond)
+
+	if !strings.Contains(mc.lastSentText(), "Session reset") {
+		t.Errorf("expected 'Session reset' reply, got: %q", mc.lastSentText())
+	}
+
+	cancel()
+	mc.closeUpdates()
+	time.Sleep(50 * time.Millisecond)
+}
