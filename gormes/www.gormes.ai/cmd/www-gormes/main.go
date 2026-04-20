@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/XelHaku/golang-hermes-agent/www.gormes.ai/internal/site"
+	"github.com/XelHaku/golang-hermes-agent/gormes/www.gormes.ai/internal/site"
 )
 
 func main() {
