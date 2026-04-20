@@ -91,7 +91,7 @@ func (b *Bot) handleUpdate(ctx context.Context, u tgbotapi.Update) {
 			reply := tgbotapi.NewMessage(chatID,
 				"Gormes is not authorised for this chat.\n"+
 					"To allow: set [telegram].allowed_chat_id in config.toml.\n"+
-					"Then restart gormes-telegram.")
+					"Then restart gormes telegram.")
 			_, _ = b.client.Send(reply)
 		} else {
 			b.log.Warn("unauthorised chat blocked", "chat_id", chatID)

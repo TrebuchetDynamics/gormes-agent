@@ -19,7 +19,7 @@ var _ telegramClient = (*realClient)(nil)
 // token is invalid (tgbotapi validates by calling getMe on construction),
 // so token errors surface at binary startup not at first user message.
 //
-// Exported so cmd/gormes-telegram can construct one outside this package.
+// Exported so cmd/gormes (telegram subcommand) can construct one outside this package.
 func NewRealClient(token string) (telegramClient, error) {
 	api, err := tgbotapi.NewBotAPI(token)
 	if err != nil {

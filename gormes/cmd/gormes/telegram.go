@@ -1,6 +1,3 @@
-// Command gormes-telegram is the Phase-2.B.1 Telegram adapter binary.
-// Phase 2.C adds persistent session-id resume via internal/session.
-// Phase 3.A wires SqliteStore as the kernel memory store.
 package main
 
 import (
@@ -12,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
@@ -22,14 +21,19 @@ import (
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
 )
 
-func main() {
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "gormes-telegram:", err)
-		os.Exit(1)
-	}
+// telegramCmd runs Gormes as a Telegram bot — the adapter previously
+// shipped as the standalone cmd/gormes-telegram binary (Phase 2.B.1
+// through 3.A). Unified into cmd/gormes under the < 100 MB binary
+// ceiling; see the unification commit's message for rationale.
+var telegramCmd = &cobra.Command{
+	Use:          "telegram",
+	Short:        "Run Gormes as a Telegram bot adapter",
+	Long:         "Long-polls Telegram for DMs from the allowlisted chat, drives the same kernel + tool loop as the TUI, and persists turns to the SQLite memory store.",
+	SilenceUsage: true,
+	RunE:         runTelegram,
 }
 
-func run() error {
+func runTelegram(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.Load(os.Args[1:])
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
@@ -130,7 +134,7 @@ func run() error {
 		})
 	}()
 
-	slog.Info("gormes-telegram starting",
+	slog.Info("gormes telegram starting",
 		"endpoint", cfg.Hermes.Endpoint,
 		"allowed_chat_id", cfg.Telegram.AllowedChatID,
 		"discovery", cfg.Telegram.FirstRunDiscovery,

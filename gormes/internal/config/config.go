@@ -28,7 +28,7 @@ type TelegramCfg struct {
 	CoalesceMs        int    `toml:"coalesce_ms"`
 	FirstRunDiscovery bool   `toml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
-	// cmd/gormes-telegram's SqliteStore. Defaults to 1024.
+	// the telegram subcommand's SqliteStore. Defaults to 1024.
 	MemoryQueueCap int `toml:"memory_queue_cap"`
 }
 
