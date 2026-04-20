@@ -185,6 +185,20 @@ func (b *Bot) persistIfChanged(ctx context.Context, f kernel.RenderFrame) {
 	b.lastSID = f.SessionID
 }
 
+// SendToChat sends a plain-text message to the specified chat_id.
+// Exposed for Phase 2.D cron delivery — the cron executor calls this
+// (via newTelegramDeliverySink in cmd/gormes) to push scheduled-job
+// output to the operator's configured AllowedChatID.
+//
+// The ctx parameter is currently unused — go-telegram-bot-api/v5's
+// Send is synchronous and doesn't accept a context. Kept for forward
+// compatibility if we swap libraries.
+func (b *Bot) SendToChat(ctx context.Context, chatID int64, text string) error {
+	_ = ctx // unused for now; see doc comment
+	_, err := b.client.Send(tgbotapi.NewMessage(chatID, text))
+	return err
+}
+
 // handleFrame dispatches one RenderFrame to the coalescer. Lazy-inits the
 // coalescer on the first streaming/connecting frame; tears it down on
 // PhaseIdle/Failed/Cancelling with flushImmediate.

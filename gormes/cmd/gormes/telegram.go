@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
@@ -211,6 +212,50 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		}()
 	}
 
+	// Phase 2.D — cron scheduler + executor + mirror (opt-in via
+	// cfg.Cron.Enabled). No-op when disabled — zero goroutines, zero
+	// bbolt bucket, zero RAM.
+	if cfg.Cron.Enabled && cfg.Telegram.AllowedChatID != 0 {
+		// Reuse the existing session.db for the cron_jobs bucket.
+		cronStore, err := cron.NewStore(smap.DB())
+		if err != nil {
+			return fmt.Errorf("cron: init store: %w", err)
+		}
+		cronRunStore := cron.NewRunStore(mstore.DB())
+
+		sink := newTelegramDeliverySink(bot, cfg.Telegram.AllowedChatID)
+
+		cronExec := cron.NewExecutor(cron.ExecutorConfig{
+			Kernel:      k,
+			JobStore:    cronStore,
+			RunStore:    cronRunStore,
+			Sink:        sink,
+			CallTimeout: cfg.Cron.CallTimeout,
+		}, slog.Default())
+
+		cronSched := cron.NewScheduler(cron.SchedulerConfig{
+			Store:    cronStore,
+			Executor: cronExec,
+		}, slog.Default())
+
+		if err := cronSched.Start(rootCtx); err != nil {
+			return fmt.Errorf("cron: start scheduler: %w", err)
+		}
+		defer func() {
+			shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+			defer cancelShutdown()
+			cronSched.Stop(shutdownCtx)
+		}()
+
+		cronMirror := cron.NewMirror(cron.MirrorConfig{
+			JobStore: cronStore,
+			RunStore: cronRunStore,
+			Path:     cfg.CronMirrorPath(),
+			Interval: cfg.Cron.MirrorInterval,
+		}, slog.Default())
+		go cronMirror.Run(rootCtx)
+	}
+
 	go func() {
 		<-rootCtx.Done()
 		time.AfterFunc(kernel.ShutdownBudget, func() {
@@ -245,5 +290,20 @@ func (a *recallAdapter) GetContext(ctx context.Context, params kernel.RecallPara
 		UserMessage: params.UserMessage,
 		ChatKey:     params.ChatKey,
 		SessionID:   params.SessionID,
+	})
+}
+
+// telegramBotSender is the narrow interface newTelegramDeliverySink
+// needs — matches what *telegram.Bot exposes.
+type telegramBotSender interface {
+	SendToChat(ctx context.Context, chatID int64, text string) error
+}
+
+// newTelegramDeliverySink wraps the running Telegram bot as a
+// cron.DeliverySink. Every cron-fired output is sent to the
+// operator's configured AllowedChatID.
+func newTelegramDeliverySink(bot telegramBotSender, chatID int64) cron.DeliverySink {
+	return cron.FuncSink(func(ctx context.Context, text string) error {
+		return bot.SendToChat(ctx, chatID, text)
 	})
 }

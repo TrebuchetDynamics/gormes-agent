@@ -52,6 +52,13 @@ func OpenBolt(path string) (*BoltMap, error) {
 	return &BoltMap{db: db}, nil
 }
 
+// DB exposes the underlying *bolt.DB so other subsystems can add their
+// own buckets (Phase 2.D cron_jobs bucket, future extensions). The
+// caller MUST NOT close the returned handle — BoltMap's Close owns it.
+func (m *BoltMap) DB() *bolt.DB {
+	return m.db
+}
+
 func classifyOpenErr(path string, err error) error {
 	if err != nil && (errors.Is(err, bolt.ErrTimeout) ||
 		containsAny(err.Error(), "timeout", "resource temporarily unavailable")) {
