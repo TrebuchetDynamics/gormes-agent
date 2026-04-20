@@ -136,3 +136,33 @@ func TestSessionDBPath_DefaultsToHomeLocalShare(t *testing.T) {
 		t.Errorf("SessionDBPath() with empty XDG_DATA_HOME = %q, want %q", got, want)
 	}
 }
+
+func TestLoad_MemoryQueueCapDefault(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.MemoryQueueCap != 1024 {
+		t.Errorf("MemoryQueueCap default = %d, want 1024", cfg.Telegram.MemoryQueueCap)
+	}
+}
+
+func TestMemoryDBPath_HonorsXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-memxdg")
+	got := MemoryDBPath()
+	want := "/tmp/gormes-test-memxdg/gormes/memory.db"
+	if got != want {
+		t.Errorf("MemoryDBPath() = %q, want %q", got, want)
+	}
+}
+
+func TestMemoryDBPath_DefaultsToHomeLocalShare(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "")
+	home, _ := os.UserHomeDir()
+	got := MemoryDBPath()
+	want := filepath.Join(home, ".local", "share", "gormes", "memory.db")
+	if got != want {
+		t.Errorf("MemoryDBPath() default = %q, want %q", got, want)
+	}
+}

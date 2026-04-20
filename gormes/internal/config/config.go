@@ -27,6 +27,9 @@ type TelegramCfg struct {
 	AllowedChatID     int64  `toml:"allowed_chat_id"`
 	CoalesceMs        int    `toml:"coalesce_ms"`
 	FirstRunDiscovery bool   `toml:"first_run_discovery"`
+	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
+	// cmd/gormes-telegram's SqliteStore. Defaults to 1024.
+	MemoryQueueCap int `toml:"memory_queue_cap"`
 }
 
 type HermesCfg struct {
@@ -70,6 +73,7 @@ func defaults() Config {
 		Telegram: TelegramCfg{
 			CoalesceMs:        1000,
 			FirstRunDiscovery: true,
+			MemoryQueueCap:    1024,
 		},
 	}
 }
@@ -160,4 +164,11 @@ func CrashLogDir() string {
 // Honors XDG_DATA_HOME; falls back to ~/.local/share/gormes/sessions.db.
 func SessionDBPath() string {
 	return filepath.Join(xdgDataHome(), "gormes", "sessions.db")
+}
+
+// MemoryDBPath returns the default location of the Phase-3.A SQLite
+// memory database. Honors XDG_DATA_HOME; falls back to
+// ~/.local/share/gormes/memory.db.
+func MemoryDBPath() string {
+	return filepath.Join(xdgDataHome(), "gormes", "memory.db")
 }
