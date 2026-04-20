@@ -36,6 +36,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"3.D.5 USER.md mirror — Gormes-original, no upstream equivalent",
 		"4.A Provider adapters",
 		"5.A–5.P",
+		"Phase 6 — Learning Loop (The Soul)",
 	}
 	rejects := []string{
 		"Run Hermes Through a Go Operator Console.",

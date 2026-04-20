@@ -83,6 +83,16 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Delete the last Python dependency. Ship entirely in Go.",
 		"5.A–5.P",
 		"See ARCH_PLAN §7.",
+		// Phase 6 — Learning Loop (new)
+		"PLANNED · 0/6",
+		"Phase 6 — Learning Loop (The Soul)",
+		"Compounding intelligence. The feature Hermes doesn&#39;t have.",
+		"6.A Complexity detector",
+		"6.B Skill extractor",
+		"6.C Skill storage format",
+		"6.D Skill retrieval + matching",
+		"6.E Feedback loop",
+		"6.F Skill surface",
 		// Footer — brand text + company anchor + license
 		`Gormes v0.1.0 · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
 		"MIT License · 2026",
