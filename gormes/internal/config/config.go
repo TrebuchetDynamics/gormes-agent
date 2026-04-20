@@ -5,15 +5,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
 )
 
 type Config struct {
-	Hermes HermesCfg `toml:"hermes"`
-	TUI    TUICfg    `toml:"tui"`
-	Input  InputCfg  `toml:"input"`
+	Hermes   HermesCfg   `toml:"hermes"`
+	TUI      TUICfg      `toml:"tui"`
+	Input    InputCfg    `toml:"input"`
+	Telegram TelegramCfg `toml:"telegram"`
+}
+
+type TelegramCfg struct {
+	BotToken          string `toml:"bot_token"`
+	AllowedChatID     int64  `toml:"allowed_chat_id"`
+	CoalesceMs        int    `toml:"coalesce_ms"`
+	FirstRunDiscovery bool   `toml:"first_run_discovery"`
 }
 
 type HermesCfg struct {
@@ -54,6 +63,10 @@ func defaults() Config {
 		},
 		TUI:   TUICfg{Theme: "dark"},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
+		Telegram: TelegramCfg{
+			CoalesceMs:        1000,
+			FirstRunDiscovery: true,
+		},
 	}
 }
 
@@ -78,6 +91,14 @@ func loadEnv(cfg *Config) {
 	}
 	if v := os.Getenv("GORMES_API_KEY"); v != "" {
 		cfg.Hermes.APIKey = v
+	}
+	if v := os.Getenv("GORMES_TELEGRAM_TOKEN"); v != "" {
+		cfg.Telegram.BotToken = v
+	}
+	if v := os.Getenv("GORMES_TELEGRAM_CHAT_ID"); v != "" {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			cfg.Telegram.AllowedChatID = id
+		}
 	}
 }
 

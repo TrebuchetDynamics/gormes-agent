@@ -65,3 +65,33 @@ func TestLoad_SecretsNeverOnFlags(t *testing.T) {
 		t.Error("expected --api-key to be rejected as an unknown flag")
 	}
 }
+
+func TestLoad_TelegramDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.CoalesceMs != 1000 {
+		t.Errorf("CoalesceMs default = %d, want 1000", cfg.Telegram.CoalesceMs)
+	}
+	if !cfg.Telegram.FirstRunDiscovery {
+		t.Error("FirstRunDiscovery default = false, want true")
+	}
+}
+
+func TestLoad_TelegramEnvOverride(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "abc:xyz")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "99999")
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.BotToken != "abc:xyz" {
+		t.Errorf("BotToken = %q", cfg.Telegram.BotToken)
+	}
+	if cfg.Telegram.AllowedChatID != 99999 {
+		t.Errorf("AllowedChatID = %d", cfg.Telegram.AllowedChatID)
+	}
+}
