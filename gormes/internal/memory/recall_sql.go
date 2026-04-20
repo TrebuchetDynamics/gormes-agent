@@ -81,3 +81,75 @@ func scanIDs(rows *sql.Rows) ([]int64, error) {
 	}
 	return out, rows.Err()
 }
+
+// traverseNeighborhood runs the Recursive CTE that expands a set of seed
+// entity IDs into a depth-bounded neighborhood, filtered by relationship
+// weight >= threshold, sorted by depth ASC then updated_at DESC, capped
+// at maxFacts.
+//
+// Depth 0 = seeds themselves.
+// Depth N = reachable via N hops along edges with weight >= threshold.
+func traverseNeighborhood(
+	ctx context.Context,
+	db *sql.DB,
+	seedIDs []int64,
+	depth int,
+	threshold float64,
+	maxFacts int,
+) ([]recalledEntity, error) {
+	if len(seedIDs) == 0 {
+		return nil, nil
+	}
+
+	// Build the seeds VALUES() clause: (?), (?), ...
+	seedValues := strings.Repeat("(?),", len(seedIDs))
+	seedValues = seedValues[:len(seedValues)-1]
+	args := make([]any, 0, len(seedIDs)+3)
+	for _, id := range seedIDs {
+		args = append(args, id)
+	}
+	args = append(args, threshold, depth, maxFacts)
+
+	q := fmt.Sprintf(`
+		WITH RECURSIVE
+			seeds(entity_id) AS (VALUES %s),
+			neighborhood(entity_id, depth) AS (
+				SELECT entity_id, 0 FROM seeds
+				UNION
+				SELECT
+					CASE WHEN r.source_id = n.entity_id THEN r.target_id
+					     ELSE r.source_id END,
+					n.depth + 1
+				FROM neighborhood n
+				JOIN relationships r
+					ON (r.source_id = n.entity_id OR r.target_id = n.entity_id)
+				   AND r.weight >= ?
+				WHERE n.depth < ?
+			),
+			dedup_neighborhood AS (
+				SELECT entity_id, MIN(depth) AS depth
+				FROM neighborhood
+				GROUP BY entity_id
+			)
+		SELECT e.name, e.type, COALESCE(e.description, '')
+		FROM dedup_neighborhood dn
+		JOIN entities e ON e.id = dn.entity_id
+		ORDER BY dn.depth ASC, e.updated_at DESC
+		LIMIT ?`, seedValues)
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("traverseNeighborhood: %w", err)
+	}
+	defer rows.Close()
+
+	var out []recalledEntity
+	for rows.Next() {
+		var e recalledEntity
+		if err := rows.Scan(&e.Name, &e.Type, &e.Description); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
