@@ -64,7 +64,7 @@ Legend: 🔨 in progress · ✅ complete · ⏳ planned · ⏸ deferred.
 - **3.A — SQLite + FTS5 Lattice** — ✅ implemented (`internal/memory`, `SqliteStore`, FTS5 triggers, fire-and-forget worker, schema v3a→v3c migrations)
 - **3.B — Ontological Graph + LLM Extractor** — ✅ implemented (`Extractor`, entity/relationship upsert, dead-letter queue, validator with weight-floor patch)
 - **3.C — Neural Recall + Context Injection** — ✅ implemented (`RecallProvider`, 2-layer seed selection, CTE traversal, `<memory-context>` fence matching Python's `build_memory_context_block`)
-- **3.D — Semantic Fusion + Local Embeddings** — ⏳ planned (spec + implementation plan at [`docs/superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md`](docs/superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md); adds Ollama `/v1/embeddings`, in-memory vector cache, cosine similarity scan)
+- **3.D — Semantic Fusion + Local Embeddings** — ⏳ planned (spec + implementation plan at [`docs/superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md`](docs/superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md); Ollama `/v1/embeddings` endpoint [OpenAI-compatible](https://ollama.readthedocs.io/en/openai/); evaluated vector libraries: [chromem-go](https://github.com/TIANLI0/chromem-go) (zero deps, HNSW/IVF/BM25), [veclite](https://github.com/abdul-hamid-achik/veclite) (single-file, HNSW), [vecgo](https://github.com/hupe1980/vecgo) (HNSW+DiskANN), [govector](https://github.com/DotNetAge/govector) (bbolt-based); adds in-memory vector cache, cosine similarity scan, 3-layer recall)
 - **3.D.5 — Memory Mirror (USER.md sync)** — ✅ implemented (async background goroutine exports SQLite entities/rels → Markdown every 30s; configurable path; atomic writes; SQLite remains source of truth; zero impact on 250ms latency moat)
 
 ### Phase 2 Ledger
@@ -287,3 +287,176 @@ These upstream paths exist but are not part of the runtime that Gormes must abso
 ### Inventory cadence
 
 Re-run the upstream survey when a major Hermes release lands, when a new platform connector is added upstream, or when a Gormes phase ships and we need to mark its rows ✅. The survey is mechanical: `find upstream root -name "*.py" -newer last-survey-date` plus a `gateway/platforms/` directory listing usually catches everything.
+
+---
+
+## 7. Mirror Strategy — Auditability Roadmap
+
+Phase 3.D.5 (Memory Mirror) closes the transparency gap for entities/relationships. Based on comprehensive Hermes parity research, here is the complete mirror strategy.
+
+### 7.1 What Hermes Actually Has vs Gormes
+
+| Data | Hermes Format | Gormes Format | Gap Analysis |
+|------|--------------|---------------|--------------|
+| **Entities/Relationships** | SQLite + USER.md (text) | SQLite + USER.md (via Mirror) | ✅ **Parity achieved (3.D.5)** |
+| **Turns/Transcripts** | SQLite + JSONL | SQLite only | 🟡 Gormes has parity; no text export in either |
+| **Sessions** | SQLite (queryable) | bbolt (opaque binary) | 🔴 **Gap: bbolt is human-opaque** |
+| **Tool Execution** | SessionDB (persisted) | In-memory only | 🔴 **Gap: no tool audit trail** |
+| **Extraction State** | SQLite columns | SQLite columns | 🟡 Invisible in both; parity |
+| **Skills** | SKILL.md (text files) | Not implemented | ⏳ Phase 5 |
+| **Cron Output** | Markdown files | Not implemented | ⏳ Phase 4 |
+| **Config** | YAML | TOML | ✅ Both human-readable |
+| **Logs** | Text files (agent.log, etc.) | Text file (gormes.log) | ✅ Parity |
+
+**Key Finding**: Hermes does **not** have human-readable transcript exports. Transcripts live in SQLite/JSONL only. The `export_session()` method returns JSON (machine-readable), not formatted text. **Gormes already exceeds Hermes parity** with the USER.md mirror for memory entities.
+
+### 7.2 Remaining Mirror Candidates (Ranked by Priority)
+
+#### 🔴 High Priority: Session Index Mirror (Phase 3.E.1)
+
+**Problem**: Sessions stored in bbolt (`~/.local/share/gormes/sessions.db`) are opaque. Operators cannot `cat`, `grep`, or audit their session mappings without binary tools.
+
+**Solution**: Mirror the bbolt session map to `~/.local/share/gormes/sessions/index.yaml`:
+```yaml
+# Auto-generated session index
+# This file is a read-only mirror of sessions.db for operator auditability
+sessions:
+  telegram:123456789: session_abc123
+  telegram:987654321: session_def456
+updated_at: 2026-04-20T09:30:00Z
+```
+
+**Implementation**: Background goroutine (like 3.D.5 Mirror) triggered on session write; atomic temp+rename; 30s sync interval.
+
+**Rationale**: Hermes uses queryable SQLite for sessions; Gormes uses binary bbolt. This provides human-readable session auditability that Hermes has via SQL but Gormes lacks via bbolt opacity.
+
+#### 🟡 Medium Priority: Tool Execution Audit Log (Phase 3.E.2)
+
+**Problem**: Tool calls are ephemeral. The Bear runs `terminal()`, produces output, but no persistent record exists. An operator cannot audit "what did the agent do yesterday?"
+
+**Solution**: Append-only log at `~/.local/share/gormes/tools/audit.logl` (JSONL):
+```json
+{"ts":"2026-04-20T09:30:00Z","session":"abc123","turn":5,"tool":"terminal","cmd":"ls -la","duration_ms":150,"status":"ok"}
+{"ts":"2026-04-20T09:30:05Z","session":"abc123","turn":6,"tool":"web_search","query":"golang embed","results":3,"duration_ms":2500}
+```
+
+**Rationale**: This exceeds Hermes capabilities. Python Hermes stores tool results in SessionDB messages table, but there's no separate audit trail for tool execution. This is new operational visibility.
+
+#### 🟡 Medium Priority: Transcript Export Command (Phase 3.E.3)
+
+**Problem**: While Hermes has no human-readable transcript export, operators may want to export a conversation for sharing, backup, or analysis.
+
+**Solution**: Add `gormes session export <session_id> --format=markdown` command that renders:
+```markdown
+# Session session_abc123 (2026-04-20)
+
+## Turn 1
+**User**: Hello Bear
+
+**Assistant**: Hello! How can I help?
+
+## Turn 2
+**User**: What's my name?
+...memory-context appears here...
+
+**Assistant**: You're the user who...
+
+---
+*Exported from Gormes on 2026-04-20T09:30:00Z*
+```
+
+**Rationale**: This is a **Gormes-only feature** that exceeds Hermes capabilities. Hermes has no equivalent human-readable export.
+
+#### 🟢 Low Priority: Extraction State Visibility (Phase 3.E.4)
+
+**Problem**: `turns.extracted`, `extraction_attempts`, `extraction_error` columns are invisible to operators. A dead-lettered turn (`extracted=2`) requires SQLite inspection.
+
+**Solution**: Optional: add extraction failures to the USER.md mirror footer, or provide `gormes memory status` command showing extraction queue depth and recent errors.
+
+**Rationale**: This is debugging/operational visibility. Can be deferred until extraction issues become painful.
+
+### 7.3 Hermes Files Gormes Does Not Need to Mirror
+
+Based on the comprehensive Hermes file inventory, these Hermes files do not need Gormes mirrors:
+
+| Hermes File | Why Not Mirrored in Gormes |
+|-------------|---------------------------|
+| `MEMORY.md` | Superseded by USER.md + entity graph (structured > flat) |
+| `sessions.json` | Legacy Hermes format; Gormes uses bbolt (better concurrency) |
+| `*.jsonl` transcripts | Machine-readable only; Gormes could add human-readable export (3.E.3) |
+| `jobs.json` + cron output | Cron not yet implemented in Gormes (Phase 4) |
+| `SKILL.md` files | Skills not yet implemented (Phase 5) |
+| `HOOK.yaml` | Hook system not yet implemented |
+| `BOOT.md` | Boot hooks not yet implemented |
+| `SOUL.md` | Personality system not yet implemented (Phase 4+) |
+| Platform JSON files | Platform adapters not yet implemented (Phase 2.B.2+) |
+
+### 7.4 Mirror Implementation Principles
+
+All mirrors must follow the 3.D.5 design constraints:
+1. **Source of truth remains database** — mirrors are read-only exports
+2. **Fire-and-forget** — never block the 250ms kernel latency budget
+3. **Atomic writes** — temp file + rename (readers never see partial files)
+4. **Change detection** — hash comparison to avoid redundant writes
+5. **Graceful degradation** — log warnings on errors, never crash the bot
+6. **Configurable paths** — respect XDG directories and config overrides
+
+---
+
+*Mirror Strategy v1.0 — Synthesized from parallel audit of Hermes Python codebase and Gormes Go implementation.*
+
+---
+
+## 8. Technology Radar — Package & Tool Research
+
+Continuous research into the Go ecosystem for Gormes-relevant packages, techniques, and upstream developments.
+
+### 8.1 Vector Embedding Libraries (Phase 3.D Research — 2026-04-20)
+
+Evaluated pure-Go vector databases for semantic recall layer:
+
+| Library | License | Storage | Index | Size Impact | Notes |
+|---------|---------|---------|-------|-------------|-------|
+| **[chromem-go](https://github.com/TIANLI0/chromem-go)** | Apache-2.0 | In-memory + optional persist | HNSW, IVF, PQ, BM25, hybrid | ~200KB | Zero third-party deps; SIMD on amd64; BM25 for lexical+semantic fusion |
+| **[veclite](https://github.com/abdul-hamid-achik/veclite)** | MIT | Single `.veclite` file | HNSW + BM25 | ~150KB | Zero deps (stdlib only); auto-embedding with Ollama/OpenAI; single-file portability |
+| **[vecgo](https://github.com/hupe1980/vecgo)** | Apache-2.0 | Commit-oriented durability | HNSW + DiskANN/Vamana | ~300KB | Production-focused; 16-way sharded HNSW; arena allocator; PQ/RaBitQ quantization |
+| **[govector](https://github.com/DotNetAge/govector)** | MIT | bbolt + Protobuf | HNSW | ~250KB | "SQLite for Vectors"; Qdrant-compatible API; uses `github.com/coder/hnsw` |
+| **[goformersearch](https://github.com/MichaelAyles/goformersearch)** | MIT | In-memory | Brute-force + HNSW | ~100KB | Minimal surface; designed for 10k-50k docs at 384d; single-core optimized |
+
+**Recommendation**: **chromem-go** or **veclite** for Phase 3.D. Both offer:
+- Pure Go (CGO-free, static binary compatible)
+- HNSW for O(log n) ANN search
+- BM25 for hybrid lexical+semantic search
+- Zero additional dependencies
+- MIT/Apache-2.0 licenses (compatible with Gormes)
+
+**Ollama Integration**: Ollama supports OpenAI-compatible `/v1/embeddings` endpoint ([docs](https://ollama.readthedocs.io/en/openai/)). Go client libraries: [`go-embeddings`](https://github.com/milosgajdos/go-embeddings) (multi-provider, includes Ollama), [`go-ollama`](https://github.com/eslider/go-ollama) (streaming support).
+
+### 8.2 SQLite Driver Landscape
+
+Current: `github.com/ncruces/go-sqlite3` (WASM-based, CGO-free)
+
+Alternatives monitored:
+- `modernc.org/sqlite` (C-to-Go transpiled, larger binary impact)
+- `github.com/mattn/go-sqlite3` (CGO, not static-binary friendly)
+
+**Status**: ncruces driver remains optimal for CGO-free static builds.
+
+### 8.3 Upstream Hermes-Agent Tracking
+
+**Repository**: https://github.com/NousResearch/hermes-agent  
+**License**: MIT (compatible)  
+**Porting Strategy**: Strangler Fig — Gormes phases gradually subsume Python subsystems (§1 Rosetta Stone)
+
+**Recent upstream additions to monitor** (inventory from parallel codebase audit):
+- Gateway platforms: 24 adapters including Telegram, Discord, Slack, WhatsApp, Signal, Email, SMS, Feishu, Matrix, Weixin, BlueBubbles, QQ
+- RL training environments (`environments/`)
+- ACP adapter for IDE integration (`acp_adapter/`)
+- Honcho dialectic user modeling integration
+- Skills Hub registries (skills.sh, clawhub, lobehub, hermes-index)
+
+**Cadence**: Re-run upstream survey on major Hermes releases or when new platform connectors land. See §7 Subsystem Inventory for complete upstream file mapping.
+
+---
+
+*Technology Radar v1.0 — Research synthesized from web searches and parallel codebase audit.*

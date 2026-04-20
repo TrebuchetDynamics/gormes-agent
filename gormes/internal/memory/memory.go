@@ -43,6 +43,7 @@ type SqliteStore struct {
 	accepted atomic.Uint64
 
 	closeOnce sync.Once
+	mirror    *Mirror // Phase 3.D.5: optional background USER.md sync
 }
 
 // Compile-time interface check.
@@ -142,12 +143,30 @@ func (s *SqliteStore) Stats() Stats {
 // verification; production callers should not depend on this.
 func (s *SqliteStore) DB() *sql.DB { return s.db }
 
+// StartMirror enables the Phase 3.D.5 background USER.md sync. Safe to call
+// multiple times (idempotent). If cfg.Enabled is false, this is a no-op.
+func (s *SqliteStore) StartMirror(cfg MirrorConfig) {
+	if s.mirror != nil {
+		s.mirror.Stop() // restart with new config
+	}
+	s.mirror = StartMirror(s, cfg)
+}
+
+// StopMirror halts the background USER.md sync. Safe to call multiple times.
+func (s *SqliteStore) StopMirror() {
+	if s.mirror != nil {
+		s.mirror.Stop()
+		s.mirror = nil
+	}
+}
+
 // Close signals the worker to drain, waits up to ctx deadline for drain,
 // then closes the underlying *sql.DB (which flushes WAL). Idempotent —
 // subsequent calls return nil.
 func (s *SqliteStore) Close(ctx context.Context) error {
 	var closeErr error
 	s.closeOnce.Do(func() {
+		s.StopMirror() // Phase 3.D.5: stop background sync before DB close
 		close(s.queue) // signal worker to exit after draining
 		select {
 		case <-s.done:

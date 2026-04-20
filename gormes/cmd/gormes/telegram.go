@@ -91,6 +91,14 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
+	// Phase 3.D.5 — start the Memory Mirror for operator auditability.
+	mstore.StartMirror(memory.MirrorConfig{
+		Enabled:  cfg.Telegram.MirrorEnabled,
+		Path:     cfg.Telegram.MirrorPath,
+		Interval: cfg.Telegram.MirrorInterval,
+		Logger:   slog.Default(),
+	})
+
 	hc := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
 
 	reg := tools.NewRegistry()
