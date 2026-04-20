@@ -95,3 +95,18 @@ func (c *embedClient) Embed(ctx context.Context, model, input string) ([]float32
 	}
 	return wire.Data[0].Embedding, nil
 }
+
+// Exported aliases + constructors for cmd-package wiring. The cmd
+// layer needs to instantiate these types (see cmd/gormes/telegram.go
+// Phase-3.D wiring). Keeping the internal types lowercase preserves
+// the package's "private implementation" discipline; the exports
+// below are thin constructors only.
+
+// EmbedClient is the cmd-visible alias for embedClient.
+type EmbedClient = embedClient
+
+// NewEmbedClient constructs an EmbedClient for the given base URL
+// (e.g. "http://localhost:11434") and optional API key.
+func NewEmbedClient(baseURL, apiKey string) *EmbedClient {
+	return newEmbedClient(baseURL, apiKey)
+}
