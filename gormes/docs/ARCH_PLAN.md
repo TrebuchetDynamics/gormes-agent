@@ -28,7 +28,7 @@ The repository root is the **Reference Implementation** (Python, upstream `NousR
 
 Five concrete bullets, no hype:
 
-1. **Binary portability.** One 15–30 MB static binary. No `uv`, `pip`, venv, or system Python on the target host. `scp`-and-run on a $5 VPS or Termux.
+1. **Binary portability.** One ~12 MB static binary (CGO-free). No `uv`, `pip`, venv, or system Python on the target host. `scp`-and-run on a $5 VPS or Termux.
 2. **Static types and compile-time contracts.** Tool schemas, Provider envelopes, and MCP payloads become typed structs. Schema drift is a compile error, not a silent agent-loop failure.
 3. **True concurrency.** Goroutines over channels replace `asyncio`. The gateway scales to 10+ platform connections without event-loop starvation.
 4. **Lower idle footprint.** Target ≈ 10 MB RSS at idle vs. ≈ 80+ MB for Python Hermes. Meaningful on always-on or low-spec hosts.
@@ -42,6 +42,8 @@ The hybrid is **temporary**. The long-term state is 100% Go.
 
 During Phases 1–4, Go is the chassis (orchestrator, state, persistence, platform I/O, agent cognition) and Python is the peripheral library (research tools, legacy skills, ML heavy lifting). Each phase shrinks Python's footprint. Phase 5 deletes the last Python dependency.
 
+Phase 3 (The Black Box) is substantially delivered as of 2026-04-20: the SQLite + FTS5 lattice (3.A), ontological graph with async LLM extraction (3.B), lexical/FTS5 recall with `<memory-context>` fence injection (3.C), and the operator-facing memory mirror (3.D.5) are all implemented. The only remaining Phase 3 work is semantic fusion via Ollama embeddings (3.D).
+
 Phase 1 should be read correctly: it is a tactical Strangler Fig bridge, not a philosophical compromise. It exists to deliver immediate value to existing Hermes users while preserving a clean migration path toward a pure Go runtime that owns the entire lifecycle end to end.
 
 ---
@@ -52,22 +54,74 @@ Phase 1 should be read correctly: it is a tactical Strangler Fig bridge, not a p
 |---|---|---|
 | Phase 1 — The Dashboard (Face) | ✅ complete | Tactical bridge: Go TUI over Python's `api_server` HTTP+SSE boundary |
 | Phase 2 — The Wiring Harness (Gateway) | 🔨 in progress | Go-native wiring harness: tools, Telegram, and thin session resume land before the wider gateway surface |
-| Phase 3 — The Black Box (Memory) | ⏳ planned | SQLite + FTS5 + ontological graph in Go; Phase 2.C's bbolt layer is not transcript memory ownership |
+| Phase 3 — The Black Box (Memory) | 🔨 substantially complete | SQLite + FTS5 + ontological graph in Go; Phase 2.C's bbolt layer is not transcript memory ownership |
 | Phase 4 — The Powertrain (Brain Transplant) | ⏳ planned | Native Go agent orchestrator + prompt builder |
 | Phase 5 — The Final Purge (100% Go) | ⏳ planned | Python tool scripts ported to Go or WASM |
 
 Legend: 🔨 in progress · ✅ complete · ⏳ planned · ⏸ deferred.
+
+**Phase 3 sub-status (as of 2026-04-20):**
+- **3.A — SQLite + FTS5 Lattice** — ✅ implemented (`internal/memory`, `SqliteStore`, FTS5 triggers, fire-and-forget worker, schema v3a→v3c migrations)
+- **3.B — Ontological Graph + LLM Extractor** — ✅ implemented (`Extractor`, entity/relationship upsert, dead-letter queue, validator with weight-floor patch)
+- **3.C — Neural Recall + Context Injection** — ✅ implemented (`RecallProvider`, 2-layer seed selection, CTE traversal, `<memory-context>` fence matching Python's `build_memory_context_block`)
+- **3.D — Semantic Fusion + Local Embeddings** — ⏳ planned (spec + implementation plan at [`docs/superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md`](docs/superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md); adds Ollama `/v1/embeddings`, in-memory vector cache, cosine similarity scan)
+- **3.D.5 — Memory Mirror (USER.md sync)** — ✅ implemented (async background goroutine exports SQLite entities/rels → Markdown every 30s; configurable path; atomic writes; SQLite remains source of truth; zero impact on 250ms latency moat)
 
 ### Phase 2 Ledger
 
 | Subphase | Status | Deliverable |
 |---|---|---|
 | Phase 2.A — Tool Registry | ✅ complete | In-process Go tool registry, streamed `tool_calls` accumulation, kernel tool loop, and doctor verification |
-| Phase 2.B.1 — Telegram Scout | ✅ complete | Split-binary Telegram adapter over the existing kernel, long-poll ingress, and edit coalescing at the messaging edge |
-| Phase 2.C — Thin Mapping Persistence | ✅ complete | bbolt-backed `(platform, chat_id) -> session_id` resume only; no transcript ownership moved into Go |
-| Phase 2.B.2+ — Wider Gateway Surface | ⏳ planned | Additional platform hands such as Discord, Slack, and the broader gateway perimeter |
+| Phase 2.B.1 — Telegram Scout | ✅ complete | Telegram adapter over the existing kernel, long-poll ingress, edit coalescing at the messaging edge |
+| Phase 2.C — Thin Mapping Persistence | ✅ complete | bbolt-backed `(platform, chat_id) -> session_id` resume; no transcript ownership moved into Go |
+| Phase 2.B.2+ — Wider Gateway Surface | ⏳ planned | Additional platform adapters (see §7 Subsystem Inventory for the upstream list of 24 platforms) |
+| Phase 2.D — Cron / Scheduled Automations | ⏳ planned | Port `cron/scheduler.py` + `cron/jobs.py` to a Go ticker + bbolt job store; natural-language cron parsing via the brain (Phase 4) once available |
+| Phase 2.E — Subagent Delegation | ⏳ planned | Port `tools/delegate_tool.py`: spawn isolated subagents with their own conversations + sandboxed terminals, merge results back to the parent loop |
+| Phase 2.F — Hooks + Lifecycle | ⏳ planned | Port `gateway/hooks.py`, `builtin_hooks/`, `restart.py`, `pairing.py`, `status.py`, `mirror.py`, `sticker_cache.py`; per-event extension points and managed restarts |
 
-Phase 2.C is intentionally not Phase 3. It stores only session handles in bbolt. Python still owns transcript memory, transcript search, and prompt assembly; the real SQLite + FTS5 memory lattice remains future work.
+Phase 2.C is intentionally not Phase 3. It stores only session handles in bbolt. Python still owns transcript memory, transcript search, and prompt assembly; the SQLite + FTS5 memory lattice is Phase 3 (now substantially implemented).
+
+> **Note on binary size:** The static CGO-free binary currently builds at **~17 MB** (measured: `bin/gormes` from `make build` with `-trimpath -ldflags="-s -w"`). This reflects Phase 3 additions (extractor, recall, mirror) atop the original TUI + Telegram base. Remains well within the 25 MB hard moat with 8 MB headroom. Phase 3.D semantic embeddings add <250 KB — binary will stay under 20 MB.
+
+### Phase 4 Sub-phase Outline
+
+Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
+
+| Subphase | Status | Deliverable |
+|---|---|---|
+| 4.A — Provider Adapters | ⏳ planned | Native Go adapters for Anthropic, Bedrock, Gemini, OpenRouter, Google Code Assist, Codex (mirrors `agent/{anthropic,bedrock,gemini_cloudcode,openrouter_client,google_code_assist}_adapter.py`) |
+| 4.B — Context Engine + Compression | ⏳ planned | Port `agent/{context_engine,context_compressor,context_references}.py`; manage long sessions without blowing the model context window |
+| 4.C — Native Prompt Builder | ⏳ planned | Port `agent/prompt_builder.py`; assemble system + memory + tool + history into a model-ready prompt |
+| 4.D — Smart Model Routing | ⏳ planned | Port `agent/smart_model_routing.py` + `agent/model_metadata.py` + `agent/models_dev.py`; pick the right model per turn |
+| 4.E — Trajectory + Insights | ⏳ planned | Port `agent/trajectory.py` + `agent/insights.py`; self-monitoring telemetry surface |
+| 4.F — Title Generation | ⏳ planned | Port `agent/title_generator.py`; auto-name new sessions |
+| 4.G — Credentials + OAuth | ⏳ planned | Port `agent/google_oauth.py`, `agent/credential_pool.py`, `tools/credential_files.py`; token vault + multi-account auth |
+| 4.H — Rate / Retry / Caching | ⏳ planned | Port `agent/{rate_limit_tracker,retry_utils,nous_rate_guard,prompt_caching}.py`; provider-side resilience |
+
+Once 4.A–4.D are shipped Gormes can call LLMs directly. The `:8642` health check becomes optional.
+
+### Phase 5 Sub-phase Outline
+
+Phase 5 is when Python disappears entirely from the runtime path. Each sub-phase is a separable spec.
+
+| Subphase | Status | Deliverable |
+|---|---|---|
+| 5.A — Tool Surface Port | ⏳ planned | Port the 61-tool `tools/` registry. Most tools are tractable Go ports; a few (browser, voice) split into 5.C–5.E. |
+| 5.B — Sandboxing Backends | ⏳ planned | Port `tools/environments/{local,docker,modal,daytona,singularity}.py` + `file_sync.py`. Five execution backends with namespace isolation and container hardening. |
+| 5.C — Browser Automation | ⏳ planned | Port `tools/browser_tool.py` + `tools/browser_camofox*.py` + `tools/browser_providers/{browserbase,browser_use,firecrawl}.py` to Go (Chromedp, Rod) or sidecar process |
+| 5.D — Vision + Image Generation | ⏳ planned | Port `tools/vision_tools.py` + `tools/image_generation_tool.py`; multimodal in/out |
+| 5.E — TTS / Voice / Transcription | ⏳ planned | Port `tools/{tts_tool,voice_mode,transcription_tools,neutts_synth}.py`; may stay as sidecar processes |
+| 5.F — Skills System | ⏳ planned | Port `tools/{skill_manager_tool,skills_hub,skills_sync,skills_tool,skills_guard}.py` + auto-generated skill discovery; the `skills/` directory has 26 categories |
+| 5.G — MCP Integration | ⏳ planned | Port `tools/{mcp_tool,mcp_oauth,mcp_oauth_manager,managed_tool_gateway}.py`; Model Context Protocol client + OAuth flows |
+| 5.H — ACP Integration | ⏳ planned | Port `acp_adapter/` + `acp_registry/`; Agent Communication Protocol server side |
+| 5.I — Plugins Architecture | ⏳ planned | Port `plugins/{context_engine,memory,example-dashboard}` + the plugin SDK; let third parties extend Gormes without forking |
+| 5.J — Approval / Security Guards | ⏳ planned | Port `tools/{approval,path_security,url_safety,tirith_security,website_policy}.py`; gate dangerous actions |
+| 5.K — Code Execution | ⏳ planned | Port `tools/code_execution_tool.py` + `tools/process_registry.py`; sandboxed exec |
+| 5.L — File Ops + Patches | ⏳ planned | Port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py`; file editing with atomic checkpoints |
+| 5.M — Mixture of Agents | ⏳ planned | Port `tools/mixture_of_agents_tool.py`; multi-model coordination |
+| 5.N — Misc Operator Tools | ⏳ planned | Port `tools/{todo_tool,clarify_tool,session_search_tool,send_message_tool,cronjob_tools,debug_helpers,interrupt}.py` |
+| 5.O — Hermes CLI Parity | ⏳ planned | Port `hermes_cli/` (auth, backup, banner, codex_models, etc.); replaces the upstream `hermes` binary |
+| 5.P — Docker / Packaging | ⏳ planned | Mirror `Dockerfile` + `docker/` for Gormes; OCI image with same volume layout as upstream |
 
 ---
 
@@ -84,3 +138,152 @@ The bridge is allowed to exist. The bridge is not allowed to become the destinat
 This `ARCH_PLAN.md` is the executive roadmap. It defines the strategic conquest of the operational bottleneck: first UI, then gateway, then memory and state, then cognition, then the final removal of Python from the runtime path. Per-milestone specs live at `docs/superpowers/specs/YYYY-MM-DD-*.md`. Per-milestone implementation plans live at `docs/superpowers/plans/YYYY-MM-DD-*.md`.
 
 Public-site (`gormes.io`) deployment is **Phase 1.5** work. The documentation is authored in CommonMark + GFM so every mainstream static-site generator (Hugo, MkDocs Material, Astro Starlight) can render it without rewrites. Phase 1 ships a Goldmark-based validation test — Goldmark is the exact renderer Hugo uses, so passing the test guarantees Hugo-renderability.
+
+**Active spec inventory (2026-04-20):**
+- Phase 1: [`superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md`](superpowers/specs/2026-04-18-gormes-frontend-adapter-design.md) — ✅ shipped
+- Phase 2.A: [`superpowers/specs/2026-04-19-gormes-phase2-tools-design.md`](superpowers/specs/2026-04-19-gormes-phase2-tools-design.md) — ✅ shipped
+- Phase 2.B.1: [`superpowers/specs/2026-04-19-gormes-phase2b-telegram.md`](superpowers/specs/2026-04-19-gormes-phase2b-telegram.md) — ✅ shipped
+- Phase 2.C: [`superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md`](superpowers/specs/2026-04-19-gormes-phase2c-persistence-design.md) — ✅ shipped
+- Phase 3.A: [`superpowers/specs/2026-04-20-gormes-phase3a-memory-design.md`](superpowers/specs/2026-04-20-gormes-phase3a-memory-design.md) — ✅ shipped
+- Phase 3.B: [`superpowers/specs/2026-04-20-gormes-phase3b-graph.md`](superpowers/specs/2026-04-20-gormes-phase3b-graph.md) — ✅ shipped
+- Phase 3.C: [`superpowers/specs/2026-04-20-gormes-phase3c-recall-design.md`](superpowers/specs/2026-04-20-gormes-phase3c-recall-design.md) — ✅ shipped
+- Phase 3.D: [`superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md`](superpowers/specs/2026-04-20-gormes-phase3d-semantic-design.md) — ⏳ spec approved, implementation pending
+- Phase 3.D.5: [`superpowers/specs/2026-04-20-gormes-phase3d5-mirror-design.md`](superpowers/specs/2026-04-20-gormes-phase3d5-mirror-design.md) — ✅ shipped
+
+---
+
+## 7. Upstream Subsystem Inventory
+
+The complete picture of what Gormes must absorb to retire the Python `hermes-agent` runtime. Each row is one upstream module or capability, mapped to its target phase. This inventory is the source of truth for "what's left" — when a subsystem is shipped in Go, mark it ✅ and link the spec.
+
+### Gateway platforms (24 connectors — 23 unshipped)
+
+| Platform | Upstream file | Target phase | Status |
+|---|---|---|---|
+| Telegram | `gateway/platforms/telegram.py` | 2.B.1 | ✅ shipped |
+| Discord | `gateway/platforms/discord.py` | 2.B.2 | ⏳ planned |
+| Slack | `gateway/platforms/slack.py` | 2.B.3 | ⏳ planned |
+| WhatsApp | `gateway/platforms/whatsapp.py` | 2.B.4 | ⏳ planned |
+| Signal | `gateway/platforms/signal.py` | 2.B.5 | ⏳ planned |
+| Email | `gateway/platforms/email.py` | 2.B.6 | ⏳ planned |
+| SMS | `gateway/platforms/sms.py` | 2.B.7 | ⏳ planned |
+| Matrix | `gateway/platforms/matrix.py` | 2.B.8 | ⏳ planned |
+| Mattermost | `gateway/platforms/mattermost.py` | 2.B.9 | ⏳ planned |
+| Webhook | `gateway/platforms/webhook.py` | 2.B.10 | ⏳ planned |
+| BlueBubbles (iMessage) | `gateway/platforms/bluebubbles.py` | 2.B.11 | ⏳ planned |
+| HomeAssistant | `gateway/platforms/homeassistant.py` | 2.B.12 | ⏳ planned |
+| Feishu | `gateway/platforms/feishu*.py` | 2.B.13 | ⏳ planned |
+| WeChat (WeCom + WeiXin) | `gateway/platforms/wecom*.py`, `weixin.py` | 2.B.14 | ⏳ planned |
+| DingTalk | `gateway/platforms/dingtalk.py` | 2.B.15 | ⏳ planned |
+| QQ Bot | `gateway/platforms/qqbot/` | 2.B.16 | ⏳ planned |
+
+### Operational layer (cross-cutting, mostly Phase 2.D–2.F)
+
+| Subsystem | Upstream | Target phase | Status |
+|---|---|---|---|
+| Cron / scheduled automations | `cron/scheduler.py`, `cron/jobs.py`, `tools/cronjob_tools.py` | 2.D | ⏳ planned |
+| Subagent delegation | `tools/delegate_tool.py` | 2.E | ⏳ planned |
+| Hooks system | `gateway/hooks.py`, `gateway/builtin_hooks/` | 2.F | ⏳ planned |
+| Restart / pairing / lifecycle | `gateway/{restart,pairing,status}.py` | 2.F | ⏳ planned |
+| Mirror / sticker cache | `gateway/{mirror,sticker_cache}.py` | 2.F | ⏳ planned |
+| Display config | `gateway/display_config.py`, `agent/display.py` | 2.F | ⏳ planned |
+
+### Memory + state (Phase 3 — mostly shipped)
+
+| Subsystem | Upstream | Target phase | Status |
+|---|---|---|---|
+| SQLite + FTS5 lattice | `agent/memory_provider.py` (lexical half) | 3.A | ✅ shipped |
+| Ontological graph + extractor | `agent/memory_manager.py` | 3.B | ✅ shipped |
+| Recall + context injection | `agent/memory_provider.py` (recall half) | 3.C | ✅ shipped |
+| USER.md mirror | `agent/memory_manager.py` (mirror writer) | 3.D.5 | ✅ shipped |
+| Semantic / embeddings | (not in upstream; net-new in Gormes) | 3.D | ⏳ spec ready |
+
+### Brain (Phase 4 — sub-phases 4.A–4.H)
+
+| Subsystem | Upstream | Target phase | Status |
+|---|---|---|---|
+| Anthropic adapter | `agent/anthropic_adapter.py` | 4.A | ⏳ planned |
+| Bedrock adapter | `agent/bedrock_adapter.py` | 4.A | ⏳ planned |
+| Gemini Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | 4.A | ⏳ planned |
+| OpenRouter client | `agent/openrouter_client.py` | 4.A | ⏳ planned |
+| Google Code Assist | `agent/google_code_assist.py` | 4.A | ⏳ planned |
+| Copilot ACP client | `agent/copilot_acp_client.py` | 4.A | ⏳ planned |
+| Auxiliary client (xAI etc.) | `agent/auxiliary_client.py` + `tools/xai_http.py` | 4.A | ⏳ planned |
+| Context engine | `agent/context_engine.py` | 4.B | ⏳ planned |
+| Context compressor | `agent/context_compressor.py` + `manual_compression_feedback.py` | 4.B | ⏳ planned |
+| Context references | `agent/context_references.py` | 4.B | ⏳ planned |
+| Prompt builder | `agent/prompt_builder.py` | 4.C | ⏳ planned |
+| Smart model routing | `agent/smart_model_routing.py` + `model_metadata.py` + `models_dev.py` | 4.D | ⏳ planned |
+| Trajectory | `agent/trajectory.py` | 4.E | ⏳ planned |
+| Insights | `agent/insights.py` | 4.E | ⏳ planned |
+| Title generator | `agent/title_generator.py` | 4.F | ⏳ planned |
+| Google OAuth | `agent/google_oauth.py` | 4.G | ⏳ planned |
+| Credential pool | `agent/credential_pool.py` | 4.G | ⏳ planned |
+| Credential files | `tools/credential_files.py` | 4.G | ⏳ planned |
+| Rate limit tracker | `agent/rate_limit_tracker.py` + `nous_rate_guard.py` | 4.H | ⏳ planned |
+| Retry utils | `agent/retry_utils.py` | 4.H | ⏳ planned |
+| Prompt caching | `agent/prompt_caching.py` | 4.H | ⏳ planned |
+| Subdirectory hints | `agent/subdirectory_hints.py` | 4.B | ⏳ planned |
+| Skill commands / utils | `agent/skill_commands.py`, `agent/skill_utils.py` | 4.C | ⏳ planned |
+| Error classifier | `agent/error_classifier.py` | 4.H | ⏳ planned |
+| Redaction | `agent/redact.py` | 4.B | ⏳ planned |
+| Usage / pricing | `agent/usage_pricing.py` | 4.E | ⏳ planned |
+
+### Tools surface (Phase 5 — 61 upstream tool files)
+
+| Category | Upstream tools | Target phase | Status |
+|---|---|---|---|
+| Sandboxing backends | `tools/environments/{base,local,docker,modal,managed_modal,modal_utils,daytona,singularity,file_sync}.py` | 5.B | ⏳ planned |
+| Browser automation | `tools/browser_tool.py`, `browser_camofox*.py`, `browser_providers/{base,browserbase,browser_use,firecrawl}.py` | 5.C | ⏳ planned |
+| Vision | `tools/vision_tools.py` | 5.D | ⏳ planned |
+| Image generation | `tools/image_generation_tool.py` | 5.D | ⏳ planned |
+| TTS / voice / transcription | `tools/{tts_tool,voice_mode,transcription_tools,neutts_synth}.py` + `neutts_samples/` | 5.E | ⏳ planned |
+| Skills system | `tools/{skill_manager_tool,skills_hub,skills_sync,skills_tool,skills_guard}.py`; `skills/` (26 categories) | 5.F | ⏳ planned |
+| MCP integration | `tools/{mcp_tool,mcp_oauth,mcp_oauth_manager,managed_tool_gateway}.py` + `mcp_serve.py` | 5.G | ⏳ planned |
+| ACP integration | `acp_adapter/`, `acp_registry/` | 5.H | ⏳ planned |
+| Plugins architecture | `plugins/{context_engine,memory,example-dashboard}/` + plugin SDK | 5.I | ⏳ planned |
+| Approval / security | `tools/{approval,path_security,url_safety,tirith_security,website_policy}.py` | 5.J | ⏳ planned |
+| Code execution | `tools/{code_execution_tool,process_registry}.py` | 5.K | ⏳ planned |
+| File operations | `tools/{file_operations,file_tools,fuzzy_match,checkpoint_manager,patch_parser,binary_extensions}.py` | 5.L | ⏳ planned |
+| Mixture of agents | `tools/mixture_of_agents_tool.py` | 5.M | ⏳ planned |
+| Operator tools | `tools/{todo_tool,clarify_tool,session_search_tool,send_message_tool,debug_helpers,interrupt,ansi_strip}.py` | 5.N | ⏳ planned |
+| Web tools / search | `tools/web_tools.py` | 5.A | ⏳ planned |
+| Terminal tool | `tools/terminal_tool.py` | 5.A | ⏳ planned |
+| Send message (cross-platform) | `tools/send_message_tool.py` | 5.N | ⏳ planned |
+| Feishu doc/drive tools | `tools/{feishu_doc_tool,feishu_drive_tool}.py` | 5.A | ⏳ planned |
+| HomeAssistant tool | `tools/homeassistant_tool.py` | 5.A | ⏳ planned |
+| OSV vulnerability check | `tools/osv_check.py` | 5.J | ⏳ planned |
+| Budget config | `tools/budget_config.py` + `tool_backend_helpers.py` + `tool_result_storage.py` | 5.A | ⏳ planned |
+| Env passthrough | `tools/env_passthrough.py` | 5.B | ⏳ planned |
+| RL training tool | `tools/rl_training_tool.py` | 5.M | ⏳ deferred (specialized) |
+| Datagen examples | `datagen-config-examples/` | 5.M | ⏳ deferred (specialized) |
+| Batch runner | `batch_runner.py` | 5.O | ⏳ planned |
+| Mini SWE runner | `mini_swe_runner.py` | 5.O | ⏳ planned (or 5.M) |
+| Model tools (admin) | `model_tools.py` | 5.O | ⏳ planned |
+
+### CLI + packaging (Phase 5.O–5.P)
+
+| Subsystem | Upstream | Target phase | Status |
+|---|---|---|---|
+| Hermes CLI | `hermes_cli/{auth,auth_commands,backup,banner,callbacks,claw,cli_output,clipboard,codex_models,colors,...}.py` | 5.O | ⏳ planned |
+| Top-level CLI | `cli.py` | 5.O | ⏳ planned |
+| Hermes runtime helpers | `hermes_constants.py`, `hermes_logging.py`, `hermes_state.py`, `hermes_time.py` | 5.O | ⏳ planned |
+| Dockerfile / packaging | `Dockerfile`, `docker/`, `packaging/`, `nix/`, `flake.nix` | 5.P | ⏳ planned |
+| MANIFEST / constraints | `MANIFEST.in`, `constraints-termux.txt` | 5.P | ⏳ planned |
+| Environments + agent loop | `environments/{agent_loop,patches,hermes_base_env,agentic_opd_env}.py`, `tool_call_parsers/` | 5.A | ⏳ planned |
+| Benchmarks | `environments/benchmarks/` | 5.M | ⏳ deferred (research) |
+| SWE env | `environments/hermes_swe_env/`, `environments/terminal_test_env/` | 5.M | ⏳ deferred (research) |
+
+### Out of scope for the runtime port
+
+These upstream paths exist but are not part of the runtime that Gormes must absorb. Listed for completeness so future contributors don't mistake them for missing work:
+
+- `agent/`, `cli.py`, `gateway/`, `hermes/`, `hermes_cli/`, `tools/`, `cron/`, `acp_adapter/`, `acp_registry/`, `plugins/`, `tests/`, `tui_gateway/` — runtime paths covered by the phases above.
+- `docs/` (upstream documentation), `assets/`, `optional-skills/`, `skills/` — content corpus; mirrored separately by docs.gormes.ai (Phase 1.5) and skill packs.
+- `package.json`, `package-lock.json`, `nix/`, `flake.lock`, `flake.nix` — build/packaging metadata; partially mirrored at Phase 5.P.
+- `tests/` — Python tests are not ported; Gormes has its own Go test suite per spec.
+- `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `GOOD-PRACTICES.md`, `hermes-already-has-routines.md` — upstream contributor docs; not runtime.
+
+### Inventory cadence
+
+Re-run the upstream survey when a major Hermes release lands, when a new platform connector is added upstream, or when a Gormes phase ships and we need to mark its rows ✅. The survey is mechanical: `find upstream root -name "*.py" -newer last-survey-date` plus a `gateway/platforms/` directory listing usually catches everything.
