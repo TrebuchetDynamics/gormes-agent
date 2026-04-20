@@ -1,19 +1,22 @@
 #!/bin/sh
-# install.sh — bootstrap Gormes on Linux, macOS, or WSL2.
+# install.sh — install Gormes from source via go install.
 #
 # Usage:
 #   curl -fsSL https://gormes.ai/install.sh | sh
 #
+# Requirements:
+#   - Go 1.25+ on PATH
+#
 # Environment overrides:
-#   GORMES_REPO     — GitHub repo hosting releases (default: TrebuchetDynamics/gormes-agent)
-#   GORMES_VERSION  — release tag to install (default: latest)
-#   GORMES_PREFIX   — install prefix (default: $HOME/.local, falls back to /usr/local)
+#   GORMES_MODULE   — go install target (default: github.com/TrebuchetDynamics/gormes-agent/gormes/cmd/gormes)
+#   GORMES_VERSION  — version suffix passed to go install (default: latest)
+#   GORMES_PREFIX   — optional install prefix; when set, install into $GORMES_PREFIX/bin via GOBIN
 #
 # Native Windows is not supported. Install WSL2 and rerun inside it.
 
 set -eu
 
-REPO="${GORMES_REPO:-TrebuchetDynamics/gormes-agent}"
+MODULE="${GORMES_MODULE:-github.com/TrebuchetDynamics/gormes-agent/gormes/cmd/gormes}"
 VERSION="${GORMES_VERSION:-latest}"
 PREFIX="${GORMES_PREFIX:-}"
 
@@ -22,81 +25,70 @@ fail() { printf '[gormes] error: %s\n' "$*" >&2; exit 1; }
 
 need() { command -v "$1" >/dev/null 2>&1 || fail "required tool not found: $1"; }
 
-detect_os() {
+check_platform() {
   case "$(uname -s)" in
-    Linux*)   printf 'linux\n' ;;
-    Darwin*)  printf 'darwin\n' ;;
+    Linux*|Darwin*) ;;
     MINGW*|MSYS*|CYGWIN*)
       fail "native Windows is not supported — install WSL2 and rerun this script inside it" ;;
     *) fail "unsupported OS: $(uname -s)" ;;
   esac
 }
 
-detect_arch() {
-  case "$(uname -m)" in
-    x86_64|amd64)   printf 'amd64\n' ;;
-    aarch64|arm64)  printf 'arm64\n' ;;
-    armv7l|armv7)   printf 'armv7\n' ;;
-    *) fail "unsupported CPU: $(uname -m)" ;;
+check_go_version() {
+  goversion=$(go env GOVERSION 2>/dev/null || go version | awk '{print $3}')
+  case "$goversion" in
+    go1.2[5-9]*|go1.[3-9][0-9]*|go[2-9]*)
+      ;;
+    *)
+      fail "Go 1.25+ required today; found ${goversion}" ;;
   esac
 }
 
-pick_prefix() {
+pick_bin_dir() {
   if [ -n "$PREFIX" ]; then
-    printf '%s\n' "$PREFIX"
+    printf '%s/bin\n' "$PREFIX"
     return
   fi
-  if [ -w "${HOME:-/nonexistent}" ] 2>/dev/null; then
-    printf '%s/.local\n' "$HOME"
-    return
-  fi
-  printf '/usr/local\n'
-}
 
-resolve_tag() {
-  if [ "$VERSION" != "latest" ]; then
-    printf '%s\n' "$VERSION"
+  gobin=$(go env GOBIN 2>/dev/null || true)
+  if [ -n "$gobin" ]; then
+    printf '%s\n' "$gobin"
     return
   fi
-  api="https://api.github.com/repos/${REPO}/releases/latest"
-  tag=$(curl -fsSL "$api" 2>/dev/null | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1 || true)
-  [ -n "$tag" ] || fail "could not resolve latest release from ${api} — set GORMES_VERSION or check ${REPO}"
-  printf '%s\n' "$tag"
+
+  gopath=$(go env GOPATH 2>/dev/null || true)
+  [ -n "$gopath" ] || fail "go env GOPATH returned empty"
+  printf '%s/bin\n' "$gopath"
 }
 
 main() {
-  need curl
-  need tar
+  need go
+  need mkdir
   need uname
+  need awk
 
-  OS=$(detect_os)
-  ARCH=$(detect_arch)
-  TAG=$(resolve_tag)
-  PREFIX_DIR=$(pick_prefix)
-  BIN_DIR="${PREFIX_DIR}/bin"
+  check_platform
+  check_go_version
 
-  ASSET="gormes_${TAG#v}_${OS}_${ARCH}.tar.gz"
-  URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
-
-  log "target ${OS}/${ARCH}, version ${TAG}"
-  log "fetching ${URL}"
-
-  TMP=$(mktemp -d)
-  trap 'rm -rf "$TMP"' EXIT
-
-  if ! curl -fsSL "$URL" -o "${TMP}/gormes.tgz"; then
-    fail "download failed — the release asset may not exist yet.\n    build from source instead:  go install github.com/${REPO}@${TAG}"
-  fi
-
-  tar -xzf "${TMP}/gormes.tgz" -C "$TMP"
-
+  BIN_DIR=$(pick_bin_dir)
   mkdir -p "$BIN_DIR"
   if [ ! -w "$BIN_DIR" ]; then
     fail "cannot write to ${BIN_DIR} — set GORMES_PREFIX to a writable path"
   fi
 
-  install -m 0755 "${TMP}/gormes" "${BIN_DIR}/gormes"
-  log "installed ${BIN_DIR}/gormes"
+  if [ -n "$PREFIX" ]; then
+    export GOBIN="$BIN_DIR"
+  fi
+
+  log "installing ${MODULE}@${VERSION}"
+  go install "${MODULE}@${VERSION}"
+
+  BINARY="${BIN_DIR}/gormes"
+  if [ ! -x "$BINARY" ]; then
+    fail "go install completed but ${BINARY} was not created"
+  fi
+
+  log "installed ${BINARY}"
 
   case ":${PATH:-}:" in
     *":${BIN_DIR}:"*) ;;

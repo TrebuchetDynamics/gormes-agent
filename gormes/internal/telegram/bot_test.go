@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // TestBot_StreamsAssistantDraft: with a scripted hermes.MockClient replying

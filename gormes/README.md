@@ -2,20 +2,23 @@
 
 Gormes is the Go operator console for Hermes — a single static binary that boots fast, runs tools in-process, and treats dropped SSE streams as a resilience problem instead of a happy-path omission. No Python runtime, no Node runtime, no per-host dependency stack once the binary is built.
 
-The current `cmd/gormes` build is a zero-CGO static binary (~8 MB) built with Go 1.25+. A single binary ships the TUI, the Telegram bot adapter (`gormes telegram`), and the Wire Doctor (`gormes doctor`). Gormes still interoperates with Hermes' OpenAI-compatible `api_server` on port 8642 — transcript memory and prompt assembly stay upstream until the later roadmap phases land.
+The current `cmd/gormes` build is a zero-CGO static binary built with Go 1.25+. A single binary ships the TUI, the Telegram bot adapter (`gormes telegram`), and the Wire Doctor (`gormes doctor`). Gormes still interoperates with Hermes' OpenAI-compatible `api_server` on port 8642 — transcript memory and prompt assembly stay upstream until the later roadmap phases land.
 
 ## Install
 
-Prebuilt binary (Linux / macOS / WSL2):
+Quick install (source-backed today; requires Go 1.25+ on PATH):
 
 ```bash
 curl -fsSL https://gormes.ai/install.sh | sh
+# if the installer printed an export PATH line, run it in this shell now
+gormes doctor --offline
+gormes
 ```
 
-Or install from source with Go 1.25+ (module lives in the `/gormes` subdirectory of the fork):
+The installer currently wraps:
 
 ```bash
-go install github.com/TrebuchetDynamics/gormes-agent/gormes@latest
+go install github.com/TrebuchetDynamics/gormes-agent/gormes/cmd/gormes@latest
 ```
 
 Native Windows is not supported — install WSL2 and run inside it.
@@ -23,8 +26,11 @@ Native Windows is not supported — install WSL2 and run inside it.
 ## Build From Source
 
 ```bash
-cd gormes
+git clone https://github.com/TrebuchetDynamics/gormes-agent
+cd gormes-agent/gormes
 make build
+./bin/gormes doctor --offline
+./bin/gormes
 ```
 
 This produces a single static binary at `./bin/gormes` (CGO disabled, trimpath, stripped).
@@ -40,19 +46,19 @@ API_SERVER_ENABLED=true hermes gateway start
 Validate the local tool wiring before spending a cent on API traffic:
 
 ```bash
-./bin/gormes doctor --offline
+gormes doctor --offline        # or: ./bin/gormes doctor --offline if built locally
 ```
 
 Run the TUI:
 
 ```bash
-./bin/gormes
+gormes                        # or: ./bin/gormes
 ```
 
 Run the Telegram bot adapter:
 
 ```bash
-GORMES_TELEGRAM_TOKEN=... GORMES_TELEGRAM_CHAT_ID=123456789 ./bin/gormes telegram
+GORMES_TELEGRAM_TOKEN=... GORMES_TELEGRAM_CHAT_ID=123456789 gormes telegram
 ```
 
 ## Architectural Edge

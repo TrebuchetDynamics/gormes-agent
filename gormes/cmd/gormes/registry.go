@@ -1,6 +1,6 @@
 package main
 
-import "github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+import "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 
 // buildDefaultRegistry returns a Registry populated with Gormes's built-in
 // Go-native tools (echo, now, rand_int). Consumer forks that want to add

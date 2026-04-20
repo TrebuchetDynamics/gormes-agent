@@ -165,7 +165,7 @@ import (
     "database/sql"
 
     _ "modernc.org/sqlite"
-    "github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+    "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 // SqliteStore is a fire-and-forget store.Store implementation backed by
@@ -335,7 +335,7 @@ No SQLite import. Binary stays 8.2 MB.
 ### 10.2 `cmd/gormes-telegram` (bot) — new wiring
 
 ```go
-import "github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
+import "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 
 memPath := filepath.Join(xdgDataHome(), "gormes", "memory.db")
 sstore, err := memory.OpenSqlite(memPath, cfg.Telegram.MemoryQueueCap, slog.Default())

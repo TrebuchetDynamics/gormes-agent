@@ -83,10 +83,10 @@ gormes/
 
 ```bash
 cd gormes
-go mod init github.com/XelHaku/golang-hermes-agent/gormes
+go mod init github.com/TrebuchetDynamics/gormes-agent/gormes
 ```
 
-Verify `go.mod` contains `module github.com/XelHaku/golang-hermes-agent/gormes` and `go 1.22`.
+Verify `go.mod` contains `module github.com/TrebuchetDynamics/gormes-agent/gormes` and `go 1.22`.
 
 - [ ] **Step 2:** Create `gormes/.gitignore`:
 
@@ -178,7 +178,7 @@ git commit -m "feat(gormes): bootstrap Go module skeleton"
 # Gormes — Executive Roadmap (ARCH_PLAN)
 
 **Public site:** https://gormes.io
-**Source:** https://github.com/XelHaku/golang-hermes-agent
+**Source:** https://github.com/TrebuchetDynamics/gormes-agent
 **Upstream reference:** https://github.com/NousResearch/hermes-agent
 
 ---
@@ -1862,8 +1862,8 @@ package kernel
 import (
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 type Phase int
@@ -2042,9 +2042,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 type Config struct {
@@ -2369,9 +2369,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 func fixture(t *testing.T) (*Kernel, *hermes.MockClient) {
@@ -2590,9 +2590,9 @@ git commit -m "test(gormes/kernel): five discipline tests (coalesce, leak, admis
 package gormes
 
 import (
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/pybridge"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/pybridge"
 )
 
 type (
@@ -2644,7 +2644,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 )
 
 type Submitter func(ctx context.Context, text string)
@@ -2696,7 +2696,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 )
 
 var (
@@ -2785,7 +2785,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -2870,7 +2870,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 )
 
 func TestTypeSendRendersFrame(t *testing.T) {
@@ -3055,8 +3055,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 var doctorCmd = &cobra.Command{
@@ -3099,12 +3099,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tui"
 )
 
 func main() {

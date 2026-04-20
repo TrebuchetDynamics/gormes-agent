@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 // TestSmoke_ConcurrentWritersNoLockErrors stresses the single-owner-worker

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/www.gormes.ai/internal/site"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/www.gormes.ai/internal/site"
 )
 
 func main() {

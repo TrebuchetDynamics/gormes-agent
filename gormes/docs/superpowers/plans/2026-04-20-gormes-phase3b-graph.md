@@ -1334,7 +1334,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 // fakeLLM implements hermes.Client via settable response behavior.
@@ -1489,7 +1489,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 // ExtractorConfig controls the Brain worker's polling + retry behavior.
@@ -1650,7 +1650,7 @@ Append to `gormes/internal/memory/extractor_test.go`:
 import (
 	"encoding/json"
 	// ... existing imports ...
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 // seedTurns inserts N user turns via the store's fast path.
@@ -1778,7 +1778,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 // Replace the stub loopOnce with:

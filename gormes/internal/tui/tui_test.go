@@ -9,8 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 )
 
 // TestSubmitRoutesToSubmitter: typing text and pressing Enter invokes the

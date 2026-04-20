@@ -899,9 +899,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 // TestKernel_InitialSessionIDPrimesFirstRequest proves that InitialSessionID
@@ -1079,7 +1079,7 @@ Append to `gormes/internal/telegram/bot_test.go`:
 
 ```go
 // Import block must include:
-//   "github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
+//   "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
 
 // TestBot_PersistsSessionIDToMap proves the bot's outbound goroutine
 // calls SessionMap.Put exactly when the kernel's RenderFrame.SessionID
@@ -1152,7 +1152,7 @@ In `gormes/internal/telegram/bot.go`, add the import and modify the struct:
 ```go
 import (
 	// ... existing imports ...
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
 )
 
 // Config drives the Bot adapter. AllowedChatID and FirstRunDiscovery follow
@@ -1444,14 +1444,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telegram"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telegram"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 func main() {
@@ -1725,7 +1725,7 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 	// ... rest of runTUI unchanged (tea.Program, etc.) ...
 ```
 
-Add the import `"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"` to the import block.
+Add the import `"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"` to the import block.
 
 Add the helper function near the bottom of `main.go`:
 
@@ -2002,7 +2002,7 @@ Expected: PASS. The kernel does not import session or bbolt (Task 6 only added a
 
 - [ ] **Step 3: Sanity-break**
 
-Temporarily add `_ "github.com/XelHaku/golang-hermes-agent/gormes/internal/session"` to `gormes/internal/kernel/kernel.go`'s imports. Re-run the test. Expected: FAIL naming `session` AND `bbolt` (since session imports bbolt).
+Temporarily add `_ "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"` to `gormes/internal/kernel/kernel.go`'s imports. Re-run the test. Expected: FAIL naming `session` AND `bbolt` (since session imports bbolt).
 
 **Revert the import change** and re-run — PASS again.
 

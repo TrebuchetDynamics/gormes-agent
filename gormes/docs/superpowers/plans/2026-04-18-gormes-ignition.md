@@ -88,15 +88,15 @@ gormes/
 
 ```bash
 cd gormes
-go mod init github.com/XelHaku/golang-hermes-agent/gormes
+go mod init github.com/TrebuchetDynamics/gormes-agent/gormes
 ```
 
-Expected: `go.mod` is created with `module github.com/XelHaku/golang-hermes-agent/gormes` and `go 1.22` directive. Run `cat go.mod` to verify.
+Expected: `go.mod` is created with `module github.com/TrebuchetDynamics/gormes-agent/gormes` and `go 1.22` directive. Run `cat go.mod` to verify.
 
 - [ ] **Step 2:** Edit `gormes/go.mod` to pin the Go version explicitly (if `go mod init` picked a different one).
 
 ```
-module github.com/XelHaku/golang-hermes-agent/gormes
+module github.com/TrebuchetDynamics/gormes-agent/gormes
 
 go 1.22
 ```
@@ -176,7 +176,7 @@ cd ..
 git add gormes/go.mod gormes/.gitignore gormes/Makefile gormes/README.md
 git commit -m "feat(gormes): bootstrap Go module skeleton
 
-Adds go.mod (github.com/XelHaku/golang-hermes-agent/gormes, go 1.22),
+Adds go.mod (github.com/TrebuchetDynamics/gormes-agent/gormes, go 1.22),
 Makefile targets, .gitignore, and README pointing at ARCH_PLAN.md."
 ```
 
@@ -193,7 +193,7 @@ Makefile targets, .gitignore, and README pointing at ARCH_PLAN.md."
 # Gormes — Executive Roadmap (ARCH_PLAN)
 
 **Public site:** https://gormes.io
-**Source:** https://github.com/XelHaku/golang-hermes-agent
+**Source:** https://github.com/TrebuchetDynamics/gormes-agent
 **Upstream reference:** https://github.com/NousResearch/hermes-agent
 
 ---
@@ -885,7 +885,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/db"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/db"
 )
 
 func newTestSession(t *testing.T) *Session {
@@ -985,7 +985,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/db"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/db"
 )
 
 type Message struct {
@@ -1827,7 +1827,7 @@ git commit -m "feat(gormes/pybridge): M4-boundary stub — Tool interface only"
 ```go
 package agent
 
-import "github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
+import "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
 
 const defaultSystemPrompt = `You are Gormes, a Go-native AI agent in the "Ignition" vertical slice (M1).
 You currently have no tools — you can converse but cannot call external functions.
@@ -1855,11 +1855,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/db"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/provider"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/db"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/provider"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 func newAgentFixture(t *testing.T) (*Agent, *provider.MockProvider, *session.Session) {
@@ -1922,10 +1922,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/provider"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/provider"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 // UIUpdate is what the TUI consumes from the agent.
@@ -2140,9 +2140,9 @@ git commit -m "test(gormes/agent): add mid-stream cancellation coverage"
 package gormes
 
 import (
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/agent"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/provider"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/pybridge"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/provider"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/pybridge"
 )
 
 type (
@@ -2203,8 +2203,8 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/agent"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 const soulBufferSize = 10
@@ -2426,7 +2426,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/agent"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -2554,7 +2554,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/agent"
 )
 
 func TestTypeSendRendersUserAndAssistant(t *testing.T) {
@@ -2639,13 +2639,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/agent"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/db"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/provider"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/db"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/provider"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tui"
 )
 
 func main() {

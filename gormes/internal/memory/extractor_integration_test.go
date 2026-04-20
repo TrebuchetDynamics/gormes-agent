@@ -31,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 // ollamaDefaultEndpoint is the conventional Ollama localhost port.

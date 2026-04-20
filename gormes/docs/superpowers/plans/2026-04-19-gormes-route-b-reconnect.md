@@ -46,7 +46,7 @@ No changes to `hermes/`, `store/`, `tui/`, or `cmd/`. The retry logic lives enti
 - [ ] **Step 1:** Read `gormes/go.mod` and confirm it currently reads:
 
 ```
-module github.com/XelHaku/golang-hermes-agent/gormes
+module github.com/TrebuchetDynamics/gormes-agent/gormes
 
 go 1.24.2
 
@@ -58,7 +58,7 @@ toolchain go1.26.1
 - [ ] **Step 2:** Edit the `go` directive down to `1.22`:
 
 ```
-module github.com/XelHaku/golang-hermes-agent/gormes
+module github.com/TrebuchetDynamics/gormes-agent/gormes
 
 go 1.22
 

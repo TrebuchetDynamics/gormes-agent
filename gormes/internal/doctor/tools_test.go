@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // brokenSchemaTool intentionally returns a schema that fails validation.

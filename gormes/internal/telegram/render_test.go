@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 )
 
 func TestFormatStream_PlainDraft(t *testing.T) {

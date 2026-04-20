@@ -740,7 +740,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // HysteresisTool models ferroelectric polarization under cyclic electric field.
@@ -801,7 +801,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 func TestHysteresis_CompilesAsTool(t *testing.T) {
@@ -859,7 +859,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // CrossbarTool queries a ferroelectric crossbar array's read/write
@@ -921,7 +921,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 func TestCrossbar_CompilesAsTool(t *testing.T) {
@@ -1441,8 +1441,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // toolResult is the internal per-call output feeding back into the next
@@ -1553,7 +1553,7 @@ type Config struct {
 }
 ```
 
-Add `"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"` to kernel.go's imports if absent. `time` is already imported.
+Add `"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"` to kernel.go's imports if absent. `time` is already imported.
 
 - [ ] **Step 3:** Create `gormes/internal/kernel/toolexec_test.go`:
 
@@ -1567,10 +1567,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 func newKernelWithRegistry(t *testing.T, reg *tools.Registry) *Kernel {
@@ -1990,10 +1990,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // TestToolLoop_DoesNotBreakReplaceLatestMailbox: with a 500ms-slow
@@ -2100,10 +2100,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // TestKernel_ToolCallHandshake_Echo is the "Tool-Call Handshake" test:

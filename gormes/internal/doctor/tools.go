@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // CheckTools validates every Tool registered in reg. Each tool's Schema()

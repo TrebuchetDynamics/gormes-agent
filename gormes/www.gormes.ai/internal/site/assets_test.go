@@ -60,3 +60,40 @@ func TestServer_UnknownRoutesReturn404(t *testing.T) {
 		t.Fatalf("status = %d, want 404", rr.Code)
 	}
 }
+
+func TestServer_ServesInstallScript(t *testing.T) {
+	handler, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/install.sh", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/x-shellscript") {
+		t.Fatalf("content-type = %q, want text/x-shellscript", ct)
+	}
+
+	body := rr.Body.String()
+	for _, want := range []string{
+		"github.com/TrebuchetDynamics/gormes-agent/gormes/cmd/gormes",
+		`go install "${MODULE}@${VERSION}"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("install.sh missing %q\n%s", want, body)
+		}
+	}
+	for _, reject := range []string{
+		"XelHaku/golang-hermes-agent",
+		"XelHaku/gormes-agent",
+		"releases/latest",
+	} {
+		if strings.Contains(body, reject) {
+			t.Fatalf("install.sh contains stale installer path %q\n%s", reject, body)
+		}
+	}
+}

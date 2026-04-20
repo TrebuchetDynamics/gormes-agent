@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 func insertTurn(t *testing.T, s *SqliteStore, sid, content string) {

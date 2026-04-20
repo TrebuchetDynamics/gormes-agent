@@ -129,7 +129,7 @@ Nav: []NavLink{
 	{Label: "Run Now", Href: "#quickstart"},
 	{Label: "Shipping State", Href: "#roadmap"},
 	{Label: "Source", Href: "#contribute"},
-	{Label: "GitHub", Href: "https://github.com/XelHaku/gormes-agent"},
+	{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 },
 HeroBadge:    "Open Source • MIT License • Zero-CGO • Go Shell Shipping Now",
 HeroHeadline: "Run Hermes Through a Go Operator Console.",
@@ -139,7 +139,7 @@ HeroCopy: []string{
 },
 PrimaryCTA:   Link{Label: "Boot Gormes", Href: "#quickstart"},
 SecondaryCTA: Link{Label: "See Shipping State", Href: "#roadmap"},
-TertiaryCTA:  Link{Label: "Inspect Source", Href: "https://github.com/XelHaku/gormes-agent"},
+TertiaryCTA:  Link{Label: "Inspect Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 PhaseNote:    "Current boundary: the Go shell ships now. Transcript memory stays on the later cutover path.",
 ```
 
@@ -155,7 +155,7 @@ go test ./internal/site -run TestRenderIndex_RendersOperatorConsoleTruth
 Expected:
 
 ```text
-ok  	github.com/XelHaku/golang-hermes-agent/gormes/www.gormes.ai/internal/site
+ok  	github.com/TrebuchetDynamics/gormes-agent/gormes/www.gormes.ai/internal/site
 ```
 
 - [ ] **Step 5: Commit**
@@ -527,7 +527,7 @@ go test ./internal/site
 Expected:
 
 ```text
-ok  	github.com/XelHaku/golang-hermes-agent/gormes/www.gormes.ai/internal/site
+ok  	github.com/TrebuchetDynamics/gormes-agent/gormes/www.gormes.ai/internal/site
 ```
 
 - [ ] **Step 5: Commit**
@@ -827,7 +827,7 @@ go test ./...
 Expected:
 
 ```text
-ok  	github.com/XelHaku/golang-hermes-agent/gormes/www.gormes.ai/internal/site
+ok  	github.com/TrebuchetDynamics/gormes-agent/gormes/www.gormes.ai/internal/site
 ```
 
 - [ ] **Step 2: Run the browser smoke suite**

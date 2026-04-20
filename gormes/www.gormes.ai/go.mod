@@ -1,4 +1,4 @@
-module github.com/XelHaku/golang-hermes-agent/gormes/www.gormes.ai
+module github.com/TrebuchetDynamics/gormes-agent/gormes/www.gormes.ai
 
 go 1.22
 

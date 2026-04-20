@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 // TestKernel_HandlesMidStreamNetworkDrop exercises the Route-B reconnect

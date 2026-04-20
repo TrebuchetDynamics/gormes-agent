@@ -26,7 +26,7 @@ Gormes is deliberately split into focused binaries. `gormes` stays small and ter
 
 ## Further Reading
 
-- [Quick Start on GitHub](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/README.md)
-- [Executive Roadmap](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md)
-- [Phase 2.A — Tool Registry](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)
-- [Phase 2.B.1 — Telegram Scout](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)
+- [Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/README.md)
+- [Executive Roadmap](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md)
+- [Phase 2.A — Tool Registry](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)
+- [Phase 2.B.1 — Telegram Scout](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)

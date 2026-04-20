@@ -1,7 +1,7 @@
 # Gormes — Executive Roadmap (ARCH_PLAN)
 
 **Public site:** https://gormes.ai
-**Source:** https://github.com/XelHaku/golang-hermes-agent
+**Source:** https://github.com/TrebuchetDynamics/gormes-agent
 **Upstream reference:** https://github.com/NousResearch/hermes-agent
 
 ---

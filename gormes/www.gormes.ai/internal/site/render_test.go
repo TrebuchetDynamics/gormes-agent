@@ -24,7 +24,11 @@ func TestRenderIndex_RendersOperatorConsoleTruth(t *testing.T) {
 		"Works on Linux, macOS, WSL2, and Android via Termux.",
 		"Windows: Native Windows is not supported. Please install WSL2",
 		"source ~/.bashrc    # reload shell (or: source ~/.zshrc)",
-		"./bin/gormes doctor --offline",
+		"curl -fsSL https://gormes.ai/install.sh | sh",
+		"Today the Gormes installer shells out to Go itself. Keep Go 1.25&#43; on PATH until release artifacts exist.",
+		"If the installer prints an export PATH line, run it in this shell before launching gormes.",
+		"gormes doctor --offline",
+		"cd gormes-agent/gormes &amp;&amp; make build",
 		`class="hero hero-deck"`,
 		`id="proof"`,
 		`class="activation-grid"`,
@@ -36,6 +40,10 @@ func TestRenderIndex_RendersOperatorConsoleTruth(t *testing.T) {
 	rejects := []string{
 		"7.9 MB Static Binary",
 		"7.9 MB zero-CGO TUI",
+		"8.2M shell",
+		"15M telegram edge",
+		"split Telegram edge",
+		"separate binaries",
 	}
 
 	for _, want := range wants {

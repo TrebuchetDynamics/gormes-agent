@@ -479,7 +479,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 // defaultQueueCap is used when OpenSqlite receives queueCap <= 0.
@@ -661,7 +661,7 @@ import (
 	// ... existing imports ...
 	"encoding/json"
 	"time"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 // (If the existing imports already have some of these, don't duplicate; just
@@ -960,7 +960,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 // turnPayload is the shared JSON schema for AppendUserTurn and
@@ -1065,7 +1065,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 func insertTurn(t *testing.T, s *SqliteStore, sid, content string) {
@@ -1222,7 +1222,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 )
 
 func TestClose_DrainsQueue(t *testing.T) {
@@ -1403,9 +1403,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
 // TestKernel_FinalizeAssistantTurnReachesStore proves the kernel fires
@@ -1764,7 +1764,7 @@ Open `gormes/cmd/gormes-telegram/main.go`. Two changes:
 1. Add the `internal/memory` import to the import block:
 
 ```go
-"github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
+"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 ```
 
 2. After the existing `defer smap.Close()` line (Phase 2.C's session map) and BEFORE `hc := hermes.NewHTTPClient(...)`, insert:
@@ -1798,7 +1798,7 @@ k := kernel.New(kernel.Config{
 }, hc, mstore, tm, slog.Default())
 ```
 
-4. Remove the now-unused `store` import from the import block (grep `store.NewNoop` first — if no other use remains, delete the line `"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"`).
+4. Remove the now-unused `store` import from the import block (grep `store.NewNoop` first — if no other use remains, delete the line `"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"`).
 
 5. Update the startup log line to include the memory db path:
 
@@ -1902,7 +1902,7 @@ Append to `gormes/internal/telegram/bot_test.go`:
 ```go
 // Imports may already include most of what's needed. Add if missing:
 //   "path/filepath"
-//   "github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
+//   "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 
 // TestBot_TurnPersistsToSqlite proves the full Phase 3.A flow:
 // Telegram message -> kernel -> SqliteStore -> turns table. Uses a real
@@ -2133,7 +2133,7 @@ Expected: both PASS.
 Temporarily add to the TOP of `gormes/internal/kernel/kernel.go`'s import block:
 
 ```go
-_ "github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
+_ "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 ```
 
 Re-run the kernel test:
@@ -2161,7 +2161,7 @@ Expected: empty.
 Temporarily add to `gormes/cmd/gormes/main.go`'s import block:
 
 ```go
-_ "github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
+_ "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 ```
 
 Re-run:
@@ -2293,8 +2293,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
 	"encoding/json"
 )
 func main() {

@@ -446,7 +446,7 @@ import (
     "encoding/json"
     "time"
 
-    "github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
+    "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
     "example.com/mylab/lattice"
 )
 

@@ -415,8 +415,8 @@ slug: "/"
 Gormes is the Go-native operational moat for Hermes: a current 7.9 MB static binary, a tool-aware doctor, and a resilience model built around Route-B reconnect plus a 16 ms coalescing mailbox.
 
 - [Why Gormes](why-gormes)
-- [Quick Start on GitHub](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/README.md)
-- [Roadmap](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md)
+- [Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/README.md)
+- [Roadmap](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md)
 
 ## What lives here?
 
@@ -427,10 +427,10 @@ This docs surface explains the public engineering case for Gormes. The operator-
 | | |
 |---|---|
 | **[Why Gormes](why-gormes)** | Public technical manifesto: operational moat, wire doctor, resilience, and surgical binaries |
-| **[Quick Start on GitHub](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/README.md)** | Build, validate, and run the current Go binary |
-| **[Roadmap](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md)** | The five-phase path from tactical bridge to pure Go runtime |
-| **[Tool Registry Spec](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)** | Phase 2.A proof doc for Go-native tools |
-| **[Telegram Scout Spec](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)** | Phase 2.B proof doc for split-binary messaging architecture |
+| **[Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/README.md)** | Build, validate, and run the current Go binary |
+| **[Roadmap](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md)** | The five-phase path from tactical bridge to pure Go runtime |
+| **[Tool Registry Spec](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)** | Phase 2.A proof doc for Go-native tools |
+| **[Telegram Scout Spec](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)** | Phase 2.B proof doc for split-binary messaging architecture |
 ```
 
 Create `gormes/docs/content/why-gormes.md` with:
@@ -464,10 +464,10 @@ Gormes is deliberately split into focused binaries. `gormes` stays small and ter
 
 ## Further Reading
 
-- [Quick Start on GitHub](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/README.md)
-- [Executive Roadmap](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md)
-- [Phase 2.A — Tool Registry](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)
-- [Phase 2.B.1 — Telegram Scout](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)
+- [Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/README.md)
+- [Executive Roadmap](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md)
+- [Phase 2.A — Tool Registry](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)
+- [Phase 2.B.1 — Telegram Scout](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)
 ```
 
 - [ ] **Step 4: Run the docs tests to verify the public surface passes**

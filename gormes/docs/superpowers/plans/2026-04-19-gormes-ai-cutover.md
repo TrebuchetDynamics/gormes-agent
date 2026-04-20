@@ -212,7 +212,7 @@ Expected: exit code `0`
 Replace `www.gormes.ai/go.mod` with:
 
 ```go
-module github.com/XelHaku/golang-hermes-agent/www.gormes.ai
+module github.com/TrebuchetDynamics/gormes-agent/www.gormes.ai
 
 go 1.22
 
@@ -232,7 +232,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/XelHaku/golang-hermes-agent/www.gormes.ai/internal/site"
+	"github.com/TrebuchetDynamics/gormes-agent/www.gormes.ai/internal/site"
 )
 
 func main() {

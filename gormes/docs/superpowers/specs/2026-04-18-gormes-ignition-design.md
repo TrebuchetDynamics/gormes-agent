@@ -14,7 +14,7 @@
 **Author:** Xel (via Claude Code brainstorm)
 **Status:** SUPERSEDED — see header
 **Scope:** Milestones M0 (scaffolding) + M1 (TUI + one LLM provider) of the Gormes program.
-**Parent program:** Gormes — Go port of Hermes Agent. Upstream: `NousResearch/hermes-agent`. Fork: `XelHaku/golang-hermes-agent`.
+**Parent program:** Gormes — Go port of Hermes Agent. Upstream: `NousResearch/hermes-agent`. Fork: `TrebuchetDynamics/gormes-agent`.
 
 ---
 
@@ -131,13 +131,13 @@ gormes/
 │   └── superpowers/
 │       └── specs/
 │           └── 2026-04-18-gormes-ignition-design.md   # this file
-├── go.mod                       # module: github.com/XelHaku/golang-hermes-agent/gormes
+├── go.mod                       # module: github.com/TrebuchetDynamics/gormes-agent/gormes
 ├── go.sum
 ├── README.md                    # "Rosetta Stone" explainer
 └── Makefile                     # build, test, test-live, lint
 ```
 
-Module path: `github.com/XelHaku/golang-hermes-agent/gormes`. This allows `go install github.com/XelHaku/golang-hermes-agent/gormes/cmd/gormes@latest` to work from a single upstream.
+Module path: `github.com/TrebuchetDynamics/gormes-agent/gormes`. This allows `go install github.com/TrebuchetDynamics/gormes-agent/gormes/cmd/gormes@latest` to work from a single upstream.
 
 ---
 
