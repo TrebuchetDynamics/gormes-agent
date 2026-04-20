@@ -40,6 +40,21 @@ type TelegramCfg struct {
 	RecallWeightThreshold float64 `toml:"recall_weight_threshold"`
 	RecallMaxFacts        int     `toml:"recall_max_facts"`
 	RecallDepth           int     `toml:"recall_depth"`
+	// MirrorEnabled / MirrorPath / MirrorInterval (Phase 3.D.5).
+	// The Memory Mirror exports SQLite entities/relationships to USER.md.
+	MirrorEnabled  bool          `toml:"mirror_enabled"`
+	MirrorPath     string        `toml:"mirror_path"`
+	MirrorInterval time.Duration `toml:"mirror_interval"`
+	// Phase 3.D semantic fusion — all opt-in via SemanticEnabled.
+	SemanticEnabled       bool          `toml:"semantic_enabled"`
+	SemanticEndpoint      string        `toml:"semantic_endpoint"`
+	SemanticModel         string        `toml:"semantic_model"`
+	SemanticTopK          int           `toml:"semantic_top_k"`
+	SemanticMinSimilarity float64       `toml:"semantic_min_similarity"`
+	EmbedderPollInterval  time.Duration `toml:"embedder_poll_interval"`
+	EmbedderBatchSize     int           `toml:"embedder_batch_size"`
+	EmbedderCallTimeout   time.Duration `toml:"embedder_call_timeout"`
+	QueryEmbedTimeout     time.Duration `toml:"query_embed_timeout"`
 }
 
 type HermesCfg struct {
@@ -90,6 +105,18 @@ func defaults() Config {
 			RecallWeightThreshold: 1.0,
 			RecallMaxFacts:        10,
 			RecallDepth:           2,
+			MirrorEnabled:         true,
+			MirrorPath:            filepath.Join(xdgDataHome(), "gormes", "memory", "USER.md"),
+			MirrorInterval:        30 * time.Second,
+			SemanticEnabled:       false,
+			SemanticEndpoint:      "",
+			SemanticModel:         "",
+			SemanticTopK:          3,
+			SemanticMinSimilarity: 0.35,
+			EmbedderPollInterval:  30 * time.Second,
+			EmbedderBatchSize:     10,
+			EmbedderCallTimeout:   10 * time.Second,
+			QueryEmbedTimeout:     60 * time.Millisecond,
 		},
 	}
 }

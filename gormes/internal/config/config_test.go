@@ -201,3 +201,39 @@ func TestLoad_RecallDefaults(t *testing.T) {
 		t.Errorf("RecallDepth = %d, want 2", cfg.Telegram.RecallDepth)
 	}
 }
+
+func TestLoad_SemanticDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Semantic is opt-in: everything off by default.
+	if cfg.Telegram.SemanticEnabled {
+		t.Errorf("SemanticEnabled default = true, want false (opt-in)")
+	}
+	if cfg.Telegram.SemanticModel != "" {
+		t.Errorf("SemanticModel default = %q, want empty", cfg.Telegram.SemanticModel)
+	}
+	// But tunables have usable defaults so a single `semantic_enabled = true`
+	// + `semantic_model = "..."` in TOML is enough to light things up.
+	if cfg.Telegram.SemanticTopK != 3 {
+		t.Errorf("SemanticTopK default = %d, want 3", cfg.Telegram.SemanticTopK)
+	}
+	if cfg.Telegram.SemanticMinSimilarity != 0.35 {
+		t.Errorf("SemanticMinSimilarity default = %v, want 0.35", cfg.Telegram.SemanticMinSimilarity)
+	}
+	if cfg.Telegram.EmbedderPollInterval != 30*time.Second {
+		t.Errorf("EmbedderPollInterval default = %v, want 30s", cfg.Telegram.EmbedderPollInterval)
+	}
+	if cfg.Telegram.EmbedderBatchSize != 10 {
+		t.Errorf("EmbedderBatchSize default = %d, want 10", cfg.Telegram.EmbedderBatchSize)
+	}
+	if cfg.Telegram.EmbedderCallTimeout != 10*time.Second {
+		t.Errorf("EmbedderCallTimeout default = %v, want 10s", cfg.Telegram.EmbedderCallTimeout)
+	}
+	if cfg.Telegram.QueryEmbedTimeout != 60*time.Millisecond {
+		t.Errorf("QueryEmbedTimeout default = %v, want 60ms", cfg.Telegram.QueryEmbedTimeout)
+	}
+}
