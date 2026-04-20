@@ -240,3 +240,51 @@ func TestTraverse_EmptySeedsReturnsEmpty(t *testing.T) {
 		t.Errorf("len = %d, want 0", len(got))
 	}
 }
+
+func TestEnumerateRelationships_ByName(t *testing.T) {
+	s, ids := openGraphWithEdges(t)
+	rels, err := enumerateRelationships(context.Background(), s.db,
+		[]int64{ids["A"], ids["B"], ids["C"]}, 1.0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rels) != 2 {
+		t.Errorf("len = %d, want 2", len(rels))
+	}
+	// Both are weight=2.0; name-asc tiebreaker: A-KNOWS-B before B-WORKS_ON-C.
+	if rels[0].Source != "A" || rels[0].Target != "B" || rels[0].Predicate != "KNOWS" {
+		t.Errorf("rels[0] = %+v, want A-KNOWS-B", rels[0])
+	}
+}
+
+func TestEnumerateRelationships_WeightThreshold(t *testing.T) {
+	s, ids := openGraphWithEdges(t)
+	// Include A and E; A-LIKES-E has weight 0.5; threshold 1.0 should drop it.
+	rels, _ := enumerateRelationships(context.Background(), s.db,
+		[]int64{ids["A"], ids["E"]}, 1.0, 10)
+	for _, r := range rels {
+		if r.Source == "A" && r.Target == "E" {
+			t.Errorf("weight=0.5 rel A-LIKES-E should have been filtered")
+		}
+	}
+}
+
+func TestEnumerateRelationships_LimitCap(t *testing.T) {
+	s, ids := openGraphWithEdges(t)
+	rels, _ := enumerateRelationships(context.Background(), s.db,
+		[]int64{ids["A"], ids["B"], ids["C"], ids["D"], ids["E"]}, 0.0, 2)
+	if len(rels) > 2 {
+		t.Errorf("len = %d, want <= 2", len(rels))
+	}
+}
+
+func TestEnumerateRelationships_EmptyNeighborhoodReturnsEmpty(t *testing.T) {
+	s, _ := openGraphWithEdges(t)
+	rels, err := enumerateRelationships(context.Background(), s.db, nil, 1.0, 10)
+	if err != nil {
+		t.Errorf("err = %v, want nil on empty input", err)
+	}
+	if len(rels) != 0 {
+		t.Errorf("len = %d, want 0", len(rels))
+	}
+}

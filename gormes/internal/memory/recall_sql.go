@@ -153,3 +153,66 @@ func traverseNeighborhood(
 	}
 	return out, rows.Err()
 }
+
+// enumerateRelationships fetches all relationships where BOTH source_id
+// and target_id are inside the given entity ID set, filtered by weight
+// >= threshold, sorted by weight DESC then source-name ASC then target-
+// name ASC, capped at limit. Returns joined rows (source name, predicate,
+// target name, weight) ready for formatting into the fenced block.
+//
+// AND (not OR) on the IN clauses: we want relationships WITHIN the
+// neighborhood, not ones that merely touch it. An edge hanging off the
+// neighborhood toward an unknown entity is not useful context for the
+// LLM.
+func enumerateRelationships(
+	ctx context.Context,
+	db *sql.DB,
+	neighborhoodIDs []int64,
+	threshold float64,
+	limit int,
+) ([]recalledRel, error) {
+	if len(neighborhoodIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders := strings.Repeat("?,", len(neighborhoodIDs))
+	placeholders = placeholders[:len(placeholders)-1]
+	// Args layout: [source IN list], [target IN list], threshold, limit.
+	// Duplicated because SQLite doesn't allow reusing one parameter in
+	// two IN clauses via positional placeholders.
+	args := make([]any, 0, 2*len(neighborhoodIDs)+2)
+	for _, id := range neighborhoodIDs {
+		args = append(args, id)
+	}
+	for _, id := range neighborhoodIDs {
+		args = append(args, id)
+	}
+	args = append(args, threshold, limit)
+
+	q := fmt.Sprintf(`
+		SELECT e1.name, r.predicate, e2.name, r.weight
+		FROM relationships r
+		JOIN entities e1 ON r.source_id = e1.id
+		JOIN entities e2 ON r.target_id = e2.id
+		WHERE r.source_id IN (%s)
+		  AND r.target_id IN (%s)
+		  AND r.weight >= ?
+		ORDER BY r.weight DESC, e1.name ASC, e2.name ASC
+		LIMIT ?`, placeholders, placeholders)
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("enumerateRelationships: %w", err)
+	}
+	defer rows.Close()
+
+	var out []recalledRel
+	for rows.Next() {
+		var r recalledRel
+		if err := rows.Scan(&r.Source, &r.Predicate, &r.Target, &r.Weight); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
