@@ -18,6 +18,7 @@ import (
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tui"
@@ -38,6 +39,7 @@ func main() {
 		RunE:         runTUI,
 	}
 	root.Flags().Bool("offline", false, "skip startup api_server health check (dev only — turns the TUI into a cosmetic smoke-tester)")
+	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.AddCommand(doctorCmd, versionCmd)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
@@ -66,6 +68,31 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 		healthCancel()
 	}
 
+	// Phase 2.C — open the session map; honor --resume.
+	smap, err := session.OpenBolt(config.SessionDBPath())
+	if err != nil {
+		return fmt.Errorf("session map: %w", err)
+	}
+	defer smap.Close()
+
+	resumeFlag, _ := cmd.Flags().GetString("resume")
+	pctx := context.Background()
+	key := session.TUIKey()
+	if resumeFlag != "" {
+		if err := smap.Put(pctx, key, resumeFlag); err != nil {
+			slog.Warn("failed to apply --resume override", "err", err)
+		}
+	}
+	var initialSID string
+	if sid, err := smap.Get(pctx, key); err != nil {
+		slog.Warn("could not load initial session_id", "key", key, "err", err)
+	} else {
+		initialSID = sid
+		if sid != "" {
+			slog.Info("resuming persisted session", "key", key, "session_id", sid)
+		}
+	}
+
 	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -77,9 +104,35 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 		Tools:             buildDefaultRegistry(),
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
+		InitialSessionID:  initialSID,
 	}, c, store.NewNoop(), tm, slog.Default())
 
 	go k.Run(rootCtx)
+
+	// Fan-through: read every frame from the kernel, persist its SessionID
+	// when it changes, then forward to the TUI. Single consumer invariant
+	// preserved — internal/tui's Model remains the only reader of the
+	// downstream channel. Buffered cap 1 matches kernel.RenderMailboxCap.
+	hookedFrames := make(chan kernel.RenderFrame, 1)
+	go func() {
+		defer close(hookedFrames)
+		var lastSID string
+		raw := k.Render()
+		for f := range raw {
+			if f.SessionID != lastSID {
+				if err := smap.Put(rootCtx, key, f.SessionID); err != nil {
+					slog.Warn("tui: failed to persist session_id", "key", key, "err", err)
+				} else {
+					lastSID = f.SessionID
+				}
+			}
+			select {
+			case hookedFrames <- f:
+			case <-rootCtx.Done():
+				return
+			}
+		}
+	}()
 
 	submit := func(text string) {
 		_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: text})
@@ -88,7 +141,7 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 		_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 	}
 
-	model := tui.NewModel(k.Render(), submit, cancelTurn)
+	model := tui.NewModel(hookedFrames, submit, cancelTurn)
 	prog := tea.NewProgram(model, tea.WithAltScreen())
 
 	// Signal → shutdown-budget force-exit watcher.
