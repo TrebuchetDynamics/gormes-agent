@@ -28,6 +28,21 @@
       </div>
     </footer>
   </div>
+  <script>
+    function gormesCopy(b) {
+      var code = b.parentElement.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(function () {
+        var label = b.querySelector('.copy-label');
+        var orig = label.textContent;
+        label.textContent = 'Copied';
+        b.classList.add('copied');
+        setTimeout(function () {
+          label.textContent = orig;
+          b.classList.remove('copied');
+        }, 1500);
+      });
+    }
+  </script>
 </body>
 </html>
 {{end}}

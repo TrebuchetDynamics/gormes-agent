@@ -101,9 +101,10 @@ a:focus-visible,
 .install-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .install-step { display: flex; flex-direction: column; gap: 6px; }
 .install-step .kicker { margin: 0; }
+.cmd-wrap { position: relative; }
 .cmd {
   background: var(--bg-1);
-  padding: 14px;
+  padding: 14px 84px 14px 14px;
   border-radius: 5px;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
@@ -111,6 +112,32 @@ a:focus-visible,
   overflow-x: auto;
 }
 .cmd code { color: var(--text); }
+.copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted-strong);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.copy-btn:hover { color: var(--text); border-color: var(--muted); }
+.copy-btn.copied {
+  background: var(--status-shipped-bg);
+  color: var(--status-shipped-fg);
+  border-color: var(--status-shipped-bg);
+}
+.copy-btn svg { display: block; }
+.copy-label { line-height: 1; }
 .install-footnote {
   font-size: 11px;
   color: var(--label);

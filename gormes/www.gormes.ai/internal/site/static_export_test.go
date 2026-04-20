@@ -20,14 +20,20 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	}
 	text := string(indexBody)
 	wants := []string{
-		"Hermes, In a Single Static Binary.",
+		"One Go Binary. Same Hermes Brain.",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"Why a Go layer matters.",
 		"What ships now, what doesn&#39;t.",
+		"Phase 3.A–C — SQLite + FTS5 lattice, ontological graph, neural recall.",
+		"Phase 3.D — Ollama embeddings + semantic fusion.",
 		"Phase 4 — Native prompt building + agent orchestration.",
 	}
 	rejects := []string{
 		"Run Hermes Through a Go Operator Console.",
+		"Hermes, In a Single Static Binary.",
+		"No Python runtime on the host",
+		"~8 MB",
+		"Phase 3 — SQLite + FTS5 transcript memory.",
 		"Boot Sequence",
 		"Proof Rail",
 	}

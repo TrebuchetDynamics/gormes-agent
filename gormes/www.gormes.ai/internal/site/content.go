@@ -58,7 +58,7 @@ type LandingPage struct {
 
 func DefaultPage() LandingPage {
 	return LandingPage{
-		Title:       "Gormes — Hermes, In a Single Static Binary",
+		Title:       "Gormes — One Go Binary. Same Hermes Brain.",
 		Description: "Zero-CGO Go shell for Hermes Agent. One static binary, in-process tool loop, Route-B reconnect.",
 		Nav: []NavLink{
 			{Label: "Install", Href: "#install"},
@@ -67,8 +67,8 @@ func DefaultPage() LandingPage {
 			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		},
 		HeroKicker:   "OPEN SOURCE · MIT LICENSE",
-		HeroHeadline: "Hermes, In a Single Static Binary.",
-		HeroSubhead:  "Zero-CGO. No Python runtime on the host. One file you scp anywhere — Termux, Alpine, a fresh VPS — and it runs the same Hermes brain.",
+		HeroHeadline: "One Go Binary. Same Hermes Brain.",
+		HeroSubhead:  "A static Go binary that talks to your Hermes backend over HTTP. scp it to Termux, Alpine, a fresh VPS — Gormes adds no runtime of its own on top of what Hermes already needs.",
 		PrimaryCTA:   Link{Label: "Install", Href: "#install"},
 		SecondaryCTA: Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		InstallSteps: []InstallStep{
@@ -81,7 +81,7 @@ func DefaultPage() LandingPage {
 		FeaturesLabel:       "FEATURES",
 		FeaturesHeadline:    "Why a Go layer matters.",
 		FeatureCards: []FeatureCard{
-			{Title: "Single Static Binary", Body: "Zero CGO. ~8 MB. scp it to Termux, Alpine, a fresh VPS — it runs."},
+			{Title: "Single Static Binary", Body: "Zero CGO. ~12 MB. scp it to Termux, Alpine, a fresh VPS — it runs."},
 			{Title: "Boots Like a Tool", Body: "No Python warmup. 16 ms render mailbox keeps the TUI responsive under load."},
 			{Title: "In-Process Tool Loop", Body: "Streamed tool_calls execute against a Go-native registry. No bounce through Python."},
 			{Title: "Survives Dropped Streams", Body: "Route-B reconnect treats SSE drops as a resilience problem, not a happy-path omission."},
@@ -90,8 +90,10 @@ func DefaultPage() LandingPage {
 		LedgerHeadline: "What ships now, what doesn't.",
 		ShippingStates: []ShipState{
 			{State: "SHIPPED", Tone: "shipped", Name: "Phase 1 — Bubble Tea TUI shell."},
-			{State: "SHIPPED", Tone: "shipped", Name: "Phase 2 — Tool registry + Telegram adapter + session resume."},
-			{State: "NEXT", Tone: "next", Name: "Phase 3 — SQLite + FTS5 transcript memory."},
+			{State: "SHIPPED", Tone: "shipped", Name: "Phase 2.A–C — Tool registry + Telegram adapter + session resume."},
+			{State: "NEXT", Tone: "next", Name: "Phase 2.B.2+ — Wider gateway (Discord, Slack, more adapters)."},
+			{State: "SHIPPED", Tone: "shipped", Name: "Phase 3.A–C — SQLite + FTS5 lattice, ontological graph, neural recall."},
+			{State: "NEXT", Tone: "next", Name: "Phase 3.D — Ollama embeddings + semantic fusion."},
 			{State: "LATER", Tone: "later", Name: "Phase 4 — Native prompt building + agent orchestration."},
 		},
 		FooterLeft:  "Gormes v0.1.0 · TrebuchetDynamics",

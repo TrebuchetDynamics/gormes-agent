@@ -16,14 +16,17 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 	wants := []string{
 		// Hero
 		"OPEN SOURCE · MIT LICENSE",
-		"Hermes, In a Single Static Binary.",
-		"Zero-CGO. No Python runtime on the host. One file you scp anywhere",
+		"One Go Binary. Same Hermes Brain.",
+		"A static Go binary that talks to your Hermes backend over HTTP.",
 		// Install
 		"1. INSTALL",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"2. RUN",
 		"Requires Hermes backend at localhost:8642.",
 		"Install Hermes →",
+		// Copy button (clipboard JS is allowed for this widget only)
+		`class="copy-btn"`,
+		"navigator.clipboard.writeText",
 		// Features
 		"FEATURES",
 		"Why a Go layer matters.",
@@ -36,8 +39,10 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"SHIPPING STATE",
 		"What ships now, what doesn&#39;t.",
 		"Phase 1 — Bubble Tea TUI shell.",
-		"Phase 2 — Tool registry + Telegram adapter + session resume.",
-		"Phase 3 — SQLite + FTS5 transcript memory.",
+		"Phase 2.A–C — Tool registry + Telegram adapter + session resume.",
+		"Phase 2.B.2+ — Wider gateway (Discord, Slack, more adapters).",
+		"Phase 3.A–C — SQLite + FTS5 lattice, ontological graph, neural recall.",
+		"Phase 3.D — Ollama embeddings + semantic fusion.",
 		"Phase 4 — Native prompt building + agent orchestration.",
 		// Footer
 		"Gormes v0.1.0 · TrebuchetDynamics",
@@ -47,12 +52,15 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 	}
 	rejects := []string{
 		"Run Hermes Through a Go Operator Console.",
+		"Hermes, In a Single Static Binary.",
+		"No Python runtime on the host",
 		"Boot Sequence",
 		"Proof Rail",
 		"01 / INSTALL HERMES",
 		"Why Hermes users switch",
 		"Inspect the Machine",
-		"<script",
+		"~8 MB",
+		"Phase 3 — SQLite + FTS5 transcript memory.",
 	}
 
 	for _, want := range wants {

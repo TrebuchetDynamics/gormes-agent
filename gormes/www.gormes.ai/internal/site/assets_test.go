@@ -27,7 +27,7 @@ func TestServer_ServesEmbeddedCSS(t *testing.T) {
 	}
 }
 
-func TestServer_IndexLinksCSSAndAvoidsScripts(t *testing.T) {
+func TestServer_IndexLinksCSSAndScopesScripts(t *testing.T) {
 	handler, err := NewServer()
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
@@ -41,8 +41,17 @@ func TestServer_IndexLinksCSSAndAvoidsScripts(t *testing.T) {
 	if !strings.Contains(body, `href="/static/site.css"`) {
 		t.Fatalf("index is missing stylesheet link\n%s", body)
 	}
-	if strings.Contains(strings.ToLower(body), "<script") {
-		t.Fatalf("index must not require JavaScript\n%s", body)
+	// Exactly one inline <script> is allowed: the gormesCopy clipboard helper
+	// for the install-step copy buttons. Anything more would be JS creep.
+	scriptCount := strings.Count(strings.ToLower(body), "<script")
+	if scriptCount != 1 {
+		t.Fatalf("expected exactly 1 <script> tag (clipboard helper); found %d\n%s", scriptCount, body)
+	}
+	if !strings.Contains(body, "navigator.clipboard.writeText") {
+		t.Fatalf("inline script is not the clipboard helper\n%s", body)
+	}
+	if strings.Contains(body, `<script src="`) {
+		t.Fatalf("external script source not permitted\n%s", body)
 	}
 }
 
