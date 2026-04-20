@@ -1,12 +1,17 @@
 {{define "index"}}
 <section id="top" class="hero">
   <div class="hero-inner">
-    <p class="kicker">{{.HeroKicker}}</p>
-    <h1 class="hero-title">{{.HeroHeadline}}</h1>
-    <p class="hero-subhead">{{.HeroSubhead}}</p>
-    <div class="hero-ctas">
-      <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
-      <a class="btn btn-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
+    <div class="hero-content">
+      <p class="kicker">{{.HeroKicker}}</p>
+      <h1 class="hero-title">{{.HeroHeadline}}</h1>
+      <p class="hero-subhead">{{.HeroSubhead}}</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
+        <a class="btn btn-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
+      </div>
+    </div>
+    <div class="hero-image">
+      <img src="{{.HeroImage}}" alt="Gormes Gopher" width="300">
     </div>
   </div>
 </section>

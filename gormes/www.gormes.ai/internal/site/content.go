@@ -56,6 +56,7 @@ type LandingPage struct {
 	HeroKicker          string
 	HeroHeadline        string
 	HeroSubhead         string
+	HeroImage           string
 	PrimaryCTA          Link
 	SecondaryCTA        Link
 	InstallSteps        []InstallStep
@@ -93,6 +94,7 @@ func DefaultPage() LandingPage {
 		HeroKicker:   "§ 01 · OPEN SOURCE · MIT LICENSE",
 		HeroHeadline: "One Go Binary. Same Hermes Brain.",
 		HeroSubhead:  "A static Go binary that talks to your Hermes backend over HTTP. scp it to Termux, Alpine, a fresh VPS — Gormes adds no runtime of its own on top of what Hermes already needs.",
+		HeroImage:    "/static/go-gopher-bear-lowpoly.png",
 		PrimaryCTA:   Link{Label: "Install", Href: "#install"},
 		SecondaryCTA: Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		InstallSteps: []InstallStep{

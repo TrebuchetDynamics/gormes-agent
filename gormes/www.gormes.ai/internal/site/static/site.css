@@ -141,7 +141,10 @@ a:focus-visible,
 }
 
 /* ── Hero ──────────────────────────────────────────────────────────── */
-.hero-inner { padding: 80px var(--pad) 64px; }
+.hero-inner { padding: 80px var(--pad) 64px; display: flex; gap: 48px; align-items: center; justify-content: space-between; }
+.hero-content { flex: 1; min-width: 0; }
+.hero-image { flex-shrink: 0; }
+.hero-image img { max-width: 300px; height: auto; border-radius: 8px; }
 .hero-title {
   font-family: var(--font-display);
   font-weight: 900;
