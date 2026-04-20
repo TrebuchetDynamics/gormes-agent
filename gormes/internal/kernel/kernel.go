@@ -39,6 +39,15 @@ type Config struct {
 	// ChatKey (Phase 3.C): "<platform>:<chat_id>" scope for memory recall.
 	// Empty string = no scoping; recall queries skip chat filtering.
 	ChatKey string
+	// Recall (Phase 3.C) is optional. When non-nil, the kernel calls
+	// GetContext before each turn and prepends a system message if the
+	// returned string is non-empty. Nil = no memory injection (3.A/B
+	// behavior preserved on platforms that don't opt in).
+	Recall RecallProvider
+	// RecallDeadline caps the GetContext call. Default 100ms when zero.
+	// If GetContext misses the budget, its return value is discarded
+	// and the turn proceeds without memory context.
+	RecallDeadline time.Duration
 }
 
 type Kernel struct {
@@ -211,11 +220,32 @@ func (k *Kernel) runTurn(ctx context.Context, text string) {
 	// we execute the tools in-process and issue a follow-up stream with the
 	// tool results appended to the message history. Capped at MaxToolIterations
 	// to prevent runaway agent loops.
+	msgs := []hermes.Message{{Role: "user", Content: text}}
+
+	if k.cfg.Recall != nil {
+		deadline := k.cfg.RecallDeadline
+		if deadline <= 0 {
+			deadline = 100 * time.Millisecond
+		}
+		recallCtx, recallCancel := context.WithTimeout(ctx, deadline)
+		ctxStr := k.cfg.Recall.GetContext(recallCtx, RecallParams{
+			UserMessage: text,
+			ChatKey:     k.cfg.ChatKey,
+			SessionID:   k.sessionID,
+		})
+		recallCancel()
+		if ctxStr != "" {
+			msgs = append([]hermes.Message{
+				{Role: "system", Content: ctxStr},
+			}, msgs...)
+		}
+	}
+
 	request := hermes.ChatRequest{
 		Model:     k.cfg.Model,
 		SessionID: k.sessionID,
 		Stream:    true,
-		Messages:  []hermes.Message{{Role: "user", Content: text}},
+		Messages:  msgs,
 	}
 	if k.cfg.Tools != nil {
 		descs := k.cfg.Tools.Descriptors()
