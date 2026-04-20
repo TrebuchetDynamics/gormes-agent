@@ -1,5 +1,6 @@
 // Command gormes-telegram is the Phase-2.B.1 Telegram adapter binary.
 // Phase 2.C adds persistent session-id resume via internal/session.
+// Phase 3.A wires SqliteStore as the kernel memory store.
 package main
 
 import (
@@ -14,8 +15,8 @@ import (
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/config"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/XelHaku/golang-hermes-agent/gormes/internal/memory"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
-	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telegram"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
@@ -73,6 +74,19 @@ func run() error {
 		}
 	}
 
+	// Phase 3.A — open the SQLite memory store; worker starts immediately.
+	mstore, err := memory.OpenSqlite(config.MemoryDBPath(), cfg.Telegram.MemoryQueueCap, slog.Default())
+	if err != nil {
+		return fmt.Errorf("memory store: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+		defer cancelShutdown()
+		if err := mstore.Close(shutdownCtx); err != nil {
+			slog.Warn("memory store close", "err", err)
+		}
+	}()
+
 	hc := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
 
 	reg := tools.NewRegistry()
@@ -89,7 +103,7 @@ func run() error {
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
-	}, hc, store.NewNoop(), tm, slog.Default())
+	}, hc, mstore, tm, slog.Default())
 
 	tc, err := telegram.NewRealClient(cfg.Telegram.BotToken)
 	if err != nil {
@@ -120,6 +134,7 @@ func run() error {
 		"endpoint", cfg.Hermes.Endpoint,
 		"allowed_chat_id", cfg.Telegram.AllowedChatID,
 		"discovery", cfg.Telegram.FirstRunDiscovery,
-		"sessions_db", config.SessionDBPath())
+		"sessions_db", config.SessionDBPath(),
+		"memory_db", config.MemoryDBPath())
 	return bot.Run(rootCtx)
 }
