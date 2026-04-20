@@ -145,17 +145,19 @@ Ordered by `updated_at DESC` so freshly-extracted entities get embedded first �
 
 ### 6.3 Embedding input construction
 
-For each entity, the input to `/v1/embeddings` is a short sentence that fuses name + type + description:
+For each entity, the input to `/v1/embeddings` is a labeled template that fuses name + type + description:
 
 ```
-{Name} is a {Type}. {Description}
+Entity: {Name}. Type: {Type}. Context: {Description}
 ```
 
 Examples:
-- `AzulVigia is a PROJECT. sports analytics platform`
-- `Cadereyta is a PLACE.` (empty description → trailing sentence omitted)
+- `Entity: AzulVigia. Type: PROJECT. Context: sports analytics platform`
+- `Entity: Cadereyta. Type: PLACE.` (empty description → the `Context:` clause is omitted)
 
-This gives the embedder richer context than just the name, and puts the entity's identity in a natural-language frame the model's training distribution is more comfortable with.
+The explicit `Entity:` / `Type:` / `Context:` labels help the embedding model keep the category signal (e.g. `PROJECT`) from overwhelming the identity signal (e.g. `AzulVigia`). Tests during Phase 3.D development observed that a raw `"X is a TYPE"` template caused distant-but-same-type entities to cluster too tightly (every PROJECT got a similar vector regardless of its actual meaning). The labeled template pushes the model's attention back onto the entity's specific meaning.
+
+**Implementation rule:** if `Description` is empty after sanitization, the trailing `Context: ...` clause is omitted ENTIRELY — don't emit `Context: ` with nothing after the colon, which small models can interpret as a "fill in the blank" prompt.
 
 ### 6.4 Storage
 
