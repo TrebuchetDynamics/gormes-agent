@@ -1,23 +1,19 @@
 package site
 
 import (
+	"bytes"
 	"io/fs"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func TestServer_RendersOperationalMoatStory(t *testing.T) {
-	handler, err := NewServer()
+func TestRenderIndex_RendersOperationalMoatStory(t *testing.T) {
+	body, err := RenderIndex()
 	if err != nil {
-		t.Fatalf("NewServer: %v", err)
+		t.Fatalf("RenderIndex: %v", err)
 	}
 
-	req := httptest.NewRequest("GET", "/", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	body := rr.Body.String()
+	text := string(body)
 	wants := []string{
 		"Gormes.ai | The Agent That GOes With You.",
 		"The Agent That GOes With You.",
@@ -30,12 +26,17 @@ func TestServer_RendersOperationalMoatStory(t *testing.T) {
 		"Help Finish the Port",
 		"Go-native tool registry",
 		"Telegram Scout",
+		"https://github.com/XelHaku/gormes-agent",
 	}
 
 	for _, want := range wants {
-		if !strings.Contains(body, want) {
-			t.Fatalf("rendered page missing %q\nbody:\n%s", want, body)
+		if !strings.Contains(text, want) {
+			t.Fatalf("rendered page missing %q\nbody:\n%s", want, text)
 		}
+	}
+
+	if !bytes.Contains(body, []byte(`href="/static/site.css"`)) {
+		t.Fatalf("rendered page missing stylesheet link\n%s", text)
 	}
 }
 

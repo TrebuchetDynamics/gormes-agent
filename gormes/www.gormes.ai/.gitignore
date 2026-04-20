@@ -1,4 +1,5 @@
 bin/
+dist/
 playwright-report/
 test-results/
 .claude-flow/

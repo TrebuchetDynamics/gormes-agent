@@ -1,32 +1,25 @@
 package site
 
 import (
-	"html/template"
 	"net/http"
 )
 
 type Server struct {
-	page      LandingPage
-	templates *template.Template
+	site *Site
 }
 
 func NewServer() (http.Handler, error) {
-	templates, err := parseTemplates()
-	if err != nil {
-		return nil, err
-	}
-	files, err := staticFS()
+	site, err := loadSite()
 	if err != nil {
 		return nil, err
 	}
 
 	srv := &Server{
-		page:      DefaultPage(),
-		templates: templates,
+		site: site,
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(files)))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(site.static)))
 	mux.HandleFunc("/", srv.handleIndex)
 	return mux, nil
 }
@@ -38,8 +31,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.templates.ExecuteTemplate(w, "layout", s.page); err != nil {
+	body, err := s.site.RenderIndex()
+	if err != nil {
 		http.Error(w, "template render error", http.StatusInternalServerError)
 		return
 	}
+	_, _ = w.Write(body)
 }

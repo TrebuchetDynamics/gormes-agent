@@ -58,7 +58,7 @@ func DefaultPage() LandingPage {
 			{Label: "Quick Start", Href: "#quickstart"},
 			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "Contribute", Href: "#contribute"},
-			{Label: "GitHub", Href: "https://github.com/XelHaku/golang-hermes-agent"},
+			{Label: "GitHub", Href: "https://github.com/XelHaku/gormes-agent"},
 		},
 		HeroBadge:    "Open Source • MIT License • 7.9 MB Static Binary • Zero-CGO",
 		HeroHeadline: "The Agent That GOes With You.",
@@ -68,7 +68,7 @@ func DefaultPage() LandingPage {
 		},
 		PrimaryCTA:   Link{Label: "Run Gormes", Href: "#quickstart"},
 		SecondaryCTA: Link{Label: "Read the Roadmap", Href: "#roadmap"},
-		TertiaryCTA:  Link{Label: "View on GitHub", Href: "https://github.com/XelHaku/golang-hermes-agent"},
+		TertiaryCTA:  Link{Label: "View on GitHub", Href: "https://github.com/XelHaku/gormes-agent"},
 		PhaseNote:    "Phase 2 is live on trunk: 2.A Tool Registry, 2.B.1 Telegram Scout, and 2.C thin bbolt resume are shipped. Python still owns transcript memory until Phase 3.",
 		QuickStart: []CodeBlock{
 			{
@@ -150,15 +150,15 @@ func DefaultPage() LandingPage {
 		ContributorTitle: "Help Finish the Port",
 		ContributorBody:  "Phase 2 is active on trunk. The next hard problems are finishing the wiring harness, landing the SQLite memory lattice, and cutting Python out of the brain path.",
 		ContributorLinks: []Link{
-			{Label: "Read ARCH_PLAN.md", Href: "https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md"},
-			{Label: "Browse the Gormes source", Href: "https://github.com/XelHaku/golang-hermes-agent/tree/main/gormes"},
-			{Label: "Open the implementation docs", Href: "https://github.com/XelHaku/golang-hermes-agent/tree/main/gormes/docs/superpowers"},
+			{Label: "Read ARCH_PLAN.md", Href: "https://github.com/XelHaku/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md"},
+			{Label: "Browse the Gormes source", Href: "https://github.com/XelHaku/gormes-agent/tree/main/gormes"},
+			{Label: "Open the implementation docs", Href: "https://github.com/XelHaku/gormes-agent/tree/main/gormes/docs/superpowers"},
 		},
 		FooterLinks: []Link{
-			{Label: "GitHub", Href: "https://github.com/XelHaku/golang-hermes-agent"},
-			{Label: "ARCH_PLAN", Href: "https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md"},
+			{Label: "GitHub", Href: "https://github.com/XelHaku/gormes-agent"},
+			{Label: "ARCH_PLAN", Href: "https://github.com/XelHaku/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md"},
 			{Label: "Hermes Upstream", Href: "https://github.com/NousResearch/hermes-agent"},
-			{Label: "MIT License", Href: "https://github.com/XelHaku/golang-hermes-agent/blob/main/LICENSE"},
+			{Label: "MIT License", Href: "https://github.com/XelHaku/gormes-agent/blob/main/LICENSE"},
 		},
 		FooterLine: "Gormes already ships the moat layers. The remaining work is the memory lattice and the brain cutover.",
 	}
