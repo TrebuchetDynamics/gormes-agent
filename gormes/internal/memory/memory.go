@@ -76,9 +76,9 @@ func OpenSqlite(path string, queueCap int, log *slog.Logger) (*SqliteStore, erro
 		_ = db.Close()
 		return nil, fmt.Errorf("memory: pragmas: %w", err)
 	}
-	if _, err := db.Exec(schemaDDL); err != nil {
+	if err := migrate(db); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("memory: apply schema: %w", err)
+		return nil, err
 	}
 
 	s := &SqliteStore{
