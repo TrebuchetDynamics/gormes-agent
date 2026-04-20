@@ -1,0 +1,49 @@
+name: Deploy gormes.ai landing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gormes/www.gormes.ai/**'
+      - '.github/workflows/deploy-gormes-landing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gormes-landing-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Guard: never run on the upstream Hermes repo if this workflow
+    # ever gets synced there. Only TrebuchetDynamics/gormes-agent
+    # owns the gormes.ai Cloudflare Pages project.
+    if: github.repository == 'TrebuchetDynamics/gormes-agent'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: gormes/go.mod
+          cache-dependency-path: gormes/go.sum
+
+      - name: Build static export
+        working-directory: gormes/www.gormes.ai
+        run: go run ./cmd/www-gormes-export
+
+      - name: Verify dist artifacts
+        working-directory: gormes/www.gormes.ai
+        run: |
+          test -f dist/index.html
+          test -f dist/install.sh
+          test -f dist/static/site.css
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy gormes/www.gormes.ai/dist --project-name=gormes-agent-landing --branch=main
