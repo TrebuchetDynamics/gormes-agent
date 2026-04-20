@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
@@ -30,6 +31,9 @@ type TelegramCfg struct {
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
 	MemoryQueueCap int `toml:"memory_queue_cap"`
+	// ExtractorBatchSize / ExtractorPollInterval (Phase 3.B).
+	ExtractorBatchSize    int           `toml:"extractor_batch_size"`
+	ExtractorPollInterval time.Duration `toml:"extractor_poll_interval"`
 }
 
 type HermesCfg struct {
@@ -71,9 +75,11 @@ func defaults() Config {
 		TUI:   TUICfg{Theme: "dark"},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
 		Telegram: TelegramCfg{
-			CoalesceMs:        1000,
-			FirstRunDiscovery: true,
-			MemoryQueueCap:    1024,
+			CoalesceMs:            1000,
+			FirstRunDiscovery:     true,
+			MemoryQueueCap:        1024,
+			ExtractorBatchSize:    5,
+			ExtractorPollInterval: 10 * time.Second,
 		},
 	}
 }

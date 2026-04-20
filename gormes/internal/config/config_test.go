@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestLoad_BuiltinDefaults(t *testing.T) {
@@ -164,5 +165,19 @@ func TestMemoryDBPath_DefaultsToHomeLocalShare(t *testing.T) {
 	want := filepath.Join(home, ".local", "share", "gormes", "memory.db")
 	if got != want {
 		t.Errorf("MemoryDBPath() default = %q, want %q", got, want)
+	}
+}
+
+func TestLoad_ExtractorDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.ExtractorBatchSize != 5 {
+		t.Errorf("ExtractorBatchSize default = %d, want 5", cfg.Telegram.ExtractorBatchSize)
+	}
+	if cfg.Telegram.ExtractorPollInterval != 10*time.Second {
+		t.Errorf("ExtractorPollInterval default = %v, want 10s", cfg.Telegram.ExtractorPollInterval)
 	}
 }
