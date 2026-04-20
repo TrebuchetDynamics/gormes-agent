@@ -196,9 +196,7 @@ func TestProvider_SemanticSeedsAreUnioned(t *testing.T) {
 		SemanticTopK:          3,
 		SemanticMinSimilarity: 0.5,
 		QueryEmbedTimeout:     1 * time.Second,
-	}, nil)
-	p.ec = ec
-	p.cache = cache
+	}, nil).WithEmbedClient(ec, cache)
 
 	out := p.GetContext(context.Background(), RecallInput{
 		UserMessage: "tell me about gadgets", // no lexical match
