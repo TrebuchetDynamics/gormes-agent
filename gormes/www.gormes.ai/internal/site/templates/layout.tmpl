@@ -9,31 +9,24 @@
   <link rel="stylesheet" href="/static/site.css">
 </head>
 <body>
-  <div class="page-shell">
-    <header id="top" class="site-header">
-      <nav class="nav" aria-label="Primary">
+  <div class="page">
+    <header class="topbar">
+      <div class="topbar-inner">
         <a class="brand" href="#top">Gormes</a>
-        <p class="nav-tag">operator console / hermes go shell</p>
-        <div class="nav-links">
-          {{range .Nav}}
-          <a href="{{.Href}}">{{.Label}}</a>
-          {{end}}
-        </div>
-      </nav>
+        <nav class="topnav" aria-label="Primary">
+          {{range .Nav}}<a href="{{.Href}}">{{.Label}}</a>{{end}}
+        </nav>
+      </div>
     </header>
-
-  <main class="content">
-    {{template "index" .}}
-  </main>
-
-  <footer class="site-footer">
-    <p>{{.FooterLine}}</p>
-    <ul class="footer-links">
-      {{range .FooterLinks}}
-      <li><a href="{{.Href}}">{{.Label}}</a></li>
-      {{end}}
-    </ul>
-  </footer>
+    <main>
+      {{template "index" .}}
+    </main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <p class="footer-left">{{.FooterLeft}}</p>
+        <p class="footer-right">{{.FooterRight}}</p>
+      </div>
+    </footer>
   </div>
 </body>
 </html>

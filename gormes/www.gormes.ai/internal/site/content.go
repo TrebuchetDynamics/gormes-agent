@@ -1,5 +1,7 @@
 package site
 
+import "html/template"
+
 type NavLink struct {
 	Label string
 	Href  string
@@ -10,153 +12,89 @@ type Link struct {
 	Href  string
 }
 
-type ProofStat struct {
-	Label string
-	Value string
-	Tone  string
+type InstallStep struct {
+	Label   string
+	Command string
 }
 
-type CommandStep struct {
-	Label string
-	Note  string
-	Lines []string
-}
-
-type OpsModule struct {
-	Label string
+type FeatureCard struct {
 	Title string
 	Body  string
 }
 
+// ShipState renders one row of the shipping ledger.
+// State is the display label ("SHIPPED", "NEXT", "LATER").
+// Tone is the lowercase CSS-class suffix used by .status-<tone>.
+// Name is typed as template.HTML so that + signs in copy render literally
+// (html/template would otherwise escape + to &#43;).
 type ShipState struct {
 	State string
-	Name  string
-	Body  string
+	Tone  string
+	Name  template.HTML
 }
 
 type LandingPage struct {
-	Title            string
-	Description      string
-	Nav              []NavLink
-	HeroKicker       string
-	HeroHeadline     string
-	HeroCopy         []string
-	HeroPanelTitle   string
-	HeroPanelLines   []string
-	PrimaryCTA       Link
-	SecondaryCTA     Link
-	TertiaryCTA      Link
-	ScopeNote        string
-	ProofStats       []ProofStat
-	ActivationTitle  string
-	ActivationIntro  string
-	ActivationSteps  []CommandStep
-	OpsTitle         string
-	OpsIntro         string
-	OpsModules       []OpsModule
-	RoadmapTitle     string
-	RoadmapIntro     string
-	ShipStates       []ShipState
-	ContributorTitle string
-	ContributorBody  string
-	ContributorLinks []Link
-	FooterLinks      []Link
-	FooterLine       string
+	Title               string
+	Description         string
+	Nav                 []NavLink
+	HeroKicker          string
+	HeroHeadline        string
+	HeroSubhead         string
+	PrimaryCTA          Link
+	SecondaryCTA        Link
+	InstallSteps        []InstallStep
+	InstallFootnote     string
+	InstallFootnoteLink string
+	InstallFootnoteHref string
+	FeaturesLabel       string
+	FeaturesHeadline    string
+	FeatureCards        []FeatureCard
+	LedgerLabel         string
+	LedgerHeadline      string
+	ShippingStates      []ShipState
+	FooterLeft          string
+	FooterRight         string
 }
 
 func DefaultPage() LandingPage {
 	return LandingPage{
-		Title:       "Gormes.ai | Run Hermes Through a Go Operator Console",
-		Description: "Gormes is the Go operator shell for Hermes users: zero-CGO, Go-native tools, a built-in Telegram adapter, and honest shipping state.",
+		Title:       "Gormes — Hermes, In a Single Static Binary",
+		Description: "Zero-CGO Go shell for Hermes Agent. One static binary, in-process tool loop, Route-B reconnect.",
 		Nav: []NavLink{
-			{Label: "Run Now", Href: "#quickstart"},
-			{Label: "Shipping State", Href: "#roadmap"},
-			{Label: "Source", Href: "#contribute"},
+			{Label: "Install", Href: "#install"},
+			{Label: "Features", Href: "#features"},
+			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		},
-		HeroKicker:   "HERMES / GO OPERATOR SHELL",
-		HeroHeadline: "Run Hermes Through a Go Operator Console.",
-		HeroCopy: []string{
-			"Stop waiting for the clean-room rewrite. Gormes already ships a Go shell, a Go-native tool loop, Route-B resilience, and a Telegram adapter.",
-			"Boot it locally. Judge the surface yourself. Keep the promises honest.",
+		HeroKicker:   "OPEN SOURCE · MIT LICENSE",
+		HeroHeadline: "Hermes, In a Single Static Binary.",
+		HeroSubhead:  "Zero-CGO. No Python runtime on the host. One file you scp anywhere — Termux, Alpine, a fresh VPS — and it runs the same Hermes brain.",
+		PrimaryCTA:   Link{Label: "Install", Href: "#install"},
+		SecondaryCTA: Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
+		InstallSteps: []InstallStep{
+			{Label: "1. INSTALL", Command: "curl -fsSL https://gormes.ai/install.sh | sh"},
+			{Label: "2. RUN", Command: "gormes"},
 		},
-		HeroPanelTitle: "Boot Sequence",
-		HeroPanelLines: []string{
-			"[ok] shell compiled",
-			"[ok] tool loop armed",
-			"[ok] route-b ready",
-			"[warn] transcript memory still on later cutover path",
+		InstallFootnote:     "Requires Hermes backend at localhost:8642.",
+		InstallFootnoteLink: "Install Hermes →",
+		InstallFootnoteHref: "https://github.com/NousResearch/hermes-agent#quickstart",
+		FeaturesLabel:       "FEATURES",
+		FeaturesHeadline:    "Why a Go layer matters.",
+		FeatureCards: []FeatureCard{
+			{Title: "Single Static Binary", Body: "Zero CGO. ~8 MB. scp it to Termux, Alpine, a fresh VPS — it runs."},
+			{Title: "Boots Like a Tool", Body: "No Python warmup. 16 ms render mailbox keeps the TUI responsive under load."},
+			{Title: "In-Process Tool Loop", Body: "Streamed tool_calls execute against a Go-native registry. No bounce through Python."},
+			{Title: "Survives Dropped Streams", Body: "Route-B reconnect treats SSE drops as a resilience problem, not a happy-path omission."},
 		},
-		PrimaryCTA:   Link{Label: "Boot Gormes", Href: "#quickstart"},
-		SecondaryCTA: Link{Label: "See Shipping State", Href: "#roadmap"},
-		TertiaryCTA:  Link{Label: "Inspect Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
-		ScopeNote:    "Current boundary: the Go shell ships now. Transcript memory stays on the later cutover path.",
-		ProofStats: []ProofStat{
-			{Label: "operator surface", Value: "Go shell", Tone: "live"},
-			{Label: "messaging edge", Value: "Telegram adapter", Tone: "cold"},
-			{Label: "deployment", Value: "Zero-CGO", Tone: "live"},
-			{Label: "verification", Value: "Wire Doctor", Tone: "cold"},
-			{Label: "phase", Value: "2 ships now", Tone: "warn"},
+		LedgerLabel:    "SHIPPING STATE",
+		LedgerHeadline: "What ships now, what doesn't.",
+		ShippingStates: []ShipState{
+			{State: "SHIPPED", Tone: "shipped", Name: "Phase 1 — Bubble Tea TUI shell."},
+			{State: "SHIPPED", Tone: "shipped", Name: "Phase 2 — Tool registry + Telegram adapter + session resume."},
+			{State: "NEXT", Tone: "next", Name: "Phase 3 — SQLite + FTS5 transcript memory."},
+			{State: "LATER", Tone: "later", Name: "Phase 4 — Native prompt building + agent orchestration."},
 		},
-		ActivationTitle: "Install Hermes fast. Then boot Gormes.",
-		ActivationIntro: "Bootstrap Hermes first, reload your shell, then install the Go operator console. No fake checklist. No hidden backend dance.",
-		ActivationSteps: []CommandStep{
-			{
-				Label: "01 / INSTALL HERMES",
-				Note:  "Works on Linux, macOS, WSL2, and Android via Termux. The installer handles the platform-specific setup for you.\n\nAndroid / Termux: The tested manual path is documented in the Termux guide. On Termux, Hermes installs a curated .[termux] extra because the full .[all] extra currently pulls Android-incompatible voice dependencies.\n\nWindows: Native Windows is not supported. Please install WSL2 and run the command above.",
-				Lines: []string{"curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash"},
-			},
-			{
-				Label: "02 / ACTIVATE HERMES",
-				Note:  "Reload your shell profile so the freshly installed Hermes binary is on PATH, then let Hermes complete first-run bootstrap.",
-				Lines: []string{"source ~/.bashrc    # reload shell (or: source ~/.zshrc)", "hermes"},
-			},
-			{
-				Label: "03 / BOOT GORMES",
-				Note:  "Today the Gormes installer shells out to Go itself. Keep Go 1.25+ on PATH until release artifacts exist. It installs `gormes` into your Go bin. If the installer prints an export PATH line, run it in this shell before launching gormes. If you want a local `./bin/gormes`, use the source-build path below.",
-				Lines: []string{
-					"curl -fsSL https://gormes.ai/install.sh | sh",
-					"# if the installer printed an export PATH line, run it in this shell now",
-					"gormes doctor --offline",
-					"gormes",
-					"# or build a local ./bin/gormes:",
-					"git clone https://github.com/TrebuchetDynamics/gormes-agent",
-					"cd gormes-agent/gormes && make build",
-					"./bin/gormes doctor --offline",
-					"./bin/gormes",
-				},
-			},
-		},
-		OpsTitle: "Why Hermes users switch",
-		OpsIntro: "Gormes is not a reskin. It is the hardened shell around the workflows you already trust.",
-		OpsModules: []OpsModule{
-			{Label: "RESPONSIVENESS", Title: "Cut startup tax", Body: "Use the Go shell that boots like a tool, not a ceremony."},
-			{Label: "TOOLS", Title: "Keep the loop typed", Body: "Run the Go-native tool surface in-process and verify it before you spend more tokens."},
-			{Label: "ISOLATION", Title: "Fence the blast radius", Body: "Keep the Telegram adapter behind its own subcommand edge so failures stay local."},
-			{Label: "HONESTY", Title: "Ship the boundary you have", Body: "The shell is real now. Transcript memory and the brain cutover are still later work."},
-		},
-		RoadmapTitle: "Shipping State, Not Wishcasting",
-		RoadmapIntro: "This ledger separates what already ships on trunk from the next real handoff lines.",
-		ShipStates: []ShipState{
-			{State: "SHIPPED", Name: "Phase 1 — Dashboard", Body: "The Bubble Tea shell and operator surface are already real."},
-			{State: "SHIPPED", Name: "Phase 2 — Gateway", Body: "Tool registry, Telegram scout, and thin session resume already live on trunk."},
-			{State: "NEXT", Name: "Phase 3 — Memory", Body: "SQLite + FTS5 transcript memory still marks the real handoff line."},
-			{State: "LATER", Name: "Phase 4 — Brain", Body: "Prompt building and native agent orchestration move after memory is real."},
-		},
-		ContributorTitle: "Inspect the Machine",
-		ContributorBody:  "Read the architecture, inspect the source, and keep the install story honest with the upstream docs close at hand.",
-		ContributorLinks: []Link{
-			{Label: "Read ARCH_PLAN.md", Href: "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md"},
-			{Label: "Browse the Gormes source", Href: "https://github.com/TrebuchetDynamics/gormes-agent/tree/main/gormes"},
-			{Label: "Hermes quickstart docs", Href: "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/getting-started/quickstart.md"},
-			{Label: "Hermes Termux guide", Href: "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/getting-started/termux.md"},
-		},
-		FooterLinks: []Link{
-			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
-			{Label: "ARCH_PLAN", Href: "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/gormes/docs/ARCH_PLAN.md"},
-			{Label: "Hermes Upstream", Href: "https://github.com/NousResearch/hermes-agent"},
-			{Label: "MIT License", Href: "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/LICENSE"},
-		},
-		FooterLine: "Gormes already ships the operator shell. The memory lattice and brain cutover come later.",
+		FooterLeft:  "Gormes v0.1.0 · TrebuchetDynamics",
+		FooterRight: "MIT License · 2026",
 	}
 }

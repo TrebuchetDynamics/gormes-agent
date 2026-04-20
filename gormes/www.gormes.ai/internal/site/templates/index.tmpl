@@ -1,69 +1,42 @@
 {{define "index"}}
-<section class="hero hero-deck" aria-labelledby="hero-title">
-  <div class="hero-copy-stack">
-    <p class="eyebrow hero-mark">{{.HeroKicker}}</p>
-    <h1 id="hero-title">{{.HeroHeadline}}</h1>
-    {{range .HeroCopy}}
-    <p class="hero-copy">{{.}}</p>
-    {{end}}
-    <div class="hero-actions hero-cta-row">
-      <a class="hero-cta hero-cta-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
-      <a class="hero-cta hero-cta-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
-      <a class="hero-cta hero-cta-secondary" href="{{.TertiaryCTA.Href}}">{{.TertiaryCTA.Label}}</a>
+<section id="top" class="hero">
+  <div class="hero-inner">
+    <p class="kicker">{{.HeroKicker}}</p>
+    <h1 class="hero-title">{{.HeroHeadline}}</h1>
+    <p class="hero-subhead">{{.HeroSubhead}}</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
+      <a class="btn btn-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
     </div>
-    <p class="scope-note hero-phase-note">{{.ScopeNote}}</p>
-  </div>
-  <aside class="hero-panel" aria-label="{{.HeroPanelTitle}}">
-    <p class="panel-label">{{.HeroPanelTitle}}</p>
-    <pre class="panel-pre"><code>{{range .HeroPanelLines}}{{.}}
-{{end}}</code></pre>
-  </aside>
-</section>
-
-<section id="proof" class="proof-strip" aria-labelledby="proof-title">
-  <h2 id="proof-title">Proof Rail</h2>
-  {{range .ProofStats}}
-    {{template "proof_stat" .}}
-  {{end}}
-</section>
-
-<section id="quickstart" class="activation-grid" aria-labelledby="activation-title">
-  <div class="activation-copy">
-    <h2 id="activation-title">{{.ActivationTitle}}</h2>
-    <p>{{.ActivationIntro}}</p>
-  </div>
-  <div class="activation-steps">
-    {{range .ActivationSteps}}
-      {{template "command_step" .}}
-    {{end}}
   </div>
 </section>
 
-<section class="ops-section ops-grid" aria-labelledby="features-title">
-  <h2 id="features-title">{{.OpsTitle}}</h2>
-  <p>{{.OpsIntro}}</p>
-  {{range .OpsModules}}
-    {{template "ops_module" .}}
-  {{end}}
-</section>
-
-<section id="roadmap" class="shipping-ledger" aria-labelledby="roadmap-title">
-  <h2 id="roadmap-title">{{.RoadmapTitle}}</h2>
-  <p>{{.RoadmapIntro}}</p>
-  <div class="ship-state-list">
-    {{range .ShipStates}}
-      {{template "ship_state" .}}
-    {{end}}
+<section id="install" class="install">
+  <div class="install-inner">
+    <div class="install-grid">
+      {{range .InstallSteps}}{{template "install_step" .}}{{end}}
+    </div>
+    <p class="install-footnote">{{.InstallFootnote}} <a href="{{.InstallFootnoteHref}}">{{.InstallFootnoteLink}}</a></p>
   </div>
 </section>
 
-<section id="contribute" class="source-block" aria-labelledby="contribute-title">
-  <h2 id="contribute-title">{{.ContributorTitle}}</h2>
-  <p>{{.ContributorBody}}</p>
-  <ul>
-    {{range .ContributorLinks}}
-    <li><a href="{{.Href}}">{{.Label}}</a></li>
-    {{end}}
-  </ul>
+<section id="features" class="features">
+  <div class="features-inner">
+    <p class="kicker">{{.FeaturesLabel}}</p>
+    <h2 class="section-title">{{.FeaturesHeadline}}</h2>
+    <div class="features-grid">
+      {{range .FeatureCards}}{{template "feature_card" .}}{{end}}
+    </div>
+  </div>
+</section>
+
+<section id="roadmap" class="ledger">
+  <div class="ledger-inner">
+    <p class="kicker">{{.LedgerLabel}}</p>
+    <h2 class="section-title">{{.LedgerHeadline}}</h2>
+    <ul class="ledger-list">
+      {{range .ShippingStates}}{{template "ship_state" .}}{{end}}
+    </ul>
+  </div>
 </section>
 {{end}}
