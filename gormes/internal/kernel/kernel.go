@@ -149,20 +149,18 @@ func (k *Kernel) Run(ctx context.Context) error {
 					k.emitFrame("still processing previous turn")
 					continue
 				}
-				// Phase 2.D — per-event sessionID override. Save current, swap in,
-				// restore after. If e.SessionID is empty this is a no-op.
-				prevSessionID := k.sessionID
-				if e.SessionID != "" {
-					k.sessionID = e.SessionID
-				}
-				k.runTurn(ctx, e.Text, e.CronJobID)
-				if e.SessionID != "" {
-					// Restore resident sessionID so the cron override doesn't
-					// leak into subsequent non-cron events. For normal events
-					// (SessionID == ""), runTurn may have updated k.sessionID via
-					// the server's response — we leave that alone.
-					k.sessionID = prevSessionID
-				}
+				// Per-event sessionID override with defer-guarded restore.
+				// The anonymous function gives defer a proper scope so the
+				// restore fires after runTurn returns (or panics), not at
+				// Run() exit.
+				func() {
+					prevSessionID := k.sessionID
+					if e.SessionID != "" {
+						k.sessionID = e.SessionID
+						defer func() { k.sessionID = prevSessionID }()
+					}
+					k.runTurn(ctx, e.Text, e.CronJobID)
+				}()
 			case PlatformEventCancel:
 				// No active turn; ignore (cancel during a turn is handled
 				// inside runTurn's select on k.events).
