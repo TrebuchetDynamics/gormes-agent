@@ -1,48 +1,63 @@
 {{define "index"}}
-<section class="hero" aria-labelledby="hero-title">
-  <p class="hero-mark">Hermes<br>Agent</p>
-  <p class="hero-badge">{{.HeroBadge}}</p>
-  <h1 id="hero-title">{{.HeroHeadline}}</h1>
-  {{range .HeroCopy}}
-  <p class="hero-copy">{{.}}</p>
-  {{end}}
-  <p class="hero-cta-row">
-    <a class="hero-cta hero-cta-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
-    <a class="hero-cta hero-cta-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
-    <a class="hero-cta hero-cta-secondary" href="{{.TertiaryCTA.Href}}">{{.TertiaryCTA.Label}}</a>
-  </p>
-  <p class="hero-phase-note">{{.PhaseNote}}</p>
-</section>
-
-<section id="quickstart" aria-labelledby="quickstart-title">
-  <h2 id="quickstart-title">Quick Start</h2>
-  {{range .QuickStart}}
-    {{template "code_block" .}}
-  {{end}}
-</section>
-
-<section aria-labelledby="demo-title">
-  <h2 id="demo-title">{{.DemoTitle}}</h2>
-  <pre><code>{{range .DemoLines}}{{.}}
+<section class="hero hero-deck" aria-labelledby="hero-title">
+  <div class="hero-copy-stack">
+    <p class="eyebrow hero-mark">{{.HeroKicker}}</p>
+    <h1 id="hero-title">{{.HeroHeadline}}</h1>
+    {{range .HeroCopy}}
+    <p class="hero-copy">{{.}}</p>
+    {{end}}
+    <div class="hero-actions hero-cta-row">
+      <a class="hero-cta hero-cta-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
+      <a class="hero-cta hero-cta-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
+      <a class="hero-cta hero-cta-secondary" href="{{.TertiaryCTA.Href}}">{{.TertiaryCTA.Label}}</a>
+    </div>
+    <p class="scope-note hero-phase-note">{{.ScopeNote}}</p>
+  </div>
+  <aside class="hero-panel" aria-label="{{.HeroPanelTitle}}">
+    <p class="panel-label">{{.HeroPanelTitle}}</p>
+    <pre class="panel-pre"><code>{{range .HeroPanelLines}}{{.}}
 {{end}}</code></pre>
+  </aside>
 </section>
 
-<section aria-labelledby="features-title">
-  <h2 id="features-title">What Changes Today</h2>
-  {{range .FeatureCards}}
-    {{template "feature_card" .}}
+<section id="proof" class="proof-strip" aria-labelledby="proof-title">
+  <h2 id="proof-title">Proof Rail</h2>
+  {{range .ProofStats}}
+    {{template "proof_stat" .}}
   {{end}}
 </section>
 
-<section id="roadmap" aria-labelledby="roadmap-title">
-  <h2 id="roadmap-title">The Port Is Already Moving</h2>
+<section id="quickstart" class="activation-grid" aria-labelledby="activation-title">
+  <div class="activation-copy">
+    <h2 id="activation-title">{{.ActivationTitle}}</h2>
+    <p>{{.ActivationIntro}}</p>
+  </div>
+  <div class="activation-steps">
+    {{range .ActivationSteps}}
+      {{template "command_step" .}}
+    {{end}}
+  </div>
+</section>
+
+<section class="ops-section ops-grid" aria-labelledby="features-title">
+  <h2 id="features-title">{{.OpsTitle}}</h2>
+  <p>{{.OpsIntro}}</p>
+  {{range .OpsModules}}
+    {{template "ops_module" .}}
+  {{end}}
+</section>
+
+<section id="roadmap" class="shipping-ledger" aria-labelledby="roadmap-title">
+  <h2 id="roadmap-title">{{.RoadmapTitle}}</h2>
   <p>{{.RoadmapIntro}}</p>
-  {{range .Phases}}
-    {{template "phase_item" .}}
-  {{end}}
+  <div class="ship-state-list">
+    {{range .ShipStates}}
+      {{template "ship_state" .}}
+    {{end}}
+  </div>
 </section>
 
-<section id="contribute" aria-labelledby="contribute-title">
+<section id="contribute" class="source-block" aria-labelledby="contribute-title">
   <h2 id="contribute-title">{{.ContributorTitle}}</h2>
   <p>{{.ContributorBody}}</p>
   <ul>

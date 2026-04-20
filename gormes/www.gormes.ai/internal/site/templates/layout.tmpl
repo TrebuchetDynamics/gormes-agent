@@ -10,16 +10,17 @@
 </head>
 <body>
   <div class="page-shell">
-  <header id="top" class="site-header">
-    <nav class="nav" aria-label="Primary">
-      <a class="brand" href="#top">Gormes</a>
-      <div class="nav-links">
-      {{range .Nav}}
-      <a href="{{.Href}}">{{.Label}}</a>
-      {{end}}
-      </div>
-    </nav>
-  </header>
+    <header id="top" class="site-header">
+      <nav class="nav" aria-label="Primary">
+        <a class="brand" href="#top">Gormes</a>
+        <p class="nav-tag">operator console / hermes go shell</p>
+        <div class="nav-links">
+          {{range .Nav}}
+          <a href="{{.Href}}">{{.Label}}</a>
+          {{end}}
+        </div>
+      </nav>
+    </header>
 
   <main class="content">
     {{template "index" .}}

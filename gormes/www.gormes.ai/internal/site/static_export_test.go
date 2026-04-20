@@ -23,12 +23,14 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	wants := []string{
 		"Gormes.ai | Run Hermes Through a Go Operator Console",
 		"Run Hermes Through a Go Operator Console.",
-		"Boot Gormes",
-		"Current boundary: the Go shell ships now. Transcript memory stays on the later cutover path.",
+		"Shipping State, Not Wishcasting",
+		`class="hero hero-deck"`,
+		`class="activation-grid"`,
+		`class="shipping-ledger"`,
 	}
 	rejects := []string{
 		"The Agent That GOes With You.",
-		"7.9 MB Static Binary",
+		"7.9 MB",
 	}
 
 	for _, want := range wants {

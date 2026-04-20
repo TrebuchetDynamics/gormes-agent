@@ -16,9 +16,19 @@ func TestRenderIndex_RendersOperatorConsoleTruth(t *testing.T) {
 	text := string(body)
 	wants := []string{
 		"Run Hermes Through a Go Operator Console.",
-		"Boot Gormes",
-		"Current boundary: the Go shell ships now. Transcript memory stays on the later cutover path.",
-		"Go Shell Shipping Now",
+		"Run the shell. Judge it yourself.",
+		"Why Hermes users switch",
+		"Shipping State, Not Wishcasting",
+		"Inspect the Machine",
+		"8.2M shell",
+		"15M telegram edge",
+		`class="hero hero-deck"`,
+		`id="proof"`,
+		`class="activation-grid"`,
+		`class="ops-section ops-grid"`,
+		`id="features-title"`,
+		`class="shipping-ledger"`,
+		`class="ship-state-list"`,
 	}
 	rejects := []string{
 		"7.9 MB Static Binary",
@@ -46,9 +56,10 @@ func TestEmbeddedTemplates_ArePresentAndParse(t *testing.T) {
 	files := []string{
 		"templates/layout.tmpl",
 		"templates/index.tmpl",
-		"templates/partials/code_block.tmpl",
-		"templates/partials/feature_card.tmpl",
-		"templates/partials/phase_item.tmpl",
+		"templates/partials/command_step.tmpl",
+		"templates/partials/ops_module.tmpl",
+		"templates/partials/proof_stat.tmpl",
+		"templates/partials/ship_state.tmpl",
 	}
 
 	for _, name := range files {
@@ -66,7 +77,7 @@ func TestEmbeddedTemplates_ArePresentAndParse(t *testing.T) {
 		t.Fatalf("parseTemplates: %v", err)
 	}
 
-	for _, want := range []string{"layout", "index", "code_block", "feature_card", "phase_item"} {
+	for _, want := range []string{"layout", "index", "command_step", "ops_module", "proof_stat", "ship_state"} {
 		if templates.Lookup(want) == nil {
 			t.Fatalf("parsed templates missing %q", want)
 		}

@@ -1,0 +1,10 @@
+{{define "command_step"}}
+<article class="command-step">
+  <div class="command-step-header">
+    <p class="eyebrow">{{.Label}}</p>
+    <p class="command-note">{{.Note}}</p>
+  </div>
+  <pre class="command-pre"><code>{{range .Lines}}{{.}}
+{{end}}</code></pre>
+</article>
+{{end}}
