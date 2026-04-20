@@ -33,3 +33,25 @@ func TestTUIBinaryHasNoTelegramDep(t *testing.T) {
 		}
 	}
 }
+
+// TestKernelHasNoSessionDep guards the Phase 2.C boundary: internal/kernel
+// must never transitively import internal/session or go.etcd.io/bbolt.
+// If either appears in the kernel's dep graph, persistence has leaked into
+// the turn-loop and the single-owner isolation is compromised.
+func TestKernelHasNoSessionDep(t *testing.T) {
+	cmd := exec.Command("go", "list", "-deps", "./internal/kernel")
+	cmd.Dir = ".." // run from gormes/
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("go list failed: %v\n%s", err, out.String())
+	}
+
+	for _, d := range strings.Split(out.String(), "\n") {
+		if strings.Contains(d, "go.etcd.io/bbolt") ||
+			strings.Contains(d, "/internal/session") {
+			t.Errorf("internal/kernel transitively depends on %q — Phase 2.C isolation violated", d)
+		}
+	}
+}
