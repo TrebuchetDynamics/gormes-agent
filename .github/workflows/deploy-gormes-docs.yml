@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive  # in case a Hugo theme is added later
+          submodules: recursive
 
       - uses: peaceiris/actions-hugo@v3
         with:
@@ -33,11 +33,17 @@ jobs:
         working-directory: gormes/docs
         run: hugo --minify
 
+      - name: Generate Pagefind search index
+        working-directory: gormes/docs
+        run: npx --yes pagefind --site public
+
       - name: Verify build artifacts
         working-directory: gormes/docs
-        run: test -f public/index.html
+        run: |
+          test -f public/index.html
+          test -d public/pagefind
+          test -f public/pagefind/pagefind-ui.js
 
-      # Idempotent: succeeds first time, "already exists" thereafter.
       - name: Ensure Pages project exists
         uses: cloudflare/wrangler-action@v3
         continue-on-error: true
@@ -67,14 +73,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"name\":\"${domain}\"}")
           case "$response" in
-            200|201)
-              echo "  ✓ attached"
-              ;;
-            409|400)
-              echo "  • already attached (status $response) — skipping"
-              ;;
-            *)
-              echo "  ✗ unexpected status $response"
-              cat /tmp/cf-resp.json
-              ;;
+            200|201) echo "  ✓ attached" ;;
+            409|400) echo "  • already attached (status $response) — skipping" ;;
+            *) echo "  ✗ unexpected status $response"; cat /tmp/cf-resp.json ;;
           esac
