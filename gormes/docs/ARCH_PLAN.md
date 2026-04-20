@@ -137,8 +137,9 @@ Phase 5 is when Python disappears entirely from the runtime path. Each sub-phase
 | 5.L — File Ops + Patches | ⏳ planned | Port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py`; file editing with atomic checkpoints |
 | 5.M — Mixture of Agents | ⏳ planned | Port `tools/mixture_of_agents_tool.py`; multi-model coordination |
 | 5.N — Misc Operator Tools | ⏳ planned | Port `tools/{todo_tool,clarify_tool,session_search_tool,send_message_tool,cronjob_tools,debug_helpers,interrupt}.py` |
-| 5.O — Hermes CLI Parity | ⏳ planned | Port `hermes_cli/` (auth, backup, banner, codex_models, etc.); replaces the upstream `hermes` binary |
-| 5.P — Docker / Packaging | ⏳ planned | Mirror `Dockerfile` + `docker/` for Gormes; OCI image with same volume layout as upstream |
+| 5.O — Hermes CLI Parity | ⏳ planned | Port the 49-file `hermes_cli/` tree (auth, backup, banner, codex_models, profiles, platforms, pairing, webhook, models, providers, runtime_provider, skills_hub, mcp_config, plugins, …); replaces the upstream `hermes` binary |
+| 5.P — Docker / Packaging | ⏳ planned | Mirror `Dockerfile` + `docker/{entrypoint.sh,SOUL.md}` + `packaging/homebrew` + `scripts/{install.sh,install.cmd,install.ps1,release.py,build_skills_index.py}` for Gormes; OCI image with same volume layout as upstream |
+| 5.Q — TUI Gateway Streaming Surface | ⏳ planned | Port `tui_gateway/` (2,931-line `server.py` + `render.py`, `slash_worker.py`, `entry.py`) + `hermes_cli/skin_engine.py`; SSE streaming to the existing Bubble Tea TUI (shipped Phase 1) so remote TUIs see live agent state |
 
 ---
 
@@ -199,9 +200,13 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
+| Gateway runtime entry | `gateway/run.py` + `gateway/config.py` | 2.B/2.F | ⏳ planned |
+| Gateway session + context | `gateway/session.py`, `gateway/session_context.py` | 2.B/2.F | ⏳ planned |
+| Message delivery + stream consumer | `gateway/delivery.py`, `gateway/stream_consumer.py` | 2.B/2.F | ⏳ planned |
+| Channel / contact directory | `gateway/channel_directory.py` | 2.F | ⏳ planned |
 | Cron / scheduled automations | `cron/scheduler.py`, `cron/jobs.py`, `tools/cronjob_tools.py` | 2.D | ⏳ planned |
 | Subagent delegation | `tools/delegate_tool.py` | 2.E | ⏳ planned |
-| Hooks system | `gateway/hooks.py`, `gateway/builtin_hooks/` | 2.F | ⏳ planned |
+| Hooks system | `gateway/hooks.py`, `gateway/builtin_hooks/{boot_md}.py` | 2.F | ⏳ planned |
 | Restart / pairing / lifecycle | `gateway/{restart,pairing,status}.py` | 2.F | ⏳ planned |
 | Mirror / sticker cache | `gateway/{mirror,sticker_cache}.py` | 2.F | ⏳ planned |
 | Display config | `gateway/display_config.py`, `agent/display.py` | 2.F | ⏳ planned |
@@ -222,6 +227,24 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Insights audit log (lightweight) | `agent/insights.py` (preview; full port in 4.E) | 3.E.5 | ⏳ planned |
 | Memory decay | None (Gormes-original) | 3.E.6 | ⏳ planned |
 | Cross-chat synthesis | `agent/memory_manager.py` (cross-session) | 3.E.7 | ⏳ planned |
+
+### Agent orchestration core (Phase 4 — the thing Phase 4 ultimately replaces)
+
+The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `AIAgent` orchestrator that owns the full agent loop. `agent/` is its partial decomposition. Phase 4 is the gradual absorption of this orchestrator into native Go; Phases 4.A–4.H each carve off a responsibility.
+
+| Subsystem | Upstream | Target phase | Status |
+|---|---|---|---|
+| **AIAgent orchestrator** | `run_agent.py` (12,113 lines) | 4.C / 4.E | ⏳ planned (the Phase 4 centerpiece) |
+| Top-level CLI dispatcher | `cli.py` (10,570 lines) | 5.O | ⏳ planned |
+| MCP server mode | `mcp_serve.py` | 5.G | ⏳ planned |
+| Toolset configuration | `toolsets.py`, `toolset_distributions.py` | 4.C / 5.A | ⏳ planned |
+| Model / provider admin tools | `model_tools.py` | 5.O | ⏳ planned |
+| Batch runner | `batch_runner.py` | 5.O | ⏳ planned |
+| Mini SWE runner | `mini_swe_runner.py` | 5.M or 5.O | ⏳ planned |
+| RL training CLI + compressor | `rl_cli.py`, `trajectory_compressor.py` | 5.M | ⏳ deferred (research) |
+| Runtime shared helpers | `hermes_constants.py`, `hermes_logging.py`, `hermes_state.py`, `hermes_time.py`, `utils.py` | 5.O | ⏳ planned |
+| Per-model tool-call parsers | `environments/tool_call_parsers/{deepseek_v3_parser,deepseek_v3_1_parser,glm45_parser,glm47_parser,hermes_parser,kimi_k2_parser,llama_parser,longcat_parser,mistral_parser}.py` | 4.A | ⏳ planned |
+| Agent loop environment | `environments/agent_loop.py`, `environments/tool_context.py`, `environments/patches.py`, `environments/hermes_base_env.py`, `environments/agentic_opd_env.py`, `environments/web_research_env.py` | 4.C / 5.A | ⏳ planned |
 
 ### Brain (Phase 4 — sub-phases 4.A–4.H)
 
@@ -258,7 +281,7 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 
 | Category | Upstream tools | Target phase | Status |
 |---|---|---|---|
-| Sandboxing backends | `tools/environments/{base,local,docker,modal,managed_modal,modal_utils,daytona,singularity,file_sync}.py` | 5.B | ⏳ planned |
+| Sandboxing backends | `tools/environments/{base,local,docker,modal,managed_modal,modal_utils,daytona,singularity,ssh,file_sync}.py` | 5.B | ⏳ planned |
 | Browser automation | `tools/browser_tool.py`, `browser_camofox*.py`, `browser_providers/{base,browserbase,browser_use,firecrawl}.py` | 5.C | ⏳ planned |
 | Vision | `tools/vision_tools.py` | 5.D | ⏳ planned |
 | Image generation | `tools/image_generation_tool.py` | 5.D | ⏳ planned |
@@ -266,7 +289,16 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Skills system | `tools/{skill_manager_tool,skills_hub,skills_sync,skills_tool,skills_guard}.py`; `skills/` (26 categories) | 5.F | ⏳ planned |
 | MCP integration | `tools/{mcp_tool,mcp_oauth,mcp_oauth_manager,managed_tool_gateway}.py` + `mcp_serve.py` | 5.G | ⏳ planned |
 | ACP integration | `acp_adapter/`, `acp_registry/` | 5.H | ⏳ planned |
-| Plugins architecture | `plugins/{context_engine,memory,example-dashboard}/` + plugin SDK | 5.I | ⏳ planned |
+| Plugins architecture | `plugins/context_engine/`, `plugins/example-dashboard/` + plugin SDK | 5.I | ⏳ planned |
+| Memory plugin: Byterover | `plugins/memory/byterover/` | 5.I | ⏳ planned |
+| Memory plugin: Hindsight | `plugins/memory/hindsight/` | 5.I | ⏳ planned |
+| Memory plugin: Holographic | `plugins/memory/holographic/` | 5.I | ⏳ planned |
+| Memory plugin: Honcho (dialectic user modeling) | `plugins/memory/honcho/` | 5.I | ⏳ planned |
+| Memory plugin: Mem0 | `plugins/memory/mem0/` | 5.I | ⏳ planned |
+| Memory plugin: OpenViking | `plugins/memory/openviking/` | 5.I | ⏳ planned |
+| Memory plugin: RetainDB | `plugins/memory/retaindb/` | 5.I | ⏳ planned |
+| Memory plugin: Supermemory | `plugins/memory/supermemory/` | 5.I | ⏳ planned |
+| Memory tool (plugin gateway) | `tools/memory_tool.py` | 5.I | ⏳ planned |
 | Approval / security | `tools/{approval,path_security,url_safety,tirith_security,website_policy}.py` | 5.J | ⏳ planned |
 | Code execution | `tools/{code_execution_tool,process_registry}.py` | 5.K | ⏳ planned |
 | File operations | `tools/{file_operations,file_tools,fuzzy_match,checkpoint_manager,patch_parser,binary_extensions}.py` | 5.L | ⏳ planned |
@@ -286,32 +318,69 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Mini SWE runner | `mini_swe_runner.py` | 5.O | ⏳ planned (or 5.M) |
 | Model tools (admin) | `model_tools.py` | 5.O | ⏳ planned |
 
-### CLI + packaging (Phase 5.O–5.P)
+### TUI + Interactive Surfaces (Phase 5.Q — new)
+
+Upstream ships a dedicated `tui_gateway/` — a 3,094-line Python TUI server that streams live agent state over SSE to the Ink-based Node TUI. Gormes has its own Bubble Tea TUI (shipped Phase 1), but the gateway-side streaming surface is not yet ported.
 
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
-| Hermes CLI | `hermes_cli/{auth,auth_commands,backup,banner,callbacks,claw,cli_output,clipboard,codex_models,colors,...}.py` | 5.O | ⏳ planned |
-| Top-level CLI | `cli.py` | 5.O | ⏳ planned |
-| Hermes runtime helpers | `hermes_constants.py`, `hermes_logging.py`, `hermes_state.py`, `hermes_time.py` | 5.O | ⏳ planned |
-| Dockerfile / packaging | `Dockerfile`, `docker/`, `packaging/`, `nix/`, `flake.nix` | 5.P | ⏳ planned |
+| TUI gateway server | `tui_gateway/server.py` (2,931 lines) + `render.py`, `slash_worker.py`, `entry.py` | 5.Q | ⏳ planned |
+| TUI skin engine | `hermes_cli/skin_engine.py` | 5.Q | ⏳ planned |
+| Default persona file | `hermes_cli/default_soul.py`, `docker/SOUL.md` | 5.Q / 4.B | ⏳ planned |
+
+### CLI + packaging (Phase 5.O–5.P)
+
+The upstream `hermes_cli/` has 49 Python files. Grouped by capability:
+
+| Subsystem | Upstream | Target phase | Status |
+|---|---|---|---|
+| CLI entry + setup + uninstall | `hermes_cli/{main,setup,uninstall,env_loader,commands,callbacks,completion}.py` | 5.O | ⏳ planned |
+| Auth commands (base) | `hermes_cli/{auth,auth_commands}.py` | 5.O | ⏳ planned |
+| Provider-specific auth | `hermes_cli/{copilot_auth,dingtalk_auth}.py` + (`hermes_cli/nous_subscription.py` for Nous) | 5.O | ⏳ planned |
+| Backup / dump / debug | `hermes_cli/{backup,dump,debug,logs,doctor,status}.py` | 5.O | ⏳ planned |
+| Display / TUI | `hermes_cli/{banner,cli_output,clipboard,colors,curses_ui,tips}.py` | 5.O | ⏳ planned |
+| Model selection + normalization | `hermes_cli/{model_switch,model_normalize,models,codex_models}.py` | 5.O | ⏳ planned |
+| Providers + runtime routing | `hermes_cli/{providers,runtime_provider}.py` | 5.O | ⏳ planned |
+| Profiles + config | `hermes_cli/{profiles,config}.py` | 5.O | ⏳ planned |
+| Platforms + pairing + webhook | `hermes_cli/{platforms,pairing,webhook}.py` | 5.O | ⏳ planned |
+| Gateway CLI + cron | `hermes_cli/{gateway,cron}.py` | 5.O | ⏳ planned |
+| Plugins + skills CLI | `hermes_cli/{plugins,plugins_cmd,skills_config,skills_hub}.py` | 5.O | ⏳ planned |
+| MCP + memory setup | `hermes_cli/{mcp_config,memory_setup}.py` | 5.O | ⏳ planned |
+| Web server + TUI skin | `hermes_cli/{web_server,skin_engine,claw}.py` | 5.O / 5.Q | ⏳ planned |
+| Tools config | `hermes_cli/tools_config.py` | 5.O | ⏳ planned |
+| Dockerfile / packaging | `Dockerfile`, `docker/{entrypoint.sh,SOUL.md}`, `packaging/homebrew`, `nix/`, `flake.nix` | 5.P | ⏳ planned |
+| Install scripts | `scripts/{install.sh,install.cmd,install.ps1,release.py,build_skills_index.py}` | 5.P | ⏳ planned |
 | MANIFEST / constraints | `MANIFEST.in`, `constraints-termux.txt` | 5.P | ⏳ planned |
-| Environments + agent loop | `environments/{agent_loop,patches,hermes_base_env,agentic_opd_env}.py`, `tool_call_parsers/` | 5.A | ⏳ planned |
 | Benchmarks | `environments/benchmarks/` | 5.M | ⏳ deferred (research) |
-| SWE env | `environments/hermes_swe_env/`, `environments/terminal_test_env/` | 5.M | ⏳ deferred (research) |
+| SWE / terminal test envs | `environments/hermes_swe_env/`, `environments/terminal_test_env/` | 5.M | ⏳ deferred (research) |
 
 ### Out of scope for the runtime port
 
 These upstream paths exist but are not part of the runtime that Gormes must absorb. Listed for completeness so future contributors don't mistake them for missing work:
 
-- `agent/`, `cli.py`, `gateway/`, `hermes/`, `hermes_cli/`, `tools/`, `cron/`, `acp_adapter/`, `acp_registry/`, `plugins/`, `tests/`, `tui_gateway/` — runtime paths covered by the phases above.
-- `docs/` (upstream documentation), `assets/`, `optional-skills/`, `skills/` — content corpus; mirrored separately by docs.gormes.ai (Phase 1.5) and skill packs.
-- `package.json`, `package-lock.json`, `nix/`, `flake.lock`, `flake.nix` — build/packaging metadata; partially mirrored at Phase 5.P.
+- `agent/`, `cli.py`, `run_agent.py`, `gateway/`, `hermes/`, `hermes_cli/`, `tools/`, `cron/`, `acp_adapter/`, `acp_registry/`, `plugins/`, `tui_gateway/`, `environments/` — runtime paths covered by the phases above. Listed here so future contributors don't re-add them to "out of scope" by accident.
 - `tests/` — Python tests are not ported; Gormes has its own Go test suite per spec.
+- `docs/` (upstream documentation), `assets/`, `optional-skills/`, `skills/` — content corpus; mirrored separately by docs.gormes.ai (Phase 1.5) and skill packs. Skill-pack categories in `optional-skills/` (autonomous-ai-agents, blockchain, communication, creative, devops, email, health, mcp, migration, …) track Hermes' `skills/` categories but as opt-in packages.
+- `ui-tui/`, `web/`, `website/` — Node.js/TypeScript frontends. Gormes has its own Go `cmd/gormes/tui` Bubble Tea UI (shipped Phase 1) and `www.gormes.ai/` Go-templated landing page. Upstream's React/TS frontends are not part of the Go runtime port.
+- `tinker-atropos/` — upstream research sandbox (currently empty); no runtime content.
+- `datagen-config-examples/` — RL/data-generation research examples; deferred to 5.M.
+- `scripts/` (selectively) — `scripts/{install.sh,install.cmd,install.ps1,release.py,build_skills_index.py}` ARE ported in 5.P; `scripts/{contributor_audit.py,discord-voice-doctor.py,kill_modal.sh,lib/}` remain upstream-only contributor tooling.
+- `plans/` (upstream plans directory), `package.json`, `package-lock.json`, `flake.lock`, `flake.nix` — build/packaging metadata; partially mirrored at Phase 5.P.
 - `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `GOOD-PRACTICES.md`, `hermes-already-has-routines.md` — upstream contributor docs; not runtime.
 
 ### Inventory cadence
 
-Re-run the upstream survey when a major Hermes release lands, when a new platform connector is added upstream, or when a Gormes phase ships and we need to mark its rows ✅. The survey is mechanical: `find upstream root -name "*.py" -newer last-survey-date` plus a `gateway/platforms/` directory listing usually catches everything.
+Re-run the upstream survey when a major Hermes release lands, when a new platform connector is added upstream, or when a Gormes phase ships and we need to mark its rows ✅. The survey is mechanical:
+
+1. `find upstream root -name "*.py" -newer last-survey-date` for new Python files
+2. `ls gateway/platforms/*.py` for new platform connectors
+3. `ls plugins/memory/` for new memory backends (currently 8)
+4. `ls tools/environments/*.py` for new sandbox backends (currently 10 including `ssh.py`)
+5. `ls hermes_cli/*.py` for new CLI subcommands (currently 49)
+6. `ls environments/tool_call_parsers/*.py` for new per-model parsers (currently 9)
+7. `wc -l run_agent.py cli.py tui_gateway/server.py` to track orchestrator size growth
+
+The survey from 2026-04-20 caught 12 subsystems previously under-specified: `run_agent.py` (the 12,113-line orchestrator), `cli.py` (10,570 lines), `tui_gateway/server.py` (2,931 lines), per-model tool-call parsers (9 variants), 8 third-party memory plugins (byterover/hindsight/holographic/honcho/mem0/openviking/retaindb/supermemory), SSH sandbox backend, and the hermes_cli/ expansion from ~15 files to 49. Next survey: when upstream tags a new release.
 
 ---
 
