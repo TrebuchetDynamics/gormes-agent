@@ -311,8 +311,15 @@ func TestHugoBuildProducesRenderedContent(t *testing.T) {
 
 	checks := map[string][]string{
 		"index.html": {
-			"Hermes Agent Documentation",
-			"Messaging Gateway",
+			"Gormes Documentation",
+			"Why Gormes",
+			"Quick Start on GitHub",
+		},
+		filepath.Join("why-gormes", "index.html"): {
+			"Operational Moat",
+			"Wire Doctor",
+			"Chaos Resilience",
+			"Surgical Architecture",
 		},
 		filepath.Join("user-guide", "cli", "index.html"): {
 			"Stylized preview of the Hermes CLI layout",

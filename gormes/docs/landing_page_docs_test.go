@@ -74,11 +74,44 @@ func TestDocsHarnessAllowsNativeGormesManifestoPage(t *testing.T) {
 	}
 }
 
-func TestWhyGormesPageExistsAndKeepsManifestoMarker(t *testing.T) {
+func TestDocsHomePageIsGormesBranded(t *testing.T) {
+	raw := readDoc(t, "content/_index.md")
+	wants := []string{
+		`title: "Gormes Documentation"`,
+		"# Gormes",
+		"[Why Gormes](why-gormes)",
+		"Route-B reconnect",
+		"Quick Start on GitHub",
+	}
+	for _, want := range wants {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("docs home is missing %q", want)
+		}
+	}
+
+	rejects := []string{
+		"Hermes Agent Documentation",
+		"# Hermes Agent",
+		"The self-improving AI agent built by Nous Research.",
+	}
+	for _, reject := range rejects {
+		if strings.Contains(raw, reject) {
+			t.Fatalf("docs home should not contain stale copy %q", reject)
+		}
+	}
+}
+
+func TestWhyGormesManifestoPageExistsAndCarriesApprovedSections(t *testing.T) {
 	raw := readDoc(t, "content/why-gormes.md")
 	wants := []string{
-		"## Why Go-native matters",
-		"Operational Moat",
+		`title: "Why Gormes"`,
+		"## Operational Moat",
+		"## Wire Doctor",
+		"## Chaos Resilience",
+		"## Surgical Architecture",
+		"thundering herd",
+		"Tool Registry",
+		"Telegram Scout",
 	}
 	for _, want := range wants {
 		if !strings.Contains(raw, want) {

@@ -1,53 +1,28 @@
 ---
-title: "Hermes Agent Documentation"
-description: "The self-improving AI agent built by Nous Research. A built-in learning loop that creates skills from experience, improves them during use, and remembers across sessions."
+title: "Gormes Documentation"
+description: "Go-native documentation for Gormes: operational moat, wire doctor, resilience, and surgical binaries."
 weight: 0
 slug: "/"
 ---
 
-# Hermes Agent
+# Gormes
 
-The self-improving AI agent built by [Nous Research](https://nousresearch.com). The only agent with a built-in learning loop — it creates skills from experience, improves them during use, nudges itself to persist knowledge, and builds a deepening model of who you are across sessions.
+Gormes is the Go-native operational moat for Hermes: a current 7.9 MB static binary, a tool-aware doctor, and a resilience model built around Route-B reconnect plus a 16 ms coalescing mailbox.
 
-- [Get Started →](getting-started/installation)
-- [View on GitHub](https://github.com/NousResearch/hermes-agent)
+- [Why Gormes](why-gormes)
+- [Quick Start on GitHub](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/README.md)
+- [Roadmap](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md)
 
-## What is Hermes Agent?
+## What lives here?
 
-It's not a coding copilot tethered to an IDE or a chatbot wrapper around a single API. It's an **autonomous agent** that gets more capable the longer it runs. It lives wherever you put it — a $5 VPS, a GPU cluster, or serverless infrastructure (Daytona, Modal) that costs nearly nothing when idle. Talk to it from Telegram while it works on a cloud VM you never SSH into yourself. It's not tied to your laptop.
+This docs surface explains the public engineering case for Gormes. The operator-facing install and run flow stays in the repository README; the roadmap and phase specs stay in the repository docs where contributors can inspect the proof directly.
 
 ## Quick Links
 
 | | |
 |---|---|
-| 🚀 **[Installation](getting-started/installation)** | Install in 60 seconds on Linux, macOS, or WSL2 |
-| 📖 **[Quickstart Tutorial](getting-started/quickstart)** | Your first conversation and key features to try |
-| 🗺️ **[Learning Path](getting-started/learning-path)** | Find the right docs for your experience level |
-| ⚙️ **[Configuration](user-guide/configuration)** | Config file, providers, models, and options |
-| 💬 **[Messaging Gateway](user-guide/messaging)** | Set up Telegram, Discord, Slack, or WhatsApp |
-| 🔧 **[Tools & Toolsets](user-guide/features/tools)** | 47 built-in tools and how to configure them |
-| 🧠 **[Memory System](user-guide/features/memory)** | Persistent memory that grows across sessions |
-| 📚 **[Skills System](user-guide/features/skills)** | Procedural memory the agent creates and reuses |
-| 🔌 **[MCP Integration](user-guide/features/mcp)** | Connect to MCP servers, filter their tools, and extend Hermes safely |
-| 🧭 **[Use MCP with Hermes](guides/use-mcp-with-hermes)** | Practical MCP setup patterns, examples, and tutorials |
-| 🎙️ **[Voice Mode](user-guide/features/voice-mode)** | Real-time voice interaction in CLI, Telegram, Discord, and Discord VC |
-| 🗣️ **[Use Voice Mode with Hermes](guides/use-voice-mode-with-hermes)** | Hands-on setup and usage patterns for Hermes voice workflows |
-| 🎭 **[Personality & SOUL.md](user-guide/features/personality)** | Define Hermes' default voice with a global SOUL.md |
-| 📄 **[Context Files](user-guide/features/context-files)** | Project context files that shape every conversation |
-| 🔒 **[Security](user-guide/security)** | Command approval, authorization, container isolation |
-| 💡 **[Tips & Best Practices](guides/tips)** | Quick wins to get the most out of Hermes |
-| 🏗️ **[Architecture](developer-guide/architecture)** | How it works under the hood |
-| ❓ **[FAQ & Troubleshooting](reference/faq)** | Common questions and solutions |
-
-## Key Features
-
-- **A closed learning loop** — Agent-curated memory with periodic nudges, autonomous skill creation, skill self-improvement during use, FTS5 cross-session recall with LLM summarization, and [Honcho](https://github.com/plastic-labs/honcho) dialectic user modeling
-- **Runs anywhere, not just your laptop** — 6 terminal backends: local, Docker, SSH, Daytona, Singularity, Modal. Daytona and Modal offer serverless persistence — your environment hibernates when idle, costing nearly nothing
-- **Lives where you do** — CLI, Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Email, SMS, DingTalk, Feishu, WeCom, BlueBubbles, Home Assistant — 15+ platforms from one gateway
-- **Built by model trainers** — Created by [Nous Research](https://nousresearch.com), the lab behind Hermes, Nomos, and Psyche. Works with [Nous Portal](https://portal.nousresearch.com), [OpenRouter](https://openrouter.ai), OpenAI, or any endpoint
-- **Scheduled automations** — Built-in cron with delivery to any platform
-- **Delegates & parallelizes** — Spawn isolated subagents for parallel workstreams. Programmatic Tool Calling via `execute_code` collapses multi-step pipelines into single inference calls
-- **Open standard skills** — Compatible with [agentskills.io](https://agentskills.io). Skills are portable, shareable, and community-contributed via the Skills Hub
-- **Full web control** — Search, extract, browse, vision, image generation, TTS
-- **MCP support** — Connect to any MCP server for extended tool capabilities
-- **Research-ready** — Batch processing, trajectory export, RL training with Atropos. Built by [Nous Research](https://nousresearch.com) — the lab behind Hermes, Nomos, and Psyche models
+| **[Why Gormes](why-gormes)** | Public technical manifesto: operational moat, wire doctor, resilience, and surgical binaries |
+| **[Quick Start on GitHub](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/README.md)** | Build, validate, and run the current Go binary |
+| **[Roadmap](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/ARCH_PLAN.md)** | The five-phase path from tactical bridge to pure Go runtime |
+| **[Tool Registry Spec](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)** | Phase 2.A proof doc for Go-native tools |
+| **[Telegram Scout Spec](https://github.com/XelHaku/golang-hermes-agent/blob/main/gormes/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)** | Phase 2.B proof doc for split-binary messaging architecture |
