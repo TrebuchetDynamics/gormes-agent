@@ -59,3 +59,34 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy gormes/www.gormes.ai/dist --project-name=gormes-agent-landing --branch=main --commit-dirty=true
+
+      # Attach custom domains via the Cloudflare Pages API. Idempotent —
+      # an "already attached" response is logged but does not fail the
+      # workflow. Cloudflare auto-provisions the required DNS records
+      # when the apex/subdomain lives in the same account.
+      - name: Attach custom domains
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -u
+          for domain in gormes.ai www.gormes.ai; do
+            echo "→ attaching ${domain}"
+            response=$(curl -sS -o /tmp/cf-resp.json -w "%{http_code}" -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/gormes-agent-landing/domains" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"${domain}\"}")
+            case "$response" in
+              200|201)
+                echo "  ✓ attached"
+                ;;
+              409|400)
+                echo "  • already attached (status $response) — skipping"
+                ;;
+              *)
+                echo "  ✗ unexpected status $response"
+                cat /tmp/cf-resp.json
+                ;;
+            esac
+          done
