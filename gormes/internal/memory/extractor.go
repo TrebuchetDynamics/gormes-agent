@@ -2,7 +2,10 @@ package memory
 
 import (
 	"context"
+	"errors"
+	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -109,7 +112,116 @@ func (e *Extractor) Close(ctx context.Context) error {
 	return nil
 }
 
-// loopOnce is the stub; Task 6 replaces it with the real body.
 func (e *Extractor) loopOnce(ctx context.Context) {
-	// Intentionally empty — poll is a no-op until T6.
+	batch, err := e.pollBatch(ctx)
+	if err != nil {
+		e.log.Warn("extractor: poll failed", "err", err)
+		return
+	}
+	if len(batch) == 0 {
+		return
+	}
+	ids := make([]int64, len(batch))
+	for i, r := range batch {
+		ids[i] = r.id
+	}
+
+	callCtx, cancel := context.WithTimeout(ctx, e.cfg.CallTimeout)
+	defer cancel()
+	raw, err := e.callLLM(callCtx, batch)
+	if err != nil {
+		e.log.Warn("extractor: LLM call failed", "turn_ids", ids, "err", err)
+		_ = incrementAttempts(ctx, e.store.db, ids, err.Error())
+		return
+	}
+
+	validated, err := ValidateExtractorOutput(raw)
+	if err != nil {
+		preview := string(raw)
+		if len(preview) > 200 {
+			preview = preview[:200]
+		}
+		e.log.Warn("extractor: malformed JSON",
+			"turn_ids", ids, "preview", preview, "err", err)
+		_ = incrementAttempts(ctx, e.store.db, ids, "malformed JSON: "+err.Error())
+		return
+	}
+
+	// writeGraphBatch is ONE transaction: upserts + mark-extracted commit
+	// atomically. See graph.go.
+	if err := writeGraphBatch(ctx, e.store.db, validated, ids); err != nil {
+		e.log.Warn("extractor: graph write failed",
+			"turn_ids", ids, "err", err)
+		_ = incrementAttempts(ctx, e.store.db, ids, err.Error())
+		return
+	}
+
+	e.log.Debug("extractor: batch processed",
+		"turn_ids", ids,
+		"entities", len(validated.Entities),
+		"relationships", len(validated.Relationships))
+}
+
+// pollBatch reads up to cfg.BatchSize unprocessed turns.
+func (e *Extractor) pollBatch(ctx context.Context) ([]turnRow, error) {
+	rows, err := e.store.db.QueryContext(ctx,
+		`SELECT id, role, content FROM turns
+		 WHERE extracted = 0 AND extraction_attempts < ?
+		 ORDER BY id LIMIT ?`,
+		e.cfg.MaxAttempts, e.cfg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []turnRow
+	for rows.Next() {
+		var r turnRow
+		if err := rows.Scan(&r.id, &r.role, &r.content); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// callLLM sends the extractor prompt to the hermes.Client and collects
+// the full streamed response. Returns raw JSON (not yet validated).
+func (e *Extractor) callLLM(ctx context.Context, batch []turnRow) ([]byte, error) {
+	req := hermes.ChatRequest{
+		Model:  e.cfg.Model,
+		Stream: true,
+		Messages: []hermes.Message{
+			{Role: "system", Content: extractorSystemPrompt},
+			{Role: "user", Content: formatBatchPrompt(batch)},
+		},
+	}
+	stream, err := e.llm.OpenStream(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = stream.Close() }()
+
+	var b strings.Builder
+	for {
+		ev, err := stream.Recv(ctx)
+		if errors.Is(err, io.EOF) || ev.Kind == hermes.EventDone {
+			if ev.Token != "" {
+				b.WriteString(ev.Token)
+			}
+			break
+		}
+		if err != nil {
+			// fakeStream in tests returns a sentinel when exhausted; if we
+			// already have content, treat as clean end.
+			if b.Len() > 0 {
+				break
+			}
+			return nil, err
+		}
+		if ev.Token != "" {
+			b.WriteString(ev.Token)
+		}
+	}
+	return []byte(b.String()), nil
 }

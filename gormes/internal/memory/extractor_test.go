@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
+	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
 )
 
 // fakeLLM implements hermes.Client with scripted responses. Each
@@ -138,5 +140,103 @@ func TestExtractor_RunExitsOnCtxCancel(t *testing.T) {
 		// Run returned after cancel.
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not exit within 2s of ctx cancel")
+	}
+}
+
+// seedTurns inserts N user turns via the store's fast path and waits
+// until the persistence worker has drained them all to disk.
+func seedTurns(t *testing.T, s *SqliteStore, contents ...string) {
+	t.Helper()
+	for i, c := range contents {
+		payload, _ := json.Marshal(map[string]any{
+			"session_id": "sess-extractor-test",
+			"content":    c,
+			"ts_unix":    int64(1745000000 + i),
+		})
+		_, _ = s.Exec(context.Background(), store.Command{
+			Kind: store.AppendUserTurn, Payload: payload,
+		})
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var n int
+		_ = s.db.QueryRow("SELECT COUNT(*) FROM turns WHERE session_id = 'sess-extractor-test'").Scan(&n)
+		if n == len(contents) {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("seedTurns timeout — persistence worker did not drain")
+}
+
+func TestExtractor_HappyPathPopulatesGraph(t *testing.T) {
+	s, e, llm := openExtractor(t, ExtractorConfig{
+		PollInterval: 30 * time.Millisecond,
+		BatchSize:    5,
+		CallTimeout:  2 * time.Second,
+	})
+
+	seedTurns(t, s, "I'm working on Arenaton")
+	llm.script(`{"entities":[
+		{"name":"Jose","type":"PERSON","description":""},
+		{"name":"Arenaton","type":"PROJECT","description":""}
+	],"relationships":[
+		{"source":"Jose","target":"Arenaton","predicate":"WORKS_ON","weight":0.9}
+	]}`, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go e.Run(ctx)
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		var e1, nRel int
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM turns WHERE extracted = 1`).Scan(&e1)
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM relationships`).Scan(&nRel)
+		if e1 >= 1 && nRel >= 1 {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	var extracted int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM turns WHERE extracted = 1`).Scan(&extracted)
+	if extracted < 1 {
+		t.Errorf("turns.extracted=1 count = %d, want >= 1", extracted)
+	}
+	var nEnt, nRel int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM entities`).Scan(&nEnt)
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM relationships`).Scan(&nRel)
+	if nEnt != 2 || nRel != 1 {
+		t.Errorf("entities=%d relationships=%d, want 2 and 1", nEnt, nRel)
+	}
+	if llm.openCalls.Load() != 1 {
+		t.Errorf("openCalls = %d, want exactly 1", llm.openCalls.Load())
+	}
+}
+
+func TestExtractor_EmptyResultStillMarksExtracted(t *testing.T) {
+	s, e, llm := openExtractor(t, ExtractorConfig{PollInterval: 30 * time.Millisecond})
+	seedTurns(t, s, "weather small talk")
+	llm.script(`{"entities":[],"relationships":[]}`, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go e.Run(ctx)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var n int
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM turns WHERE extracted = 1`).Scan(&n)
+		if n >= 1 {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	var n int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM turns WHERE extracted = 1`).Scan(&n)
+	if n < 1 {
+		t.Errorf("empty-result batch not marked extracted=1")
 	}
 }
