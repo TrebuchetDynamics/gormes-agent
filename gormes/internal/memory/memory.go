@@ -142,14 +142,21 @@ func (s *SqliteStore) Stats() Stats {
 // verification; production callers should not depend on this.
 func (s *SqliteStore) DB() *sql.DB { return s.db }
 
-// Close is Task 7's scope — simple stub for Task 3: close queue, wait
-// for worker to exit, close DB. The ctx-deadline honouring comes in T7.
+// Close signals the worker to drain, waits up to ctx deadline for drain,
+// then closes the underlying *sql.DB (which flushes WAL). Idempotent —
+// subsequent calls return nil.
 func (s *SqliteStore) Close(ctx context.Context) error {
-	var err error
+	var closeErr error
 	s.closeOnce.Do(func() {
-		close(s.queue)
-		<-s.done
-		err = s.db.Close()
+		close(s.queue) // signal worker to exit after draining
+		select {
+		case <-s.done:
+			// drained cleanly
+		case <-ctx.Done():
+			s.log.Warn("memory: shutdown deadline exceeded; in-flight writes may be lost",
+				"queue_len", len(s.queue))
+		}
+		closeErr = s.db.Close()
 	})
-	return err
+	return closeErr
 }
