@@ -11,6 +11,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
 )
 
 // Config drives the Bot adapter. AllowedChatID and FirstRunDiscovery follow
@@ -20,15 +21,21 @@ type Config struct {
 	AllowedChatID     int64
 	CoalesceMs        int
 	FirstRunDiscovery bool
+	// SessionMap + SessionKey (Phase 2.C) — optional. When SessionMap is
+	// non-nil, the outbound goroutine persists k.sessionID on every frame
+	// where it changed. Nil disables persistence (Phase 2.B.1 behavior).
+	SessionMap session.Map
+	SessionKey string
 }
 
 // Bot is the Telegram adapter. Kernel-side state (draft, phase, history)
 // lives in *kernel.Kernel; Bot holds only per-adapter streaming state.
 type Bot struct {
-	cfg    Config
-	client telegramClient
-	kernel *kernel.Kernel
-	log    *slog.Logger
+	cfg     Config
+	client  telegramClient
+	kernel  *kernel.Kernel
+	log     *slog.Logger
+	lastSID string // most recently persisted session_id (prevents duplicate Puts)
 }
 
 // New constructs a Bot wired to the given telegramClient + kernel.
@@ -152,9 +159,30 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 				}
 				return
 			}
+			b.persistIfChanged(ctx, f)
 			b.handleFrame(ctx, f, &c, &cCancel, wg)
 		}
 	}
+}
+
+// persistIfChanged writes the frame's SessionID to SessionMap when it has
+// changed from the last persisted value. Failures log a WARN and do NOT
+// fail the turn — persistence is best-effort on the render path.
+func (b *Bot) persistIfChanged(ctx context.Context, f kernel.RenderFrame) {
+	if b.cfg.SessionMap == nil || b.cfg.SessionKey == "" {
+		return
+	}
+	if f.SessionID == b.lastSID {
+		return
+	}
+	if err := b.cfg.SessionMap.Put(ctx, b.cfg.SessionKey, f.SessionID); err != nil {
+		b.log.Warn("failed to persist session_id",
+			"key", b.cfg.SessionKey,
+			"session_id", f.SessionID,
+			"err", err)
+		return
+	}
+	b.lastSID = f.SessionID
 }
 
 // handleFrame dispatches one RenderFrame to the coalescer. Lazy-inits the

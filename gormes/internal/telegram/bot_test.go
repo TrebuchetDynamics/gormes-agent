@@ -8,6 +8,7 @@ import (
 
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/hermes"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/kernel"
+	"github.com/XelHaku/golang-hermes-agent/gormes/internal/session"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/store"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/telemetry"
 	"github.com/XelHaku/golang-hermes-agent/gormes/internal/tools"
@@ -269,6 +270,60 @@ func TestBot_PlainTextSubmitsToKernel(t *testing.T) {
 	}
 	if !strings.Contains(mc.lastSentText(), "ack") {
 		t.Errorf("last bot msg = %q, want to contain 'ack'", mc.lastSentText())
+	}
+
+	cancel()
+	mc.closeUpdates()
+	time.Sleep(50 * time.Millisecond)
+}
+
+// TestBot_PersistsSessionIDToMap proves the bot's outbound goroutine
+// calls SessionMap.Put exactly when the kernel's RenderFrame.SessionID
+// changes. Uses MemMap + scripted hermes.MockClient — no disk, no network.
+func TestBot_PersistsSessionIDToMap(t *testing.T) {
+	mc := newMockClient()
+	smap := session.NewMemMap()
+
+	hmc := hermes.NewMockClient()
+	reply := "ok"
+	events := make([]hermes.Event, 0, len(reply)+1)
+	for _, ch := range reply {
+		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: string(ch), TokensOut: 1})
+	}
+	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"})
+	hmc.Script(events, "sess-persisted-xyz")
+
+	k := kernel.New(kernel.Config{
+		Model: "hermes-agent", Endpoint: "http://mock",
+		Admission: kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+	}, hmc, store.NewNoop(), telemetry.New(), nil)
+
+	key := session.TelegramKey(42)
+	b := New(Config{
+		AllowedChatID: 42,
+		CoalesceMs:    100,
+		SessionMap:    smap,
+		SessionKey:    key,
+	}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+	go func() { _ = b.Run(ctx) }()
+
+	mc.pushTextUpdate(42, "ping")
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got, _ := smap.Get(context.Background(), key); got == "sess-persisted-xyz" {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	got, _ := smap.Get(context.Background(), key)
+	if got != "sess-persisted-xyz" {
+		t.Errorf("SessionMap[%q] = %q, want %q", key, got, "sess-persisted-xyz")
 	}
 
 	cancel()
