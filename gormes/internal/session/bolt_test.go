@@ -93,3 +93,37 @@ func TestBolt_ConcurrentPutGet(t *testing.T) {
 		t.Errorf("after concurrent writes, Get = %q, want %q", got, "v")
 	}
 }
+
+func TestBolt_PutEmptyDeletes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	m, _ := OpenBolt(path)
+	defer m.Close()
+	ctx := context.Background()
+
+	_ = m.Put(ctx, "tui:default", "sess-x")
+	if got, _ := m.Get(ctx, "tui:default"); got != "sess-x" {
+		t.Fatalf("setup: Get = %q, want sess-x", got)
+	}
+
+	if err := m.Put(ctx, "tui:default", ""); err != nil {
+		t.Fatalf("Put(\"\") to delete: %v", err)
+	}
+
+	got, err := m.Get(ctx, "tui:default")
+	if err != nil {
+		t.Errorf("Get after delete: %v", err)
+	}
+	if got != "" {
+		t.Errorf("after Put(\"\"), Get = %q, want deleted (\"\")", got)
+	}
+}
+
+func TestBolt_PutEmptyOnMissingKeyIsNoOp(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	m, _ := OpenBolt(path)
+	defer m.Close()
+
+	if err := m.Put(context.Background(), "never-existed", ""); err != nil {
+		t.Errorf("Put(\"\") on missing key should be no-op, got %v", err)
+	}
+}
