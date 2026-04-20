@@ -86,7 +86,7 @@ func StartMirror(store *SqliteStore, cfg MirrorConfig) *Mirror {
 		log:    log,
 		store:  store,
 		ticker: time.NewTicker(cfg.Interval),
-		stop:   make(chan struct{}),
+		stop:   make(chan struct{}, 1),
 	}
 
 	m.wg.Add(1)
