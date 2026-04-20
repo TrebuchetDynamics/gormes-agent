@@ -118,3 +118,44 @@ func TestValidate_CoercesUnknownPredicateToRelatedTo(t *testing.T) {
 		t.Errorf("predicate = %q, want RELATED_TO (coerced)", out.Relationships[0].Predicate)
 	}
 }
+
+func TestValidate_WeightZeroPromotedToOne(t *testing.T) {
+	// LLM returns weight: 0 (or omits it -> Go zero-value float64).
+	// Validator must promote to 1.0 so the edge survives both the
+	// validator's clamp AND the graph upsert's MIN-accumulation without
+	// living forever at weight=0.
+	raw := `{"entities":[
+		{"name":"Vania","type":"PERSON","description":""},
+		{"name":"Juan","type":"PERSON","description":""}
+	],"relationships":[
+		{"source":"Vania","target":"Juan","predicate":"KNOWS","weight":0}
+	]}`
+
+	out, err := ValidateExtractorOutput([]byte(raw))
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if len(out.Relationships) != 1 {
+		t.Fatalf("len(Relationships) = %d, want 1", len(out.Relationships))
+	}
+	if out.Relationships[0].Weight != 1.0 {
+		t.Errorf("weight = %v, want 1.0 (promoted from 0)",
+			out.Relationships[0].Weight)
+	}
+}
+
+func TestValidate_WeightOmittedPromotedToOne(t *testing.T) {
+	// Omitted weight key -> Go json unmarshal sets float64 zero-value.
+	raw := `{"entities":[
+		{"name":"A","type":"PERSON","description":""},
+		{"name":"B","type":"PERSON","description":""}
+	],"relationships":[
+		{"source":"A","target":"B","predicate":"KNOWS"}
+	]}`
+
+	out, _ := ValidateExtractorOutput([]byte(raw))
+	if len(out.Relationships) != 1 || out.Relationships[0].Weight != 1.0 {
+		t.Errorf("weight for omitted key = %v, want 1.0",
+			out.Relationships[0].Weight)
+	}
+}

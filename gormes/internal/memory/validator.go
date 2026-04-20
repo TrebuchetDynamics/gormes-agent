@@ -125,7 +125,7 @@ func ValidateExtractorOutput(raw []byte) (ValidatedOutput, error) {
 		}
 
 		w := r.Weight
-		if math.IsNaN(w) || w < 0 {
+		if math.IsNaN(w) || w <= 0 {
 			w = 1.0
 		}
 		if w > 1.0 {
