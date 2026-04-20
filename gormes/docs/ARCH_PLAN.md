@@ -290,11 +290,11 @@ Re-run the upstream survey when a major Hermes release lands, when a new platfor
 
 ---
 
-## 7. Mirror Strategy — Auditability Roadmap
+## 8. Mirror Strategy — Auditability Roadmap
 
 Phase 3.D.5 (Memory Mirror) closes the transparency gap for entities/relationships. Based on comprehensive Hermes parity research, here is the complete mirror strategy.
 
-### 7.1 What Hermes Actually Has vs Gormes
+### 8.1 What Hermes Actually Has vs Gormes
 
 | Data | Hermes Format | Gormes Format | Gap Analysis |
 |------|--------------|---------------|--------------|
@@ -310,7 +310,7 @@ Phase 3.D.5 (Memory Mirror) closes the transparency gap for entities/relationshi
 
 **Key Finding**: Hermes does **not** have human-readable transcript exports. Transcripts live in SQLite/JSONL only. The `export_session()` method returns JSON (machine-readable), not formatted text. **Gormes already exceeds Hermes parity** with the USER.md mirror for memory entities.
 
-### 7.2 Remaining Mirror Candidates (Ranked by Priority)
+### 8.2 Remaining Mirror Candidates (Ranked by Priority)
 
 #### 🔴 High Priority: Session Index Mirror (Phase 3.E.1)
 
@@ -375,7 +375,7 @@ updated_at: 2026-04-20T09:30:00Z
 
 **Rationale**: This is debugging/operational visibility. Can be deferred until extraction issues become painful.
 
-### 7.3 Hermes Files Gormes Does Not Need to Mirror
+### 8.3 Hermes Files Gormes Does Not Need to Mirror
 
 Based on the comprehensive Hermes file inventory, these Hermes files do not need Gormes mirrors:
 
@@ -391,7 +391,7 @@ Based on the comprehensive Hermes file inventory, these Hermes files do not need
 | `SOUL.md` | Personality system not yet implemented (Phase 4+) |
 | Platform JSON files | Platform adapters not yet implemented (Phase 2.B.2+) |
 
-### 7.4 Mirror Implementation Principles
+### 8.4 Mirror Implementation Principles
 
 All mirrors must follow the 3.D.5 design constraints:
 1. **Source of truth remains database** — mirrors are read-only exports
@@ -407,11 +407,11 @@ All mirrors must follow the 3.D.5 design constraints:
 
 ---
 
-## 8. Technology Radar — Package & Tool Research
+## 9. Technology Radar — Package & Tool Research
 
 Continuous research into the Go ecosystem for Gormes-relevant packages, techniques, and upstream developments.
 
-### 8.1 Vector Embedding Libraries (Phase 3.D Research — 2026-04-20)
+### 9.1 Vector Embedding Libraries (Phase 3.D Research — 2026-04-20)
 
 Evaluated pure-Go vector databases for semantic recall layer:
 
@@ -432,7 +432,7 @@ Evaluated pure-Go vector databases for semantic recall layer:
 
 **Ollama Integration**: Ollama supports OpenAI-compatible `/v1/embeddings` endpoint ([docs](https://ollama.readthedocs.io/en/openai/)). Go client libraries: [`go-embeddings`](https://github.com/milosgajdos/go-embeddings) (multi-provider, includes Ollama), [`go-ollama`](https://github.com/eslider/go-ollama) (streaming support).
 
-### 8.2 SQLite Driver Landscape
+### 9.2 SQLite Driver Landscape
 
 Current: `github.com/ncruces/go-sqlite3` (WASM-based, CGO-free)
 
@@ -442,7 +442,7 @@ Alternatives monitored:
 
 **Status**: ncruces driver remains optimal for CGO-free static builds.
 
-### 8.3 Upstream Hermes-Agent Tracking
+### 9.3 Upstream Hermes-Agent Tracking
 
 **Repository**: https://github.com/NousResearch/hermes-agent  
 **License**: MIT (compatible)  

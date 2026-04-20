@@ -41,7 +41,7 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Phase 1 — Bubble Tea TUI shell.",
 		"Phase 2.A–C — Tool registry + Telegram adapter + session resume.",
 		"Phase 2.B.2+ — Wider gateway (Discord, Slack, more adapters).",
-		"Phase 3.A–C + 3.D.5 — SQLite + FTS5 lattice, ontological graph, neural recall, USER.md mirror.",
+		"Phase 3.A–C + 3.D.5 — SQLite + FTS5 lattice, ontological graph, neural recall, USER.md mirror (Gormes-original, no upstream equivalent).",
 		"Phase 3.D — Ollama embeddings + semantic fusion.",
 		"Phase 4 — Brain transplant. Hermes backend becomes optional.",
 		"Phase 5 — 100% Go. Python tool scripts ported. Hermes-off.",

@@ -92,7 +92,7 @@ func DefaultPage() LandingPage {
 			{State: "SHIPPED", Tone: "shipped", Name: "Phase 1 — Bubble Tea TUI shell."},
 			{State: "SHIPPED", Tone: "shipped", Name: "Phase 2.A–C — Tool registry + Telegram adapter + session resume."},
 			{State: "NEXT", Tone: "next", Name: "Phase 2.B.2+ — Wider gateway (Discord, Slack, more adapters)."},
-			{State: "SHIPPED", Tone: "shipped", Name: "Phase 3.A–C + 3.D.5 — SQLite + FTS5 lattice, ontological graph, neural recall, USER.md mirror."},
+			{State: "SHIPPED", Tone: "shipped", Name: "Phase 3.A–C + 3.D.5 — SQLite + FTS5 lattice, ontological graph, neural recall, USER.md mirror (Gormes-original, no upstream equivalent)."},
 			{State: "NEXT", Tone: "next", Name: "Phase 3.D — Ollama embeddings + semantic fusion."},
 			{State: "LATER", Tone: "later", Name: "Phase 4 — Brain transplant. Hermes backend becomes optional."},
 			{State: "LATER", Tone: "later", Name: "Phase 5 — 100% Go. Python tool scripts ported. Hermes-off."},
