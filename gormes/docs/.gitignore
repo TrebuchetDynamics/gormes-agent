@@ -1,0 +1,12 @@
+# ── Hugo build outputs ───────────────────────────────
+# Hugo renders the site into public/ and caches artifacts under
+# resources/ and .hugo_build.lock. None of those are source.
+public/
+resources/
+.hugo_build.lock
+
+# ── Hugo local cache / compiled themes ───────────────
+.cache/
+
+# ── Deploy artifacts ─────────────────────────────────
+dist/

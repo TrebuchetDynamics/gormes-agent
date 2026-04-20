@@ -1,6 +1,22 @@
+# ── Go build outputs ─────────────────────────────────
 bin/
+*.exe
+*.dll
+
+# ── Static export (rebuilt every deploy) ─────────────
 dist/
+
+# ── Node / Playwright ────────────────────────────────
+node_modules/
 playwright-report/
 test-results/
+playwright/.cache/
+.playwright-cache/
+
+# ── Agent session scratch (claude-flow, swarm, etc.) ─
 .claude-flow/
 .swarm/
+.superpowers/
+
+# ── Transient deploy trigger markers ─────────────────
+.deploy-trigger

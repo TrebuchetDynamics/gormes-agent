@@ -64,3 +64,42 @@ mini-swe-agent/
 .nix-stamps/
 result
 website/static/api/skills-index.json
+
+# ── OS cruft ──────────────────────────────────────────
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# ── Editor temp / backup files ────────────────────────
+*.swp
+*.swo
+*.swn
+*~
+*.bak
+*.orig
+
+# ── JetBrains IDEs ────────────────────────────────────
+.idea/
+*.iml
+
+# ── Python linter / type-check caches ─────────────────
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# ── Coverage artifacts ────────────────────────────────
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# ── Cursor, Codex, Claude Code workspace state ────────
+.cursor/
+.codex/
+.claude-flow/
+.swarm/
+
+# ── Test runner artifacts ─────────────────────────────
+playwright-report/
+test-results/
