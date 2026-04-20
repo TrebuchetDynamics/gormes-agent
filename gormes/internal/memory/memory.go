@@ -106,8 +106,25 @@ func applyPragmas(db *sql.DB) error {
 	return nil
 }
 
-// Exec is Task 4's scope — stub for Task 3.
+// Exec enqueues cmd on the worker queue. Returns an Ack in microseconds.
+// On queue full: increments Drops counter, logs a WARN, and returns
+// Ack{} — the caller cannot tell the difference. This is the deliberate
+// Zero-Leak design: a dropped turn is acceptable degradation; a blocked
+// kernel is not.
 func (s *SqliteStore) Exec(ctx context.Context, cmd store.Command) (store.Ack, error) {
+	if err := ctx.Err(); err != nil {
+		return store.Ack{}, err
+	}
+	select {
+	case s.queue <- cmd:
+		s.accepted.Add(1)
+	default:
+		s.drops.Add(1)
+		s.log.Warn("memory: queue full, dropping command",
+			"kind", cmd.Kind.String(),
+			"queue_cap", cap(s.queue),
+			"drops_total", s.drops.Load())
+	}
 	return store.Ack{}, nil
 }
 
