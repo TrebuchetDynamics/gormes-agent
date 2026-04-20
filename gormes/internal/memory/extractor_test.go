@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -281,6 +282,35 @@ func TestExtractor_DeadLettersAfterMaxAttempts(t *testing.T) {
 	}
 	if attempts < 3 {
 		t.Errorf("attempts = %d, want >= 3", attempts)
+	}
+}
+
+func TestExtractor_SkipsCronTurns(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "memory.db")
+	store, _ := OpenSqlite(path, 0, nil)
+	defer store.Close(context.Background())
+
+	// Seed one normal turn + one cron turn directly via SQL.
+	now := time.Now().Unix()
+	_, err := store.db.Exec(
+		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, cron, cron_job_id)
+		 VALUES('s', 'user', 'normal turn about Widgets', ?, 'c', 0, NULL),
+		        ('cron:j:1', 'user', 'cron turn about Gizmos', ?, 'c', 1, 'j')`,
+		now, now+1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ext := NewExtractor(store, &fakeLLM{}, ExtractorConfig{BatchSize: 10}, nil)
+	rows, err := ext.pollBatch(context.Background())
+	if err != nil {
+		t.Fatalf("pollBatch: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("pollBatch returned %d rows, want 1 (normal only)", len(rows))
+	}
+	if !strings.Contains(rows[0].content, "Widgets") {
+		t.Errorf("returned row = %q, want the normal turn (Widgets)", rows[0].content)
 	}
 }
 
