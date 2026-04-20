@@ -43,6 +43,9 @@
     <div class="roadmap-phases">
       {{range .RoadmapPhases}}{{template "roadmap_phase" .}}{{end}}
     </div>
+    <p class="roadmap-footer">
+      <a href="{{.ProgressTrackerURL}}">{{.ProgressTracker}} · Full progress tracker →</a>
+    </p>
   </div>
 </section>
 {{end}}

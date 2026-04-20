@@ -97,7 +97,7 @@ gormes claw migrate     # Migrate from OpenClaw
 | **Quick Start** | [docs.gormes.ai/getting-started/quickstart](https://docs.gormes.ai/getting-started/quickstart) |
 | **CLI Reference** | [docs.gormes.ai/reference/cli-commands](https://docs.gormes.ai/reference/cli-commands) |
 | **Architecture** | [docs.gormes.ai/developer-guide/architecture](https://docs.gormes.ai/developer-guide/architecture) |
-| **Executive Roadmap** | [ARCH_PLAN.md](gormes/docs/ARCH_PLAN.md) |
+| **Progress Tracker** | [8/52 shipped · Full checklist](https://docs.gormes.ai/building-gormes/architecture_plan/) |
 
 ---
 

@@ -5,6 +5,7 @@ BINARY_PATH := bin/gormes
 
 build: $(BINARY_PATH)
 	@$(call record-benchmark)
+	@$(call record-progress)
 	@$(call update-readme)
 
 $(BINARY_PATH):
@@ -18,6 +19,11 @@ endef
 define update-readme
 	@echo "Updating README.md..."
 	@bash scripts/update-readme.sh
+endef
+
+define record-progress
+	@echo "Updating progress..."
+	@bash scripts/record-progress.sh
 endef
 
 update-readme:

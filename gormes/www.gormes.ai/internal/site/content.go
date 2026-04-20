@@ -107,6 +107,8 @@ type LandingPage struct {
 	RoadmapLabel        string
 	RoadmapHeadline     string
 	RoadmapPhases       []RoadmapPhase
+	ProgressTracker     string
+	ProgressTrackerURL  string
 	// FooterLeft is typed as template.HTML so it can carry the anchor
 	// tag linking to the TrebuchetDynamics company site. Must not
 	// carry user input; DefaultPage is the only writer.
@@ -152,6 +154,8 @@ func DefaultPage() LandingPage {
 		},
 		RoadmapLabel:    "§ 03 · SHIPPING STATE",
 		RoadmapHeadline: "What ships now, what doesn't.",
+		ProgressTracker: "8/52 shipped",
+		ProgressTrackerURL: "https://docs.gormes.ai/building-gormes/architecture_plan/",
 		RoadmapPhases: []RoadmapPhase{
 			{
 				StatusLabel: "SHIPPED · EVOLVING",
