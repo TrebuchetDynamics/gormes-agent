@@ -340,6 +340,18 @@ func TestLoad_ConfigVersionFromFutureBinaryErrors(t *testing.T) {
 	}
 }
 
+func TestLoad_RecallDecayHorizonDays(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.RecallDecayHorizonDays != 180 {
+		t.Errorf("RecallDecayHorizonDays default = %d, want 180",
+			cfg.Telegram.RecallDecayHorizonDays)
+	}
+}
+
 func TestLoad_CronDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg, err := Load(nil)

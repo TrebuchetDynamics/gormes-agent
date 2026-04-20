@@ -136,6 +136,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 			WeightThreshold:       cfg.Telegram.RecallWeightThreshold,
 			MaxFacts:              cfg.Telegram.RecallMaxFacts,
 			Depth:                 cfg.Telegram.RecallDepth,
+			DecayHorizonDays:      cfg.Telegram.RecallDecayHorizonDays,
 			SemanticModel:         cfg.Telegram.SemanticModel,
 			SemanticTopK:          cfg.Telegram.SemanticTopK,
 			SemanticMinSimilarity: cfg.Telegram.SemanticMinSimilarity,

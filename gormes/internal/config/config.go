@@ -52,6 +52,11 @@ type TelegramCfg struct {
 	RecallWeightThreshold float64 `toml:"recall_weight_threshold"`
 	RecallMaxFacts        int     `toml:"recall_max_facts"`
 	RecallDepth           int     `toml:"recall_depth"`
+	// RecallDecayHorizonDays (Phase 3.E.6) — maps to
+	// RecallConfig.DecayHorizonDays. An edge's effective weight
+	// decays linearly from raw at age=0 to 0 at this many days old.
+	// 0 = unset (withDefaults promotes to 180). <0 = disabled.
+	RecallDecayHorizonDays int `toml:"recall_decay_horizon_days"`
 	// MirrorEnabled / MirrorPath / MirrorInterval (Phase 3.D.5).
 	// The Memory Mirror exports SQLite entities/relationships to USER.md.
 	MirrorEnabled  bool          `toml:"mirror_enabled"`
@@ -128,10 +133,11 @@ func defaults() Config {
 			MemoryQueueCap:        1024,
 			ExtractorBatchSize:    5,
 			ExtractorPollInterval: 10 * time.Second,
-			RecallEnabled:         true,
-			RecallWeightThreshold: 1.0,
-			RecallMaxFacts:        10,
-			RecallDepth:           2,
+			RecallEnabled:          true,
+			RecallWeightThreshold:  1.0,
+			RecallMaxFacts:         10,
+			RecallDepth:            2,
+			RecallDecayHorizonDays: 180,
 			MirrorEnabled:         true,
 			MirrorPath:            filepath.Join(xdgDataHome(), "gormes", "memory", "USER.md"),
 			MirrorInterval:        30 * time.Second,
