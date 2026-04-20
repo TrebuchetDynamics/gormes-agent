@@ -46,7 +46,7 @@ func seedsExactName(ctx context.Context, db *sql.DB, candidates []string, limit 
 // back to entities whose names appear in those turns. Per-chat scoped via
 // the chat_id filter (empty string = global scope — matches any chat_id).
 func seedsFTS5(ctx context.Context, db *sql.DB, userMessage, chatKey string, limit int) ([]int64, error) {
-	msg := strings.TrimSpace(userMessage)
+	msg := sanitizeFTS5Pattern(userMessage)
 	if msg == "" {
 		return nil, nil
 	}
@@ -67,6 +67,41 @@ func seedsFTS5(ctx context.Context, db *sql.DB, userMessage, chatKey string, lim
 	}
 	defer rows.Close()
 	return scanIDs(rows)
+}
+
+// sanitizeFTS5Pattern strips characters that FTS5 treats as operators
+// ("?", "*", "(", ")", "+", "-", double quotes, etc.) so a user message
+// with normal punctuation ("how does AzulVigia work?") becomes a valid
+// FTS5 MATCH pattern. Without this, any message containing "?" or "*"
+// produces "fts5: syntax error near ..." on every lookup.
+//
+// We preserve alphanumerics + spaces + underscores + hyphens (hyphens
+// are safe inside tokens). Everything else collapses to space, then
+// runs of spaces collapse to one.
+func sanitizeFTS5Pattern(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == ' ', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteByte(' ')
+		}
+	}
+	// Collapse runs of spaces.
+	out := b.String()
+	for strings.Contains(out, "  ") {
+		out = strings.ReplaceAll(out, "  ", " ")
+	}
+	return strings.TrimSpace(out)
 }
 
 // scanIDs drains `rows` into a []int64 of ID columns.
