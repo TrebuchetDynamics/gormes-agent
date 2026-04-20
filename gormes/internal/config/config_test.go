@@ -95,3 +95,44 @@ func TestLoad_TelegramEnvOverride(t *testing.T) {
 		t.Errorf("AllowedChatID = %d", cfg.Telegram.AllowedChatID)
 	}
 }
+
+func TestLoad_ResumeFlag(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load([]string{"--resume", "sess-abc123"})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Resume != "sess-abc123" {
+		t.Errorf("Resume = %q, want %q", cfg.Resume, "sess-abc123")
+	}
+}
+
+func TestLoad_ResumeFlagEmptyDefault(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil) // nil means skip flag parsing — existing contract
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Resume != "" {
+		t.Errorf("Resume (no flags) = %q, want \"\"", cfg.Resume)
+	}
+}
+
+func TestSessionDBPath_HonorsXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-xdg")
+	got := SessionDBPath()
+	want := "/tmp/gormes-test-xdg/gormes/sessions.db"
+	if got != want {
+		t.Errorf("SessionDBPath() = %q, want %q", got, want)
+	}
+}
+
+func TestSessionDBPath_DefaultsToHomeLocalShare(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "")
+	home, _ := os.UserHomeDir()
+	got := SessionDBPath()
+	want := filepath.Join(home, ".local", "share", "gormes", "sessions.db")
+	if got != want {
+		t.Errorf("SessionDBPath() with empty XDG_DATA_HOME = %q, want %q", got, want)
+	}
+}

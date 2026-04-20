@@ -16,6 +16,10 @@ type Config struct {
 	TUI      TUICfg      `toml:"tui"`
 	Input    InputCfg    `toml:"input"`
 	Telegram TelegramCfg `toml:"telegram"`
+	// Resume is set only via the --resume CLI flag; intentionally not
+	// a TOML field. Empty means "use whatever internal/session had
+	// persisted for this binary's default key."
+	Resume string `toml:"-"`
 }
 
 type TelegramCfg struct {
@@ -109,6 +113,7 @@ func loadFlags(cfg *Config, args []string) error {
 	fs := pflag.NewFlagSet("gormes", pflag.ContinueOnError)
 	endpoint := fs.String("endpoint", "", "Hermes api_server base URL")
 	model := fs.String("model", "", "served model name")
+	resume := fs.String("resume", "", "override persisted session_id for this binary's default key")
 	// No --api-key flag — secrets stay out of process argv.
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -118,6 +123,9 @@ func loadFlags(cfg *Config, args []string) error {
 	}
 	if *model != "" {
 		cfg.Hermes.Model = *model
+	}
+	if *resume != "" {
+		cfg.Resume = *resume
 	}
 	return nil
 }
@@ -146,4 +154,10 @@ func LogPath() string {
 // CrashLogDir returns the directory where TUI panic dumps are written.
 func CrashLogDir() string {
 	return filepath.Join(xdgDataHome(), "gormes")
+}
+
+// SessionDBPath returns the default location of the bbolt sessions map.
+// Honors XDG_DATA_HOME; falls back to ~/.local/share/gormes/sessions.db.
+func SessionDBPath() string {
+	return filepath.Join(xdgDataHome(), "gormes", "sessions.db")
 }
