@@ -34,6 +34,12 @@ type TelegramCfg struct {
 	// ExtractorBatchSize / ExtractorPollInterval (Phase 3.B).
 	ExtractorBatchSize    int           `toml:"extractor_batch_size"`
 	ExtractorPollInterval time.Duration `toml:"extractor_poll_interval"`
+	// RecallEnabled / RecallWeightThreshold / RecallMaxFacts / RecallDepth
+	// (Phase 3.C).
+	RecallEnabled         bool    `toml:"recall_enabled"`
+	RecallWeightThreshold float64 `toml:"recall_weight_threshold"`
+	RecallMaxFacts        int     `toml:"recall_max_facts"`
+	RecallDepth           int     `toml:"recall_depth"`
 }
 
 type HermesCfg struct {
@@ -80,6 +86,10 @@ func defaults() Config {
 			MemoryQueueCap:        1024,
 			ExtractorBatchSize:    5,
 			ExtractorPollInterval: 10 * time.Second,
+			RecallEnabled:         true,
+			RecallWeightThreshold: 1.0,
+			RecallMaxFacts:        10,
+			RecallDepth:           2,
 		},
 	}
 }

@@ -99,6 +99,17 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	reg.MustRegister(&tools.RandIntTool{})
 
 	tm := telemetry.New()
+
+	var recallProv kernel.RecallProvider
+	if cfg.Telegram.RecallEnabled && cfg.Telegram.AllowedChatID != 0 {
+		memProv := memory.NewRecall(mstore, memory.RecallConfig{
+			WeightThreshold: cfg.Telegram.RecallWeightThreshold,
+			MaxFacts:        cfg.Telegram.RecallMaxFacts,
+			Depth:           cfg.Telegram.RecallDepth,
+		}, slog.Default())
+		recallProv = &recallAdapter{p: memProv}
+	}
+
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
 		Endpoint:          cfg.Hermes.Endpoint,
@@ -107,6 +118,8 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
+		Recall:            recallProv,
+		ChatKey:           key,
 	}, hc, mstore, tm, slog.Default())
 
 	// Phase 3.B — async LLM-assisted entity/relationship extractor.
@@ -160,4 +173,20 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		"extractor_batch_size", cfg.Telegram.ExtractorBatchSize,
 		"extractor_poll_interval", cfg.Telegram.ExtractorPollInterval)
 	return bot.Run(rootCtx)
+}
+
+// recallAdapter bridges *memory.Provider (which uses memory.RecallInput)
+// to kernel.RecallProvider (which uses kernel.RecallParams). Same
+// fields, distinct types — the adapter preserves package dependency
+// isolation.
+type recallAdapter struct {
+	p *memory.Provider
+}
+
+func (a *recallAdapter) GetContext(ctx context.Context, params kernel.RecallParams) string {
+	return a.p.GetContext(ctx, memory.RecallInput{
+		UserMessage: params.UserMessage,
+		ChatKey:     params.ChatKey,
+		SessionID:   params.SessionID,
+	})
 }

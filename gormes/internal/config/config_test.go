@@ -181,3 +181,23 @@ func TestLoad_ExtractorDefaults(t *testing.T) {
 		t.Errorf("ExtractorPollInterval default = %v, want 10s", cfg.Telegram.ExtractorPollInterval)
 	}
 }
+
+func TestLoad_RecallDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Telegram.RecallEnabled {
+		t.Errorf("RecallEnabled default = false, want true")
+	}
+	if cfg.Telegram.RecallWeightThreshold != 1.0 {
+		t.Errorf("RecallWeightThreshold = %v, want 1.0", cfg.Telegram.RecallWeightThreshold)
+	}
+	if cfg.Telegram.RecallMaxFacts != 10 {
+		t.Errorf("RecallMaxFacts = %d, want 10", cfg.Telegram.RecallMaxFacts)
+	}
+	if cfg.Telegram.RecallDepth != 2 {
+		t.Errorf("RecallDepth = %d, want 2", cfg.Telegram.RecallDepth)
+	}
+}
