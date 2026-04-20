@@ -55,6 +55,8 @@ type Extractor struct {
 	cfg   ExtractorConfig
 	log   *slog.Logger
 
+	backoffCur time.Duration // current per-loop sleep; resets to 0 on success
+
 	done      chan struct{}
 	closeOnce sync.Once
 	running   atomic.Bool
@@ -113,12 +115,21 @@ func (e *Extractor) Close(ctx context.Context) error {
 }
 
 func (e *Extractor) loopOnce(ctx context.Context) {
+	if e.backoffCur > 0 {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(e.backoffCur):
+		}
+	}
+
 	batch, err := e.pollBatch(ctx)
 	if err != nil {
 		e.log.Warn("extractor: poll failed", "err", err)
 		return
 	}
 	if len(batch) == 0 {
+		e.backoffCur = 0 // no work means no failure
 		return
 	}
 	ids := make([]int64, len(batch))
@@ -132,6 +143,7 @@ func (e *Extractor) loopOnce(ctx context.Context) {
 	if err != nil {
 		e.log.Warn("extractor: LLM call failed", "turn_ids", ids, "err", err)
 		e.recordFailure(ctx, ids, err.Error())
+		e.advanceBackoff()
 		return
 	}
 
@@ -144,6 +156,7 @@ func (e *Extractor) loopOnce(ctx context.Context) {
 		e.log.Warn("extractor: malformed JSON",
 			"turn_ids", ids, "preview", preview, "err", err)
 		e.recordFailure(ctx, ids, "malformed JSON: "+err.Error())
+		e.advanceBackoff()
 		return
 	}
 
@@ -153,6 +166,7 @@ func (e *Extractor) loopOnce(ctx context.Context) {
 		e.log.Warn("extractor: graph write failed",
 			"turn_ids", ids, "err", err)
 		e.recordFailure(ctx, ids, err.Error())
+		e.advanceBackoff()
 		return
 	}
 
@@ -160,6 +174,7 @@ func (e *Extractor) loopOnce(ctx context.Context) {
 		"turn_ids", ids,
 		"entities", len(validated.Entities),
 		"relationships", len(validated.Relationships))
+	e.backoffCur = 0 // success resets
 }
 
 // pollBatch reads up to cfg.BatchSize unprocessed turns.
@@ -219,6 +234,34 @@ func (e *Extractor) recordFailure(ctx context.Context, ids []int64, errMsg strin
 		}
 		e.log.Error("extractor: dead-lettered after max attempts",
 			"turn_ids", dead, "max_attempts", e.cfg.MaxAttempts, "err", errMsg)
+	}
+}
+
+// advanceBackoff doubles backoffCur (seeding from BackoffBase if currently
+// 0), capped at BackoffMax. If BackoffBase is 0 (not configured), this is a
+// no-op — backoff is disabled. Integer-overflow-safe: we compare against
+// BackoffMax BEFORE the multiply, so a future BackoffMax of max-int64 -
+// which is unrepresentable in reasonable configs but we check anyway -
+// does not wrap.
+func (e *Extractor) advanceBackoff() {
+	if e.cfg.BackoffBase <= 0 {
+		return // backoff not configured; no-op
+	}
+	if e.backoffCur <= 0 {
+		e.backoffCur = e.cfg.BackoffBase
+		if e.cfg.BackoffMax > 0 && e.backoffCur > e.cfg.BackoffMax {
+			e.backoffCur = e.cfg.BackoffMax
+		}
+		return
+	}
+	if e.cfg.BackoffMax > 0 && e.backoffCur >= e.cfg.BackoffMax/2 {
+		// Doubling would exceed or equal BackoffMax; clamp directly.
+		e.backoffCur = e.cfg.BackoffMax
+		return
+	}
+	e.backoffCur *= 2
+	if e.cfg.BackoffMax > 0 && e.backoffCur > e.cfg.BackoffMax {
+		e.backoffCur = e.cfg.BackoffMax
 	}
 }
 

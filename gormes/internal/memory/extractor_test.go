@@ -247,6 +247,10 @@ func TestExtractor_DeadLettersAfterMaxAttempts(t *testing.T) {
 		BatchSize:    1,
 		MaxAttempts:  3,
 		CallTimeout:  500 * time.Millisecond,
+		// Short backoff so the 3-attempt dead-letter sequence finishes
+		// within the test's 3s budget. Production uses 2s/60s defaults.
+		BackoffBase: 10 * time.Millisecond,
+		BackoffMax:  30 * time.Millisecond,
 	})
 
 	seedTurns(t, s, "doomed turn")
@@ -277,5 +281,35 @@ func TestExtractor_DeadLettersAfterMaxAttempts(t *testing.T) {
 	}
 	if attempts < 3 {
 		t.Errorf("attempts = %d, want >= 3", attempts)
+	}
+}
+
+func TestExtractor_BackoffSleepsBetweenFailures(t *testing.T) {
+	s, e, llm := openExtractor(t, ExtractorConfig{
+		PollInterval: 5 * time.Millisecond,
+		BatchSize:    1,
+		MaxAttempts:  10, // high so we don't dead-letter during the test
+		CallTimeout:  100 * time.Millisecond,
+		BackoffBase:  80 * time.Millisecond,
+		BackoffMax:   200 * time.Millisecond,
+	})
+	seedTurns(t, s, "backoff test")
+	for i := 0; i < 20; i++ {
+		llm.script("not json", nil)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	go e.Run(ctx)
+
+	<-ctx.Done()
+	elapsed := time.Since(start)
+
+	calls := llm.openCalls.Load()
+	// Without backoff, 5ms poll interval => ~300 calls in 1.5s.
+	// With 80ms base doubling to 160ms to 200ms cap, expect < 15.
+	if calls > 15 {
+		t.Errorf("openCalls = %d in %v — backoff not applied (expected < 15)", calls, elapsed)
 	}
 }
