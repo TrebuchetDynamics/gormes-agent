@@ -18,6 +18,18 @@ type RecallConfig struct {
 	SemanticTopK          int           // default 3 when <= 0 and SemanticModel != ""
 	SemanticMinSimilarity float64       // default 0.35 when <= 0 and SemanticModel != ""
 	QueryEmbedTimeout     time.Duration // default 60ms when <= 0 and SemanticModel != ""
+
+	// DecayHorizonDays — Phase 3.E.6. An edge's effective weight
+	// decays linearly from 1.0×raw at age=0 to 0.0 at
+	// age=DecayHorizonDays days. Applied to the recall path's
+	// relationship WHERE/ORDER BY; the raw weight column is
+	// untouched (decay is reversible by tweaking this knob).
+	// Sentinel rules:
+	//   0  — unset; withDefaults promotes to 180.
+	//   >0 — preserved as the active horizon.
+	//   <0 — preserved as the "disabled" signal; recall falls back
+	//        to the legacy raw-weight filter.
+	DecayHorizonDays int
 }
 
 func (c *RecallConfig) withDefaults() {
@@ -44,6 +56,11 @@ func (c *RecallConfig) withDefaults() {
 		if c.QueryEmbedTimeout <= 0 {
 			c.QueryEmbedTimeout = 60 * time.Millisecond
 		}
+	}
+	// Phase 3.E.6 — only promote zero to the default. Negative
+	// values are preserved as the "decay disabled" sentinel.
+	if c.DecayHorizonDays == 0 {
+		c.DecayHorizonDays = 180
 	}
 }
 

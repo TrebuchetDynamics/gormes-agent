@@ -226,3 +226,29 @@ func TestProvider_SemanticFallsThroughOnEmbedFailure(t *testing.T) {
 		t.Errorf("lexical fallback failed when embed endpoint is unreachable: %q", out)
 	}
 }
+
+func TestRecallConfig_WithDefaults_DecayHorizon(t *testing.T) {
+	// Zero-value field gets the default (180 days).
+	cfg := RecallConfig{}
+	cfg.withDefaults()
+	if cfg.DecayHorizonDays != 180 {
+		t.Errorf("zero-value -> withDefaults: DecayHorizonDays = %d, want 180",
+			cfg.DecayHorizonDays)
+	}
+
+	// Positive field value is preserved.
+	cfg = RecallConfig{DecayHorizonDays: 30}
+	cfg.withDefaults()
+	if cfg.DecayHorizonDays != 30 {
+		t.Errorf("positive preserved: DecayHorizonDays = %d, want 30",
+			cfg.DecayHorizonDays)
+	}
+
+	// Negative (disable sentinel) is preserved — NOT defaulted.
+	cfg = RecallConfig{DecayHorizonDays: -1}
+	cfg.withDefaults()
+	if cfg.DecayHorizonDays != -1 {
+		t.Errorf("negative preserved: DecayHorizonDays = %d, want -1 (disable sentinel)",
+			cfg.DecayHorizonDays)
+	}
+}
