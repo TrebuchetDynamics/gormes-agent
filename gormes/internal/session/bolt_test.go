@@ -2,10 +2,12 @@ package session
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestBolt_PutGetRoundTrip(t *testing.T) {
@@ -125,5 +127,65 @@ func TestBolt_PutEmptyOnMissingKeyIsNoOp(t *testing.T) {
 
 	if err := m.Put(context.Background(), "never-existed", ""); err != nil {
 		t.Errorf("Put(\"\") on missing key should be no-op, got %v", err)
+	}
+}
+
+func TestBolt_LockContention(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+
+	m1, err := OpenBolt(path)
+	if err != nil {
+		t.Fatalf("first OpenBolt: %v", err)
+	}
+	defer m1.Close()
+
+	start := time.Now()
+	_, err = OpenBolt(path)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, ErrDBLocked) {
+		t.Errorf("second OpenBolt err = %v, want errors.Is(err, ErrDBLocked)", err)
+	}
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("second OpenBolt took %v, should time out near %v", elapsed, openTimeout)
+	}
+}
+
+func TestBolt_CorruptFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	garbage := make([]byte, 4096)
+	for i := range garbage {
+		garbage[i] = byte(i)
+	}
+	if err := os.WriteFile(path, garbage, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := OpenBolt(path)
+	if !errors.Is(err, ErrDBCorrupt) {
+		t.Errorf("OpenBolt on garbage file err = %v, want errors.Is(err, ErrDBCorrupt)", err)
+	}
+}
+
+func TestBolt_PermissionDenied(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("permission tests skipped as root — CI containers often run as root")
+	}
+	parent := filepath.Join(t.TempDir(), "blocked")
+	if err := os.MkdirAll(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
+
+	path := filepath.Join(parent, "sub", "sessions.db")
+	_, err := OpenBolt(path)
+	if err == nil {
+		t.Fatal("OpenBolt on unwritable parent should fail")
+	}
+	if errors.Is(err, ErrDBLocked) || errors.Is(err, ErrDBCorrupt) {
+		t.Errorf("permission error should not classify as Locked/Corrupt: %v", err)
 	}
 }
