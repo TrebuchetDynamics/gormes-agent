@@ -50,6 +50,19 @@ var targets = []string{
 
 var nativeHugoPages = map[string]struct{}{
 	"why-gormes.md": {},
+	"building-gormes/_index.md":                                          {},
+	"building-gormes/architecture_plan/_index.md":                        {},
+	"building-gormes/architecture_plan/phase-1-dashboard.md":             {},
+	"building-gormes/architecture_plan/phase-2-gateway.md":               {},
+	"building-gormes/architecture_plan/phase-3-memory.md":                {},
+	"building-gormes/architecture_plan/phase-4-brain-transplant.md":      {},
+	"building-gormes/architecture_plan/phase-5-final-purge.md":           {},
+	"building-gormes/architecture_plan/phase-6-learning-loop.md":         {},
+	"building-gormes/architecture_plan/subsystem-inventory.md":           {},
+	"building-gormes/architecture_plan/mirror-strategy.md":               {},
+	"building-gormes/architecture_plan/technology-radar.md":              {},
+	"building-gormes/architecture_plan/boundaries.md":                    {},
+	"building-gormes/architecture_plan/why-go.md":                        {},
 }
 
 func TestMirroredDocsCoverage(t *testing.T) {

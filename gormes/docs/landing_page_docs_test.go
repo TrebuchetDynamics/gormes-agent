@@ -91,14 +91,16 @@ func TestDocsHarnessAllowsNativeGormesManifestoPage(t *testing.T) {
 	if _, ok := nativeHugoPages["why-gormes.md"]; !ok {
 		t.Fatalf("nativeHugoPages should explicitly allow why-gormes.md")
 	}
-	if len(nativeHugoPages) != 1 {
-		extras := make([]string, 0, len(nativeHugoPages)-1)
-		for page := range nativeHugoPages {
-			if page != "why-gormes.md" {
-				extras = append(extras, page)
-			}
+	// Task 2 of the docs redesign added 13 native architecture_plan pages +
+	// the building-gormes section index. Entries beyond why-gormes.md must all
+	// be under building-gormes/ — no other paths are permitted as native pages.
+	for page := range nativeHugoPages {
+		if page == "why-gormes.md" {
+			continue
 		}
-		t.Fatalf("nativeHugoPages must contain only why-gormes.md; got %d entries with extras: %v", len(nativeHugoPages), extras)
+		if !strings.HasPrefix(page, "building-gormes/") {
+			t.Fatalf("nativeHugoPages contains unexpected non-building-gormes entry: %q", page)
+		}
 	}
 }
 
@@ -199,11 +201,16 @@ func TestSpecIndexAndPhase2SpecsCrossLink(t *testing.T) {
 }
 
 func TestArchPlanTracksShippedPhase2Ledger(t *testing.T) {
-	raw := readDoc(t, "ARCH_PLAN.md")
+	// ARCH_PLAN.md is now a stub (Task 2 of docs redesign).
+	// Content has moved to content/building-gormes/architecture_plan/.
+	stub := readDoc(t, "ARCH_PLAN.md")
+	if !strings.Contains(stub, "content/building-gormes/architecture_plan/") {
+		t.Fatalf("ARCH_PLAN.md stub should reference the new split location")
+	}
+
+	// Verify the Phase 2 ledger content lives in the split page.
+	phase2 := readDoc(t, "content/building-gormes/architecture_plan/phase-2-gateway.md")
 	wants := []string{
-		"**Public site:** https://gormes.ai",
-		"| Phase 2 — The Wiring Harness (Gateway) | 🔨 in progress |",
-		"| Phase 3 — The Black Box (Memory) | 🔨 3.A–3.D shipped; 3.E planned |",
 		"| Phase 2.A — Tool Registry | ✅ complete |",
 		"| Phase 2.B.1 — Telegram Scout | ✅ complete |",
 		"| Phase 2.C — Thin Mapping Persistence | ✅ complete |",
@@ -211,8 +218,20 @@ func TestArchPlanTracksShippedPhase2Ledger(t *testing.T) {
 		"Python still owns transcript memory",
 	}
 	for _, want := range wants {
-		if !strings.Contains(raw, want) {
-			t.Fatalf("ARCH_PLAN is missing %q", want)
+		if !strings.Contains(phase2, want) {
+			t.Fatalf("phase-2-gateway.md is missing %q", want)
+		}
+	}
+
+	// Verify the roadmap overview lives in the _index.
+	index := readDoc(t, "content/building-gormes/architecture_plan/_index.md")
+	indexWants := []string{
+		"**Public site:** https://gormes.ai",
+		"Phase 3 — The Black Box (Memory)",
+	}
+	for _, want := range indexWants {
+		if !strings.Contains(index, want) {
+			t.Fatalf("architecture_plan/_index.md is missing %q", want)
 		}
 	}
 }
