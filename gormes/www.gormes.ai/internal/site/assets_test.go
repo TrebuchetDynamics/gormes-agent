@@ -22,7 +22,7 @@ func TestServer_ServesEmbeddedCSS(t *testing.T) {
 	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/css") {
 		t.Fatalf("content-type = %q, want text/css", ct)
 	}
-	if !strings.Contains(rr.Body.String(), "--page-bg") {
+	if !strings.Contains(rr.Body.String(), "--bg-0") {
 		t.Fatalf("css is missing expected design variables")
 	}
 }

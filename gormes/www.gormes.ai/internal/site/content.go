@@ -82,7 +82,7 @@ func DefaultPage() LandingPage {
 			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		},
-		HeroKicker:   "OPEN SOURCE · MIT LICENSE",
+		HeroKicker:   "§ 01 · OPEN SOURCE · MIT LICENSE",
 		HeroHeadline: "One Go Binary. Same Hermes Brain.",
 		HeroSubhead:  "A static Go binary that talks to your Hermes backend over HTTP. scp it to Termux, Alpine, a fresh VPS — Gormes adds no runtime of its own on top of what Hermes already needs.",
 		PrimaryCTA:   Link{Label: "Install", Href: "#install"},
@@ -94,7 +94,7 @@ func DefaultPage() LandingPage {
 		InstallFootnote:     "Requires Hermes backend at localhost:8642.",
 		InstallFootnoteLink: "Install Hermes →",
 		InstallFootnoteHref: "https://github.com/NousResearch/hermes-agent#quickstart",
-		FeaturesLabel:       "FEATURES",
+		FeaturesLabel:       "§ 02 · FEATURES",
 		FeaturesHeadline:    "Why a Go layer matters.",
 		FeatureCards: []FeatureCard{
 			{Title: "Single Static Binary", Body: "Zero CGO. ~17 MB. scp it to Termux, Alpine, a fresh VPS — it runs."},
@@ -102,7 +102,7 @@ func DefaultPage() LandingPage {
 			{Title: "In-Process Tool Loop", Body: "Streamed tool_calls execute against a Go-native registry. No bounce through Python."},
 			{Title: "Survives Dropped Streams", Body: "Route-B reconnect treats SSE drops as a resilience problem, not a happy-path omission."},
 		},
-		RoadmapLabel:    "SHIPPING STATE",
+		RoadmapLabel:    "§ 03 · SHIPPING STATE",
 		RoadmapHeadline: "What ships now, what doesn't.",
 		RoadmapPhases: []RoadmapPhase{
 			{
