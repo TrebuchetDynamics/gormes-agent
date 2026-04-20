@@ -168,6 +168,27 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 	}
 }
 
+func TestReadmeDocumentsDoctorAndArchitecturalEdge(t *testing.T) {
+	raw := readDoc(t, "../README.md")
+	wants := []string{
+		"# Gormes",
+		"7.9 MB static binary",
+		"Go 1.22+",
+		"Zero-dependencies inside the process boundary",
+		"./bin/gormes doctor --offline",
+		"Route-B reconnect",
+		"16 ms coalescing mailbox",
+		"[Why Gormes](docs/content/why-gormes.md)",
+		"[Phase 2.A — Tool Registry](docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)",
+		"[Phase 2.B.1 — Telegram Scout](docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)",
+	}
+	for _, want := range wants {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("README is missing %q", want)
+		}
+	}
+}
+
 func readDoc(t *testing.T, rel string) string {
 	t.Helper()
 
