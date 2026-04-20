@@ -6,6 +6,7 @@ package kernel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -179,8 +180,12 @@ func (k *Kernel) runTurn(ctx context.Context, text string) {
 
 	// 2. Persist user turn with hard 250ms ack deadline (spec §7.8 store row).
 	storeCtx, storeCancel := context.WithTimeout(ctx, StoreAckDeadline)
-	payload := []byte(fmt.Sprintf(`{"text":%q}`, text))
-	_, err := k.store.Exec(storeCtx, store.Command{Kind: store.AppendUserTurn, Payload: payload})
+	userPayload, _ := json.Marshal(map[string]any{
+		"session_id": k.sessionID,
+		"content":    text,
+		"ts_unix":    time.Now().Unix(),
+	})
+	_, err := k.store.Exec(storeCtx, store.Command{Kind: store.AppendUserTurn, Payload: userPayload})
 	storeCancel()
 	if err != nil {
 		k.phase = PhaseFailed
@@ -390,6 +395,17 @@ toolLoop:
 		k.emitFrame("cancelled")
 	} else if k.draft != "" {
 		k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})
+		// Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
+		// handles I/O off the hot path. 250ms context bound kept as a safety net
+		// in case someone injects a synchronous store in the future.
+		finalPayload, _ := json.Marshal(map[string]any{
+			"session_id": k.sessionID,
+			"content":    k.draft,
+			"ts_unix":    time.Now().Unix(),
+		})
+		finalCtx, finalCancel := context.WithTimeout(ctx, StoreAckDeadline)
+		_, _ = k.store.Exec(finalCtx, store.Command{Kind: store.FinalizeAssistantTurn, Payload: finalPayload})
+		finalCancel()
 	}
 
 	prov.LogDone(k.log)
