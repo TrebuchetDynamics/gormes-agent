@@ -1,0 +1,80 @@
+name: Deploy docs.gormes.ai
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gormes/docs/**'
+      - '.github/workflows/deploy-gormes-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gormes-docs-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'TrebuchetDynamics/gormes-agent'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive  # in case a Hugo theme is added later
+
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.140.0'
+          extended: true
+
+      - name: Build Hugo site
+        working-directory: gormes/docs
+        run: hugo --minify
+
+      - name: Verify build artifacts
+        working-directory: gormes/docs
+        run: test -f public/index.html
+
+      # Idempotent: succeeds first time, "already exists" thereafter.
+      - name: Ensure Pages project exists
+        uses: cloudflare/wrangler-action@v3
+        continue-on-error: true
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create gormes-docs --production-branch=main
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy gormes/docs/public --project-name=gormes-docs --branch=main --commit-dirty=true
+
+      - name: Attach docs.gormes.ai
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -u
+          domain=docs.gormes.ai
+          echo "→ attaching ${domain}"
+          response=$(curl -sS -o /tmp/cf-resp.json -w "%{http_code}" -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/gormes-docs/domains" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"${domain}\"}")
+          case "$response" in
+            200|201)
+              echo "  ✓ attached"
+              ;;
+            409|400)
+              echo "  • already attached (status $response) — skipping"
+              ;;
+            *)
+              echo "  ✗ unexpected status $response"
+              cat /tmp/cf-resp.json
+              ;;
+          esac
