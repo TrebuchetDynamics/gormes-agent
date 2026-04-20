@@ -240,3 +240,42 @@ func TestExtractor_EmptyResultStillMarksExtracted(t *testing.T) {
 		t.Errorf("empty-result batch not marked extracted=1")
 	}
 }
+
+func TestExtractor_DeadLettersAfterMaxAttempts(t *testing.T) {
+	s, e, llm := openExtractor(t, ExtractorConfig{
+		PollInterval: 20 * time.Millisecond,
+		BatchSize:    1,
+		MaxAttempts:  3,
+		CallTimeout:  500 * time.Millisecond,
+	})
+
+	seedTurns(t, s, "doomed turn")
+	// Always-malformed LLM output.
+	for i := 0; i < 5; i++ {
+		llm.script("not json", nil)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go e.Run(ctx)
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		var extracted int
+		_ = s.db.QueryRow(`SELECT extracted FROM turns WHERE content = 'doomed turn'`).Scan(&extracted)
+		if extracted == 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	var extracted, attempts int
+	_ = s.db.QueryRow(`SELECT extracted, extraction_attempts FROM turns WHERE content = 'doomed turn'`).
+		Scan(&extracted, &attempts)
+	if extracted != 2 {
+		t.Errorf("extracted = %d, want 2 (dead-letter)", extracted)
+	}
+	if attempts < 3 {
+		t.Errorf("attempts = %d, want >= 3", attempts)
+	}
+}

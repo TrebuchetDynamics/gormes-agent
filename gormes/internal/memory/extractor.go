@@ -131,7 +131,7 @@ func (e *Extractor) loopOnce(ctx context.Context) {
 	raw, err := e.callLLM(callCtx, batch)
 	if err != nil {
 		e.log.Warn("extractor: LLM call failed", "turn_ids", ids, "err", err)
-		_ = incrementAttempts(ctx, e.store.db, ids, err.Error())
+		e.recordFailure(ctx, ids, err.Error())
 		return
 	}
 
@@ -143,7 +143,7 @@ func (e *Extractor) loopOnce(ctx context.Context) {
 		}
 		e.log.Warn("extractor: malformed JSON",
 			"turn_ids", ids, "preview", preview, "err", err)
-		_ = incrementAttempts(ctx, e.store.db, ids, "malformed JSON: "+err.Error())
+		e.recordFailure(ctx, ids, "malformed JSON: "+err.Error())
 		return
 	}
 
@@ -152,7 +152,7 @@ func (e *Extractor) loopOnce(ctx context.Context) {
 	if err := writeGraphBatch(ctx, e.store.db, validated, ids); err != nil {
 		e.log.Warn("extractor: graph write failed",
 			"turn_ids", ids, "err", err)
-		_ = incrementAttempts(ctx, e.store.db, ids, err.Error())
+		e.recordFailure(ctx, ids, err.Error())
 		return
 	}
 
@@ -183,6 +183,43 @@ func (e *Extractor) pollBatch(ctx context.Context) ([]turnRow, error) {
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+// recordFailure increments extraction_attempts (with errMsg) and, if any
+// turn has reached MaxAttempts, flips those turns to extracted=2 (dead-
+// letter) so the polling query skips them permanently.
+func (e *Extractor) recordFailure(ctx context.Context, ids []int64, errMsg string) {
+	if len(ids) == 0 {
+		return
+	}
+	if err := incrementAttempts(ctx, e.store.db, ids, errMsg); err != nil {
+		e.log.Warn("extractor: incrementAttempts failed", "err", err)
+		return
+	}
+	placeholders, idArgs := inListArgs(ids)
+	q := "SELECT id FROM turns WHERE extraction_attempts >= ? AND extracted = 0 AND id IN (" + placeholders + ")"
+	args := append([]any{e.cfg.MaxAttempts}, idArgs...)
+	rows, err := e.store.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		e.log.Warn("extractor: dead-letter scan failed", "err", err)
+		return
+	}
+	defer rows.Close()
+	var dead []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err == nil {
+			dead = append(dead, id)
+		}
+	}
+	if len(dead) > 0 {
+		if err := markDeadLetter(ctx, e.store.db, dead, errMsg); err != nil {
+			e.log.Warn("extractor: markDeadLetter failed", "err", err)
+			return
+		}
+		e.log.Error("extractor: dead-lettered after max attempts",
+			"turn_ids", dead, "max_attempts", e.cfg.MaxAttempts, "err", errMsg)
+	}
 }
 
 // callLLM sends the extractor prompt to the hermes.Client and collects
