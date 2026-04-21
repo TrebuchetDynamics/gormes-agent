@@ -82,6 +82,32 @@ func (s Subphase) DerivedStatus() Status {
 	}
 }
 
+// DerivedStatus computes phase status from subphases. Empty phase -> planned.
+func (ph Phase) DerivedStatus() Status {
+	if len(ph.Subphases) == 0 {
+		return StatusPlanned
+	}
+	allComplete := true
+	anyStarted := false
+	for _, sp := range ph.Subphases {
+		st := sp.DerivedStatus()
+		if st != StatusComplete {
+			allComplete = false
+		}
+		if st == StatusComplete || st == StatusInProgress {
+			anyStarted = true
+		}
+	}
+	switch {
+	case allComplete:
+		return StatusComplete
+	case anyStarted:
+		return StatusInProgress
+	default:
+		return StatusPlanned
+	}
+}
+
 // Load reads and parses progress.json from the given path.
 func Load(path string) (*Progress, error) {
 	b, err := os.ReadFile(path)

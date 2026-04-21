@@ -51,3 +51,49 @@ func TestSubphase_DerivedStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestPhase_DerivedStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		ph   Phase
+		want Status
+	}{
+		{
+			name: "all subphases complete",
+			ph: Phase{Subphases: map[string]Subphase{
+				"A": {Items: []Item{{Status: StatusComplete}}},
+				"B": {Status: StatusComplete},
+			}},
+			want: StatusComplete,
+		},
+		{
+			name: "mix of complete and planned",
+			ph: Phase{Subphases: map[string]Subphase{
+				"A": {Items: []Item{{Status: StatusComplete}}},
+				"B": {Status: StatusPlanned},
+			}},
+			want: StatusInProgress,
+		},
+		{
+			name: "all planned",
+			ph: Phase{Subphases: map[string]Subphase{
+				"A": {Status: StatusPlanned},
+				"B": {Status: StatusPlanned},
+			}},
+			want: StatusPlanned,
+		},
+		{
+			name: "no subphases",
+			ph:   Phase{Subphases: map[string]Subphase{}},
+			want: StatusPlanned,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.ph.DerivedStatus()
+			if got != tc.want {
+				t.Errorf("DerivedStatus() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
