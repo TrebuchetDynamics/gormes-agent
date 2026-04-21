@@ -48,8 +48,23 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
 		t.Errorf("Phase 2 = %q, want in_progress", got)
 	}
+	// Phase 3 has most memory subphases shipped, 3.E.* planned -> in_progress.
+	if got := p.Phases["3"].DerivedStatus(); got != StatusInProgress {
+		t.Errorf("Phase 3 = %q, want in_progress", got)
+	}
 	// Phase 4 is entirely planned.
 	if got := p.Phases["4"].DerivedStatus(); got != StatusPlanned {
 		t.Errorf("Phase 4 = %q, want planned", got)
+	}
+	// Floor counts — catches mass-deletion regressions without pinning exact values.
+	if n := len(p.Phases); n < 6 {
+		t.Errorf("phase count = %d, want >= 6", n)
+	}
+	s := p.Stats()
+	if s.Subphases.Total < 50 {
+		t.Errorf("subphase total = %d, want >= 50", s.Subphases.Total)
+	}
+	if s.Items.Total < 100 {
+		t.Errorf("item total = %d, want >= 100", s.Items.Total)
 	}
 }
