@@ -1,0 +1,50 @@
+package main
+
+import (
+	"testing"
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/subagent"
+)
+
+func TestRegisterDelegation_DisabledLeavesRegistryUnchanged(t *testing.T) {
+	reg := buildDefaultRegistry()
+	before := len(reg.Descriptors())
+
+	registerDelegation(config.Config{}, reg, hermes.NewMockClient())
+
+	after := len(reg.Descriptors())
+	if after != before {
+		t.Fatalf("registry size = %d, want %d", after, before)
+	}
+	if _, ok := reg.Get("delegate_task"); ok {
+		t.Fatal("delegate_task should not be registered when delegation is disabled")
+	}
+}
+
+func TestRegisterDelegation_EnabledRegistersTool(t *testing.T) {
+	reg := buildDefaultRegistry()
+
+	cfg := config.Config{
+		Hermes: config.HermesCfg{Model: "hermes-agent"},
+		Delegation: config.DelegationCfg{
+			Enabled:              true,
+			DefaultMaxIterations: 8,
+			DefaultTimeout:       45 * time.Second,
+			MaxChildDepth:        1,
+			RunLogPath:           t.TempDir() + "/runs.jsonl",
+		},
+	}
+
+	registerDelegation(cfg, reg, hermes.NewMockClient())
+
+	tool, ok := reg.Get("delegate_task")
+	if !ok {
+		t.Fatal("delegate_task was not registered")
+	}
+	if _, ok := tool.(*subagent.DelegateTool); !ok {
+		t.Fatalf("tool type = %T, want *subagent.DelegateTool", tool)
+	}
+}
