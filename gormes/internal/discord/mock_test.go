@@ -1,10 +1,22 @@
 package discord
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 )
+
+type sendCall struct {
+	channelID string
+	text      string
+}
+
+type editCall struct {
+	channelID string
+	messageID string
+	text      string
+}
 
 type mockClient struct {
 	mu          sync.Mutex
@@ -12,9 +24,17 @@ type mockClient struct {
 	handler     func(InboundMessage)
 	nextMessage int
 	texts       []string
+	sends       []sendCall
+	edits       []editCall
 	typingCalls int
 	opened      bool
 	closed      bool
+
+	SendErr error
+	EditErr error
+
+	SendFn func(channelID, text string) (string, error)
+	EditFn func(channelID, messageID, text string) error
 }
 
 var _ Client = (*mockClient)(nil)
@@ -50,19 +70,38 @@ func (m *mockClient) SetMessageHandler(handler func(InboundMessage)) {
 	m.mu.Unlock()
 }
 
-func (m *mockClient) Send(_ string, text string) (string, error) {
+func (m *mockClient) Send(channelID string, text string) (string, error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	id := fmt.Sprintf("msg-%d", m.nextMessage)
 	m.nextMessage++
 	m.texts = append(m.texts, text)
+	m.sends = append(m.sends, sendCall{channelID: channelID, text: text})
+	sendFn := m.SendFn
+	sendErr := m.SendErr
+	m.mu.Unlock()
+
+	if sendFn != nil {
+		return sendFn(channelID, text)
+	}
+	if sendErr != nil {
+		return "", sendErr
+	}
 	return id, nil
 }
 
-func (m *mockClient) Edit(_ string, _ string, text string) error {
+func (m *mockClient) Edit(channelID, messageID, text string) error {
 	m.mu.Lock()
 	m.texts = append(m.texts, text)
+	m.edits = append(m.edits, editCall{channelID: channelID, messageID: messageID, text: text})
+	editFn := m.EditFn
+	editErr := m.EditErr
 	m.mu.Unlock()
+	if editFn != nil {
+		return editFn(channelID, messageID, text)
+	}
+	if editErr != nil {
+		return editErr
+	}
 	return nil
 }
 
@@ -111,4 +150,24 @@ func (m *mockClient) typingCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.typingCalls
+}
+
+func (m *mockClient) sendCalls() []sendCall {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]sendCall, len(m.sends))
+	copy(out, m.sends)
+	return out
+}
+
+func (m *mockClient) editCalls() []editCall {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]editCall, len(m.edits))
+	copy(out, m.edits)
+	return out
+}
+
+func errEditFailed() error {
+	return errors.New("edit failed")
 }

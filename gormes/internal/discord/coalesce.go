@@ -2,6 +2,8 @@ package discord
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -10,6 +12,7 @@ type coalescer struct {
 	client    Client
 	channelID string
 	window    time.Duration
+	log       *slog.Logger
 
 	mu           sync.Mutex
 	pendingText  string
@@ -27,6 +30,7 @@ func newCoalescer(client Client, window time.Duration, channelID string) *coales
 		client:    client,
 		channelID: channelID,
 		window:    window,
+		log:       slog.Default(),
 		wakeupCh:  make(chan struct{}, 1),
 	}
 }
@@ -42,7 +46,7 @@ func (c *coalescer) submit(text string) {
 	}
 }
 
-func (c *coalescer) flushImmediate(text string) {
+func (c *coalescer) flushImmediate(text string) error {
 	c.mu.Lock()
 	msgID := c.messageID
 	c.mu.Unlock()
@@ -50,7 +54,8 @@ func (c *coalescer) flushImmediate(text string) {
 	if msgID == "" {
 		newID, err := c.client.Send(c.channelID, text)
 		if err != nil {
-			return
+			c.log.Warn("discord send failed", "channel_id", c.channelID, "err", err)
+			return err
 		}
 		c.mu.Lock()
 		c.messageID = newID
@@ -58,11 +63,23 @@ func (c *coalescer) flushImmediate(text string) {
 		c.lastEditAt = time.Now()
 		c.pendingText = ""
 		c.mu.Unlock()
-		return
+		return nil
 	}
 
 	if err := c.client.Edit(c.channelID, msgID, text); err != nil {
-		return
+		c.log.Warn("discord edit failed", "channel_id", c.channelID, "message_id", msgID, "err", err)
+		newID, sendErr := c.client.Send(c.channelID, text)
+		if sendErr != nil {
+			c.log.Warn("discord fallback send failed", "channel_id", c.channelID, "err", sendErr)
+			return errors.Join(err, sendErr)
+		}
+		c.mu.Lock()
+		c.messageID = newID
+		c.lastSentText = text
+		c.lastEditAt = time.Now()
+		c.pendingText = ""
+		c.mu.Unlock()
+		return nil
 	}
 
 	c.mu.Lock()
@@ -70,6 +87,7 @@ func (c *coalescer) flushImmediate(text string) {
 	c.lastEditAt = time.Now()
 	c.pendingText = ""
 	c.mu.Unlock()
+	return nil
 }
 
 func (c *coalescer) run(ctx context.Context) {
@@ -106,6 +124,7 @@ func (c *coalescer) tryFlush() {
 	if msgID == "" {
 		newID, err := c.client.Send(c.channelID, text)
 		if err != nil {
+			c.log.Warn("discord stream send failed", "channel_id", c.channelID, "err", err)
 			return
 		}
 		c.mu.Lock()
@@ -117,6 +136,7 @@ func (c *coalescer) tryFlush() {
 	}
 
 	if err := c.client.Edit(c.channelID, msgID, text); err != nil {
+		c.log.Warn("discord stream edit failed", "channel_id", c.channelID, "message_id", msgID, "err", err)
 		return
 	}
 	c.mu.Lock()

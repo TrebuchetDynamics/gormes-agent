@@ -26,9 +26,20 @@ type Bot struct {
 	kernel *kernel.Kernel
 	log    *slog.Logger
 
-	mu              sync.Mutex
-	activeChannelID string
-	lastSID         string
+	mu         sync.Mutex
+	nextTicket uint64
+	reserved   *reservedTurn
+	current    *turnBinding
+}
+
+type reservedTurn struct {
+	ticket    uint64
+	channelID string
+}
+
+type turnBinding struct {
+	channelID string
+	lastSID   string
 }
 
 func New(cfg Config, client Client, k *kernel.Kernel, log *slog.Logger) *Bot {
@@ -87,11 +98,16 @@ func (b *Bot) handleMessage(ctx context.Context, msg InboundMessage) {
 	case text == "":
 		return
 	default:
-		if err := b.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: text}); err != nil {
+		ticket := b.reserveTurn(msg.ChannelID)
+		if ticket == 0 {
 			_, _ = b.client.Send(msg.ChannelID, "Busy - try again in a second.")
 			return
 		}
-		b.setActiveChannel(msg.ChannelID)
+		if err := b.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: text}); err != nil {
+			b.cancelReservedTurn(ticket)
+			_, _ = b.client.Send(msg.ChannelID, "Busy - try again in a second.")
+			return
+		}
 	}
 
 	_ = ctx
@@ -118,25 +134,64 @@ func (b *Bot) allowed(msg InboundMessage) bool {
 	return true
 }
 
-func (b *Bot) setActiveChannel(channelID string) {
+func (b *Bot) reserveTurn(channelID string) uint64 {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.activeChannelID != channelID {
-		b.activeChannelID = channelID
-		b.lastSID = ""
+	if channelID == "" || b.reserved != nil || b.current != nil {
+		return 0
 	}
+	b.nextTicket++
+	b.reserved = &reservedTurn{ticket: b.nextTicket, channelID: channelID}
+	return b.nextTicket
+}
+
+func (b *Bot) cancelReservedTurn(ticket uint64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.reserved != nil && b.reserved.ticket == ticket {
+		b.reserved = nil
+	}
+}
+
+func (b *Bot) bindTurnForFrame() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.current != nil {
+		return b.current.channelID
+	}
+	if b.reserved == nil {
+		return ""
+	}
+	b.current = &turnBinding{channelID: b.reserved.channelID}
+	b.reserved = nil
+	return b.current.channelID
 }
 
 func (b *Bot) clearSessionState(channelID string) {
 	b.mu.Lock()
-	if b.activeChannelID == channelID {
-		b.lastSID = ""
+	if b.current != nil && b.current.channelID == channelID {
+		b.current.lastSID = ""
 	}
 	b.mu.Unlock()
 
 	if b.cfg.SessionMap != nil {
 		_ = b.cfg.SessionMap.Put(context.Background(), SessionKey(channelID), "")
 	}
+}
+
+func (b *Bot) currentTurnChannel() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.current == nil {
+		return ""
+	}
+	return b.current.channelID
+}
+
+func (b *Bot) finishTurn() {
+	b.mu.Lock()
+	b.current = nil
+	b.mu.Unlock()
 }
 
 func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
@@ -152,6 +207,7 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 			turnCancel = nil
 		}
 		c = nil
+		b.finishTurn()
 	}
 
 	for {
@@ -165,11 +221,11 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 				return
 			}
 
-			b.persistIfChanged(ctx, f)
-			channelID := b.currentChannelID()
+			channelID := b.bindTurnForFrame()
 			if channelID == "" {
 				continue
 			}
+			b.persistIfChanged(ctx, channelID, f)
 
 			switch f.Phase {
 			case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseFinalizing, kernel.PhaseReconnecting:
@@ -178,6 +234,7 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 					turnCtx, cancel := context.WithCancel(ctx)
 					turnCancel = cancel
 					c = newCoalescer(b.client, window, channelID)
+					c.log = b.log
 					c.flushImmediate("⏳")
 					activeCoalescer := c
 					activeChannelID := channelID
@@ -195,14 +252,20 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 				c.submit(formatStream(f))
 			case kernel.PhaseIdle:
 				if c != nil {
-					c.flushImmediate(formatFinal(f))
+					if err := c.flushImmediate(formatFinal(f)); err != nil {
+						b.log.Warn("discord final delivery failed", "channel_id", channelID, "err", err)
+					}
 				}
 				stopTurn()
 			case kernel.PhaseFailed, kernel.PhaseCancelling:
 				if c != nil {
-					c.flushImmediate(formatError(f))
+					if err := c.flushImmediate(formatError(f)); err != nil {
+						b.log.Warn("discord terminal error delivery failed", "channel_id", channelID, "err", err)
+					}
 				} else {
-					_, _ = b.client.Send(channelID, formatError(f))
+					if _, err := b.client.Send(channelID, formatError(f)); err != nil {
+						b.log.Warn("discord terminal send failed", "channel_id", channelID, "err", err)
+					}
 				}
 				stopTurn()
 			}
@@ -210,18 +273,13 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-func (b *Bot) persistIfChanged(ctx context.Context, f kernel.RenderFrame) {
-	if b.cfg.SessionMap == nil {
-		return
-	}
-
-	channelID := b.currentChannelID()
-	if channelID == "" {
+func (b *Bot) persistIfChanged(ctx context.Context, channelID string, f kernel.RenderFrame) {
+	if b.cfg.SessionMap == nil || channelID == "" {
 		return
 	}
 
 	b.mu.Lock()
-	if f.SessionID == b.lastSID {
+	if b.current == nil || b.current.channelID != channelID || f.SessionID == b.current.lastSID {
 		b.mu.Unlock()
 		return
 	}
@@ -233,12 +291,8 @@ func (b *Bot) persistIfChanged(ctx context.Context, f kernel.RenderFrame) {
 	}
 
 	b.mu.Lock()
-	b.lastSID = f.SessionID
+	if b.current != nil && b.current.channelID == channelID {
+		b.current.lastSID = f.SessionID
+	}
 	b.mu.Unlock()
-}
-
-func (b *Bot) currentChannelID() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.activeChannelID
 }
