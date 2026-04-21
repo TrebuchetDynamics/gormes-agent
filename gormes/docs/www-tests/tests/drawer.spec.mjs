@@ -39,3 +39,45 @@ test('desktop >=768px does not show the hamburger', async ({ page }) => {
   const display = await btn.evaluate(el => getComputedStyle(el).display);
   expect(display).toBe('none');
 });
+
+test('mobile drawer has a close button inside and Esc closes it', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 760 });
+  await page.goto('/using-gormes/quickstart/');
+
+  await page.locator('[data-testid="drawer-open"]').click();
+  await page.waitForTimeout(250);
+
+  const closeBtn = page.locator('[data-testid="drawer-close"]');
+  await expect(closeBtn).toBeVisible();
+  await closeBtn.click();
+  await page.waitForTimeout(250);
+
+  const sidebar = page.locator('.docs-sidebar');
+  const leftAfterCloseClick = await sidebar.evaluate(el => el.getBoundingClientRect().left);
+  expect(leftAfterCloseClick).toBeLessThan(0);
+
+  // Re-open and close via Esc
+  await page.locator('[data-testid="drawer-open"]').click();
+  await page.waitForTimeout(250);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+  const leftAfterEsc = await sidebar.evaluate(el => el.getBoundingClientRect().left);
+  expect(leftAfterEsc).toBeLessThan(0);
+});
+
+test('mobile drawer auto-closes on link tap', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 760 });
+  await page.goto('/using-gormes/');
+
+  await page.locator('[data-testid="drawer-open"]').click();
+  await page.waitForTimeout(250);
+
+  // Click any nav link inside the sidebar
+  const link = page.locator('.docs-sidebar a[href]').first();
+  await link.click();
+  await page.waitForTimeout(400); // navigation + transition
+
+  const sidebar = page.locator('.docs-sidebar');
+  const left = await sidebar.evaluate(el => el.getBoundingClientRect().left);
+  expect(left).toBeLessThan(0);
+});

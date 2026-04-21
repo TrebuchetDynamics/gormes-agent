@@ -447,6 +447,9 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   .docs-home-cards { grid-template-columns: 1fr; }
 }
 
+/* Drawer header — only visible inside the mobile drawer */
+.docs-drawer-header { display: none; }
+
 /* ── Responsive — 767px drawer breakpoint ──────────── */
 @media (max-width: 767px) {
   .drawer-btn { display: inline-flex; align-items: center; }
@@ -468,7 +471,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   .docs-sidebar[data-state="open"] ~ .drawer-backdrop {
     display: block;
     position: fixed;
-    inset: var(--topbar-h) 0 0 0;
+    inset: var(--topbar-h) 0 0 min(300px, 85vw);
     background: rgba(0, 0, 0, 0.55);
     z-index: 35;
     cursor: pointer;
@@ -477,6 +480,37 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   .docs-topnav a:nth-child(1) { display: none; }
   .docs-topbar-inner { gap: 10px; }
   .docs-search { max-width: 100%; }
+
+  .docs-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 16px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .docs-drawer-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--label);
+  }
+  .docs-drawer-close {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+  }
+  .docs-drawer-close:hover { color: var(--accent); border-color: var(--accent); }
 }
 
 /* ── Responsive — 480px tight-mobile ───────────────── */

@@ -1,3 +1,14 @@
+<div class="docs-drawer-header">
+  <span class="docs-drawer-label">Navigation</span>
+  <button type="button"
+          class="docs-drawer-close"
+          data-testid="drawer-close"
+          aria-label="Close navigation">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18"/>
+    </svg>
+  </button>
+</div>
 <nav class="docs-nav" aria-label="Documentation navigation">
   {{ $sections := slice "using-gormes" "building-gormes" "upstream-hermes" }}
   {{ $toneMap := dict "using-gormes" "shipped" "building-gormes" "progress" "upstream-hermes" "next" }}
