@@ -35,7 +35,7 @@ type Handle struct {
 	result Result
 	err    error
 
-	eventPipe *eventPipe
+	events chan Event
 }
 
 // NewManager wires a runner to delegation defaults and optional JSONL logging.
@@ -67,14 +67,14 @@ func (m *Manager) Start(parent context.Context, spec Spec) (*Handle, error) {
 
 	runID := m.nextRunID()
 	runCtx, cancel := context.WithTimeout(parent, spec.Timeout)
-	eventPipe := newEventPipe(handleEventBufferSize)
+	events := make(chan Event, handleEventBufferSize)
 
 	handle := &Handle{
-		RunID:     runID,
-		Events:    eventPipe.stream(),
-		done:      make(chan struct{}),
-		cancel:    cancel,
-		eventPipe: eventPipe,
+		RunID:  runID,
+		Events: events,
+		done:   make(chan struct{}),
+		cancel: cancel,
+		events: events,
 	}
 
 	m.mu.Lock()
@@ -121,14 +121,21 @@ func (m *Manager) run(handle *Handle, runCtx context.Context, spec Spec) {
 	defer m.remove(handle.RunID)
 	defer close(handle.done)
 	defer func() {
+		if handle.events != nil {
+			close(handle.events)
+		}
 		if handle.cancel != nil {
 			handle.cancel()
 		}
 	}()
 
 	result, err := m.runner.Run(runCtx, spec, func(ev Event) {
-		if handle.eventPipe != nil {
-			handle.eventPipe.push(ev)
+		if handle.events == nil {
+			return
+		}
+		select {
+		case handle.events <- ev:
+		default:
 		}
 	})
 	finishedAt := time.Now().UTC()
@@ -154,10 +161,6 @@ func (m *Manager) run(handle *Handle, runCtx context.Context, spec Spec) {
 	handle.result = result
 	handle.err = orchErr
 	handle.mu.Unlock()
-
-	if handle.eventPipe != nil {
-		handle.eventPipe.close()
-	}
 }
 
 func (m *Manager) nextRunID() string {
@@ -204,77 +207,4 @@ func normalizeResult(ctx context.Context, result Result, runErr error) Result {
 		}
 	}
 	return result
-}
-
-type eventPipe struct {
-	out chan Event
-
-	mu     sync.Mutex
-	cond   *sync.Cond
-	closed bool
-	queue  []Event
-	head   int
-}
-
-func newEventPipe(buffer int) *eventPipe {
-	p := &eventPipe{out: make(chan Event, buffer)}
-	p.cond = sync.NewCond(&p.mu)
-	return p
-}
-
-func (p *eventPipe) stream() <-chan Event {
-	go p.pump()
-	return p.out
-}
-
-func (p *eventPipe) push(ev Event) {
-	p.mu.Lock()
-	if p.closed {
-		p.mu.Unlock()
-		return
-	}
-	p.queue = append(p.queue, ev)
-	p.cond.Signal()
-	p.mu.Unlock()
-}
-
-func (p *eventPipe) close() {
-	p.mu.Lock()
-	p.closed = true
-	p.cond.Broadcast()
-	p.mu.Unlock()
-}
-
-func (p *eventPipe) pump() {
-	defer close(p.out)
-	for {
-		ev, ok := p.next()
-		if !ok {
-			return
-		}
-		p.out <- ev
-	}
-}
-
-func (p *eventPipe) next() (Event, bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for p.head >= len(p.queue) && !p.closed {
-		p.cond.Wait()
-	}
-	if p.head >= len(p.queue) {
-		return Event{}, false
-	}
-
-	ev := p.queue[p.head]
-	p.head++
-	if p.head == len(p.queue) {
-		p.queue = nil
-		p.head = 0
-	} else if p.head > 1024 && p.head*2 >= len(p.queue) {
-		p.queue = append([]Event(nil), p.queue[p.head:]...)
-		p.head = 0
-	}
-	return ev, true
 }

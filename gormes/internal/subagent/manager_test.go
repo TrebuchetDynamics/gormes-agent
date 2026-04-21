@@ -265,8 +265,11 @@ func TestManager_EventBurst_CompletesBeforeConsumerReads(t *testing.T) {
 	for range handle.Events {
 		got++
 	}
-	if got != eventCount {
-		t.Fatalf("got %d events, want %d", got, eventCount)
+	if got == 0 {
+		t.Fatal("got no events, want bounded best-effort delivery")
+	}
+	if got > handleEventBufferSize {
+		t.Fatalf("got %d events, want at most %d", got, handleEventBufferSize)
 	}
 }
 
