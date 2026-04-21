@@ -1,15 +1,24 @@
-.PHONY: build run test test-live lint fmt clean update-readme
+.PHONY: build run test test-live lint fmt clean update-readme validate-progress generate-progress
 
 BUILD_FLAGS := -trimpath -ldflags="-s -w"
 BINARY_PATH := bin/gormes
 
-build: $(BINARY_PATH)
+build: validate-progress $(BINARY_PATH)
 	@$(call record-benchmark)
 	@$(call record-progress)
+	$(MAKE) -s generate-progress
 	@$(call update-readme)
 
 $(BINARY_PATH):
 	CGO_ENABLED=0 go build $(BUILD_FLAGS) -o $(BINARY_PATH) ./cmd/gormes
+
+validate-progress:
+	@echo "Validating progress.json..."
+	@go run ./cmd/progress-gen -validate
+
+generate-progress:
+	@echo "Regenerating progress-driven markdown..."
+	@go run ./cmd/progress-gen -write
 
 define record-benchmark
 	@echo "Recording benchmark..."
