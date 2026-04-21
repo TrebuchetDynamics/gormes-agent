@@ -10,6 +10,18 @@ Chat with Hermes from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Ho
 
 For the full voice feature set — including CLI microphone mode, spoken replies in messaging, and Discord voice-channel conversations — see [Voice Mode](../features/voice-mode) and [Use Voice Mode with Hermes](../../guides/use-voice-mode-with-hermes).
 
+## Porting Lens
+
+For Gormes, messaging is not just a list of adapters. Each page here represents a reusable integration pattern that may need a dedicated Go port:
+
+- bot SDK adapter
+- webhook adapter
+- HTTP callback adapter
+- OpenAI-compatible frontend surface
+- bridge-to-local-service adapter
+
+The table below captures the primary upstream method used for each messaging surface so port planning can focus on the real transport boundary, not just the platform name.
+
 ## Platform Comparison
 
 | Platform | Voice | Images | Files | Threads | Reactions | Typing | Streaming |
@@ -33,6 +45,42 @@ For the full voice feature set — including CLI microphone mode, spoken replies
 | QQ | ✅ | ✅ | ✅ | — | — | ✅ | — |
 
 **Voice** = TTS audio replies and/or voice message transcription. **Images** = send/receive images. **Files** = send/receive file attachments. **Threads** = threaded conversations. **Reactions** = emoji reactions on messages. **Typing** = typing indicator while processing. **Streaming** = progressive message updates via editing.
+
+## Adapter Inventory for Go Porting
+
+| Surface | Method used upstream | Porting implication for Gormes |
+|---|---|---|
+| [Telegram](./telegram/) | Telegram Bot API adapter with long polling or webhook delivery | Strong reference adapter for chat, edits, attachments, and threads |
+| [Discord](./discord/) | Discord bot SDK adapter with text and voice-channel features | Split text adapter from voice runtime if porting incrementally |
+| [Slack](./slack/) | Slack Socket Mode adapter over Slack APIs | Preserve event normalization and threaded reply model |
+| [WhatsApp](./whatsapp/) | WhatsApp Business Cloud API adapter | Treat as a remote HTTP integration with media support |
+| [Signal](./signal/) | Signal integration through `signal-cli` REST bridge | Bridge pattern, not native SDK parity |
+| [SMS (Twilio)](./sms/) | Twilio messaging adapter | Narrow transport surface, useful as a minimal delivery adapter |
+| [Email](./email/) | IMAP and SMTP based adapter | Port inbound polling and outbound delivery separately |
+| [Home Assistant](./homeassistant/) | Home Assistant conversation integration | Not a generic messenger; more of a home-automation endpoint |
+| [Mattermost](./mattermost/) | Mattermost WebSocket or bot API adapter | Similar shape to Slack, but different auth and event details |
+| [Matrix](./matrix/) | Matrix adapter via a mautrix-style client, optionally with E2EE | Treat as a richer event system with attachment support |
+| [DingTalk](./dingtalk/) | DingTalk bot or WebSocket adapter | Enterprise chat integration with its own event and auth model |
+| [Feishu / Lark](./feishu/) | Feishu/Lark WebSocket or webhook adapter | Enterprise adapter with strong thread and file semantics |
+| [WeCom](./wecom/) | Enterprise WeChat adapter | Different from personal Weixin; keep enterprise auth separate |
+| [WeCom Callback](./wecom-callback/) | Self-built app callback receiver | HTTP callback pattern rather than a persistent bot loop |
+| [Weixin (WeChat)](./weixin/) | Personal WeChat bridge through iLink Bot API | Third-party bridge pattern, not official bot API parity |
+| [BlueBubbles (iMessage)](./bluebubbles/) | BlueBubbles macOS server bridge | Local companion-service bridge, not direct platform access |
+| [QQ Bot](./qqbot/) | Tencent QQ official bot API adapter | Platform-specific official bot transport |
+| [Webhooks](./webhooks/) | Generic inbound and outbound webhook adapter | Reusable pattern for light integrations and automation |
+| [Open WebUI](./open-webui/) | OpenAI-compatible frontend talking to the Hermes API server | Frontend surface riding on API compatibility, not a chat adapter |
+
+## Method Families
+
+Most of the messaging pages collapse into a few porting families:
+
+- **Direct bot SDK/API adapters** — Telegram, Discord, Slack, Mattermost, QQ
+- **Enterprise messaging adapters** — DingTalk, Feishu/Lark, WeCom
+- **Bridge adapters** — Signal, Weixin, BlueBubbles
+- **Generic transport surfaces** — Webhooks, Open WebUI, API-server-based consumers
+- **Non-chat endpoints** — Home Assistant, Email, SMS
+
+That grouping is usually more useful for Go port planning than platform-by-platform docs alone.
 
 ## Architecture
 

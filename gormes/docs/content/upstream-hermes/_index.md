@@ -9,6 +9,15 @@ weight: 300
 
 The content below is preserved verbatim from the upstream docs so operators evaluating Gormes can see the full Hermes stack in context. Anything that lands in native Go graduates out of this section into [Using Gormes](../using-gormes/).
 
+## Porting Lens
+
+Because Gormes is porting Hermes to Go, this section is also the upstream capability ledger:
+
+- [Features Overview](./user-guide/features/overview/) now enumerates the full upstream feature surface and the primary method Hermes uses to implement each feature.
+- [Messaging Gateway](./user-guide/messaging/) now enumerates each adapter and the transport or SDK pattern it uses upstream.
+
+In both pages, **method used** means the dominant upstream implementation mechanism or integration pattern. It is there to help Go port planning, not to force a line-by-line Python clone.
+
 ## Sections
 
 - **Guides** — task-oriented how-tos
