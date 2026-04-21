@@ -241,3 +241,36 @@ func TestManagerInterruptIsIdempotent(t *testing.T) {
 		t.Errorf("second Interrupt: want ErrSubagentNotFound, got %v", err)
 	}
 }
+
+func TestManagerParentCtxCancellationCascades(t *testing.T) {
+	parentCtx, cancelParent := context.WithCancel(context.Background())
+	mgr := NewManager(ManagerOpts{
+		ParentCtx: parentCtx,
+		ParentID:  "parent_test",
+		Depth:     0,
+		Registry:  NewRegistry(),
+		NewRunner: func() Runner { return blockingRunner{} },
+	})
+
+	const n = 3
+	subs := make([]*Subagent, n)
+	for i := 0; i < n; i++ {
+		sa, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "blocked"})
+		if err != nil {
+			t.Fatalf("Spawn[%d]: %v", i, err)
+		}
+		subs[i] = sa
+	}
+
+	cancelParent()
+
+	for i, sa := range subs {
+		result, err := sa.WaitForResult(context.Background())
+		if err != nil {
+			t.Fatalf("WaitForResult[%d]: %v", i, err)
+		}
+		if result.Status != StatusInterrupted {
+			t.Errorf("subagent %d Status: want %q, got %q", i, StatusInterrupted, result.Status)
+		}
+	}
+}
