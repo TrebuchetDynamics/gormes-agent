@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
@@ -11,6 +12,10 @@ import (
 
 func registerDelegation(cfg config.Config, reg *tools.Registry, hc hermes.Client) *subagent.Manager {
 	if reg == nil || !cfg.Delegation.Enabled {
+		return nil
+	}
+	if err := subagent.ValidateDelegateTimeout(cfg.Delegation.DefaultTimeout, "delegation default timeout"); err != nil {
+		slog.Warn("delegate_task registration skipped: default timeout is outside the budget", "err", err, "default_timeout", cfg.Delegation.DefaultTimeout, "budget", 2*time.Minute-10*time.Second)
 		return nil
 	}
 

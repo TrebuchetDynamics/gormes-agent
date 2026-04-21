@@ -75,7 +75,7 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		}
 		spec.Timeout = t.mgr.cfg.DefaultTimeout
 	}
-	if err := validateDelegateTimeout(spec.Timeout, timeoutSource); err != nil {
+	if err := ValidateDelegateTimeout(spec.Timeout, timeoutSource); err != nil {
 		return nil, err
 	}
 
@@ -111,7 +111,7 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	return raw, nil
 }
 
-func validateDelegateTimeout(timeout time.Duration, source string) error {
+func ValidateDelegateTimeout(timeout time.Duration, source string) error {
 	if timeout <= 0 {
 		return fmt.Errorf("subagent: %s must be positive", source)
 	}
