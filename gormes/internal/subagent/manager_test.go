@@ -193,7 +193,7 @@ func TestManager_Timeout_ReturnsTimedOutResult(t *testing.T) {
 	}
 }
 
-func TestManager_LogAppendFailure_ReturnsOrchestrationError(t *testing.T) {
+func TestManager_LogAppendFailure_PreservesResultError(t *testing.T) {
 	cfg := config.DelegationCfg{
 		DefaultMaxIterations: 4,
 		DefaultTimeout:       time.Second,
@@ -210,14 +210,60 @@ func TestManager_LogAppendFailure_ReturnsOrchestrationError(t *testing.T) {
 	}
 
 	res, err := handle.Wait(context.Background())
-	if err == nil {
-		t.Fatal("Wait error = nil, want logging failure")
+	if err != nil {
+		t.Fatalf("Wait error = %v, want nil", err)
 	}
 	if res.Status != StatusCompleted {
 		t.Fatalf("Status = %q, want completed", res.Status)
 	}
 	if res.RunID == "" {
 		t.Fatal("RunID must be populated")
+	}
+	if res.Error == "" {
+		t.Fatal("Result.Error must contain the logging failure")
+	}
+}
+
+func TestManager_Wait_ReturnsContextErrorWhenWaitCtxCanceled(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	blocked := make(chan struct{})
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		<-blocked
+		return Result{Status: StatusCompleted, Summary: "late"}, nil
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "wait ctx cancel"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	waitCtx, cancelWait := context.WithCancel(context.Background())
+	cancelWait()
+
+	res, err := handle.Wait(waitCtx)
+	if err == nil {
+		t.Fatal("Wait error = nil, want context cancellation")
+	}
+	if res.RunID != handle.RunID {
+		t.Fatalf("RunID = %q, want %q", res.RunID, handle.RunID)
+	}
+
+	close(blocked)
+
+	waitDone := make(chan struct{})
+	go func() {
+		_, _ = handle.Wait(context.Background())
+		close(waitDone)
+	}()
+	select {
+	case <-waitDone:
+	case <-time.After(time.Second):
+		t.Fatal("run did not finish after unblocking")
 	}
 }
 

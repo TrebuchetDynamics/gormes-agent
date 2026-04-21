@@ -86,14 +86,7 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 
 	result, waitErr := handle.Wait(ctx)
 	if waitErr != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, fmt.Errorf("subagent: wait child: %w", waitErr)
-		}
-		if result.Error == "" {
-			result.Error = waitErr.Error()
-		} else if result.Error != waitErr.Error() {
-			result.Error = result.Error + "; orchestration error: " + waitErr.Error()
-		}
+		return nil, fmt.Errorf("subagent: wait child: %w", waitErr)
 	}
 
 	out := struct {

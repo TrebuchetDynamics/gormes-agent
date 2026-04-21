@@ -118,7 +118,7 @@ func TestDelegateTool_TimeoutIsTwoMinutes(t *testing.T) {
 	}
 }
 
-func TestDelegateTool_ExecutePreservesStructuredOutputWhenWaitFails(t *testing.T) {
+func TestDelegateTool_ExecutePreservesStructuredOutputWhenBookkeepingFails(t *testing.T) {
 	mgr := NewManager(config.DelegationCfg{
 		DefaultMaxIterations: 8,
 		DefaultTimeout:       45 * time.Second,
@@ -150,7 +150,40 @@ func TestDelegateTool_ExecutePreservesStructuredOutputWhenWaitFails(t *testing.T
 		t.Fatalf("Status = %q, want completed", got.Status)
 	}
 	if got.Error == "" {
-		t.Fatal("Error field must be populated when wait fails")
+		t.Fatal("Error field must be populated when bookkeeping fails")
+	}
+}
+
+func TestDelegateTool_ExecuteReturnsErrorWhenParentContextIsCanceled(t *testing.T) {
+	release := make(chan struct{})
+	finished := make(chan struct{})
+	mgr := NewManager(config.DelegationCfg{
+		DefaultMaxIterations: 8,
+		DefaultTimeout:       45 * time.Second,
+		MaxChildDepth:        1,
+	}, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		<-release
+		<-ctx.Done()
+		close(finished)
+		return Result{}, ctx.Err()
+	}), t.TempDir()+"/runs.jsonl")
+
+	tool := NewDelegateTool(mgr)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := tool.Execute(ctx, json.RawMessage(`{"goal":" investigate "}`))
+	if err == nil {
+		t.Fatal("Execute error = nil, want parent-context cancellation")
+	}
+
+	close(release)
+
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("runner did not exit after cancellation was released")
 	}
 }
 

@@ -155,11 +155,16 @@ func (m *Manager) run(handle *Handle, runCtx context.Context, spec Spec) {
 		FinishedAt:   finishedAt,
 	}); err != nil {
 		orchErr = fmt.Errorf("subagent: append run log: %w", err)
+		if result.Error == "" {
+			result.Error = orchErr.Error()
+		} else {
+			result.Error = result.Error + "; bookkeeping error: " + orchErr.Error()
+		}
 	}
 
 	handle.mu.Lock()
 	handle.result = result
-	handle.err = orchErr
+	handle.err = nil
 	handle.mu.Unlock()
 }
 
