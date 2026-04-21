@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
 func TestLoad_BuiltinDefaults(t *testing.T) {
@@ -273,6 +275,36 @@ func TestLoad_ConfigVersionMissingInFileTreatedAsV1(t *testing.T) {
 	}
 	if cfg.Hermes.Endpoint != "http://1.2.3.4:5678" {
 		t.Errorf("Endpoint = %q, want the file value", cfg.Hermes.Endpoint)
+	}
+}
+
+func TestDelegationCfgDecode(t *testing.T) {
+	const tomlText = `
+[delegation]
+enabled                 = true
+max_depth               = 2
+max_concurrent_children = 3
+default_max_iterations  = 50
+	default_timeout         = "1h"
+`
+	var cfg Config
+	if err := toml.NewDecoder(strings.NewReader(tomlText)).EnableUnmarshalerInterface().Decode(&cfg); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if !cfg.Delegation.Enabled {
+		t.Errorf("Enabled: want true, got false")
+	}
+	if cfg.Delegation.MaxDepth != 2 {
+		t.Errorf("MaxDepth: want 2, got %d", cfg.Delegation.MaxDepth)
+	}
+	if cfg.Delegation.MaxConcurrentChildren != 3 {
+		t.Errorf("MaxConcurrentChildren: want 3, got %d", cfg.Delegation.MaxConcurrentChildren)
+	}
+	if cfg.Delegation.DefaultMaxIterations != 50 {
+		t.Errorf("DefaultMaxIterations: want 50, got %d", cfg.Delegation.DefaultMaxIterations)
+	}
+	if cfg.Delegation.DefaultTimeout != time.Hour {
+		t.Errorf("DefaultTimeout: want 1h, got %v", cfg.Delegation.DefaultTimeout)
 	}
 }
 

@@ -2,6 +2,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ type Config struct {
 	Input    InputCfg    `toml:"input"`
 	Telegram TelegramCfg `toml:"telegram"`
 	Cron     CronCfg     `toml:"cron"`
+	Delegation DelegationCfg `toml:"delegation"`
 	// Resume is set only via the --resume CLI flag; intentionally not
 	// a TOML field. Empty means "use whatever internal/session had
 	// persisted for this binary's default key."
@@ -79,6 +81,47 @@ type CronCfg struct {
 	CallTimeout    time.Duration `toml:"call_timeout"`
 	MirrorInterval time.Duration `toml:"mirror_interval"`
 	MirrorPath     string        `toml:"mirror_path"`
+}
+
+// DelegationCfg configures Phase 2.E subagent execution.
+type DelegationCfg struct {
+	Enabled               bool          `toml:"enabled"`
+	MaxDepth              int           `toml:"max_depth"`
+	MaxConcurrentChildren int           `toml:"max_concurrent_children"`
+	DefaultMaxIterations  int           `toml:"default_max_iterations"`
+	DefaultTimeout        time.Duration `toml:"default_timeout"`
+}
+
+func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
+	type rawDelegationCfg struct {
+		Enabled               bool   `toml:"enabled"`
+		MaxDepth              int    `toml:"max_depth"`
+		MaxConcurrentChildren int    `toml:"max_concurrent_children"`
+		DefaultMaxIterations  int    `toml:"default_max_iterations"`
+		DefaultTimeout        string `toml:"default_timeout"`
+	}
+
+	var raw rawDelegationCfg
+	if err := toml.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*d = DelegationCfg{
+		Enabled:               raw.Enabled,
+		MaxDepth:              raw.MaxDepth,
+		MaxConcurrentChildren: raw.MaxConcurrentChildren,
+		DefaultMaxIterations:  raw.DefaultMaxIterations,
+	}
+	if raw.DefaultTimeout == "" {
+		return nil
+	}
+
+	dur, err := time.ParseDuration(raw.DefaultTimeout)
+	if err != nil {
+		return fmt.Errorf("delegation.default_timeout: %w", err)
+	}
+	d.DefaultTimeout = dur
+	return nil
 }
 
 type HermesCfg struct {
@@ -169,7 +212,7 @@ func loadFile(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
-	if err := toml.Unmarshal(data, cfg); err != nil {
+	if err := toml.NewDecoder(bytes.NewReader(data)).EnableUnmarshalerInterface().Decode(cfg); err != nil {
 		return err
 	}
 	// Absent _config_version in TOML = treat as v1 (pre-versioning files).
