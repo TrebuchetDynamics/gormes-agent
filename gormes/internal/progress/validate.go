@@ -3,7 +3,6 @@ package progress
 import (
 	"errors"
 	"fmt"
-	"sort"
 )
 
 // Validate enforces schema invariants. All violations are reported,
@@ -15,9 +14,9 @@ func Validate(p *Progress) error {
 		return fmt.Errorf("progress: meta.version = %q, want %q", p.Meta.Version, "2.0")
 	}
 	var errs []error
-	for _, phKey := range sortedPhaseKeys(p.Phases) {
+	for _, phKey := range sortedMapKeys(p.Phases) {
 		ph := p.Phases[phKey]
-		for _, spKey := range sortedSubphaseKeys(ph.Subphases) {
+		for _, spKey := range sortedMapKeys(ph.Subphases) {
 			sp := ph.Subphases[spKey]
 			hasItems := len(sp.Items) > 0
 			hasStatus := sp.Status != ""
@@ -41,22 +40,4 @@ func Validate(p *Progress) error {
 
 func validStatus(s Status) bool {
 	return s == StatusComplete || s == StatusInProgress || s == StatusPlanned
-}
-
-func sortedPhaseKeys(m map[string]Phase) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func sortedSubphaseKeys(m map[string]Subphase) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }

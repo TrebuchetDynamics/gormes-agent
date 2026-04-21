@@ -97,3 +97,39 @@ func TestRenderDocsChecklist_ItemCheckboxes(t *testing.T) {
 		t.Errorf("checklist missing subphase header; got:\n%s", got)
 	}
 }
+
+func TestRenderDocsChecklist_EmptyItemsFallback(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{
+			"5": {Name: "P5", Subphases: map[string]Subphase{
+				"5.A": {Name: "Later", Status: StatusPlanned},
+			}},
+		},
+	}
+	got := RenderDocsChecklist(p)
+	if !strings.Contains(got, "no item breakdown") {
+		t.Errorf("missing fallback line; got:\n%s", got)
+	}
+	if !strings.Contains(got, "tracked at subphase level: planned") {
+		t.Errorf("fallback missing status echo; got:\n%s", got)
+	}
+}
+
+func TestRenderDocsChecklist_EmptyItemsBlankStatus(t *testing.T) {
+	// If Validate is bypassed and a subphase has neither items nor status,
+	// the renderer must not emit a dangling blank. This guards against
+	// silent UI corruption if the invariant is ever violated.
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{
+			"5": {Name: "P5", Subphases: map[string]Subphase{
+				"5.A": {Name: "Later"}, // no items, no status
+			}},
+		},
+	}
+	got := RenderDocsChecklist(p)
+	if !strings.Contains(got, "tracked at subphase level: unspecified") {
+		t.Errorf("missing unspecified fallback; got:\n%s", got)
+	}
+}
