@@ -11,6 +11,12 @@ import (
 
 var _ tools.Tool = (*DelegateTool)(nil)
 
+const (
+	delegateToolKernelTimeout       = 2 * time.Minute
+	delegateToolTimeoutSafetyBuffer = 10 * time.Second
+	delegateToolMaxChildTimeout     = delegateToolKernelTimeout - delegateToolTimeoutSafetyBuffer
+)
+
 type DelegateTool struct {
 	mgr *Manager
 }
@@ -26,10 +32,11 @@ func (*DelegateTool) Description() string {
 }
 
 func (*DelegateTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"goal":{"type":"string","description":"task for the child subagent"},"context":{"type":"string","description":"scoped context for the child"},"model":{"type":"string","description":"optional model override"},"max_iterations":{"type":"integer","minimum":1,"description":"maximum child iterations"},"timeout_seconds":{"type":"integer","minimum":1,"description":"child timeout in seconds"},"allowed_tools":{"type":"array","items":{"type":"string"},"description":"tool names the child may use"}},"required":["goal"],"additionalProperties":false}`)
+	return json.RawMessage(fmt.Sprintf(`{"type":"object","properties":{"goal":{"type":"string","description":"task for the child subagent"},"context":{"type":"string","description":"scoped context for the child"},"model":{"type":"string","description":"optional model override"},"max_iterations":{"type":"integer","minimum":1,"description":"maximum child iterations"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":%d,"description":"child timeout in seconds; must stay within the delegate_task tool budget"},"allowed_tools":{"type":"array","items":{"type":"string"},"description":"tool names the child may use"}},"required":["goal"],"additionalProperties":false}`,
+		delegateToolMaxChildTimeout/time.Second))
 }
 
-func (*DelegateTool) Timeout() time.Duration { return 2 * time.Minute }
+func (*DelegateTool) Timeout() time.Duration { return delegateToolKernelTimeout }
 
 func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	if t == nil || t.mgr == nil {
@@ -41,7 +48,7 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		Context        string   `json:"context"`
 		Model          string   `json:"model"`
 		MaxIterations  int      `json:"max_iterations"`
-		TimeoutSeconds int      `json:"timeout_seconds"`
+		TimeoutSeconds *int     `json:"timeout_seconds"`
 		AllowedTools   []string `json:"allowed_tools"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
@@ -54,7 +61,22 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		Model:         in.Model,
 		AllowedTools:  append([]string(nil), in.AllowedTools...),
 		MaxIterations: in.MaxIterations,
-		Timeout:       time.Duration(in.TimeoutSeconds) * time.Second,
+	}
+	timeoutSource := "delegation default timeout"
+	if in.TimeoutSeconds != nil {
+		if *in.TimeoutSeconds <= 0 {
+			return nil, fmt.Errorf("subagent: timeout_seconds must be positive")
+		}
+		spec.Timeout = time.Duration(*in.TimeoutSeconds) * time.Second
+		timeoutSource = "timeout_seconds"
+	} else {
+		if t == nil || t.mgr == nil {
+			return nil, fmt.Errorf("subagent: nil delegate manager")
+		}
+		spec.Timeout = t.mgr.cfg.DefaultTimeout
+	}
+	if err := validateDelegateTimeout(spec.Timeout, timeoutSource); err != nil {
+		return nil, err
 	}
 
 	handle, err := t.mgr.Start(ctx, spec)
@@ -64,18 +86,13 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 
 	result, waitErr := handle.Wait(ctx)
 	if waitErr != nil {
-		if result.Status == "" {
-			switch ctx.Err() {
-			case context.Canceled:
-				result.Status = StatusCancelled
-			case context.DeadlineExceeded:
-				result.Status = StatusTimedOut
-			default:
-				result.Status = StatusFailed
-			}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("subagent: wait child: %w", waitErr)
 		}
 		if result.Error == "" {
 			result.Error = waitErr.Error()
+		} else if result.Error != waitErr.Error() {
+			result.Error = result.Error + "; orchestration error: " + waitErr.Error()
 		}
 	}
 
@@ -98,8 +115,15 @@ func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	if marshalErr != nil {
 		return nil, marshalErr
 	}
-	if waitErr != nil {
-		return raw, fmt.Errorf("subagent: wait child: %w", waitErr)
-	}
 	return raw, nil
+}
+
+func validateDelegateTimeout(timeout time.Duration, source string) error {
+	if timeout <= 0 {
+		return fmt.Errorf("subagent: %s must be positive", source)
+	}
+	if timeout > delegateToolMaxChildTimeout {
+		return fmt.Errorf("subagent: %s %s exceeds delegate_task budget of %s", source, timeout, delegateToolMaxChildTimeout)
+	}
+	return nil
 }

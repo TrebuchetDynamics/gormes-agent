@@ -118,7 +118,7 @@ func TestDelegateTool_TimeoutIsTwoMinutes(t *testing.T) {
 	}
 }
 
-func TestDelegateTool_ExecuteReturnsErrorWhenWaitFails(t *testing.T) {
+func TestDelegateTool_ExecutePreservesStructuredOutputWhenWaitFails(t *testing.T) {
 	mgr := NewManager(config.DelegationCfg{
 		DefaultMaxIterations: 8,
 		DefaultTimeout:       45 * time.Second,
@@ -130,8 +130,8 @@ func TestDelegateTool_ExecuteReturnsErrorWhenWaitFails(t *testing.T) {
 	tool := NewDelegateTool(mgr)
 
 	out, err := tool.Execute(context.Background(), json.RawMessage(`{"goal":" investigate "}`))
-	if err == nil {
-		t.Fatal("Execute error = nil, want wait/log failure")
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
 	}
 
 	var got struct {
@@ -151,5 +151,44 @@ func TestDelegateTool_ExecuteReturnsErrorWhenWaitFails(t *testing.T) {
 	}
 	if got.Error == "" {
 		t.Fatal("Error field must be populated when wait fails")
+	}
+}
+
+func TestDelegateTool_RejectsExplicitTimeoutAboveBudget(t *testing.T) {
+	mgr := NewManager(config.DelegationCfg{
+		DefaultMaxIterations: 8,
+		DefaultTimeout:       45 * time.Second,
+		MaxChildDepth:        1,
+	}, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		t.Fatal("runner should not be called for oversized timeout")
+		return Result{}, nil
+	}), t.TempDir()+"/runs.jsonl")
+
+	tool := NewDelegateTool(mgr)
+
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{
+		"goal":" investigate ",
+		"timeout_seconds":111
+	}`))
+	if err == nil {
+		t.Fatal("Execute error = nil, want timeout budget rejection")
+	}
+}
+
+func TestDelegateTool_RejectsDefaultTimeoutAboveBudget(t *testing.T) {
+	mgr := NewManager(config.DelegationCfg{
+		DefaultMaxIterations: 8,
+		DefaultTimeout:       111 * time.Second,
+		MaxChildDepth:        1,
+	}, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		t.Fatal("runner should not be called for oversized default timeout")
+		return Result{}, nil
+	}), t.TempDir()+"/runs.jsonl")
+
+	tool := NewDelegateTool(mgr)
+
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"goal":" investigate "}`))
+	if err == nil {
+		t.Fatal("Execute error = nil, want default timeout budget rejection")
 	}
 }
