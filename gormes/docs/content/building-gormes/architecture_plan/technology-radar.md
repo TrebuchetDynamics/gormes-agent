@@ -53,6 +53,19 @@ Alternatives monitored:
 
 **Cadence**: Re-run upstream survey on major Hermes releases or when new platform connectors land. See Subsystem Inventory for complete upstream file mapping.
 
+### 9.4 Procfile-Based Process Managers (Local Orchestration Research - 2026-04-21)
+
+Researched the Foreman -> Honcho -> Forego/Goreman -> Hivemind -> Overmind lineage to evaluate whether Gormes should eventually ship a Go-native Procfile supervisor for local multi-process development.
+
+Key takeaways:
+
+- `os/exec` alone is not enough. Correct shutdown requires process groups via `SysProcAttr.Setpgid`.
+- PTY-backed subprocesses matter if we care about terminal fidelity, colored logs, and interactive child tools.
+- A Unix-socket control plane captures most of Overmind's practical value without taking on tmux as a hard dependency.
+- The right implementation order is: Procfile parser -> `.env` loading -> process-group shutdown -> fan-in logs -> optional PTY -> optional socket control plane.
+
+Detailed note: [Procfile Process Managers](./procfile-process-managers/)
+
 ---
 
-*Technology Radar v1.0 — Research synthesized from web searches and parallel codebase audit.*
+*Technology Radar v1.0 - Research synthesized from web searches and parallel codebase audit.*

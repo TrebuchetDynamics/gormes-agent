@@ -109,6 +109,7 @@ var nativeHugoPages = map[string]struct{}{
 	"building-gormes/architecture_plan/subsystem-inventory.md":      {},
 	"building-gormes/architecture_plan/mirror-strategy.md":          {},
 	"building-gormes/architecture_plan/technology-radar.md":         {},
+	"building-gormes/architecture_plan/procfile-process-managers.md": {},
 	"building-gormes/architecture_plan/boundaries.md":               {},
 	"building-gormes/architecture_plan/why-go.md":                   {},
 	"building-gormes/core-systems/_index.md":                        {},
