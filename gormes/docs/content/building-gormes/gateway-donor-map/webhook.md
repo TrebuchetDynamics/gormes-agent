@@ -38,7 +38,7 @@ The donor is not a direct architecture donor because it says nothing about route
 - Provenance note: the following `pkg/...` and `docs/...` paths are relative to the external donor root `/home/xel/git/sages-openclaw/workspace-mineru/picoclaw` at commit `6421f146a99df1bebcd4b1ca8de2a289dfca3622`, not relative to the Gormes repo.
 - `picoclaw/pkg/channels/webhook.go`
 - `picoclaw/pkg/channels/dynamic_mux.go`
-- `picoclaw/docs/guides/chat-apps.md`
+- Generic context only: `picoclaw/docs/guides/chat-apps.md`
 - `gormes/docs/content/upstream-hermes/user-guide/messaging/webhooks.md`
 - `gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md`
 

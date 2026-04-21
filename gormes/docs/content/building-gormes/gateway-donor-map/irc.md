@@ -5,7 +5,7 @@ weight: 60
 
 # IRC
 
-IRC is the clearest example in this donor set of a channel that is technically portable but probably not worth first-class Gormes investment unless there is a specific operator demand.
+IRC is the clearest example in this donor set of a low-priority adapter with some real protocol-specific donor value, but not enough to justify first-class Gormes investment unless there is a specific operator demand.
 
 ## Status
 
@@ -31,7 +31,7 @@ The reusable part of PicoClaw's IRC adapter is narrow:
 - IRCv3 `TAGMSG` typing indicator support
 - bot-mention parsing through nick-prefix conventions
 
-This is useful as protocol reconnaissance, but it is not a deep donor. The implementation is intentionally small, does not cover media, does not handle richer channel metadata, and relies on IRC social conventions rather than strong platform primitives.
+This is useful as protocol reconnaissance and as a small donor for IRC-specific edge mechanics, but it is not a deep donor. The implementation is intentionally small, does not cover media, does not handle richer channel metadata, and relies on IRC social conventions rather than strong platform primitives.
 
 ## Picoclaw Donor Files
 
@@ -66,10 +66,10 @@ Rebuild in Gormes-native form:
 
 ## Implementation Notes
 
-- Treat IRC as an edge case, not as a reference adapter for more modern transports.
+- Treat IRC as an edge case and a fallback donor, not as a reference adapter for more modern transports.
 - If a future porter truly needs IRC, start by preserving the mention-detection tests. That is the main protocol-specific behavior with reusable value.
 - Do not let IRC's weak identity model leak into shared Gormes session assumptions.
-- The donor code is good enough for a proof-of-concept adapter, but not strong enough to justify early roadmap priority by itself.
+- The donor code is good enough for a proof-of-concept adapter if Gormes ever needs IRC, but not strong enough to justify early roadmap priority by itself.
 
 ## Risks / Mismatches
 
@@ -90,6 +90,6 @@ Rebuild in Gormes-native form:
 - `picoclaw/pkg/channels/irc/irc.go`: `NewIRCChannel`, `Start`, `Stop`, `Send`, `StartTyping`, `extractHost`.
 - `picoclaw/pkg/channels/irc/handler.go`: `onConnect`, `onPrivmsg`, `nickMentionedAt`, `isBotMentioned`, `stripBotMention`.
 - `picoclaw/pkg/channels/irc/irc_test.go`
-- `picoclaw/docs/guides/chat-apps.md`
+- Generic context only: `picoclaw/docs/guides/chat-apps.md`
 
-Recommendation: `not worth reusing`.
+Recommendation: `adapt pattern only`.
