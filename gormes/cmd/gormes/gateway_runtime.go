@@ -31,6 +31,14 @@ type gatewayRuntime struct {
 	recallActive bool
 }
 
+var gatewayRuntimeSessionPut = func(smap *session.BoltMap, ctx context.Context, key, sid string) error {
+	return smap.Put(ctx, key, sid)
+}
+
+var gatewayRuntimeSessionGet = func(smap *session.BoltMap, ctx context.Context, key string) (string, error) {
+	return smap.Get(ctx, key)
+}
+
 func openGatewayRuntime(cfg config.Config, opt gatewayRuntimeOptions, log *slog.Logger) (*gatewayRuntime, error) {
 	if log == nil {
 		log = slog.Default()
@@ -43,15 +51,16 @@ func openGatewayRuntime(cfg config.Config, opt gatewayRuntimeOptions, log *slog.
 
 	ctx := context.Background()
 	if opt.ChatKey != "" && opt.ResumeOverride != "" {
-		if err := smap.Put(ctx, opt.ChatKey, opt.ResumeOverride); err != nil {
-			_ = smap.Close()
-			return nil, fmt.Errorf("apply resume override: %w", err)
+		if err := gatewayRuntimeSessionPut(smap, ctx, opt.ChatKey, opt.ResumeOverride); err != nil {
+			log.Warn("failed to apply --resume override", "err", err)
 		}
 	}
 
 	var initialSID string
 	if opt.ChatKey != "" {
-		if sid, err := smap.Get(ctx, opt.ChatKey); err == nil {
+		if sid, err := gatewayRuntimeSessionGet(smap, ctx, opt.ChatKey); err != nil {
+			log.Warn("could not load initial session_id", "key", opt.ChatKey, "err", err)
+		} else {
 			initialSID = sid
 			if sid != "" {
 				log.Info("resuming persisted session", "key", opt.ChatKey, "session_id", sid)

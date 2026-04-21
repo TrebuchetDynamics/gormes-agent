@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
 )
 
 func testGatewayConfig() config.Config {
@@ -69,5 +73,64 @@ func TestOpenGatewayRuntime_DisablesRecallWhenChatKeyEmpty(t *testing.T) {
 
 	if rt.recallActive {
 		t.Error("recallActive = true, want false when chatKey is empty")
+	}
+}
+
+func TestOpenGatewayRuntime_ResumeOverrideWriteFailureWarnsAndContinues(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	origPut := gatewayRuntimeSessionPut
+	t.Cleanup(func() { gatewayRuntimeSessionPut = origPut })
+	gatewayRuntimeSessionPut = func(_ *session.BoltMap, _ context.Context, _, _ string) error {
+		return errors.New("put failed")
+	}
+
+	var logs bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logs, nil))
+
+	rt, err := openGatewayRuntime(testGatewayConfig(), gatewayRuntimeOptions{
+		ChatKey:        "telegram:42",
+		ResumeOverride: "sess-123",
+		RecallEnabled:  true,
+	}, log)
+	if err != nil {
+		t.Fatalf("openGatewayRuntime: %v", err)
+	}
+	defer rt.Close(context.Background())
+
+	if rt.initialSID != "" {
+		t.Errorf("initialSID = %q, want empty after failed resume override", rt.initialSID)
+	}
+	if !strings.Contains(logs.String(), "failed to apply --resume override") {
+		t.Fatalf("logs = %q, want warning about failed resume override", logs.String())
+	}
+}
+
+func TestOpenGatewayRuntime_SessionLookupFailureWarnsAndContinues(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	origGet := gatewayRuntimeSessionGet
+	t.Cleanup(func() { gatewayRuntimeSessionGet = origGet })
+	gatewayRuntimeSessionGet = func(_ *session.BoltMap, _ context.Context, _ string) (string, error) {
+		return "", errors.New("get failed")
+	}
+
+	var logs bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logs, nil))
+
+	rt, err := openGatewayRuntime(testGatewayConfig(), gatewayRuntimeOptions{
+		ChatKey:       "telegram:42",
+		RecallEnabled: true,
+	}, log)
+	if err != nil {
+		t.Fatalf("openGatewayRuntime: %v", err)
+	}
+	defer rt.Close(context.Background())
+
+	if rt.initialSID != "" {
+		t.Errorf("initialSID = %q, want empty when session lookup fails", rt.initialSID)
+	}
+	if !strings.Contains(logs.String(), "could not load initial session_id") {
+		t.Fatalf("logs = %q, want warning about failed session lookup", logs.String())
 	}
 }
