@@ -46,7 +46,7 @@ func newRootCmd() *cobra.Command {
 	}
 	root.Flags().Bool("offline", false, "skip startup api_server health check (dev only — turns the TUI into a cosmetic smoke-tester)")
 	root.PersistentFlags().String("resume", "", "override persisted session_id for the TUI's default key")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, discordCmd)
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, discordCmd, slackCmd)
 	return root
 }
 
