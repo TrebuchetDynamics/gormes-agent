@@ -603,3 +603,8 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   .docs-prevnext { grid-template-columns: 1fr; }
   .docs-prevnext-link--next { text-align: left; }
 }
+
+.docs-toc-body a.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+}

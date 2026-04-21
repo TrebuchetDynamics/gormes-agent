@@ -1,8 +1,8 @@
 {{ if .TableOfContents }}
 <details class="docs-toc-details" open>
   <summary class="docs-toc-summary">On this page</summary>
-  <div class="docs-toc-body">
+  <nav class="docs-toc-body" aria-label="Table of contents">
     {{ .TableOfContents }}
-  </div>
+  </nav>
 </details>
 {{ end }}

@@ -90,8 +90,45 @@
     });
   }
 
+
+  function initTocScrollspy() {
+    var tocBody = document.querySelector('.docs-toc-body');
+    if (!tocBody) return;
+    var links = tocBody.querySelectorAll('a[href^="#"]');
+    if (!links.length) return;
+    var idToLink = {};
+    links.forEach(function (a) {
+      var id = decodeURIComponent(a.getAttribute('href').slice(1));
+      if (id) idToLink[id] = a;
+    });
+    var headings = [];
+    Object.keys(idToLink).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) headings.push(el);
+    });
+    if (!headings.length) return;
+
+    function setActive(id) {
+      links.forEach(function (a) { a.classList.remove('active'); });
+      if (idToLink[id]) idToLink[id].classList.add('active');
+    }
+
+    var observer = new IntersectionObserver(function (entries) {
+      // Pick the entry closest to the top of the viewport that is intersecting.
+      var best = null;
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        if (!best || e.boundingClientRect.top < best.boundingClientRect.top) best = e;
+      });
+      if (best) setActive(best.target.id);
+    }, { rootMargin: '-80px 0px -65% 0px', threshold: [0, 1.0] });
+
+    headings.forEach(function (h) { observer.observe(h); });
+  }
+
   onReady(function () {
     initDrawer();
     initCollapsibleGroups();
+    initTocScrollspy();
   });
 })();
