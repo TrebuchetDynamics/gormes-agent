@@ -1,0 +1,75 @@
+// Command progress-gen validates progress.json and regenerates the
+// marker-bounded regions in README.md and the architecture_plan
+// _index.md. Run from the main Makefile.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/progress"
+)
+
+func main() {
+	validate := flag.Bool("validate", false, "validate progress.json only (read-only)")
+	write := flag.Bool("write", false, "regenerate marker regions in README.md and _index.md")
+	flag.Parse()
+
+	if !*validate && !*write {
+		fmt.Fprintln(os.Stderr, "progress-gen: pass -validate or -write")
+		os.Exit(2)
+	}
+
+	// Resolve paths relative to the main module root (this binary is
+	// invoked from gormes/ by the Makefile).
+	root, err := os.Getwd()
+	if err != nil {
+		die(err)
+	}
+	progressPath := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	readmePath := filepath.Join(root, "..", "README.md")
+	docsIndexPath := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "_index.md")
+
+	p, err := progress.Load(progressPath)
+	if err != nil {
+		die(err)
+	}
+	if err := progress.Validate(p); err != nil {
+		die(err)
+	}
+
+	if *validate {
+		fmt.Printf("progress-gen: validated %d phases\n", len(p.Phases))
+		return
+	}
+
+	if err := rewrite(readmePath, "readme-rollup", progress.RenderReadmeRollup(p)); err != nil {
+		die(err)
+	}
+	if err := rewrite(docsIndexPath, "docs-full-checklist", progress.RenderDocsChecklist(p)); err != nil {
+		die(err)
+	}
+	fmt.Println("progress-gen: README.md and _index.md regenerated")
+}
+
+func rewrite(path, kind, body string) error {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	out, err := progress.ReplaceMarker(string(b), kind, body)
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+func die(err error) {
+	fmt.Fprintln(os.Stderr, "progress-gen:", err)
+	os.Exit(1)
+}
