@@ -67,8 +67,20 @@ func (b *Bot) Run(ctx context.Context) error {
 	runCtx, cancel := context.WithCancel(ctx)
 
 	var wg sync.WaitGroup
+	ready := make(chan struct{})
 	wg.Add(1)
-	go b.runOutbound(runCtx, &wg)
+	go b.runOutbound(runCtx, &wg, ready)
+
+	select {
+	case <-ready:
+	case <-runCtx.Done():
+		cancel()
+		wg.Wait()
+		if err := runCtx.Err(); err != nil {
+			return err
+		}
+		return nil
+	}
 
 	err = b.client.Run(runCtx, func(e Event) {
 		b.handleEvent(ctx, e)
@@ -133,10 +145,25 @@ func (b *Bot) handleEvent(ctx context.Context, e Event) {
 	}
 }
 
-func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
+func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup, ready chan<- struct{}) {
 	defer wg.Done()
 
 	frames := b.kernel.Render()
+	select {
+	case <-ctx.Done():
+		close(ready)
+		b.finishTurn()
+		return
+	case _, ok := <-frames:
+		if !ok {
+			close(ready)
+			b.finishTurn()
+			return
+		}
+	default:
+	}
+	close(ready)
+
 	for {
 		select {
 		case <-ctx.Done():

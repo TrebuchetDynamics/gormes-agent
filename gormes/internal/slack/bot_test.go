@@ -355,14 +355,19 @@ func TestBot_RunReturnsPromptlyWhenClientRunFails(t *testing.T) {
 	mc := newMockClient()
 	runErr := errors.New("socket mode failed")
 	mc.RunErr = runErr
+	k := newIdleSlackKernel()
 	b := New(Config{
 		AllowedChannelID: "C123",
 		ReplyInThread:    true,
-	}, mc, newIdleSlackKernel(), nil)
+	}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	go k.Run(ctx)
 
 	done := make(chan error, 1)
 	go func() {
-		done <- b.Run(context.Background())
+		done <- b.Run(ctx)
 	}()
 
 	select {
@@ -372,6 +377,35 @@ func TestBot_RunReturnsPromptlyWhenClientRunFails(t *testing.T) {
 		}
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("Bot.Run hung after client.Run failure")
+	}
+}
+
+func TestBot_FirstInboundMessage_NotLostWhenStartupFrameIsUndrained(t *testing.T) {
+	mc := newMockClient()
+	k := newSlackKernel("first ok", "sess-first")
+	b := New(Config{
+		AllowedChannelID: "C123",
+		ReplyInThread:    true,
+		CoalesceMs:       50,
+	}, mc, k, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	go func() { _ = b.Run(ctx) }()
+
+	mc.pushEvent(Event{
+		RequestID: "req-first-undrained",
+		ChannelID: "C123",
+		UserID:    "U1",
+		Text:      "hello first",
+		Timestamp: "1711111111.000395",
+		ThreadTS:  "1711111111.000395",
+	})
+
+	waitForSlackOutput(t, mc, "first ok")
+	if strings.Contains(mc.lastOutputText(), "(empty reply)") {
+		t.Fatalf("last output = %q, want real first reply not empty final", mc.lastOutputText())
 	}
 }
 
