@@ -2,6 +2,16 @@
 
 Instructions for AI coding assistants and developers working on the hermes-agent codebase.
 
+## Gortex-First Workflow
+
+Before any manual file read, grep, glob, symbol hunt, or ad hoc code search, agents must use Gortex first.
+
+- Always start exploration with Gortex graph queries before reading source files directly.
+- Prefer Gortex for symbol lookup, file summaries, callers, callees, usages, dependencies, impact analysis, and test targeting.
+- Treat even "small" reads as graph-navigation problems first: use Gortex to discover the surrounding connections before opening files.
+- Only fall back to direct file reads/search after Gortex has been used first and the graph result is insufficient for the task.
+- When falling back, keep the read scope narrow and use Gortex findings to target the exact file or symbol.
+
 ## Scope Override: Gormes-Only Edits
 
 This repository is being ported to Go. Unless the user explicitly changes this policy, AI coding assistants must follow these rules:
