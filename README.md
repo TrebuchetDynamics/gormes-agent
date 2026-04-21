@@ -106,7 +106,12 @@ gormes claw migrate     # Migrate from OpenClaw
 
 ## Contributing
 
-We welcome contributions. See the [Contributing Guide](https://docs.gormes.ai/developer-guide/contributing) for development setup and PR process.
+Contributions are welcome. If you have ideas for new features, integrations, documentation improvements, or fixes, open an issue or submit a pull request.
+
+Start here:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) for repository contribution guidelines and PR workflow
+- [Gormes developer docs](https://docs.gormes.ai/developer-guide/contributing) for setup and project-specific context
 
 Quick start:
 
@@ -116,6 +121,8 @@ cd gormes
 make build
 ./bin/gormes
 ```
+
+Join the discussion and help shape the future of Gormes.
 
 ---
 
