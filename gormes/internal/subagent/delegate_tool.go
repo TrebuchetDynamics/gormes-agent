@@ -3,95 +3,132 @@ package subagent
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
-// DelegateTool is the Go-native delegate_task tool.
+var _ tools.Tool = (*DelegateTool)(nil)
+
+const (
+	delegateToolKernelTimeout       = 2 * time.Minute
+	delegateToolTimeoutSafetyBuffer = 10 * time.Second
+	delegateToolMaxChildTimeout     = delegateToolKernelTimeout - delegateToolTimeoutSafetyBuffer
+)
+
 type DelegateTool struct {
-	manager SubagentManager
+	mgr *Manager
 }
 
-// NewDelegateTool wires a DelegateTool to the supplied SubagentManager.
-func NewDelegateTool(m SubagentManager) *DelegateTool { return &DelegateTool{manager: m} }
+func NewDelegateTool(mgr *Manager) *DelegateTool {
+	return &DelegateTool{mgr: mgr}
+}
 
 func (*DelegateTool) Name() string { return "delegate_task" }
 
 func (*DelegateTool) Description() string {
-	return "Delegate a task to a subagent for parallel execution. The subagent runs with its own context, returns a structured JSON result."
+	return "Delegate a bounded child task to a subagent and return its run result."
 }
-
-// Timeout returns 0 so the executor does not impose a deadline; per-subagent
-// timeouts are governed via SubagentConfig.Timeout.
-func (*DelegateTool) Timeout() time.Duration { return 0 }
 
 func (*DelegateTool) Schema() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"goal":           {"type": "string", "description": "Task goal for the subagent"},
-			"context":        {"type": "string", "description": "Optional additional context"},
-			"max_iterations": {"type": "integer", "description": "Max LLM turns for the subagent"},
-			"toolsets":       {"type": "string", "description": "Comma-separated toolset names to enable"}
-		},
-		"required": ["goal"]
-	}`)
+	return json.RawMessage(fmt.Sprintf(`{"type":"object","properties":{"goal":{"type":"string","description":"task for the child subagent"},"context":{"type":"string","description":"scoped context for the child"},"model":{"type":"string","description":"optional model override"},"max_iterations":{"type":"integer","minimum":1,"description":"maximum child iterations"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":%d,"description":"child timeout in seconds; must stay within the delegate_task tool budget"},"allowed_tools":{"type":"array","items":{"type":"string"},"description":"tool names the child may use"}},"required":["goal"],"additionalProperties":false}`,
+		delegateToolMaxChildTimeout/time.Second))
 }
 
-type delegateArgs struct {
-	Goal          string `json:"goal"`
-	Context       string `json:"context"`
-	MaxIterations int    `json:"max_iterations"`
-	Toolsets      string `json:"toolsets"`
-}
+func (*DelegateTool) Timeout() time.Duration { return delegateToolKernelTimeout }
 
 func (t *DelegateTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
-	var in delegateArgs
+	if t == nil || t.mgr == nil {
+		return nil, fmt.Errorf("subagent: nil delegate manager")
+	}
+
+	var in struct {
+		Goal           string   `json:"goal"`
+		Context        string   `json:"context"`
+		Model          string   `json:"model"`
+		MaxIterations  int      `json:"max_iterations"`
+		TimeoutSeconds *int     `json:"timeout_seconds"`
+		AllowedTools   []string `json:"allowed_tools"`
+	}
 	if err := json.Unmarshal(args, &in); err != nil {
-		return nil, fmt.Errorf("delegate_task: invalid args: %w", err)
-	}
-	if strings.TrimSpace(in.Goal) == "" {
-		return nil, errors.New("delegate_task: goal is required")
-	}
-	if t.manager == nil {
-		return nil, errors.New("delegate_task: manager is required")
+		return nil, fmt.Errorf("subagent: invalid delegate args: %w", err)
 	}
 
-	var enabled []string
-	if in.Toolsets != "" {
-		for _, s := range strings.Split(in.Toolsets, ",") {
-			if s = strings.TrimSpace(s); s != "" {
-				enabled = append(enabled, s)
-			}
-		}
-	}
-
-	sa, err := t.manager.Spawn(ctx, SubagentConfig{
-		Goal:          strings.TrimSpace(in.Goal),
-		Context:       strings.TrimSpace(in.Context),
+	spec := Spec{
+		Goal:          in.Goal,
+		Context:       in.Context,
+		Model:         in.Model,
+		AllowedTools:  append([]string(nil), in.AllowedTools...),
 		MaxIterations: in.MaxIterations,
-		EnabledTools:  enabled,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("delegate_task: spawn: %w", err)
+		Depth:         1,
 	}
-
-	result, err := sa.WaitForResult(ctx)
-	if err != nil {
-		_ = t.manager.Interrupt(sa, "parent ctx cancelled")
+	timeoutSource := "delegation default timeout"
+	if in.TimeoutSeconds != nil {
+		if *in.TimeoutSeconds <= 0 {
+			return nil, fmt.Errorf("subagent: timeout_seconds must be positive")
+		}
+		spec.Timeout = time.Duration(*in.TimeoutSeconds) * time.Second
+		timeoutSource = "timeout_seconds"
+	} else {
+		if t == nil || t.mgr == nil {
+			return nil, fmt.Errorf("subagent: nil delegate manager")
+		}
+		spec.Timeout = t.mgr.cfg.DefaultTimeout
+	}
+	if err := ValidateDelegateTimeout(spec.Timeout, timeoutSource); err != nil {
 		return nil, err
 	}
 
-	out := map[string]any{
-		"id":          result.ID,
-		"status":      string(result.Status),
-		"summary":     result.Summary,
-		"exit_reason": result.ExitReason,
-		"duration_ms": result.Duration.Milliseconds(),
-		"iterations":  result.Iterations,
-		"error":       result.Error,
+	handle, err := t.mgr.Start(ctx, spec)
+	if err != nil {
+		return nil, err
 	}
-	return json.Marshal(out)
+
+	result, waitErr := handle.Wait(ctx)
+	if waitErr != nil {
+		return nil, fmt.Errorf("subagent: wait child: %w", waitErr)
+	}
+
+	out := struct {
+		RunID   string       `json:"run_id"`
+		Status  ResultStatus `json:"status"`
+		Summary string       `json:"summary,omitempty"`
+		Error   string       `json:"error,omitempty"`
+	}{
+		RunID:   result.RunID,
+		Status:  result.Status,
+		Summary: result.Summary,
+		Error:   result.Error,
+	}
+	if out.Status == "" {
+		out.Status = StatusFailed
+	}
+
+	raw, marshalErr := json.Marshal(out)
+	if marshalErr != nil {
+		return nil, marshalErr
+	}
+	return raw, nil
+}
+
+func ValidateDelegateTimeout(timeout time.Duration, source string) error {
+	if timeout <= 0 {
+		return fmt.Errorf("subagent: %s must be positive", source)
+	}
+	if timeout > delegateToolMaxChildTimeout {
+		return fmt.Errorf("subagent: %s %s exceeds delegate_task budget of %s", source, timeout, delegateToolMaxChildTimeout)
+	}
+	return nil
+}
+
+func ValidateDelegationConfig(cfg config.DelegationCfg) error {
+	if cfg.DefaultMaxIterations <= 0 {
+		return fmt.Errorf("subagent: delegation default max_iterations must be positive")
+	}
+	if cfg.MaxChildDepth < 1 {
+		return fmt.Errorf("subagent: delegation max_child_depth must be at least 1")
+	}
+	return ValidateDelegateTimeout(cfg.DefaultTimeout, "delegation default timeout")
 }

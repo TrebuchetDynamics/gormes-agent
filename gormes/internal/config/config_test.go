@@ -281,11 +281,11 @@ func TestLoad_ConfigVersionMissingInFileTreatedAsV1(t *testing.T) {
 func TestDelegationCfgDecode(t *testing.T) {
 	const tomlText = `
 [delegation]
-enabled                 = true
-max_depth               = 2
-max_concurrent_children = 3
-default_max_iterations  = 50
-	default_timeout         = "1h"
+enabled                = true
+default_max_iterations = 50
+default_timeout        = "1h"
+max_child_depth        = 2
+	run_log_path           = "/tmp/runs.jsonl"
 `
 	var cfg Config
 	if err := toml.NewDecoder(strings.NewReader(tomlText)).EnableUnmarshalerInterface().Decode(&cfg); err != nil {
@@ -294,17 +294,17 @@ default_max_iterations  = 50
 	if !cfg.Delegation.Enabled {
 		t.Errorf("Enabled: want true, got false")
 	}
-	if cfg.Delegation.MaxDepth != 2 {
-		t.Errorf("MaxDepth: want 2, got %d", cfg.Delegation.MaxDepth)
-	}
-	if cfg.Delegation.MaxConcurrentChildren != 3 {
-		t.Errorf("MaxConcurrentChildren: want 3, got %d", cfg.Delegation.MaxConcurrentChildren)
+	if cfg.Delegation.MaxChildDepth != 2 {
+		t.Errorf("MaxChildDepth: want 2, got %d", cfg.Delegation.MaxChildDepth)
 	}
 	if cfg.Delegation.DefaultMaxIterations != 50 {
 		t.Errorf("DefaultMaxIterations: want 50, got %d", cfg.Delegation.DefaultMaxIterations)
 	}
 	if cfg.Delegation.DefaultTimeout != time.Hour {
 		t.Errorf("DefaultTimeout: want 1h, got %v", cfg.Delegation.DefaultTimeout)
+	}
+	if cfg.Delegation.RunLogPath != "/tmp/runs.jsonl" {
+		t.Errorf("RunLogPath: want /tmp/runs.jsonl, got %q", cfg.Delegation.RunLogPath)
 	}
 }
 
@@ -401,5 +401,114 @@ func TestLoad_CronDefaults(t *testing.T) {
 	}
 	if cfg.Cron.MirrorPath != "" {
 		t.Errorf("Cron.MirrorPath default = %q, want empty (caller resolves XDG)", cfg.Cron.MirrorPath)
+	}
+}
+
+func TestLoad_DelegationDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Delegation.Enabled {
+		t.Errorf("Delegation.Enabled default = true, want false")
+	}
+	if cfg.Delegation.DefaultMaxIterations != 8 {
+		t.Errorf("DefaultMaxIterations = %d, want 8", cfg.Delegation.DefaultMaxIterations)
+	}
+	if cfg.Delegation.DefaultTimeout != 45*time.Second {
+		t.Errorf("DefaultTimeout = %v, want 45s", cfg.Delegation.DefaultTimeout)
+	}
+	if cfg.Delegation.MaxChildDepth != 1 {
+		t.Errorf("MaxChildDepth = %d, want 1", cfg.Delegation.MaxChildDepth)
+	}
+}
+
+func TestDelegationRunLogPath_HonorsOverride(t *testing.T) {
+	cfg := Config{Delegation: DelegationCfg{RunLogPath: "/tmp/custom-runs.jsonl"}}
+	if got := cfg.DelegationRunLogPath(); got != "/tmp/custom-runs.jsonl" {
+		t.Errorf("DelegationRunLogPath() = %q, want /tmp/custom-runs.jsonl", got)
+	}
+}
+
+func TestDelegationRunLogPath_DefaultsToXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-xdg")
+	cfg := Config{}
+	want := "/tmp/gormes-xdg/gormes/subagents/runs.jsonl"
+	if got := cfg.DelegationRunLogPath(); got != want {
+		t.Errorf("DelegationRunLogPath() = %q, want %q", got, want)
+	}
+}
+
+func TestLoad_DiscordDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Discord.MentionRequired != true {
+		t.Errorf("Discord.MentionRequired default = %v, want true", cfg.Discord.MentionRequired)
+	}
+	if cfg.Discord.CoalesceMs != 1000 {
+		t.Errorf("Discord.CoalesceMs default = %d, want 1000", cfg.Discord.CoalesceMs)
+	}
+}
+
+func TestLoad_DiscordEnvOverride(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_DISCORD_TOKEN", "discord-token")
+	t.Setenv("GORMES_DISCORD_CHANNEL_ID", "chan-1")
+	t.Setenv("GORMES_DISCORD_GUILD_ID", "guild-1")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Discord.BotToken != "discord-token" {
+		t.Errorf("Discord.BotToken = %q, want discord-token", cfg.Discord.BotToken)
+	}
+	if cfg.Discord.AllowedChannelID != "chan-1" {
+		t.Errorf("Discord.AllowedChannelID = %q, want chan-1", cfg.Discord.AllowedChannelID)
+	}
+	if cfg.Discord.AllowedGuildID != "guild-1" {
+		t.Errorf("Discord.AllowedGuildID = %q, want guild-1", cfg.Discord.AllowedGuildID)
+	}
+}
+
+func TestLoad_SlackDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Slack.SocketMode {
+		t.Error("Slack.SocketMode default = false, want true")
+	}
+	if !cfg.Slack.ReplyInThread {
+		t.Error("Slack.ReplyInThread default = false, want true")
+	}
+	if cfg.Slack.CoalesceMs != 1000 {
+		t.Errorf("Slack.CoalesceMs default = %d, want 1000", cfg.Slack.CoalesceMs)
+	}
+}
+
+func TestLoad_SlackEnvOverride(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_SLACK_BOT_TOKEN", "xoxb-test")
+	t.Setenv("GORMES_SLACK_APP_TOKEN", "xapp-test")
+	t.Setenv("GORMES_SLACK_CHANNEL_ID", "C12345")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Slack.BotToken != "xoxb-test" {
+		t.Errorf("Slack.BotToken = %q, want xoxb-test", cfg.Slack.BotToken)
+	}
+	if cfg.Slack.AppToken != "xapp-test" {
+		t.Errorf("Slack.AppToken = %q, want xapp-test", cfg.Slack.AppToken)
+	}
+	if cfg.Slack.AllowedChannelID != "C12345" {
+		t.Errorf("Slack.AllowedChannelID = %q, want C12345", cfg.Slack.AllowedChannelID)
 	}
 }

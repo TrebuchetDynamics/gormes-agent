@@ -32,6 +32,12 @@ func main() {
 		}
 	}()
 
+	if err := newRootCmd().Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:          "gormes",
 		Short:        "Go frontend for Hermes Agent",
@@ -39,11 +45,9 @@ func main() {
 		RunE:         runTUI,
 	}
 	root.Flags().Bool("offline", false, "skip startup api_server health check (dev only — turns the TUI into a cosmetic smoke-tester)")
-	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd)
-	if err := root.Execute(); err != nil {
-		os.Exit(1)
-	}
+	root.PersistentFlags().String("resume", "", "override persisted session_id for the TUI's default key")
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, discordCmd, slackCmd)
+	return root
 }
 
 func runTUI(cmd *cobra.Command, _ []string) error {
@@ -99,12 +103,15 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	reg := buildDefaultRegistry()
+	registerDelegation(cfg, reg, c)
+
 	tm := telemetry.New()
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
-		Tools:             buildDefaultRegistry(rootCtx, cfg.Delegation),
+		Tools:             reg,
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,

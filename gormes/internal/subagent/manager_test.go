@@ -2,432 +2,399 @@ package subagent
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
 )
 
-func newStubManager(t *testing.T, depth int) (SubagentManager, context.Context, context.CancelFunc) {
-	t.Helper()
+type runnerFunc func(context.Context, Spec, func(Event)) (Result, error)
 
-	parentCtx, cancel := context.WithCancel(context.Background())
-	mgr := NewManager(ManagerOpts{
-		ParentCtx: parentCtx,
-		ParentID:  "parent_test",
-		Depth:     depth,
-		Registry:  NewRegistry(),
-		NewRunner: func() Runner { return StubRunner{} },
-	})
-	return mgr, parentCtx, cancel
+func (f runnerFunc) Run(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+	return f(ctx, spec, emit)
 }
 
-func TestManagerSpawnHappyPath(t *testing.T) {
-	mgr, parentCtx, cancel := newStubManager(t, 0)
-	defer cancel()
-
-	sa, err := mgr.Spawn(parentCtx, SubagentConfig{
-		Goal:          "collect status",
-		MaxIterations: 7,
-	})
-	if err != nil {
-		t.Fatalf("Spawn: %v", err)
-	}
-	if sa == nil {
-		t.Fatal("Spawn returned nil subagent")
-	}
-	if sa.Depth != 1 {
-		t.Fatalf("Depth = %d, want 1", sa.Depth)
-	}
-	if sa.ParentID != "parent_test" {
-		t.Fatalf("ParentID = %q, want %q", sa.ParentID, "parent_test")
-	}
-
-	select {
-	case ev, ok := <-sa.Events():
-		if !ok {
-			t.Fatal("Events closed before first event")
-		}
-		if ev.Type != EventStarted {
-			t.Fatalf("first event type = %q, want %q", ev.Type, EventStarted)
-		}
-		if ev.Message != "collect status" {
-			t.Fatalf("first event message = %q, want %q", ev.Message, "collect status")
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for started event")
-	}
-
-	select {
-	case ev, ok := <-sa.Events():
-		if !ok {
-			t.Fatal("Events closed before completed event")
-		}
-		if ev.Type != EventCompleted {
-			t.Fatalf("second event type = %q, want %q", ev.Type, EventCompleted)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for completed event")
-	}
-
-	select {
-	case _, ok := <-sa.Events():
-		if ok {
-			t.Fatal("Events still open after runner completion")
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for events channel close")
-	}
-
-	res, err := sa.WaitForResult(context.Background())
-	if err != nil {
-		t.Fatalf("WaitForResult: %v", err)
-	}
-	if res == nil {
-		t.Fatal("WaitForResult returned nil result")
-	}
-	if res.Status != StatusCompleted {
-		t.Fatalf("result status = %q, want %q", res.Status, StatusCompleted)
-	}
-	if res.Summary != "collect status" {
-		t.Fatalf("result summary = %q, want %q", res.Summary, "collect status")
-	}
-	if res.ExitReason != "stub_runner_no_llm_yet" {
-		t.Fatalf("result exit reason = %q, want %q", res.ExitReason, "stub_runner_no_llm_yet")
-	}
-	if res.ID == "" {
-		t.Fatal("result ID not set")
-	}
-	if res.Iterations != 0 {
-		t.Fatalf("result iterations = %d, want 0 from StubRunner", res.Iterations)
-	}
-}
-
-func TestManagerSpawnAppliesIterationDefault(t *testing.T) {
-	mgr, parentCtx, cancel := newStubManager(t, 0)
-	defer cancel()
-
-	sa, err := mgr.Spawn(parentCtx, SubagentConfig{Goal: "default iterations"})
-	if err != nil {
-		t.Fatalf("Spawn: %v", err)
-	}
-
-	if sa.cfg.MaxIterations != DefaultMaxIterations {
-		t.Fatalf("cfg.MaxIterations = %d, want %d", sa.cfg.MaxIterations, DefaultMaxIterations)
-	}
-
-	res, err := sa.WaitForResult(context.Background())
-	if err != nil {
-		t.Fatalf("WaitForResult: %v", err)
-	}
-	if res == nil {
-		t.Fatal("WaitForResult returned nil result")
-	}
-	if res.Status != StatusCompleted {
-		t.Fatalf("result status = %q, want %q", res.Status, StatusCompleted)
-	}
-}
-
-func TestManagerSpawnUsesConfiguredDefaultIterations(t *testing.T) {
-	parentCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	mgr := NewManager(ManagerOpts{
-		ParentCtx:            parentCtx,
-		ParentID:             "parent_test",
-		Depth:                0,
-		Registry:             NewRegistry(),
-		NewRunner:            func() Runner { return StubRunner{} },
+func TestManager_Start_WaitsAndStreamsEvents(t *testing.T) {
+	cfg := config.DelegationCfg{
 		DefaultMaxIterations: 7,
-	})
-
-	sa, err := mgr.Spawn(parentCtx, SubagentConfig{Goal: "custom iterations"})
-	if err != nil {
-		t.Fatalf("Spawn: %v", err)
+		DefaultTimeout:       3 * time.Second,
+		MaxChildDepth:        1,
 	}
-	if sa.cfg.MaxIterations != 7 {
-		t.Fatalf("cfg.MaxIterations = %d, want %d", sa.cfg.MaxIterations, 7)
-	}
-	_, _ = sa.WaitForResult(context.Background())
-}
 
-func TestManagerSpawnUsesConfiguredDefaultTimeout(t *testing.T) {
-	parentCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	seenSpec := make(chan Spec, 1)
 
-	mgr := NewManager(ManagerOpts{
-		ParentCtx:            parentCtx,
-		ParentID:             "parent_test",
-		Depth:                0,
-		Registry:             NewRegistry(),
-		NewRunner:            func() Runner { return StubRunner{} },
-		DefaultTimeout:       time.Minute,
-		DefaultMaxIterations: DefaultMaxIterations,
-	})
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		seenSpec <- spec
+		close(started)
+		emit(Event{Type: EventStarted, Message: "delegated"})
+		emit(Event{Type: EventProgress, Message: "working"})
+		<-release
+		emit(Event{Type: EventCompleted, Message: "done"})
+		return Result{Status: StatusCompleted, Summary: "done"}, nil
+	}), "")
 
-	sa, err := mgr.Spawn(parentCtx, SubagentConfig{Goal: "default timeout"})
-	if err != nil {
-		t.Fatalf("Spawn: %v", err)
-	}
-	if _, ok := sa.ctx.Deadline(); !ok {
-		t.Fatal("sa.ctx has no deadline; want manager default timeout applied")
-	}
-	_, _ = sa.WaitForResult(context.Background())
-}
+	var (
+		handle   *Handle
+		startErr error
+	)
+	startDone := make(chan struct{})
+	go func() {
+		handle, startErr = mgr.Start(context.Background(), Spec{Goal: "  summarize  "})
+		close(startDone)
+	}()
 
-type blockingRunner struct{}
-
-func (blockingRunner) Run(ctx context.Context, cfg SubagentConfig, events chan<- SubagentEvent) *SubagentResult {
 	select {
-	case events <- SubagentEvent{Type: EventStarted, Message: cfg.Goal}:
-	case <-ctx.Done():
+	case <-startDone:
+	case <-time.After(time.Second):
+		t.Fatal("Start blocked waiting for runner")
 	}
-	<-ctx.Done()
-	return &SubagentResult{
-		Status:     StatusInterrupted,
-		ExitReason: "ctx_cancelled",
-		Error:      ctx.Err().Error(),
+	if startErr != nil {
+		t.Fatalf("Start: %v", startErr)
 	}
-}
+	if handle == nil {
+		t.Fatal("Start returned nil handle")
+	}
+	if cap(handle.Events) == 0 {
+		t.Fatal("Handle.Events must be buffered")
+	}
+	if cap(handle.done) != 1 {
+		t.Fatalf("Handle.done capacity = %d, want 1", cap(handle.done))
+	}
 
-func newBlockingManager(t *testing.T, depth int) (SubagentManager, context.CancelFunc) {
-	t.Helper()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("runner did not start")
+	}
 
-	parentCtx, cancel := context.WithCancel(context.Background())
-	return NewManager(ManagerOpts{
-		ParentCtx: parentCtx,
-		ParentID:  "parent_test",
-		Depth:     depth,
-		Registry:  NewRegistry(),
-		NewRunner: func() Runner { return blockingRunner{} },
-	}), cancel
-}
+	spec := <-seenSpec
+	if spec.Goal != "summarize" {
+		t.Fatalf("Goal = %q, want trimmed summarize", spec.Goal)
+	}
+	if spec.MaxIterations != 7 {
+		t.Fatalf("MaxIterations = %d, want 7", spec.MaxIterations)
+	}
+	if spec.Timeout != 3*time.Second {
+		t.Fatalf("Timeout = %v, want 3s", spec.Timeout)
+	}
 
-func TestManagerInterruptDeliversMessage(t *testing.T) {
-	mgr, cancel := newBlockingManager(t, 0)
-	defer cancel()
+	close(release)
 
-	sa, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "blocked"})
+	res, err := handle.Wait(context.Background())
 	if err != nil {
-		t.Fatalf("Spawn: %v", err)
+		t.Fatalf("Wait: %v", err)
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+	if res.RunID == "" {
+		t.Fatal("RunID must be populated")
+	}
+	if res.RunID != handle.RunID {
+		t.Fatalf("RunID = %q, want handle.RunID %q", res.RunID, handle.RunID)
 	}
 
-	if err := mgr.Interrupt(sa, "user_stop"); err != nil {
-		t.Fatalf("Interrupt: %v", err)
+	var got []Event
+	for ev := range handle.Events {
+		got = append(got, ev)
+	}
+	if len(got) != 3 {
+		t.Fatalf("got %d events, want 3", len(got))
+	}
+	if got[0].Type != EventStarted || got[1].Type != EventProgress || got[2].Type != EventCompleted {
+		t.Fatalf("events = %#v, want started/progress/completed", got)
 	}
 
-	result, err := sa.WaitForResult(context.Background())
+	mgr.mu.Lock()
+	live := len(mgr.live)
+	mgr.mu.Unlock()
+	if live != 0 {
+		t.Fatalf("live handles = %d, want 0", live)
+	}
+}
+
+func TestManager_Cancel_ReturnsCancelledResult(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Hour,
+		MaxChildDepth:        1,
+	}
+
+	canceled := make(chan struct{})
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		emit(Event{Type: EventStarted, Message: "begin"})
+		<-ctx.Done()
+		close(canceled)
+		return Result{Summary: "should be overridden"}, ctx.Err()
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "cancel me"})
 	if err != nil {
-		t.Fatalf("WaitForResult: %v", err)
-	}
-	if result.Status != StatusInterrupted {
-		t.Errorf("Status: want %q, got %q", StatusInterrupted, result.Status)
+		t.Fatalf("Start: %v", err)
 	}
 
-	var sawInterrupt bool
-	var interruptMsg string
-	for ev := range sa.Events() {
-		if ev.Type == EventInterrupted {
-			sawInterrupt = true
-			interruptMsg = ev.Message
-		}
+	if err := handle.Cancel(); err != nil {
+		t.Fatalf("Cancel: %v", err)
 	}
-	if !sawInterrupt {
-		t.Errorf("Events: want at least one EventInterrupted, got none")
+
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), time.Second)
+	defer cancelWait()
+
+	res, err := handle.Wait(waitCtx)
+	if err != nil {
+		t.Fatalf("Wait error = %v, want nil", err)
 	}
-	if interruptMsg != "user_stop" {
-		t.Errorf("EventInterrupted.Message: want %q, got %q", "user_stop", interruptMsg)
+	if res.Status != StatusCancelled {
+		t.Fatalf("Status = %q, want cancelled", res.Status)
+	}
+
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("runner did not observe cancellation")
+	}
+
+	mgr.mu.Lock()
+	live := len(mgr.live)
+	mgr.mu.Unlock()
+	if live != 0 {
+		t.Fatalf("live handles = %d, want 0", live)
 	}
 }
 
-func TestManagerInterruptUnknownReturnsErr(t *testing.T) {
-	mgr, _, cancel := newStubManager(t, 0)
-	defer cancel()
+func TestManager_Timeout_ReturnsTimedOutResult(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Hour,
+		MaxChildDepth:        1,
+	}
 
-	stranger := &Subagent{ID: "sa_stranger"}
-	err := mgr.Interrupt(stranger, "nope")
-	if err == nil || !errorsIs(err, ErrSubagentNotFound) {
-		t.Errorf("err: want ErrSubagentNotFound, got %v", err)
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		<-ctx.Done()
+		return Result{Summary: "late"}, ctx.Err()
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{
+		Goal:    "timeout me",
+		Timeout: 25 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	res, err := handle.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait error = %v, want nil", err)
+	}
+	if res.Status != StatusTimedOut {
+		t.Fatalf("Status = %q, want timed_out", res.Status)
 	}
 }
 
-func errorsIs(err, target error) bool {
+func TestManager_LogAppendFailure_PreservesResultError(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		return Result{Status: StatusCompleted, Summary: "ok"}, nil
+	}), t.TempDir())
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "log failure"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	res, err := handle.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait error = %v, want nil", err)
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+	if res.RunID == "" {
+		t.Fatal("RunID must be populated")
+	}
+	if res.Error == "" {
+		t.Fatal("Result.Error must contain the logging failure")
+	}
+}
+
+func TestManager_Run_RecoversRunnerPanics(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		panic("runner boom")
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "panic me"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	res, err := handle.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait error = %v, want nil", err)
+	}
+	if res.Status != StatusFailed {
+		t.Fatalf("Status = %q, want failed", res.Status)
+	}
+	if res.Error == "" {
+		t.Fatal("Error must be populated when runner panics")
+	}
+}
+
+func TestManager_Wait_ReturnsContextErrorWhenWaitCtxCanceled(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	blocked := make(chan struct{})
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		<-blocked
+		return Result{Status: StatusCompleted, Summary: "late"}, nil
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "wait ctx cancel"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	waitCtx, cancelWait := context.WithCancel(context.Background())
+	cancelWait()
+
+	res, err := handle.Wait(waitCtx)
 	if err == nil {
-		return false
+		t.Fatal("Wait error = nil, want context cancellation")
 	}
-	for {
-		if err == target {
-			return true
-		}
-		u, ok := err.(interface{ Unwrap() error })
-		if !ok {
-			return false
-		}
-		err = u.Unwrap()
-		if err == nil {
-			return false
-		}
-	}
-}
-
-func TestManagerInterruptIsIdempotent(t *testing.T) {
-	mgr, cancel := newBlockingManager(t, 0)
-	defer cancel()
-
-	sa, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "blocked"})
-	if err != nil {
-		t.Fatalf("Spawn: %v", err)
-	}
-	if err := mgr.Interrupt(sa, "first"); err != nil {
-		t.Fatalf("first Interrupt: %v", err)
-	}
-	if _, err := sa.WaitForResult(context.Background()); err != nil {
-		t.Fatalf("WaitForResult: %v", err)
+	if res.RunID != handle.RunID {
+		t.Fatalf("RunID = %q, want %q", res.RunID, handle.RunID)
 	}
 
-	err = mgr.Interrupt(sa, "second")
-	if err == nil || !errorsIs(err, ErrSubagentNotFound) {
-		t.Errorf("second Interrupt: want ErrSubagentNotFound, got %v", err)
-	}
-}
+	close(blocked)
 
-func TestManagerParentCtxCancellationCascades(t *testing.T) {
-	parentCtx, cancelParent := context.WithCancel(context.Background())
-	mgr := NewManager(ManagerOpts{
-		ParentCtx: parentCtx,
-		ParentID:  "parent_test",
-		Depth:     0,
-		Registry:  NewRegistry(),
-		NewRunner: func() Runner { return blockingRunner{} },
-	})
-
-	const n = 3
-	subs := make([]*Subagent, n)
-	for i := 0; i < n; i++ {
-		sa, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "blocked"})
-		if err != nil {
-			t.Fatalf("Spawn[%d]: %v", i, err)
-		}
-		subs[i] = sa
-	}
-
-	cancelParent()
-
-	for i, sa := range subs {
-		result, err := sa.WaitForResult(context.Background())
-		if err != nil {
-			t.Fatalf("WaitForResult[%d]: %v", i, err)
-		}
-		if result.Status != StatusInterrupted {
-			t.Errorf("subagent %d Status: want %q, got %q", i, StatusInterrupted, result.Status)
-		}
-	}
-}
-
-func TestManagerSpawnAtMaxDepthRejected(t *testing.T) {
-	mgr := NewManager(ManagerOpts{
-		ParentCtx: context.Background(),
-		ParentID:  "parent_test",
-		Depth:     MaxDepth,
-		Registry:  NewRegistry(),
-		NewRunner: func() Runner { return StubRunner{} },
-	})
-
-	_, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "x"})
-	if err == nil || !errorsIs(err, ErrMaxDepth) {
-		t.Errorf("err: want ErrMaxDepth, got %v", err)
-	}
-}
-
-func TestManagerSpawnAtMaxDepthMinusOneAllowed(t *testing.T) {
-	mgr := NewManager(ManagerOpts{
-		ParentCtx: context.Background(),
-		ParentID:  "parent_test",
-		Depth:     MaxDepth - 1,
-		Registry:  NewRegistry(),
-		NewRunner: func() Runner { return StubRunner{} },
-	})
-
-	sa, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "x"})
-	if err != nil {
-		t.Fatalf("Spawn at MaxDepth-1: want OK, got %v", err)
-	}
-	if sa.Depth != MaxDepth {
-		t.Errorf("Depth: want %d, got %d", MaxDepth, sa.Depth)
-	}
-	_, _ = sa.WaitForResult(context.Background())
-}
-
-func TestManagerCollectBeforeAndAfterDone(t *testing.T) {
-	mgr, cancel := newBlockingManager(t, 0)
-	defer cancel()
-
-	sa, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "blocked"})
-	if err != nil {
-		t.Fatalf("Spawn: %v", err)
-	}
-
-	if got := mgr.Collect(sa); got != nil {
-		t.Errorf("Collect before done: want nil, got %+v", got)
-	}
-
-	if err := mgr.Interrupt(sa, "stop"); err != nil {
-		t.Fatalf("Interrupt: %v", err)
-	}
-	if _, err := sa.WaitForResult(context.Background()); err != nil {
-		t.Fatalf("WaitForResult: %v", err)
-	}
-
-	got := mgr.Collect(sa)
-	if got == nil {
-		t.Errorf("Collect after done: want non-nil, got nil")
-	}
-	if got != nil && got.Status != StatusInterrupted {
-		t.Errorf("Collect Status: want %q, got %q", StatusInterrupted, got.Status)
-	}
-}
-
-func TestManagerCloseCancelsAllAndIsIdempotent(t *testing.T) {
-	mgr, cancel := newBlockingManager(t, 0)
-	defer cancel()
-
-	subs := make([]*Subagent, 3)
-	for i := range subs {
-		sa, err := mgr.Spawn(context.Background(), SubagentConfig{Goal: "blocked"})
-		if err != nil {
-			t.Fatalf("Spawn[%d]: %v", i, err)
-		}
-		subs[i] = sa
-	}
-
-	if err := mgr.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
-	}
-	if err := mgr.Close(); err != nil {
-		t.Fatalf("second Close: want nil, got %v", err)
-	}
-
-	for i, sa := range subs {
-		select {
-		case <-sa.done:
-		case <-time.After(2 * time.Second):
-			t.Fatalf("subagent %d not finished after Close", i)
-		}
-	}
-}
-
-func TestManagerSuccessPathCancelsChildContext(t *testing.T) {
-	mgr, parentCtx, cancel := newStubManager(t, 0)
-	defer cancel()
-
-	sa, err := mgr.Spawn(parentCtx, SubagentConfig{Goal: "cleanup"})
-	if err != nil {
-		t.Fatalf("Spawn: %v", err)
-	}
-	if _, err := sa.WaitForResult(context.Background()); err != nil {
-		t.Fatalf("WaitForResult: %v", err)
-	}
+	waitDone := make(chan struct{})
+	go func() {
+		_, _ = handle.Wait(context.Background())
+		close(waitDone)
+	}()
 	select {
-	case <-sa.ctx.Done():
-	default:
-		t.Fatal("child ctx still open after successful completion")
+	case <-waitDone:
+	case <-time.After(time.Second):
+		t.Fatal("run did not finish after unblocking")
+	}
+}
+
+func TestManager_EventBurst_CompletesBeforeConsumerReads(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	const eventCount = handleEventBufferSize + 8
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		for i := 0; i < eventCount; i++ {
+			emit(Event{Type: EventProgress, Message: "tick"})
+		}
+		return Result{Status: StatusCompleted, Summary: "burst done"}, nil
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "burst"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	waitDone := make(chan struct{})
+	var waitRes Result
+	var waitErr error
+	go func() {
+		waitRes, waitErr = handle.Wait(context.Background())
+		close(waitDone)
+	}()
+
+	select {
+	case <-waitDone:
+	case <-time.After(time.Second):
+		t.Fatal("Wait blocked while runner emitted more than the event buffer")
+	}
+	if waitErr != nil {
+		t.Fatalf("Wait error = %v, want nil", waitErr)
+	}
+	if waitRes.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", waitRes.Status)
+	}
+
+	var got int
+	for range handle.Events {
+		got++
+	}
+	if got == 0 {
+		t.Fatal("got no events, want bounded best-effort delivery")
+	}
+	if got > handleEventBufferSize {
+		t.Fatalf("got %d events, want at most %d", got, handleEventBufferSize)
+	}
+}
+
+func TestManager_WritesRunLogRecord(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	logPath := filepath.Join(t.TempDir(), "runs.jsonl")
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		emit(Event{Type: EventStarted, Message: "start"})
+		return Result{Status: StatusCompleted, Summary: "logged"}, nil
+	}), logPath)
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "log this"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	res, err := handle.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	var rec RunRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if rec.RunID != handle.RunID {
+		t.Fatalf("RunID = %q, want %q", rec.RunID, handle.RunID)
+	}
+	if rec.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", rec.Status)
+	}
+	if rec.Summary != "logged" {
+		t.Fatalf("Summary = %q, want logged", rec.Summary)
+	}
+	if rec.StartedAt.IsZero() || rec.FinishedAt.IsZero() {
+		t.Fatal("timestamps must be populated")
 	}
 }

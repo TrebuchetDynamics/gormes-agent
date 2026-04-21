@@ -1,98 +1,170 @@
-// gormes/internal/subagent/runner_test.go
 package subagent
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
-func TestStubRunnerHappyPath(t *testing.T) {
-	cfg := SubagentConfig{Goal: "do the thing"}
-	events := make(chan SubagentEvent, 4)
-	runner := StubRunner{}
+func TestChatRunner_StopFinishReturnsSummary(t *testing.T) {
+	cli := hermes.NewMockClient()
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "child ", TokensOut: 1},
+		{Kind: hermes.EventToken, Token: "done", TokensOut: 2},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 7, TokensOut: 2},
+	}, "sess-child")
 
-	result := runner.Run(context.Background(), cfg, events)
-	close(events)
+	reg := tools.NewRegistry()
+	runner := NewChatRunner(cli, reg, ChatRunnerConfig{Model: "hermes-agent", MaxToolDuration: 2 * time.Second})
 
-	if result == nil {
-		t.Fatal("Run returned nil result")
+	var events []Event
+	res, err := runner.Run(context.Background(), Spec{Goal: "summarize repo", MaxIterations: 4}, func(ev Event) {
+		events = append(events, ev)
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
 	}
-	if result.Status != StatusCompleted {
-		t.Errorf("Status: want %q, got %q", StatusCompleted, result.Status)
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
 	}
-	if result.Summary != "do the thing" {
-		t.Errorf("Summary: want %q, got %q", "do the thing", result.Summary)
+	if res.Summary != "child done" {
+		t.Fatalf("Summary = %q, want child done", res.Summary)
 	}
-	if result.ExitReason != "stub_runner_no_llm_yet" {
-		t.Errorf("ExitReason: want %q, got %q", "stub_runner_no_llm_yet", result.ExitReason)
-	}
-
-	got := drain(events)
-	if len(got) != 2 {
-		t.Fatalf("event count: want 2, got %d (%v)", len(got), got)
-	}
-	if got[0].Type != EventStarted || got[1].Type != EventCompleted {
-		t.Errorf("event sequence: want started→completed, got %v→%v", got[0].Type, got[1].Type)
-	}
-}
-
-func TestStubRunnerCancelledBeforeStart(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	// Unbuffered channel with no reader — first send would block. The runner
-	// must observe ctx.Done() instead and return promptly.
-	events := make(chan SubagentEvent)
-	runner := StubRunner{}
-
-	done := make(chan *SubagentResult, 1)
-	go func() { done <- runner.Run(ctx, SubagentConfig{Goal: "x"}, events) }()
-
-	select {
-	case result := <-done:
-		if result.Status != StatusInterrupted {
-			t.Errorf("Status: want %q, got %q", StatusInterrupted, result.Status)
-		}
-		if result.ExitReason != "ctx_cancelled_before_start" {
-			t.Errorf("ExitReason: want %q, got %q", "ctx_cancelled_before_start", result.ExitReason)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("StubRunner did not honour ctx cancellation within 2s")
+	if len(events) == 0 || events[0].Type != EventStarted {
+		t.Fatalf("first event = %+v, want started", events)
 	}
 }
 
-func TestStubRunnerCancelledDuringEmit(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	// Buffered channel: first send (started) succeeds; reader never drains, so
-	// second send (completed) blocks. Cancel after a moment to force the
-	// "during" branch.
-	events := make(chan SubagentEvent, 1)
-	runner := StubRunner{}
+func TestChatRunner_ToolCallExecutesAllowedTool(t *testing.T) {
+	cli := hermes.NewMockClient()
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "thinking aloud ", TokensOut: 2},
+		{Kind: hermes.EventDone, FinishReason: "tool_calls", ToolCalls: []hermes.ToolCall{
+			{ID: "call-1", Name: "echo", Arguments: json.RawMessage(`{"text":"hello"}`)},
+		}},
+	}, "sess-child")
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "tool ok", TokensOut: 2},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 11, TokensOut: 2},
+	}, "sess-child")
 
-	done := make(chan *SubagentResult, 1)
-	go func() { done <- runner.Run(ctx, SubagentConfig{Goal: "x"}, events) }()
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{
+		NameStr: "echo",
+		ExecuteFn: func(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
+			return json.RawMessage(`{"text":"hello"}`), nil
+		},
+	})
 
-	time.Sleep(20 * time.Millisecond)
-	cancel()
-
-	select {
-	case result := <-done:
-		if result.Status != StatusInterrupted {
-			t.Errorf("Status: want %q, got %q", StatusInterrupted, result.Status)
-		}
-		if result.ExitReason != "ctx_cancelled_during_stub" {
-			t.Errorf("ExitReason: want %q, got %q", "ctx_cancelled_during_stub", result.ExitReason)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("StubRunner did not honour ctx cancellation within 2s")
+	runner := NewChatRunner(cli, reg, ChatRunnerConfig{Model: "hermes-agent", MaxToolDuration: 2 * time.Second})
+	res, err := runner.Run(context.Background(), Spec{
+		Goal:          "call echo",
+		MaxIterations: 4,
+		AllowedTools:  []string{"echo"},
+	}, func(Event) {})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(res.ToolCalls) != 1 || res.ToolCalls[0] != "echo" {
+		t.Fatalf("ToolCalls = %v, want [echo]", res.ToolCalls)
+	}
+	if res.Summary != "tool ok" {
+		t.Fatalf("Summary = %q, want tool ok", res.Summary)
+	}
+	if len(cli.Requests()) != 2 {
+		t.Fatalf("OpenStream requests = %d, want 2", len(cli.Requests()))
 	}
 }
 
-func drain(ch <-chan SubagentEvent) []SubagentEvent {
-	var out []SubagentEvent
-	for ev := range ch {
-		out = append(out, ev)
+func TestChatRunner_ToolPanicReturnsErrorInsteadOfCrashing(t *testing.T) {
+	cli := hermes.NewMockClient()
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventDone, FinishReason: "tool_calls", ToolCalls: []hermes.ToolCall{
+			{ID: "call-1", Name: "explode", Arguments: json.RawMessage(`{}`)},
+		}},
+	}, "sess-child")
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "recovered", TokensOut: 2},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 9, TokensOut: 2},
+	}, "sess-child")
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{
+		NameStr: "explode",
+		ExecuteFn: func(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
+			panic("boom")
+		},
+	})
+
+	runner := NewChatRunner(cli, reg, ChatRunnerConfig{Model: "hermes-agent", MaxToolDuration: 2 * time.Second})
+	res, err := runner.Run(context.Background(), Spec{
+		Goal:          "panic containment",
+		MaxIterations: 4,
+		AllowedTools:  []string{"explode"},
+	}, func(Event) {})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
 	}
-	return out
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+	if len(cli.Requests()) != 2 {
+		t.Fatalf("OpenStream requests = %d, want 2", len(cli.Requests()))
+	}
+}
+
+func TestChatRunner_BlockedToolReturnsPolicyError(t *testing.T) {
+	cli := hermes.NewMockClient()
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventDone, FinishReason: "tool_calls", ToolCalls: []hermes.ToolCall{
+			{ID: "call-1", Name: "delegate_task", Arguments: json.RawMessage(`{"goal":"nested"}`)},
+		}},
+	}, "sess-child")
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "nested blocked", TokensOut: 2},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 9, TokensOut: 2},
+	}, "sess-child")
+
+	reg := tools.NewRegistry()
+	runner := NewChatRunner(cli, reg, ChatRunnerConfig{Model: "hermes-agent", MaxToolDuration: 2 * time.Second})
+
+	res, err := runner.Run(context.Background(), Spec{Goal: "try nested delegation", MaxIterations: 4}, func(Event) {})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+	if len(cli.Requests()) != 2 {
+		t.Fatalf("OpenStream requests = %d, want 2", len(cli.Requests()))
+	}
+}
+
+func TestChatRunner_EOFWithoutDoneReturnsBufferedSummary(t *testing.T) {
+	cli := hermes.NewMockClient()
+	cli.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "partial ", TokensOut: 1},
+		{Kind: hermes.EventToken, Token: "answer", TokensOut: 2},
+	}, "sess-child")
+
+	reg := tools.NewRegistry()
+	runner := NewChatRunner(cli, reg, ChatRunnerConfig{Model: "hermes-agent", MaxToolDuration: 2 * time.Second})
+
+	res, err := runner.Run(context.Background(), Spec{Goal: "finish via eof", MaxIterations: 2}, func(Event) {})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+	if res.Summary != "partial answer" {
+		t.Fatalf("Summary = %q, want partial answer", res.Summary)
+	}
+	if res.FinishReason != "" {
+		t.Fatalf("FinishReason = %q, want empty", res.FinishReason)
+	}
 }

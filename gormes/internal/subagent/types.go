@@ -1,76 +1,48 @@
-// gormes/internal/subagent/types.go
-
-// Package subagent implements goroutine-per-subagent execution isolation
-// with deterministic context cancellation, bounded batch concurrency, and
-// a swappable Runner interface. See gormes/docs/superpowers/specs/2026-04-20-gormes-phase2e-subagent-design.md.
 package subagent
 
 import "time"
 
-// SubagentConfig is the per-subagent configuration handed to the Runner.
-// Defaults are applied at Spawn time, not at TOML decode time.
-type SubagentConfig struct {
+type Spec struct {
 	Goal          string
 	Context       string
-	MaxIterations int           // 0 → DefaultMaxIterations at Spawn time
-	EnabledTools  []string      // empty → all parent tools minus BlockedTools (enforcement deferred to 2.E.7)
-	Model         string        // empty → inherit from parent
-	Timeout       time.Duration // 0 → no timeout
+	Model         string
+	AllowedTools  []string
+	MaxIterations int
+	Timeout       time.Duration
+	Depth         int
 }
 
-// EventType discriminates SubagentEvent values streamed from runner to parent.
 type EventType string
 
 const (
-	EventStarted     EventType = "started"
-	EventProgress    EventType = "progress"
-	EventToolCall    EventType = "tool_call"
-	EventOutput      EventType = "output"
-	EventCompleted   EventType = "completed"
-	EventFailed      EventType = "failed"
-	EventInterrupted EventType = "interrupted"
+	EventStarted   EventType = "started"
+	EventProgress  EventType = "progress"
+	EventToolCall  EventType = "tool_call"
+	EventCompleted EventType = "completed"
+	EventFailed    EventType = "failed"
 )
 
-// SubagentEvent is a single observation streamed back to the parent during execution.
-type SubagentEvent struct {
-	Type     EventType
-	Message  string
-	ToolCall *ToolCallInfo
-	Progress *ProgressInfo
+type Event struct {
+	Type      EventType `json:"type"`
+	Message   string    `json:"message,omitempty"`
+	ToolName  string    `json:"tool_name,omitempty"`
+	Iteration int       `json:"iteration,omitempty"`
 }
 
-// ToolCallInfo summarises a tool invocation observed from inside the subagent.
-type ToolCallInfo struct {
-	Name       string
-	ArgsBytes  int
-	ResultSize int
-	Status     string
-}
-
-// ProgressInfo is an iteration tick from a long-running runner.
-type ProgressInfo struct {
-	Iteration int
-	Message   string
-}
-
-// ResultStatus is the terminal status of a subagent.
 type ResultStatus string
 
 const (
-	StatusCompleted   ResultStatus = "completed"
-	StatusFailed      ResultStatus = "failed"
-	StatusInterrupted ResultStatus = "interrupted"
-	StatusError       ResultStatus = "error"
+	StatusCompleted ResultStatus = "completed"
+	StatusFailed    ResultStatus = "failed"
+	StatusCancelled ResultStatus = "cancelled"
+	StatusTimedOut  ResultStatus = "timed_out"
 )
 
-// SubagentResult is published exactly once when a subagent finishes.
-type SubagentResult struct {
-	ID         string
-	Status     ResultStatus
-	Summary    string
-	ExitReason string
-	Duration   time.Duration
-	Iterations int
-	ToolCalls  []ToolCallInfo
-	Error      string
+type Result struct {
+	RunID        string       `json:"run_id"`
+	Status       ResultStatus `json:"status"`
+	Summary      string       `json:"summary,omitempty"`
+	Error        string       `json:"error,omitempty"`
+	FinishReason string       `json:"finish_reason,omitempty"`
+	ToolCalls    []string     `json:"tool_calls,omitempty"`
 }

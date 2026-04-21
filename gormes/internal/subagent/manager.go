@@ -4,262 +4,223 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
 )
 
-// SubagentManager owns the goroutine lifecycle for every subagent it spawns.
-type SubagentManager interface {
-	Spawn(ctx context.Context, cfg SubagentConfig) (*Subagent, error)
-	SpawnBatch(ctx context.Context, cfgs []SubagentConfig, maxConcurrent int) ([]*SubagentResult, error)
-	Interrupt(sa *Subagent, message string) error
-	Collect(sa *Subagent) *SubagentResult
-	Close() error
+const handleEventBufferSize = 32
+
+// Manager owns delegated subagent runs and their live handles.
+type Manager struct {
+	cfg     config.DelegationCfg
+	runner  Runner
+	logPath string
+
+	mu     sync.Mutex
+	live   map[string]*Handle
+	runSeq uint64
 }
 
-// ManagerOpts configures NewManager.
-type ManagerOpts struct {
-	// ParentCtx is the context every spawned subagent's ctx will derive from
-	// via WithCancel. Cancelling ParentCtx cancels every child.
-	ParentCtx context.Context
+// Handle tracks one in-flight delegated run.
+type Handle struct {
+	RunID  string
+	Events <-chan Event
 
-	// ParentID is recorded on every spawned Subagent.ParentID. Informational.
-	ParentID string
+	done   chan struct{}
+	cancel context.CancelFunc
 
-	// Depth is the manager's depth in the subagent tree. Children of a
-	// manager at depth D are spawned at depth D+1. Spawn returns ErrMaxDepth
-	// when Depth >= MaxDepth.
-	Depth int
+	mu     sync.Mutex
+	result Result
+	err    error
 
-	// MaxDepth overrides the package default depth limit when > 0.
-	MaxDepth int
-
-	// Registry tracks every live subagent process-wide.
-	Registry SubagentRegistry
-
-	// NewRunner mints a Runner for each spawned subagent. This slice always
-	// passes a func returning StubRunner{}; later tasks will pass different
-	// runner factories.
-	NewRunner func() Runner
-
-	// DefaultMaxIterations overrides the package default iteration budget when
-	// cfg.MaxIterations <= 0.
-	DefaultMaxIterations int
-
-	// DefaultMaxConcurrent overrides SpawnBatch's package default semaphore
-	// size when the caller passes maxConcurrent <= 0.
-	DefaultMaxConcurrent int
-
-	// DefaultTimeout applies when cfg.Timeout <= 0.
-	DefaultTimeout time.Duration
+	events chan Event
 }
 
-type manager struct {
-	opts ManagerOpts
-
-	mu       sync.RWMutex
-	children map[string]*Subagent
-
-	closeOnce sync.Once
-	closed    chan struct{}
-}
-
-// NewManager constructs a SubagentManager.
-func NewManager(opts ManagerOpts) SubagentManager {
-	if opts.NewRunner == nil {
-		opts.NewRunner = func() Runner { return StubRunner{} }
-	}
-	if opts.Registry == nil {
-		opts.Registry = NewRegistry()
-	}
-	if opts.ParentCtx == nil {
-		opts.ParentCtx = context.Background()
-	}
-	return &manager{
-		opts:     opts,
-		children: make(map[string]*Subagent),
-		closed:   make(chan struct{}),
+// NewManager wires a runner to delegation defaults and optional JSONL logging.
+func NewManager(cfg config.DelegationCfg, runner Runner, logPath string) *Manager {
+	return &Manager{
+		cfg:     cfg,
+		runner:  runner,
+		logPath: logPath,
+		live:    make(map[string]*Handle),
 	}
 }
 
-func (m *manager) Spawn(_ context.Context, cfg SubagentConfig) (*Subagent, error) {
+// Start launches one child run asynchronously and returns its handle.
+func (m *Manager) Start(parent context.Context, spec Spec) (*Handle, error) {
+	if m == nil {
+		return nil, fmt.Errorf("subagent: nil manager")
+	}
+	if m.runner == nil {
+		return nil, fmt.Errorf("subagent: nil runner")
+	}
+	if parent == nil {
+		parent = context.Background()
+	}
+
+	spec, err := ApplyDefaults(spec, m.cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	runID := m.nextRunID()
+	runCtx, cancel := context.WithTimeout(parent, spec.Timeout)
+	events := make(chan Event, handleEventBufferSize)
+
+	handle := &Handle{
+		RunID:  runID,
+		Events: events,
+		done:   make(chan struct{}, 1),
+		cancel: cancel,
+		events: events,
+	}
+
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.live[runID] = handle
+	m.mu.Unlock()
 
-	if m.opts.Depth >= m.maxDepth() {
-		return nil, fmt.Errorf("%w (depth=%d)", ErrMaxDepth, m.opts.Depth)
-	}
+	go m.run(handle, runCtx, spec)
 
-	if cfg.MaxIterations <= 0 {
-		cfg.MaxIterations = m.defaultMaxIterations()
-	}
-	if cfg.Timeout <= 0 {
-		cfg.Timeout = m.opts.DefaultTimeout
-	}
-
-	childCtx, cancel := context.WithCancel(m.opts.ParentCtx)
-	var timeoutCancel context.CancelFunc
-	if cfg.Timeout > 0 {
-		childCtx, timeoutCancel = context.WithTimeout(childCtx, cfg.Timeout)
-	}
-
-	sa := &Subagent{
-		ID:            newSubagentID(),
-		ParentID:      m.opts.ParentID,
-		Depth:         m.opts.Depth + 1,
-		cfg:           cfg,
-		ctx:           childCtx,
-		cancel:        cancel,
-		timeoutCancel: timeoutCancel,
-		publicEvents:  make(chan SubagentEvent, 16),
-		done:          make(chan struct{}),
-	}
-
-	m.children[sa.ID] = sa
-	m.opts.Registry.Register(sa)
-
-	go m.run(sa)
-	return sa, nil
+	return handle, nil
 }
 
-// run is the per-subagent lifecycle goroutine.
-func (m *manager) run(sa *Subagent) {
-	start := time.Now()
-	runner := m.opts.NewRunner()
-
-	internalEvents := make(chan SubagentEvent, 16)
-	resultCh := make(chan *SubagentResult, 1)
-	runnerDone := make(chan struct{})
-
-	go func() {
-		defer close(runnerDone)
-		defer func() {
-			if r := recover(); r != nil {
-				resultCh <- &SubagentResult{
-					Status:     StatusError,
-					ExitReason: "panic",
-					Error:      fmt.Sprintf("%v", r),
-				}
-			}
-		}()
-		resultCh <- runner.Run(sa.ctx, sa.cfg, internalEvents)
-	}()
-
-	forwarderDone := make(chan struct{})
-	go func() {
-		defer close(forwarderDone)
-		defer close(sa.publicEvents)
-		for ev := range internalEvents {
-			sa.publicEvents <- ev
-		}
-	}()
-
-	result := <-resultCh
-	if result == nil {
-		result = &SubagentResult{
-			Status:     StatusError,
-			ExitReason: "nil_result",
-			Error:      "subagent: runner returned nil result",
-		}
+// Wait blocks until the run completes or the waiting context is canceled.
+func (h *Handle) Wait(ctx context.Context) (Result, error) {
+	if h == nil {
+		return Result{}, fmt.Errorf("subagent: nil handle")
 	}
-	result.ID = sa.ID
-	if result.Duration == 0 {
-		result.Duration = time.Since(start)
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
-	<-runnerDone
-	if sa.ctx.Err() != nil {
-		msg, _ := sa.interruptMsg.Load().(string)
-		internalEvents <- SubagentEvent{Type: EventInterrupted, Message: msg}
-	}
-	close(internalEvents)
-	<-forwarderDone
-
-	if sa.timeoutCancel != nil {
-		sa.timeoutCancel()
-	}
-	sa.cancel()
-
-	sa.setResult(result)
-	close(sa.done)
-
-	m.removeChild(sa.ID)
-	m.opts.Registry.Unregister(sa.ID)
-}
-
-func (m *manager) removeChild(id string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.children, id)
-}
-
-// Interrupt is implemented in a later task.
-func (m *manager) Interrupt(sa *Subagent, message string) error {
-	m.mu.RLock()
-	tracked, ok := m.children[sa.ID]
-	m.mu.RUnlock()
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrSubagentNotFound, sa.ID)
-	}
-	tracked.interruptMsg.Store(message)
-	tracked.cancel()
-	return nil
-}
-
-// Collect is implemented in a later task.
-func (m *manager) Collect(sa *Subagent) *SubagentResult {
 	select {
-	case <-sa.done:
-		sa.mu.RLock()
-		defer sa.mu.RUnlock()
-		return sa.result
-	default:
+	case <-h.done:
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return h.result, h.err
+	case <-ctx.Done():
+		return Result{RunID: h.RunID}, ctx.Err()
+	}
+}
+
+// Cancel aborts the delegated run.
+func (h *Handle) Cancel() error {
+	if h == nil {
 		return nil
 	}
-}
-
-// Close is implemented in a later task.
-func (m *manager) Close() error {
-	m.closeOnce.Do(func() {
-		m.mu.RLock()
-		snap := make([]*Subagent, 0, len(m.children))
-		for _, sa := range m.children {
-			snap = append(snap, sa)
-		}
-		m.mu.RUnlock()
-
-		for _, sa := range snap {
-			sa.cancel()
-		}
-		for _, sa := range snap {
-			<-sa.done
-		}
-		close(m.closed)
-	})
+	if h.cancel != nil {
+		h.cancel()
+	}
 	return nil
 }
 
-// SpawnBatch is implemented in a later task.
-func (m *manager) SpawnBatch(ctx context.Context, cfgs []SubagentConfig, maxConcurrent int) ([]*SubagentResult, error) {
-	return m.spawnBatch(ctx, cfgs, maxConcurrent)
+func (m *Manager) run(handle *Handle, runCtx context.Context, spec Spec) {
+	startedAt := time.Now().UTC()
+	defer m.remove(handle.RunID)
+	defer close(handle.done)
+	defer func() {
+		if handle.events != nil {
+			close(handle.events)
+		}
+		if handle.cancel != nil {
+			handle.cancel()
+		}
+	}()
+
+	result, err := m.runSafely(runCtx, spec, handle)
+	finishedAt := time.Now().UTC()
+
+	result.RunID = handle.RunID
+	result = normalizeResult(runCtx, result, err)
+
+	var orchErr error
+	if err := AppendRunLog(m.logPath, RunRecord{
+		RunID:        result.RunID,
+		Status:       result.Status,
+		Summary:      result.Summary,
+		Error:        result.Error,
+		FinishReason: result.FinishReason,
+		ToolCalls:    append([]string(nil), result.ToolCalls...),
+		StartedAt:    startedAt,
+		FinishedAt:   finishedAt,
+	}); err != nil {
+		orchErr = fmt.Errorf("subagent: append run log: %w", err)
+		if result.Error == "" {
+			result.Error = orchErr.Error()
+		} else {
+			result.Error = result.Error + "; bookkeeping error: " + orchErr.Error()
+		}
+	}
+
+	handle.mu.Lock()
+	handle.result = result
+	handle.err = nil
+	handle.mu.Unlock()
 }
 
-func (m *manager) maxDepth() int {
-	if m.opts.MaxDepth > 0 {
-		return m.opts.MaxDepth
-	}
-	return MaxDepth
+func (m *Manager) runSafely(runCtx context.Context, spec Spec, handle *Handle) (result Result, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("subagent: runner panicked: %v", r)
+			result = Result{Status: StatusFailed, Error: err.Error()}
+		}
+	}()
+
+	return m.runner.Run(runCtx, spec, func(ev Event) {
+		if handle.events == nil {
+			return
+		}
+		select {
+		case handle.events <- ev:
+		default:
+		}
+	})
 }
 
-func (m *manager) defaultMaxIterations() int {
-	if m.opts.DefaultMaxIterations > 0 {
-		return m.opts.DefaultMaxIterations
-	}
-	return DefaultMaxIterations
+func (m *Manager) nextRunID() string {
+	seq := atomic.AddUint64(&m.runSeq, 1)
+	return fmt.Sprintf("run-%d-%06d", time.Now().UTC().UnixNano(), seq)
 }
 
-func (m *manager) defaultMaxConcurrent() int {
-	if m.opts.DefaultMaxConcurrent > 0 {
-		return m.opts.DefaultMaxConcurrent
+func (m *Manager) remove(runID string) {
+	m.mu.Lock()
+	delete(m.live, runID)
+	m.mu.Unlock()
+}
+
+func normalizeResult(ctx context.Context, result Result, runErr error) Result {
+	switch ctx.Err() {
+	case context.Canceled:
+		result.Status = StatusCancelled
+		if result.Error == "" {
+			if runErr != nil {
+				result.Error = runErr.Error()
+			} else {
+				result.Error = context.Canceled.Error()
+			}
+		}
+	case context.DeadlineExceeded:
+		result.Status = StatusTimedOut
+		if result.Error == "" {
+			if runErr != nil {
+				result.Error = runErr.Error()
+			} else {
+				result.Error = context.DeadlineExceeded.Error()
+			}
+		}
+	default:
+		if runErr != nil {
+			if result.Status == "" {
+				result.Status = StatusFailed
+			}
+			if result.Error == "" {
+				result.Error = runErr.Error()
+			}
+		} else if result.Status == "" {
+			result.Status = StatusCompleted
+		}
 	}
-	return DefaultMaxConcurrent
+	return result
 }

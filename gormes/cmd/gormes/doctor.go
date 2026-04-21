@@ -44,7 +44,8 @@ var doctorCmd = &cobra.Command{
 		}
 
 		// Toolbox section — inspect the built-in registry. Runs in both modes.
-		reg := buildDefaultRegistry(context.Background(), cfg.Delegation)
+		reg := buildDefaultRegistry()
+		registerDelegation(cfg, reg, hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey))
 		result := doctor.CheckTools(reg)
 		fmt.Print(result.Format())
 

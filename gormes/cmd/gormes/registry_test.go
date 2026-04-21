@@ -1,29 +1,17 @@
 package main
 
 import (
-	"context"
 	"testing"
-	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
 )
 
-func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
-	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{})
+func TestBuildDefaultRegistryIncludesCoreToolsOnly(t *testing.T) {
+	reg := buildDefaultRegistry()
+	for _, name := range []string{"echo", "now", "rand_int"} {
+		if _, ok := reg.Get(name); !ok {
+			t.Fatalf("tool %q not registered", name)
+		}
+	}
 	if _, ok := reg.Get("delegate_task"); ok {
 		t.Fatal("delegate_task unexpectedly registered")
-	}
-}
-
-func TestBuildDefaultRegistryDelegationEnabled(t *testing.T) {
-	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{
-		Enabled:               true,
-		MaxDepth:              2,
-		MaxConcurrentChildren: 4,
-		DefaultMaxIterations:  9,
-		DefaultTimeout:        time.Minute,
-	})
-	if _, ok := reg.Get("delegate_task"); !ok {
-		t.Fatal("delegate_task not registered")
 	}
 }
