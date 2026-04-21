@@ -16,7 +16,11 @@ test('docs home renders the three-audience split', async ({ page }) => {
   await expect(page.locator('.docs-nav-group-label-progress')).toBeVisible();
   await expect(page.locator('.docs-nav-group-label-next')).toBeVisible();
 
-  // No inline <script src=...> external drift — only the Pagefind + copy JS
-  const scripts = await page.locator('script[src]').count();
-  expect(scripts).toBeLessThanOrEqual(1); // pagefind-ui.js only
+  // External script budget: pagefind-ui.js (always) + livereload.js (Hugo dev
+  // server injects this, prod build doesn't). Phase 1 of the UI polish will
+  // add site.js (Tasks 2-7), bumping the prod budget to 2.
+  const scripts = await page
+    .locator('script[src]')
+    .evaluateAll(els => els.filter(el => !el.src.includes('livereload')).length);
+  expect(scripts).toBeLessThanOrEqual(1); // pagefind-ui.js only (Phase 1 raises this to 2)
 });

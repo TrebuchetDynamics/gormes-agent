@@ -3,7 +3,7 @@
   Generates a checklist table from Site.Data.progress
   Usage: {{< progress-checklist >}}
 */}}
-{{ $data := index .Site.Data "progress" }}
+{{ $data := index hugo.Data "progress" }}
 {{ if not $data }}
 <p><em>Progress data not available. Run <code>make build</code> to generate.</em></p>
 {{ else }}
