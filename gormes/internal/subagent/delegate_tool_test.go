@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDelegateToolMetadata(t *testing.T) {
@@ -51,6 +52,39 @@ func TestDelegateToolExecuteHappyPath(t *testing.T) {
 	id, _ := got["id"].(string)
 	if !strings.HasPrefix(id, "sa_") {
 		t.Errorf("id: want %q-prefixed, got %v", "sa_", got["id"])
+	}
+}
+
+func TestDelegateToolUsesManagerDefaultTimeout(t *testing.T) {
+	parentCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mgr := NewManager(ManagerOpts{
+		ParentCtx:            parentCtx,
+		ParentID:             "parent_test",
+		Depth:                0,
+		Registry:             NewRegistry(),
+		NewRunner:            func() Runner { return blockingRunner{} },
+		DefaultTimeout:       25 * time.Millisecond,
+		DefaultMaxIterations: DefaultMaxIterations,
+	})
+	defer mgr.Close()
+
+	tool := NewDelegateTool(mgr)
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"goal":"timed child"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("output JSON: %v", err)
+	}
+	if got["status"] != "interrupted" {
+		t.Fatalf("status: want %q, got %v", "interrupted", got["status"])
+	}
+	if got["exit_reason"] != "ctx_cancelled" {
+		t.Fatalf("exit_reason: want %q, got %v", "ctx_cancelled", got["exit_reason"])
 	}
 }
 

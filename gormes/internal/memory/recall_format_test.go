@@ -15,7 +15,7 @@ func TestExtractCandidates_DropsStopwords(t *testing.T) {
 }
 
 func TestExtractCandidates_DropsShortTokens(t *testing.T) {
-	got := extractCandidates("I am on AzulVigia")
+	got := extractCandidates("I am on Acme")
 	for _, c := range got {
 		if len(c) < 3 {
 			t.Errorf("short token %q should be dropped: %v", c, got)
@@ -24,12 +24,12 @@ func TestExtractCandidates_DropsShortTokens(t *testing.T) {
 }
 
 func TestExtractCandidates_PreservesProperNouns(t *testing.T) {
-	got := extractCandidates("working on AzulVigia in Cadereyta with Vania")
+	got := extractCandidates("working on Acme in Springfield with Vania")
 	have := map[string]bool{}
 	for _, c := range got {
 		have[c] = true
 	}
-	for _, want := range []string{"AzulVigia", "Cadereyta", "Vania"} {
+	for _, want := range []string{"Acme", "Springfield", "Vania"} {
 		if !have[want] {
 			t.Errorf("candidate %q dropped; got %v", want, got)
 		}
@@ -88,10 +88,10 @@ func TestFormatContextBlock_EmptyReturnsEmptyString(t *testing.T) {
 
 func TestFormatContextBlock_IncludesAllHeaderMarkers(t *testing.T) {
 	ents := []recalledEntity{
-		{Name: "AzulVigia", Type: "PROJECT", Description: "my sports platform"},
+		{Name: "Acme", Type: "PROJECT", Description: "my sports platform"},
 	}
 	rels := []recalledRel{
-		{Source: "AzulVigia", Predicate: "LOCATED_IN", Target: "Cadereyta", Weight: 2.5},
+		{Source: "Acme", Predicate: "LOCATED_IN", Target: "Springfield", Weight: 2.5},
 	}
 	got := formatContextBlock(ents, rels)
 	for _, want := range []string{
@@ -100,7 +100,7 @@ func TestFormatContextBlock_IncludesAllHeaderMarkers(t *testing.T) {
 		"[System note:",
 		"## Entities (1)",
 		"## Relationships (1)",
-		"AzulVigia",
+		"Acme",
 		"LOCATED_IN",
 		"do not acknowledge",
 	} {

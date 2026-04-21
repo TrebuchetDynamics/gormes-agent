@@ -52,9 +52,9 @@ func TestRecall_Integration_Ollama_SecondTurnSeesFirstTurnEntities(t *testing.T)
 
 	// ── Phase A: seed 3 entity-rich turns ─────────────────────────────
 	highDensityTurns := []string{
-		"I am setting up the AzulVigia project in Cadereyta.",
+		"I am setting up the Acme project in Springfield.",
 		"Vania is helping me test the Neovim configuration.",
-		"Juan works on the Go backend of AzulVigia every day.",
+		"Juan works on the Go backend of Acme every day.",
 	}
 	for i, content := range highDensityTurns {
 		_, err := store.db.Exec(
@@ -110,12 +110,12 @@ func TestRecall_Integration_Ollama_SecondTurnSeesFirstTurnEntities(t *testing.T)
 		MaxSeeds:        5,
 	}, nil)
 
-	// Two queries — one direct (AzulVigia), one indirect ("my projects").
+	// Two queries — one direct (Acme), one indirect ("my projects").
 	for _, probe := range []struct {
 		label   string
 		message string
 	}{
-		{"direct-name-match", "tell me about AzulVigia"},
+		{"direct-name-match", "tell me about Acme"},
 		{"indirect-concept", "tell me about my projects"},
 	} {
 		recallCtx, recallCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -139,8 +139,8 @@ func TestRecall_Integration_Ollama_SecondTurnSeesFirstTurnEntities(t *testing.T)
 			if !strings.Contains(block, "<memory-context>") {
 				t.Errorf("direct-match block missing fence")
 			}
-			if !strings.Contains(block, "AzulVigia") {
-				t.Errorf("direct-match block missing AzulVigia seed entity")
+			if !strings.Contains(block, "Acme") {
+				t.Errorf("direct-match block missing Acme seed entity")
 			}
 		}
 	}

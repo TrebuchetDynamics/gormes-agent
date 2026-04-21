@@ -123,7 +123,7 @@ func TestExtractor_Integration_Ollama(t *testing.T) {
 	// Direct-insert 3 entity-rich turns, bypassing the kernel + persistence
 	// worker. Synthetic substitute for real Telegram DMs.
 	highDensityTurns := []string{
-		"I am setting up the AzulVigia project in Cadereyta.",
+		"I am setting up the Acme project in Springfield.",
 		"Vania is helping me test the Neovim configuration.",
 		"We need to optimize the Go backend for Trebuchet Dynamics.",
 	}
@@ -235,7 +235,7 @@ func TestExtractor_Integration_Ollama(t *testing.T) {
 	t.Logf("  total attempts across all turns: %d", totalAttempts)
 
 	// 5. Expected-entity name match diagnostic.
-	expected := []string{"AzulVigia", "Cadereyta", "Vania", "Neovim", "Go", "Trebuchet Dynamics"}
+	expected := []string{"Acme", "Springfield", "Vania", "Neovim", "Go", "Trebuchet Dynamics"}
 	var matched []string
 	for _, want := range expected {
 		var n int

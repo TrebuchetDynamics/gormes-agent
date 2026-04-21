@@ -91,7 +91,7 @@ func seedsFTS5(ctx context.Context, db *sql.DB, userMessage, chatKey string, lim
 
 // sanitizeFTS5Pattern strips characters that FTS5 treats as operators
 // ("?", "*", "(", ")", "+", "-", double quotes, etc.) so a user message
-// with normal punctuation ("how does AzulVigia work?") becomes a valid
+// with normal punctuation ("how does Acme work?") becomes a valid
 // FTS5 MATCH pattern. Without this, any message containing "?" or "*"
 // produces "fts5: syntax error near ..." on every lookup.
 //

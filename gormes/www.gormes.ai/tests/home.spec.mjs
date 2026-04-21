@@ -34,6 +34,20 @@ for (const vp of MOBILE_VIEWPORTS) {
     await expect(page.getByRole('heading', { name: 'One Go Binary. Same Hermes Brain.' })).toBeVisible();
     await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toBeVisible();
 
+    const heroLayout = await page.evaluate(() => {
+      const content = document.querySelector('.hero-content')?.getBoundingClientRect();
+      const image = document.querySelector('.hero-image')?.getBoundingClientRect();
+      return {
+        contentWidth: content?.width ?? 0,
+        contentBottom: content?.bottom ?? 0,
+        imageTop: image?.top ?? 0,
+      };
+    });
+    expect(heroLayout.contentWidth, `hero content collapsed at ${vp.width}px`).toBeGreaterThan(vp.width * 0.6);
+    expect(heroLayout.imageTop, `hero image should stack below copy at ${vp.width}px`).toBeGreaterThanOrEqual(
+      heroLayout.contentBottom - 1,
+    );
+
     // The page itself must never generate a horizontal scrollbar. Long code
     // blocks get their own scroll inside .cmd via overflow-x: auto.
     const pageOverflow = await page.evaluate(() =>
@@ -56,7 +70,7 @@ for (const vp of MOBILE_VIEWPORTS) {
       expect(box.width, `copy button ${i} too narrow at ${vp.width}px`).toBeGreaterThanOrEqual(28);
     }
 
-    // The roadmap has 5 phase groups with expanded sub-items. No phase
+    // The roadmap has 6 phase groups with expanded sub-items. No phase
     // card or roadmap item should overflow its container on any mobile
     // viewport — long sub-item labels (4.A Provider adapters has ~100
     // chars, Phase 5 collapsed row has ~200 chars) must wrap cleanly.
@@ -70,7 +84,7 @@ for (const vp of MOBILE_VIEWPORTS) {
     });
     expect(overflowingNodes, 'roadmap nodes overflow their container').toHaveLength(0);
 
-    // All five phase groups must be visible.
-    await expect(page.locator('.roadmap-phase')).toHaveCount(5);
+    // All six phase groups must be visible.
+    await expect(page.locator('.roadmap-phase')).toHaveCount(6);
   });
 }

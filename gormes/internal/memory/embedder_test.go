@@ -249,11 +249,11 @@ func abs32(x float32) float32 {
 func TestBuildEmbedInput_WithDescription(t *testing.T) {
 	got := buildEmbedInput(embedderRow{
 		ID:          1,
-		Name:        "AzulVigia",
+		Name:        "Acme",
 		Type:        "PROJECT",
 		Description: "Solar monitoring system",
 	})
-	want := "Entity: AzulVigia. Type: PROJECT. Context: Solar monitoring system"
+	want := "Entity: Acme. Type: PROJECT. Context: Solar monitoring system"
 	if got != want {
 		t.Errorf("got = %q, want %q", got, want)
 	}

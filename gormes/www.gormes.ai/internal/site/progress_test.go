@@ -47,3 +47,23 @@ func TestBuildRoadmapPhases_Counts(t *testing.T) {
 		t.Errorf("Title = %q", got[0].Title)
 	}
 }
+
+func TestLoadEmbeddedProgress_RendersRoadmap(t *testing.T) {
+	p := loadEmbeddedProgress()
+	if p == nil {
+		t.Fatal("loadEmbeddedProgress() = nil, want decoded embedded progress")
+	}
+
+	phases := buildRoadmapPhases(p)
+	if len(phases) != 6 {
+		t.Fatalf("len(buildRoadmapPhases(loadEmbeddedProgress())) = %d, want 6", len(phases))
+	}
+
+	stats := p.Stats()
+	if stats.Subphases.Total == 0 {
+		t.Fatal("embedded progress has zero subphases, want populated roadmap data")
+	}
+	if stats.Subphases.Complete == 0 {
+		t.Fatal("embedded progress has zero complete subphases, want shipped work represented")
+	}
+}

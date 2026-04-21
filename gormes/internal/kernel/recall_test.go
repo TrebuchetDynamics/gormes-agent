@@ -51,7 +51,7 @@ func TestKernel_InjectsMemoryContextWhenRecallNonNil(t *testing.T) {
 	defer cancel()
 	go k.Run(ctx)
 	<-k.Render()
-	_ = k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "tell me about AzulVigia"})
+	_ = k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "tell me about Acme"})
 
 	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return f.Phase == PhaseIdle && f.SessionID != ""
@@ -71,11 +71,11 @@ func TestKernel_InjectsMemoryContextWhenRecallNonNil(t *testing.T) {
 	if !strings.Contains(req.Messages[0].Content, "MEMORY BLOCK HERE") {
 		t.Errorf("system message doesn't contain mock content: %q", req.Messages[0].Content)
 	}
-	if req.Messages[1].Role != "user" || req.Messages[1].Content != "tell me about AzulVigia" {
-		t.Errorf("Messages[1] = %+v, want user/'tell me about AzulVigia'", req.Messages[1])
+	if req.Messages[1].Role != "user" || req.Messages[1].Content != "tell me about Acme" {
+		t.Errorf("Messages[1] = %+v, want user/'tell me about Acme'", req.Messages[1])
 	}
 
-	if rec.lastInput.UserMessage != "tell me about AzulVigia" {
+	if rec.lastInput.UserMessage != "tell me about Acme" {
 		t.Errorf("recall received UserMessage = %q", rec.lastInput.UserMessage)
 	}
 	if rec.lastInput.ChatKey != "telegram:42" {

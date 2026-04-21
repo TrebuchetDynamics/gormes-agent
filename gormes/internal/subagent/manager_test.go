@@ -126,6 +126,53 @@ func TestManagerSpawnAppliesIterationDefault(t *testing.T) {
 	}
 }
 
+func TestManagerSpawnUsesConfiguredDefaultIterations(t *testing.T) {
+	parentCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mgr := NewManager(ManagerOpts{
+		ParentCtx:            parentCtx,
+		ParentID:             "parent_test",
+		Depth:                0,
+		Registry:             NewRegistry(),
+		NewRunner:            func() Runner { return StubRunner{} },
+		DefaultMaxIterations: 7,
+	})
+
+	sa, err := mgr.Spawn(parentCtx, SubagentConfig{Goal: "custom iterations"})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if sa.cfg.MaxIterations != 7 {
+		t.Fatalf("cfg.MaxIterations = %d, want %d", sa.cfg.MaxIterations, 7)
+	}
+	_, _ = sa.WaitForResult(context.Background())
+}
+
+func TestManagerSpawnUsesConfiguredDefaultTimeout(t *testing.T) {
+	parentCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mgr := NewManager(ManagerOpts{
+		ParentCtx:            parentCtx,
+		ParentID:             "parent_test",
+		Depth:                0,
+		Registry:             NewRegistry(),
+		NewRunner:            func() Runner { return StubRunner{} },
+		DefaultTimeout:       time.Minute,
+		DefaultMaxIterations: DefaultMaxIterations,
+	})
+
+	sa, err := mgr.Spawn(parentCtx, SubagentConfig{Goal: "default timeout"})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if _, ok := sa.ctx.Deadline(); !ok {
+		t.Fatal("sa.ctx has no deadline; want manager default timeout applied")
+	}
+	_, _ = sa.WaitForResult(context.Background())
+}
+
 type blockingRunner struct{}
 
 func (blockingRunner) Run(ctx context.Context, cfg SubagentConfig, events chan<- SubagentEvent) *SubagentResult {
@@ -364,5 +411,23 @@ func TestManagerCloseCancelsAllAndIsIdempotent(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Fatalf("subagent %d not finished after Close", i)
 		}
+	}
+}
+
+func TestManagerSuccessPathCancelsChildContext(t *testing.T) {
+	mgr, parentCtx, cancel := newStubManager(t, 0)
+	defer cancel()
+
+	sa, err := mgr.Spawn(parentCtx, SubagentConfig{Goal: "cleanup"})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if _, err := sa.WaitForResult(context.Background()); err != nil {
+		t.Fatalf("WaitForResult: %v", err)
+	}
+	select {
+	case <-sa.ctx.Done():
+	default:
+		t.Fatal("child ctx still open after successful completion")
 	}
 }

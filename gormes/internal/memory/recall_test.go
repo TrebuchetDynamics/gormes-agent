@@ -22,8 +22,8 @@ func openProviderWithRichGraph(t *testing.T) (*SqliteStore, *Provider) {
 
 	// Entities.
 	for _, e := range []struct{ name, typ, desc string }{
-		{"AzulVigia", "PROJECT", "sports analytics"},
-		{"Cadereyta", "PLACE", ""},
+		{"Acme", "PROJECT", "sports analytics"},
+		{"Springfield", "PLACE", ""},
 		{"Juan", "PERSON", "the user"},
 		{"Vania", "PERSON", "partner"},
 		{"Go", "TOOL", ""},
@@ -38,8 +38,8 @@ func openProviderWithRichGraph(t *testing.T) (*SqliteStore, *Provider) {
 		w              float64
 	}
 	rels := []rel{
-		{"Juan", "AzulVigia", "WORKS_ON", 3.0},
-		{"AzulVigia", "Cadereyta", "LOCATED_IN", 2.0},
+		{"Juan", "Acme", "WORKS_ON", 3.0},
+		{"Acme", "Springfield", "LOCATED_IN", 2.0},
 		{"Vania", "Juan", "KNOWS", 5.0},
 		{"Juan", "Go", "HAS_SKILL", 4.0},
 	}
@@ -54,7 +54,7 @@ func openProviderWithRichGraph(t *testing.T) (*SqliteStore, *Provider) {
 	// Turn seeds for FTS5 fallback.
 	_, _ = s.db.Exec(
 		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id)
-		 VALUES('s','user','Juan works on AzulVigia daily',1,'telegram:42')`)
+		 VALUES('s','user','Juan works on Acme daily',1,'telegram:42')`)
 
 	p := NewRecall(s, RecallConfig{
 		WeightThreshold: 1.0,
@@ -68,7 +68,7 @@ func openProviderWithRichGraph(t *testing.T) (*SqliteStore, *Provider) {
 func TestProvider_GetContext_HappyPath(t *testing.T) {
 	_, p := openProviderWithRichGraph(t)
 	out := p.GetContext(context.Background(), RecallInput{
-		UserMessage: "tell me about AzulVigia",
+		UserMessage: "tell me about Acme",
 		ChatKey:     "telegram:42",
 	})
 	if out == "" {
@@ -77,8 +77,8 @@ func TestProvider_GetContext_HappyPath(t *testing.T) {
 	for _, want := range []string{
 		"<memory-context>",
 		"</memory-context>",
-		"AzulVigia",
-		"Cadereyta",
+		"Acme",
+		"Springfield",
 		"## Entities",
 		"## Relationships",
 		"do not acknowledge",
@@ -118,7 +118,7 @@ func TestProvider_GetContext_RespectsContextDeadline(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // already-cancelled ctx
 
-	out := p.GetContext(ctx, RecallInput{UserMessage: "tell me about AzulVigia"})
+	out := p.GetContext(ctx, RecallInput{UserMessage: "tell me about Acme"})
 	if out != "" {
 		t.Errorf("GetContext on cancelled ctx = %q, want empty string", out)
 	}
@@ -129,11 +129,11 @@ func TestProvider_GetContext_Layer1FindsEntityRegardlessOfChat(t *testing.T) {
 	// global. So a query from any chat that NAMES the entity finds it.
 	_, p := openProviderWithRichGraph(t)
 	out := p.GetContext(context.Background(), RecallInput{
-		UserMessage: "AzulVigia progress?",
+		UserMessage: "Acme progress?",
 		ChatKey:     "telegram:99", // different chat from the seeded turn
 	})
-	if !strings.Contains(out, "AzulVigia") {
-		t.Errorf("Layer-1 exact match should still find AzulVigia regardless of chat; got %q", out)
+	if !strings.Contains(out, "Acme") {
+		t.Errorf("Layer-1 exact match should still find Acme regardless of chat; got %q", out)
 	}
 }
 
@@ -156,7 +156,7 @@ func TestProvider_SemanticDisabledIsLexicalOnly(t *testing.T) {
 	// sets a default RecallConfig with no semantic fields.
 
 	out := p.GetContext(context.Background(), RecallInput{
-		UserMessage: "tell me about AzulVigia",
+		UserMessage: "tell me about Acme",
 		ChatKey:     "telegram:42",
 	})
 	if out == "" {
@@ -218,11 +218,11 @@ func TestProvider_SemanticFallsThroughOnEmbedFailure(t *testing.T) {
 	p.cfg.QueryEmbedTimeout = 200 * time.Millisecond
 
 	out := p.GetContext(context.Background(), RecallInput{
-		UserMessage: "tell me about AzulVigia",
+		UserMessage: "tell me about Acme",
 		ChatKey:     "telegram:42",
 	})
-	// Lexical still works — the fence includes AzulVigia.
-	if !strings.Contains(out, "AzulVigia") {
+	// Lexical still works — the fence includes Acme.
+	if !strings.Contains(out, "Acme") {
 		t.Errorf("lexical fallback failed when embed endpoint is unreachable: %q", out)
 	}
 }

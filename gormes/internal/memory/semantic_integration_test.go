@@ -2,7 +2,7 @@
 //
 // Gated by the same skipIfNoOllama helper from extractor_integration_test.go.
 // Proves the gap closure: a query that lexically matches nothing
-// ("tell me about my projects") nevertheless surfaces AzulVigia via
+// ("tell me about my projects") nevertheless surfaces Acme via
 // the semantic seed layer.
 //
 // Skips cleanly if Ollama or the chosen embedding model aren't available.
@@ -48,7 +48,7 @@ func skipIfNoEmbeddingModel(t *testing.T) {
 	}
 }
 
-func TestRecall_Integration_Ollama_MyProjectsFindsAzulVigia(t *testing.T) {
+func TestRecall_Integration_Ollama_MyProjectsFindsAcme(t *testing.T) {
 	skipIfNoEmbeddingModel(t)
 
 	endpoint := integrationEndpoint()
@@ -66,9 +66,9 @@ func TestRecall_Integration_Ollama_MyProjectsFindsAzulVigia(t *testing.T) {
 
 	// ── Seed 3 entity-rich turns ──────────────────────────────────────
 	turns := []string{
-		"I am setting up the AzulVigia project in Cadereyta.",
+		"I am setting up the Acme project in Springfield.",
 		"Vania is helping me test the Neovim configuration.",
-		"Juan works on the Go backend of AzulVigia every day.",
+		"Juan works on the Go backend of Acme every day.",
 	}
 	for i, content := range turns {
 		_, err := store.db.Exec(
@@ -170,12 +170,12 @@ func TestRecall_Integration_Ollama_MyProjectsFindsAzulVigia(t *testing.T) {
 	fmt.Printf("[3.D] chat_model=%s embed_model=%s entities=%d embeddings=%d\n\n",
 		chatModel, embedModel, entCount, embCount)
 
-	// Core assertion: the fence for the non-lexical query contains AzulVigia.
+	// Core assertion: the fence for the non-lexical query contains Acme.
 	// This is the Phase 3.D ship criterion.
 	if block == "" {
 		t.Errorf("block empty for non-lexical query — semantic layer didn't fire")
 	}
-	if !strings.Contains(block, "AzulVigia") {
-		t.Errorf("fence missing AzulVigia on non-lexical query; got %q", block)
+	if !strings.Contains(block, "Acme") {
+		t.Errorf("fence missing Acme on non-lexical query; got %q", block)
 	}
 }

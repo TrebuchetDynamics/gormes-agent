@@ -19,14 +19,14 @@ func openGraphWithSeeds(t *testing.T) *SqliteStore {
 
 	_, _ = s.db.Exec(`
 		INSERT INTO entities(name, type, description, updated_at) VALUES
-			('AzulVigia','PROJECT','sports platform',1),
-			('Cadereyta','PLACE','',1),
+			('Acme','PROJECT','sports platform',1),
+			('Springfield','PLACE','',1),
 			('Vania','PERSON','',1),
 			('Neovim','TOOL','',1)
 	`)
 	_, _ = s.db.Exec(`
 		INSERT INTO turns(session_id, role, content, ts_unix, chat_id) VALUES
-			('s','user','working on AzulVigia',1,'telegram:42'),
+			('s','user','working on Acme',1,'telegram:42'),
 			('s','user','Vania uses Neovim',2,'telegram:42'),
 			('s','user','Neovim rocks',3,'telegram:99')
 	`)
@@ -36,7 +36,7 @@ func openGraphWithSeeds(t *testing.T) *SqliteStore {
 func TestSeedsExactName_MatchesCaseInsensitive(t *testing.T) {
 	s := openGraphWithSeeds(t)
 	ids, err := seedsExactName(context.Background(), s.db,
-		[]string{"azulvigia", "Vania"}, 5)
+		[]string{"acme", "Vania"}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,12 +67,12 @@ func TestSeedsExactName_EmptyCandidateReturnsEmpty(t *testing.T) {
 func TestSeedsFTS5_MatchesByTurnContent(t *testing.T) {
 	s := openGraphWithSeeds(t)
 	ids, err := seedsFTS5(context.Background(), s.db,
-		"AzulVigia", "telegram:42", 5)
+		"Acme", "telegram:42", 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(ids) == 0 {
-		t.Error("FTS5 match returned zero seeds; AzulVigia should match turn content")
+		t.Error("FTS5 match returned zero seeds; Acme should match turn content")
 	}
 }
 
@@ -91,26 +91,26 @@ func TestSeedsFTS5_ScopesToChatID(t *testing.T) {
 			// Actually: chat-42's turn 2 is "Vania uses Neovim" — Neovim IS there.
 			// So this test passes BUT its invariant is weaker than intended.
 			// The test still demonstrates scoping because a query from chat 99
-			// would find Neovim ONLY, not AzulVigia which is chat-42-only.
+			// would find Neovim ONLY, not Acme which is chat-42-only.
 			_ = name // keep the assertion stance
 		}
 	}
-	// Stronger scoping check: query from chat 99 for "AzulVigia".
-	// AzulVigia is only in a chat-42 turn; chat-99 scope must return zero.
+	// Stronger scoping check: query from chat 99 for "Acme".
+	// Acme is only in a chat-42 turn; chat-99 scope must return zero.
 	ids2, _ := seedsFTS5(context.Background(), s.db,
-		"AzulVigia", "telegram:99", 5)
+		"Acme", "telegram:99", 5)
 	for _, id := range ids2 {
 		var name string
 		_ = s.db.QueryRow(`SELECT name FROM entities WHERE id = ?`, id).Scan(&name)
-		if name == "AzulVigia" {
-			t.Errorf("chat-42-only AzulVigia leaked into chat-99 scope")
+		if name == "Acme" {
+			t.Errorf("chat-42-only Acme leaked into chat-99 scope")
 		}
 	}
 }
 
 func TestSeedsFTS5_EmptyChatIDMatchesGlobal(t *testing.T) {
 	s := openGraphWithSeeds(t)
-	ids, _ := seedsFTS5(context.Background(), s.db, "AzulVigia", "", 5)
+	ids, _ := seedsFTS5(context.Background(), s.db, "Acme", "", 5)
 	if len(ids) == 0 {
 		t.Error("empty chat_id should be global scope; got zero seeds")
 	}
@@ -292,10 +292,10 @@ func TestEnumerateRelationships_EmptyNeighborhoodReturnsEmpty(t *testing.T) {
 
 func TestSanitizeFTS5Pattern_StripsOperators(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{"AzulVigia progress?", "AzulVigia progress"},
+		{"Acme progress?", "Acme progress"},
 		{"what's this* about?", "what s this about"},
 		{"(hello) world", "hello  world"}, // double space after collapse becomes one
-		{"AzulVigia-daily", "AzulVigia-daily"},
+		{"Acme-daily", "Acme-daily"},
 	}
 	for _, c := range cases {
 		got := sanitizeFTS5Pattern(c.in)
@@ -304,14 +304,14 @@ func TestSanitizeFTS5Pattern_StripsOperators(t *testing.T) {
 		for strings.Contains(want, "  ") {
 			want = strings.ReplaceAll(want, "  ", " ")
 		}
-		if got != want && !(c.in == "AzulVigia-daily" && got == "AzulVigia daily") {
+		if got != want && !(c.in == "Acme-daily" && got == "Acme daily") {
 			// Hyphens might be stripped since they're not in the preserve list.
 			// Accept either form as non-breaking.
 			t.Logf("input %q -> got %q (comparing against %q)", c.in, got, want)
 		}
 	}
 	// Critical: question marks must not survive.
-	if strings.Contains(sanitizeFTS5Pattern("tell me about AzulVigia?"), "?") {
+	if strings.Contains(sanitizeFTS5Pattern("tell me about Acme?"), "?") {
 		t.Errorf("question mark survived sanitization")
 	}
 }
@@ -320,7 +320,7 @@ func TestSeedsFTS5_HandlesQuestionMarkInMessage(t *testing.T) {
 	s := openGraphWithSeeds(t)
 	// Without sanitization this would produce fts5: syntax error near "?"
 	_, err := seedsFTS5(context.Background(), s.db,
-		"tell me about AzulVigia?", "telegram:42", 5)
+		"tell me about Acme?", "telegram:42", 5)
 	if err != nil {
 		t.Errorf("seedsFTS5 with ?-suffixed message returned err: %v", err)
 	}
