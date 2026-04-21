@@ -45,13 +45,27 @@ func main() {
 		return
 	}
 
-	if err := rewrite(readmePath, "readme-rollup", progress.RenderReadmeRollup(p)); err != nil {
-		die(err)
-	}
+	// Attempt both files independently. Accumulate errors so a missing
+	// marker in one file does not prevent the other from being regenerated.
+	// _index.md runs first because it lands before README in the rollout
+	// (Task 11 lands _index markers, Task 12 lands README markers).
+	var errs []error
 	if err := rewrite(docsIndexPath, "docs-full-checklist", progress.RenderDocsChecklist(p)); err != nil {
-		die(err)
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: _index.md regenerated")
 	}
-	fmt.Println("progress-gen: README.md and _index.md regenerated")
+	if err := rewrite(readmePath, "readme-rollup", progress.RenderReadmeRollup(p)); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: README.md regenerated")
+	}
+	if len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Fprintln(os.Stderr, "progress-gen:", e)
+		}
+		os.Exit(1)
+	}
 }
 
 func rewrite(path, kind, body string) error {
