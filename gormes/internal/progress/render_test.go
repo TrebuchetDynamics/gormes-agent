@@ -31,6 +31,13 @@ func TestRenderReadmeRollup_Shape(t *testing.T) {
 	if !strings.Contains(got, "1/2") {
 		t.Errorf("rollup missing 1/2 count for Phase 2; got:\n%s", got)
 	}
+	// Guard against statusIcon() silently returning "".
+	if !strings.Contains(got, "✅") {
+		t.Errorf("rollup missing shipped icon ✅; got:\n%s", got)
+	}
+	if !strings.Contains(got, "🔨") {
+		t.Errorf("rollup missing in-progress icon 🔨; got:\n%s", got)
+	}
 }
 
 func TestRenderReadmeRollup_Sorted(t *testing.T) {
@@ -42,8 +49,10 @@ func TestRenderReadmeRollup_Sorted(t *testing.T) {
 		},
 	}
 	got := RenderReadmeRollup(p)
-	i1 := strings.Index(got, "Phase 1")
-	i2 := strings.Index(got, "Phase 2")
+	// Match on the table-cell leader "| Phase 1 " (with trailing space) so
+	// "Phase 1" does not accidentally match "Phase 10".
+	i1 := strings.Index(got, "| Phase 1 ")
+	i2 := strings.Index(got, "| Phase 2 ")
 	if i1 < 0 || i2 < 0 || i1 > i2 {
 		t.Errorf("phases not sorted (i1=%d, i2=%d):\n%s", i1, i2, got)
 	}

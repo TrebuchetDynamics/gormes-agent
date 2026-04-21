@@ -39,6 +39,10 @@ func RenderReadmeRollup(p *Progress) string {
 	return b.String()
 }
 
+// sortedKeys returns the phase keys in lexicographic order. Phase keys
+// are expected to be single characters ("1".."9"); a key ≥ "10" would
+// sort before "2" under lex ordering. Revisit if the roadmap ever grows
+// past 9 phases.
 func sortedKeys(m map[string]Phase) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
