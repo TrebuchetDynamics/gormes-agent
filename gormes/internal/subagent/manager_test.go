@@ -2,6 +2,9 @@ package subagent
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -215,5 +218,103 @@ func TestManager_LogAppendFailure_ReturnsOrchestrationError(t *testing.T) {
 	}
 	if res.RunID == "" {
 		t.Fatal("RunID must be populated")
+	}
+}
+
+func TestManager_EventBurst_CompletesBeforeConsumerReads(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	const eventCount = handleEventBufferSize + 8
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		for i := 0; i < eventCount; i++ {
+			emit(Event{Type: EventProgress, Message: "tick"})
+		}
+		return Result{Status: StatusCompleted, Summary: "burst done"}, nil
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "burst"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	waitDone := make(chan struct{})
+	var waitRes Result
+	var waitErr error
+	go func() {
+		waitRes, waitErr = handle.Wait(context.Background())
+		close(waitDone)
+	}()
+
+	select {
+	case <-waitDone:
+	case <-time.After(time.Second):
+		t.Fatal("Wait blocked while runner emitted more than the event buffer")
+	}
+	if waitErr != nil {
+		t.Fatalf("Wait error = %v, want nil", waitErr)
+	}
+	if waitRes.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", waitRes.Status)
+	}
+
+	var got int
+	for range handle.Events {
+		got++
+	}
+	if got != eventCount {
+		t.Fatalf("got %d events, want %d", got, eventCount)
+	}
+}
+
+func TestManager_WritesRunLogRecord(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	logPath := filepath.Join(t.TempDir(), "runs.jsonl")
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		emit(Event{Type: EventStarted, Message: "start"})
+		return Result{Status: StatusCompleted, Summary: "logged"}, nil
+	}), logPath)
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "log this"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	res, err := handle.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	var rec RunRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if rec.RunID != handle.RunID {
+		t.Fatalf("RunID = %q, want %q", rec.RunID, handle.RunID)
+	}
+	if rec.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", rec.Status)
+	}
+	if rec.Summary != "logged" {
+		t.Fatalf("Summary = %q, want logged", rec.Summary)
+	}
+	if rec.StartedAt.IsZero() || rec.FinishedAt.IsZero() {
+		t.Fatal("timestamps must be populated")
 	}
 }
