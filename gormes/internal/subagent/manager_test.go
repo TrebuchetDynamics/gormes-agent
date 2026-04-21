@@ -1,0 +1,163 @@
+package subagent
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+)
+
+type runnerFunc func(context.Context, Spec, func(Event)) (Result, error)
+
+func (f runnerFunc) Run(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+	return f(ctx, spec, emit)
+}
+
+func TestManager_Start_WaitsAndStreamsEvents(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 7,
+		DefaultTimeout:       3 * time.Second,
+		MaxChildDepth:        1,
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	seenSpec := make(chan Spec, 1)
+
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		seenSpec <- spec
+		close(started)
+		emit(Event{Type: EventStarted, Message: "delegated"})
+		emit(Event{Type: EventProgress, Message: "working"})
+		<-release
+		emit(Event{Type: EventCompleted, Message: "done"})
+		return Result{Status: StatusCompleted, Summary: "done"}, nil
+	}), "")
+
+	var (
+		handle   *Handle
+		startErr error
+	)
+	startDone := make(chan struct{})
+	go func() {
+		handle, startErr = mgr.Start(context.Background(), Spec{Goal: "  summarize  "})
+		close(startDone)
+	}()
+
+	select {
+	case <-startDone:
+	case <-time.After(time.Second):
+		t.Fatal("Start blocked waiting for runner")
+	}
+	if startErr != nil {
+		t.Fatalf("Start: %v", startErr)
+	}
+	if handle == nil {
+		t.Fatal("Start returned nil handle")
+	}
+	if cap(handle.Events) == 0 {
+		t.Fatal("Handle.Events must be buffered")
+	}
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("runner did not start")
+	}
+
+	spec := <-seenSpec
+	if spec.Goal != "summarize" {
+		t.Fatalf("Goal = %q, want trimmed summarize", spec.Goal)
+	}
+	if spec.MaxIterations != 7 {
+		t.Fatalf("MaxIterations = %d, want 7", spec.MaxIterations)
+	}
+	if spec.Timeout != 3*time.Second {
+		t.Fatalf("Timeout = %v, want 3s", spec.Timeout)
+	}
+
+	close(release)
+
+	res, err := handle.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+	if res.RunID == "" {
+		t.Fatal("RunID must be populated")
+	}
+	if res.RunID != handle.RunID {
+		t.Fatalf("RunID = %q, want handle.RunID %q", res.RunID, handle.RunID)
+	}
+
+	var got []Event
+	for ev := range handle.Events {
+		got = append(got, ev)
+	}
+	if len(got) != 3 {
+		t.Fatalf("got %d events, want 3", len(got))
+	}
+	if got[0].Type != EventStarted || got[1].Type != EventProgress || got[2].Type != EventCompleted {
+		t.Fatalf("events = %#v, want started/progress/completed", got)
+	}
+
+	mgr.mu.Lock()
+	live := len(mgr.live)
+	mgr.mu.Unlock()
+	if live != 0 {
+		t.Fatalf("live handles = %d, want 0", live)
+	}
+}
+
+func TestManager_Cancel_ReturnsCancelledResult(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Hour,
+		MaxChildDepth:        1,
+	}
+
+	canceled := make(chan struct{})
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		emit(Event{Type: EventStarted, Message: "begin"})
+		<-ctx.Done()
+		close(canceled)
+		return Result{Summary: "should be overridden"}, ctx.Err()
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "cancel me"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	if err := handle.Cancel(); err != nil {
+		t.Fatalf("Cancel: %v", err)
+	}
+
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), time.Second)
+	defer cancelWait()
+
+	res, err := handle.Wait(waitCtx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Wait error = %v, want context.Canceled", err)
+	}
+	if res.Status != StatusCancelled {
+		t.Fatalf("Status = %q, want cancelled", res.Status)
+	}
+
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("runner did not observe cancellation")
+	}
+
+	mgr.mu.Lock()
+	live := len(mgr.live)
+	mgr.mu.Unlock()
+	if live != 0 {
+		t.Fatalf("live handles = %d, want 0", live)
+	}
+}
