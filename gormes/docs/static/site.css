@@ -390,6 +390,15 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .docs-toc-body ul ul { padding-left: 10px; }
 
 /* ── Home page ─────────────────────────────────────── */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--label);
+  margin: 0 0 8px;
+}
 .docs-home { padding-top: 32px; }
 .docs-home-hero { margin: 0 0 32px; }
 .docs-home-title {
