@@ -23,7 +23,10 @@ today=$(date +%Y-%m-%d)
 if [[ -f "$BENCHMARKS_FILE" ]]; then
     # Use python3 for reliable JSON manipulation (available everywhere)
     python3 << PYEOF
-import json, sys
+import json
+import os
+import subprocess
+
 with open("$BENCHMARKS_FILE") as f:
     data = json.load(f)
 
@@ -37,19 +40,57 @@ data["binary"]["last_measured"] = "$today"
 
 # Check if last history entry is from today (avoid duplicate entries)
 history = data.get("history", [])
+data["history"] = history
+
+def phase_from_arch_plan(path):
+    if not os.path.exists(path):
+        return ""
+    with open(path) as f:
+        text = f.read()
+    marker = "## Phase"
+    if marker not in text:
+        return ""
+    return "Phase " + text.split(marker, 1)[1].split("\n", 1)[0].strip()
+
+def subphase_complete(subphase):
+    items = subphase.get("items")
+    if items:
+        return all(item.get("status") == "complete" for item in items)
+    return subphase.get("status") == "complete"
+
+def phase_from_progress(path):
+    if not os.path.exists(path):
+        return ""
+    with open(path) as f:
+        progress = json.load(f)
+    phases = progress.get("phases", {})
+    if not phases:
+        return ""
+    ordered = sorted(phases.items(), key=lambda item: int(item[0]))
+    for _, phase in ordered:
+        subphases = phase.get("subphases", {})
+        if not subphases:
+            return phase.get("name", "")
+        if not all(subphase_complete(sp) for sp in subphases.values()):
+            return phase.get("name", "")
+    return ordered[-1][1].get("name", "")
+
 if not history or history[0].get("date") != "$today":
     # Prepend new entry (most recent first)
-    import subprocess, datetime
     commit = subprocess.check_output(
         ["git", "rev-parse", "--short", "HEAD"],
         text=True
     ).strip()
-    phase = open("$GORMES_DIR/docs/ARCH_PLAN.md").read().split("## Phase")[1].split("\n")[0].strip() if __import__("os").path.exists("$GORMES_DIR/docs/ARCH_PLAN.md") else "unknown"
+    phase = (
+        phase_from_arch_plan("$GORMES_DIR/docs/ARCH_PLAN.md")
+        or phase_from_progress("$GORMES_DIR/docs/content/building-gormes/architecture_plan/progress.json")
+        or next((entry.get("phase", "") for entry in history if entry.get("phase")), "unknown")
+    )
     data["history"].insert(0, {
         "date": "$today",
         "size_mb": size_mb,
         "commit": commit,
-        "phase": "Phase " + phase
+        "phase": phase
     })
 
 with open("$BENCHMARKS_FILE", "w") as f:

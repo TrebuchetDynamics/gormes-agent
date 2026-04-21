@@ -8,7 +8,7 @@
     "linker": "static",
     "stripped": true,
     "go_version": "1.25+",
-    "last_measured": "2026-04-20"
+    "last_measured": "2026-04-21"
   },
   "properties": {
     "cgo": false,
@@ -21,6 +21,12 @@
     ]
   },
   "history": [
+    {
+      "date": "2026-04-21",
+      "size_mb": 16.2,
+      "commit": "5e36abb0",
+      "phase": "Phase 2 \u2014 The Gateway"
+    },
     {
       "date": "2026-04-20",
       "size_mb": 17.0,
