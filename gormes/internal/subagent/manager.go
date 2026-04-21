@@ -132,9 +132,10 @@ func (m *Manager) run(handle *Handle, runCtx context.Context, spec Spec) {
 	finishedAt := time.Now().UTC()
 
 	result.RunID = handle.RunID
-	result, err = normalizeResult(runCtx, result, err)
+	result = normalizeResult(runCtx, result, err)
 
-	_ = AppendRunLog(m.logPath, RunRecord{
+	var orchErr error
+	if err := AppendRunLog(m.logPath, RunRecord{
 		RunID:        result.RunID,
 		Status:       result.Status,
 		Summary:      result.Summary,
@@ -143,11 +144,13 @@ func (m *Manager) run(handle *Handle, runCtx context.Context, spec Spec) {
 		ToolCalls:    append([]string(nil), result.ToolCalls...),
 		StartedAt:    startedAt,
 		FinishedAt:   finishedAt,
-	})
+	}); err != nil {
+		orchErr = fmt.Errorf("subagent: append run log: %w", err)
+	}
 
 	handle.mu.Lock()
 	handle.result = result
-	handle.err = err
+	handle.err = orchErr
 	handle.mu.Unlock()
 }
 
@@ -162,35 +165,37 @@ func (m *Manager) remove(runID string) {
 	m.mu.Unlock()
 }
 
-func normalizeResult(ctx context.Context, result Result, err error) (Result, error) {
+func normalizeResult(ctx context.Context, result Result, runErr error) Result {
 	switch ctx.Err() {
 	case context.Canceled:
 		result.Status = StatusCancelled
-		if err == nil {
-			err = context.Canceled
-		}
 		if result.Error == "" {
-			result.Error = err.Error()
+			if runErr != nil {
+				result.Error = runErr.Error()
+			} else {
+				result.Error = context.Canceled.Error()
+			}
 		}
 	case context.DeadlineExceeded:
 		result.Status = StatusTimedOut
-		if err == nil {
-			err = context.DeadlineExceeded
-		}
 		if result.Error == "" {
-			result.Error = err.Error()
+			if runErr != nil {
+				result.Error = runErr.Error()
+			} else {
+				result.Error = context.DeadlineExceeded.Error()
+			}
 		}
 	default:
-		if err != nil {
+		if runErr != nil {
 			if result.Status == "" {
 				result.Status = StatusFailed
 			}
 			if result.Error == "" {
-				result.Error = err.Error()
+				result.Error = runErr.Error()
 			}
 		} else if result.Status == "" {
 			result.Status = StatusCompleted
 		}
 	}
-	return result, err
+	return result
 }

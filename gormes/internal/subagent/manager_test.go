@@ -2,7 +2,6 @@ package subagent
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -141,8 +140,8 @@ func TestManager_Cancel_ReturnsCancelledResult(t *testing.T) {
 	defer cancelWait()
 
 	res, err := handle.Wait(waitCtx)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("Wait error = %v, want context.Canceled", err)
+	if err != nil {
+		t.Fatalf("Wait error = %v, want nil", err)
 	}
 	if res.Status != StatusCancelled {
 		t.Fatalf("Status = %q, want cancelled", res.Status)
@@ -159,5 +158,62 @@ func TestManager_Cancel_ReturnsCancelledResult(t *testing.T) {
 	mgr.mu.Unlock()
 	if live != 0 {
 		t.Fatalf("live handles = %d, want 0", live)
+	}
+}
+
+func TestManager_Timeout_ReturnsTimedOutResult(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Hour,
+		MaxChildDepth:        1,
+	}
+
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		<-ctx.Done()
+		return Result{Summary: "late"}, ctx.Err()
+	}), "")
+
+	handle, err := mgr.Start(context.Background(), Spec{
+		Goal:    "timeout me",
+		Timeout: 25 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	res, err := handle.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait error = %v, want nil", err)
+	}
+	if res.Status != StatusTimedOut {
+		t.Fatalf("Status = %q, want timed_out", res.Status)
+	}
+}
+
+func TestManager_LogAppendFailure_ReturnsOrchestrationError(t *testing.T) {
+	cfg := config.DelegationCfg{
+		DefaultMaxIterations: 4,
+		DefaultTimeout:       time.Second,
+		MaxChildDepth:        1,
+	}
+
+	mgr := NewManager(cfg, runnerFunc(func(ctx context.Context, spec Spec, emit func(Event)) (Result, error) {
+		return Result{Status: StatusCompleted, Summary: "ok"}, nil
+	}), t.TempDir())
+
+	handle, err := mgr.Start(context.Background(), Spec{Goal: "log failure"})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	res, err := handle.Wait(context.Background())
+	if err == nil {
+		t.Fatal("Wait error = nil, want logging failure")
+	}
+	if res.Status != StatusCompleted {
+		t.Fatalf("Status = %q, want completed", res.Status)
+	}
+	if res.RunID == "" {
+		t.Fatal("RunID must be populated")
 	}
 }
