@@ -303,10 +303,22 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   min-width: 0;
   margin: 18px 0;
 }
+.cmd-wrap[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 8px;
+  left: 14px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--label);
+  pointer-events: none;
+}
 .cmd {
   background: var(--bg-1);
   border: 1px solid var(--border);
-  padding: 16px 92px 16px 16px;
+  padding: 28px 84px 16px 16px;
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 12.5px;
@@ -315,6 +327,9 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   max-width: 100%;
   overflow-x: auto;
   line-height: 1.55;
+}
+.cmd-wrap:not([data-lang]) .cmd {
+  padding-top: 16px;
 }
 .copy-btn {
   position: absolute;
@@ -331,10 +346,11 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 6px 10px;
+  padding: 5px 9px;
   border-radius: 2px;
   cursor: pointer;
-  min-height: 32px;
+  min-height: 28px;
+  min-width: 28px;
 }
 .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
 .copy-btn.copied { background: rgba(14, 59, 33, 1); color: var(--status-shipped-fg); border-color: rgba(14, 59, 33, 1); }
@@ -521,7 +537,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 
 /* ── Responsive — 480px tight-mobile ───────────────── */
 @media (max-width: 480px) {
-  .cmd { padding-right: 80px; }
+  .cmd { padding-right: 74px; }
   .docs-footer-inner { flex-direction: column; align-items: flex-start; gap: 6px; }
   .docs-content table { font-size: 12px; }
   .docs-title { font-size: clamp(26px, 7vw, 32px); }
