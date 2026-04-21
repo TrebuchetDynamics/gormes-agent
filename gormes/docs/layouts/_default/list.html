@@ -7,6 +7,9 @@
   </header>
   <div class="docs-content">
     {{ .Content }}
+    {{ $stripped := replaceRE "(?s)<[^>]+>" "" .Content }}
+    {{ $stripped = trim $stripped " \t\n\r" }}
+    {{ if lt (len $stripped) 40 }}
     <h2>In this section</h2>
     <ul class="docs-child-list">
       {{ range (.Pages.ByWeight) }}
@@ -16,6 +19,7 @@
       </li>
       {{ end }}
     </ul>
+    {{ end }}
   </div>
 </article>
 {{ end }}
