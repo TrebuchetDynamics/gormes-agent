@@ -19,7 +19,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 // telegramCmd runs Gormes as a Telegram bot — the adapter previously
@@ -105,10 +104,10 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 
 	hc := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
 
-	reg := tools.NewRegistry()
-	reg.MustRegister(&tools.EchoTool{})
-	reg.MustRegister(&tools.NowTool{})
-	reg.MustRegister(&tools.RandIntTool{})
+	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	reg := buildDefaultRegistry(rootCtx, cfg.Delegation)
 
 	tm := telemetry.New()
 
@@ -188,9 +187,6 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		SessionMap:        smap,
 		SessionKey:        key,
 	}, tc, k, slog.Default())
-
-	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	go k.Run(rootCtx)
 	go ext.Run(rootCtx)

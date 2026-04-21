@@ -104,7 +104,7 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 		Model:             cfg.Hermes.Model,
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
-		Tools:             buildDefaultRegistry(),
+		Tools:             buildDefaultRegistry(rootCtx, cfg.Delegation),
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,

@@ -30,6 +30,9 @@ type ManagerOpts struct {
 	// when Depth >= MaxDepth.
 	Depth int
 
+	// MaxDepth overrides the package default depth limit when > 0.
+	MaxDepth int
+
 	// Registry tracks every live subagent process-wide.
 	Registry SubagentRegistry
 
@@ -37,6 +40,17 @@ type ManagerOpts struct {
 	// passes a func returning StubRunner{}; later tasks will pass different
 	// runner factories.
 	NewRunner func() Runner
+
+	// DefaultMaxIterations overrides the package default iteration budget when
+	// cfg.MaxIterations <= 0.
+	DefaultMaxIterations int
+
+	// DefaultMaxConcurrent overrides SpawnBatch's package default semaphore
+	// size when the caller passes maxConcurrent <= 0.
+	DefaultMaxConcurrent int
+
+	// DefaultTimeout applies when cfg.Timeout <= 0.
+	DefaultTimeout time.Duration
 }
 
 type manager struct {
@@ -71,12 +85,15 @@ func (m *manager) Spawn(_ context.Context, cfg SubagentConfig) (*Subagent, error
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.opts.Depth >= MaxDepth {
+	if m.opts.Depth >= m.maxDepth() {
 		return nil, fmt.Errorf("%w (depth=%d)", ErrMaxDepth, m.opts.Depth)
 	}
 
 	if cfg.MaxIterations <= 0 {
-		cfg.MaxIterations = DefaultMaxIterations
+		cfg.MaxIterations = m.defaultMaxIterations()
+	}
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = m.opts.DefaultTimeout
 	}
 
 	childCtx, cancel := context.WithCancel(m.opts.ParentCtx)
@@ -160,6 +177,7 @@ func (m *manager) run(sa *Subagent) {
 	if sa.timeoutCancel != nil {
 		sa.timeoutCancel()
 	}
+	sa.cancel()
 
 	sa.setResult(result)
 	close(sa.done)
@@ -223,4 +241,25 @@ func (m *manager) Close() error {
 // SpawnBatch is implemented in a later task.
 func (m *manager) SpawnBatch(ctx context.Context, cfgs []SubagentConfig, maxConcurrent int) ([]*SubagentResult, error) {
 	return m.spawnBatch(ctx, cfgs, maxConcurrent)
+}
+
+func (m *manager) maxDepth() int {
+	if m.opts.MaxDepth > 0 {
+		return m.opts.MaxDepth
+	}
+	return MaxDepth
+}
+
+func (m *manager) defaultMaxIterations() int {
+	if m.opts.DefaultMaxIterations > 0 {
+		return m.opts.DefaultMaxIterations
+	}
+	return DefaultMaxIterations
+}
+
+func (m *manager) defaultMaxConcurrent() int {
+	if m.opts.DefaultMaxConcurrent > 0 {
+		return m.opts.DefaultMaxConcurrent
+	}
+	return DefaultMaxConcurrent
 }

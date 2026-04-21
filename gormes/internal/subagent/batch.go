@@ -13,7 +13,7 @@ func (m *manager) spawnBatch(ctx context.Context, cfgs []SubagentConfig, maxConc
 		return nil, nil
 	}
 	if maxConcurrent <= 0 {
-		maxConcurrent = DefaultMaxConcurrent
+		maxConcurrent = m.defaultMaxConcurrent()
 	}
 
 	results := make([]*SubagentResult, len(cfgs))

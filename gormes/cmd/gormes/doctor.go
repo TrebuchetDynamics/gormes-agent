@@ -44,7 +44,7 @@ var doctorCmd = &cobra.Command{
 		}
 
 		// Toolbox section — inspect the built-in registry. Runs in both modes.
-		reg := buildDefaultRegistry()
+		reg := buildDefaultRegistry(context.Background(), cfg.Delegation)
 		result := doctor.CheckTools(reg)
 		fmt.Print(result.Format())
 
