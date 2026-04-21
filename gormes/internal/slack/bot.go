@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
@@ -43,6 +44,7 @@ type turnBinding struct {
 	threadTS      string
 	placeholderTS string
 	lastSID       string
+	lastUpdate    time.Time
 }
 
 func New(cfg Config, client Client, k *kernel.Kernel, log *slog.Logger) *Bot {
@@ -146,6 +148,9 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 			case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseFinalizing, kernel.PhaseReconnecting:
 				if err := b.ensurePlaceholder(ctx, binding); err != nil {
 					b.log.Warn("slack placeholder send failed", "channel_id", binding.channelID, "err", err)
+					continue
+				}
+				if !b.allowUpdate(f.Phase) {
 					continue
 				}
 				if err := b.client.UpdateMessage(ctx, binding.channelID, b.placeholderTS(), formatStream(f)); err != nil {
@@ -288,6 +293,29 @@ func (b *Bot) setPlaceholderTS(ts string) {
 	if b.current != nil {
 		b.current.placeholderTS = ts
 	}
+}
+
+func (b *Bot) allowUpdate(phase kernel.Phase) bool {
+	if phase != kernel.PhaseStreaming || b.cfg.CoalesceMs <= 0 {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		if b.current != nil {
+			b.current.lastUpdate = time.Now()
+		}
+		return true
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.current == nil {
+		return false
+	}
+	now := time.Now()
+	if !b.current.lastUpdate.IsZero() && now.Sub(b.current.lastUpdate) < time.Duration(b.cfg.CoalesceMs)*time.Millisecond {
+		return false
+	}
+	b.current.lastUpdate = now
+	return true
 }
 
 func (b *Bot) clearSessionState(channelID string) {
