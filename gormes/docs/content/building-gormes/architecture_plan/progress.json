@@ -61,15 +61,16 @@
         "2.D": {
           "name": "Cron / Scheduled Automations",
           "items": [
-            { "name": "Go ticker + bbolt job store", "status": "planned" },
-            { "name": "Natural-language cron parsing (Phase 4)", "status": "planned" }
+            { "name": "robfig/cron scheduler + bbolt job store", "status": "complete" },
+            { "name": "SQLite cron_runs audit + CRON.md mirror", "status": "complete" },
+            { "name": "Heartbeat [SYSTEM:] + [SILENT] delivery contract", "status": "complete" }
           ]
         },
         "2.B.2": {
           "name": "Wider Gateway Surface",
           "items": [
-            { "name": "Discord", "status": "planned" },
-            { "name": "Slack", "status": "planned" },
+            { "name": "Discord", "status": "complete" },
+            { "name": "Slack", "status": "complete" },
             { "name": "WhatsApp", "status": "planned" },
             { "name": "Signal", "status": "planned" },
             { "name": "Email", "status": "planned" },
@@ -97,8 +98,10 @@
           "name": "Skills System",
           "priority": "P0",
           "items": [
-            { "name": "Learning loop foundation", "status": "planned" },
-            { "name": "Pattern extraction", "status": "planned" }
+            { "name": "SKILL.md parsing + active store", "status": "complete" },
+            { "name": "Deterministic selection + prompt block", "status": "complete" },
+            { "name": "Kernel injection + usage log", "status": "complete" },
+            { "name": "Candidate drafting + promotion flow", "status": "planned" }
           ]
         }
       }
