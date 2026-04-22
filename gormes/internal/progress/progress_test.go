@@ -497,6 +497,18 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	if insights.Priority != "P3" {
 		t.Fatalf("Phase 3.E.5 priority = %q, want P3", insights.Priority)
 	}
+	insightItems := itemsByName(insights.Items)
+	usageWriter := insightItems["Append-only daily usage.jsonl writer"]
+	if usageWriter.Status != StatusPlanned {
+		t.Fatalf("Phase 3.E.5 writer status = %q, want planned", usageWriter.Status)
+	}
+	rollups := insightItems["Session, token, and cost rollups from local runtime"]
+	if rollups.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.5 rollups status = %q, want complete", rollups.Status)
+	}
+	if !strings.Contains(rollups.Note, "telemetry.Snapshot") {
+		t.Fatalf("Phase 3.E.5 rollups note = %q, want telemetry.Snapshot detail", rollups.Note)
+	}
 
 	lineage := p.Phases["3"].Subphases["3.E.8"]
 	if lineage.Priority != "P4" {

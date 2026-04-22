@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 21/66 subphases shipped · 5 in progress · 40 planned
+**Overall:** 21/66 subphases shipped · 6 in progress · 39 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -227,10 +227,10 @@ weight: 10
 - [x] gormes memory status command
 - [ ] Extractor queue depth + dead-letter summary
 
-### 3.E.5 — Insights Audit Log ⏳
+### 3.E.5 — Insights Audit Log 🔨
 
 - [ ] Append-only daily usage.jsonl writer
-- [ ] Session, token, and cost rollups from local runtime
+- [x] Session, token, and cost rollups from local runtime
 
 ### 3.E.6 — Memory Decay ⏳
 

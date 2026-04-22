@@ -608,8 +608,8 @@
             },
             {
               "name": "Session, token, and cost rollups from local runtime",
-              "status": "planned",
-              "note": "TDD: prove aggregation math with fixture runs before any long-lived writer is introduced."
+              "status": "complete",
+              "note": "TDD: shipped fixture-driven daily rollups plus a telemetry.Snapshot bridge for session counts, token totals, cost sums, and per-model breakdowns."
             }
           ]
         },
