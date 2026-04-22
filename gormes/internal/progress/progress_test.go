@@ -480,8 +480,11 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 3.E.4 command note = %q, want command detail", command.Note)
 	}
 	summary := statusItems["Extractor queue depth + dead-letter summary"]
-	if summary.Status != StatusPlanned {
-		t.Fatalf("Phase 3.E.4 summary status = %q, want planned", summary.Status)
+	if summary.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.4 summary status = %q, want complete", summary.Status)
+	}
+	if !strings.Contains(summary.Note, "dead-letter error aggregation") {
+		t.Fatalf("Phase 3.E.4 summary note = %q, want aggregation detail", summary.Note)
 	}
 
 	decay := p.Phases["3"].Subphases["3.E.6"]

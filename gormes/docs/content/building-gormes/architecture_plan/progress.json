@@ -592,8 +592,8 @@
             },
             {
               "name": "Extractor queue depth + dead-letter summary",
-              "status": "planned",
-              "note": "TDD: add queue and error-fixture tests before surfacing live counters."
+              "status": "complete",
+              "note": "TDD: added deterministic dead-letter error aggregation to `gormes memory status`, with fixture-backed queue, summary, and CLI rendering coverage."
             }
           ]
         },

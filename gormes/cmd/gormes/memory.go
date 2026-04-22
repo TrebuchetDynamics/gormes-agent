@@ -58,6 +58,7 @@ func formatExtractorStatus(status memory.ExtractorStatus) string {
 	b.WriteString(fmt.Sprintf("worker_health: %s\n", status.WorkerHealth))
 	b.WriteString(fmt.Sprintf("queue_depth: %d\n", status.QueueDepth))
 	b.WriteString(fmt.Sprintf("dead_letters: %d\n", status.DeadLetterCount))
+	b.WriteString(formatDeadLetterSummary(status.ErrorSummary))
 	if len(status.RecentDeadLetters) == 0 {
 		b.WriteString("recent_dead_letters: none\n")
 		return b.String()
@@ -66,6 +67,19 @@ func formatExtractorStatus(status memory.ExtractorStatus) string {
 	for _, dl := range status.RecentDeadLetters {
 		b.WriteString(fmt.Sprintf("- turn_id=%d session_id=%s chat_id=%s attempts=%d error=%q\n",
 			dl.ID, dl.SessionID, dl.ChatID, dl.Attempts, dl.Error))
+	}
+	return b.String()
+}
+
+func formatDeadLetterSummary(items []memory.DeadLetterErrorSummary) string {
+	if len(items) == 0 {
+		return "dead_letter_summary: none\n"
+	}
+
+	var b strings.Builder
+	b.WriteString("dead_letter_summary:\n")
+	for _, item := range items {
+		b.WriteString(fmt.Sprintf("- error=%q count=%d\n", item.Error, item.Count))
 	}
 	return b.String()
 }

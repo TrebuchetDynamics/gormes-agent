@@ -17,11 +17,19 @@ type DeadLetterSummary struct {
 	Error     string
 }
 
+// DeadLetterErrorSummary groups dead-letter turns by the persisted extractor
+// error message so operators can spot repeated failure modes quickly.
+type DeadLetterErrorSummary struct {
+	Error string
+	Count int
+}
+
 // ExtractorStatus is the Phase 3.E.4 read model behind `gormes memory status`.
 type ExtractorStatus struct {
 	QueueDepth        int
 	DeadLetterCount   int
 	WorkerHealth      string
+	ErrorSummary      []DeadLetterErrorSummary
 	RecentDeadLetters []DeadLetterSummary
 }
 
@@ -45,6 +53,28 @@ func ReadExtractorStatus(ctx context.Context, db *sql.DB, deadLetterLimit int) (
 		return ExtractorStatus{}, fmt.Errorf("memory: dead-letter count: %w", err)
 	}
 	status.WorkerHealth = extractorWorkerHealth(status.QueueDepth, status.DeadLetterCount)
+
+	summaryRows, err := db.QueryContext(ctx,
+		`SELECT COALESCE(extraction_error, ''), COUNT(*)
+		 FROM turns
+		 WHERE extracted = 2 AND cron = 0
+		 GROUP BY COALESCE(extraction_error, '')
+		 ORDER BY COUNT(*) DESC, COALESCE(extraction_error, '') ASC`,
+	)
+	if err != nil {
+		return ExtractorStatus{}, fmt.Errorf("memory: dead-letter summary: %w", err)
+	}
+	defer summaryRows.Close()
+	for summaryRows.Next() {
+		var item DeadLetterErrorSummary
+		if err := summaryRows.Scan(&item.Error, &item.Count); err != nil {
+			return ExtractorStatus{}, fmt.Errorf("memory: scan dead-letter summary: %w", err)
+		}
+		status.ErrorSummary = append(status.ErrorSummary, item)
+	}
+	if err := summaryRows.Err(); err != nil {
+		return ExtractorStatus{}, fmt.Errorf("memory: dead-letter summary rows: %w", err)
+	}
 
 	rows, err := db.QueryContext(ctx,
 		`SELECT id, session_id, chat_id, extraction_attempts, COALESCE(extraction_error, '')

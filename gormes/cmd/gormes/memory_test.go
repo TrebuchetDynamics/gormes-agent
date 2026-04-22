@@ -31,6 +31,9 @@ func TestMemoryStatusCommand_PrintsExtractorSummary(t *testing.T) {
 		"worker_health: degraded",
 		"queue_depth: 1",
 		"dead_letters: 2",
+		"dead_letter_summary:",
+		"error=\"malformed JSON\" count=1",
+		"error=\"upstream timeout\" count=1",
 		"session_id=sess-3",
 		"error=\"upstream timeout\"",
 	} {

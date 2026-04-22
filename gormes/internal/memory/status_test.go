@@ -54,3 +54,39 @@ func TestReadExtractorStatus_SummarizesQueueAndDeadLetters(t *testing.T) {
 		t.Fatalf("RecentDeadLetters[1].SessionID = %q, want %q", got.RecentDeadLetters[1].SessionID, "sess-2")
 	}
 }
+
+func TestReadExtractorStatus_BuildsDeterministicDeadLetterErrorSummary(t *testing.T) {
+	store, err := OpenSqlite(t.TempDir()+"/memory.db", 8, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer store.Close(context.Background())
+
+	now := time.Date(2026, 4, 22, 16, 0, 0, 0, time.UTC).Unix()
+	_, err = store.DB().Exec(
+		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, extracted, extraction_attempts, extraction_error, cron)
+		 VALUES
+		 ('sess-1', 'user', 'dead letter one', ?, 'telegram:1', 2, 3, 'malformed JSON', 0),
+		 ('sess-2', 'user', 'dead letter two', ?, 'telegram:2', 2, 4, 'upstream timeout', 0),
+		 ('sess-3', 'assistant', 'dead letter three', ?, 'discord:9', 2, 5, 'malformed JSON', 0)`,
+		now, now+1, now+2,
+	)
+	if err != nil {
+		t.Fatalf("seed turns: %v", err)
+	}
+
+	got, err := ReadExtractorStatus(context.Background(), store.DB(), 5)
+	if err != nil {
+		t.Fatalf("ReadExtractorStatus: %v", err)
+	}
+
+	if len(got.ErrorSummary) != 2 {
+		t.Fatalf("ErrorSummary len = %d, want 2", len(got.ErrorSummary))
+	}
+	if got.ErrorSummary[0].Error != "malformed JSON" || got.ErrorSummary[0].Count != 2 {
+		t.Fatalf("ErrorSummary[0] = %+v, want malformed JSON x2", got.ErrorSummary[0])
+	}
+	if got.ErrorSummary[1].Error != "upstream timeout" || got.ErrorSummary[1].Count != 1 {
+		t.Fatalf("ErrorSummary[1] = %+v, want upstream timeout x1", got.ErrorSummary[1])
+	}
+}
