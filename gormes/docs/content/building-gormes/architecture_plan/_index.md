@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 21/66 subphases shipped · 2 in progress · 43 planned
+**Overall:** 21/66 subphases shipped · 3 in progress · 42 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -222,9 +222,9 @@ weight: 10
 - [x] gormes session export <id> --format=markdown
 - [x] Render turns, tool calls, and timestamps from SQLite
 
-### 3.E.4 — Extraction State Visibility ⏳
+### 3.E.4 — Extraction State Visibility 🔨
 
-- [ ] gormes memory status command
+- [x] gormes memory status command
 - [ ] Extractor queue depth + dead-letter summary
 
 ### 3.E.5 — Insights Audit Log ⏳

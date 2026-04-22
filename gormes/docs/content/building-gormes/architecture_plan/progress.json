@@ -587,8 +587,8 @@
           "items": [
             {
               "name": "gormes memory status command",
-              "status": "planned",
-              "note": "TDD: freeze the operator-facing status summary before exposing live queue metrics."
+              "status": "complete",
+              "note": "TDD: shipped `gormes memory status` with a SQLite-backed extractor summary, heuristic worker health, and recent dead-letter rendering."
             },
             {
               "name": "Extractor queue depth + dead-letter summary",

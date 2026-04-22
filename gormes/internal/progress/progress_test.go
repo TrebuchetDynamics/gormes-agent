@@ -430,6 +430,18 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	if status.Priority != "P1" {
 		t.Fatalf("Phase 3.E.4 priority = %q, want P1", status.Priority)
 	}
+	statusItems := itemsByName(status.Items)
+	command := statusItems["gormes memory status command"]
+	if command.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.4 command status = %q, want complete", command.Status)
+	}
+	if !strings.Contains(command.Note, "gormes memory status") {
+		t.Fatalf("Phase 3.E.4 command note = %q, want command detail", command.Note)
+	}
+	summary := statusItems["Extractor queue depth + dead-letter summary"]
+	if summary.Status != StatusPlanned {
+		t.Fatalf("Phase 3.E.4 summary status = %q, want planned", summary.Status)
+	}
 
 	decay := p.Phases["3"].Subphases["3.E.6"]
 	if decay.Priority != "P1" {
