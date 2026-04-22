@@ -128,14 +128,21 @@ if [[ -z "$final_file" ]]; then
   exit 1
 fi
 cat > "$final_file" <<'EOF'
-1) Scope scanned
-2) Upstream Hermes delta summary
-3) Our repo status summary
-4) Plan quality problems
-5) Proposed changes
-6) Actual changes written
-7) Recommended next execution tasks
-8) Risks / ambiguities
+1. **Scope scanned**
+
+2. **Upstream Hermes delta summary**
+
+3. **Our repo status summary**
+
+4. **Plan quality problems**
+
+5. **Proposed changes**
+
+6. **Actual changes written**
+
+7. **Recommended next execution tasks**
+
+8. **Risks / ambiguities**
 EOF
 printf '{"type":"thread.started","thread_id":"thread-123"}\n'
 `), 0o755)
@@ -229,9 +236,9 @@ exit 0
 	reportText := string(reportData)
 	for _, section := range []string{
 		"# Architecture Planner Run",
-		"1) Scope scanned",
-		"2) Upstream Hermes delta summary",
-		"8) Risks / ambiguities",
+		"1. **Scope scanned**",
+		"2. **Upstream Hermes delta summary**",
+		"8. **Risks / ambiguities**",
 	} {
 		if !strings.Contains(reportText, section) {
 			t.Fatalf("planner report missing %q:\n%s", section, reportText)

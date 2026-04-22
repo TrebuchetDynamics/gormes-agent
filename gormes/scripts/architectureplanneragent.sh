@@ -348,19 +348,27 @@ verify_final_report() {
   local file="$1"
   [[ -f "$file" ]] || return 1
 
-  local section
-  for section in \
-    "1) Scope scanned" \
-    "2) Upstream Hermes delta summary" \
-    "3) Our repo status summary" \
-    "4) Plan quality problems" \
-    "5) Proposed changes" \
-    "6) Actual changes written" \
-    "7) Recommended next execution tasks" \
-    "8) Risks / ambiguities"
-  do
-    grep -Fq "$section" "$file" || return 1
-  done
+  local number title pattern
+  while IFS='|' read -r number title; do
+    pattern="^[[:space:]]*(#+[[:space:]]*)?${number}[.)][[:space:]]*(\\*\\*)?${title}(\\*\\*)?[[:space:]]*$"
+    grep -Eiq "$pattern" "$file" || return 1
+  done <<'EOF'
+1|Scope scanned
+2|Upstream Hermes delta summary
+3|Our repo status summary
+4|Plan quality problems
+5|Proposed changes
+6|Actual changes written
+7|Recommended next execution tasks
+8|Risks / ambiguities
+EOF
+}
+
+report_validation_error() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    printf '[architectureplanneragent] Raw report saved at %s\n' "$file" >&2
+  fi
 }
 
 extract_session_id() {
@@ -382,7 +390,10 @@ run_codexu_planner() {
       >"$CODEXU_JSONL" 2>"$CODEXU_STDERR"
   )
 
-  verify_final_report "$RAW_REPORT_FILE" || fail "planner final report did not match the required format"
+  if ! verify_final_report "$RAW_REPORT_FILE"; then
+    report_validation_error "$RAW_REPORT_FILE"
+    fail "planner final report did not match the required format"
+  fi
 }
 
 run_validation() {
