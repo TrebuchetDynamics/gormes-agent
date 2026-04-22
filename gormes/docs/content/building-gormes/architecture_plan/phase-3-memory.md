@@ -50,6 +50,19 @@ The Phase 3 queue is not one flat backlog. The order matters because later memor
 4. **P4 — 3.E.8 Session Lineage + Cross-Source Search**
    This closes the remaining donor gap with Hermes `SessionDB`, but it pairs naturally with later context-compression work and should come after the operator-facing mirrors are stable.
 
+## Identity + lineage architecture freeze (2026-04-22)
+
+Before this plan, `3.E.7` and `3.E.8` were only coarse placeholders in the ledger and this page: current code had `chat_id` plus `session_id`, but no durable `user_id` or `parent_session_id` contract, and `internal/memory/recall.go` still allowed exact-name recall to cross chat boundaries when an entity was named directly. After this doc sync, the implementation target is frozen in `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`.
+
+The frozen contract is:
+
+- Canonical GONCHO identity hierarchy is `user_id > chat_id > session_id`.
+- Recall stays `same-chat default, opt-in cross-chat`.
+- `parent_session_id` is append-only lineage metadata for compression/fork descendants; roots remain null.
+- Source-filtered search runs across sessions for one canonical `user_id`, not by flattening all chats into one undifferentiated stream.
+
+This matters because the current memory substrate is already strong enough to make a bad identity decision expensive: once facts, conclusions, and tool-visible context start spanning multiple chats, any ambiguity around "who" a chat belongs to becomes a correctness and privacy problem rather than a mere schema nuisance.
+
 ## Pre-Phase 4 E2E Gate (Hermes still running)
 
 Before starting Phase 4 implementation work, run and freeze a hybrid end-to-end baseline while Hermes is still the upstream brain (`api_server`) and Gormes owns runtime/gateway/memory surfaces.

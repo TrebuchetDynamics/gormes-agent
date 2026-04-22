@@ -434,6 +434,50 @@ func TestSubsystemInventoryReflectsShippedPhase2AndPhase3Reality(t *testing.T) {
 	}
 }
 
+func TestPhase3IdentityLineagePlanIsLinkedAndContractsAreDocumented(t *testing.T) {
+	plan := readDoc(t, "superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md")
+	for _, want := range []string{
+		"# Phase 3 Identity + Lineage Implementation Plan",
+		"user_id > chat_id > session_id",
+		"same-chat default",
+		"opt-in cross-chat",
+		"parent_session_id",
+		"source-filtered session search",
+	} {
+		if !strings.Contains(plan, want) {
+			t.Fatalf("identity/lineage plan is missing %q", want)
+		}
+	}
+
+	index := readDoc(t, "content/building-gormes/architecture_plan/_index.md")
+	if !strings.Contains(index, "2026-04-22-gormes-phase3-identity-lineage-plan") {
+		t.Fatalf("architecture index is missing the phase 3 identity/lineage plan link")
+	}
+
+	phase3 := readDoc(t, "content/building-gormes/architecture_plan/phase-3-memory.md")
+	for _, want := range []string{
+		"2026-04-22-gormes-phase3-identity-lineage-plan",
+		"user_id > chat_id > session_id",
+		"same-chat default, opt-in cross-chat",
+		"parent_session_id",
+	} {
+		if !strings.Contains(phase3, want) {
+			t.Fatalf("phase-3-memory doc is missing %q", want)
+		}
+	}
+
+	core := readDoc(t, "content/building-gormes/core-systems/memory.md")
+	for _, want := range []string{
+		"GONCHO identity hierarchy",
+		"same-chat by default",
+		"parent_session_id",
+	} {
+		if !strings.Contains(core, want) {
+			t.Fatalf("memory core-systems doc is missing %q", want)
+		}
+	}
+}
+
 func readDoc(t *testing.T, rel string) string {
 	t.Helper()
 

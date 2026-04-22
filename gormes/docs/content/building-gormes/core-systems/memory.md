@@ -23,8 +23,15 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 
 - **Session mirror closeout** (3.E.1) — the `SessionIndexMirror` writer plus deterministic runtime refresh wiring are now landed, giving operators a stable `sessions/index.yaml` audit surface.
 - **`last_seen` closeout** (3.E.6) — append-only `usage.jsonl` persistence is now landed; the remaining open half is timestamp-tracking for decay.
-- **Cross-chat identity** (3.E.7) — one-user-many-chats graph unification above `chat_id`.
-- **Session lineage + cross-source search** (3.E.8) — the remaining `SessionDB` donor seam, paired with later compression work.
+- **Cross-chat identity** (3.E.7) — GONCHO identity hierarchy is `user_id > chat_id > session_id`; recall stays same-chat by default and only widens when cross-chat scope is explicitly requested.
+- **Session lineage + cross-source search** (3.E.8) — `parent_session_id` marks compression/fork descendants, and source-filtered search spans one canonical `user_id` across chats instead of bypassing transport boundaries blindly.
+
+## Identity + lineage contract
+
+- **GONCHO identity hierarchy** — `user_id > chat_id > session_id`.
+- **Recall fence** — same-chat by default; opt-in cross-chat only when a canonical `user_id` resolves.
+- **Lineage rule** — `parent_session_id` is append-only metadata on descendants, not a rewrite of ancestor history.
+- **Implementation plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`.
 
 ## Why this is not just "chat logs"
 

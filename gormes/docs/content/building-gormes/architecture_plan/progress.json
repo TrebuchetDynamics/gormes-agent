@@ -636,12 +636,12 @@
             {
               "name": "user_id concept above chat_id",
               "status": "planned",
-              "note": "TDD: define identity merge rules and collision behavior with fixtures before changing storage keys."
+              "note": "Architecture frozen in docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md: canonical GONCHO hierarchy is user_id > chat_id > session_id, with explicit alias binding and no heuristic merge-by-name."
             },
             {
               "name": "Cross-chat entity merge + recall fence",
               "status": "planned",
-              "note": "TDD: prove one operator can recall facts across Telegram, Discord, and Slack without flattening unrelated chats."
+              "note": "Architecture frozen: same-chat remains the default fence for recall and honcho_* tools; cross-chat recall is opt-in and only allowed when a canonical user_id resolves, with optional source filters."
             }
           ]
         },
@@ -652,12 +652,12 @@
             {
               "name": "parent_session_id lineage for compression splits",
               "status": "planned",
-              "note": "TDD: lock lineage queries and orphan-handling behavior before introducing compression-split metadata."
+              "note": "Architecture frozen: parent_session_id is append-only metadata on compression/fork descendants, roots remain null, and orphan chains must surface in operator status instead of failing silently."
             },
             {
               "name": "Source-filtered FTS/session search across chats",
               "status": "planned",
-              "note": "TDD: prove source filters and search ordering against mixed-platform fixtures before porting SessionDB-style queries."
+              "note": "Architecture frozen: session/message search operates over canonical GONCHO user_id with same-chat default, opt-in cross-chat scope, canonical source allowlists, and deterministic ordering."
             }
           ]
         }

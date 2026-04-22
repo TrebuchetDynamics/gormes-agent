@@ -405,6 +405,12 @@ weight: 10
 
 ---
 
+## Phase 3 Deep Dive
+
+`3.E.7` and `3.E.8` now have a frozen architecture target in `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
+
+---
+
 ## Phase 4 Entry Gate
 
 Before any Phase 4 coding starts, the [Pre-Phase-4 E2E Gate](./phase-3-memory/) must be green. Freeze the Hermes-backed hybrid baseline for delivery envelopes, `<memory-context>` fences, and transcript/export artifacts first, then follow the entry rule in [Phase 4 — The Brain Transplant](./phase-4-brain-transplant/).
