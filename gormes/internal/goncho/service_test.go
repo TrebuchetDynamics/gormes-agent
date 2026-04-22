@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
 )
 
 func TestService_ProfileRoundTrip(t *testing.T) {
@@ -154,6 +155,65 @@ func TestService_DeleteConclusion(t *testing.T) {
 	}
 }
 
+func TestService_SearchUserScopeRespectsSourceFilter(t *testing.T) {
+	store, dir, svc, cleanup := newTestServiceWithDirectory(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	for _, meta := range []session.Metadata{
+		{SessionID: "sess-telegram", Source: "telegram", ChatID: "42", UserID: "user-juan"},
+		{SessionID: "sess-discord", Source: "discord", ChatID: "chan-9", UserID: "user-juan"},
+	} {
+		if err := dir.PutMetadata(ctx, meta); err != nil {
+			t.Fatalf("PutMetadata(%s): %v", meta.SessionID, err)
+		}
+	}
+	now := time.Now().Unix()
+	for _, turn := range []struct {
+		sessionID string
+		chatID    string
+		content   string
+		ts        int64
+	}{
+		{
+			sessionID: "sess-telegram",
+			chatID:    "telegram:42",
+			content:   "Atlas planning stayed in Telegram.",
+			ts:        now - 20,
+		},
+		{
+			sessionID: "sess-discord",
+			chatID:    "discord:chan-9",
+			content:   "Atlas execution moved to Discord.",
+			ts:        now - 10,
+		},
+	} {
+		if _, err := store.DB().ExecContext(ctx,
+			`INSERT INTO turns(session_id, role, content, ts_unix, chat_id) VALUES (?, ?, ?, ?, ?)`,
+			turn.sessionID, "user", turn.content, turn.ts, turn.chatID,
+		); err != nil {
+			t.Fatalf("insert turn %s: %v", turn.sessionID, err)
+		}
+	}
+
+	got, err := svc.Search(ctx, SearchParams{
+		Peer:      "user-juan",
+		Query:     "Atlas",
+		MaxTokens: 200,
+		Scope:     "user",
+		Sources:   []string{"discord"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 {
+		t.Fatalf("Search results len = %d, want 1", len(got.Results))
+	}
+	if got.Results[0].Source != "turn" || got.Results[0].SessionKey != "sess-discord" {
+		t.Fatalf("Search result = %+v, want discord turn bound to sess-discord", got.Results[0])
+	}
+}
+
 func newTestService(t *testing.T) (*Service, func()) {
 	t.Helper()
 
@@ -169,6 +229,27 @@ func newTestService(t *testing.T) (*Service, func()) {
 	}, nil)
 
 	return svc, func() {
+		if err := store.Close(context.Background()); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	}
+}
+
+func newTestServiceWithDirectory(t *testing.T) (*memory.SqliteStore, *session.MemMap, *Service, func()) {
+	t.Helper()
+
+	store, err := memory.OpenSqlite(t.TempDir()+"/memory.db", 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	dir := session.NewMemMap()
+	svc := NewService(store.DB(), Config{
+		WorkspaceID:      "default",
+		ObserverPeerID:   "gormes",
+		RecentMessages:   4,
+		SessionDirectory: dir,
+	}, nil)
+	return store, dir, svc, func() {
 		if err := store.Close(context.Background()); err != nil {
 			t.Fatalf("Close: %v", err)
 		}

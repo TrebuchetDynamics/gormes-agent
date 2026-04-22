@@ -656,8 +656,8 @@
             },
             {
               "name": "Source-filtered FTS/session search across chats",
-              "status": "planned",
-              "note": "Architecture frozen: session/message search operates over canonical GONCHO user_id with same-chat default, opt-in cross-chat scope, canonical source allowlists, and deterministic ordering."
+              "status": "complete",
+              "note": "TDD landed: internal/memory.SearchMessages and SearchSessions now search canonical user_id-bound sessions with optional source allowlists and latest-turn ordering, and internal/goncho honcho_search/context accept opt-in scope=user + sources[] without widening default same-chat behavior."
             }
           ]
         }

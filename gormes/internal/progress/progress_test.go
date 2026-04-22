@@ -440,17 +440,20 @@ func TestLoad_RealFile_Phase3Ledger(t *testing.T) {
 	}
 
 	sessionSearch := p.Phases["3"].Subphases["3.E.8"]
-	if got := sessionSearch.DerivedStatus(); got != StatusPlanned {
-		t.Fatalf("Phase 3.E.8 = %q, want planned", got)
+	if got := sessionSearch.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 3.E.8 = %q, want in_progress", got)
 	}
-	e8Items := itemStatusByName(sessionSearch.Items)
-	for name, want := range map[string]Status{
-		"parent_session_id lineage for compression splits": StatusPlanned,
-		"Source-filtered FTS/session search across chats":  StatusPlanned,
-	} {
-		if got := e8Items[name]; got != want {
-			t.Errorf("Phase 3.E.8 item %q = %q, want %q", name, got, want)
-		}
+	e8Items := itemsByName(sessionSearch.Items)
+	lineage := e8Items["parent_session_id lineage for compression splits"]
+	if lineage.Status != StatusPlanned {
+		t.Fatalf("Phase 3.E.8 lineage status = %q, want planned", lineage.Status)
+	}
+	search := e8Items["Source-filtered FTS/session search across chats"]
+	if search.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.8 source-filtered search status = %q, want complete", search.Status)
+	}
+	if !strings.Contains(search.Note, "SearchMessages") || !strings.Contains(search.Note, "scope=user") {
+		t.Fatalf("Phase 3.E.8 source-filtered search note = %q, want SearchMessages/scope=user detail", search.Note)
 	}
 }
 

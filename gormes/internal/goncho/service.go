@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 )
 
 // Service is the first in-binary Goncho domain facade. It sits directly on
@@ -17,6 +19,7 @@ type Service struct {
 	workspaceID string
 	observer    string
 	recentLimit int
+	sessions    SessionDirectory
 	log         *slog.Logger
 }
 
@@ -42,6 +45,7 @@ func NewService(db *sql.DB, cfg Config, log *slog.Logger) *Service {
 		workspaceID: workspaceID,
 		observer:    observer,
 		recentLimit: recentLimit,
+		sessions:    cfg.SessionDirectory,
 		log:         log,
 	}
 }
@@ -137,15 +141,15 @@ func (s *Service) Search(ctx context.Context, params SearchParams) (SearchResult
 			return SearchResultSet{}, err
 		}
 	}
-	results = limitHitsByTokens(results, params.MaxTokens)
 
-	if len(results) == 0 && strings.TrimSpace(params.SessionKey) != "" {
-		fallback, err := findTurns(ctx, s.db, params.Query, params.SessionKey, 6)
+	if len(results) == 0 {
+		fallback, err := s.searchTurnFallback(ctx, params)
 		if err != nil {
 			return SearchResultSet{}, err
 		}
-		results = limitHitsByTokens(fallback, params.MaxTokens)
+		results = fallback
 	}
+	results = limitHitsByTokens(results, params.MaxTokens)
 
 	return SearchResultSet{
 		WorkspaceID: s.workspaceID,
@@ -171,6 +175,8 @@ func (s *Service) Context(ctx context.Context, params ContextParams) (ContextRes
 		Query:      params.Query,
 		MaxTokens:  params.MaxTokens,
 		SessionKey: params.SessionKey,
+		Scope:      params.Scope,
+		Sources:    params.Sources,
 	})
 	if err != nil {
 		return ContextResult{}, err
@@ -240,6 +246,38 @@ func makeIdempotencyKey(workspaceID, observer, peer, sessionKey, conclusion stri
 		normalized,
 	}, "\x1f")))
 	return hex.EncodeToString(sum[:])
+}
+
+func (s *Service) searchTurnFallback(ctx context.Context, params SearchParams) ([]SearchHit, error) {
+	if strings.EqualFold(strings.TrimSpace(params.Scope), "user") && s.sessions != nil {
+		userID := strings.TrimSpace(params.Peer)
+		metas, err := s.sessions.ListMetadataByUserID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		hits, err := memory.SearchMessages(ctx, s.db, metas, memory.SearchFilter{
+			UserID:  userID,
+			Sources: params.Sources,
+			Query:   params.Query,
+		}, 6)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]SearchHit, 0, len(hits))
+		for _, hit := range hits {
+			out = append(out, SearchHit{
+				Source:     "turn",
+				Content:    hit.Content,
+				SessionKey: hit.SessionID,
+			})
+		}
+		return out, nil
+	}
+
+	if strings.TrimSpace(params.SessionKey) == "" {
+		return nil, nil
+	}
+	return findTurns(ctx, s.db, params.Query, params.SessionKey, 6)
 }
 
 func limitHitsByTokens(hits []SearchHit, maxTokens int) []SearchHit {

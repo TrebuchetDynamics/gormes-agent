@@ -45,3 +45,23 @@ func TestContractContextResultIncludesStableFields(t *testing.T) {
 		t.Fatalf("missing session_key in %s", raw)
 	}
 }
+
+func TestContractSearchParamsOptionalScopeAndSourcesJSONShape(t *testing.T) {
+	raw, err := json.Marshal(SearchParams{
+		Peer:    "user-juan",
+		Query:   "Atlas",
+		Scope:   "user",
+		Sources: []string{"discord"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	text := string(raw)
+	if !strings.Contains(text, `"scope":"user"`) {
+		t.Fatalf("missing scope in %s", raw)
+	}
+	if !strings.Contains(text, `"sources":["discord"]`) {
+		t.Fatalf("missing sources in %s", raw)
+	}
+}

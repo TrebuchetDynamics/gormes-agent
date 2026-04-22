@@ -1,10 +1,23 @@
 package goncho
 
+import (
+	"context"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
+)
+
 // Config controls the minimal Goncho service defaults for a runtime.
 type Config struct {
-	WorkspaceID    string
-	ObserverPeerID string
-	RecentMessages int
+	WorkspaceID      string
+	ObserverPeerID   string
+	RecentMessages   int
+	SessionDirectory SessionDirectory
+}
+
+// SessionDirectory exposes the canonical user->session metadata seam needed
+// for user-scoped cross-chat search.
+type SessionDirectory interface {
+	ListMetadataByUserID(ctx context.Context, userID string) ([]session.Metadata, error)
 }
 
 // ProfileResult is the external shape used by profile reads and updates.
@@ -33,10 +46,12 @@ type ConcludeResult struct {
 
 // SearchParams controls retrieval for honcho_search.
 type SearchParams struct {
-	Peer       string `json:"peer"`
-	Query      string `json:"query"`
-	MaxTokens  int    `json:"max_tokens,omitempty"`
-	SessionKey string `json:"session_key,omitempty"`
+	Peer       string   `json:"peer"`
+	Query      string   `json:"query"`
+	MaxTokens  int      `json:"max_tokens,omitempty"`
+	SessionKey string   `json:"session_key,omitempty"`
+	Scope      string   `json:"scope,omitempty"`
+	Sources    []string `json:"sources,omitempty"`
 }
 
 // SearchHit is one result entry returned by search.
@@ -57,10 +72,12 @@ type SearchResultSet struct {
 
 // ContextParams controls honcho_context reads.
 type ContextParams struct {
-	Peer       string `json:"peer"`
-	Query      string `json:"query,omitempty"`
-	MaxTokens  int    `json:"max_tokens,omitempty"`
-	SessionKey string `json:"session_key,omitempty"`
+	Peer       string   `json:"peer"`
+	Query      string   `json:"query,omitempty"`
+	MaxTokens  int      `json:"max_tokens,omitempty"`
+	SessionKey string   `json:"session_key,omitempty"`
+	Scope      string   `json:"scope,omitempty"`
+	Sources    []string `json:"sources,omitempty"`
 }
 
 // MessageSlice is one recent message excerpt included in context responses.

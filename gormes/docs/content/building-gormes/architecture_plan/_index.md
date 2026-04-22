@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 28/66 subphases shipped · 5 in progress · 33 planned
+**Overall:** 28/66 subphases shipped · 6 in progress · 32 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -242,10 +242,10 @@ weight: 10
 - [x] user_id concept above chat_id
 - [ ] Cross-chat entity merge + recall fence
 
-### 3.E.8 — Session Lineage + Cross-Source Search ⏳
+### 3.E.8 — Session Lineage + Cross-Source Search 🔨
 
 - [ ] parent_session_id lineage for compression splits
-- [ ] Source-filtered FTS/session search across chats
+- [x] Source-filtered FTS/session search across chats
 
 ## Phase 4 — The Brain Transplant ⏳
 
