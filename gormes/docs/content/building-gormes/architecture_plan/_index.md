@@ -20,12 +20,12 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 24/66 subphases shipped · 7 in progress · 35 planned
+**Overall:** 25/66 subphases shipped · 6 in progress · 35 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
-| Phase 2 — The Gateway | 🔨 | 12/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 13/20 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 10/13 subphases |
 | Phase 4 — The Brain Transplant | ⏳ | 0/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
@@ -90,10 +90,10 @@ weight: 10
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
 
-### 2.B.6 — Signal Adapter 🔨
+### 2.B.6 — Signal Adapter ✅
 
 - [x] Inbound event normalization + session identity
-- [ ] Reply/send contract on shared chassis
+- [x] Reply/send contract on shared chassis
 
 ### 2.B.7 — Email + SMS Adapters 🔨
 

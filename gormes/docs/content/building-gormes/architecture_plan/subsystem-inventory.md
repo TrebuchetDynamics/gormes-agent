@@ -15,7 +15,7 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Discord | `gateway/platforms/discord.py` | 2.B.2 | ✅ shipped | Shared gateway adapter with mention-aware ingress and reply delivery |
 | Slack | `gateway/platforms/slack.py` | 2.B.3 | ✅ shipped | Shared gateway adapter with Socket Mode and threaded reply flow |
 | WhatsApp | `gateway/platforms/whatsapp.py` | 2.B.4 | ⏳ planned | |
-| Signal | `gateway/platforms/signal.py` | 2.B.6 | ⏳ planned | |
+| Signal | `gateway/platforms/signal.py` | 2.B.6 | 🔨 in progress | Contract-tested ingress normalization and shared-chassis reply delivery live in `internal/channels/signal` |
 | Email | `gateway/platforms/email.py` | 2.B.7 | ⏳ planned | |
 | SMS | `gateway/platforms/sms.py` | 2.B.7 | ⏳ planned | |
 | Matrix | `gateway/platforms/matrix.py` | 2.B.8 | ⏳ planned | |

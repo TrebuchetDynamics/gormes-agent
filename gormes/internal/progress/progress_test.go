@@ -243,8 +243,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if signal.Priority != "P2" {
 		t.Fatalf("Phase 2.B.6 priority = %q, want P2", signal.Priority)
 	}
-	if got := signal.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.6 = %q, want in_progress", got)
+	if got := signal.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.6 = %q, want complete", got)
 	}
 	signalItems := itemsByName(signal.Items)
 	identity := signalItems["Inbound event normalization + session identity"]
@@ -253,6 +253,13 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	if !strings.Contains(identity.Note, "NormalizeInbound") || !strings.Contains(identity.Note, "phone/UUID") {
 		t.Fatalf("Phase 2.B.6 inbound normalization note = %q, want NormalizeInbound/phone-UUID detail", identity.Note)
+	}
+	replySend := signalItems["Reply/send contract on shared chassis"]
+	if replySend.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.6 reply/send status = %q, want complete", replySend.Status)
+	}
+	if !strings.Contains(replySend.Note, "signal.Bot") || !strings.Contains(replySend.Note, "native group IDs") {
+		t.Fatalf("Phase 2.B.6 reply/send note = %q, want signal.Bot/native group IDs detail", replySend.Note)
 	}
 
 	routing := p.Phases["2"].Subphases["2.B.5"]

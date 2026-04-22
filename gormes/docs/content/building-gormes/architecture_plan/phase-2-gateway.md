@@ -19,7 +19,7 @@ weight: 30
 | Phase 2.B.3 — Slack on Shared Chassis | ✅ complete | P1 | Slack Socket Mode adapter, threaded reply flow, and gateway command wiring on the same shared contracts |
 | Phase 2.B.4 — WhatsApp Adapter | ⏳ planned | P1 | Pick the bridge-vs-native runtime seam, then port inbound normalization, command passthrough, pairing, reconnect, and send contracts |
 | Phase 2.B.5 — Session Context + Delivery Routing | ⏳ planned | P1 | Port `gateway/session.py`, `session_context.py`, `delivery.py`, and `stream_consumer.py` into one tested routing layer |
-| Phase 2.B.6 — Signal Adapter | ⏳ planned | P2 | Signal ingress, session identity, and reply/send semantics on the shared chassis |
+| Phase 2.B.6 — Signal Adapter | ✅ complete | P2 | Signal ingress, session identity, and reply/send semantics on the shared chassis |
 | Phase 2.B.7 — Email + SMS Adapters | ⏳ planned | P3 | Normalize low-bandwidth ingress and outbound delivery contracts without special-casing the kernel |
 | Phase 2.B.8 — Matrix + Mattermost Adapters | 🔨 in progress | P4 | Shared threaded-text contract suite landed in `internal/channels/threadtext`; Matrix + Mattermost transport wiring remains |
 | Phase 2.B.9 — Webhook + Trigger Ingress | ⏳ planned | P4 | Signed webhook ingress and prompt-to-delivery routing for GitHub and generic API triggers |

@@ -182,8 +182,8 @@
             },
             {
               "name": "Reply/send contract on shared chassis",
-              "status": "planned",
-              "note": "TDD: prove outbound send and group routing with adapter contract tests first."
+              "status": "complete",
+              "note": "TDD landed: internal/channels/signal.Bot now records reply metadata from normalized inbound events and routes shared-chassis sends back to direct recipients or native group IDs with reply-to preservation."
             }
           ]
         },
