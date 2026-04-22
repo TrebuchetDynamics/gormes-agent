@@ -23,7 +23,7 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 
 - **Session mirror closeout** (3.E.1) — the `SessionIndexMirror` writer plus deterministic runtime refresh wiring are now landed, giving operators a stable `sessions/index.yaml` audit surface.
 - **`last_seen` closeout** (3.E.6) — append-only `usage.jsonl` persistence is now landed; the remaining open half is timestamp-tracking for decay.
-- **Cross-chat identity** (3.E.7) — GONCHO identity hierarchy is `user_id > chat_id > session_id`; `internal/session` now persists canonical chat-to-user bindings, while recall still stays same-chat by default until explicit cross-chat scope lands.
+- **Cross-chat identity** (3.E.7) — GONCHO identity hierarchy is `user_id > chat_id > session_id`; `internal/session` persists canonical chat-to-user bindings, and `internal/memory` recall stays same-chat by default unless callers opt into canonical user-scoped cross-chat recall with optional source filters.
 - **Session lineage + cross-source search** (3.E.8) — `parent_session_id` marks compression/fork descendants, and source-filtered search spans one canonical `user_id` across chats instead of bypassing transport boundaries blindly.
 
 ## Identity + lineage contract
@@ -32,6 +32,7 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 - **Recall fence** — same-chat by default; opt-in cross-chat only when a canonical `user_id` resolves.
 - **Lineage rule** — `parent_session_id` is append-only metadata on descendants, not a rewrite of ancestor history.
 - **Implementation plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`.
+- **Execution plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`; closeout order is `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2`.
 
 ## Why this is not just "chat logs"
 

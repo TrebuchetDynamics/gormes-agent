@@ -478,6 +478,40 @@ func TestPhase3IdentityLineagePlanIsLinkedAndContractsAreDocumented(t *testing.T
 	}
 }
 
+func TestPhase3IdentityLineageExecutionPlanIsLinkedAndSequenced(t *testing.T) {
+	plan := readDoc(t, "superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md")
+	for _, want := range []string{
+		"# Phase 3 Identity + Lineage Execution Plan",
+		"Relationship last_seen tracking",
+		"Cross-chat entity merge + recall fence",
+		"parent_session_id lineage for compression splits",
+		"Source-filtered FTS/session search across chats",
+		"same-chat default",
+		"opt-in cross-chat",
+		"Rollback and failure containment",
+		"go test ./internal/memory ./internal/session ./internal/goncho -count=1",
+	} {
+		if !strings.Contains(plan, want) {
+			t.Fatalf("identity/lineage execution plan is missing %q", want)
+		}
+	}
+
+	index := readDoc(t, "content/building-gormes/architecture_plan/_index.md")
+	if !strings.Contains(index, "2026-04-22-gormes-phase3-identity-lineage-execution-plan") {
+		t.Fatalf("architecture index is missing the phase 3 identity/lineage execution plan link")
+	}
+
+	phase3 := readDoc(t, "content/building-gormes/architecture_plan/phase-3-memory.md")
+	for _, want := range []string{
+		"2026-04-22-gormes-phase3-identity-lineage-execution-plan",
+		"3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2",
+	} {
+		if !strings.Contains(phase3, want) {
+			t.Fatalf("phase-3-memory doc is missing %q", want)
+		}
+	}
+}
+
 func readDoc(t *testing.T, rel string) string {
 	t.Helper()
 

@@ -20,13 +20,13 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 28/66 subphases shipped · 6 in progress · 32 planned
+**Overall:** 29/66 subphases shipped · 5 in progress · 32 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
 | Phase 2 — The Gateway | 🔨 | 16/20 subphases |
-| Phase 3 — The Black Box (Memory) | 🔨 | 10/13 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | ⏳ | 0/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
@@ -79,7 +79,7 @@ weight: 10
 
 ### 2.B.4 — WhatsApp Adapter 🔨
 
-- [ ] Bridge-vs-native runtime decision
+- [x] Bridge-vs-native runtime decision
 - [x] Inbound normalization + command passthrough
 - [ ] Pairing, reconnect, and send contract
 
@@ -237,10 +237,10 @@ weight: 10
 - [ ] Relationship last_seen tracking
 - [x] Deterministic weight attenuation at recall time
 
-### 3.E.7 — Cross-Chat Synthesis 🔨
+### 3.E.7 — Cross-Chat Synthesis ✅
 
 - [x] user_id concept above chat_id
-- [ ] Cross-chat entity merge + recall fence
+- [x] Cross-chat entity merge + recall fence
 
 ### 3.E.8 — Session Lineage + Cross-Source Search 🔨
 
@@ -408,6 +408,8 @@ weight: 10
 ## Phase 3 Deep Dive
 
 `3.E.7` and `3.E.8` now have a frozen architecture target in `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`. The contract is `user_id > chat_id > session_id`, recall remains same-chat default, cross-chat recall is opt-in, and `parent_session_id` is reserved for compression/fork descendants instead of becoming a generic session rewrite mechanism.
+
+Execution is now sequenced in `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`, with the closeout order fixed as `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2` so freshness, fence safety, lineage metadata, and search/observability land in that order.
 
 ---
 

@@ -130,8 +130,8 @@
           "items": [
             {
               "name": "Bridge-vs-native runtime decision",
-              "status": "planned",
-              "note": "TDD: lock the operating model with failing lifecycle and command-passthrough tests before transport code."
+              "status": "complete",
+              "note": "TDD landed: internal/channels/whatsapp.DecideRuntime now freezes a bridge-first Baileys seam, attach-vs-launch lifecycle planning, bot/self-chat mode selection, and shared-parser command passthrough before transport startup."
             },
             {
               "name": "Inbound normalization + command passthrough",
@@ -620,7 +620,7 @@
             {
               "name": "Relationship last_seen tracking",
               "status": "planned",
-              "note": "TDD: add schema and updater tests first so old entities gain timestamps without mutating recall behavior accidentally."
+              "note": "TDD: execution order is frozen in docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md; land schema + backfill + relationship-writer coverage before treating freshness-sensitive cross-chat recall/search as fully closed."
             },
             {
               "name": "Deterministic weight attenuation at recall time",
@@ -640,8 +640,8 @@
             },
             {
               "name": "Cross-chat entity merge + recall fence",
-              "status": "planned",
-              "note": "Architecture frozen: same-chat remains the default fence for recall and honcho_* tools; cross-chat recall is opt-in and only allowed when a canonical user_id resolves, with optional source filters."
+              "status": "complete",
+              "note": "TDD landed: internal/memory recall now enforces same-chat default scoping, widens cross-chat only when callers opt into canonical user_id scope via internal/session bindings, and applies optional source filters deterministically; execution follow-up now focuses on tool-schema visibility and operator evidence."
             }
           ]
         },
@@ -652,12 +652,12 @@
             {
               "name": "parent_session_id lineage for compression splits",
               "status": "planned",
-              "note": "Architecture frozen: parent_session_id is append-only metadata on compression/fork descendants, roots remain null, and orphan chains must surface in operator status instead of failing silently."
+              "note": "Execution plan frozen: add parent_session_id + lineage_kind to session.Metadata, keep roots null/primary by default, reject trivial loops, and surface orphan chains in mirrors/status instead of failing silently."
             },
             {
               "name": "Source-filtered FTS/session search across chats",
               "status": "complete",
-              "note": "TDD landed: internal/memory.SearchMessages and SearchSessions now search canonical user_id-bound sessions with optional source allowlists and latest-turn ordering, and internal/goncho honcho_search/context accept opt-in scope=user + sources[] without widening default same-chat behavior."
+              "note": "TDD landed: internal/memory.SearchMessages and SearchSessions now search canonical user_id-bound sessions with optional source allowlists and latest-turn ordering, and internal/goncho honcho_search/context accept opt-in scope=user + sources[] without widening default same-chat behavior; execution follow-up now adds lineage-aware hits and operator-auditable search evidence."
             }
           ]
         }
