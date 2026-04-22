@@ -7,32 +7,32 @@ weight: 80
 
 The complete picture of what Gormes must absorb to retire the Python `hermes-agent` runtime. Each row is one upstream module or capability, mapped to its target phase. This inventory is the source of truth for "what's left" — when a subsystem is shipped in Go, mark it ✅ and link the spec.
 
-### Gateway platforms (24 connectors — 22 unshipped)
+### Gateway platforms (24 connectors — 21 unshipped)
 
-| Platform | Upstream file | Target phase | Status |
-|---|---|---|---|
-| Telegram | `gateway/platforms/telegram.py` | 2.B.1 | ✅ shipped |
-| Discord | `gateway/platforms/discord.py` | 2.B.2 | ✅ shipped |
-| Slack | `gateway/platforms/slack.py` | 2.B.3 | ⏳ planned |
-| WhatsApp | `gateway/platforms/whatsapp.py` | 2.B.4 | ⏳ planned |
-| Signal | `gateway/platforms/signal.py` | 2.B.5 | ⏳ planned |
-| Email | `gateway/platforms/email.py` | 2.B.6 | ⏳ planned |
-| SMS | `gateway/platforms/sms.py` | 2.B.7 | ⏳ planned |
-| Matrix | `gateway/platforms/matrix.py` | 2.B.8 | ⏳ planned |
-| Mattermost | `gateway/platforms/mattermost.py` | 2.B.9 | ⏳ planned |
-| Webhook | `gateway/platforms/webhook.py` | 2.B.10 | ⏳ planned |
-| BlueBubbles (iMessage) | `gateway/platforms/bluebubbles.py` | 2.B.11 | ⏳ planned |
-| HomeAssistant | `gateway/platforms/homeassistant.py` | 2.B.12 | ⏳ planned |
-| Feishu | `gateway/platforms/feishu*.py` | 2.B.13 | ⏳ planned |
-| WeChat (WeCom + WeiXin) | `gateway/platforms/wecom*.py`, `weixin.py` | 2.B.14 | ⏳ planned |
-| DingTalk | `gateway/platforms/dingtalk.py` | 2.B.15 | ⏳ planned |
-| QQ Bot | `gateway/platforms/qqbot/` | 2.B.16 | ⏳ planned |
+| Platform | Upstream file | Target phase | Status | Landed Go surface |
+|---|---|---|---|---|
+| Telegram | `gateway/platforms/telegram.py` | 2.B.1 | ✅ shipped | Shared gateway adapter with long-poll ingress and edit coalescing |
+| Discord | `gateway/platforms/discord.py` | 2.B.2 | ✅ shipped | Shared gateway adapter with mention-aware ingress and reply delivery |
+| Slack | `gateway/platforms/slack.py` | 2.B.3 | ✅ shipped | Shared gateway adapter with Socket Mode and threaded reply flow |
+| WhatsApp | `gateway/platforms/whatsapp.py` | 2.B.4 | ⏳ planned | |
+| Signal | `gateway/platforms/signal.py` | 2.B.6 | ⏳ planned | |
+| Email | `gateway/platforms/email.py` | 2.B.7 | ⏳ planned | |
+| SMS | `gateway/platforms/sms.py` | 2.B.7 | ⏳ planned | |
+| Matrix | `gateway/platforms/matrix.py` | 2.B.8 | ⏳ planned | |
+| Mattermost | `gateway/platforms/mattermost.py` | 2.B.8 | ⏳ planned | |
+| Webhook | `gateway/platforms/webhook.py` | 2.B.9 | ⏳ planned | |
+| BlueBubbles (iMessage) | `gateway/platforms/bluebubbles.py` | 2.B.10 | ⏳ planned | |
+| HomeAssistant | `gateway/platforms/homeassistant.py` | 2.B.10 | ⏳ planned | |
+| Feishu | `gateway/platforms/feishu*.py` | 2.B.10 | ⏳ planned | |
+| WeChat (WeCom + WeiXin) | `gateway/platforms/wecom*.py`, `weixin.py` | 2.B.10 | ⏳ planned | |
+| DingTalk | `gateway/platforms/dingtalk.py` | 2.B.10 | ⏳ planned | |
+| QQ Bot | `gateway/platforms/qqbot/` | 2.B.10 | ⏳ planned | |
 
 ### Operational layer (cross-cutting, mostly Phase 2.D–2.F)
 
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
-| Gateway runtime entry (main loop + slash-command dispatch) | `gateway/run.py` + `gateway/config.py` | 2.B/2.F | 🔨 `cmd/gormes/gateway.go` + `internal/gateway` landed; slash-command dispatch remains |
+| Gateway runtime entry (main loop + slash-command dispatch) | `gateway/run.py` + `gateway/config.py` | 2.B/2.F | 🔨 shared gateway manager + multi-channel entrypoint landed; registry-backed slash dispatch, session context, delivery routing, and stream fan-out remain |
 | Thin mapping persistence | `gateway/session.py` (minimal subset) | 2.C | ✅ shipped (`bbolt` `(platform, chat_id) -> session_id`; transcripts stay outside this layer) |
 | Gateway session store (conversation persistence across platforms) | `gateway/session.py` (`SessionStore`, `SessionEntry`, `SessionSource`, `SessionResetPolicy`) | 2.B/2.F | ⏳ planned |
 | Gateway session context | `gateway/session_context.py` (`SessionContext`) | 2.B/2.F | ⏳ planned |
@@ -40,21 +40,21 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Stream consumer (SSE agent-event fan-out to gateway) | `gateway/stream_consumer.py` (`GatewayStreamConsumer`, `StreamConsumerConfig`, `StreamingConfig`) | 2.B/2.F | ⏳ planned |
 | Home channel (operator's primary notify-to chat) | `gateway/*` — `HomeChannel` class | 2.F | ⏳ planned |
 | Channel / contact directory | `gateway/channel_directory.py` | 2.F | ⏳ planned |
-| Platform enum + per-platform config | `gateway/*` — `Platform` (enum), `PlatformConfig` | 2.B | ⏳ planned |
+| Platform enum + per-platform config | `gateway/*` — `Platform` (enum), `PlatformConfig` | 2.B | 🔨 Telegram/Discord/Slack config surfaces landed; canonical cross-platform enum parity remains |
 | Cron / scheduled automations | `cron/scheduler.py`, `cron/jobs.py`, `tools/cronjob_tools.py` | 2.D | ✅ shipped (scheduler + bbolt `cron_jobs` bucket + SQLite `cron_runs` audit + CRON.md mirror + Heartbeat prefix + exact-match `[SILENT]` suppression + kernel `PlatformEvent.SessionID/CronJobID` per-event override; upstream's file tick lock not needed — single-process) |
 | Webhook subscription system (GitHub events / API triggers → prompt → deliver) | `hermes_cli/webhook.py` + gateway routing | 2.D | ⏳ planned |
-| Subagent delegation | `tools/delegate_tool.py` | 2.E | 🔨 `internal/subagent` + Go-native `delegate_task` landed; tool policy/logging remain |
-| Hooks system (`HookRegistry`) | `gateway/hooks.py`, `gateway/builtin_hooks/{boot_md}.py` | 2.F | ⏳ planned |
+| Subagent delegation | `tools/delegate_tool.py` | 2.E | ✅ deterministic runtime, `delegate_task`, runner policy, typed child tool-call audit, append-only run logging, and real child stream execution landed |
+| Hooks system (`HookRegistry`) | `gateway/hooks.py`, `gateway/builtin_hooks/{boot_md}.py` | 2.F | ✅ in-process gateway hook points, live `HOOK.yaml` command loading, and built-in `BOOT.md` startup queuing with non-blocking failure semantics landed |
 | Restart / pairing / lifecycle | `gateway/{restart,pairing,status}.py` + `PairingStore` | 2.F | ⏳ planned |
 | Mirror / sticker cache | `gateway/{mirror,sticker_cache}.py` | 2.F | ⏳ planned |
 | Display config + KawaiiSpinner + tool preview formatting | `gateway/display_config.py`, `agent/display.py` (`KawaiiSpinner`) | 2.F / 5.Q | ⏳ planned |
 | Iteration budget tracker | `run_agent.py` (`iteration_budget`) — inline class | 4.C | ⏳ planned |
 
-### Memory + state (Phase 3 — 3.A–3.D shipped; 3.E pending)
+### Memory + state (Phase 3 — 3.A–3.D.5 shipped; 3.E queued)
 
 Upstream splits memory across three stores that Gormes compresses into two:
 
-- **`hermes_state.py` — `SessionDB`** (SQLite + FTS5) holds every session's message history, model config, parent-session chains for compression splits, and source tagging (`cli`, `telegram`, etc.). Gormes Phase 2.C uses bbolt for (platform, chat_id) → session_id mapping; Phase 3.A's SqliteStore holds turns + FTS5. Together they cover SessionDB's responsibilities, but the parent-session chains and cross-source search need explicit 3.E work.
+- **`hermes_state.py` — `SessionDB`** (SQLite + FTS5) holds every session's message history, model config, `user_id`, parent-session chains for compression splits, and source tagging (`cli`, `telegram`, etc.). Gormes Phase 2.C uses bbolt for (platform, chat_id) → session_id mapping; Phase 3.A's SqliteStore holds turns + FTS5. Together they cover SessionDB's responsibilities, but the `user_id`, lineage, and cross-source search surfaces still need explicit 3.E work.
 - **`agent/memory_manager.py` — `MemoryManager`** owns the entity graph + USER.md mirror.
 - **`agent/memory_provider.py` — `MemoryProvider` (ABC)** owns recall-time seed selection + fence assembly.
 
@@ -287,7 +287,7 @@ Upstream uses `~/.hermes/` as the state root (overridable via `HERMES_HOME`). Go
 | `~/.hermes/skills/` | Installed skills (26 upstream categories) | 5.F | Planned — `~/.local/share/gormes/skills/` |
 | `~/.hermes/optional-skills/` | Optional skill packs (10+ categories) | 5.F | Planned |
 | `~/.hermes/plugins/` | Plugin installs (context_engine, memory/*, example-dashboard) | 5.I | Planned |
-| `~/.hermes/hooks/` | User hook scripts (per-event `HOOK.yaml` + scripts) | 2.F | Planned |
+| `$XDG_DATA_HOME/gormes/hooks/` | User hook scripts (per-event `HOOK.yaml` + executable commands) | 2.F | ✅ live manifest loading and built-in `BOOT.md` startup queuing landed |
 | `~/.hermes/cron/` | Cron job output Markdown files (one per job run) | 2.D | ✅ Shipped as Gormes equivalent: per-run audit in SQLite `cron_runs` table (not per-file) + aggregated `${XDG_DATA_HOME}/gormes/cron/CRON.md` mirror (3.D.5 pattern — atomic temp-file + rename; refreshed every 30s). Structured table is source of truth; Markdown is derived |
 | `~/.hermes/logs/` | Agent run logs (per-session, rotated) | 2.F / 5.O | Planned — `${XDG_STATE_HOME}/gormes/logs/` |
 | `~/.hermes/images/` | Generated images from image-generation tool | 5.D | Planned |
@@ -327,7 +327,7 @@ Re-run the upstream survey when a major Hermes release lands, when a new platfor
 
 The survey from 2026-04-20 caught **42 items** previously under-specified:
 
-- **Round 1 (spec-level):** Phase 3.D semantic fusion ship criterion, Phase 3.E ledger (7 subphases).
+- **Round 1 (spec-level):** Phase 3.D semantic fusion ship criterion, Phase 3.E ledger (8 subphases).
 - **Round 2 (file-level, 12 finds):** `run_agent.py` (12,113 lines), `cli.py` (10,570 lines), `tui_gateway/server.py` (2,931 lines), 9 per-model tool-call parsers, 8 third-party memory plugins, SSH sandbox, SkillSources, TUI skin engine, install scripts, `hermes_cli/` expansion from ~15 to 49 files.
 - **Round 3 (class-level, 30 finds):** Slash command registry cross-cutting concern, tool registry orchestrator, toolset definitions, `HomeChannel` / `DeliveryRouter` / `GatewayStreamConsumer` / `SessionStore`, webhook subscription system, iteration budget, 3 new `AuxiliaryClient` classes (Anthropic + Codex, not just xAI), billing / cost / failover / metadata types, 7 `SkillSource` subclasses, `AudioRecorder` + `TermuxAudioRecorder`, 15+ file-operation classes, MCP OAuth / Sampling / FAL sync, `GitHubAuth` + `HermesTokenStorage`.
 - **Round 4 (contract-level, this pass):** 117 config keys, ~170 env vars across 4 layers (HERMES_*, provider keys, platform credentials, gateway-level), 28 state-directory entries under `~/.hermes/`, config migration system (`_config_version`), XDG vs `HERMES_HOME` reconciliation, dotenv support gap, cron output filesystem mirror (`~/.hermes/cron/`).

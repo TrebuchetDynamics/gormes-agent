@@ -9,7 +9,7 @@ DingTalk is a good example of why transport shape matters more than headline pla
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` marks DingTalk as Phase `2.B.15` and planned. Gormes ships upstream Hermes operator docs for DingTalk setup, but no Go adapter yet.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups DingTalk into the Phase `2.B.10` regional/device adapter tranche. Gormes ships upstream Hermes operator docs for DingTalk setup, but no Go adapter yet.
 
 Evidence level:
 

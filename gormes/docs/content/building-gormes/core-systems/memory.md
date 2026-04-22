@@ -12,11 +12,15 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 - **SQLite + FTS5 lattice** (3.A) — `internal/memory/SqliteStore`. Schema migrations, fire-and-forget worker, lexical search.
 - **Ontological graph** (3.B) — entities, relationships, LLM-assisted extractor with dead-letter queue.
 - **Neural recall** (3.C) — 2-layer seed selection, CTE traversal, `<memory-context>` fence injection matching Hermes's `build_memory_context_block`.
+- **Semantic fusion** (3.D) — Ollama embeddings, cosine recall, and hybrid lexical+semantic seed fusion.
 - **USER.md mirror** (3.D.5) — async export of entity/relationship graph to human-readable Markdown. Gormes-original; no upstream equivalent.
 
-## Still in flight
+## Remaining Phase 3 queue
 
-- **Semantic fusion** (3.D) — Ollama embeddings + cosine similarity. Spec approved.
+- **Session and tool mirrors** (3.E.1, 3.E.2) — human-readable session index plus append-only tool audit JSONL.
+- **Transcript export + extractor status** (3.E.3, 3.E.4) — operator commands for exporting a session and inspecting queue/dead-letter health.
+- **Insights, decay, and cross-chat identity** (3.E.5, 3.E.6, 3.E.7) — lightweight usage log, `last_seen`-driven decay, and one-user-many-chats graph unification.
+- **Session lineage + cross-source search** (3.E.8) — the remaining `SessionDB` donor seam, paired with later compression work.
 
 ## Why this is not just "chat logs"
 

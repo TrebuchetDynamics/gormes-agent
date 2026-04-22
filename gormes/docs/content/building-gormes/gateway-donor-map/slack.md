@@ -5,11 +5,11 @@ weight: 30
 
 # Slack
 
-Slack is another unshipped Phase 2.B adapter where PicoClaw's donor value is high, especially around Socket Mode, thread routing, and acknowledgment UX.
+Slack is now a shipped Phase 2.B adapter, but PicoClaw still donates useful parity material around Socket Mode hardening, thread routing, richer media, and acknowledgment UX.
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` marks Slack as planned for Phase 2.B.3. Gormes currently carries upstream Hermes setup documentation for Slack, but no Go adapter.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now marks Slack as shipped for Phase 2.B.3. Gormes already has a Go Slack adapter on the shared gateway chassis; this page is now about donor material still worth porting, not about whether Slack is possible at all.
 
 Evidence level:
 
@@ -39,7 +39,7 @@ Slack's donor surface is reusable because the hardest parts are genuinely Slack-
 - Slack thread behavior is easy to get subtly wrong, and PicoClaw already codifies the `channel/thread_ts` split plus outbound target resolution helpers.
 - Media upload shape is explicit: per-part local path resolution, `UploadFileV2`, filename/title handling, and thread-aware uploads.
 
-This is a strong donor because Gormes currently has no shipped Slack edge to preserve.
+This remains a strong donor because the shipped Slack edge still has parity gaps around richer ack UX, deeper thread handling, and media/attachment polish.
 
 ## Picoclaw Donor Files
 
@@ -69,7 +69,7 @@ Rebuild in Gormes-native form:
 
 ## Gormes Mapping
 
-- PicoClaw `Start` maps directly to the skeleton of a future `internal/slack` adapter: auth test first, remember `botUserID` and `teamID`, start the event loop, then run the Socket Mode client.
+- PicoClaw `Start` maps directly to the current Gormes Slack adapter lifecycle: auth test first, remember `botUserID` and `teamID`, start the event loop, then run the Socket Mode client.
 - `handleMessageEvent`, `handleAppMention`, and `handleSlashCommand` map to three distinct ingress paths Gormes will also need.
 - `pendingAcks` maps well to a Gormes adapter-local transient state map keyed by delivery target, not to any shared runtime component.
 - `resolveSlackOutboundTarget` and `resolveSlackMediaOutboundTarget` should inform Gormes' thread routing, especially because Slack replies depend on `thread_ts` rather than a separate topic ID type.
@@ -92,11 +92,11 @@ Rebuild in Gormes-native form:
 
 ## Port Order Recommendation
 
-1. Build Slack on Socket Mode by default.
-2. Port message, mention, and slash-command ingress plus thread target resolution.
-3. Add `pendingAcks` once basic send and reply flow are stable.
+1. Keep Socket Mode as the baseline and tighten lifecycle tests before widening features.
+2. Port any missing message, mention, and slash-command edge cases plus thread target resolution.
+3. Add `pendingAcks` only after the current send and reply flow is locked down.
 4. Add file download and upload support after the session and reply model is correct.
-5. Consider alternate inbound paths only after a stable Socket Mode adapter exists.
+5. Consider alternate inbound paths only after the shared-contract Slack adapter is stable.
 
 ## Code References
 

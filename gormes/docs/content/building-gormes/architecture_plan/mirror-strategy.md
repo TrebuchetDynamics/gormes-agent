@@ -82,13 +82,13 @@ Based on the comprehensive Hermes file inventory, these Hermes files do not need
 | `MEMORY.md` | Superseded by USER.md + entity graph (structured > flat) | N/A — entity graph is superior |
 | `sessions.json` | Legacy Hermes format; Gormes uses bbolt (better concurrency) | **Session Index Mirror (3.E.1)** closes bbolt opacity |
 | `*.jsonl` transcripts | Machine-readable only | **Transcript Export (3.E.3)** adds human-readable option |
-| `jobs.json` + cron output | Cron not yet implemented in Gormes (Phase 4) | Cron output mirroring when Phase 4 lands |
-| `SKILL.md` files | Skills not yet implemented (Phase 5) | Skill audit trail when Phase 5 lands |
-| `HOOK.yaml` | Hook system not yet implemented (Phase 2.F) | Hook activity log when hooks land |
-| `BOOT.md` | Boot hooks not yet implemented | Boot sequence audit when Phase 2.F lands |
+| `jobs.json` + cron output | Gormes ships Phase 2.D as SQLite `cron_runs` + derived `CRON.md`, not the upstream file layout | Existing cron audit surface is the source of truth; optional per-job export remains future work |
+| `SKILL.md` files | Gormes ships Phase 2.G with active + candidate skill stores, not the upstream shared tree layout | Skill audit trail and hub sync expand in Phase 5.F |
+| `HOOK.yaml` | Hook manifests now load from `$XDG_DATA_HOME/gormes/hooks/`; built-in BOOT startup execution is also live | Hook activity log and richer audit surfaces remain future work |
+| `BOOT.md` | Built-in startup automation file at `$XDG_DATA_HOME/gormes/BOOT.md`; run through an isolated background boot kernel on gateway start | Boot sequence audit remains future work |
 | `SOUL.md` | Personality system not yet implemented (Phase 4+) | Persona versioning when Phase 4 lands |
 | `gateway_voice_mode.json` | Voice mode not implemented (Phase 5.E) | Voice state mirroring if voice features land |
-| Platform state JSON files | Platform adapters not yet implemented (Phase 2.B.2+) | Per-platform state audit when platforms land |
+| Platform state JSON files | Shared gateway exists, but most remaining adapter-specific state surfaces are still planned (Phase 2.B.4–2.B.10) | Per-platform state audit when those adapters land |
 
 **Operational State Files Discovered in Additional Research:**
 

@@ -9,7 +9,7 @@ OneBot is useful as a bridge-pattern donor, not as a platform target that should
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` currently plans QQ Bot for Phase 2.B.16, but it does not list OneBot as a first-class Gormes gateway platform. That is the right default: OneBot is a community bridge protocol sitting in front of other runtimes.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` currently groups QQ Bot into the Phase `2.B.10` regional/device adapter tranche, but it still does not list OneBot as a first-class Gormes gateway platform. That is the right default: OneBot is a community bridge protocol sitting in front of other runtimes.
 
 Evidence level:
 

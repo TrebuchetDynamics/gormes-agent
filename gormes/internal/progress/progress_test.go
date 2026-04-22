@@ -2,6 +2,7 @@ package progress
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -9,6 +10,14 @@ func itemStatusByName(items []Item) map[string]Status {
 	out := make(map[string]Status, len(items))
 	for _, it := range items {
 		out[it.Name] = it.Status
+	}
+	return out
+}
+
+func itemsByName(items []Item) map[string]Item {
+	out := make(map[string]Item, len(items))
+	for _, it := range items {
+		out[it.Name] = it
 	}
 	return out
 }
@@ -98,33 +107,365 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		}
 	}
 
+	runtimeCore := p.Phases["2"].Subphases["2.E.0"]
+	if got := runtimeCore.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.E.0 = %q, want complete", got)
+	}
+	runtimeNext := p.Phases["2"].Subphases["2.E.1"]
+	if got := runtimeNext.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.E.1 = %q, want complete", got)
+	}
+	runtimeNextItems := itemStatusByName(runtimeNext.Items)
+	for name, want := range map[string]Status{
+		"Runner-enforced tool allowlists + blocked-tool policy": StatusComplete,
+		"Tool-call audit in typed child results":                StatusComplete,
+		"Real child Hermes stream loop":                         StatusComplete,
+	} {
+		if got := runtimeNextItems[name]; got != want {
+			t.Errorf("Phase 2.E.1 item %q = %q, want %q", name, got, want)
+		}
+	}
+
 	gateway := p.Phases["2"].Subphases["2.B.2"]
-	if got := gateway.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.2 = %q, want in_progress", got)
+	if got := gateway.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.2 = %q, want complete", got)
 	}
 	gatewayItems := itemStatusByName(gateway.Items)
 	for name, want := range map[string]Status{
+		"Reusable gateway chassis":                StatusComplete,
+		"Telegram on shared chassis":              StatusComplete,
+		"gormes gateway multi-channel entrypoint": StatusComplete,
 		"Discord": StatusComplete,
-		"Slack":   StatusComplete,
 	} {
 		if got := gatewayItems[name]; got != want {
 			t.Errorf("Phase 2.B.2 item %q = %q, want %q", name, got, want)
 		}
 	}
 
+	slack := p.Phases["2"].Subphases["2.B.3"]
+	if got := slack.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.3 = %q, want complete", got)
+	}
+	slackItems := itemStatusByName(slack.Items)
+	for name, want := range map[string]Status{
+		"Slack Socket Mode adapter":             StatusComplete,
+		"Thread routing + coalesced reply flow": StatusComplete,
+		"Gateway command wiring":                StatusComplete,
+	} {
+		if got := slackItems[name]; got != want {
+			t.Errorf("Phase 2.B.3 item %q = %q, want %q", name, got, want)
+		}
+	}
+
 	skills := p.Phases["2"].Subphases["2.G"]
-	if got := skills.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.G = %q, want in_progress", got)
+	if got := skills.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.G = %q, want complete", got)
 	}
 	skillItems := itemStatusByName(skills.Items)
 	for name, want := range map[string]Status{
 		"SKILL.md parsing + active store":        StatusComplete,
 		"Deterministic selection + prompt block": StatusComplete,
 		"Kernel injection + usage log":           StatusComplete,
-		"Candidate drafting + promotion flow":    StatusPlanned,
+		"Inactive candidate drafting":            StatusComplete,
+		"Explicit promotion flow":                StatusComplete,
 	} {
 		if got := skillItems[name]; got != want {
 			t.Errorf("Phase 2.G item %q = %q, want %q", name, got, want)
 		}
+	}
+}
+
+func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	e0 := p.Phases["2"].Subphases["2.E.0"]
+	if e0.Priority != "P0" {
+		t.Fatalf("Phase 2.E.0 priority = %q, want P0", e0.Priority)
+	}
+	if got := e0.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.E.0 = %q, want complete", got)
+	}
+
+	e1 := p.Phases["2"].Subphases["2.E.1"]
+	if e1.Priority != "P0" {
+		t.Fatalf("Phase 2.E.1 priority = %q, want P0", e1.Priority)
+	}
+	if got := e1.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.E.1 = %q, want complete", got)
+	}
+	e1Items := itemsByName(e1.Items)
+	policy := e1Items["Runner-enforced tool allowlists + blocked-tool policy"]
+	if policy.Status != StatusComplete {
+		t.Fatalf("Phase 2.E.1 policy status = %q, want complete", policy.Status)
+	}
+	if !strings.Contains(policy.Note, "TDD") {
+		t.Fatalf("Phase 2.E.1 policy note = %q, want TDD guidance", policy.Note)
+	}
+	audit := e1Items["Tool-call audit in typed child results"]
+	if audit.Status != StatusComplete {
+		t.Fatalf("Phase 2.E.1 tool-call audit status = %q, want complete", audit.Status)
+	}
+	if !strings.Contains(audit.Note, "TDD") {
+		t.Fatalf("Phase 2.E.1 tool-call audit note = %q, want TDD guidance", audit.Note)
+	}
+	child := e1Items["Real child Hermes stream loop"]
+	if child.Status != StatusComplete {
+		t.Fatalf("Phase 2.E.1 child runner status = %q, want complete", child.Status)
+	}
+	if !strings.Contains(child.Note, "HermesRunner") {
+		t.Fatalf("Phase 2.E.1 child runner note = %q, want HermesRunner implementation detail", child.Note)
+	}
+
+	whatsApp := p.Phases["2"].Subphases["2.B.4"]
+	if whatsApp.Priority != "P1" {
+		t.Fatalf("Phase 2.B.4 priority = %q, want P1", whatsApp.Priority)
+	}
+	whatsAppItems := itemsByName(whatsApp.Items)
+	decision := whatsAppItems["Bridge-vs-native runtime decision"]
+	if !strings.Contains(decision.Note, "TDD") {
+		t.Fatalf("Phase 2.B.4 decision note = %q, want TDD guidance", decision.Note)
+	}
+
+	routing := p.Phases["2"].Subphases["2.B.5"]
+	if routing.Priority != "P1" {
+		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
+	}
+	if got := routing.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.5 = %q, want complete", got)
+	}
+	routingItems := itemsByName(routing.Items)
+	sessionStore := routingItems["Gateway session store + SessionSource parity"]
+	if sessionStore.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.5 session store status = %q, want complete", sessionStore.Status)
+	}
+	if !strings.Contains(sessionStore.Note, "TDD landed") {
+		t.Fatalf("Phase 2.B.5 session store note = %q, want TDD landed guidance", sessionStore.Note)
+	}
+	sessionContext := routingItems["SessionContext prompt injection"]
+	if sessionContext.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.5 session context status = %q, want complete", sessionContext.Status)
+	}
+	delivery := routingItems["DeliveryRouter + --deliver target parsing"]
+	if delivery.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.5 delivery parsing status = %q, want complete", delivery.Status)
+	}
+	streamFanout := routingItems["Gateway stream consumer for agent-event fan-out"]
+	if streamFanout.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.5 stream fanout status = %q, want complete", streamFanout.Status)
+	}
+
+	hooks := p.Phases["2"].Subphases["2.F.1"]
+	if hooks.Priority != "P1" {
+		t.Fatalf("Phase 2.F.1 priority = %q, want P1", hooks.Priority)
+	}
+	if got := hooks.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.F.1 = %q, want complete", got)
+	}
+	hookItemsF1 := itemsByName(hooks.Items)
+	commandRegistry := hookItemsF1["Canonical CommandDef registry"]
+	if commandRegistry.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.1 command registry status = %q, want complete", commandRegistry.Status)
+	}
+	if !strings.Contains(commandRegistry.Note, "ResolveCommand") {
+		t.Fatalf("Phase 2.F.1 command registry note = %q, want ResolveCommand detail", commandRegistry.Note)
+	}
+	dispatch := hookItemsF1["Gateway slash dispatch + per-platform exposure"]
+	if dispatch.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.1 dispatch status = %q, want complete", dispatch.Status)
+	}
+	if !strings.Contains(dispatch.Note, "Telegram") || !strings.Contains(dispatch.Note, "Slack") {
+		t.Fatalf("Phase 2.F.1 dispatch note = %q, want Telegram/Slack detail", dispatch.Note)
+	}
+
+	hookRegistry := p.Phases["2"].Subphases["2.F.2"]
+	if hookRegistry.Priority != "P2" {
+		t.Fatalf("Phase 2.F.2 priority = %q, want P2", hookRegistry.Priority)
+	}
+	if got := hookRegistry.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.F.2 = %q, want complete", got)
+	}
+	hookItems := itemsByName(hookRegistry.Items)
+	managerHooks := hookItems["Gateway per-event hook registry"]
+	if managerHooks.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.2 gateway hook registry status = %q, want complete", managerHooks.Status)
+	}
+	if !strings.Contains(managerHooks.Note, "TDD") {
+		t.Fatalf("Phase 2.F.2 gateway hook registry note = %q, want TDD guidance", managerHooks.Note)
+	}
+	boot := hookItems["Built-in BOOT.md startup hook"]
+	if boot.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.2 BOOT hook status = %q, want complete", boot.Status)
+	}
+
+	lifecycle := p.Phases["2"].Subphases["2.F.3"]
+	if lifecycle.Priority != "P2" {
+		t.Fatalf("Phase 2.F.3 priority = %q, want P2", lifecycle.Priority)
+	}
+	if got := lifecycle.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.F.3 = %q, want in_progress", got)
+	}
+	lifecycleItems := itemsByName(lifecycle.Items)
+	drain := lifecycleItems["Graceful restart drain + managed shutdown"]
+	if drain.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.3 drain status = %q, want complete", drain.Status)
+	}
+	if !strings.Contains(drain.Note, "TDD") {
+		t.Fatalf("Phase 2.F.3 drain note = %q, want TDD guidance", drain.Note)
+	}
+	pairing := lifecycleItems["Pairing state + status surfaces"]
+	if pairing.Status != StatusPlanned {
+		t.Fatalf("Phase 2.F.3 pairing status = %q, want planned", pairing.Status)
+	}
+
+	operator := p.Phases["2"].Subphases["2.F.4"]
+	if operator.Priority != "P3" {
+		t.Fatalf("Phase 2.F.4 priority = %q, want P3", operator.Priority)
+	}
+
+	longTail := p.Phases["2"].Subphases["2.B.10"]
+	if longTail.Priority != "P4" {
+		t.Fatalf("Phase 2.B.10 priority = %q, want P4", longTail.Priority)
+	}
+}
+
+func TestLoad_RealFile_Phase3Ledger(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	semantic := p.Phases["3"].Subphases["3.D"]
+	if got := semantic.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 3.D = %q, want complete", got)
+	}
+	semanticItems := itemStatusByName(semantic.Items)
+	for name, want := range map[string]Status{
+		"Ollama embeddings":        StatusComplete,
+		"Vector cache":             StatusComplete,
+		"Cosine similarity recall": StatusComplete,
+		"Hybrid fusion":            StatusComplete,
+	} {
+		if got := semanticItems[name]; got != want {
+			t.Errorf("Phase 3.D item %q = %q, want %q", name, got, want)
+		}
+	}
+
+	mirror := p.Phases["3"].Subphases["3.D.5"]
+	if got := mirror.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 3.D.5 = %q, want complete", got)
+	}
+
+	sessionSearch := p.Phases["3"].Subphases["3.E.8"]
+	if got := sessionSearch.DerivedStatus(); got != StatusPlanned {
+		t.Fatalf("Phase 3.E.8 = %q, want planned", got)
+	}
+	e8Items := itemStatusByName(sessionSearch.Items)
+	for name, want := range map[string]Status{
+		"parent_session_id lineage for compression splits": StatusPlanned,
+		"Source-filtered FTS/session search across chats":  StatusPlanned,
+	} {
+		if got := e8Items[name]; got != want {
+			t.Errorf("Phase 3.E.8 item %q = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	index := p.Phases["3"].Subphases["3.E.1"]
+	if index.Priority != "P0" {
+		t.Fatalf("Phase 3.E.1 priority = %q, want P0", index.Priority)
+	}
+	indexItems := itemsByName(index.Items)
+	mirror := indexItems["Read-only bbolt sessions.db -> index.yaml mirror"]
+	if mirror.Status != StatusPlanned {
+		t.Fatalf("Phase 3.E.1 mirror status = %q, want planned", mirror.Status)
+	}
+	if !strings.Contains(mirror.Note, "TDD") {
+		t.Fatalf("Phase 3.E.1 mirror note = %q, want TDD guidance", mirror.Note)
+	}
+
+	audit := p.Phases["3"].Subphases["3.E.2"]
+	if audit.Priority != "P0" {
+		t.Fatalf("Phase 3.E.2 priority = %q, want P0", audit.Priority)
+	}
+	if got := audit.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 3.E.2 = %q, want complete", got)
+	}
+	auditItems := itemsByName(audit.Items)
+	writer := auditItems["Append-only JSONL writer + schema"]
+	if writer.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.2 writer status = %q, want complete", writer.Status)
+	}
+	if !strings.Contains(writer.Note, "JSONL") {
+		t.Fatalf("Phase 3.E.2 writer note = %q, want JSONL implementation detail", writer.Note)
+	}
+	hooks := auditItems["Kernel + delegate_task audit hooks"]
+	if hooks.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.2 hooks status = %q, want complete", hooks.Status)
+	}
+	if !strings.Contains(hooks.Note, "delegate_task") {
+		t.Fatalf("Phase 3.E.2 hooks note = %q, want delegate_task implementation detail", hooks.Note)
+	}
+	outcome := auditItems["Outcome, duration, and error capture"]
+	if outcome.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.2 outcome status = %q, want complete", outcome.Status)
+	}
+	if !strings.Contains(outcome.Note, "duration_ms") {
+		t.Fatalf("Phase 3.E.2 outcome note = %q, want duration_ms detail", outcome.Note)
+	}
+
+	status := p.Phases["3"].Subphases["3.E.4"]
+	if status.Priority != "P1" {
+		t.Fatalf("Phase 3.E.4 priority = %q, want P1", status.Priority)
+	}
+
+	decay := p.Phases["3"].Subphases["3.E.6"]
+	if decay.Priority != "P1" {
+		t.Fatalf("Phase 3.E.6 priority = %q, want P1", decay.Priority)
+	}
+	decayItems := itemsByName(decay.Items)
+	lastSeen := decayItems["Relationship last_seen tracking"]
+	if !strings.Contains(lastSeen.Note, "TDD") {
+		t.Fatalf("Phase 3.E.6 last_seen note = %q, want TDD guidance", lastSeen.Note)
+	}
+
+	export := p.Phases["3"].Subphases["3.E.3"]
+	if export.Priority != "P2" {
+		t.Fatalf("Phase 3.E.3 priority = %q, want P2", export.Priority)
+	}
+	if got := export.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 3.E.3 = %q, want complete", got)
+	}
+	exportItems := itemStatusByName(export.Items)
+	for name, want := range map[string]Status{
+		"gormes session export <id> --format=markdown":         StatusComplete,
+		"Render turns, tool calls, and timestamps from SQLite": StatusComplete,
+	} {
+		if got := exportItems[name]; got != want {
+			t.Fatalf("Phase 3.E.3 item %q = %q, want %q", name, got, want)
+		}
+	}
+
+	crossChat := p.Phases["3"].Subphases["3.E.7"]
+	if crossChat.Priority != "P2" {
+		t.Fatalf("Phase 3.E.7 priority = %q, want P2", crossChat.Priority)
+	}
+
+	insights := p.Phases["3"].Subphases["3.E.5"]
+	if insights.Priority != "P3" {
+		t.Fatalf("Phase 3.E.5 priority = %q, want P3", insights.Priority)
+	}
+
+	lineage := p.Phases["3"].Subphases["3.E.8"]
+	if lineage.Priority != "P4" {
+		t.Fatalf("Phase 3.E.8 priority = %q, want P4", lineage.Priority)
 	}
 }

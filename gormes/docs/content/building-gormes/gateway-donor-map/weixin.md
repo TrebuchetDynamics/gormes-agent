@@ -9,7 +9,7 @@ WeiXin is the opposite of WeCom in reuse terms: PicoClaw proves the channel is p
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` groups WeChat work under Phase `2.B.14` as planned. Gormes carries upstream Hermes docs for personal WeChat behavior, but no Go adapter exists yet.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups personal WeChat into the Phase `2.B.10` regional/device adapter tranche. Gormes carries upstream Hermes docs for personal WeChat behavior, but no Go adapter exists yet.
 
 Evidence level:
 

@@ -5,11 +5,11 @@ weight: 20
 
 # Discord
 
-Discord is still unshipped in Gormes, so this donor page is about whether PicoClaw's Discord edge can seed a future `gormes/internal/discord/` without importing PicoClaw's gateway architecture.
+Discord is now shipped in Gormes, so this donor page is about parity gaps and reusable transport mechanics rather than whether PicoClaw can seed a first adapter at all.
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` marks Discord as planned for Phase 2.B.2. Gormes has upstream Hermes user docs for Discord behavior, but no Go adapter yet.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now marks Discord as shipped for Phase 2.B.2. Gormes already has a Go Discord adapter on the shared gateway chassis; this page tracks donor material still worth porting or hardening.
 
 Evidence level:
 
@@ -72,7 +72,7 @@ Rebuild in Gormes-native form:
 
 ## Gormes Mapping
 
-- The donor's `Start` and `Stop` methods should map into a future `internal/discord` adapter lifecycle that mirrors `internal/telegram` in ownership: one adapter, one kernel-facing render loop, explicit shutdown.
+- The donor's `Start` and `Stop` methods map into the current Gormes Discord adapter lifecycle: one adapter, one kernel-facing render loop, explicit shutdown.
 - `handleMessage` should map to Gormes inbound policy documented in `gormes/docs/content/upstream-hermes/user-guide/messaging/discord.md`: respond to DMs, require mention in server channels by default, preserve thread isolation, and keep session identity explicit.
 - `sendChunk` maps to Gormes outbound delivery, especially reply threading and per-message send timeout.
 - `startTyping` and `stopTyping` map cleanly to shared adapter UX helpers from `gateway-donor-map/shared-adapter-patterns.md`.
@@ -96,8 +96,8 @@ Rebuild in Gormes-native form:
 
 ## Port Order Recommendation
 
-1. Build `internal/discord` around text ingress, mention filtering, reply delivery, and typing loops.
-2. Port the reference-resolution tests and the group-trigger behavior early, because those are high-regression surfaces.
+1. Keep the current text adapter as the baseline and tighten mention filtering, reply delivery, and typing-loop tests first.
+2. Port the reference-resolution tests and group-trigger behavior next, because those are high-regression surfaces.
 3. Add attachment intake and outbound media once the text adapter is stable.
 4. Defer voice join, speech receive, and TTS playback to an explicit follow-on scope.
 5. Only then consider control-plane features such as slash-command parity or richer guild metadata handling.

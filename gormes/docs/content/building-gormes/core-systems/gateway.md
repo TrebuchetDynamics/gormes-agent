@@ -14,7 +14,7 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 
 ## Planned
 
-- **Phase 2.B.2+** — Discord, Slack, WhatsApp, Signal, Email, SMS, Matrix, Feishu, WeChat, DingTalk, QQ, BlueBubbles, HomeAssistant, Webhook (14 more connectors). See [§7 Subsystem Inventory](../architecture_plan/subsystem-inventory/).
+- **Phase 2.B.4–2.B.10** — WhatsApp, Signal, Email, SMS, Matrix, Mattermost, Webhook, BlueBubbles, HomeAssistant, Feishu, WeChat/WeCom, DingTalk, QQ, and the remaining long-tail connectors. See [§7 Subsystem Inventory](../architecture_plan/subsystem-inventory/).
 
 ## Why this matters
 

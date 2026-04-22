@@ -20,13 +20,13 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 11/53 subphases shipped · 2 in progress · 40 planned
+**Overall:** 21/66 subphases shipped · 1 in progress · 44 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
-| Phase 2 — The Gateway | 🔨 | 4/8 subphases |
-| Phase 3 — The Black Box (Memory) | 🔨 | 5/12 subphases |
+| Phase 2 — The Gateway | 🔨 | 12/20 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 7/13 subphases |
 | Phase 4 — The Brain Transplant | ⏳ | 0/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
@@ -49,7 +49,7 @@ weight: 10
 
 ## Phase 2 — The Gateway 🔨
 
-*Go-native operator wiring harness: tools, Telegram, thin session resume, shipped cron, then the first OS-AI spine slices before the wider adapter flood*
+*Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before the long-tail adapter flood*
 
 ### 2.A — Tool Registry ✅
 
@@ -64,17 +64,57 @@ weight: 10
 - [x] Long-poll ingress
 - [x] Edit coalescing
 
-### 2.B.2 — Gateway Chassis + Wider Gateway Surface 🔨
+### 2.B.2 — Gateway Chassis + Discord ✅
 
 - [x] Reusable gateway chassis
 - [x] Telegram on shared chassis
-- [x] Discord
 - [x] gormes gateway multi-channel entrypoint
-- [ ] Slack
-- [ ] WhatsApp
-- [ ] Signal
-- [ ] Email
-- [ ] SMS
+- [x] Discord
+
+### 2.B.3 — Slack on Shared Chassis ✅
+
+- [x] Slack Socket Mode adapter
+- [x] Thread routing + coalesced reply flow
+- [x] Gateway command wiring
+
+### 2.B.4 — WhatsApp Adapter ⏳
+
+- [ ] Bridge-vs-native runtime decision
+- [ ] Inbound normalization + command passthrough
+- [ ] Pairing, reconnect, and send contract
+
+### 2.B.5 — Session Context + Delivery Routing ✅
+
+- [x] Gateway session store + SessionSource parity
+- [x] SessionContext prompt injection
+- [x] DeliveryRouter + --deliver target parsing
+- [x] Gateway stream consumer for agent-event fan-out
+
+### 2.B.6 — Signal Adapter ⏳
+
+- [ ] Inbound event normalization + session identity
+- [ ] Reply/send contract on shared chassis
+
+### 2.B.7 — Email + SMS Adapters ⏳
+
+- [ ] Email ingress + outbound delivery contract
+- [ ] SMS ingress + outbound delivery contract
+
+### 2.B.8 — Matrix + Mattermost Adapters ⏳
+
+- [ ] Threaded text adapter contract suite
+- [ ] Matrix + Mattermost transport wiring
+
+### 2.B.9 — Webhook + Trigger Ingress ⏳
+
+- [ ] Signed event parsing + auth gates
+- [ ] Prompt-to-delivery routing bridge
+
+### 2.B.10 — Regional + Device Adapter Flood ⏳
+
+- [ ] BlueBubbles + HomeAssistant adapters
+- [ ] Feishu + WeChat/WeCom adapters
+- [ ] DingTalk + QQ Bot adapters
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -83,33 +123,57 @@ weight: 10
 
 ### 2.D — Cron / Scheduled Automations ✅
 
-- [x] Go ticker + bbolt job store
-- [x] Natural-language cron parsing (Phase 4)
+- [x] robfig/cron scheduler + bbolt job store
+- [x] SQLite cron_runs audit + CRON.md mirror
+- [x] Heartbeat [SYSTEM:] + [SILENT] delivery contract
 
-### 2.E — OS-AI Spine: Subagent Runtime 🔨
+### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 
 - [x] Deterministic subagent runtime
 - [x] Max-depth guard + bounded batch execution
-- [ ] Runner-enforced tool allowlists
 - [x] Timeout + cancellation scopes
 - [x] Typed result envelope
 - [x] Append-only run log
 
-### 2.F — Hooks + Lifecycle ⏳
+### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution ✅
 
-- [ ] Per-event extension points
-- [ ] Managed restarts
+- [x] Runner-enforced tool allowlists + blocked-tool policy
+- [x] Tool-call audit in typed child results
+- [x] Real child Hermes stream loop
 
-### 2.G — OS-AI Spine: Skills Runtime ⏳
+### 2.F.1 — Slash Command Registry + Gateway Dispatch ✅
 
-- [ ] Static skill runtime
-- [ ] Deterministic selection + injection
-- [ ] Candidate skill drafting (inactive)
-- [ ] Promotion path + usage log
+- [x] Canonical CommandDef registry
+- [x] Gateway slash dispatch + per-platform exposure
+
+### 2.F.2 — Hook Registry + BOOT.md ✅
+
+- [x] Gateway per-event hook registry
+- [x] Hook manifest discovery + handler loading
+- [x] Built-in BOOT.md startup hook
+
+### 2.F.3 — Restart / Pairing / Status 🔨
+
+- [x] Graceful restart drain + managed shutdown
+- [ ] Pairing state + status surfaces
+
+### 2.F.4 — Home Channel + Operator Surfaces ⏳
+
+- [ ] Home channel ownership + notify-to routing
+- [ ] Channel/contact directory
+- [ ] Mirror + sticker cache surfaces
+
+### 2.G — OS-AI Spine: Skills Runtime ✅
+
+- [x] SKILL.md parsing + active store
+- [x] Deterministic selection + prompt block
+- [x] Kernel injection + usage log
+- [x] Inactive candidate drafting
+- [x] Explicit promotion flow
 
 ## Phase 3 — The Black Box (Memory) 🔨
 
-*SQLite + FTS5 + ontological graph + semantic fusion in Go*
+*SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries*
 
 ### 3.A — SQLite + FTS5 Lattice ✅
 
@@ -144,32 +208,44 @@ weight: 10
 
 ### 3.E.1 — Session Index Mirror ⏳
 
-- [ ] bbolt sessions.yaml export
+- [ ] Read-only bbolt sessions.db -> index.yaml mirror
+- [ ] Deterministic mirror refresh without mutating session state
 
-### 3.E.2 — Tool Execution Audit Log ⏳
+### 3.E.2 — Tool Execution Audit Log ✅
 
-- [ ] JSONL audit trail
+- [x] Append-only JSONL writer + schema
+- [x] Kernel + delegate_task audit hooks
+- [x] Outcome, duration, and error capture
 
-### 3.E.3 — Transcript Export Command ⏳
+### 3.E.3 — Transcript Export Command ✅
 
-- [ ] Markdown export
+- [x] gormes session export <id> --format=markdown
+- [x] Render turns, tool calls, and timestamps from SQLite
 
 ### 3.E.4 — Extraction State Visibility ⏳
 
-- [ ] gormes memory status
+- [ ] gormes memory status command
+- [ ] Extractor queue depth + dead-letter summary
 
 ### 3.E.5 — Insights Audit Log ⏳
 
-- [ ] Usage JSONL
+- [ ] Append-only daily usage.jsonl writer
+- [ ] Session, token, and cost rollups from local runtime
 
 ### 3.E.6 — Memory Decay ⏳
 
-- [ ] Weight attenuation
-- [ ] last_seen tracking
+- [ ] Relationship last_seen tracking
+- [ ] Deterministic weight attenuation at recall time
 
 ### 3.E.7 — Cross-Chat Synthesis ⏳
 
-- [ ] Graph unification across chats
+- [ ] user_id concept above chat_id
+- [ ] Cross-chat entity merge + recall fence
+
+### 3.E.8 — Session Lineage + Cross-Source Search ⏳
+
+- [ ] parent_session_id lineage for compression splits
+- [ ] Source-filtered FTS/session search across chats
 
 ## Phase 4 — The Brain Transplant ⏳
 

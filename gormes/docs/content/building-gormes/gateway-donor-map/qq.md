@@ -9,7 +9,7 @@ QQ is one of the stronger donors in this task set because PicoClaw uses the offi
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` marks QQ Bot as planned for Phase 2.B.16. Gormes has upstream Hermes operator docs for QQ Bot, but no Go QQ adapter yet.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups QQ Bot into the Phase `2.B.10` regional/device adapter tranche. Gormes has upstream Hermes operator docs for QQ Bot, but no Go QQ adapter yet.
 
 Evidence level:
 

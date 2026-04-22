@@ -9,7 +9,7 @@ Feishu is a plausible Phase 2 adapter target because PicoClaw already split the 
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` marks Feishu as Phase `2.B.13` and planned. Gormes ships upstream Hermes operator docs for Feishu/Lark setup, but no Go adapter yet.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups Feishu into the Phase `2.B.10` regional/device adapter tranche. Gormes ships upstream Hermes operator docs for Feishu/Lark setup, but no Go adapter yet.
 
 Evidence level:
 

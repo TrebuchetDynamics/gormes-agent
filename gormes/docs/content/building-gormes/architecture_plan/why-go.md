@@ -56,7 +56,7 @@ Go goes places Python won't.
 
 14. **Real skill sandboxing.** Phase 2.G skills in Python means `exec()` and hope. In Go there is a straight path to WASM via [wazero](https://github.com/tetratelabs/wazero) — user-written or third-party skills run in a box that can't exfil data or escape. This is the only way "community skills" ever becomes safe to install. Python can't get there without bolting on another runtime.
 
-15. **Subagent resource bounds that are becoming real.** Phase 2.E already ships subagent-scoped `context.Context` deadlines, deterministic cancellation, max-depth guards, and bounded batch concurrency. Later slices add stronger tool policy, append-only run logging, and heavier-weight isolation. Python subagents under a shared GIL + shared heap can *claim* isolation, but a runaway one still starves the others and OOMs the parent. For a *learning loop* that runs user-written skills, this is the difference between **safe** and **pretending to be safe**.
+15. **Subagent resource bounds are real now.** Phase 2.E now ships subagent-scoped `context.Context` deadlines, deterministic cancellation, max-depth guards, bounded batch concurrency, Go-native `delegate_task`, runner-enforced tool policy, typed child tool-call audit, append-only run logging, and real child LLM execution. Python subagents under a shared GIL + shared heap can *claim* isolation, but a runaway one still starves the others and OOMs the parent. For a *learning loop* that runs user-written skills, this is the difference between **safe** and **pretending to be safe**.
 
 ### 2.6 The developer wins (included for completeness)
 
@@ -116,7 +116,7 @@ type SkillExtractor interface {
 
 **Without this:** You lose compounding intelligence, differentiation, and long-term value. Gormes becomes a stateless chat interface.
 
-**Status:** ⏳ **Not implemented as a Go runtime yet.** Phase 2.G is the next planned execution slice; Phase 5.F remains the broader upstream skills-plumbing port.
+**Status:** ✅ **Phase 2.G runtime and the reviewed candidate flow are now in-tree.** Gormes can parse approved `SKILL.md` files from disk, snapshot the active store, select a bounded deterministic subset, inject that prompt block into live turns, append immutable usage events, draft inactive candidate skills from successful delegated runs, and explicitly promote reviewed candidates into the active store. Phase 5.F is still the broader upstream skills-plumbing port.
 
 ---
 
@@ -146,7 +146,7 @@ type Subagent struct {
 
 **Why this beats Hermes:** Python's "isolated subagents" are loosely-defined processes. Gormes can provide **process-adjacent isolation within a single binary**—strict logical boundaries with resource accounting and deterministic cleanup.
 
-**Status:** 🔨 Runtime core implemented in `internal/subagent` and exposed through Go-native `delegate_task`. Remaining work is runner-enforced tool policy, real child LLM execution, and append-only run logging.
+**Status:** 🔨 Runtime core implemented in `internal/subagent` and exposed through Go-native `delegate_task`. Runner-enforced tool policy, typed child tool-call audit, append-only run logging, and real child LLM execution are landed.
 
 ---
 
@@ -175,4 +175,4 @@ type Subagent struct {
 | **P2** | Multi-Platform Gateway | Reach | Limited user access |
 | **P3** | Native Agent Loop | Performance optimization | Bridge dependency continues |
 
-**Current dependency chain:** 2.E0 deterministic subagent runtime → 2.G0 static skills → 2.E1 / 2.G1-lite reviewed vertical proof → wider gateway surface → Phase 4 native agent loop.
+**Current dependency chain:** 2.E0 deterministic subagent runtime → 2.G static skills + reviewed candidate flow → runner-enforced delegation policy + wider gateway surface → Phase 4 native agent loop.

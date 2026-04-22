@@ -30,6 +30,6 @@ Once 4.A–4.D are shipped Gormes can call LLMs directly. The `:8642` health che
 
 Phase 4 is **optimization**, not **differentiation**. The Python bridge works. Replace it only after the OS-AI spine and the wider gateway surface prove the architecture is correct. The current dependency chain is:
 
-> 2.E0 deterministic subagent runtime → 2.G0 static skills → 2.E1 / 2.G1-lite reviewed vertical proof → wider gateway surface → native agent loop
+> 2.E0 deterministic subagent runtime → 2.G static skills + reviewed candidate flow → runner-enforced delegation policy + wider gateway surface → native agent loop
 
-**The rule:** stabilize the runtime substrate first, then add explicit skills, then prove the reviewed vertical, then widen adapters, and only then replace the Python bridge.
+**The rule:** stabilize the runtime substrate first, then add explicit skills and the reviewed skill flow, then harden delegation policy, then widen adapters, and only then replace the Python bridge.

@@ -9,7 +9,7 @@ WeCom is one of the clearer China-facing donor candidates because PicoClaw alrea
 
 ## Status
 
-`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` groups WeChat work under Phase `2.B.14` as planned. Gormes also carries upstream Hermes operator docs for WeCom behavior, but no Go adapter exists yet.
+`gormes/docs/content/building-gormes/architecture_plan/subsystem-inventory.md` now groups WeCom into the Phase `2.B.10` regional/device adapter tranche. Gormes also carries upstream Hermes operator docs for WeCom behavior, but no Go adapter exists yet.
 
 Evidence level:
 
