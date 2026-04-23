@@ -31,7 +31,7 @@ weight: 30
 | **Phase 2.G — OS-AI Spine: Skills Runtime** | ✅ complete | **P0** | Static skills runtime and the first reviewed learning-loop proof are in-tree: validated `SKILL.md` parsing, active-store snapshots, deterministic selection + prompt rendering, kernel injection, append-only usage logging, delegated candidate drafting into the inactive store, and explicit promotion into the active store. |
 | Phase 2.F.1 — Slash Command Registry + Gateway Dispatch | ✅ complete | P1 | One canonical gateway command registry now drives parsing, help text, Telegram menus, and Slack exposure without alias drift |
 | Phase 2.F.2 — Hook Registry + BOOT.md | ✅ complete | P2 | Shared gateway lifecycle hooks, live `HOOK.yaml` command loading, and the built-in `BOOT.md` startup hook with non-blocking failure semantics are landed |
-| Phase 2.F.3 — Restart / Pairing / Status | 🔨 in progress | P2 | Graceful shutdown drain is landed at the shared manager + signal-entrypoint seam; pairing-state storage and operator status surfaces remain |
+| Phase 2.F.3 — Restart / Pairing / Status | ✅ complete | P2 | Graceful shutdown drain, a JSON-backed `PairingStore`, and the operator-facing gateway `/status` readout now share one deterministic control-plane surface |
 | Phase 2.F.4 — Home Channel + Operator Surfaces | 🔨 in progress | P3 | Home-channel ownership, platform-only notify-to routing, and channel/contact directory lookup now land in `internal/gateway`; mirror surfaces and sticker-cache equivalents remain |
 
 For channel-by-channel donor analysis against the all-Go PicoClaw repo, see [Gateway Donor Map](../gateway-donor-map/).
@@ -42,14 +42,12 @@ Phase 2.C is intentionally not Phase 3. It stores only session handles in bbolt.
 
 Phase 2 is no longer just "ship more adapters." The highest-leverage remaining work is now the lifecycle control plane plus the last transport wiring gaps. The execution order is:
 
-1. **P2 — 2.F.3 Restart / Pairing / Status**
-   Land pairing-state persistence and operator status surfaces now that graceful shutdown drain, hook wiring, subagent control, and WhatsApp reconnect contracts are stable.
-2. **P3 — 2.F.4 Home Channel + Operator Surfaces**
+1. **P3 — 2.F.4 Home Channel + Operator Surfaces**
    Finish mirror surfaces and sticker-cache equivalents on top of the already-landed ownership and notify-to routing contracts.
-3. **P4 — remaining runtime binding work**
+2. **P4 — remaining runtime binding work**
    Keep future adapter and lifecycle work on the fixed gateway contracts instead of letting each platform invent its own rules.
 
-The subagent runtime, shared gateway chassis, registry-backed command layer, and reviewed procedural skill runtime now exist as stable substrates. The next leverage move is finishing lifecycle/state surfaces on top of those contracts, then widening transports without reopening the shared routing seams.
+The subagent runtime, shared gateway chassis, registry-backed command layer, reviewed procedural skill runtime, and the lifecycle control-plane basics now exist as stable substrates. The next leverage move is finishing mirror/state surfaces on top of those contracts, then widening transports without reopening the shared routing seams.
 
 ## Adapter Migration Notes
 

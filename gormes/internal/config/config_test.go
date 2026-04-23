@@ -223,6 +223,15 @@ func TestMemoryDBPath_DefaultsToHomeLocalShare(t *testing.T) {
 	}
 }
 
+func TestPairingStatePath_HonorsXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-pairing")
+	got := PairingStatePath()
+	want := "/tmp/gormes-test-pairing/gormes/pairing/state.json"
+	if got != want {
+		t.Errorf("PairingStatePath() = %q, want %q", got, want)
+	}
+}
+
 func TestSkillsRoot_DefaultsToHomeLocalShare(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "")
 	home, _ := os.UserHomeDir()

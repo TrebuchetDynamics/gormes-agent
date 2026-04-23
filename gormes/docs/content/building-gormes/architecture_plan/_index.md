@@ -20,12 +20,12 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 31/66 subphases shipped · 4 in progress · 31 planned
+**Overall:** 32/66 subphases shipped · 3 in progress · 31 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
-| Phase 2 — The Gateway | 🔨 | 18/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 19/20 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | ⏳ | 0/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
@@ -152,10 +152,10 @@ weight: 10
 - [x] Hook manifest discovery + handler loading
 - [x] Built-in BOOT.md startup hook
 
-### 2.F.3 — Restart / Pairing / Status 🔨
+### 2.F.3 — Restart / Pairing / Status ✅
 
 - [x] Graceful restart drain + managed shutdown
-- [ ] Pairing state + status surfaces
+- [x] Pairing state + status surfaces
 
 ### 2.F.4 — Home Channel + Operator Surfaces 🔨
 

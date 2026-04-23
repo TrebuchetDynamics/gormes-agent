@@ -104,7 +104,7 @@ Based on the comprehensive Hermes file inventory, these Hermes files do not need
 | `display_config` (in config.yaml) | Per-platform display settings | Partial — TUI theme only |
 | `active_profile` | Currently active profile name | Not implemented |
 | `channel_directory.json` | Cached channel/contact mappings | In-memory lookup shipped; JSON mirror/persistence not implemented |
-| `pairing.json` | Device/pairing state per platform | Not implemented (Phase 2.F) |
+| `pairing.json` | Device/pairing state per platform | Shared JSON-backed pairing state now ships at `pairing/state.json`; richer adapter-specific pairing mirrors remain future work |
 
 **Additional Subsystems with Audit Potential:**
 

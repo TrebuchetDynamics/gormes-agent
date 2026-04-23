@@ -19,6 +19,9 @@ const (
 	EventReset
 	// EventStart is the help or welcome command.
 	EventStart
+	// EventStatus renders the gateway control-plane summary without touching
+	// the kernel turn loop.
+	EventStatus
 	// EventSetHome marks the inbound chat as the platform home channel for
 	// proactive notifications and platform-only delivery targets.
 	EventSetHome
@@ -35,6 +38,8 @@ func (k EventKind) String() string {
 		return "reset"
 	case EventStart:
 		return "start"
+	case EventStatus:
+		return "status"
 	case EventSetHome:
 		return "sethome"
 	default:

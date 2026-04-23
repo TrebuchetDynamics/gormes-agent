@@ -367,8 +367,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if lifecycle.Priority != "P2" {
 		t.Fatalf("Phase 2.F.3 priority = %q, want P2", lifecycle.Priority)
 	}
-	if got := lifecycle.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.F.3 = %q, want in_progress", got)
+	if got := lifecycle.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.F.3 = %q, want complete", got)
 	}
 	lifecycleItems := itemsByName(lifecycle.Items)
 	drain := lifecycleItems["Graceful restart drain + managed shutdown"]
@@ -379,8 +379,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 drain note = %q, want TDD guidance", drain.Note)
 	}
 	pairing := lifecycleItems["Pairing state + status surfaces"]
-	if pairing.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.3 pairing status = %q, want planned", pairing.Status)
+	if pairing.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.3 pairing status = %q, want complete", pairing.Status)
+	}
+	if !strings.Contains(pairing.Note, "PairingStore") || !strings.Contains(pairing.Note, "/status") {
+		t.Fatalf("Phase 2.F.3 pairing note = %q, want PairingStore and /status detail", pairing.Note)
 	}
 
 	operator := p.Phases["2"].Subphases["2.F.4"]

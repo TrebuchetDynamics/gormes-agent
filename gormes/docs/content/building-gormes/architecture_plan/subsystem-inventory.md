@@ -45,7 +45,7 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Webhook subscription system (GitHub events / API triggers → prompt → deliver) | `hermes_cli/webhook.py` + gateway routing | 2.B.9 / 2.D | 🔨 signed ingress/auth gates plus the typed prompt-to-delivery bridge landed in `internal/channels/webhook`; runtime adapter wiring still remains |
 | Subagent delegation | `tools/delegate_tool.py` | 2.E | ✅ deterministic runtime, `delegate_task`, runner policy, typed child tool-call audit, append-only run logging, and real child stream execution landed |
 | Hooks system (`HookRegistry`) | `gateway/hooks.py`, `gateway/builtin_hooks/{boot_md}.py` | 2.F | ✅ in-process gateway hook points, live `HOOK.yaml` command loading, and built-in `BOOT.md` startup queuing with non-blocking failure semantics landed |
-| Restart / pairing / lifecycle | `gateway/{restart,pairing,status}.py` + `PairingStore` | 2.F | ⏳ planned |
+| Restart / pairing / lifecycle | `gateway/{restart,pairing,status}.py` + `PairingStore` | 2.F | ✅ shared lifecycle control-plane shipped — managed shutdown plus a JSON-backed `internal/gateway.PairingStore` and operator-facing `/status` readout now live in the Go gateway |
 | Mirror / sticker cache | `gateway/{mirror,sticker_cache}.py` | 2.F | ⏳ planned |
 | Display config + KawaiiSpinner + tool preview formatting | `gateway/display_config.py`, `agent/display.py` (`KawaiiSpinner`) | 2.F / 5.Q | ⏳ planned |
 | Iteration budget tracker | `run_agent.py` (`iteration_budget`) — inline class | 4.C | ⏳ planned |

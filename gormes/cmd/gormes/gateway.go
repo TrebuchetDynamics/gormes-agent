@@ -101,6 +101,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		slog.Warn("gateway hooks unavailable", "root", hooksRoot, "err", err)
 		hooks = gateway.NewHooks()
 	}
+	pairings, err := gateway.OpenPairingStore(config.PairingStatePath())
+	if err != nil {
+		return fmt.Errorf("pairing store: %w", err)
+	}
 
 	mgr := gateway.NewManager(gateway.ManagerConfig{
 		AllowedChats:   allowedChats,
@@ -108,6 +112,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		CoalesceMs:     coalesceMs,
 		SessionMap:     smap,
 		Hooks:          hooks,
+		Pairings:       pairings,
 	}, k, slog.Default())
 
 	if cfg.Telegram.BotToken != "" {
@@ -159,7 +164,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	})
 	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
 
-	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued)
+	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "pairing_path", config.PairingStatePath())
 	return mgr.Run(rootCtx)
 }
 

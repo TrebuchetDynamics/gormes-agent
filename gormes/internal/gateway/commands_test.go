@@ -14,6 +14,7 @@ func TestCommandRegistryContainsRequiredCommands(t *testing.T) {
 	required := map[string]bool{
 		"help":    false,
 		"new":     false,
+		"status":  false,
 		"sethome": false,
 		"stop":    false,
 	}
@@ -38,6 +39,7 @@ func TestResolveCommand(t *testing.T) {
 	}{
 		{name: "help", raw: "/help", want: "help", ok: true},
 		{name: "new", raw: "/new", want: "new", ok: true},
+		{name: "status", raw: "/status", want: "status", ok: true},
 		{name: "stop", raw: "/stop", want: "stop", ok: true},
 		{name: "sethome", raw: "/sethome", want: "sethome", ok: true},
 		{name: "set-home alias", raw: "/set-home", want: "sethome", ok: true},
@@ -69,6 +71,7 @@ func TestParseInboundText(t *testing.T) {
 	}{
 		{name: "help", text: "/help", wantKind: EventStart, wantBody: ""},
 		{name: "new", text: "/new", wantKind: EventReset, wantBody: ""},
+		{name: "status", text: "/status", wantKind: EventStatus, wantBody: ""},
 		{name: "stop", text: "/stop", wantKind: EventCancel, wantBody: ""},
 		{name: "sethome", text: "/sethome", wantKind: EventSetHome, wantBody: ""},
 		{name: "unknown slash", text: "/wat", wantKind: EventUnknown, wantBody: ""},
@@ -91,7 +94,7 @@ func TestGatewayHelpLinesDerivedFromRegistry(t *testing.T) {
 	}
 
 	joined := strings.Join(lines, "\n")
-	for _, want := range []string{"/help", "/new", "/sethome", "/stop"} {
+	for _, want := range []string{"/help", "/new", "/status", "/sethome", "/stop"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("GatewayHelpLines missing %q in %q", want, joined)
 		}
@@ -113,7 +116,7 @@ func TestPlatformExposureDeterministic(t *testing.T) {
 	if !reflect.DeepEqual(slack1, slack2) {
 		t.Fatalf("SlackSubcommandMap unstable:\n%#v\n%#v", slack1, slack2)
 	}
-	for _, want := range []string{"help", "new", "sethome", "set-home", "stop"} {
+	for _, want := range []string{"help", "new", "status", "sethome", "set-home", "stop"} {
 		if _, ok := slack1[want]; !ok {
 			t.Fatalf("SlackSubcommandMap missing %q", want)
 		}

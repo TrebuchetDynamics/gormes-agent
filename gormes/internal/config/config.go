@@ -387,6 +387,11 @@ func MemoryDBPath() string {
 	return filepath.Join(xdgDataHome(), "gormes", "memory.db")
 }
 
+// PairingStatePath returns the shared JSON store for gateway pairing state.
+func PairingStatePath() string {
+	return filepath.Join(xdgDataHome(), "gormes", "pairing", "state.json")
+}
+
 // CronMirrorPath returns the resolved CRON.md path — either
 // cfg.Cron.MirrorPath (explicit override) or the XDG default
 // $XDG_DATA_HOME/gormes/cron/CRON.md.

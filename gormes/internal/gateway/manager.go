@@ -26,6 +26,7 @@ type ManagerConfig struct {
 	Hooks            *Hooks
 	ChannelDirectory *ChannelDirectory
 	HomeChannels     *HomeChannels
+	Pairings         *PairingStore
 }
 
 type kernelSubmitter interface {
@@ -308,6 +309,8 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
 			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
 		}
+	case EventStatus:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, FormatStatusReadout(m.StatusSnapshot()))
 	case EventCancel:
 		if m.kernel != nil {
 			_ = m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})

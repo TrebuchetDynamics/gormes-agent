@@ -35,6 +35,11 @@ var CommandRegistry = []CommandDef{
 		Kind:        EventReset,
 	},
 	{
+		Name:        "status",
+		Description: "Show gateway status and pairing state",
+		Kind:        EventStatus,
+	},
+	{
 		Name:        "stop",
 		Description: "Cancel the active turn",
 		Kind:        EventCancel,

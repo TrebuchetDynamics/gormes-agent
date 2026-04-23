@@ -381,8 +381,8 @@
             },
             {
               "name": "Pairing state + status surfaces",
-              "status": "planned",
-              "note": "TDD: freeze pairing-store and status-readout fixtures before channel-specific lifecycle code."
+              "status": "complete",
+              "note": "TDD landed: `internal/gateway.PairingStore` now persists normalized pending/approved records at the XDG pairing-state path, `/status` renders a deterministic channel + pairing readout, and `gormes gateway` wires the shared store into the live manager."
             }
           ]
         },
