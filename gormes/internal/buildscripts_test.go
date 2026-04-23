@@ -82,6 +82,120 @@ func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
 	}
 }
 
+func TestAutoCodexuOrchestratorReusesExistingIntegrationWorktree(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot determine test file location")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(file))
+	tmpRepo := t.TempDir()
+
+	copyFile(t,
+		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		0o755,
+	)
+	writeFile(t,
+		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		[]byte(`{"phases":{"1":{"subphases":{"1.A":{"items":[{"name":"Done","status":"complete"}]}}}}}`),
+		0o644,
+	)
+
+	binDir := filepath.Join(tmpRepo, "bin")
+	writeFile(t, filepath.Join(binDir, "codexu"), []byte("#!/usr/bin/env bash\necho codexu should not run >&2\nexit 99\n"), 0o755)
+	writeFile(t, filepath.Join(binDir, "free"), []byte("#!/usr/bin/env bash\ncat <<'EOF'\n              total        used        free      shared  buff/cache   available\nMem:          32000        1000       30000          0        1000       30000\nEOF\n"), 0o755)
+
+	runCommand(t, tmpRepo, "git", "init")
+	runCommand(t, tmpRepo, "git", "config", "user.name", "Test User")
+	runCommand(t, tmpRepo, "git", "config", "user.email", "test@example.com")
+	runCommand(t, tmpRepo, "git", "add", ".")
+	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
+	runCommand(t, tmpRepo, "git", "branch", "codexu/autoloop")
+	runCommand(t, tmpRepo, "git", "worktree", "add", filepath.Join(tmpRepo, ".codex", "orchestrator", "integration", "codexu-autoloop"), "codexu/autoloop")
+
+	cmd := exec.Command("bash", "scripts/gormes-auto-codexu-orchestrator.sh")
+	cmd.Dir = tmpRepo
+	cmd.Env = append(os.Environ(),
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"REPO_ROOT="+tmpRepo,
+		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"ORCHESTRATOR_ONCE=1",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("orchestrator failed with existing integration worktree: %v\noutput:\n%s", err, string(out))
+	}
+	if !strings.Contains(string(out), "No unfinished tasks") {
+		t.Fatalf("output missing empty-backlog message:\n%s", string(out))
+	}
+}
+
+func TestAutoCodexuOrchestratorDoesNotSigpipeExistingIntegrationWorktreeLookup(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot determine test file location")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(file))
+	tmpRepo := t.TempDir()
+
+	copyFile(t,
+		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		0o755,
+	)
+	writeFile(t,
+		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		[]byte(`{"phases":{"1":{"subphases":{"1.A":{"items":[{"name":"Done","status":"complete"}]}}}}}`),
+		0o644,
+	)
+
+	binDir := filepath.Join(tmpRepo, "bin")
+	writeFile(t, filepath.Join(binDir, "codexu"), []byte("#!/usr/bin/env bash\necho codexu should not run >&2\nexit 99\n"), 0o755)
+	writeFile(t, filepath.Join(binDir, "free"), []byte("#!/usr/bin/env bash\ncat <<'EOF'\n              total        used        free      shared  buff/cache   available\nMem:          32000        1000       30000          0        1000       30000\nEOF\n"), 0o755)
+	writeFile(t, filepath.Join(binDir, "git"), []byte(`#!/usr/bin/env bash
+set -Eeuo pipefail
+repo="${TEST_REPO_ROOT:?}"
+while [[ "${1:-}" == "-C" ]]; do
+  shift 2
+done
+case "$*" in
+  "rev-parse --show-toplevel") printf '%s\n' "$repo" ;;
+  "rev-parse HEAD") printf '%s\n' "0123456789abcdef0123456789abcdef01234567" ;;
+  "show-ref --verify --quiet refs/heads/codexu/autoloop") exit 0 ;;
+  "worktree list --porcelain")
+    printf 'worktree %s\n' "$repo"
+    printf 'HEAD 0123456789abcdef0123456789abcdef01234567\n'
+    printf 'branch refs/heads/codexu/autoloop\n'
+    for i in $(seq 1 20000); do
+      printf 'worktree %s/.codex/filler/%05d\n' "$repo" "$i"
+      printf 'HEAD 0123456789abcdef0123456789abcdef01234567\n'
+      printf 'branch refs/heads/filler-%05d\n' "$i"
+    done
+    ;;
+  "status --short") exit 0 ;;
+  "reset --hard codexu/autoloop") exit 0 ;;
+  *) echo "unexpected fake git invocation: $*" >&2; exit 1 ;;
+esac
+`), 0o755)
+
+	cmd := exec.Command("bash", "scripts/gormes-auto-codexu-orchestrator.sh")
+	cmd.Dir = tmpRepo
+	cmd.Env = append(os.Environ(),
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"REPO_ROOT="+tmpRepo,
+		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"TEST_REPO_ROOT="+tmpRepo,
+		"ORCHESTRATOR_ONCE=1",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("orchestrator failed after existing worktree lookup: %v\noutput:\n%s", err, string(out))
+	}
+	if !strings.Contains(string(out), "No unfinished tasks") {
+		t.Fatalf("output missing empty-backlog message:\n%s", string(out))
+	}
+}
+
 func TestAutoCodexuOrchestratorPromotesSuccessBeforeNextCycle(t *testing.T) {
 	if _, err := exec.LookPath("timeout"); err != nil {
 		t.Skip("timeout command not available")

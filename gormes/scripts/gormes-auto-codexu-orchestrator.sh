@@ -152,9 +152,9 @@ branch_worktree_path() {
     | awk -v branch_ref="refs/heads/${branch}" '
         /^worktree / { path = substr($0, 10) }
         /^branch / {
-          if (substr($0, 8) == branch_ref) {
+          if (!found && substr($0, 8) == branch_ref) {
             print path
-            exit
+            found = 1
           }
         }
       '
