@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 55/66 subphases shipped · 0 in progress · 11 planned
+**Overall:** 55/66 subphases shipped · 1 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -355,10 +355,10 @@ weight: 10
 
 - [ ] Multi-model coordination
 
-### 5.N — Misc Operator Tools ⏳
+### 5.N — Misc Operator Tools 🔨
 
 - [ ] Todo
-- [ ] Clarify
+- [x] Clarify
 - [ ] Session search
 - [ ] Debug helpers
 

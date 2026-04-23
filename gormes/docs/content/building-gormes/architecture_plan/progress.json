@@ -971,7 +971,8 @@
             },
             {
               "name": "Clarify",
-              "status": "planned"
+              "status": "complete",
+              "note": "`internal/tools/clarify.go` now ships the Go-native clarify tool core with question/choice validation, a 120s timeout, structured JSON replies, and a pluggable host prompter seam; `cmd/gormes/registry.go` wires it into the dormant `clarify` toolset so interactive frontends can activate it by injecting a responder while broader 5.N operator-tool ports remain follow-on scope."
             },
             {
               "name": "Session search",

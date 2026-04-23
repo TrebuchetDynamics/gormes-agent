@@ -22,6 +22,12 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.EchoTool{}, Toolset: "core"})
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.NowTool{}, Toolset: "core"})
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.RandIntTool{}, Toolset: "core"})
+	clarify := &tools.ClarifyTool{}
+	reg.MustRegisterEntry(tools.ToolEntry{
+		Tool:    clarify,
+		Toolset: "clarify",
+		CheckFn: func() bool { return clarify.Prompter != nil },
+	})
 	reg.MustRegisterEntry(tools.ToolEntry{
 		Tool:    &tools.ExecuteCodeTool{},
 		Toolset: "code_execution",

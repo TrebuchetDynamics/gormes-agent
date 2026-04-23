@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/tools"
 )
 
 func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
@@ -40,6 +41,37 @@ func TestBuildDefaultRegistryRegistersExecuteCode(t *testing.T) {
 	}
 	if entry.Toolset != "code_execution" {
 		t.Fatalf("execute_code toolset = %q, want code_execution", entry.Toolset)
+	}
+}
+
+func TestBuildDefaultRegistryRegistersDormantClarify(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{}, "", nil, "")
+
+	entry, ok := reg.Entry("clarify")
+	if !ok {
+		t.Fatal("clarify not registered")
+	}
+	if entry.Toolset != "clarify" {
+		t.Fatalf("clarify toolset = %q, want clarify", entry.Toolset)
+	}
+	if containsToolDescriptor(reg.AvailableDescriptors(), "clarify") {
+		t.Fatal("clarify unexpectedly available without prompter")
+	}
+
+	tool, ok := reg.Get("clarify")
+	if !ok {
+		t.Fatal("clarify not retrievable")
+	}
+	clarify, ok := tool.(*tools.ClarifyTool)
+	if !ok {
+		t.Fatalf("clarify tool type = %T, want *tools.ClarifyTool", tool)
+	}
+	clarify.Prompter = func(context.Context, tools.ClarifyRequest) (tools.ClarifyReply, error) {
+		return tools.ClarifyReply{Answer: "Ship it."}, nil
+	}
+
+	if !containsToolDescriptor(reg.AvailableDescriptors(), "clarify") {
+		t.Fatal("clarify unavailable after prompter injection")
 	}
 }
 
@@ -142,4 +174,13 @@ func TestBuildDefaultRegistryDelegationToolDraftsCandidate(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "candidates", entries[0].Name(), "SKILL.md")); err != nil {
 		t.Fatalf("candidate SKILL.md missing: %v", err)
 	}
+}
+
+func containsToolDescriptor(descs []tools.ToolDescriptor, name string) bool {
+	for _, d := range descs {
+		if d.Name == name {
+			return true
+		}
+	}
+	return false
 }
