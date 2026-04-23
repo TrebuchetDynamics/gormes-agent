@@ -21,10 +21,11 @@ Every tool lives behind this interface. Schemas are Go structs — schema drift 
 ## What you get
 
 - **Deterministic execution** — no subprocess spawning for in-process tools
+- **Sandboxed code execution** — `execute_code` stages self-contained Go snippets in `strict` temp workspaces or `project` workspaces under `.gormes/code-execution`, strips secret-bearing env vars, and returns structured stdout/stderr results
 - **Bounded side effects** — ctx cancels; deadlines respected
 - **Fail-closed dangerous action gate** — command-like tool args are scanned for destructive shell payloads before `Tool.Execute` runs
 - **Wire Doctor** — `gormes doctor --offline` validates the registry before a live turn burns tokens
 
 ## Status
 
-✅ Shipped (Phase 2.A) with Phase 5.J guardrails. The current registry has the minimal tool surface, and dangerous shell payloads in command-like JSON fields now fail closed before execution in both the kernel and the in-process executor. Porting the broader upstream terminal/code-exec surfaces remains Phase 5.K. See [Phase 2](../architecture_plan/phase-2-gateway/).
+✅ Shipped (Phase 2.A + Phase 5.K tracked scope). The registry still executes most tools in-process, and the broader execution surface now includes Go-native `execute_code` with scrubbed `strict`/`project` workspaces, timeout/output caps, and structured results flowing through the same kernel tool loop. Dangerous shell payloads in command-like JSON fields still fail closed before execution in both the kernel and the in-process executor. Interactive terminal-style debug sessions and recursive in-script tool RPC remain future follow-on scope. See [Phase 2](../architecture_plan/phase-2-gateway/).

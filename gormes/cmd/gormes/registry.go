@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os/exec"
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
@@ -12,15 +13,23 @@ import (
 )
 
 // buildDefaultRegistry returns a Registry populated with Gormes's built-in
-// Go-native tools (echo, now, rand_int). Consumer forks that want to add
-// domain-specific tools (scientific simulators, business wrappers, etc.)
-// call reg.Register on the returned *Registry before passing it into the
+// Go-native tools (echo, now, rand_int, execute_code). Consumer forks that
+// want to add domain-specific tools (scientific simulators, business wrappers,
+// etc.) call reg.Register on the returned *Registry before passing it into the
 // kernel Config. Gormes itself ships no domain-specific tools.
 func buildDefaultRegistry(parentCtx context.Context, delegation config.DelegationCfg, skillsRoot string, childClient hermes.Client, childModel string) *tools.Registry {
 	reg := tools.NewRegistry()
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.EchoTool{}, Toolset: "core"})
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.NowTool{}, Toolset: "core"})
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.RandIntTool{}, Toolset: "core"})
+	reg.MustRegisterEntry(tools.ToolEntry{
+		Tool:    &tools.ExecuteCodeTool{},
+		Toolset: "code_execution",
+		CheckFn: func() bool {
+			_, err := exec.LookPath("go")
+			return err == nil
+		},
+	})
 	tools.RegisterBrowserTools(reg)
 	if delegation.Enabled {
 		var drafter subagent.CandidateDrafter

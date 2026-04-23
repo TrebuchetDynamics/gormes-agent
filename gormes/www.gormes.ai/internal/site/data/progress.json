@@ -928,7 +928,8 @@
           "items": [
             {
               "name": "Dangerous action gating",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/tools/approval.go` now scans command-like JSON fields for dangerous shell payloads (`rm -rf`, shell `-c`, `curl|sh`) and fails closed with `ErrDangerousAction`; both `internal/tools/executor.go` and `internal/kernel/toolexec.go` now block execution before `Tool.Execute`, so direct kernel calls and delegated child tools share the same gate."
             }
           ]
         },
@@ -937,7 +938,8 @@
           "items": [
             {
               "name": "Sandboxed exec",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/tools/code_execution.go` now ships the Go-native `execute_code` tool plus `ProcessRegistry`/`ProcessSession`/`ExecuteResult`/`RunState`, running self-contained Go snippets through `go run` in scrubbed `strict` temp sandboxes or `project` workspaces under `.gormes/code-execution` with timeout and output caps. `cmd/gormes/registry.go` wires the tool into the default `code_execution` toolset; interactive debug sessions and recursive in-script tool RPC remain future follow-on scope outside the tracked checklist."
             }
           ]
         },

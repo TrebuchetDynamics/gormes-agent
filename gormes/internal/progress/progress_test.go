@@ -856,6 +856,31 @@ func TestLoad_RealFile_Phase5AtomicCheckpoints(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_Phase5SandboxedExec(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	codeExec := p.Phases["5"].Subphases["5.K"]
+	if got := codeExec.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 5.K = %q, want complete", got)
+	}
+
+	items := itemsByName(codeExec.Items)
+	sandboxed := items["Sandboxed exec"]
+	if sandboxed.Status != StatusComplete {
+		t.Fatalf("Phase 5.K sandboxed exec status = %q, want complete", sandboxed.Status)
+	}
+	if !strings.Contains(sandboxed.Note, "internal/tools/code_execution.go") ||
+		!strings.Contains(sandboxed.Note, "ProcessRegistry") ||
+		!strings.Contains(sandboxed.Note, "`strict`") ||
+		!strings.Contains(sandboxed.Note, "`project`") ||
+		!strings.Contains(sandboxed.Note, "cmd/gormes/registry.go") {
+		t.Fatalf("Phase 5.K sandboxed exec note = %q, want code_execution.go/ProcessRegistry/strict/project/registry wiring detail", sandboxed.Note)
+	}
+}
+
 func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {

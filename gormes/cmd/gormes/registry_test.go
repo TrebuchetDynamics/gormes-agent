@@ -31,6 +31,18 @@ func TestBuildDefaultRegistryRegistersBrowserNavigate(t *testing.T) {
 	}
 }
 
+func TestBuildDefaultRegistryRegistersExecuteCode(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{}, "", nil, "")
+
+	entry, ok := reg.Entry("execute_code")
+	if !ok {
+		t.Fatal("execute_code not registered")
+	}
+	if entry.Toolset != "code_execution" {
+		t.Fatalf("execute_code toolset = %q, want code_execution", entry.Toolset)
+	}
+}
+
 func TestBuildDefaultRegistryDelegationEnabled(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{
 		Enabled:               true,
