@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 50/66 subphases shipped · 1 in progress · 15 planned
+**Overall:** 50/66 subphases shipped · 2 in progress · 14 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -334,9 +334,9 @@ weight: 10
 
 - [x] ACP server side
 
-### 5.I — Plugins Architecture ⏳
+### 5.I — Plugins Architecture 🔨
 
-- [ ] Plugin SDK
+- [x] Plugin SDK
 - [ ] Third-party extensions
 
 ### 5.J — Approval / Security Guards ⏳

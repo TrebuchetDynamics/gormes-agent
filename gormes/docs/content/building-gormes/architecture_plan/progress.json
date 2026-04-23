@@ -912,7 +912,8 @@
           "items": [
             {
               "name": "Plugin SDK",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/plugins/manifest.go` now ships the typed `plugin.yaml` contract (`name`, `version`, metadata, `requires_env`, declared tools/hooks/skills/commands) plus deterministic on-disk discovery, and `pkg/gormes/types.go` re-exports `LoadPluginManifest` / `DiscoverPluginManifests` for external tooling. Plugin execution/loading, provider activation, and third-party runtime wiring remain follow-on scope under the separate `Third-party extensions` item."
             },
             {
               "name": "Third-party extensions",

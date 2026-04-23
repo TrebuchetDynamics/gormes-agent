@@ -7,6 +7,7 @@ package gormes
 import (
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/pybridge"
 )
 
@@ -50,3 +51,25 @@ type (
 	Runtime    = pybridge.Runtime
 	Invocation = pybridge.Invocation
 )
+
+// Plugin SDK surface — external plugin tooling can import the stable manifest
+// contract without depending on internal packages directly.
+type (
+	PluginKind           = plugins.Kind
+	PluginManifest       = plugins.Manifest
+	PluginEnvRequirement = plugins.EnvRequirement
+)
+
+const (
+	PluginKindGeneral        = plugins.KindGeneral
+	PluginKindMemoryProvider = plugins.KindMemoryProvider
+	PluginKindContextEngine  = plugins.KindContextEngine
+)
+
+func LoadPluginManifest(path string) (PluginManifest, error) {
+	return plugins.LoadManifest(path)
+}
+
+func DiscoverPluginManifests(root string, kind PluginKind) ([]PluginManifest, error) {
+	return plugins.Discover(root, kind)
+}
