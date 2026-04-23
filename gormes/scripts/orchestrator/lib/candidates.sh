@@ -35,8 +35,48 @@ normalize_candidates() {
   ' "$PROGRESS_JSON"
 }
 
+poisoned_slugs() {
+  # Emit one slug per line for tasks where:
+  #   (worker_failed + worker_promotion_failed) - worker_promoted >= MAX_RETRIES
+  # in the lifetime of $RUNS_LEDGER. Stops runaway retry storms.
+  local max="${MAX_RETRIES:-3}"
+  [[ -f "${RUNS_LEDGER:-}" ]] || return 0
+  jq -rs --argjson max "$max" '
+    [ .[]
+      | select(.event == "worker_failed" or .event == "worker_promoted" or .event == "worker_promotion_failed")
+      | {slug: ((.detail // "") | split("@")[0]), event: .event}
+      | select(.slug != "")
+    ]
+    | group_by(.slug)
+    | map({
+        slug: .[0].slug,
+        score: ((map(select(.event == "worker_failed" or .event == "worker_promotion_failed")) | length)
+                - (map(select(.event == "worker_promoted")) | length))
+      })
+    | map(select(.score >= $max))
+    | .[].slug
+  ' "$RUNS_LEDGER" 2>/dev/null || true
+}
+
 write_candidates_file() {
-  normalize_candidates > "$CANDIDATES_FILE"
+  local skip_json
+  skip_json="$(poisoned_slugs | jq -Rnc '[inputs | select(length > 0)]')"
+  if [[ "$skip_json" == "[]" || -z "$skip_json" ]]; then
+    normalize_candidates > "$CANDIDATES_FILE"
+    return 0
+  fi
+  normalize_candidates \
+    | jq -c --argjson skip "$skip_json" --arg active_first "${ACTIVE_FIRST:-1}" '
+        def mk_slug(p; s; i):
+          (p + "__" + s + "__" + i)
+          | ascii_downcase
+          | gsub("[^a-z0-9._-]+"; "-")
+          | sub("^-+"; "")
+          | sub("-+$"; "")
+          | gsub("--+"; "-");
+        map(select(mk_slug(.phase_id; .subphase_id; .item_name) as $s
+                   | ($skip | index($s)) == null))
+      ' > "$CANDIDATES_FILE"
 }
 
 candidate_count() {
