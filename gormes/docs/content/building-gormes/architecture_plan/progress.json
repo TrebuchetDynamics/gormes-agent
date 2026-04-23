@@ -402,8 +402,8 @@
             },
             {
               "name": "Mirror + sticker cache surfaces",
-              "status": "planned",
-              "note": "TDD: prove cache key and mirror-write contracts before adapter-specific caches land."
+              "status": "complete",
+              "note": "TDD landed: `internal/gateway.StateMirror` now exports home-channel ownership plus `ChannelDirectory` snapshots to `${XDG_DATA_HOME}/gormes/channel_directory.json` with deterministic refresh wiring in `gormes gateway`, and `internal/gateway.StickerCache` freezes normalized key persistence at `${XDG_DATA_HOME}/gormes/sticker_cache.json` before adapter-specific sticker sends land."
             }
           ]
         },

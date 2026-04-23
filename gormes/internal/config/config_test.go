@@ -232,6 +232,24 @@ func TestPairingStatePath_HonorsXDG(t *testing.T) {
 	}
 }
 
+func TestChannelDirectoryMirrorPath_HonorsXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-gateway-mirror")
+	got := ChannelDirectoryMirrorPath()
+	want := "/tmp/gormes-test-gateway-mirror/gormes/channel_directory.json"
+	if got != want {
+		t.Errorf("ChannelDirectoryMirrorPath() = %q, want %q", got, want)
+	}
+}
+
+func TestStickerCachePath_HonorsXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-sticker-cache")
+	got := StickerCachePath()
+	want := "/tmp/gormes-test-sticker-cache/gormes/sticker_cache.json"
+	if got != want {
+		t.Errorf("StickerCachePath() = %q, want %q", got, want)
+	}
+}
+
 func TestSkillsRoot_DefaultsToHomeLocalShare(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "")
 	home, _ := os.UserHomeDir()

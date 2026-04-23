@@ -37,6 +37,36 @@ type gracefulShutdownManager interface {
 	Shutdown(context.Context) error
 }
 
+const gatewayOperatorMirrorInterval = 30 * time.Second
+
+type gatewayOperatorSurfaces struct {
+	homeChannels     *gateway.HomeChannels
+	channelDirectory *gateway.ChannelDirectory
+	stateMirror      *gateway.StateMirror
+	stickerCache     *gateway.StickerCache
+}
+
+func newGatewayOperatorSurfaces(log *slog.Logger) (gatewayOperatorSurfaces, error) {
+	if log == nil {
+		log = slog.Default()
+	}
+
+	homes := gateway.NewHomeChannels()
+	directory := gateway.NewChannelDirectory()
+	stateMirror := gateway.NewStateMirror(homes, directory, config.ChannelDirectoryMirrorPath())
+	stickerCache, err := gateway.OpenStickerCache(config.StickerCachePath())
+	if err != nil {
+		return gatewayOperatorSurfaces{}, err
+	}
+
+	return gatewayOperatorSurfaces{
+		homeChannels:     homes,
+		channelDirectory: directory,
+		stateMirror:      stateMirror,
+		stickerCache:     stickerCache,
+	}, nil
+}
+
 func runGateway(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.Load(os.Args[1:])
 	if err != nil {
@@ -105,14 +135,22 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("pairing store: %w", err)
 	}
+	surfaces, err := newGatewayOperatorSurfaces(slog.Default())
+	if err != nil {
+		return fmt.Errorf("gateway operator surfaces: %w", err)
+	}
+	stateMirror := surfaces.stateMirror.StartRefresh(gatewayOperatorMirrorInterval, slog.Default())
+	defer stateMirror.Stop()
 
 	mgr := gateway.NewManager(gateway.ManagerConfig{
-		AllowedChats:   allowedChats,
-		AllowDiscovery: allowDiscovery,
-		CoalesceMs:     coalesceMs,
-		SessionMap:     smap,
-		Hooks:          hooks,
-		Pairings:       pairings,
+		AllowedChats:     allowedChats,
+		AllowDiscovery:   allowDiscovery,
+		CoalesceMs:       coalesceMs,
+		SessionMap:       smap,
+		Hooks:            hooks,
+		ChannelDirectory: surfaces.channelDirectory,
+		HomeChannels:     surfaces.homeChannels,
+		Pairings:         pairings,
 	}, k, slog.Default())
 
 	if cfg.Telegram.BotToken != "" {
@@ -164,7 +202,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	})
 	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
 
-	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "pairing_path", config.PairingStatePath())
+	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "pairing_path", config.PairingStatePath(), "channel_directory_path", surfaces.stateMirror.Path(), "sticker_cache_path", surfaces.stickerCache.Path())
 	return mgr.Run(rootCtx)
 }
 

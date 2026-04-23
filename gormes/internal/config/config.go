@@ -392,6 +392,18 @@ func PairingStatePath() string {
 	return filepath.Join(xdgDataHome(), "gormes", "pairing", "state.json")
 }
 
+// ChannelDirectoryMirrorPath returns the gateway state mirror path for
+// home-channel ownership plus the observed channel/contact directory.
+func ChannelDirectoryMirrorPath() string {
+	return filepath.Join(xdgDataHome(), "gormes", "channel_directory.json")
+}
+
+// StickerCachePath returns the shared sticker lookup cache path adapters will
+// use once platform-specific sticker send flows land.
+func StickerCachePath() string {
+	return filepath.Join(xdgDataHome(), "gormes", "sticker_cache.json")
+}
+
 // CronMirrorPath returns the resolved CRON.md path — either
 // cfg.Cron.MirrorPath (explicit override) or the XDG default
 // $XDG_DATA_HOME/gormes/cron/CRON.md.

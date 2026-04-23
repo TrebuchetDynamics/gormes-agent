@@ -20,12 +20,12 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 32/66 subphases shipped · 3 in progress · 31 planned
+**Overall:** 33/66 subphases shipped · 2 in progress · 31 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
-| Phase 2 — The Gateway | 🔨 | 19/20 subphases |
+| Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | ⏳ | 0/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
@@ -47,7 +47,7 @@ weight: 10
 
 - [x] Offline tool validation
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before the long-tail adapter flood*
 
@@ -157,11 +157,11 @@ weight: 10
 - [x] Graceful restart drain + managed shutdown
 - [x] Pairing state + status surfaces
 
-### 2.F.4 — Home Channel + Operator Surfaces 🔨
+### 2.F.4 — Home Channel + Operator Surfaces ✅
 
 - [x] Home channel ownership + notify-to routing
 - [x] Channel/contact directory
-- [ ] Mirror + sticker cache surfaces
+- [x] Mirror + sticker cache surfaces
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 

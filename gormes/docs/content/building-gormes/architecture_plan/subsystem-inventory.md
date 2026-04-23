@@ -38,15 +38,15 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Gateway session context | `gateway/session_context.py` (`SessionContext`) | 2.B/2.F | ✅ shipped — typed session-context prompt injection landed in `internal/gateway/session_context.go` |
 | Delivery router (`--deliver <platform>` abstraction) | `gateway/delivery.py` (`DeliveryRouter`, `DeliveryTarget`) | 2.B/2.F | 🔨 typed delivery-target parsing landed in `internal/gateway/delivery.go`; platform-only targets now resolve through `HomeChannels`, while richer cross-channel runtime binding still remains |
 | Stream consumer (SSE agent-event fan-out to gateway) | `gateway/stream_consumer.py` (`GatewayStreamConsumer`, `StreamConsumerConfig`, `StreamingConfig`) | 2.B/2.F | 🔨 deterministic frame fan-out landed in `internal/gateway/stream_consumer.go`; richer upstream buffering/edit policy remains |
-| Home channel (operator's primary notify-to chat) | `gateway/*` — `HomeChannel` class | 2.F | ✅ in-memory ownership and notify-to target resolution shipped in `internal/gateway.HomeChannels`; persistence/config hydration remains future work |
-| Channel / contact directory | `gateway/channel_directory.py` | 2.F | ✅ in-memory directory shipped in `internal/gateway.ChannelDirectory`; JSON persistence remains future work |
+| Home channel (operator's primary notify-to chat) | `gateway/*` — `HomeChannel` class | 2.F | ✅ ownership, notify-to target resolution, and mirror export now ship in `internal/gateway.HomeChannels` + `internal/gateway.StateMirror`; env/config hydration remains future work |
+| Channel / contact directory | `gateway/channel_directory.py` | 2.F | ✅ in-memory directory plus JSON mirror shipped in `internal/gateway.ChannelDirectory` + `internal/gateway.StateMirror` |
 | Platform enum + per-platform config | `gateway/*` — `Platform` (enum), `PlatformConfig` | 2.B | 🔨 Telegram/Discord/Slack config surfaces landed; canonical cross-platform enum parity remains |
 | Cron / scheduled automations | `cron/scheduler.py`, `cron/jobs.py`, `tools/cronjob_tools.py` | 2.D | ✅ shipped (scheduler + bbolt `cron_jobs` bucket + SQLite `cron_runs` audit + CRON.md mirror + Heartbeat prefix + exact-match `[SILENT]` suppression + kernel `PlatformEvent.SessionID/CronJobID` per-event override; upstream's file tick lock not needed — single-process) |
 | Webhook subscription system (GitHub events / API triggers → prompt → deliver) | `hermes_cli/webhook.py` + gateway routing | 2.B.9 / 2.D | 🔨 signed ingress/auth gates plus the typed prompt-to-delivery bridge landed in `internal/channels/webhook`; runtime adapter wiring still remains |
 | Subagent delegation | `tools/delegate_tool.py` | 2.E | ✅ deterministic runtime, `delegate_task`, runner policy, typed child tool-call audit, append-only run logging, and real child stream execution landed |
 | Hooks system (`HookRegistry`) | `gateway/hooks.py`, `gateway/builtin_hooks/{boot_md}.py` | 2.F | ✅ in-process gateway hook points, live `HOOK.yaml` command loading, and built-in `BOOT.md` startup queuing with non-blocking failure semantics landed |
 | Restart / pairing / lifecycle | `gateway/{restart,pairing,status}.py` + `PairingStore` | 2.F | ✅ shared lifecycle control-plane shipped — managed shutdown plus a JSON-backed `internal/gateway.PairingStore` and operator-facing `/status` readout now live in the Go gateway |
-| Mirror / sticker cache | `gateway/{mirror,sticker_cache}.py` | 2.F | ⏳ planned |
+| Mirror / sticker cache | `gateway/{mirror,sticker_cache}.py` | 2.F | ✅ shipped — `internal/gateway.StateMirror` writes `${XDG_DATA_HOME}/gormes/channel_directory.json`, and `internal/gateway.StickerCache` persists normalized sticker lookup records at `${XDG_DATA_HOME}/gormes/sticker_cache.json` for future adapters |
 | Display config + KawaiiSpinner + tool preview formatting | `gateway/display_config.py`, `agent/display.py` (`KawaiiSpinner`) | 2.F / 5.Q | ⏳ planned |
 | Iteration budget tracker | `run_agent.py` (`iteration_budget`) — inline class | 4.C | ⏳ planned |
 
@@ -295,8 +295,8 @@ Upstream uses `~/.hermes/` as the state root (overridable via `HERMES_HOME`). Go
 | `~/.hermes/skins/` | CLI skin definition files | 5.Q | Planned |
 | `~/.hermes/dashboard-themes/` | Example-dashboard plugin themes | 5.I | Planned |
 | `~/.hermes/whatsapp/` | WhatsApp platform session state | 2.B.4 | Planned |
-| `~/.hermes/channel_directory.json` | Cached channel/contact mappings | 2.F | In-memory lookup/rename invalidation shipped; JSON persistence remains planned |
-| `~/.hermes/sticker_cache.json` | Telegram sticker lookup cache | 2.F | Planned |
+| `~/.hermes/channel_directory.json` | Cached channel/contact mappings | 2.F | ✅ Shipped as Gormes equivalent: `${XDG_DATA_HOME}/gormes/channel_directory.json` mirror now exports both `home_channels` and `directory` arrays with atomic refresh from the live gateway manager |
+| `~/.hermes/sticker_cache.json` | Telegram sticker lookup cache | 2.F | ✅ Shipped as Gormes equivalent: `${XDG_DATA_HOME}/gormes/sticker_cache.json` generic normalized sticker lookup store; adapter-specific population remains future work |
 | `~/.hermes/.container-mode` | Sentinel: "running inside container" | 2.F | Planned — Gormes can detect `/.dockerenv` or use its own sentinel |
 | `~/.hermes/.managed` | Sentinel: "managed by external orchestrator" | 2.F | Planned |
 | `~/.hermes/.update_exit_code` | Last update attempt's exit code | 5.O | Planned — auto-update subsystem |

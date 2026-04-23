@@ -103,7 +103,8 @@ Based on the comprehensive Hermes file inventory, these Hermes files do not need
 | `gateway_voice_mode.json` | Per-chat voice mode state (off/voice_only/all) | Not implemented (Phase 5.E) |
 | `display_config` (in config.yaml) | Per-platform display settings | Partial — TUI theme only |
 | `active_profile` | Currently active profile name | Not implemented |
-| `channel_directory.json` | Cached channel/contact mappings | In-memory lookup shipped; JSON mirror/persistence not implemented |
+| `channel_directory.json` | Cached channel/contact mappings | Live JSON mirror now ships at `${XDG_DATA_HOME}/gormes/channel_directory.json` with both `home_channels` and `directory` arrays |
+| `sticker_cache.json` | Telegram sticker lookup cache | Generic normalized sticker lookup store now ships at `${XDG_DATA_HOME}/gormes/sticker_cache.json`; adapter-specific population remains future work |
 | `pairing.json` | Device/pairing state per platform | Shared JSON-backed pairing state now ships at `pairing/state.json`; richer adapter-specific pairing mirrors remain future work |
 
 **Additional Subsystems with Audit Potential:**

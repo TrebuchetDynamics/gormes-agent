@@ -20,12 +20,12 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 - **Pairing store + gateway `/status`** (Phase 2.F.3) — a shared JSON-backed `PairingStore` persists pending/approved records, and `/status` reports deterministic channel + pairing state to operators
 - **Home-channel ownership + notify-to routing** (Phase 2.F.4) — `/sethome` records the current chat as the platform home channel, and platform-only delivery targets resolve to that configured destination
 - **Channel/contact directory** (Phase 2.F.4) — in-memory lookup for observed gateway chats, human-readable channel names, and rename invalidation
+- **Gateway state mirror + sticker cache surfaces** (Phase 2.F.4) — `gormes gateway` now refreshes `${XDG_DATA_HOME}/gormes/channel_directory.json` with both home-channel and directory state, and `${XDG_DATA_HOME}/gormes/sticker_cache.json` freezes the generic sticker lookup contract for future adapters
 - **Cron delivery bridge** (Phase 2.D) — scheduled runs, SQLite `cron_runs` audit, `CRON.md` mirror, and Heartbeat `[SYSTEM:]` / `[SILENT]` delivery rules
 
 ## Planned
 
-- **Phase 2.B.4–2.B.10** — WhatsApp, Signal, Email, SMS, Matrix, Mattermost, Webhook, BlueBubbles, HomeAssistant, and the remaining long-tail connectors. See [§7 Subsystem Inventory](../architecture_plan/subsystem-inventory/).
-- **Phase 2.F.4** — mirror surfaces, sticker-cache equivalents, and channel-directory/home-channel persistence.
+- **Later gateway polish** — display config, richer delivery/runtime UX, and adapter-specific state beyond the shared mirror/cache surfaces.
 
 ## Why this matters
 

@@ -4,9 +4,12 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
 )
 
 type fakeShutdownManager struct {
@@ -64,5 +67,44 @@ func TestGatewaySignalLoopDrainsBeforeCancel(t *testing.T) {
 	case <-done:
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("signal loop did not return")
+	}
+}
+
+func TestNewGatewayOperatorSurfaces_UsesXDGStatePaths(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	surfaces, err := newGatewayOperatorSurfaces(slog.Default())
+	if err != nil {
+		t.Fatalf("newGatewayOperatorSurfaces: %v", err)
+	}
+
+	if surfaces.homeChannels == nil {
+		t.Fatal("homeChannels = nil, want initialized store")
+	}
+	if surfaces.channelDirectory == nil {
+		t.Fatal("channelDirectory = nil, want initialized store")
+	}
+	if surfaces.stateMirror == nil {
+		t.Fatal("stateMirror = nil, want initialized mirror")
+	}
+	if surfaces.stickerCache == nil {
+		t.Fatal("stickerCache = nil, want initialized cache")
+	}
+
+	wantMirrorPath := filepath.Join(dataHome, "gormes", "channel_directory.json")
+	if got := config.ChannelDirectoryMirrorPath(); got != wantMirrorPath {
+		t.Fatalf("ChannelDirectoryMirrorPath() = %q, want %q", got, wantMirrorPath)
+	}
+	if got := surfaces.stateMirror.Path(); got != wantMirrorPath {
+		t.Fatalf("stateMirror path = %q, want %q", got, wantMirrorPath)
+	}
+
+	wantStickerPath := filepath.Join(dataHome, "gormes", "sticker_cache.json")
+	if got := config.StickerCachePath(); got != wantStickerPath {
+		t.Fatalf("StickerCachePath() = %q, want %q", got, wantStickerPath)
+	}
+	if got := surfaces.stickerCache.Path(); got != wantStickerPath {
+		t.Fatalf("sticker cache path = %q, want %q", got, wantStickerPath)
 	}
 }

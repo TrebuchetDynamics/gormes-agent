@@ -5,7 +5,7 @@ weight: 30
 
 # Phase 2 — The Gateway (Wiring Harness)
 
-**Status:** 🔨 in progress
+**Status:** ✅ complete
 
 **Deliverable:** Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before the long-tail adapter flood.
 
@@ -32,22 +32,15 @@ weight: 30
 | Phase 2.F.1 — Slash Command Registry + Gateway Dispatch | ✅ complete | P1 | One canonical gateway command registry now drives parsing, help text, Telegram menus, and Slack exposure without alias drift |
 | Phase 2.F.2 — Hook Registry + BOOT.md | ✅ complete | P2 | Shared gateway lifecycle hooks, live `HOOK.yaml` command loading, and the built-in `BOOT.md` startup hook with non-blocking failure semantics are landed |
 | Phase 2.F.3 — Restart / Pairing / Status | ✅ complete | P2 | Graceful shutdown drain, a JSON-backed `PairingStore`, and the operator-facing gateway `/status` readout now share one deterministic control-plane surface |
-| Phase 2.F.4 — Home Channel + Operator Surfaces | 🔨 in progress | P3 | Home-channel ownership, platform-only notify-to routing, and channel/contact directory lookup now land in `internal/gateway`; mirror surfaces and sticker-cache equivalents remain |
+| Phase 2.F.4 — Home Channel + Operator Surfaces | ✅ complete | P3 | Home-channel ownership, platform-only notify-to routing, live `${XDG_DATA_HOME}/gormes/channel_directory.json` mirror refresh, and the generic `${XDG_DATA_HOME}/gormes/sticker_cache.json` surface now ship together in `internal/gateway` |
 
 For channel-by-channel donor analysis against the all-Go PicoClaw repo, see [Gateway Donor Map](../gateway-donor-map/).
 
 Phase 2.C is intentionally not Phase 3. It stores only session handles in bbolt. Python still owns transcript memory, transcript search, and prompt assembly; the SQLite + FTS5 memory lattice is Phase 3 (now substantially implemented).
 
-## TDD Priority Queue
+## Closeout
 
-Phase 2 is no longer just "ship more adapters." The highest-leverage remaining work is now the lifecycle control plane plus the last transport wiring gaps. The execution order is:
-
-1. **P3 — 2.F.4 Home Channel + Operator Surfaces**
-   Finish mirror surfaces and sticker-cache equivalents on top of the already-landed ownership and notify-to routing contracts.
-2. **P4 — remaining runtime binding work**
-   Keep future adapter and lifecycle work on the fixed gateway contracts instead of letting each platform invent its own rules.
-
-The subagent runtime, shared gateway chassis, registry-backed command layer, reviewed procedural skill runtime, and the lifecycle control-plane basics now exist as stable substrates. The next leverage move is finishing mirror/state surfaces on top of those contracts, then widening transports without reopening the shared routing seams.
+Phase 2 is now complete. The final 2.F.4 slice closes the last operator-state gap with a live gateway mirror at `${XDG_DATA_HOME}/gormes/channel_directory.json` (carrying both `home_channels` and `directory` arrays), a generic persisted sticker lookup surface at `${XDG_DATA_HOME}/gormes/sticker_cache.json`, and deterministic refresh wiring in `gormes gateway`. Future gateway work now shifts to later-phase polish such as richer display/config surfaces and adapter-specific UX rather than Phase 2 contract parity.
 
 ## Adapter Migration Notes
 

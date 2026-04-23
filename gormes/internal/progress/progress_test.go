@@ -61,9 +61,9 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["1"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 1 = %q, want complete", got)
 	}
-	// Phase 2 has 2.A, 2.B.1, 2.C complete and more planned -> in_progress.
-	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
-		t.Errorf("Phase 2 = %q, want in_progress", got)
+	// Phase 2 is fully complete once 2.F.4 lands.
+	if got := p.Phases["2"].DerivedStatus(); got != StatusComplete {
+		t.Errorf("Phase 2 = %q, want complete", got)
 	}
 	// Phase 3 has most memory subphases shipped, 3.E.* planned -> in_progress.
 	if got := p.Phases["3"].DerivedStatus(); got != StatusInProgress {
@@ -390,8 +390,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if operator.Priority != "P3" {
 		t.Fatalf("Phase 2.F.4 priority = %q, want P3", operator.Priority)
 	}
-	if got := operator.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.F.4 = %q, want in_progress", got)
+	if got := operator.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.F.4 = %q, want complete", got)
 	}
 	operatorItems := itemsByName(operator.Items)
 	channelDirectory := operatorItems["Channel/contact directory"]
@@ -400,6 +400,13 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	if !strings.Contains(channelDirectory.Note, "ChannelDirectory") || !strings.Contains(channelDirectory.Note, "rename") {
 		t.Fatalf("Phase 2.F.4 channel directory note = %q, want ChannelDirectory/rename detail", channelDirectory.Note)
+	}
+	mirror := operatorItems["Mirror + sticker cache surfaces"]
+	if mirror.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 mirror/sticker status = %q, want complete", mirror.Status)
+	}
+	if !strings.Contains(mirror.Note, "StateMirror") || !strings.Contains(mirror.Note, "StickerCache") {
+		t.Fatalf("Phase 2.F.4 mirror/sticker note = %q, want StateMirror/StickerCache detail", mirror.Note)
 	}
 
 	mail := p.Phases["2"].Subphases["2.B.7"]
