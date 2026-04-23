@@ -10,6 +10,77 @@ import (
 	"time"
 )
 
+func TestAutoCodexuOrchestratorScriptExistsAndIsExecutable(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot determine test file location")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(file))
+	scriptPath := filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh")
+
+	info, err := os.Stat(scriptPath)
+	if err != nil {
+		t.Fatalf("stat %s: %v", scriptPath, err)
+	}
+	if info.Mode()&0o111 == 0 {
+		t.Fatalf("%s mode = %v, want executable", scriptPath, info.Mode())
+	}
+}
+
+func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
+	if _, err := exec.LookPath("timeout"); err != nil {
+		t.Skip("timeout command not available")
+	}
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot determine test file location")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(file))
+	tmpRepo := t.TempDir()
+
+	copyFile(t,
+		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		0o755,
+	)
+	writeFile(t,
+		filepath.Join(tmpRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		[]byte(`{"phases":{"1":{"subphases":{"1.A":{"items":[{"name":"Done","status":"complete"}]}}}}}`),
+		0o644,
+	)
+
+	binDir := filepath.Join(tmpRepo, "bin")
+	writeFile(t, filepath.Join(binDir, "codexu"), []byte("#!/usr/bin/env bash\necho codexu should not run >&2\nexit 99\n"), 0o755)
+	writeFile(t, filepath.Join(binDir, "free"), []byte("#!/usr/bin/env bash\ncat <<'EOF'\n              total        used        free      shared  buff/cache   available\nMem:          32000        1000       30000          0        1000       30000\nEOF\n"), 0o755)
+
+	runCommand(t, tmpRepo, "git", "init")
+	runCommand(t, tmpRepo, "git", "config", "user.name", "Test User")
+	runCommand(t, tmpRepo, "git", "config", "user.email", "test@example.com")
+	runCommand(t, tmpRepo, "git", "add", ".")
+	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
+
+	cmd := exec.Command("timeout", "1s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
+	cmd.Dir = tmpRepo
+	cmd.Env = append(os.Environ(),
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"REPO_ROOT="+tmpRepo,
+		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"LOOP_SLEEP_SECONDS=5",
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("orchestrator exited without timeout; want default forever loop\noutput:\n%s", string(out))
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("orchestrator failed with %T, want timeout exit\noutput:\n%s", err, string(out))
+	}
+	if exitErr.ExitCode() != 124 {
+		t.Fatalf("exit = %d, want timeout exit 124\noutput:\n%s", exitErr.ExitCode(), string(out))
+	}
+}
+
 func TestRecordBenchmarkHandlesArchPlanStub(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
