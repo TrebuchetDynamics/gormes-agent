@@ -19,11 +19,11 @@ func RegisterHonchoTools(reg *Registry, svc *goncho.Service) {
 	if svc == nil {
 		panic("tools: nil goncho service")
 	}
-	reg.MustRegister(&HonchoProfileTool{Service: svc})
-	reg.MustRegister(&HonchoSearchTool{Service: svc})
-	reg.MustRegister(&HonchoContextTool{Service: svc})
-	reg.MustRegister(&HonchoReasoningTool{Service: svc})
-	reg.MustRegister(&HonchoConcludeTool{Service: svc})
+	reg.MustRegisterEntry(ToolEntry{Tool: &HonchoProfileTool{Service: svc}, Toolset: "honcho"})
+	reg.MustRegisterEntry(ToolEntry{Tool: &HonchoSearchTool{Service: svc}, Toolset: "honcho"})
+	reg.MustRegisterEntry(ToolEntry{Tool: &HonchoContextTool{Service: svc}, Toolset: "honcho"})
+	reg.MustRegisterEntry(ToolEntry{Tool: &HonchoReasoningTool{Service: svc}, Toolset: "honcho"})
+	reg.MustRegisterEntry(ToolEntry{Tool: &HonchoConcludeTool{Service: svc}, Toolset: "honcho"})
 }
 
 type HonchoProfileTool struct {

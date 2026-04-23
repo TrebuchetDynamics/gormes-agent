@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -14,10 +15,10 @@ type stubTool struct {
 	timeout    time.Duration
 }
 
-func (s *stubTool) Name() string             { return s.name }
-func (s *stubTool) Description() string      { return s.desc }
-func (s *stubTool) Schema() json.RawMessage  { return s.schema }
-func (s *stubTool) Timeout() time.Duration   { return s.timeout }
+func (s *stubTool) Name() string            { return s.name }
+func (s *stubTool) Description() string     { return s.desc }
+func (s *stubTool) Schema() json.RawMessage { return s.schema }
+func (s *stubTool) Timeout() time.Duration  { return s.timeout }
 func (s *stubTool) Execute(ctx context.Context, _ json.RawMessage) (json.RawMessage, error) {
 	return json.RawMessage(`{"ok":true}`), nil
 }
@@ -66,6 +67,35 @@ func TestRegistry_DescriptorsSorted(t *testing.T) {
 	}
 	if ds[0].Name != "alpha" || ds[1].Name != "mike" || ds[2].Name != "zulu" {
 		t.Errorf("Descriptors not sorted: %v", []string{ds[0].Name, ds[1].Name, ds[2].Name})
+	}
+}
+
+func TestRegistry_DescriptorsForToolsets_FiltersUnavailableToolsets(t *testing.T) {
+	r := NewRegistry()
+	r.MustRegisterEntry(ToolEntry{
+		Tool:    &stubTool{name: "alpha", desc: "a", schema: json.RawMessage(`{}`)},
+		Toolset: "core",
+	})
+	r.MustRegisterEntry(ToolEntry{
+		Tool:        &stubTool{name: "remote", desc: "r", schema: json.RawMessage(`{}`)},
+		Toolset:     "remote",
+		RequiresEnv: []string{"REMOTE_TOKEN"},
+	})
+
+	ds, err := r.DescriptorsForToolsets([]string{"core"}, nil)
+	if err != nil {
+		t.Fatalf("DescriptorsForToolsets(core): %v", err)
+	}
+	if len(ds) != 1 || ds[0].Name != "alpha" {
+		t.Fatalf("DescriptorsForToolsets(core) = %+v, want only alpha", ds)
+	}
+
+	if _, err := r.DescriptorsForToolsets([]string{"remote"}, nil); !errors.Is(err, ErrUnavailableToolset) {
+		t.Fatalf("DescriptorsForToolsets(remote) err = %v, want ErrUnavailableToolset", err)
+	}
+
+	if got := r.AvailableToolsets(); !reflect.DeepEqual(got, []string{"core"}) {
+		t.Fatalf("AvailableToolsets() = %v, want [core]", got)
 	}
 }
 

@@ -18,9 +18,9 @@ import (
 // kernel Config. Gormes itself ships no domain-specific tools.
 func buildDefaultRegistry(parentCtx context.Context, delegation config.DelegationCfg, skillsRoot string, childClient hermes.Client, childModel string) *tools.Registry {
 	reg := tools.NewRegistry()
-	reg.MustRegister(&tools.EchoTool{})
-	reg.MustRegister(&tools.NowTool{})
-	reg.MustRegister(&tools.RandIntTool{})
+	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.EchoTool{}, Toolset: "core"})
+	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.NowTool{}, Toolset: "core"})
+	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.RandIntTool{}, Toolset: "core"})
 	if delegation.Enabled {
 		var drafter subagent.CandidateDrafter
 		if skillsRoot != "" {
@@ -46,13 +46,16 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 				return runner
 			}
 		}
-		reg.MustRegister(subagent.NewDelegateTool(subagent.NewManager(opts), drafter))
+		reg.MustRegisterEntry(tools.ToolEntry{
+			Tool:    subagent.NewDelegateTool(subagent.NewManager(opts), drafter),
+			Toolset: "delegation",
+		})
 	}
 	return reg
 }
 
 func registryDescriptors(reg *tools.Registry) []hermes.ToolDescriptor {
-	descs := reg.Descriptors()
+	descs := reg.AvailableDescriptors()
 	out := make([]hermes.ToolDescriptor, len(descs))
 	for i, d := range descs {
 		out[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}

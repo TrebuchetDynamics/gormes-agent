@@ -91,3 +91,28 @@ func TestKernel_BuildsSecondTurnRequestWithSystemMemoryHistoryAndTools(t *testin
 		t.Fatalf("second.Tools[0].Name = %q, want echo", second.Tools[0].Name)
 	}
 }
+
+func TestKernel_BuildChatRequestSkipsUnavailableTools(t *testing.T) {
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.EchoTool{})
+	reg.MustRegisterEntry(tools.ToolEntry{
+		Tool:        &tools.MockTool{NameStr: "remote_only"},
+		Toolset:     "remote",
+		RequiresEnv: []string{"REMOTE_TOKEN"},
+	})
+
+	k := New(Config{
+		Model:     "hermes-agent",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Tools:     reg,
+	}, hermes.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+
+	req := k.buildChatRequest(nil)
+	if len(req.Tools) != 1 {
+		t.Fatalf("len(req.Tools) = %d, want 1", len(req.Tools))
+	}
+	if req.Tools[0].Name != "echo" {
+		t.Fatalf("req.Tools[0].Name = %q, want echo", req.Tools[0].Name)
+	}
+}

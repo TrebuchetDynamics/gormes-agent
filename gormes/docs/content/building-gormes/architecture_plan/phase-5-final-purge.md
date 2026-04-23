@@ -5,7 +5,7 @@ weight: 60
 
 # Phase 5 — The Final Purge (100% Go)
 
-**Status:** ⏳ planned
+**Status:** 🔨 in progress
 
 **Deliverable:** Python tool scripts ported to Go or WASM. Python disappears entirely from the runtime path.
 
@@ -15,7 +15,7 @@ Phase 5 is when Python disappears entirely from the runtime path. Each sub-phase
 
 | Subphase | Status | Deliverable |
 |---|---|---|
-| 5.A — Tool Surface Port | ⏳ planned | Port the 61-tool `tools/` registry. Most tools are tractable Go ports; a few (browser, voice) split into 5.C–5.E. |
+| 5.A — Tool Surface Port | ✅ complete | `internal/tools` now ships the Go-native registry row (`ToolEntry`), toolset-scoped descriptor filtering, env/check-fn availability gates, and default runtime wiring for the built-in + delegation toolsets. |
 | 5.B — Sandboxing Backends | ⏳ planned | Port `tools/environments/{local,docker,modal,daytona,singularity}.py` + `file_sync.py`. Five execution backends with namespace isolation and container hardening. |
 | 5.C — Browser Automation | ⏳ planned | Port `tools/browser_tool.py` + `tools/browser_camofox*.py` + `tools/browser_providers/{browserbase,browser_use,firecrawl}.py` to Go (Chromedp, Rod) or sidecar process |
 | 5.D — Vision + Image Generation | ⏳ planned | Port `tools/vision_tools.py` + `tools/image_generation_tool.py`; multimodal in/out |

@@ -82,7 +82,7 @@ These are single source-of-truth registries that drive multiple downstream consu
 | Subsystem | Upstream | Target phase | Status | Why it's cross-cutting |
 |---|---|---|---|---|
 | Slash command registry | `hermes_cli/commands.py` (`COMMAND_REGISTRY`, `CommandDef`, `resolve_command`, `gateway_help_lines`, `telegram_bot_commands`, `slack_subcommand_map`, `COMMANDS_BY_CATEGORY`, `SlashCommandCompleter`) | 2.F / 5.O | ⏳ planned | One `CommandDef` entry drives CLI dispatch, gateway dispatch, Telegram BotCommand menu, Slack `/hermes` subcommand map, autocomplete, and `/help` output |
-| Tool registry + dispatch orchestrator | `tools/registry.py` + `model_tools.py` (`get_tool_definitions`, `handle_function_call`, `TOOL_TO_TOOLSET_MAP`, `TOOLSET_REQUIREMENTS`, `check_toolset_requirements`) | 2.A (partial ✅) / 5.A | 🔨 Gormes `internal/tools` covers the core dispatch; toolset grouping + requirements check not ported | Every tool self-registers at import time; `model_tools` exposes the API consumed by run_agent, cli, batch_runner, RL environments, and doctor |
+| Tool registry + dispatch orchestrator | `tools/registry.py` + `model_tools.py` (`get_tool_definitions`, `handle_function_call`, `TOOL_TO_TOOLSET_MAP`, `TOOLSET_REQUIREMENTS`, `check_toolset_requirements`) | 2.A (partial ✅) / 5.A | ✅ shipped — `internal/tools` now carries `ToolEntry` metadata, toolset-scoped descriptor resolution, and env/check-fn availability gates while the kernel only surfaces available tools | Every tool self-registers at import time; `model_tools` exposes the API consumed by run_agent, cli, batch_runner, RL environments, and doctor |
 | Toolset definitions (enabled/disabled groupings) | `toolsets.py` + `toolset_distributions.py` (`_HERMES_CORE_TOOLS` list) | 4.C / 5.A | ⏳ planned | Agent init accepts `enabled_toolsets` / `disabled_toolsets` lists — drives what tools the LLM sees per run |
 | Canonical OpenAI-format message schema | `run_agent.py` — `{role, content, tool_calls, reasoning}` | 4.C | 🔨 partial (kernel already uses this shape) | Every provider adapter in 4.A must translate to/from this shape |
 
@@ -182,7 +182,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Operator tools | `tools/{todo_tool,clarify_tool,session_search_tool,send_message_tool,debug_helpers,interrupt,ansi_strip}.py` + `TodoStore`, `_ThreadAwareEventProxy` classes | 5.N | ⏳ planned |
 | Auth storage (GitHub + Hermes token) | `tools/*` — `GitHubAuth`, `HermesTokenStorage` classes | 4.G / 5.O | ⏳ planned |
 | Budget config + provider entries | `tools/budget_config.py` — `BudgetConfig`, `_ProviderEntry` classes | 4.H / 5.A | ⏳ planned |
-| Tool entry metadata (registry row schema) | `tools/registry.py` — `ToolEntry` class | 5.A | ⏳ planned |
+| Tool entry metadata (registry row schema) | `tools/registry.py` — `ToolEntry` class | 5.A | ✅ shipped — `internal/tools.ToolEntry` stores the Go tool pointer, toolset name, required env vars, and optional availability check |
 | Web tools / search (Parallel + Firecrawl providers) | `tools/web_tools.py` | 5.A | ⏳ planned |
 | Terminal tool | `tools/terminal_tool.py` | 5.A | ⏳ planned |
 | Send message (cross-platform) | `tools/send_message_tool.py` | 5.N | ⏳ planned |

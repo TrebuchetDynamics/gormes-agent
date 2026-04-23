@@ -20,7 +20,7 @@ func (k *Kernel) buildChatRequest(systemMsgs []hermes.Message) hermes.ChatReques
 		Messages:  msgs,
 	}
 	if k.cfg.Tools != nil {
-		descs := k.cfg.Tools.Descriptors()
+		descs := k.cfg.Tools.AvailableDescriptors()
 		wireDescs := make([]hermes.ToolDescriptor, len(descs))
 		for i, d := range descs {
 			wireDescs[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
