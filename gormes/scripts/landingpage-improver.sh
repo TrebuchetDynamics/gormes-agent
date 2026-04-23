@@ -4,23 +4,26 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
-DOC_ROOT="${DOC_ROOT:-$REPO_ROOT/.codex/doc-improver}"
-LOG_DIR="$DOC_ROOT/logs"
-STATE_FILE="$DOC_ROOT/documentation_state.json"
-REPORT_FILE="$DOC_ROOT/latest_documentation_report.md"
-RAW_REPORT_FILE="$DOC_ROOT/latest_documentation_report.raw.md"
-CONTEXT_FILE="$DOC_ROOT/context.json"
-PROMPT_FILE="$DOC_ROOT/latest_prompt.txt"
-LOCK_DIR="$DOC_ROOT/run.lock"
+LP_ROOT="${LP_ROOT:-$REPO_ROOT/.codex/landingpage-improver}"
+LOG_DIR="$LP_ROOT/logs"
+STATE_FILE="$LP_ROOT/landingpage_state.json"
+REPORT_FILE="$LP_ROOT/latest_landingpage_report.md"
+RAW_REPORT_FILE="$LP_ROOT/latest_landingpage_report.raw.md"
+CONTEXT_FILE="$LP_ROOT/context.json"
+PROMPT_FILE="$LP_ROOT/latest_prompt.txt"
+LOCK_DIR="$LP_ROOT/run.lock"
 LOCK_PID_FILE="$LOCK_DIR/pid"
 LOCK_STARTED_FILE="$LOCK_DIR/started_at"
 LOCK_COMMAND_FILE="$LOCK_DIR/command"
 
-PROGRESS_JSON="$REPO_ROOT/docs/content/building-gormes/architecture_plan/progress.json"
-ARCH_PLAN_DIR="$REPO_ROOT/docs/content/building-gormes/architecture_plan"
-CORE_DOCS_DIR="$REPO_ROOT/docs/content/building-gormes/core-systems"
 SITE_ROOT="$REPO_ROOT/www.gormes.ai"
-SITE_PROGRESS_JSON="$SITE_ROOT/internal/site/data/progress.json"
+SITE_CONTENT_GO="$SITE_ROOT/internal/site/content.go"
+SITE_TEMPLATES_DIR="$SITE_ROOT/internal/site/templates"
+SITE_STATIC_DIR="$SITE_ROOT/internal/site/static"
+SITE_DATA_DIR="$SITE_ROOT/internal/site/data"
+PROGRESS_JSON="$REPO_ROOT/docs/content/building-gormes/architecture_plan/progress.json"
+SITE_PROGRESS_JSON="$SITE_DATA_DIR/progress.json"
+BENCHMARKS_JSON="$SITE_DATA_DIR/benchmarks.json"
 
 RUN_AT_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 RUN_STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
@@ -36,7 +39,7 @@ AUTO_PUSH="${AUTO_PUSH:-0}"
 MAIN_BRANCH="${MAIN_BRANCH:-main}"
 REMOTE_NAME="${REMOTE_NAME:-origin}"
 
-mkdir -p "$DOC_ROOT" "$LOG_DIR"
+mkdir -p "$LP_ROOT" "$LOG_DIR"
 
 # ANSI color codes
 if [[ -t 1 ]] || [[ "${FORCE_COLOR:-0}" == "1" ]]; then
@@ -56,7 +59,7 @@ else
 fi
 
 log() {
-  printf '[documentation-improver] %s\n' "$*"
+  printf '[landingpage-improver] %s\n' "$*"
 }
 
 log_kv() {
@@ -80,28 +83,28 @@ log_error() {
 }
 
 fail() {
-  printf '[documentation-improver] ERROR: %s\n' "$*" >&2
+  printf '[landingpage-improver] ERROR: %s\n' "$*" >&2
   exit 1
 }
 
 usage() {
   cat <<EOF
 Usage:
-  documentation-improver.sh [run]
-  documentation-improver.sh status
-  documentation-improver.sh show-report
-  documentation-improver.sh doctor
-  documentation-improver.sh --help
+  landingpage-improver.sh [run]
+  landingpage-improver.sh status
+  landingpage-improver.sh show-report
+  landingpage-improver.sh doctor
+  landingpage-improver.sh --help
 
 Commands:
-  run          Run one Codex docs-improvement pass and validate docs/progress artifacts.
-  status       Show latest documentation improver state.
-  show-report  Print the latest documentation report.
+  run          Run one Codex landing-page improvement pass.
+  status       Show latest landing page improver state.
+  show-report  Print the latest landing page report.
   doctor       Validate required commands/paths.
 
 Environment:
   REPO_ROOT    Default: $REPO_ROOT
-  DOC_ROOT     Default: $DOC_ROOT
+  LP_ROOT      Default: $LP_ROOT
   VERBOSE      Set to 1 for detailed progress logging
   AUTO_COMMIT  Set to 1 to auto-commit changes after each stage
   AUTO_PUSH    Set to 1 to auto-push commits to remote
@@ -143,7 +146,7 @@ remove_stale_lock() {
 find_legacy_lock_owner() {
   ps -eo pid=,etime=,stat=,args= 2>/dev/null \
     | awk -v self="$$" '
-        $1 != self && $0 ~ /documentation-improver[.]sh/ {
+        $1 != self && $0 ~ /landingpage-improver[.]sh/ {
           print
           exit
         }
@@ -164,7 +167,7 @@ claim_lock() {
   lock_command="$(read_lock_file "$LOCK_COMMAND_FILE" || true)"
 
   if process_is_running "$lock_pid"; then
-    fail "active documentation-improver run owns $LOCK_DIR
+    fail "active landingpage-improver run owns $LOCK_DIR
 PID: $lock_pid
 Started: ${lock_started:-unknown}
 Command: ${lock_command:-unknown}"
@@ -173,18 +176,18 @@ Command: ${lock_command:-unknown}"
   if [[ -z "$lock_pid" ]]; then
     legacy_owner="$(find_legacy_lock_owner || true)"
     if [[ -n "$legacy_owner" ]]; then
-      fail "active legacy documentation-improver run owns $LOCK_DIR
+      fail "active legacy landingpage-improver run owns $LOCK_DIR
 Process: $legacy_owner
 This run started before lock owner metadata existed; wait for it to finish."
     fi
 
-    fail "documentation-improver lock has no owner metadata: $LOCK_DIR
-No active documentation-improver process was detected. Remove the stale lock with: rmdir '$LOCK_DIR'"
+    fail "landingpage-improver lock has no owner metadata: $LOCK_DIR
+No active landingpage-improver process was detected. Remove the stale lock with: rmdir '$LOCK_DIR'"
   fi
 
-  log "Removing stale documentation-improver lock: $LOCK_DIR (PID: $lock_pid, Started: ${lock_started:-unknown})"
+  log "Removing stale landingpage-improver lock: $LOCK_DIR (PID: $lock_pid, Started: ${lock_started:-unknown})"
   remove_stale_lock
-  mkdir "$LOCK_DIR" 2>/dev/null || fail "another documentation-improver run claimed the lock: $LOCK_DIR"
+  mkdir "$LOCK_DIR" 2>/dev/null || fail "another landingpage-improver run claimed the lock: $LOCK_DIR"
   write_lock_metadata "$@"
   trap release_lock EXIT
 }
@@ -205,122 +208,105 @@ json_array_from_lines() {
   jq -Rn '[inputs | select(length > 0)]'
 }
 
-collect_arch_docs_json() {
-  if [[ -d "$ARCH_PLAN_DIR" ]]; then
-    find "$ARCH_PLAN_DIR" -maxdepth 1 -type f -name '*.md' | sort | sed "s#^$REPO_ROOT/##" | json_array_from_lines
+collect_templates_json() {
+  if [[ -d "$SITE_TEMPLATES_DIR" ]]; then
+    find "$SITE_TEMPLATES_DIR" -type f -name '*.tmpl' | sort | sed "s#^$REPO_ROOT/##" | json_array_from_lines
   else
     printf '[]\n'
   fi
 }
 
-collect_core_docs_json() {
-  if [[ -d "$CORE_DOCS_DIR" ]]; then
-    find "$CORE_DOCS_DIR" -maxdepth 1 -type f -name '*.md' | sort | sed "s#^$REPO_ROOT/##" | json_array_from_lines
+collect_static_assets_json() {
+  if [[ -d "$SITE_STATIC_DIR" ]]; then
+    find "$SITE_STATIC_DIR" -type f \( -name '*.css' -o -name '*.js' -o -name '*.png' -o -name '*.svg' \) | sort | sed "s#^$REPO_ROOT/##" | json_array_from_lines
   else
     printf '[]\n'
   fi
 }
 
-collect_site_content_json() {
-  if [[ -d "$SITE_ROOT/content" ]]; then
-    find "$SITE_ROOT/content" -type f -name '*.md' | sort | sed "s#^$REPO_ROOT/##" | json_array_from_lines
+collect_site_data_json() {
+  if [[ -d "$SITE_DATA_DIR" ]]; then
+    find "$SITE_DATA_DIR" -type f -name '*.json' | sort | sed "s#^$REPO_ROOT/##" | json_array_from_lines
   else
     printf '[]\n'
   fi
-}
-
-collect_progress_summary_json() {
-  jq -c '
-    [
-      (.phases // {}) | to_entries[] as $phase
-      | (($phase.value.subphases // {}) | to_entries[]) as $subphase
-      | ($subphase.value.items // [])[] as $item
-      | {
-          status: ($item.status // "unknown"),
-          note: ($item.note // "")
-        }
-    ] as $items
-    | {
-        phase_count: ((.phases // {}) | length),
-        item_count: ($items | length),
-        planned_items: ($items | map(select(.status == "planned")) | length),
-        in_progress_items: ($items | map(select(.status == "in_progress")) | length),
-        complete_items: ($items | map(select(.status == "complete")) | length),
-        items_missing_notes: ($items | map(select(.note == "")) | length)
-      }
-  ' "$PROGRESS_JSON"
 }
 
 write_context_bundle() {
-  local arch_docs_json core_docs_json site_docs_json summary_json
+  local templates_json static_json data_json
 
-  arch_docs_json="$(collect_arch_docs_json)"
-  core_docs_json="$(collect_core_docs_json)"
-  site_docs_json="$(collect_site_content_json)"
-  summary_json="$(collect_progress_summary_json)"
+  templates_json="$(collect_templates_json)"
+  static_json="$(collect_static_assets_json)"
+  data_json="$(collect_site_data_json)"
 
   jq -n \
     --arg run_at_utc "$RUN_AT_UTC" \
     --arg repo_root "$REPO_ROOT" \
+    --arg site_root "$SITE_ROOT" \
+    --arg content_go "$SITE_CONTENT_GO" \
     --arg progress_json "$PROGRESS_JSON" \
     --arg site_progress_json "$SITE_PROGRESS_JSON" \
-    --arg site_root "$SITE_ROOT" \
-    --argjson architecture_docs "$arch_docs_json" \
-    --argjson core_system_docs "$core_docs_json" \
-    --argjson site_docs "$site_docs_json" \
-    --argjson progress_summary "$summary_json" \
+    --arg benchmarks_json "$BENCHMARKS_JSON" \
+    --argjson templates "$templates_json" \
+    --argjson static_assets "$static_json" \
+    --argjson data_files "$data_json" \
     '{
       run_at_utc: $run_at_utc,
       repo_root: $repo_root,
+      site_root: $site_root,
+      content_go: $content_go,
       progress_json: $progress_json,
       site_progress_json: $site_progress_json,
-      site_root: $site_root,
-      architecture_docs: $architecture_docs,
-      core_system_docs: $core_system_docs,
-      site_docs: $site_docs,
-      progress_summary: $progress_summary
+      benchmarks_json: $benchmarks_json,
+      templates: $templates,
+      static_assets: $static_assets,
+      data_files: $data_files
     }' > "$CONTEXT_FILE"
 }
 
 write_prompt_file() {
   cat > "$PROMPT_FILE" <<EOF
-You are the Gormes Documentation Improver.
+You are the Gormes Landing Page Improver.
 
 Mission:
-Update and improve documentation for shipped Hermes/Gormes features, keep architecture/progress docs accurate, and keep the website content/data in sync with current implementation.
+Improve the www.gormes.ai landing page to accurately reflect the current state of the Gormes project, ensure copy is compelling and accurate, and keep all data files in sync with the canonical progress.
 
 Repository root:
 - $REPO_ROOT
 
+Site root:
+- $SITE_ROOT
+
 Files of record:
-- Progress ledger: $PROGRESS_JSON
-- Architecture docs: $ARCH_PLAN_DIR
-- Core systems docs: $CORE_DOCS_DIR
-- Website docs/content: $SITE_ROOT/content
-- Website progress data: $SITE_PROGRESS_JSON
+- Landing page content: $SITE_CONTENT_GO
+- HTML templates: $SITE_TEMPLATES_DIR
+- Static assets (CSS): $SITE_STATIC_DIR
+- Progress data: $SITE_PROGRESS_JSON (should match $PROGRESS_JSON)
+- Benchmarks data: $BENCHMARKS_JSON
 - Context bundle: $CONTEXT_FILE
 
 Rules:
-- Documentation/web/progress updates only. Do not implement runtime features.
-- Be evidence-first: align claims with current code and tests.
-- Do not mark items complete unless implemented behavior exists in the tree.
-- Keep edits focused and incremental.
+- Landing page improvements only. Do not implement runtime features.
+- Keep the zero-JavaScript, server-rendered approach.
+- Ensure claims match actual implementation (binary size, features, etc).
+- Sync progress.json when roadmap status changes.
+- Keep edits focused on messaging, clarity, and accuracy.
 
 Required tasks:
-1) Scan docs + current code surface for drift.
-2) Improve architecture/core docs for newly landed features.
-3) Sync website docs/content/data with current progress where needed.
-4) Run validation commands:
-   - go run ./cmd/progress-gen -write
-   - go run ./cmd/progress-gen -validate
-   - go test ./internal/progress -count=1
-   - go test ./docs -count=1
+1) Review current landing page copy in content.go against actual implementation.
+2) Check that features, roadmap, and CTAs are accurate and compelling.
+3) Sync progress data if it differs from canonical progress.json.
+4) Improve messaging clarity where needed (headlines, feature descriptions, CTAs).
+5) Run validation commands:
+   - go test ./internal/site/... -count=1
+   - go test ./... -count=1 (from www.gormes.ai directory)
+   - make build (if Makefile exists)
 
 Required final report sections (exact headings):
 1) Scope and baseline
-2) Feature/doc drift found
-3) Documentation updates applied
-4) Website updates applied
+2) Copy/content issues found
+3) Landing page updates applied
+4) Data sync status
 5) Validation evidence
 6) Risks / follow-ups
 EOF
@@ -349,9 +335,9 @@ verify_final_report() {
     grep -Ei "$pattern" "$file" > /dev/null || return 1
   done <<'EOF'
 1|Scope and baseline
-2|Feature/doc drift found
-3|Documentation updates applied
-4|Website updates applied
+2|Copy/content issues found
+3|Landing page updates applied
+4|Data sync status
 5|Validation evidence
 6|Risks / follow-ups
 EOF
@@ -363,7 +349,7 @@ extract_session_id() {
   jq -r 'select(.type=="thread.started") | (.thread_id // .session_id // empty)' "$jsonl_file" | head -n1
 }
 
-run_codexu_docs_pass() {
+run_codexu_landingpage_pass() {
   log "Codex stdout JSONL: $CODEXU_JSONL"
   log "Codex stderr: $CODEXU_STDERR"
   (
@@ -378,8 +364,8 @@ run_codexu_docs_pass() {
   )
 
   if ! verify_final_report "$RAW_REPORT_FILE"; then
-    [[ -f "$RAW_REPORT_FILE" ]] && printf '[documentation-improver] Raw report saved at %s\n' "$RAW_REPORT_FILE" >&2
-    fail "documentation final report did not match required format"
+    [[ -f "$RAW_REPORT_FILE" ]] && printf '[landingpage-improver] Raw report saved at %s\n' "$RAW_REPORT_FILE" >&2
+    fail "landing page final report did not match required format"
   fi
 }
 
@@ -387,16 +373,11 @@ run_validation() {
   : > "$VALIDATION_LOG"
 
   log "Validation log: $VALIDATION_LOG"
-  log "Validation command: go run ./cmd/progress-gen -write"
-  log "Validation command: go run ./cmd/progress-gen -validate"
-  log "Validation command: go test ./internal/progress -count=1"
-  log "Validation command: go test ./docs -count=1"
+  log "Validation command: go test ./internal/site/... -count=1"
   (
-    cd "$REPO_ROOT"
-    go run ./cmd/progress-gen -write
-    go run ./cmd/progress-gen -validate
-    go test ./internal/progress -count=1
-    go test ./docs -count=1
+    cd "$SITE_ROOT"
+    go test ./internal/site/... -count=1
+    go test ./... -count=1
   ) >>"$VALIDATION_LOG" 2>&1 || {
     cat "$VALIDATION_LOG" >&2
     fail "validation failed"
@@ -405,10 +386,11 @@ run_validation() {
 
 write_report() {
   cat > "$REPORT_FILE" <<EOF
-# Documentation Improver Run
+# Landing Page Improver Run
 
 - Run UTC: $RUN_AT_UTC
 - Repo root: $REPO_ROOT
+- Site root: $SITE_ROOT
 - Context bundle: $CONTEXT_FILE
 - Prompt file: $PROMPT_FILE
 - Validation log: $VALIDATION_LOG
@@ -424,6 +406,7 @@ write_state_file() {
   jq -n \
     --arg last_run_utc "$RUN_AT_UTC" \
     --arg repo_root "$REPO_ROOT" \
+    --arg site_root "$SITE_ROOT" \
     --arg report_path "$REPORT_FILE" \
     --arg raw_report_path "$RAW_REPORT_FILE" \
     --arg context_path "$CONTEXT_FILE" \
@@ -435,6 +418,7 @@ write_state_file() {
     '{
       last_run_utc: $last_run_utc,
       repo_root: $repo_root,
+      site_root: $site_root,
       report_path: $report_path,
       raw_report_path: $raw_report_path,
       context_path: $context_path,
@@ -467,21 +451,20 @@ cmd_doctor() {
   require_cmd codexu
   require_cmd go
   require_dir "$REPO_ROOT"
-  require_dir "$ARCH_PLAN_DIR"
-  require_dir "$CORE_DOCS_DIR"
   require_dir "$SITE_ROOT"
+  require_file "$SITE_CONTENT_GO"
   require_file "$PROGRESS_JSON"
-  require_file "$SITE_PROGRESS_JSON"
   log "doctor: ok"
 }
 
 cmd_run() {
   claim_lock "$@"
 
-  log "Starting documentation improver run"
+  log "Starting landing page improver run"
   log_kv "Run UTC" "$RUN_AT_UTC"
   log_kv "Repo root" "$REPO_ROOT"
-  log_kv "Doc root" "$DOC_ROOT"
+  log_kv "Site root" "$SITE_ROOT"
+  log_kv "LP root" "$LP_ROOT"
   log_kv "Lock" "$LOCK_DIR"
   log_kv "Report" "$REPORT_FILE"
   log_kv "State" "$STATE_FILE"
@@ -492,13 +475,11 @@ cmd_run() {
   require_cmd codexu
   require_cmd go
   require_dir "$REPO_ROOT"
-  require_dir "$ARCH_PLAN_DIR"
-  require_dir "$CORE_DOCS_DIR"
   require_dir "$SITE_ROOT"
+  require_file "$SITE_CONTENT_GO"
   require_file "$PROGRESS_JSON"
-  require_file "$SITE_PROGRESS_JSON"
 
-  log "Step 2/7: collecting documentation context"
+  log "Step 2/7: collecting landing page context"
   write_context_bundle
   log "Context bundle: $CONTEXT_FILE"
 
@@ -506,8 +487,8 @@ cmd_run() {
   write_prompt_file
   log "Prompt file: $PROMPT_FILE"
 
-  log "Step 4/7: running Codex documentation pass"
-  run_codexu_docs_pass
+  log "Step 4/7: running Codex landing page pass"
+  run_codexu_landingpage_pass
 
   local session_id
   session_id="$(extract_session_id "$CODEXU_JSONL" || true)"
@@ -517,7 +498,7 @@ cmd_run() {
     log "Codex session: unavailable"
   fi
 
-  log "Step 5/7: validating docs/progress artifacts"
+  log "Step 5/7: validating landing page artifacts"
   run_validation
 
   log "Step 6/7: writing final report"
@@ -526,8 +507,8 @@ cmd_run() {
   log "Step 7/7: writing state"
   write_state_file
 
-  log "Documentation report: $REPORT_FILE"
-  log "Documentation state: $STATE_FILE"
+  log "Landing page report: $REPORT_FILE"
+  log "Landing page state: $STATE_FILE"
   log "Complete."
 }
 
