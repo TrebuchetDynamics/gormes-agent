@@ -3,6 +3,13 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 shopt -s inherit_errexit 2>/dev/null || true
 
+ORCHESTRATOR_LIB_DIR="${ORCHESTRATOR_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/orchestrator/lib}"
+# shellcheck source=/dev/null
+for _lib in common; do
+  source "$ORCHESTRATOR_LIB_DIR/${_lib}.sh"
+done
+unset _lib
+
 # Error handler with stack trace
 err_trap() {
   local exit_code=$?
@@ -14,46 +21,6 @@ err_trap() {
   while caller "$i" >&2; do ((i++)); done
 }
 trap err_trap ERR
-
-# Verbose logging functions
-log_info() {
-  if [[ "$VERBOSE" == "1" ]]; then
-    echo "[INFO] $(date '+%H:%M:%S') $*" >&2
-  fi
-}
-
-log_debug() {
-  if [[ "$VERBOSE" == "1" ]]; then
-    echo "[DEBUG] $(date '+%H:%M:%S') $*" >&2
-  fi
-}
-
-log_warn() {
-  echo "[WARN] $(date '+%H:%M:%S') $*" >&2
-}
-
-log_error() {
-  echo "[ERROR] $(date '+%H:%M:%S') $*" >&2
-}
-
-# Progress indicator
-show_progress() {
-  local current=$1
-  local total=$2
-  local label="${3:-Progress}"
-  local width=50
-  local percentage=$((current * 100 / total))
-  local filled=$((width * current / total))
-  local empty=$((width - filled))
-
-  printf "\r%s [%s%s] %3d%% (%d/%d)" \
-    "$label" \
-    "$(printf '%*s' "$filled" '' | tr ' ' '=')" \
-    "$(printf '%*s' "$empty" '' | tr ' ' ' ')" \
-    "$percentage" \
-    "$current" \
-    "$total"
-}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
@@ -216,19 +183,8 @@ claim_run_lock() {
   trap release_run_lock EXIT
 }
 
-require_cmd() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "ERROR: missing required command: $1" >&2
-    exit 1
-  }
-}
-
 promotion_enabled() {
   [[ "$AUTO_PROMOTE_SUCCESS" == "1" ]]
-}
-
-safe_path_token() {
-  printf '%s' "$1" | sed -E 's#[^A-Za-z0-9._-]+#-#g; s#^-+##; s#-+$##'
 }
 
 refresh_repo_paths() {
@@ -500,10 +456,6 @@ validate() {
     echo "ERROR: MAX_RUN_WORKTREE_DIRS must be a positive integer" >&2
     exit 1
   fi
-}
-
-available_mem_mb() {
-  free -m | awk '/^Mem:/ { print $7 }'
 }
 
 preflight_resource_safety() {
@@ -838,19 +790,6 @@ enforce_worktree_dir_cap() {
     git -C "$GIT_ROOT" worktree remove --force "$d" >/dev/null 2>&1 || true
     rm -rf "$d" 2>/dev/null || true
   done
-}
-
-classify_worker_failure() {
-  local rc="$1"
-  if [[ "$rc" == "124" ]]; then
-    printf 'timeout\n'
-  elif [[ "$rc" == "137" ]]; then
-    printf 'killed\n'
-  elif [[ "$rc" == "1" ]]; then
-    printf 'contract_or_test_failure\n'
-  else
-    printf 'worker_error\n'
-  fi
 }
 
 try_soft_success_nonzero() {
