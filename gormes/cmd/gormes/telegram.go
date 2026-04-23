@@ -18,7 +18,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/goncho"
-	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
@@ -109,7 +108,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		Logger:   slog.Default(),
 	})
 
-	hc := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
+	hc, endpoint := newLLMClient(cfg)
 
 	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -162,7 +161,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
-		Endpoint:          cfg.Hermes.Endpoint,
+		Endpoint:          endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
 		MaxToolIterations: 10,
@@ -271,7 +270,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	}()
 
 	slog.Info("gormes telegram starting",
-		"endpoint", cfg.Hermes.Endpoint,
+		"endpoint", endpoint,
 		"allowed_chat_id", cfg.Telegram.AllowedChatID,
 		"discovery", cfg.Telegram.FirstRunDiscovery,
 		"sessions_db", config.SessionDBPath(),

@@ -20,14 +20,14 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 35/66 subphases shipped · 0 in progress · 31 planned
+**Overall:** 35/66 subphases shipped · 1 in progress · 30 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
 | Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
-| Phase 4 — The Brain Transplant | ⏳ | 0/8 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
@@ -247,13 +247,13 @@ weight: 10
 - [x] parent_session_id lineage for compression splits
 - [x] Source-filtered FTS/session search across chats
 
-## Phase 4 — The Brain Transplant ⏳
+## Phase 4 — The Brain Transplant 🔨
 
 *Native Go agent orchestrator + prompt builder*
 
-### 4.A — Provider Adapters ⏳
+### 4.A — Provider Adapters 🔨
 
-- [ ] Anthropic
+- [x] Anthropic
 - [ ] Bedrock
 - [ ] Gemini
 - [ ] OpenRouter

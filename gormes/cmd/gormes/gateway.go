@@ -18,7 +18,6 @@ import (
 	telegram "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
@@ -96,7 +95,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	hc := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
+	hc, endpoint := newLLMClient(cfg)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 1)
@@ -107,7 +106,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
-		Endpoint:          cfg.Hermes.Endpoint,
+		Endpoint:          endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
 		MaxToolIterations: 10,
@@ -202,7 +201,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	})
 	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
 
-	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "pairing_path", config.PairingStatePath(), "channel_directory_path", surfaces.stateMirror.Path(), "sticker_cache_path", surfaces.stickerCache.Path())
+	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "pairing_path", config.PairingStatePath(), "channel_directory_path", surfaces.stateMirror.Path(), "sticker_cache_path", surfaces.stickerCache.Path())
 	return mgr.Run(rootCtx)
 }
 

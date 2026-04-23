@@ -65,13 +65,13 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 2 = %q, want complete", got)
 	}
-	// Phase 3 has most memory subphases shipped, 3.E.* planned -> in_progress.
-	if got := p.Phases["3"].DerivedStatus(); got != StatusInProgress {
-		t.Errorf("Phase 3 = %q, want in_progress", got)
+	// Phase 3 is complete once the final 3.E ledger items land.
+	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
+		t.Errorf("Phase 3 = %q, want complete", got)
 	}
-	// Phase 4 is entirely planned.
-	if got := p.Phases["4"].DerivedStatus(); got != StatusPlanned {
-		t.Errorf("Phase 4 = %q, want planned", got)
+	// Phase 4 is in progress once the first provider adapter lands.
+	if got := p.Phases["4"].DerivedStatus(); got != StatusInProgress {
+		t.Errorf("Phase 4 = %q, want in_progress", got)
 	}
 	// Floor counts — catches mass-deletion regressions without pinning exact values.
 	if n := len(p.Phases); n < 6 {
@@ -172,6 +172,28 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		if got := skillItems[name]; got != want {
 			t.Errorf("Phase 2.G item %q = %q, want %q", name, got, want)
 		}
+	}
+}
+
+func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	providers := p.Phases["4"].Subphases["4.A"]
+	if got := providers.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 4.A = %q, want in_progress", got)
+	}
+	items := itemsByName(providers.Items)
+	anthropic := items["Anthropic"]
+	if anthropic.Status != StatusComplete {
+		t.Fatalf("Phase 4.A Anthropic status = %q, want complete", anthropic.Status)
+	}
+	if !strings.Contains(anthropic.Note, "internal/hermes.NewClient") ||
+		!strings.Contains(anthropic.Note, "tool_use") ||
+		!strings.Contains(anthropic.Note, "cmd/gormes") {
+		t.Fatalf("Phase 4.A Anthropic note = %q, want NewClient/tool_use/cmd wiring detail", anthropic.Note)
 	}
 }
 

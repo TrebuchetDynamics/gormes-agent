@@ -108,7 +108,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
-| Anthropic adapter | `agent/anthropic_adapter.py` | 4.A | ⏳ planned |
+| Anthropic adapter | `agent/anthropic_adapter.py` | 4.A | ✅ complete |
 | Bedrock adapter | `agent/bedrock_adapter.py` | 4.A | ⏳ planned |
 | Gemini Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | 4.A | ⏳ planned |
 | OpenRouter client | `agent/openrouter_client.py` | 4.A | ⏳ planned |

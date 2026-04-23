@@ -12,11 +12,15 @@ import (
 
 func TestLoad_BuiltinDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_PROVIDER", "")
 	t.Setenv("GORMES_ENDPOINT", "")
 	t.Setenv("GORMES_API_KEY", "")
 	cfg, err := Load(nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if cfg.Hermes.Provider != "openai" {
+		t.Errorf("default provider = %q, want openai", cfg.Hermes.Provider)
 	}
 	if cfg.Hermes.Endpoint != "http://127.0.0.1:8642" {
 		t.Errorf("default endpoint = %q", cfg.Hermes.Endpoint)
@@ -46,6 +50,19 @@ endpoint = "http://file:8642"
 	}
 	if cfg.Hermes.Endpoint != "http://env:8642" {
 		t.Errorf("endpoint = %q, want env", cfg.Hermes.Endpoint)
+	}
+}
+
+func TestLoad_ProviderEnvOverride(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_PROVIDER", "anthropic")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Hermes.Provider != "anthropic" {
+		t.Fatalf("provider = %q, want anthropic", cfg.Hermes.Provider)
 	}
 }
 

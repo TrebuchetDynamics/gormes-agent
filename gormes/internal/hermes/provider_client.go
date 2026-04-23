@@ -1,0 +1,48 @@
+package hermes
+
+import "strings"
+
+const (
+	defaultOpenAIEndpoint   = "http://127.0.0.1:8642"
+	defaultAnthropicBaseURL = "https://api.anthropic.com"
+)
+
+// NewClient returns a provider-aware Client that preserves the canonical
+// hermes.Client contract. The default provider remains the existing
+// OpenAI-compatible HTTP client used by Hermes' api_server.
+func NewClient(provider, endpoint, apiKey string) Client {
+	switch normalizedProvider(provider) {
+	case "anthropic":
+		return newAnthropicClient(EffectiveEndpoint(provider, endpoint), apiKey)
+	default:
+		return NewHTTPClient(EffectiveEndpoint(provider, endpoint), apiKey)
+	}
+}
+
+// EffectiveEndpoint resolves empty or legacy-default endpoints for a provider
+// into the actual base URL that the client should use.
+func EffectiveEndpoint(provider, endpoint string) string {
+	base := strings.TrimSpace(endpoint)
+	switch normalizedProvider(provider) {
+	case "anthropic":
+		if base == "" || base == defaultOpenAIEndpoint {
+			return defaultAnthropicBaseURL
+		}
+	default:
+		if base == "" {
+			return defaultOpenAIEndpoint
+		}
+	}
+	return strings.TrimRight(base, "/")
+}
+
+func normalizedProvider(provider string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "", "openai", "openai-compatible", "openai_compatible", "hermes":
+		return "openai"
+	case "anthropic":
+		return "anthropic"
+	default:
+		return strings.ToLower(strings.TrimSpace(provider))
+	}
+}

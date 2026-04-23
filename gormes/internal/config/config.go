@@ -153,6 +153,7 @@ func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
 }
 
 type HermesCfg struct {
+	Provider string `toml:"provider"`
 	Endpoint string `toml:"endpoint"`
 	APIKey   string `toml:"api_key"`
 	Model    string `toml:"model"`
@@ -193,6 +194,7 @@ func defaults() Config {
 	return Config{
 		ConfigVersion: CurrentConfigVersion,
 		Hermes: HermesCfg{
+			Provider: "openai",
 			Endpoint: "http://127.0.0.1:8642",
 			Model:    "hermes-agent",
 		},
@@ -290,6 +292,9 @@ func migrateConfig(cfg *Config) error {
 }
 
 func loadEnv(cfg *Config) {
+	if v := os.Getenv("GORMES_PROVIDER"); v != "" {
+		cfg.Hermes.Provider = v
+	}
 	if v := os.Getenv("GORMES_ENDPOINT"); v != "" {
 		cfg.Hermes.Endpoint = v
 	}
@@ -323,7 +328,7 @@ func loadFlags(cfg *Config, args []string) error {
 		return nil
 	}
 	fs := pflag.NewFlagSet("gormes", pflag.ContinueOnError)
-	endpoint := fs.String("endpoint", "", "Hermes api_server base URL")
+	endpoint := fs.String("endpoint", "", "LLM provider base URL")
 	model := fs.String("model", "", "served model name")
 	resume := fs.String("resume", "", "override persisted session_id for this binary's default key")
 	// No --api-key flag — secrets stay out of process argv.

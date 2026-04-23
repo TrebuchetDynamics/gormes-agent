@@ -12,7 +12,6 @@ import (
 	telegram "github.com/TrebuchetDynamics/gormes-agent/gormes/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/doctor"
-	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 func init() {
@@ -27,22 +26,29 @@ var doctorCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		target := llmProviderLabel(cfg.Hermes.Provider)
 
 		offline, _ := cmd.Flags().GetBool("offline")
 
 		if !offline {
-			c := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
+			c, endpoint := newLLMClient(cfg)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			if err := c.Health(ctx); err != nil {
-				fmt.Fprintf(os.Stderr,
-					"[FAIL] api_server: NOT reachable at %s: %v\n\nStart it with:\n  API_SERVER_ENABLED=true hermes gateway start\n\nOr pass --offline to validate only the local tool registry.\n",
-					cfg.Hermes.Endpoint, err)
+				if target == "anthropic" {
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] anthropic: NOT reachable at %s: %v\n\nSet GORMES_PROVIDER=anthropic and GORMES_API_KEY, or pass --offline to validate only the local tool registry.\n",
+						endpoint, err)
+				} else {
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] api_server: NOT reachable at %s: %v\n\nStart it with:\n  API_SERVER_ENABLED=true hermes gateway start\n\nOr pass --offline to validate only the local tool registry.\n",
+						endpoint, err)
+				}
 				os.Exit(1)
 			}
-			fmt.Printf("[PASS] api_server: reachable at %s\n", cfg.Hermes.Endpoint)
+			fmt.Printf("[PASS] %s: reachable at %s\n", target, endpoint)
 		} else {
-			fmt.Println("[SKIP] api_server: skipped (--offline)")
+			fmt.Printf("[SKIP] %s: skipped (--offline)\n", target)
 		}
 
 		// Toolbox section — inspect the built-in registry. Runs in both modes.

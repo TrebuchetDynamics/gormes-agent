@@ -673,7 +673,8 @@
           "items": [
             {
               "name": "Anthropic",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: internal/hermes.NewClient now selects a native Anthropic Messages API adapter that folds system prompts, translates assistant tool_use + user tool_result blocks, streams reasoning/text/tool_calls back into canonical Event values, and wires cmd/gormes, doctor, gateway, and telegram through provider-aware endpoint resolution."
             },
             {
               "name": "Bedrock",

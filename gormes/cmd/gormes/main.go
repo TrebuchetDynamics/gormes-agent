@@ -17,7 +17,6 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/store"
@@ -61,7 +60,7 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 		slog.Info("detected upstream Hermes home — Gormes uses XDG paths and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
 	}
 
-	c := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
+	c, endpoint := newLLMClient(cfg)
 
 	// Health check: 2s budget. Surface an actionable error if unreachable.
 	offline, _ := cmd.Flags().GetBool("offline")
@@ -69,9 +68,15 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 		healthCtx, healthCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		if err := c.Health(healthCtx); err != nil {
 			healthCancel()
-			fmt.Fprintf(os.Stderr,
-				"api_server not reachable at %s: %v\n\nStart it with:\n  API_SERVER_ENABLED=true hermes gateway start\n\nOr pass --offline to render the TUI without a live server (dev only).\n",
-				cfg.Hermes.Endpoint, err)
+			if llmProviderLabel(cfg.Hermes.Provider) == "anthropic" {
+				fmt.Fprintf(os.Stderr,
+					"Anthropic Messages API not reachable at %s: %v\n\nSet GORMES_PROVIDER=anthropic and GORMES_API_KEY, or pass --offline to render the TUI without a live provider (dev only).\n",
+					endpoint, err)
+			} else {
+				fmt.Fprintf(os.Stderr,
+					"api_server not reachable at %s: %v\n\nStart it with:\n  API_SERVER_ENABLED=true hermes gateway start\n\nOr pass --offline to render the TUI without a live server (dev only).\n",
+					endpoint, err)
+			}
 			return err
 		}
 		healthCancel()
@@ -111,7 +116,7 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
-		Endpoint:          cfg.Hermes.Endpoint,
+		Endpoint:          endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             buildDefaultRegistry(rootCtx, cfg.Delegation, cfg.SkillsRoot(), c, cfg.Hermes.Model),
 		MaxToolIterations: 10,
