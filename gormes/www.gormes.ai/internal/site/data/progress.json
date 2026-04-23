@@ -733,7 +733,8 @@
           "items": [
             {
               "name": "Per-turn model selection",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: internal/kernel/model_routing.go now applies conservative same-provider simple-turn selection, internal/kernel/kernel.go carries the effective model through hermes.ChatRequest, telemetry, and render frames, and coverage lives in internal/kernel/model_routing_test.go plus internal/config/config_test.go with go test ./internal/kernel ./internal/config."
             }
           ]
         },

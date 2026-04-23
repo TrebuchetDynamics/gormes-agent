@@ -20,14 +20,14 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 39/66 subphases shipped · 0 in progress · 27 planned
+**Overall:** 40/66 subphases shipped · 0 in progress · 26 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
 | Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 4/8 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 5/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
@@ -269,9 +269,9 @@ weight: 10
 
 - [x] System + memory + tools + history assembly
 
-### 4.D — Smart Model Routing ⏳
+### 4.D — Smart Model Routing ✅
 
-- [ ] Per-turn model selection
+- [x] Per-turn model selection
 
 ### 4.E — Trajectory + Insights ✅
 

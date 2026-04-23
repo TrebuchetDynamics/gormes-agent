@@ -107,6 +107,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
 		Endpoint:          endpoint,
+		ModelRouting:      smartModelRouting(cfg),
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
 		MaxToolIterations: 10,

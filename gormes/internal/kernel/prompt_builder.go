@@ -14,7 +14,7 @@ func (k *Kernel) buildChatRequest(systemMsgs []hermes.Message) hermes.ChatReques
 	}
 
 	request := hermes.ChatRequest{
-		Model:     k.cfg.Model,
+		Model:     k.currentModel,
 		SessionID: k.sessionID,
 		Stream:    true,
 		Messages:  msgs,

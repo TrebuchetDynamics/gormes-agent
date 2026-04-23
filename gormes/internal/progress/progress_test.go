@@ -329,6 +329,30 @@ func TestLoad_RealFile_Phase4PromptBuilder(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_Phase4SmartModelRouting(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	routing := p.Phases["4"].Subphases["4.D"]
+	if got := routing.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 4.D = %q, want complete", got)
+	}
+	items := itemsByName(routing.Items)
+	selection := items["Per-turn model selection"]
+	if selection.Status != StatusComplete {
+		t.Fatalf("Phase 4.D per-turn model selection status = %q, want complete", selection.Status)
+	}
+	if !strings.Contains(selection.Note, "internal/kernel/model_routing.go") ||
+		!strings.Contains(selection.Note, "hermes.ChatRequest") ||
+		!strings.Contains(selection.Note, "internal/kernel/model_routing_test.go") ||
+		!strings.Contains(selection.Note, "internal/config/config_test.go") ||
+		!strings.Contains(selection.Note, "go test ./internal/kernel ./internal/config") {
+		t.Fatalf("Phase 4.D routing note = %q, want package/request/config/test detail", selection.Note)
+	}
+}
+
 func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {

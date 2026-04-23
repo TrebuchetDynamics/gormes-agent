@@ -122,6 +122,7 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
 		Endpoint:          endpoint,
+		ModelRouting:      smartModelRouting(cfg),
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             buildDefaultRegistry(rootCtx, cfg.Delegation, cfg.SkillsRoot(), c, cfg.Hermes.Model),
 		MaxToolIterations: 10,

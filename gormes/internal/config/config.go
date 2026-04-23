@@ -153,10 +153,18 @@ func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
 }
 
 type HermesCfg struct {
-	Provider string `toml:"provider"`
-	Endpoint string `toml:"endpoint"`
-	APIKey   string `toml:"api_key"`
-	Model    string `toml:"model"`
+	Provider     string          `toml:"provider"`
+	Endpoint     string          `toml:"endpoint"`
+	APIKey       string          `toml:"api_key"`
+	Model        string          `toml:"model"`
+	SmartRouting SmartRoutingCfg `toml:"smart_routing"`
+}
+
+type SmartRoutingCfg struct {
+	Enabled        bool   `toml:"enabled"`
+	SimpleModel    string `toml:"simple_model"`
+	MaxSimpleChars int    `toml:"max_simple_chars"`
+	MaxSimpleWords int    `toml:"max_simple_words"`
 }
 
 type TUICfg struct {
@@ -197,6 +205,10 @@ func defaults() Config {
 			Provider: "openai",
 			Endpoint: "http://127.0.0.1:8642",
 			Model:    "hermes-agent",
+			SmartRouting: SmartRoutingCfg{
+				MaxSimpleChars: 160,
+				MaxSimpleWords: 28,
+			},
 		},
 		TUI:   TUICfg{Theme: "dark"},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},

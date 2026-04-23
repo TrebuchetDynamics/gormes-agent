@@ -30,6 +30,7 @@ var ErrEventMailboxFull = errors.New("kernel: event mailbox full")
 type Config struct {
 	Model             string
 	Endpoint          string
+	ModelRouting      SmartModelRouting
 	Admission         Admission
 	Tools             *tools.Registry // nil → tool_calls are treated as fatal
 	MaxToolIterations int             // default 10 when zero
@@ -87,12 +88,13 @@ type Kernel struct {
 	// All fields below this line are OWNED EXCLUSIVELY by the Run goroutine.
 	// No other goroutine may read or write them without a channel-based
 	// handshake. Violating this invariant is a race.
-	phase     Phase
-	draft     string
-	history   []hermes.Message
-	soul      []SoulEntry
-	sessionID string
-	lastError string
+	phase        Phase
+	draft        string
+	history      []hermes.Message
+	soul         []SoulEntry
+	currentModel string
+	sessionID    string
+	lastError    string
 }
 
 func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log *slog.Logger) *Kernel {
@@ -102,16 +104,18 @@ func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log
 	if cfg.ContextEngine == nil {
 		cfg.ContextEngine = contextengine.NewCompressor(contextengine.Config{})
 	}
+	cfg.ModelRouting = cfg.ModelRouting.withDefaults()
 	tm.SetModel(cfg.Model)
 	return &Kernel{
-		cfg:       cfg,
-		client:    c,
-		store:     s,
-		tm:        tm,
-		log:       log,
-		render:    make(chan RenderFrame, RenderMailboxCap),
-		events:    make(chan PlatformEvent, PlatformEventMailboxCap),
-		sessionID: cfg.InitialSessionID,
+		cfg:          cfg,
+		client:       c,
+		store:        s,
+		tm:           tm,
+		log:          log,
+		render:       make(chan RenderFrame, RenderMailboxCap),
+		events:       make(chan PlatformEvent, PlatformEventMailboxCap),
+		currentModel: cfg.Model,
+		sessionID:    cfg.InitialSessionID,
 	}
 }
 
@@ -248,6 +252,8 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID st
 
 	// 3. Update state for the new turn. These mutations are safe because we
 	// are on the Run goroutine.
+	k.currentModel = selectTurnModel(k.cfg.Model, text, k.cfg.ModelRouting)
+	k.tm.SetModel(k.currentModel)
 	k.history = append(k.history, hermes.Message{Role: "user", Content: text})
 	k.draft = ""
 	k.lastError = ""
@@ -694,7 +700,7 @@ func (k *Kernel) emitFrame(status string) {
 		Telemetry:  k.tm.Snapshot(),
 		StatusText: status,
 		SessionID:  k.sessionID,
-		Model:      k.cfg.Model,
+		Model:      k.currentModel,
 		LastError:  k.lastError,
 		SoulEvents: append([]SoulEntry(nil), k.soul...),
 	}

@@ -53,6 +53,44 @@ endpoint = "http://file:8642"
 	}
 }
 
+func TestLoad_HermesSmartRoutingFromFile(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	dir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[hermes]
+model = "hermes-agent"
+
+[hermes.smart_routing]
+enabled = true
+simple_model = "hermes-agent-mini"
+max_simple_chars = 120
+max_simple_words = 18
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Hermes.SmartRouting.Enabled {
+		t.Fatal("smart routing enabled = false, want true")
+	}
+	if cfg.Hermes.SmartRouting.SimpleModel != "hermes-agent-mini" {
+		t.Fatalf("smart routing simple_model = %q, want hermes-agent-mini", cfg.Hermes.SmartRouting.SimpleModel)
+	}
+	if cfg.Hermes.SmartRouting.MaxSimpleChars != 120 {
+		t.Fatalf("smart routing max_simple_chars = %d, want 120", cfg.Hermes.SmartRouting.MaxSimpleChars)
+	}
+	if cfg.Hermes.SmartRouting.MaxSimpleWords != 18 {
+		t.Fatalf("smart routing max_simple_words = %d, want 18", cfg.Hermes.SmartRouting.MaxSimpleWords)
+	}
+}
+
 func TestLoad_ProviderEnvOverride(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("GORMES_PROVIDER", "anthropic")
