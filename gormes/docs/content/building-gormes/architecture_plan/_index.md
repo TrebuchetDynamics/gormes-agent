@@ -334,10 +334,10 @@ weight: 10
 
 - [x] ACP server side
 
-### 5.I — Plugins Architecture 🔨
+### 5.I — Plugins Architecture ✅
 
 - [x] Plugin SDK
-- [ ] Third-party extensions
+- [x] Third-party extensions
 
 ### 5.J — Approval / Security Guards ⏳
 

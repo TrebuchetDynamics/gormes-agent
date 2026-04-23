@@ -31,6 +31,9 @@ type Config struct {
 	Telegram   TelegramCfg   `toml:"telegram"`
 	Discord    DiscordCfg    `toml:"discord"`
 	Cron       CronCfg       `toml:"cron"`
+	Plugins    PluginsCfg    `toml:"plugins"`
+	Memory     MemoryCfg     `toml:"memory"`
+	Context    ContextCfg    `toml:"context"`
 	Skills     SkillsCfg     `toml:"skills"`
 	Delegation DelegationCfg `toml:"delegation"`
 	// Resume is set only via the --resume CLI flag; intentionally not
@@ -98,6 +101,22 @@ type CronCfg struct {
 	CallTimeout    time.Duration `toml:"call_timeout"`
 	MirrorInterval time.Duration `toml:"mirror_interval"`
 	MirrorPath     string        `toml:"mirror_path"`
+}
+
+// PluginsCfg configures the manifest-backed third-party plugin catalog.
+type PluginsCfg struct {
+	Root     string   `toml:"root"`
+	Disabled []string `toml:"disabled"`
+}
+
+// MemoryCfg selects the active external memory provider plugin, if any.
+type MemoryCfg struct {
+	Provider string `toml:"provider"`
+}
+
+// ContextCfg selects the active external context engine plugin, if any.
+type ContextCfg struct {
+	Engine string `toml:"engine"`
 }
 
 // SkillsCfg configures the Phase 2.G0 static skills runtime.
@@ -497,6 +516,15 @@ func (c Config) SkillsRoot() string {
 		return c.Skills.Root
 	}
 	return filepath.Join(xdgDataHome(), "gormes", "skills")
+}
+
+// PluginsRoot returns the root directory of the third-party plugin catalog.
+// Explicit override wins; otherwise the XDG default is used.
+func (c Config) PluginsRoot() string {
+	if c.Plugins.Root != "" {
+		return c.Plugins.Root
+	}
+	return filepath.Join(xdgDataHome(), "gormes", "plugins")
 }
 
 // HooksRoot returns the root directory for gateway HOOK.yaml hook directories.

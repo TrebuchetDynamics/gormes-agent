@@ -28,9 +28,7 @@ func main() {
 	if err != nil {
 		die(err)
 	}
-	progressPath := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
-	readmePath := filepath.Join(root, "..", "README.md")
-	docsIndexPath := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "_index.md")
+	progressPath, readmePath, docsIndexPath := targetPaths(root)
 
 	p, err := progress.Load(progressPath)
 	if err != nil {
@@ -81,6 +79,12 @@ func rewrite(path, kind, body string) error {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
+}
+
+func targetPaths(root string) (progressPath, readmePath, docsIndexPath string) {
+	return filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		filepath.Join(root, "README.md"),
+		filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "_index.md")
 }
 
 func die(err error) {

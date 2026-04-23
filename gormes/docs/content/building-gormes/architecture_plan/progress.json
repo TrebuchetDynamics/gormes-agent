@@ -918,7 +918,8 @@
             },
             {
               "name": "Third-party extensions",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/plugins/runtime.go` now discovers manifest-backed third-party plugins from bundled (`./plugins`), user (`${XDG_DATA_HOME}/gormes/plugins`), and opt-in project (`./.hermes/plugins`) roots; classifies general vs memory-provider vs context-engine plugins; reports missing `requires_env`; and applies disabled/selected provider config. `cmd/gormes/plugins.go` exposes that catalog as `gormes plugins list`, while `internal/config/config.go` now carries the XDG plugin root plus `[plugins]`, `[memory]`, and `[context]` selection state."
             }
           ]
         },
