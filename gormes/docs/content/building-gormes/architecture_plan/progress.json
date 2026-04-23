@@ -865,28 +865,44 @@
           "name": "Provider Adapters",
           "items": [
             {
+              "name": "Provider interface + stream fixture harness",
+              "status": "planned",
+              "note": "TDD: define the provider-neutral request, stream-event, tool-call, usage, and finish-reason contracts with fixture-backed tests before any single vendor adapter is wired into the native agent loop."
+            },
+            {
+              "name": "Tool-call normalization + continuation contract",
+              "status": "planned",
+              "note": "TDD: freeze streamed tool_calls accumulation, tool-result continuation payloads, and provider-specific role mapping so Anthropic, Gemini, OpenAI-compatible, and Codex adapters cannot diverge silently."
+            },
+            {
               "name": "Anthropic",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `agent/anthropic_adapter.py` after the shared stream harness exists, including prompt-cache metadata, tool-use deltas, stop reasons, and rate-limit/error fixtures without requiring live credentials."
             },
             {
               "name": "Bedrock",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `agent/bedrock_adapter.py` as an Anthropic-compatible transport variant with AWS request signing, region/config validation, and Bedrock-specific error envelopes covered by fixtures."
             },
             {
               "name": "Gemini",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `agent/gemini_cloudcode_adapter.py` with content-part normalization, tool-call mapping, safety/error payload handling, and no live Google credential dependency in unit tests."
             },
             {
               "name": "OpenRouter",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `agent/openrouter_client.py` as an OpenAI-compatible adapter variant, proving base URL/model selection, provider headers, retryable error mapping, and usage accounting."
             },
             {
               "name": "Google Code Assist",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `agent/google_code_assist.py` only after OAuth/token-store seams are testable; freeze request shaping, quota/error handling, and credential refresh behavior with fake token providers."
             },
             {
               "name": "Codex",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: add a Codex provider adapter on the shared stream contract, including developer-message role handling, tool-call deltas, and explicit unsupported-feature errors before native Codex routing is allowed."
             }
           ]
         },
@@ -959,8 +975,19 @@
           "name": "Smart Model Routing",
           "items": [
             {
+              "name": "Model metadata registry + context limits",
+              "status": "planned",
+              "note": "TDD: port `agent/model_metadata.py` and `agent/models_dev.py` into a read-only Go registry with deterministic context-window, pricing, capability, and provider-family fixtures before routing decisions consume it."
+            },
+            {
+              "name": "Routing policy and fallback selector",
+              "status": "planned",
+              "note": "TDD: port `agent/smart_model_routing.py` as a pure selector over task signals, explicit overrides, provider availability, and fallback_model behavior before any provider call can switch models."
+            },
+            {
               "name": "Per-turn model selection",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: wire the selector into the native agent loop only after provider adapters expose stable capabilities, and prove prompt-cache/toolset context is not rebuilt mid-conversation."
             }
           ]
         },
@@ -968,8 +995,14 @@
           "name": "Trajectory + Insights",
           "items": [
             {
+              "name": "Trajectory writer + redaction gates",
+              "status": "planned",
+              "note": "TDD: port `agent/trajectory.py` as an opt-in writer with deterministic message/tool snapshots, secret redaction, and failure-is-nonfatal behavior before broad telemetry capture."
+            },
+            {
               "name": "Self-monitoring telemetry",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: bridge native turn/provider/tool metrics into the existing Phase 3 insights rollup without changing the local `usage.jsonl` schema until compatibility tests pass."
             }
           ]
         },
@@ -977,8 +1010,14 @@
           "name": "Title Generation",
           "items": [
             {
+              "name": "Title prompt and truncation contract",
+              "status": "planned",
+              "note": "TDD: port `agent/title_generator.py` prompt inputs, length caps, empty-history fallback, and provider-error fallback with fake model responses before persistence wiring."
+            },
+            {
               "name": "Auto-naming sessions",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: update session-title persistence only after the title contract is green, proving titles are generated once, can be manually overridden, and do not mutate historical transcript content."
             }
           ]
         },
@@ -987,11 +1026,18 @@
           "items": [
             {
               "name": "Token vault",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port credential-file discovery and storage from `tools/credential_files.py` into XDG-scoped paths with permission, missing-file, and profile-isolation tests before providers read tokens."
             },
             {
               "name": "Multi-account auth",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `agent/credential_pool.py` account selection and rotation semantics with fake credential records before any provider adapter relies on account pools."
+            },
+            {
+              "name": "Google OAuth flow + refresh seam",
+              "status": "planned",
+              "note": "TDD: port `agent/google_oauth.py` as a transport-neutral OAuth state machine with device/browser flow fixtures, refresh-token persistence, and cancellation/error cases before Google Code Assist uses it."
             }
           ]
         },
@@ -1017,6 +1063,11 @@
               "name": "Prompt-cache capability guard",
               "status": "planned",
               "note": "TDD: port `agent/prompt_caching.py` model/provider capability checks so cache-control metadata is attached only when the selected provider supports it."
+            },
+            {
+              "name": "Provider rate guard + budget telemetry",
+              "status": "planned",
+              "note": "TDD: port `agent/rate_limit_tracker.py` and `agent/nous_rate_guard.py` as deterministic budget/rate decisions that feed Phase 3 insights without sleeping in unit tests."
             }
           ]
         }
@@ -1031,7 +1082,23 @@
           "items": [
             {
               "name": "61-tool registry port",
-              "status": "planned"
+              "status": "planned",
+              "note": "Umbrella only: keep for inventory continuity. Execute via registry inventory, pure/core tools, stateful filesystem tools, network tools, and adapter-specific tool groups rather than one bulk port."
+            },
+            {
+              "name": "Tool registry inventory + schema parity harness",
+              "status": "planned",
+              "note": "TDD: snapshot upstream `tools/registry.py`, `toolsets.py`, and discovered schemas into a Go parity fixture that proves names, toolsets, required env vars, and JSON result shapes before porting handlers."
+            },
+            {
+              "name": "Pure core tools first",
+              "status": "planned",
+              "note": "TDD: port side-effect-light tools such as todo, clarify, debug helpers, and local formatting helpers before network/browser/sandbox tools so the native registry can grow without external credentials."
+            },
+            {
+              "name": "Stateful tool migration queue",
+              "status": "planned",
+              "note": "TDD: group file/session/checkpoint/process tools by shared state contracts and prove XDG/path isolation plus rollback semantics before exposing write-capable tools to the native agent loop."
             }
           ]
         },
@@ -1039,20 +1106,29 @@
           "name": "Sandboxing Backends",
           "items": [
             {
+              "name": "Environment interface + file sync contract",
+              "status": "planned",
+              "note": "TDD: port `tools/environments/base.py` and `file_sync.py` into one Go interface with path mapping, upload/download, timeout, and cleanup fixtures before backend-specific code lands."
+            },
+            {
               "name": "Docker",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port Docker execution after the environment interface is green, covering image selection, mount policy, env passthrough allowlists, timeout cleanup, and blocked dangerous mounts."
             },
             {
               "name": "Modal",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: freeze Modal request/job lifecycle, upload/download mapping, and unavailable-credential behavior as fixtures before any cloud execution path is enabled."
             },
             {
               "name": "Daytona",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port Daytona workspace lifecycle with fake API clients, proving create/reuse/delete decisions and workspace path mapping before live credentials are required."
             },
             {
               "name": "Singularity",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port Singularity command construction, bind mounts, and timeout cleanup as a local command builder first; live runtime tests stay opt-in."
             }
           ]
         },
@@ -1060,12 +1136,24 @@
           "name": "Browser Automation",
           "items": [
             {
+              "name": "Browser action contract + event transcript",
+              "status": "planned",
+              "note": "TDD: port the `tools/browser_tool.py` action schema, page-state transcript, screenshot/result envelopes, and unavailable-backend errors before choosing Chromedp or Rod."
+            },
+            {
               "name": "Chromedp",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: bind Chromedp behind the browser action contract with fake page fixtures for navigation, click/type, screenshot, and timeout behavior before live browser smoke tests."
             },
             {
               "name": "Rod",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: keep Rod as a second backend only after the shared contract is stable, proving backend selection and parity for core actions without diverging schemas."
+            },
+            {
+              "name": "Browser provider bridge + Firecrawl fallback",
+              "status": "planned",
+              "note": "TDD: port `tools/browser_providers/{browserbase,firecrawl}.py` as optional provider adapters with credential gating and deterministic fallback/error results before network-backed browsing is default."
             }
           ]
         },
@@ -1074,7 +1162,18 @@
           "items": [
             {
               "name": "Multimodal in/out",
-              "status": "planned"
+              "status": "planned",
+              "note": "Umbrella only: split into image input normalization, vision request routing, image-generation request/result storage, and safety/error envelopes before exposing multimodal tools."
+            },
+            {
+              "name": "Vision input normalization + token budget",
+              "status": "planned",
+              "note": "TDD: port `tools/vision_tools.py` image path/URL/base64 normalization, size/token estimation, and unsupported-provider errors using local fixture images."
+            },
+            {
+              "name": "Image generation result contract",
+              "status": "planned",
+              "note": "TDD: port `tools/image_generation_tool.py` schema, output-path handling, binary/result envelope, and provider error mapping before any live image model call."
             }
           ]
         },
@@ -1083,7 +1182,18 @@
           "items": [
             {
               "name": "Voice mode port",
-              "status": "planned"
+              "status": "planned",
+              "note": "Umbrella only: split voice-mode state, transcription ingestion, TTS synthesis, and platform delivery hooks before enabling voice across gateways."
+            },
+            {
+              "name": "Transcription tool contract",
+              "status": "planned",
+              "note": "TDD: port `tools/transcription_tools.py` input validation, provider selection, and text/error result shape with local audio fixtures before gateway media hooks call it."
+            },
+            {
+              "name": "TTS synthesis + voice-mode state",
+              "status": "planned",
+              "note": "TDD: port `tools/tts_tool.py`, `tools/voice_mode.py`, and `tools/neutts_synth.py` behind a sidecar-friendly interface with cached samples and nonfatal missing-dependency behavior."
             }
           ]
         },
@@ -1092,11 +1202,13 @@
           "items": [
             {
               "name": "Skills hub",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/skills_hub.py` and registry lookup as read-only search/install planning first, reusing the Phase 2.G active/inactive store instead of creating another skills root."
             },
             {
               "name": "Skill registries",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows."
             }
           ]
         },
@@ -1105,11 +1217,18 @@
           "items": [
             {
               "name": "MCP client",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/mcp_tool.py` as a lifecycle-managed client with server discovery, schema normalization, timeout/cancel behavior, and deterministic fake MCP servers."
             },
             {
               "name": "OAuth flows",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/mcp_oauth.py` and `mcp_oauth_manager.py` as a reusable OAuth state store with redirect/device fixtures before managed MCP gateways request tokens."
+            },
+            {
+              "name": "Managed tool gateway bridge",
+              "status": "planned",
+              "note": "TDD: port `tools/managed_tool_gateway.py` after the MCP client and OAuth store are green, proving tool discovery and result pass-through without a live external server."
             }
           ]
         },
@@ -1118,7 +1237,8 @@
           "items": [
             {
               "name": "ACP server side",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `acp_adapter/` as a protocol server with auth, session lifecycle, tool permission prompts, and event streaming fixtures before editor integrations are advertised."
             }
           ]
         },
@@ -1127,11 +1247,13 @@
           "items": [
             {
               "name": "Plugin SDK",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port plugin manifest loading, capability registration, version checks, and isolation boundaries from `plugins/` before third-party extension execution."
             },
             {
               "name": "Third-party extensions",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: add extension install/enable/disable flows only after the SDK contract is stable, with fixture plugins proving failure containment and no implicit runtime code execution."
             }
           ]
         },
@@ -1170,7 +1292,8 @@
           "items": [
             {
               "name": "Sandboxed exec",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/code_execution_tool.py` on top of the Phase 5.B environment interface, proving language selection, stdout/stderr limits, timeout, and blocked filesystem/network behavior."
             }
           ]
         },
@@ -1179,7 +1302,8 @@
           "items": [
             {
               "name": "Atomic checkpoints",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` as checkpoint-first read/write/patch primitives with rollback and path-policy fixtures before agent-visible writes."
             }
           ]
         },
@@ -1188,7 +1312,8 @@
           "items": [
             {
               "name": "Multi-model coordination",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/mixture_of_agents_tool.py` only after provider routing and subagent envelopes are stable, using fake child model outputs to prove fan-out, aggregation, and failure isolation."
             }
           ]
         },
@@ -1197,19 +1322,23 @@
           "items": [
             {
               "name": "Todo",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/todo_tool.py` as a small stateful tool with schema/result parity, deterministic persistence, and no dependency on the full file-tools port."
             },
             {
               "name": "Clarify",
+              "note": "TDD: port `tools/clarify_tool.py` as an interruptible prompt contract that preserves gateway/TUI response routing and times out safely in non-interactive cron turns.",
               "status": "planned"
             },
             {
               "name": "Session search",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/session_search_tool.py` on top of the Phase 3 session catalog, preserving same-chat defaults and opt-in user/source filters."
             },
             {
               "name": "Debug helpers",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/debug_helpers.py` as read-mostly diagnostic tools with redaction and no hidden writes before exposing them to production agents."
             },
             {
               "name": "Cronjob tool API + schedule parser parity",
@@ -1263,11 +1392,13 @@
           "items": [
             {
               "name": "OCI image",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: mirror upstream Docker entrypoint/config volume behavior with container smoke tests that run `gormes doctor --offline` and avoid bundling Python runtime paths."
             },
             {
               "name": "Homebrew",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: add formula/release artifact checks after the static binary and docs install paths are stable, with version, checksum, and install layout fixtures."
             }
           ]
         },
@@ -1307,7 +1438,8 @@
           "items": [
             {
               "name": "Heuristic or LLM-scored signal",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: start with deterministic local signals from transcript length, tool-call count, retries, edits, and operator feedback before adding any LLM scorer, so learning-loop triggers are explainable."
             }
           ]
         },
@@ -1316,7 +1448,8 @@
           "items": [
             {
               "name": "LLM-assisted pattern distillation",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: define the extraction input bundle and output schema with fake model fixtures, including rejection of secrets, one-off tasks, and implementation-specific noise before live generation."
             }
           ]
         },
@@ -1325,7 +1458,8 @@
           "items": [
             {
               "name": "Portable SKILL.md format",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable SKILL.md files."
             }
           ]
         },
@@ -1334,7 +1468,8 @@
           "items": [
             {
               "name": "Hybrid lexical + semantic lookup",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: combine lexical tags with Phase 3 semantic embeddings behind a deterministic scorer, proving disabled/unreviewed skills stay excluded from prompt injection."
             }
           ]
         },
@@ -1343,7 +1478,8 @@
           "items": [
             {
               "name": "Skill effectiveness scoring",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior."
             }
           ]
         },
@@ -1352,7 +1488,8 @@
           "items": [
             {
               "name": "TUI + Telegram browsing",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: expose browse/edit/disable/review flows through TUI and gateway commands after the store and feedback records are stable, with permission and active-turn behavior pinned by tests."
             }
           ]
         }

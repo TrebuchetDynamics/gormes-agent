@@ -5,13 +5,11 @@ weight: 20
 
 # Phase 1 — The Dashboard
 
-**Status:** ✅ complete · evolving (polish, bug fixes, TUI ergonomics ongoing)
+**Status:** 🔨 in progress overall · 1.A and 1.B shipped, 1.C automation reliability open
 
 Phase 1 is a tactical Strangler Fig bridge, not a philosophical compromise. It exists to deliver immediate value to existing Hermes users while preserving a clean migration path toward a pure Go runtime that owns the entire lifecycle end to end.
 
 The hybrid is **temporary**. The long-term state is 100% Go. During Phases 1–4, Go is the chassis (orchestrator, state, persistence, platform I/O, agent cognition) and Python is the peripheral library (research tools, legacy skills, ML heavy lifting). Each phase shrinks Python's footprint. Phase 5 deletes the last Python dependency.
-
-Phase 1 should be read correctly: it is a tactical Strangler Fig bridge, not a philosophical compromise. It exists to deliver immediate value to existing Hermes users while preserving a clean migration path toward a pure Go runtime that owns the entire lifecycle end to end.
 
 **Deliverable:** Tactical bridge: Go TUI over Python's `api_server` HTTP+SSE boundary.
 
@@ -25,5 +23,6 @@ Phase 1 should be read correctly: it is a tactical Strangler Fig bridge, not a p
 
 ## What's ongoing
 
-- Polish, bug fixes, and TUI ergonomics stay on the maintenance lane.
-- Automation reliability now has its own progress-ledger lane (1.C) for planner/orchestrator operational fixes. Keep those slices TDD-first and do not treat them as product-dashboard scope.
+- Core TUI polish, bug fixes, and ergonomics stay on the maintenance lane, but those are not the open ledger gate.
+- Automation reliability is now tracked as Phase 1.C because it affects whether planner/orchestrator runs can be trusted at scale. The current open work is conservative: stop false failure rows when a Codex worker exits non-zero after producing a valid final report and clean commit, and reconcile the architecture-planner wrapper policy before treating the renamed manager script as stable.
+- Evidence in tree: `internal/buildscripts_test.go` covers heartbeat progress, integration-worktree reuse, promotion-before-next-cycle behavior, and the soft-success case; `internal/architectureplanneragent_test.go` still expects legacy wrapper behavior that the current worktree does not provide. That mismatch is why 1.C remains open.

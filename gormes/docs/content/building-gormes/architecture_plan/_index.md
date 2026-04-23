@@ -293,6 +293,8 @@ weight: 10
 
 ### 4.A — Provider Adapters ⏳
 
+- [ ] Provider interface + stream fixture harness
+- [ ] Tool-call normalization + continuation contract
 - [ ] Anthropic
 - [ ] Bedrock
 - [ ] Gemini
@@ -319,20 +321,25 @@ weight: 10
 
 ### 4.D — Smart Model Routing ⏳
 
+- [ ] Model metadata registry + context limits
+- [ ] Routing policy and fallback selector
 - [ ] Per-turn model selection
 
 ### 4.E — Trajectory + Insights ⏳
 
+- [ ] Trajectory writer + redaction gates
 - [ ] Self-monitoring telemetry
 
 ### 4.F — Title Generation ⏳
 
+- [ ] Title prompt and truncation contract
 - [ ] Auto-naming sessions
 
 ### 4.G — Credentials + OAuth ⏳
 
 - [ ] Token vault
 - [ ] Multi-account auth
+- [ ] Google OAuth flow + refresh seam
 
 ### 4.H — Rate / Retry / Caching ⏳
 
@@ -340,6 +347,7 @@ weight: 10
 - [ ] Classified provider-error taxonomy
 - [ ] Retry-After + jittered backoff policy
 - [ ] Prompt-cache capability guard
+- [ ] Provider rate guard + budget telemetry
 
 ## Phase 5 — The Final Purge ⏳
 
@@ -348,9 +356,13 @@ weight: 10
 ### 5.A — Tool Surface Port ⏳
 
 - [ ] 61-tool registry port
+- [ ] Tool registry inventory + schema parity harness
+- [ ] Pure core tools first
+- [ ] Stateful tool migration queue
 
 ### 5.B — Sandboxing Backends ⏳
 
+- [ ] Environment interface + file sync contract
 - [ ] Docker
 - [ ] Modal
 - [ ] Daytona
@@ -358,16 +370,22 @@ weight: 10
 
 ### 5.C — Browser Automation ⏳
 
+- [ ] Browser action contract + event transcript
 - [ ] Chromedp
 - [ ] Rod
+- [ ] Browser provider bridge + Firecrawl fallback
 
 ### 5.D — Vision + Image Generation ⏳
 
 - [ ] Multimodal in/out
+- [ ] Vision input normalization + token budget
+- [ ] Image generation result contract
 
 ### 5.E — TTS / Voice / Transcription ⏳
 
 - [ ] Voice mode port
+- [ ] Transcription tool contract
+- [ ] TTS synthesis + voice-mode state
 
 ### 5.F — Skills System (Remaining) ⏳
 
@@ -378,6 +396,7 @@ weight: 10
 
 - [ ] MCP client
 - [ ] OAuth flows
+- [ ] Managed tool gateway bridge
 
 ### 5.H — ACP Integration ⏳
 

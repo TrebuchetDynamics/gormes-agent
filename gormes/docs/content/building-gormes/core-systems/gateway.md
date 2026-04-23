@@ -19,6 +19,7 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 - **SessionContext prompt injection + delivery target parsing** (Phase 2.B.5) — stable Current Session Context block, typed `--deliver` parsing, and a deterministic Gateway stream consumer contract
 - **HOOK.yaml loading + BOOT.md startup hook** (Phase 2.F.2) — live hook manifest discovery, per-event registry hooks, and non-blocking BOOT.md startup execution
 - **Cron delivery bridge** (Phase 2.D) — scheduled runs, SQLite `cron_runs` audit, `CRON.md` mirror, and Heartbeat `[SYSTEM:]` / `[SILENT]` delivery rules
+- **Operator automation runners** (Phase 2.D / Phase 1.C) — `scripts/gormes-architecture-planner-tasks-manager.sh` and `scripts/documentation-improver.sh` now emit context bundles, reports, state files, validation logs, and verbose progress checkpoints under `.codex/`; wrapper compatibility and high-parallelism false-failure handling remain open under 1.C
 
 ## Planned
 
