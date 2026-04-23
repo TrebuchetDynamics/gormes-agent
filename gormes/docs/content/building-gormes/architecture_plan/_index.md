@@ -347,9 +347,9 @@ weight: 10
 
 - [ ] Sandboxed exec
 
-### 5.L — File Ops + Patches ⏳
+### 5.L — File Ops + Patches ✅
 
-- [ ] Atomic checkpoints
+- [x] Atomic checkpoints
 
 ### 5.M — Mixture of Agents ⏳
 

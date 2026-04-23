@@ -947,7 +947,8 @@
           "items": [
             {
               "name": "Atomic checkpoints",
-              "status": "planned"
+              "status": "complete",
+              "note": "`internal/tools/checkpoints.go` now ships the Go-native shadow-repo checkpoint core with per-turn dedup, list/diff/restore flows, and pre-rollback snapshots under `${XDG_DATA_HOME}/gormes/checkpoints`; broader file read/write/patch tool ports remain future follow-on scope."
             }
           ]
         },

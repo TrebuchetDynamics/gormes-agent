@@ -833,6 +833,29 @@ func TestLoad_RealFile_Phase5ACPServer(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_Phase5AtomicCheckpoints(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	checkpoints := p.Phases["5"].Subphases["5.L"]
+	if got := checkpoints.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 5.L = %q, want complete", got)
+	}
+
+	items := itemsByName(checkpoints.Items)
+	atomic := items["Atomic checkpoints"]
+	if atomic.Status != StatusComplete {
+		t.Fatalf("Phase 5.L atomic checkpoints status = %q, want complete", atomic.Status)
+	}
+	if !strings.Contains(atomic.Note, "internal/tools/checkpoints.go") ||
+		!strings.Contains(atomic.Note, "list/diff/restore") ||
+		!strings.Contains(atomic.Note, "${XDG_DATA_HOME}/gormes/checkpoints") {
+		t.Fatalf("Phase 5.L atomic checkpoints note = %q, want checkpoints.go/list-diff-restore/XDG detail", atomic.Note)
+	}
+}
+
 func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
