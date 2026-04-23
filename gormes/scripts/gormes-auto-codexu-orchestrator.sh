@@ -5,7 +5,7 @@ shopt -s inherit_errexit 2>/dev/null || true
 
 ORCHESTRATOR_LIB_DIR="${ORCHESTRATOR_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/orchestrator/lib}"
 # shellcheck source=/dev/null
-for _lib in common candidates report claim worktree promote; do
+for _lib in common candidates report claim worktree promote companions; do
   source "$ORCHESTRATOR_LIB_DIR/${_lib}.sh"
 done
 unset _lib
@@ -83,6 +83,15 @@ RUN_WORKER_STATE_DIR="$STATE_DIR/workers/$RUN_ID"
 RESUME_RUN_ID=""
 COMMAND_MODE="run"
 
+# Companion scheduling defaults (planner / doc-improver / landingpage).
+DISABLE_COMPANIONS="${DISABLE_COMPANIONS:-0}"
+COMPANION_ON_IDLE="${COMPANION_ON_IDLE:-1}"
+COMPANION_TIMEOUT_SECONDS="${COMPANION_TIMEOUT_SECONDS:-1800}"
+PLANNER_EVERY_N_CYCLES="${PLANNER_EVERY_N_CYCLES:-4}"
+DOC_IMPROVER_EVERY_N_CYCLES="${DOC_IMPROVER_EVERY_N_CYCLES:-6}"
+LANDINGPAGE_EVERY_N_HOURS="${LANDINGPAGE_EVERY_N_HOURS:-24}"
+PLANNER_ROOT="${PLANNER_ROOT:-$REPO_ROOT/.codex/planner}"
+
 GIT_ROOT=""
 REPO_SUBDIR=""
 BASE_COMMIT=""
@@ -137,6 +146,17 @@ Env:
   MAIN_BRANCH                Target branch for direct commits (default: main)
   REMOTE_NAME                Git remote name for push (default: origin)
   PROGRESS_INTERVAL          Seconds between progress updates (default: 10)
+
+  # Companion scheduling (planner / doc-improver / landingpage between cycles)
+  DISABLE_COMPANIONS         Set to 1 to fully disable all companion runs (default: 0)
+  COMPANION_ON_IDLE          1 gates companions to idle/post-promotion cycles; 0 runs every cycle (default: 1)
+  COMPANION_TIMEOUT_SECONDS  Wall-clock timeout per companion invocation (default: 1800)
+  PLANNER_EVERY_N_CYCLES     Run planner companion every N cycles (default: 4)
+  DOC_IMPROVER_EVERY_N_CYCLES Run doc-improver every N cycles with promotion (default: 6)
+  LANDINGPAGE_EVERY_N_HOURS  Run landing-page companion every N hours (default: 24)
+  COMPANION_PLANNER_CMD      Override path for planner companion (default: scripts/gormes-architecture-planner-tasks-manager.sh)
+  COMPANION_DOC_IMPROVER_CMD Override path for doc-improver companion (default: scripts/documentation-improver.sh)
+  COMPANION_LANDINGPAGE_CMD  Override path for landingpage companion (default: scripts/landingpage-improver.sh)
 
 Notes:
   - Default run mode loops forever. Use ORCHESTRATOR_ONCE=1 for previous one-shot behavior.
@@ -1218,8 +1238,14 @@ main() {
   setup_integration_root
 
   if [[ "$ORCHESTRATOR_ONCE" == "1" || "$COMMAND_MODE" == "resume" ]]; then
-    run_once
-    return "$?"
+    local once_rc=0
+    if run_once; then
+      once_rc=0
+    else
+      once_rc="$?"
+    fi
+    maybe_run_companions 1 "${PROMOTED_LAST_CYCLE:-0}"
+    return "$once_rc"
   fi
 
   local cycle=0
@@ -1241,6 +1267,14 @@ main() {
       cycle_rc=0
     else
       cycle_rc="$?"
+    fi
+
+    maybe_run_companions "$cycle" "${PROMOTED_LAST_CYCLE:-0}"
+
+    if [[ "${EXHAUSTION_TRIGGERED:-0}" == "1" ]]; then
+      EXHAUSTION_TRIGGERED=0
+      echo "Loop cycle $cycle completed with exit $cycle_rc; exhausted → skipping sleep."
+      continue
     fi
 
     echo

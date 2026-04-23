@@ -42,8 +42,9 @@ companion_cycles_since() {
 }
 
 _candidates_remaining() {
-  [[ -f "$CANDIDATES_FILE" ]] || { printf '0\n'; return; }
-  jq 'length' "$CANDIDATES_FILE"
+  local cf="${CANDIDATES_FILE:-}"
+  [[ -n "$cf" && -f "$cf" ]] || { printf '0\n'; return; }
+  jq 'length' "$cf"
 }
 
 _planner_external_recent() {
