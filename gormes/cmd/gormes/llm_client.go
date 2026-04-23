@@ -18,6 +18,8 @@ func llmProviderLabel(provider string) string {
 		return "anthropic"
 	case "gemini", "google-gemini":
 		return "gemini"
+	case "google-gemini-cli", "gemini-cli", "gemini-oauth", "google-code-assist", "google_code_assist":
+		return "google-gemini-cli"
 	case "codex", "openai-codex":
 		return "codex"
 	default:

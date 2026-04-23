@@ -126,6 +126,18 @@ func TestNewLLMClient_GeminiRewritesLegacyDefaultEndpoint(t *testing.T) {
 	}
 }
 
+func TestNewLLMClient_GoogleCodeAssistRewritesMarkerEndpoint(t *testing.T) {
+	_, endpoint := newLLMClient(config.Config{
+		Hermes: config.HermesCfg{
+			Provider: "google-gemini-cli",
+			Endpoint: "cloudcode-pa://google",
+		},
+	})
+	if endpoint != "https://cloudcode-pa.googleapis.com" {
+		t.Fatalf("endpoint = %q, want https://cloudcode-pa.googleapis.com", endpoint)
+	}
+}
+
 func TestLLMProviderLabel_Codex(t *testing.T) {
 	if got := llmProviderLabel("codex"); got != "codex" {
 		t.Fatalf("label = %q, want codex", got)
@@ -135,5 +147,11 @@ func TestLLMProviderLabel_Codex(t *testing.T) {
 func TestLLMProviderLabel_Gemini(t *testing.T) {
 	if got := llmProviderLabel("gemini"); got != "gemini" {
 		t.Fatalf("label = %q, want gemini", got)
+	}
+}
+
+func TestLLMProviderLabel_GoogleGeminiCLI(t *testing.T) {
+	if got := llmProviderLabel("google-gemini-cli"); got != "google-gemini-cli" {
+		t.Fatalf("label = %q, want google-gemini-cli", got)
 	}
 }

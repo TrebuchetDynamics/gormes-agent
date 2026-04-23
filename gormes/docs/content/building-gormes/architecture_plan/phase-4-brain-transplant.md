@@ -26,7 +26,7 @@ Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
 
 Once 4.A–4.D are shipped Gormes can call LLMs directly. The `:8642` health check becomes optional.
 
-Anthropic, Codex, and Bedrock are now the first native provider paths to land. `internal/hermes.NewClient` can route directly to the Anthropic Messages API, the OpenAI Responses API, or Amazon Bedrock's ConverseStream API while preserving the kernel's canonical `ChatRequest`/`Event` contract. The Bedrock path resolves AWS region defaults, relies on the AWS SDK for credential loading and SigV4 signing, translates canonical system/user/assistant/tool history into Bedrock's tool-aware conversation payload, and maps streamed reasoning/text/tool-use deltas plus Bedrock error envelopes back into the same canonical event/error surface.
+Anthropic, Bedrock, Gemini, Codex, and Google Code Assist now have native provider paths in `internal/hermes.NewClient`. Each adapter preserves the kernel's canonical `ChatRequest`/`Event` contract while speaking the provider's native wire format: Anthropic via Messages, Bedrock via ConverseStream, Gemini via `streamGenerateContent`, Codex via Responses, and Google Code Assist via `cloudcode-pa`'s wrapped `streamGenerateContent` plus `loadCodeAssist` health checks. The new Google Code Assist path intentionally stops at the provider-adapter seam for Phase 4.A: it accepts an already-issued bearer token, resolves optional project IDs from environment overrides, translates canonical tool-aware history through the Gemini request mapper, and leaves the OAuth/browser login port to Phase 4.G.
 
 ## Build Priority Context
 

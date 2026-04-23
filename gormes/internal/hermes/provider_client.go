@@ -19,6 +19,8 @@ func NewClient(provider, endpoint, apiKey string) Client {
 		return newBedrockClient(EffectiveEndpoint(provider, endpoint))
 	case "gemini":
 		return newGeminiClient(EffectiveEndpoint(provider, endpoint), apiKey)
+	case "google-gemini-cli":
+		return newGoogleCodeAssistClient(EffectiveEndpoint(provider, endpoint), apiKey)
 	case "codex":
 		return newCodexClient(EffectiveEndpoint(provider, endpoint), apiKey)
 	default:
@@ -43,6 +45,10 @@ func EffectiveEndpoint(provider, endpoint string) string {
 		if base == "" || base == defaultOpenAIEndpoint {
 			return defaultGeminiBaseURL
 		}
+	case "google-gemini-cli":
+		if base == "" || base == defaultOpenAIEndpoint || base == googleCodeAssistMarkerEndpoint {
+			return defaultGoogleCodeAssistBaseURL
+		}
 	case "codex":
 		if base == "" || base == defaultOpenAIEndpoint {
 			return defaultCodexBaseURL
@@ -65,6 +71,8 @@ func normalizedProvider(provider string) string {
 		return "bedrock"
 	case "gemini", "google-gemini", "google_gemini":
 		return "gemini"
+	case "google-gemini-cli", "gemini-cli", "gemini-oauth", "google-code-assist", "google_code_assist":
+		return "google-gemini-cli"
 	case "codex", "openai-codex", "openai_codex":
 		return "codex"
 	default:

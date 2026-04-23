@@ -253,6 +253,7 @@ type geminiStream struct {
 	closed  bool
 	mu      sync.Mutex
 	pending []Event
+	wrapped bool
 }
 
 type geminiToolCallIn struct {
@@ -294,6 +295,14 @@ func newGeminiStream(body io.ReadCloser) *geminiStream {
 	}
 }
 
+func newWrappedGeminiStream(body io.ReadCloser) *geminiStream {
+	return &geminiStream{
+		body:    body,
+		sse:     newSSEReader(body),
+		wrapped: true,
+	}
+}
+
 func (s *geminiStream) SessionID() string { return "" }
 
 func (s *geminiStream) Close() error {
@@ -327,48 +336,11 @@ func (s *geminiStream) Recv(ctx context.Context) (Event, error) {
 			return Event{}, io.EOF
 		}
 
-		var chunk geminiChunk
-		if err := json.Unmarshal([]byte(f.data), &chunk); err != nil {
+		chunk, err := decodeGeminiChunk(f.data, s.wrapped)
+		if err != nil {
 			continue
 		}
-		if len(chunk.Candidates) == 0 {
-			continue
-		}
-
-		candidate := chunk.Candidates[0]
-		raw := json.RawMessage(f.data)
-		events := make([]Event, 0, len(candidate.Content.Parts)+1)
-		toolCalls := make([]ToolCall, 0)
-
-		for _, part := range candidate.Content.Parts {
-			if part.Text != "" {
-				events = append(events, Event{Kind: EventToken, Token: part.Text, Raw: raw})
-			}
-			if part.FunctionCall != nil {
-				args := bytes.TrimSpace(part.FunctionCall.Args)
-				if len(args) == 0 {
-					args = []byte("{}")
-				}
-				toolCalls = append(toolCalls, ToolCall{
-					ID:        part.FunctionCall.ID,
-					Name:      part.FunctionCall.Name,
-					Arguments: json.RawMessage(args),
-				})
-			}
-		}
-
-		finishReason := normalizeGeminiFinishReason(candidate.FinishReason)
-		if len(toolCalls) > 0 {
-			finishReason = "tool_calls"
-		}
-		if finishReason != "" {
-			done := Event{Kind: EventDone, FinishReason: finishReason, Raw: raw, ToolCalls: toolCalls}
-			if chunk.UsageMetadata != nil {
-				done.TokensIn = chunk.UsageMetadata.PromptTokenCount
-				done.TokensOut = chunk.UsageMetadata.CandidatesTokenCount
-			}
-			events = append(events, done)
-		}
+		events := geminiChunkEvents(f.data, chunk)
 		if len(events) == 0 {
 			continue
 		}
@@ -391,4 +363,63 @@ func normalizeGeminiFinishReason(reason string) string {
 	default:
 		return strings.ToLower(strings.TrimSpace(reason))
 	}
+}
+
+func decodeGeminiChunk(data string, wrapped bool) (geminiChunk, error) {
+	var chunk geminiChunk
+	if err := json.Unmarshal([]byte(data), &chunk); err == nil && len(chunk.Candidates) > 0 {
+		return chunk, nil
+	}
+	if wrapped {
+		var envelope struct {
+			Response geminiChunk `json:"response"`
+		}
+		if err := json.Unmarshal([]byte(data), &envelope); err == nil && len(envelope.Response.Candidates) > 0 {
+			return envelope.Response, nil
+		}
+	}
+	return geminiChunk{}, fmt.Errorf("gemini stream chunk had no candidates")
+}
+
+func geminiChunkEvents(rawData string, chunk geminiChunk) []Event {
+	if len(chunk.Candidates) == 0 {
+		return nil
+	}
+
+	candidate := chunk.Candidates[0]
+	raw := json.RawMessage(rawData)
+	events := make([]Event, 0, len(candidate.Content.Parts)+1)
+	toolCalls := make([]ToolCall, 0)
+
+	for _, part := range candidate.Content.Parts {
+		if part.Text != "" {
+			events = append(events, Event{Kind: EventToken, Token: part.Text, Raw: raw})
+		}
+		if part.FunctionCall != nil {
+			args := bytes.TrimSpace(part.FunctionCall.Args)
+			if len(args) == 0 {
+				args = []byte("{}")
+			}
+			toolCalls = append(toolCalls, ToolCall{
+				ID:        part.FunctionCall.ID,
+				Name:      part.FunctionCall.Name,
+				Arguments: json.RawMessage(args),
+			})
+		}
+	}
+
+	finishReason := normalizeGeminiFinishReason(candidate.FinishReason)
+	if len(toolCalls) > 0 {
+		finishReason = "tool_calls"
+	}
+	if finishReason != "" {
+		done := Event{Kind: EventDone, FinishReason: finishReason, Raw: raw, ToolCalls: toolCalls}
+		if chunk.UsageMetadata != nil {
+			done.TokensIn = chunk.UsageMetadata.PromptTokenCount
+			done.TokensOut = chunk.UsageMetadata.CandidatesTokenCount
+		}
+		events = append(events, done)
+	}
+
+	return events
 }

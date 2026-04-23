@@ -257,7 +257,7 @@ weight: 10
 - [x] Bedrock
 - [x] Gemini
 - [ ] OpenRouter
-- [ ] Google Code Assist
+- [x] Google Code Assist
 - [x] Codex
 
 ### 4.B — Context Engine + Compression ⏳
