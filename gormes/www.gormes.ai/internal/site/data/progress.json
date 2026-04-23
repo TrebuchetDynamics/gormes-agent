@@ -710,7 +710,8 @@
             },
             {
               "name": "Context compression",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: internal/contextengine now freezes threshold floor math, prompt-token tracking, SummaryBudget scaling/clamping, StepDownContextLength probe tiers, and the ineffective-compression cooldown behind go test ./internal/contextengine."
             }
           ]
         },

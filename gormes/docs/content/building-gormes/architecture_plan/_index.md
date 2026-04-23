@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 35/66 subphases shipped · 1 in progress · 30 planned
+**Overall:** 35/66 subphases shipped · 2 in progress · 29 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -260,10 +260,10 @@ weight: 10
 - [x] Google Code Assist
 - [x] Codex
 
-### 4.B — Context Engine + Compression ⏳
+### 4.B — Context Engine + Compression 🔨
 
 - [ ] Long session management
-- [ ] Context compression
+- [x] Context compression
 
 ### 4.C — Native Prompt Builder ⏳
 

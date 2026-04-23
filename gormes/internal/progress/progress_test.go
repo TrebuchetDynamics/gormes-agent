@@ -254,6 +254,29 @@ func TestLoad_RealFile_Phase4Gemini(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_Phase4ContextCompression(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	compression := p.Phases["4"].Subphases["4.B"]
+	if got := compression.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 4.B = %q, want in_progress", got)
+	}
+	items := itemsByName(compression.Items)
+	compressor := items["Context compression"]
+	if compressor.Status != StatusComplete {
+		t.Fatalf("Phase 4.B context compression status = %q, want complete", compressor.Status)
+	}
+	if !strings.Contains(compressor.Note, "internal/contextengine") ||
+		!strings.Contains(compressor.Note, "SummaryBudget") ||
+		!strings.Contains(compressor.Note, "StepDownContextLength") ||
+		!strings.Contains(compressor.Note, "go test ./internal/contextengine") {
+		t.Fatalf("Phase 4.B context compression note = %q, want package/budget/probe/test detail", compressor.Note)
+	}
+}
+
 func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {

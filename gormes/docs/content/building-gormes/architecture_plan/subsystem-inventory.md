@@ -123,7 +123,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Error classifier output type | `agent/error_classifier.py` — `ClassifiedError` class | 4.H | ⏳ planned |
 | Local edit snapshot | `agent/*` — `LocalEditSnapshot` (for checkpoint rewind) | 5.L | ⏳ planned |
 | Context engine | `agent/context_engine.py` | 4.B | ⏳ planned |
-| Context compressor | `agent/context_compressor.py` + `manual_compression_feedback.py` | 4.B | ⏳ planned |
+| Context compressor | `agent/context_compressor.py` + `manual_compression_feedback.py` | 4.B | 🔨 in progress — `internal/contextengine` now locks threshold budgeting, summary sizing, probe step-down, and ineffective-compression cooldown; live history mutation/manual feedback still remain |
 | Context references | `agent/context_references.py` | 4.B | ⏳ planned |
 | Prompt builder | `agent/prompt_builder.py` | 4.C | ⏳ planned |
 | Smart model routing | `agent/smart_model_routing.py` + `model_metadata.py` + `models_dev.py` | 4.D | ⏳ planned |
