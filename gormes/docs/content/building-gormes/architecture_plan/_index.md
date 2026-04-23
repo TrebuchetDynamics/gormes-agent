@@ -126,6 +126,7 @@ weight: 10
 - [x] robfig/cron scheduler + bbolt job store
 - [x] SQLite cron_runs audit + CRON.md mirror
 - [x] Heartbeat [SYSTEM:] + [SILENT] delivery contract
+- [x] Architecture planner tasks manager script
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 

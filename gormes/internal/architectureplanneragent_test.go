@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	architectureTaskManagerScript = "gormes-architecture-task-manager.sh"
-	legacyPlannerWrapperScript    = "architectureplanneragent.sh"
-	architectureTaskManagerUnit   = "gormes-architecture-task-manager"
+	architecturePlannerTasksManagerScript = "gormes-architecture-planner-tasks-manager.sh"
+	architectureTaskManagerWrapperScript  = "gormes-architecture-task-manager.sh"
+	legacyPlannerWrapperScript            = "architectureplanneragent.sh"
+	architectureTaskManagerUnit           = "gormes-architecture-planner-tasks-manager"
 )
 
 func TestArchitecturePlannerAgentRunsCodexuAndInstallsPeriodicTimer(t *testing.T) {
@@ -28,8 +29,13 @@ func TestArchitecturePlannerAgentRunsCodexuAndInstallsPeriodicTimer(t *testing.T
 	gormesRepo := filepath.Join(parentRepo, "gormes")
 
 	copyPlannerTestFile(t,
-		filepath.Join(repoRoot, "scripts", architectureTaskManagerScript),
-		filepath.Join(gormesRepo, "scripts", architectureTaskManagerScript),
+		filepath.Join(repoRoot, "scripts", architecturePlannerTasksManagerScript),
+		filepath.Join(gormesRepo, "scripts", architecturePlannerTasksManagerScript),
+		0o755,
+	)
+	copyPlannerTestFile(t,
+		filepath.Join(repoRoot, "scripts", architectureTaskManagerWrapperScript),
+		filepath.Join(gormesRepo, "scripts", architectureTaskManagerWrapperScript),
 		0o755,
 	)
 	copyPlannerTestFile(t,
@@ -199,7 +205,7 @@ exit 0
 		"SYSTEMCTL_LOG=" + systemctlLogPath,
 		"HOME=" + homeDir,
 		"XDG_CONFIG_HOME=" + xdgConfigHome,
-	}, "bash", "scripts/"+architectureTaskManagerScript)
+	}, "bash", "scripts/"+architecturePlannerTasksManagerScript)
 
 	outputText := string(out)
 	for _, want := range []string{
@@ -278,20 +284,20 @@ exit 0
 		t.Fatalf("upstream_hermes_dir = %#v, want %q", got, parentRepo)
 	}
 
-	tasksPath := filepath.Join(plannerDir, "tasks.md")
+	tasksPath := filepath.Join(plannerDir, "architecture-planner-tasks.md")
 	tasksData, err := os.ReadFile(tasksPath)
 	if err != nil {
-		t.Fatalf("read tasks.md: %v", err)
+		t.Fatalf("read architecture-planner-tasks.md: %v", err)
 	}
 	tasksText := string(tasksData)
 	for _, want := range []string{
-		"# Gormes Architecture Tasks",
+		"# Gormes Architecture Planner Tasks",
 		"- Planned: 2",
 		"- [ ] Phase 2 / 2.B.4: Pairing, reconnect, and send contract",
 		"- [ ] Phase 3 / 3.E.8: parent_session_id lineage for compression splits",
 	} {
 		if !strings.Contains(tasksText, want) {
-			t.Fatalf("tasks.md missing %q:\n%s", want, tasksText)
+			t.Fatalf("architecture-planner-tasks.md missing %q:\n%s", want, tasksText)
 		}
 	}
 
@@ -311,7 +317,7 @@ exit 0
 		t.Fatalf("read service unit: %v", err)
 	}
 	serviceText := string(serviceData)
-	if !strings.Contains(serviceText, architectureTaskManagerScript) {
+	if !strings.Contains(serviceText, architecturePlannerTasksManagerScript) {
 		t.Fatalf("service unit missing script path:\n%s", serviceText)
 	}
 	if !strings.Contains(serviceText, gormesRepo) {
@@ -356,12 +362,17 @@ exit 0
 		{name: "status", args: []string{"status"}, want: "Last run UTC:"},
 		{name: "show report", args: []string{"show-report"}, want: "# Architecture Planner Run"},
 		{name: "doctor", args: []string{"doctor"}, want: "doctor: ok"},
-		{name: "help", args: []string{"--help"}, want: "gormes-architecture-task-manager.sh"},
-		{name: "legacy wrapper help", args: []string{"legacy-help"}, want: "gormes-architecture-task-manager.sh"},
+		{name: "help", args: []string{"--help"}, want: "gormes-architecture-planner-tasks-manager.sh"},
+		{name: "task manager wrapper help", args: []string{"task-manager-help"}, want: "gormes-architecture-planner-tasks-manager.sh"},
+		{name: "legacy wrapper help", args: []string{"legacy-help"}, want: "gormes-architecture-planner-tasks-manager.sh"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			script := "scripts/" + architectureTaskManagerScript
+			script := "scripts/" + architecturePlannerTasksManagerScript
 			args := tc.args
+			if len(args) == 1 && args[0] == "task-manager-help" {
+				script = "scripts/" + architectureTaskManagerWrapperScript
+				args = []string{"--help"}
+			}
 			if len(args) == 1 && args[0] == "legacy-help" {
 				script = "scripts/" + legacyPlannerWrapperScript
 				args = []string{"--help"}

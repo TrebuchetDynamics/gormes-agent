@@ -2,4 +2,4 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/gormes-architecture-task-manager.sh" "$@"
+exec "$SCRIPT_DIR/gormes-architecture-planner-tasks-manager.sh" "$@"
