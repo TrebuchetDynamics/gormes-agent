@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 48/66 subphases shipped · 0 in progress · 18 planned
+**Overall:** 48/66 subphases shipped · 1 in progress · 17 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -319,10 +319,10 @@ weight: 10
 
 - [x] Voice mode port
 
-### 5.F — Skills System (Remaining) ⏳
+### 5.F — Skills System (Remaining) 🔨
 
 - [ ] Skills hub
-- [ ] Skill registries
+- [x] Skill registries
 
 ### 5.G — MCP Integration ⏳
 

@@ -1,6 +1,6 @@
 module github.com/TrebuchetDynamics/gormes-agent/gormes/www.gormes.ai
 
-go 1.25.0
+go 1.26
 
 toolchain go1.26.1
 

@@ -872,7 +872,8 @@
             },
             {
               "name": "Skill registries",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/skills/registry.go` now defines `SkillMeta`, `SkillBundle`, `SkillReadinessStatus`, and `HubLockFile`, adds deterministic `FilesystemSource` + `StaticSource` discovery behind one `SkillSource` / `SourceRegistry` seam, and publishes the canonical bundled/official/Claude Marketplace/ClawHub/GitHub/Hermes Index/LobeHub/skills.sh registry catalog for future hub flows."
             }
           ]
         },

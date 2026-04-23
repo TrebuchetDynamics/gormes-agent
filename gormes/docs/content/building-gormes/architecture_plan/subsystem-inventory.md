@@ -153,15 +153,15 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | TTS / voice / transcription | `tools/{tts_tool,voice_mode,transcription_tools,neutts_synth}.py` + `neutts_samples/` | 5.E | ✅ complete (tracked scope) — `internal/gateway/voice_mode.go` now ports the shared `/voice` control plane with persisted per-chat `off/voice_only/all` state at `${XDG_DATA_HOME}/gormes/gateway_voice_mode.json`; STT/TTS/transcription engines remain explicit follow-on sidecar scope |
 | Audio recorder (general + Termux) | `tools/*` — `AudioRecorder`, `TermuxAudioRecorder` | 5.E | ⏳ planned |
 | Skills system (core) | `tools/{skill_manager_tool,skills_hub,skills_sync,skills_tool,skills_guard}.py`; `skills/` (26 categories) + `optional-skills/` (10+ categories) | 5.F | ⏳ planned |
-| Skill metadata types | `tools/*` — `SkillMeta`, `SkillBundle`, `SkillReadinessStatus`, `HubLockFile` | 5.F | ⏳ planned |
-| Skill source: SkillSource (ABC) | `tools/*` — `SkillSource` base | 5.F | ⏳ planned |
-| Skill source: Claude Marketplace | `tools/*` — `ClaudeMarketplaceSource(SkillSource)` | 5.F | ⏳ planned |
-| Skill source: ClawHub | `tools/*` — `ClawHubSource(SkillSource)` | 5.F | ⏳ planned |
-| Skill source: GitHub | `tools/*` — `GitHubSource(SkillSource)` | 5.F | ⏳ planned |
-| Skill source: Hermes Index | `tools/*` — `HermesIndexSource(SkillSource)` | 5.F | ⏳ planned |
-| Skill source: LobeHub | `tools/*` — `LobeHubSource(SkillSource)` | 5.F | ⏳ planned |
-| Skill source: Optional skills | `tools/*` — `OptionalSkillSource(SkillSource)` + `optional-skills/` tree | 5.F | ⏳ planned |
-| Skill source: skills.sh | `tools/*` — `SkillsShSource(SkillSource)` | 5.F | ⏳ planned |
+| Skill metadata types | `tools/*` — `SkillMeta`, `SkillBundle`, `SkillReadinessStatus`, `HubLockFile` | 5.F | ✅ shipped — `internal/skills/registry.go` now defines the typed registry metadata rows plus deterministic lock snapshots for downstream hub/install flows |
+| Skill source: SkillSource (ABC) | `tools/*` — `SkillSource` base | 5.F | ✅ shipped — `internal/skills` now exposes one `SkillSource` seam with deterministic `FilesystemSource`, `StaticSource`, and `SourceRegistry` aggregation |
+| Skill source: Claude Marketplace | `tools/*` — `ClaudeMarketplaceSource(SkillSource)` | 5.F | ✅ shipped (registry catalog layer) — `BuiltinSkillRegistryBundles()` now tracks the canonical Claude Marketplace bundle; network sync/install remains part of Skills Hub |
+| Skill source: ClawHub | `tools/*` — `ClawHubSource(SkillSource)` | 5.F | ✅ shipped (registry catalog layer) — `BuiltinSkillRegistryBundles()` now tracks the canonical ClawHub bundle; network sync/install remains part of Skills Hub |
+| Skill source: GitHub | `tools/*` — `GitHubSource(SkillSource)` | 5.F | ✅ shipped (registry catalog layer) — `BuiltinSkillRegistryBundles()` now tracks the canonical GitHub bundle; network sync/install remains part of Skills Hub |
+| Skill source: Hermes Index | `tools/*` — `HermesIndexSource(SkillSource)` | 5.F | ✅ shipped (registry catalog layer) — `BuiltinSkillRegistryBundles()` now tracks the canonical Hermes Index bundle; network sync/install remains part of Skills Hub |
+| Skill source: LobeHub | `tools/*` — `LobeHubSource(SkillSource)` | 5.F | ✅ shipped (registry catalog layer) — `BuiltinSkillRegistryBundles()` now tracks the canonical LobeHub bundle; network sync/install remains part of Skills Hub |
+| Skill source: Optional skills | `tools/*` — `OptionalSkillSource(SkillSource)` + `optional-skills/` tree | 5.F | ✅ shipped (registry catalog layer) — `FilesystemSource` now discovers nested category trees deterministically and emits install refs such as `official/<category>/<skill>` for the optional-skill catalog |
+| Skill source: skills.sh | `tools/*` — `SkillsShSource(SkillSource)` | 5.F | ✅ shipped (registry catalog layer) — `BuiltinSkillRegistryBundles()` now tracks the canonical skills.sh bundle; network sync/install remains part of Skills Hub |
 | Taps manager (plugin-source management) | `tools/*` — `TapsManager` | 5.F / 5.I | ⏳ planned |
 | MCP integration | `tools/{mcp_tool,mcp_oauth,mcp_oauth_manager,managed_tool_gateway}.py` + `mcp_serve.py` + `MCPOAuthManager`, `MCPServerTask`, `ManagedToolGatewayConfig`, `SamplingHandler`, `OAuthNonInteractiveError`, `_ManagedFalSyncClient` classes | 5.G | ⏳ planned |
 | ACP integration (IDE: VS Code / Zed / JetBrains) | `acp_adapter/{auth,entry,events,permissions,server,session,tools}.py` (runnable as `python -m acp_adapter`), `acp_registry/{agent.json,icon.svg}` | 5.H | ⏳ planned |
