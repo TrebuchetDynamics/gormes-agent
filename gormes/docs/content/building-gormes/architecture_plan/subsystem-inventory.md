@@ -152,7 +152,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Image generation | `tools/image_generation_tool.py` | 5.D | ⏳ planned — dedicated tool port still pending; provider-side text+image request plumbing landed in `internal/hermes` |
 | TTS / voice / transcription | `tools/{tts_tool,voice_mode,transcription_tools,neutts_synth}.py` + `neutts_samples/` | 5.E | ✅ complete (tracked scope) — `internal/gateway/voice_mode.go` now ports the shared `/voice` control plane with persisted per-chat `off/voice_only/all` state at `${XDG_DATA_HOME}/gormes/gateway_voice_mode.json`; STT/TTS/transcription engines remain explicit follow-on sidecar scope |
 | Audio recorder (general + Termux) | `tools/*` — `AudioRecorder`, `TermuxAudioRecorder` | 5.E | ⏳ planned |
-| Skills system (core) | `tools/{skill_manager_tool,skills_hub,skills_sync,skills_tool,skills_guard}.py`; `skills/` (26 categories) + `optional-skills/` (10+ categories) | 5.F | 🔨 in progress — `internal/skills/hub.go` + `cmd/gormes/skills.go` now ship the first local hub runtime (`sync`, `list`, `install`) against materialized `.hub/catalogs/<source>/.../SKILL.md` trees and the active skills store under `${XDG_DATA_HOME}/gormes/skills/`; auto-discovery and guard/audit flows remain follow-on work |
+| Skills system (core) | `tools/{skill_manager_tool,skills_hub,skills_sync,skills_tool,skills_guard}.py`; `skills/` (26 categories) + `optional-skills/` (10+ categories) | 5.F | 🔨 in progress — `internal/skills/hub.go` + `cmd/gormes/skills.go` ship the local hub runtime (`sync`, `list`, `install`) against materialized `.hub/catalogs/<source>/.../SKILL.md` trees, and `internal/skills/store.go` now auto-discovers the active store plus configured external skill trees with local-name precedence while the live kernels consume that shared runtime and emit prompt snapshot metadata; guard/audit/update flows remain follow-on work |
 | Skill metadata types | `tools/*` — `SkillMeta`, `SkillBundle`, `SkillReadinessStatus`, `HubLockFile` | 5.F | ✅ shipped — `internal/skills/registry.go` now defines the typed registry metadata rows plus deterministic lock snapshots for downstream hub/install flows |
 | Skill source: SkillSource (ABC) | `tools/*` — `SkillSource` base | 5.F | ✅ shipped — `internal/skills` now exposes one `SkillSource` seam with deterministic `FilesystemSource`, `StaticSource`, and `SourceRegistry` aggregation |
 | Skill source: Claude Marketplace | `tools/*` — `ClaudeMarketplaceSource(SkillSource)` | 5.F | ✅ shipped (registry catalog layer) — `BuiltinSkillRegistryBundles()` now tracks the canonical Claude Marketplace bundle; network sync/install remains part of Skills Hub |
@@ -262,7 +262,7 @@ Equally important as the code inventory above is the **runtime contract surface*
 | `~/.hermes/context_length_cache.yaml` | YAML | `agent/model_metadata.py` | Planned 4.D — replace YAML with embedded `models_dev_cache.go` |
 | `~/.hermes/models_dev_cache.json` | JSON | `agent/models_dev.py` | Planned 4.D |
 | `~/.hermes/ollama_cloud_models_cache.json` | JSON | `agent/models_dev.py` / Ollama adapter | Planned 4.D |
-| `~/.hermes/.skills_prompt_snapshot.json` | JSON | `agent/skill_commands.py` | Planned 5.F |
+| `~/.hermes/.skills_prompt_snapshot.json` | JSON | `agent/skill_commands.py` | `${XDG_DATA_HOME}/gormes/.skills_prompt_snapshot.json` written by `internal/skills/prompt_snapshot.go` whenever the runtime materializes a skill prompt block |
 
 #### Environment variable surface
 

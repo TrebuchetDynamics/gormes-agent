@@ -159,11 +159,14 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		recallProv = &recallAdapter{p: memProv}
 	}
 
+	skillsRuntime := configuredSkillsRuntime(cfg)
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
 		Endpoint:          endpoint,
 		ModelRouting:      smartModelRouting(cfg),
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
+		Skills:            skillsRuntime,
+		SkillUsage:        skillsRuntime,
 		Tools:             reg,
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,

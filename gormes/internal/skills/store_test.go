@@ -2,9 +2,12 @@ package skills
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -75,6 +78,102 @@ func TestRuntimeBuildSkillBlockSelectsAndRendersActiveSkills(t *testing.T) {
 	if block != wantBlock {
 		t.Fatalf("BuildSkillBlock() = %q, want %q", block, wantBlock)
 	}
+}
+
+func TestRuntimeBuildSkillBlockAutoDiscoversExternalSkillsWithLocalPrecedenceAndWritesPromptSnapshot(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	sharedRoot := filepath.Join(home, "shared-skills")
+	t.Setenv("SHARED_SKILLS_ROOT", sharedRoot)
+
+	root := t.TempDir()
+	writeSkillDoc(t, filepath.Join(root, "active", "devops", "deploy-k8s", "SKILL.md"), "deploy-k8s", "Deploy Kubernetes clusters", "Use kubectl apply followed by rollout status checks.")
+	writeSkillDoc(t, filepath.Join(home, "team-skills", "devops", "cluster-checklist", "SKILL.md"), "cluster-checklist", "Checklist for Kubernetes rollouts", "Verify rollout health and service endpoints before sign-off.")
+	writeSkillDoc(t, filepath.Join(sharedRoot, "devops", "deploy-k8s", "SKILL.md"), "deploy-k8s", "EXTERNAL shadowed copy", "This external duplicate should never win over the active store.")
+	writeSkillDoc(t, filepath.Join(sharedRoot, "devops", "kubectl-rollout", "SKILL.md"), "kubectl-rollout", "Inspect kubectl rollout state", "Use kubectl rollout status and rollout history.")
+
+	snapshotPath := filepath.Join(root, ".skills_prompt_snapshot.json")
+	runtime := NewRuntimeWithConfig(RuntimeConfig{
+		Root:               root,
+		ExternalDirs:       []string{"~/team-skills", "${SHARED_SKILLS_ROOT}", filepath.Join(root, "missing")},
+		MaxDocumentBytes:   8 * 1024,
+		SelectionCap:       3,
+		PromptSnapshotPath: snapshotPath,
+	})
+
+	block, names, err := runtime.BuildSkillBlock(context.Background(), "deploy kubernetes rollout checklist")
+	if err != nil {
+		t.Fatalf("BuildSkillBlock() error = %v", err)
+	}
+
+	gotNames := append([]string(nil), names...)
+	sortStrings(gotNames)
+	wantNames := []string{"cluster-checklist", "deploy-k8s", "kubectl-rollout"}
+	if !reflect.DeepEqual(gotNames, wantNames) {
+		t.Fatalf("selected names = %#v, want %#v", gotNames, wantNames)
+	}
+
+	if !containsAll(block,
+		"Deploy Kubernetes clusters",
+		"Checklist for Kubernetes rollouts",
+		"Inspect kubectl rollout state",
+	) {
+		t.Fatalf("BuildSkillBlock() = %q, want selected local+external skill content", block)
+	}
+	if containsAll(block, "EXTERNAL shadowed copy") {
+		t.Fatalf("BuildSkillBlock() = %q, want local active skill to shadow external duplicate", block)
+	}
+
+	raw, err := os.ReadFile(snapshotPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", snapshotPath, err)
+	}
+
+	var snap promptSnapshot
+	if err := json.Unmarshal(raw, &snap); err != nil {
+		t.Fatalf("json.Unmarshal(snapshot): %v", err)
+	}
+	if snap.UserMessage != "deploy kubernetes rollout checklist" {
+		t.Fatalf("snapshot UserMessage = %q, want original query", snap.UserMessage)
+	}
+	if snap.GeneratedAt.IsZero() {
+		t.Fatal("snapshot GeneratedAt is zero")
+	}
+	if snap.Block != block {
+		t.Fatalf("snapshot Block = %q, want %q", snap.Block, block)
+	}
+	if len(snap.Skills) != 3 {
+		t.Fatalf("len(snapshot Skills) = %d, want 3", len(snap.Skills))
+	}
+
+	skillPaths := map[string]string{}
+	for _, item := range snap.Skills {
+		skillPaths[item.Name] = item.Path
+	}
+	if got := skillPaths["deploy-k8s"]; got != filepath.Join(root, "active", "devops", "deploy-k8s", "SKILL.md") {
+		t.Fatalf("snapshot deploy-k8s path = %q, want local active path", got)
+	}
+	if got := skillPaths["cluster-checklist"]; got != filepath.Join(home, "team-skills", "devops", "cluster-checklist", "SKILL.md") {
+		t.Fatalf("snapshot cluster-checklist path = %q, want home-expanded external path", got)
+	}
+	if got := skillPaths["kubectl-rollout"]; got != filepath.Join(sharedRoot, "devops", "kubectl-rollout", "SKILL.md") {
+		t.Fatalf("snapshot kubectl-rollout path = %q, want env-expanded external path", got)
+	}
+}
+
+func containsAll(haystack string, needles ...string) bool {
+	for _, needle := range needles {
+		if !strings.Contains(haystack, needle) {
+			return false
+		}
+	}
+	return true
+}
+
+func sortStrings(values []string) {
+	sort.Slice(values, func(i, j int) bool {
+		return values[i] < values[j]
+	})
 }
 
 func writeSkillDoc(t *testing.T, path, name, description, body string) {

@@ -102,10 +102,12 @@ type CronCfg struct {
 
 // SkillsCfg configures the Phase 2.G0 static skills runtime.
 type SkillsCfg struct {
-	Root             string `toml:"root"`
-	SelectionCap     int    `toml:"selection_cap"`
-	MaxDocumentBytes int    `toml:"max_document_bytes"`
-	UsageLogPath     string `toml:"usage_log_path"`
+	Root               string   `toml:"root"`
+	ExternalDirs       []string `toml:"external_dirs"`
+	SelectionCap       int      `toml:"selection_cap"`
+	MaxDocumentBytes   int      `toml:"max_document_bytes"`
+	UsageLogPath       string   `toml:"usage_log_path"`
+	PromptSnapshotPath string   `toml:"prompt_snapshot_path"`
 }
 
 // DelegationCfg configures Phase 2.E subagent execution.
@@ -515,6 +517,16 @@ func (c Config) SkillsUsageLogPath() string {
 		return c.Skills.UsageLogPath
 	}
 	return filepath.Join(c.SkillsRoot(), "usage.jsonl")
+}
+
+// SkillsPromptSnapshotPath returns the JSON snapshot path for the last
+// generated skill prompt block. Explicit override wins; otherwise it lives
+// under XDG_DATA_HOME/gormes/.
+func (c Config) SkillsPromptSnapshotPath() string {
+	if c.Skills.PromptSnapshotPath != "" {
+		return c.Skills.PromptSnapshotPath
+	}
+	return filepath.Join(xdgDataHome(), "gormes", ".skills_prompt_snapshot.json")
 }
 
 // ToolAuditLogPath returns the append-only JSONL path for tool execution

@@ -109,12 +109,15 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	defer signal.Stop(signals)
 	reg := buildDefaultRegistry(rootCtx, cfg.Delegation, cfg.SkillsRoot(), hc, cfg.Hermes.Model)
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
+	skillsRuntime := configuredSkillsRuntime(cfg)
 
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
 		Endpoint:          endpoint,
 		ModelRouting:      smartModelRouting(cfg),
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
+		Skills:            skillsRuntime,
+		SkillUsage:        skillsRuntime,
 		Tools:             reg,
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
@@ -201,11 +204,13 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	go k.Run(rootCtx)
 	bootPath := config.BootPath()
 	bootQueued := gateway.StartBootHook(rootCtx, gateway.BootHookConfig{
-		Path:   bootPath,
-		Model:  cfg.Hermes.Model,
-		Client: hc,
-		Tools:  reg,
-		Log:    slog.Default(),
+		Path:       bootPath,
+		Model:      cfg.Hermes.Model,
+		Client:     hc,
+		Tools:      reg,
+		Skills:     skillsRuntime,
+		SkillUsage: skillsRuntime,
+		Log:        slog.Default(),
 	})
 	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
 

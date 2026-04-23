@@ -16,11 +16,13 @@ import (
 
 // BootHookConfig configures the built-in BOOT.md startup hook.
 type BootHookConfig struct {
-	Path   string
-	Model  string
-	Client hermes.Client
-	Tools  *tools.Registry
-	Log    *slog.Logger
+	Path       string
+	Model      string
+	Client     hermes.Client
+	Tools      *tools.Registry
+	Skills     kernel.SkillProvider
+	SkillUsage kernel.SkillUsageRecorder
+	Log        *slog.Logger
 }
 
 // StartBootHook starts a background BOOT.md run when the file exists and is
@@ -68,6 +70,8 @@ func runBootHook(ctx context.Context, cfg BootHookConfig, prompt string) {
 		Model:             cfg.Model,
 		Endpoint:          "boot-md",
 		Admission:         kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Skills:            cfg.Skills,
+		SkillUsage:        cfg.SkillUsage,
 		Tools:             cfg.Tools,
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,

@@ -878,7 +878,8 @@
             },
             {
               "name": "Skill auto-discovery",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/skills` now auto-discovers the active store plus configured external skill trees with local-name precedence, writes `${XDG_DATA_HOME}/gormes/.skills_prompt_snapshot.json` for the selected prompt block metadata, and `cmd/gormes/{main,gateway,telegram}.go` plus the BOOT hook now wire the live kernels through the shared runtime and usage logger."
             }
           ]
         },
