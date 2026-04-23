@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 42/66 subphases shipped · 0 in progress · 24 planned
+**Overall:** 42/66 subphases shipped · 1 in progress · 23 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -298,11 +298,11 @@ weight: 10
 
 - [x] 61-tool registry port
 
-### 5.B — Sandboxing Backends ⏳
+### 5.B — Sandboxing Backends 🔨
 
 - [ ] Docker
 - [ ] Modal
-- [ ] Daytona
+- [x] Daytona
 - [ ] Singularity
 
 ### 5.C — Browser Automation ⏳

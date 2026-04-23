@@ -808,7 +808,8 @@
             },
             {
               "name": "Daytona",
-              "status": "planned"
+              "status": "complete",
+              "note": "Go-native backend seam now lives in internal/tools/environments/daytona with tested resource normalization, persistent sandbox reuse, exec translation, and cleanup policy."
             },
             {
               "name": "Singularity",
