@@ -20,7 +20,7 @@ Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
 | 4.C — Native Prompt Builder | ✅ complete | `internal/kernel/prompt_builder.go` now assembles session context + recall output + skill blocks ahead of accumulated history and tool descriptors inside `hermes.ChatRequest` |
 | 4.D — Smart Model Routing | ✅ complete | `internal/kernel/model_routing.go` now applies conservative same-provider per-turn model selection via `[hermes.smart_routing]`, and the kernel carries that effective model through request assembly, telemetry, and render frames |
 | 4.E — Trajectory + Insights | ✅ complete | `internal/telemetry` now tracks per-session turn outcomes plus tool execution totals/failures/cancellations, and the TUI renders that live self-monitoring surface for later trajectory/insights work |
-| 4.F — Title Generation | ⏳ planned | Port `agent/title_generator.py`; auto-name new sessions |
+| 4.F — Title Generation | ✅ complete | `internal/session/title.go` now derives deterministic first-exchange titles, and the gateway/TUI persistence paths store them in session metadata plus the audit mirror |
 | 4.G — Credentials + OAuth | ⏳ planned | Port `agent/google_oauth.py`, `agent/credential_pool.py`, `tools/credential_files.py`; token vault + multi-account auth |
 | 4.H — Rate / Retry / Caching | ⏳ planned | Port `agent/{rate_limit_tracker,retry_utils,nous_rate_guard,prompt_caching}.py`; provider-side resilience |
 
@@ -35,6 +35,8 @@ Phase 4.A is now complete. Anthropic, Bedrock, Gemini, OpenRouter, Codex, and Go
 4.D is now complete as well: `internal/kernel/model_routing.go` ports a conservative slice of the donor smart-routing behavior by switching short, non-code, non-tool-heavy turns onto an optional `simple_model` configured under `[hermes.smart_routing]`. `internal/kernel/kernel.go` sets that effective model per turn before the stream opens, `internal/kernel/prompt_builder.go` forwards it into `hermes.ChatRequest`, and the same selected model flows through telemetry plus `RenderFrame` so the TUI shows what the turn actually used. `internal/kernel/model_routing_test.go` locks the heuristic and the per-turn reset-to-primary behavior, while `internal/config/config_test.go` proves the TOML surface that enables it. The broader donor metadata catalogs remain tracked separately in the subsystem inventory.
 
 4.E is now complete as well: `internal/telemetry` now records per-session turn outcomes, total tool executions, failed/cancelled tool calls, and the last completed turn state alongside the existing token/latency counters. `internal/kernel` wires those counters into live render frames and `internal/tui/view.go` surfaces them in the sidebar, giving operators a built-in self-monitoring view before the historical `trajectory.py` / `insights.py` donor ports land.
+
+4.F is now complete as well: `internal/session/title.go` ports the donor title-generator intent as a deterministic first-exchange summarizer, so the opening user/assistant pair auto-names a new session without needing an auxiliary model. `internal/gateway/manager.go` and `cmd/gormes/main.go` run that helper when a turn settles to idle, `internal/session/directory.go` persists the title alongside the existing session metadata, and `internal/session/index_mirror.go` includes the title in the YAML audit mirror.
 
 ## Build Priority Context
 

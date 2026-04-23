@@ -753,7 +753,8 @@
           "items": [
             {
               "name": "Auto-naming sessions",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD: shipped deterministic first-exchange session titles via `internal/session/title.go`; gateway and TUI persistence now store titles in session metadata, and the session index mirror exposes them for auditability."
             }
           ]
         },

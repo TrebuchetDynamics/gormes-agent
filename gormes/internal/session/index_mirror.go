@@ -62,6 +62,7 @@ func (m *SessionIndexMirror) Write() error {
 type sessionEntry struct {
 	Key             string
 	SessionID       string
+	Title           string
 	Source          string
 	ChatID          string
 	UserID          string
@@ -96,6 +97,7 @@ func (m *SessionIndexMirror) snapshot() ([]sessionEntry, error) {
 					return fmt.Errorf("session: decode metadata for mirror %q: %w", entry.SessionID, err)
 				}
 				if ok {
+					entry.Title = meta.Title
 					entry.Source = meta.Source
 					entry.ChatID = meta.ChatID
 					entry.UserID = meta.UserID
@@ -134,6 +136,7 @@ func (m *SessionIndexMirror) render(sessions []sessionEntry) []byte {
 		b.WriteString(yamlScalar(entry.Key, true))
 		b.WriteString(":\n")
 		writeSessionMirrorField(&b, "session_id", entry.SessionID, false)
+		writeSessionMirrorField(&b, "title", entry.Title, true)
 		writeSessionMirrorField(&b, "source", entry.Source, false)
 		writeSessionMirrorField(&b, "chat_id", entry.ChatID, true)
 		writeSessionMirrorField(&b, "user_id", entry.UserID, false)
@@ -228,6 +231,8 @@ func fingerprintSessions(sessions []sessionEntry) string {
 		b.WriteString(entry.Key)
 		b.WriteByte(0)
 		b.WriteString(entry.SessionID)
+		b.WriteByte(0)
+		b.WriteString(entry.Title)
 		b.WriteByte(0)
 		b.WriteString(entry.Source)
 		b.WriteByte(0)

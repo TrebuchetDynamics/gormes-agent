@@ -37,9 +37,15 @@ type Metadata struct {
 	Source          string `json:"source,omitempty"`
 	ChatID          string `json:"chat_id,omitempty"`
 	UserID          string `json:"user_id,omitempty"`
+	Title           string `json:"title,omitempty"`
 	ParentSessionID string `json:"parent_session_id,omitempty"`
 	LineageKind     string `json:"lineage_kind,omitempty"`
 	UpdatedAt       int64  `json:"updated_at"`
+}
+
+type MetadataStore interface {
+	PutMetadata(ctx context.Context, meta Metadata) error
+	GetMetadata(ctx context.Context, sessionID string) (Metadata, bool, error)
 }
 
 func normalizeMetadata(meta Metadata) Metadata {
@@ -47,6 +53,7 @@ func normalizeMetadata(meta Metadata) Metadata {
 	meta.Source = strings.TrimSpace(meta.Source)
 	meta.ChatID = strings.TrimSpace(meta.ChatID)
 	meta.UserID = strings.TrimSpace(meta.UserID)
+	meta.Title = strings.TrimSpace(meta.Title)
 	meta.ParentSessionID = strings.TrimSpace(meta.ParentSessionID)
 	meta.LineageKind = strings.TrimSpace(meta.LineageKind)
 	return meta
@@ -96,6 +103,9 @@ func mergeMetadata(existing, incoming Metadata) Metadata {
 	}
 	if incoming.UserID != "" {
 		out.UserID = incoming.UserID
+	}
+	if incoming.Title != "" {
+		out.Title = incoming.Title
 	}
 	if incoming.ParentSessionID != "" {
 		out.ParentSessionID = incoming.ParentSessionID

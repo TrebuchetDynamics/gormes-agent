@@ -150,6 +150,11 @@ func runTUI(cmd *cobra.Command, _ []string) error {
 					lastSID = f.SessionID
 				}
 			}
+			if f.Phase == kernel.PhaseIdle {
+				if err := session.MaybeAutoTitle(rootCtx, smap, f.SessionID, f.History); err != nil {
+					slog.Warn("tui: failed to auto-title session", "session_id", f.SessionID, "err", err)
+				}
+			}
 			select {
 			case hookedFrames <- f:
 			case <-rootCtx.Done():

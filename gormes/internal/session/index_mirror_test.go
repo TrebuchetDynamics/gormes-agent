@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	bolt "go.etcd.io/bbolt"
 )
 
 func TestSessionIndexMirror_WriteCreatesStableOrderedYAML(t *testing.T) {
@@ -237,6 +239,45 @@ func TestSessionIndexMirror_WriteIncludesIdentityAndLineageFields(t *testing.T) 
 		if !strings.Contains(string(raw), want) {
 			t.Fatalf("mirror YAML missing %q:\n%s", want, raw)
 		}
+	}
+}
+
+func TestSessionIndexMirror_WriteIncludesPersistedTitle(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "sessions.db")
+	m, err := OpenBolt(dbPath)
+	if err != nil {
+		t.Fatalf("OpenBolt: %v", err)
+	}
+	defer m.Close()
+
+	ctx := context.Background()
+	if err := m.Put(ctx, "telegram:42", "sess-title"); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if err := m.DB().Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(metadataBucketName))
+		return b.Put([]byte("sess-title"), []byte(`{"session_id":"sess-title","source":"telegram","chat_id":"42","title":"Debug Gateway Restart Loop","updated_at":10}`))
+	}); err != nil {
+		t.Fatalf("seed metadata title: %v", err)
+	}
+
+	outPath := filepath.Join(t.TempDir(), "sessions", "index.yaml")
+	mirror := NewSessionIndexMirror(m, outPath)
+	mirror.now = func() time.Time {
+		return time.Date(2026, 4, 23, 9, 0, 0, 0, time.UTC)
+	}
+
+	if err := mirror.Write(); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	raw, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", outPath, err)
+	}
+
+	if !strings.Contains(string(raw), `title: "Debug Gateway Restart Loop"`) {
+		t.Fatalf("mirror YAML missing persisted title:\n%s", raw)
 	}
 }
 

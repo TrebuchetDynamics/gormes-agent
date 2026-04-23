@@ -129,7 +129,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Smart model routing | `agent/smart_model_routing.py` + `model_metadata.py` + `models_dev.py` | 4.D | ✅ complete — `internal/kernel/model_routing.go` now ships conservative same-provider simple-turn selection, and `internal/kernel` carries the selected model through requests, telemetry, and render frames |
 | Trajectory | `agent/trajectory.py` | 4.E | ⏳ planned |
 | Insights | `agent/insights.py` | 4.E | ⏳ planned |
-| Title generator | `agent/title_generator.py` | 4.F | ⏳ planned |
+| Title generator | `agent/title_generator.py` | 4.F | ✅ complete — `internal/session/title.go` derives deterministic first-exchange titles, and the gateway/TUI session persistence paths store them in metadata plus the audit mirror |
 | Google OAuth | `agent/google_oauth.py` | 4.G | ⏳ planned |
 | Credential pool | `agent/credential_pool.py` | 4.G | ⏳ planned |
 | Credential files | `tools/credential_files.py` | 4.G | ⏳ planned |

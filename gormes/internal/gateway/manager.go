@@ -571,4 +571,9 @@ func (m *Manager) persistSession(ctx context.Context, f kernel.RenderFrame) {
 	if err := m.cfg.SessionMap.Put(ctx, key, f.SessionID); err != nil {
 		m.log.Warn("persist session_id", "key", key, "session_id", f.SessionID, "err", err)
 	}
+	if store, ok := m.cfg.SessionMap.(session.MetadataStore); ok && f.Phase == kernel.PhaseIdle {
+		if err := session.MaybeAutoTitle(ctx, store, f.SessionID, f.History); err != nil {
+			m.log.Warn("auto-title session", "key", key, "session_id", f.SessionID, "err", err)
+		}
+	}
 }
