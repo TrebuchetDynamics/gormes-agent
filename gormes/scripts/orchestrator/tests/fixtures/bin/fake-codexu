@@ -166,13 +166,25 @@ REPORT
     ;;
 
   conflict)
-    wt="${FAKE_CODEXU_WORKTREE:-.}"
-    cd "$wt"
+    # Parse the prompt the same way success mode does so that in multi-worker runs
+    # each worker commits to its own worktree/branch. Falls back to FAKE_CODEXU_*
+    # env knobs (and finally cwd / a dummy branch) for single-worker / standalone use.
+    report_branch="$(grep -E '^- Git branch: ' <<<"$prompt" | head -n1 | sed -E 's/^- Git branch: *//')"
+    report_branch="${report_branch:-${FAKE_CODEXU_BRANCH:-codexu/fake/worker1}}"
+    wt="$(grep -E '^  /' <<<"$prompt" | head -n1 | sed -E 's/^  //')"
+    wt="${wt:-${FAKE_CODEXU_WORKTREE:-.}}"
+
+    if [[ -d "$wt" ]]; then
+      cd "$wt"
+    fi
+
+    # Write PID-tagged content so two conflict workers diverge on the same line
+    # of the same file and cherry-pick collides deterministically.
     printf 'fake-conflict-%s\n' "$$" > progress.fixture.json
     git -c user.email=t@t -c user.name=T add progress.fixture.json >/dev/null
     git -c user.email=t@t -c user.name=T commit -q -m "fake-conflict: $$" >/dev/null
     head_sha="$(git rev-parse HEAD)"
-    branch="${FAKE_CODEXU_BRANCH:-codexu/fake/worker1}"
+    branch="$report_branch"
 
     if [[ -z "$final_file" ]]; then
       echo "fake-codexu: --output-last-message not provided" >&2
