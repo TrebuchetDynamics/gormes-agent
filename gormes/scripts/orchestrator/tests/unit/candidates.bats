@@ -1,0 +1,76 @@
+#!/usr/bin/env bats
+
+load '../lib/test_env'
+
+setup() {
+  load_helpers
+  source_lib candidates
+  export PROGRESS_JSON="$FIXTURES_DIR/progress.fixture.json"
+}
+
+@test "normalize_candidates drops complete items" {
+  export ACTIVE_FIRST=1
+  run normalize_candidates
+  assert_success
+  # Should include 4 non-complete items: A2, B1, B2, 2A1, 2A2 = 5 items (not 6)
+  local count
+  count=$(echo "$output" | jq 'length')
+  assert_equal "$count" "5"
+  echo "$output" | jq -e '.[].status != "complete"'
+}
+
+@test "normalize_candidates orders in_progress before planned when ACTIVE_FIRST=1" {
+  export ACTIVE_FIRST=1
+  run normalize_candidates
+  assert_success
+  local first_status
+  first_status=$(echo "$output" | jq -r '.[0].status')
+  assert_equal "$first_status" "in_progress"
+}
+
+@test "normalize_candidates does not prioritize when ACTIVE_FIRST=0" {
+  export ACTIVE_FIRST=0
+  run normalize_candidates
+  assert_success
+  # Must not group by status — lexical phase/subphase/item order instead
+  local order
+  order=$(echo "$output" | jq -r '[.[] | .phase_id + "/" + .subphase_id + "/" + .item_name] | join(",")')
+  [[ "$order" == "1/1.A/Item A2,1/1.B/Item B1,1/1.B/Item B2,2/2.A/Item 2A1,2/2.A/Item 2A2" ]]
+}
+
+@test "normalize_candidates returns empty array for progress.empty.json" {
+  export PROGRESS_JSON="$FIXTURES_DIR/progress.empty.json"
+  run normalize_candidates
+  assert_success
+  assert_output "[]"
+}
+
+@test "normalize_candidates returns empty array when all items complete" {
+  export PROGRESS_JSON="$FIXTURES_DIR/progress.all-complete.json"
+  run normalize_candidates
+  assert_success
+  assert_output "[]"
+}
+
+@test "task_slug lowercases and sanitizes" {
+  run task_slug "3" "3.E" "Cross Chat Merge (v2)"
+  assert_output "3__3.e__cross-chat-merge-v2"
+}
+
+@test "candidate_count reports length from CANDIDATES_FILE" {
+  local tmp
+  tmp="$(mktmp_workspace)"
+  echo '[{"a":1},{"b":2},{"c":3}]' > "$tmp/cands.json"
+  export CANDIDATES_FILE="$tmp/cands.json"
+  run candidate_count
+  assert_output "3"
+}
+
+@test "candidate_at returns JSON object at index" {
+  local tmp
+  tmp="$(mktmp_workspace)"
+  echo '[{"k":"a"},{"k":"b"}]' > "$tmp/cands.json"
+  export CANDIDATES_FILE="$tmp/cands.json"
+  run candidate_at 1
+  assert_output '{"k":"b"}'
+}
