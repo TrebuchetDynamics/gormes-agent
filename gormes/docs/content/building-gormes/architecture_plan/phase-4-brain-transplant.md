@@ -22,7 +22,7 @@ Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
 | 4.E — Trajectory + Insights | ✅ complete | `internal/telemetry` now tracks per-session turn outcomes plus tool execution totals/failures/cancellations, and the TUI renders that live self-monitoring surface for later trajectory/insights work |
 | 4.F — Title Generation | ✅ complete | `internal/session/title.go` now derives deterministic first-exchange titles, and the gateway/TUI persistence paths store them in session metadata plus the audit mirror |
 | 4.G — Credentials + OAuth | 🔨 in progress | Named multi-account selection plus the XDG token vault are live; interactive OAuth browser/login flow still remains |
-| 4.H — Rate / Retry / Caching | ⏳ planned | Port `agent/{rate_limit_tracker,retry_utils,nous_rate_guard,prompt_caching}.py`; provider-side resilience |
+| 4.H — Rate / Retry / Caching | ✅ complete | `internal/hermes/errors.go` now preserves provider `Retry-After` hints and `internal/kernel/retry.go` waits for `max(jittered backoff, Retry-After)` before reconnecting after retryable provider failures |
 
 Once 4.A–4.D are shipped Gormes can call LLMs directly. The `:8642` health check becomes optional.
 
@@ -39,6 +39,8 @@ Phase 4.A is now complete. Anthropic, Bedrock, Gemini, OpenRouter, Codex, and Go
 4.F is now complete as well: `internal/session/title.go` ports the donor title-generator intent as a deterministic first-exchange summarizer, so the opening user/assistant pair auto-names a new session without needing an auxiliary model. `internal/gateway/manager.go` and `cmd/gormes/main.go` run that helper when a turn settles to idle, `internal/session/directory.go` persists the title alongside the existing session metadata, and `internal/session/index_mirror.go` includes the title in the YAML audit mirror.
 
 4.G is now further along as well: `internal/config/config.go` still resolves a named `[hermes].account` / `[[hermes.accounts]]` selection into the active provider, endpoint, model, and API key before the existing env/flag overrides apply, and `GORMES_ACCOUNT` can switch accounts per run without rewriting `config.toml`. On top of that, `internal/config/token_vault.go` now loads persisted credentials from `${XDG_DATA_HOME}/gormes/auth.json` plus provider token files under `${XDG_DATA_HOME}/gormes/auth/*.json` before env/flag overrides, so previously-issued bearer/API tokens can reach the live provider adapters without being duplicated in `config.toml`. `internal/config/config_test.go` locks auth-vault fallback, provider-file precedence, and the XDG path helpers, while `cmd/gormes/llm_client_test.go` proves a vault-loaded token actually reaches the provider health check path. The remaining 4.G work is the interactive OAuth browser/login flow and refresh lifecycle.
+
+4.H is now complete as well: retryable provider failures no longer discard upstream backpressure hints at the adapter seam. `internal/hermes/errors.go` now lifts HTTP `Retry-After` headers into a shared `RetryAfterer` contract for the OpenAI-compatible, Anthropic, Gemini, OpenRouter, Codex, and Google Code Assist clients, while `internal/kernel/retry.go` upgrades the reconnect wait to `max(jittered backoff, Retry-After)`. `internal/hermes/client_test.go`, `internal/hermes/anthropic_client_test.go`, and `internal/kernel/provider_resilience_test.go` lock the 429 path so the kernel respects explicit provider slow-down windows instead of retrying too early.
 
 ## Build Priority Context
 

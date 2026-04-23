@@ -20,14 +20,14 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 42/66 subphases shipped · 2 in progress · 22 planned
+**Overall:** 43/66 subphases shipped · 2 in progress · 21 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
 | Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 6/8 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 7/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
@@ -287,9 +287,9 @@ weight: 10
 - [ ] OAuth browser flow
 - [x] Multi-account auth
 
-### 4.H — Rate / Retry / Caching ⏳
+### 4.H — Rate / Retry / Caching ✅
 
-- [ ] Provider-side resilience
+- [x] Provider-side resilience
 
 ## Phase 5 — The Final Purge 🔨
 

@@ -3,6 +3,7 @@ package hermes
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,6 +85,7 @@ func TestOpenStream_Happy(t *testing.T) {
 
 func TestOpenStream_Retry_429(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "2")
 		http.Error(w, "slow down", 429)
 	}))
 	defer srv.Close()
@@ -95,6 +97,13 @@ func TestOpenStream_Retry_429(t *testing.T) {
 	}
 	if Classify(err) != ClassRetryable {
 		t.Errorf("Classify = %v, want ClassRetryable", Classify(err))
+	}
+	var retryAfterer RetryAfterer
+	if !errors.As(err, &retryAfterer) {
+		t.Fatalf("error %T does not expose RetryAfter()", err)
+	}
+	if got, ok := retryAfterer.RetryAfter(); !ok || got != 2*time.Second {
+		t.Fatalf("RetryAfter = (%v, %t), want (2s, true)", got, ok)
 	}
 }
 

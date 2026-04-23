@@ -782,7 +782,8 @@
           "items": [
             {
               "name": "Provider-side resilience",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD: `internal/hermes/errors.go` now preserves provider `Retry-After` hints on retryable HTTP errors across the native adapters, and `internal/kernel/retry.go` uses `max(jittered backoff, Retry-After)` before reconnecting after 429 / transient provider failures."
             }
           ]
         }

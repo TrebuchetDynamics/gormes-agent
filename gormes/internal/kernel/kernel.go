@@ -342,7 +342,7 @@ toolLoop:
 					k.phase = PhaseReconnecting
 					k.lastError = "reconnecting: " + err.Error()
 					k.emitFrame("reconnecting")
-					delay := retryBudget.NextDelay()
+					delay := nextRetryDelay(err, retryBudget)
 					if werr := Wait(ctx, delay); werr != nil {
 						cancelled = true
 						break toolLoop
@@ -387,7 +387,7 @@ toolLoop:
 				}
 				k.phase = PhaseReconnecting
 				k.emitFrame("reconnecting")
-				delay := retryBudget.NextDelay()
+				delay := nextRetryDelay(fatalErr, retryBudget)
 				if werr := Wait(ctx, delay); werr != nil {
 					cancelled = true
 					break toolLoop

@@ -77,7 +77,7 @@ func (c *googleCodeAssistClient) OpenStream(ctx context.Context, req ChatRequest
 	if resp.StatusCode >= 300 {
 		rawBody, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &HTTPError{Status: resp.StatusCode, Body: string(rawBody)}
+		return nil, newHTTPError(resp, rawBody)
 	}
 	return newWrappedGeminiStream(resp.Body), nil
 }
@@ -117,7 +117,7 @@ func (c *googleCodeAssistClient) Health(ctx context.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
-		return &HTTPError{Status: resp.StatusCode, Body: string(body)}
+		return newHTTPError(resp, body)
 	}
 	return nil
 }

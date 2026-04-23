@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 type anthropicTestRequest struct {
@@ -277,6 +279,33 @@ done:
 	}
 	if !strings.Contains(string(final.ToolCalls[0].Arguments), `"2+2"`) {
 		t.Fatalf("ToolCalls[0].Arguments = %s, want expression JSON", final.ToolCalls[0].Arguments)
+	}
+}
+
+func TestNewClient_AnthropicPreservesRetryAfterOnRateLimit(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "3")
+		http.Error(w, "slow down", http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+
+	c := NewClient("anthropic", srv.URL, "test-key")
+	_, err := c.OpenStream(context.Background(), ChatRequest{
+		Model:    "claude-sonnet-4-20250514",
+		Messages: []Message{{Role: "user", Content: "hello"}},
+	})
+	if err == nil {
+		t.Fatal("OpenStream() err = nil, want rate-limit error")
+	}
+	if got := Classify(err); got != ClassRetryable {
+		t.Fatalf("Classify(err) = %q, want %q", got, ClassRetryable)
+	}
+	var retryAfterer RetryAfterer
+	if !errors.As(err, &retryAfterer) {
+		t.Fatalf("error %T does not expose RetryAfter()", err)
+	}
+	if got, ok := retryAfterer.RetryAfter(); !ok || got != 3*time.Second {
+		t.Fatalf("RetryAfter = (%v, %t), want (3s, true)", got, ok)
 	}
 }
 

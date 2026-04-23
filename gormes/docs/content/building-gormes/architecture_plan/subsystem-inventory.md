@@ -120,7 +120,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Billing + cost + usage types | `agent/*` — `BillingRoute`, `CanonicalUsage`, `CostResult` classes | 4.E / 4.H | ⏳ planned |
 | Provider failover | `agent/*` — `FailoverReason` enum + routing logic | 4.H | ⏳ planned |
 | Model metadata types | `agent/model_metadata.py` — `ModelCapabilities`, `ModelInfo` classes | 4.D | ⏳ planned |
-| Error classifier output type | `agent/error_classifier.py` — `ClassifiedError` class | 4.H | ⏳ planned |
+| Error classifier output type | `agent/error_classifier.py` — `ClassifiedError` class | 4.H | ✅ complete — `internal/hermes/errors.go` now exposes shared retryable-vs-fatal classification plus `RetryAfterer` hints for provider HTTP failures |
 | Local edit snapshot | `agent/*` — `LocalEditSnapshot` (for checkpoint rewind) | 5.L | ⏳ planned |
 | Context engine | `agent/context_engine.py` | 4.B | ✅ complete — `internal/contextengine` now exposes model-context updates, `get_status`, last-token accounting, and deterministic request planning for long sessions |
 | Context compressor | `agent/context_compressor.py` + `manual_compression_feedback.py` | 4.B | ✅ complete — `internal/contextengine` now locks threshold budgeting, summary sizing, probe step-down, ineffective-compression cooldown, and request-path history trimming while `internal/kernel` applies the planner before provider calls |
@@ -134,11 +134,11 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Credential pool | `agent/credential_pool.py` | 4.G | ⏳ planned |
 | Credential files | `tools/credential_files.py` | 4.G | ✅ complete — `internal/config/token_vault.go` now resolves `${XDG_DATA_HOME}/gormes/auth.json` and `${XDG_DATA_HOME}/gormes/auth/*.json` before env/flag overrides so persisted provider tokens reach the live adapters |
 | Rate limit tracker | `agent/rate_limit_tracker.py` + `nous_rate_guard.py` | 4.H | ⏳ planned |
-| Retry utils | `agent/retry_utils.py` | 4.H | ⏳ planned |
+| Retry utils | `agent/retry_utils.py` | 4.H | ✅ complete — `internal/kernel/retry.go` now picks `max(jittered backoff, provider Retry-After)` for reconnect waits after transient provider failures |
 | Prompt caching | `agent/prompt_caching.py` | 4.H | ⏳ planned |
 | Subdirectory hints | `agent/subdirectory_hints.py` | 4.B | ⏳ planned |
 | Skill commands / utils | `agent/skill_commands.py`, `agent/skill_utils.py` | 4.C | ⏳ planned |
-| Error classifier | `agent/error_classifier.py` | 4.H | ⏳ planned |
+| Error classifier | `agent/error_classifier.py` | 4.H | ✅ complete — `internal/hermes/errors.go` now classifies provider failures for the kernel retry loop and preserves retry timing hints across native adapters |
 | Redaction | `agent/redact.py` | 4.B | ⏳ planned |
 | Usage / pricing | `agent/usage_pricing.py` | 4.E | ⏳ planned |
 

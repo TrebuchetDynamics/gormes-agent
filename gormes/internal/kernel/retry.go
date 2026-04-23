@@ -2,8 +2,11 @@ package kernel
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/hermes"
 )
 
 // RetryBudget implements the Route-B reconnect schedule from spec §9.2:
@@ -47,4 +50,18 @@ func Wait(ctx context.Context, d time.Duration) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func nextRetryDelay(err error, budget *RetryBudget) time.Duration {
+	delay := budget.NextDelay()
+	if delay < 0 {
+		return delay
+	}
+	var retryAfterer hermes.RetryAfterer
+	if errors.As(err, &retryAfterer) {
+		if retryAfter, ok := retryAfterer.RetryAfter(); ok && retryAfter > delay {
+			return retryAfter
+		}
+	}
+	return delay
 }

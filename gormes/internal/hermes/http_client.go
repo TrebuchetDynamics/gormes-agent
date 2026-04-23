@@ -42,7 +42,7 @@ func (c *httpClient) Health(ctx context.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
-		return &HTTPError{Status: resp.StatusCode, Body: string(body)}
+		return newHTTPError(resp, body)
 	}
 	return nil
 }
@@ -112,7 +112,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &HTTPError{Status: resp.StatusCode, Body: string(raw)}
+		return nil, newHTTPError(resp, raw)
 	}
 	// The body stays open for streaming; chatStream owns the Close.
 	return newChatStream(resp.Body, resp.Header.Get("X-Hermes-Session-Id")), nil
@@ -143,7 +143,7 @@ func (c *httpClient) OpenRunEvents(ctx context.Context, runID string) (RunEventS
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &HTTPError{Status: resp.StatusCode, Body: string(raw)}
+		return nil, newHTTPError(resp, raw)
 	}
 	return newRunEventStream(resp.Body), nil
 }
