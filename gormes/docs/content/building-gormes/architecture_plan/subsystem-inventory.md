@@ -148,8 +148,8 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 |---|---|---|---|
 | Sandboxing backends | `tools/environments/{base,local,docker,modal,managed_modal,modal_utils,daytona,singularity,ssh,file_sync}.py` | 5.B | ✅ complete (tracked 5.B scope) — `internal/tools/environments/{daytona,docker,modal,singularity}` now cover the tracked backend seams with Docker persistence hardening, Modal snapshot restore fallback, Daytona sandbox reuse, and Singularity scratch/overlay lifecycle tests; SSH and shared file-sync remain future follow-on ports outside the current checklist |
 | Browser automation | `tools/browser_tool.py`, `browser_camofox*.py`, `browser_providers/{base,browserbase,browser_use,firecrawl}.py` | 5.C | ✅ complete (tracked scope) — `internal/tools/browser_{chromedp,rod}.go` now provide the Go-native `browser_navigate` seam with `driver=chromedp|rod`, local launch, and `BROWSER_CDP_URL` remote attach parity; cloud-provider/browserbase/camofox follow-on work remains outside the current checklist |
-| Vision | `tools/vision_tools.py` | 5.D | ⏳ planned |
-| Image generation | `tools/image_generation_tool.py` | 5.D | ⏳ planned |
+| Vision | `tools/vision_tools.py` | 5.D | ⏳ planned — dedicated tool port still pending; provider-side text+image request plumbing landed in `internal/hermes` |
+| Image generation | `tools/image_generation_tool.py` | 5.D | ⏳ planned — dedicated tool port still pending; provider-side text+image request plumbing landed in `internal/hermes` |
 | TTS / voice / transcription | `tools/{tts_tool,voice_mode,transcription_tools,neutts_synth}.py` + `neutts_samples/` | 5.E | ⏳ planned |
 | Audio recorder (general + Termux) | `tools/*` — `AudioRecorder`, `TermuxAudioRecorder` | 5.E | ⏳ planned |
 | Skills system (core) | `tools/{skill_manager_tool,skills_hub,skills_sync,skills_tool,skills_guard}.py`; `skills/` (26 categories) + `optional-skills/` (10+ categories) | 5.F | ⏳ planned |

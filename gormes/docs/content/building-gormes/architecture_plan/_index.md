@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 46/66 subphases shipped · 0 in progress · 20 planned
+**Overall:** 47/66 subphases shipped · 0 in progress · 19 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -28,7 +28,7 @@ weight: 10
 | Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 8/8 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/17 subphases |
+| Phase 5 — The Final Purge | 🔨 | 4/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
 ---
@@ -311,9 +311,9 @@ weight: 10
 - [x] Chromedp
 - [x] Rod
 
-### 5.D — Vision + Image Generation ⏳
+### 5.D — Vision + Image Generation ✅
 
-- [ ] Multimodal in/out
+- [x] Multimodal in/out
 
 ### 5.E — TTS / Voice / Transcription ⏳
 

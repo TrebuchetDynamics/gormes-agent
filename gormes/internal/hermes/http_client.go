@@ -49,7 +49,7 @@ func (c *httpClient) Health(ctx context.Context) error {
 
 type orMessage struct {
 	Role    string `json:"role"`
-	Content string `json:"content"`
+	Content any    `json:"content"`
 }
 
 type orToolDescriptor struct {
@@ -71,7 +71,11 @@ type orChatRequest struct {
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
 	msgs := make([]orMessage, len(req.Messages))
 	for i, m := range req.Messages {
-		msgs[i] = orMessage{Role: m.Role, Content: m.Content}
+		content, err := openAIChatContent(m)
+		if err != nil {
+			return nil, err
+		}
+		msgs[i] = orMessage{Role: m.Role, Content: content}
 	}
 	tools := make([]orToolDescriptor, len(req.Tools))
 	for i, t := range req.Tools {

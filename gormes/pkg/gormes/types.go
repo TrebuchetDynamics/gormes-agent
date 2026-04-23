@@ -13,17 +13,24 @@ import (
 // Hermes wire surface — everything Gormes needs to speak HTTP+SSE to a
 // Hermes-compatible api_server.
 type (
-	Client         = hermes.Client
-	Stream         = hermes.Stream
-	RunEventStream = hermes.RunEventStream
-	ChatRequest    = hermes.ChatRequest
-	Message        = hermes.Message
-	Event          = hermes.Event
-	EventKind      = hermes.EventKind
-	RunEvent       = hermes.RunEvent
-	RunEventType   = hermes.RunEventType
-	ErrorClass     = hermes.ErrorClass
-	HTTPError      = hermes.HTTPError
+	Client          = hermes.Client
+	Stream          = hermes.Stream
+	RunEventStream  = hermes.RunEventStream
+	ChatRequest     = hermes.ChatRequest
+	Message         = hermes.Message
+	ContentPart     = hermes.ContentPart
+	ContentPartType = hermes.ContentPartType
+	Event           = hermes.Event
+	EventKind       = hermes.EventKind
+	RunEvent        = hermes.RunEvent
+	RunEventType    = hermes.RunEventType
+	ErrorClass      = hermes.ErrorClass
+	HTTPError       = hermes.HTTPError
+)
+
+const (
+	ContentPartText  = hermes.ContentPartText
+	ContentPartImage = hermes.ContentPartImage
 )
 
 // Kernel surface — the RenderFrame the TUI consumes plus the PlatformEvent

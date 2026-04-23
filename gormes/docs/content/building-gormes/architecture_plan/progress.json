@@ -848,7 +848,8 @@
           "items": [
             {
               "name": "Multimodal in/out",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/hermes` now carries canonical text+image content parts through the default HTTP client plus OpenRouter chat, Codex Responses, Anthropic Messages, Gemini/Google Code Assist, and Bedrock request builders using inline data-URL images."
             }
           ]
         },

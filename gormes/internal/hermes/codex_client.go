@@ -40,9 +40,16 @@ type codexRequest struct {
 	Tools        []codexToolDescriptor `json:"tools,omitempty"`
 }
 
+type codexContentPart struct {
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+}
+
 type codexInputItem struct {
 	Role      string `json:"role,omitempty"`
-	Content   string `json:"content,omitempty"`
+	Content   any    `json:"content,omitempty"`
 	Type      string `json:"type,omitempty"`
 	CallID    string `json:"call_id,omitempty"`
 	Name      string `json:"name,omitempty"`
@@ -143,14 +150,29 @@ func translateCodexMessages(messages []Message) (string, []codexInputItem, error
 	for _, msg := range messages {
 		switch msg.Role {
 		case "system":
+			if len(msg.Parts) > 0 {
+				return "", nil, fmt.Errorf("codex system messages do not support multimodal content")
+			}
 			if strings.TrimSpace(msg.Content) != "" {
 				systemParts = append(systemParts, msg.Content)
 			}
 		case "user":
-			input = append(input, codexInputItem{Role: "user", Content: msg.Content})
+			content, err := codexMessageContent(msg)
+			if err != nil {
+				return "", nil, err
+			}
+			input = append(input, codexInputItem{Role: "user", Content: content})
 		case "assistant":
-			if strings.TrimSpace(msg.Content) != "" {
-				input = append(input, codexInputItem{Role: "assistant", Content: msg.Content})
+			content, err := codexMessageContent(msg)
+			if err != nil {
+				return "", nil, err
+			}
+			if contentStr, ok := content.(string); ok {
+				if strings.TrimSpace(contentStr) != "" {
+					input = append(input, codexInputItem{Role: "assistant", Content: content})
+				}
+			} else if content != nil {
+				input = append(input, codexInputItem{Role: "assistant", Content: content})
 			}
 			for _, tc := range msg.ToolCalls {
 				args, err := normalizeJSONArguments(tc.Arguments)

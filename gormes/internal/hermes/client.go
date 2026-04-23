@@ -68,11 +68,12 @@ func (d ToolDescriptor) MarshalJSON() ([]byte, error) {
 }
 
 type Message struct {
-	Role       string     `json:"role"`
-	Content    string     `json:"content"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`   // set only on assistant messages that requested tools
-	ToolCallID string     `json:"tool_call_id,omitempty"` // set only on "tool" role messages replying to a call
-	Name       string     `json:"name,omitempty"`         // set only on "tool" role messages; echoes the tool name
+	Role       string        `json:"role"`
+	Content    string        `json:"content"`
+	Parts      []ContentPart `json:"parts,omitempty"`
+	ToolCalls  []ToolCall    `json:"tool_calls,omitempty"`   // set only on assistant messages that requested tools
+	ToolCallID string        `json:"tool_call_id,omitempty"` // set only on "tool" role messages replying to a call
+	Name       string        `json:"name,omitempty"`         // set only on "tool" role messages; echoes the tool name
 }
 
 // ToolCall is one function-call request made by the LLM.

@@ -40,7 +40,7 @@ type openRouterChatRequest struct {
 
 type openRouterMessage struct {
 	Role       string                  `json:"role"`
-	Content    string                  `json:"content,omitempty"`
+	Content    any                     `json:"content,omitempty"`
 	ToolCalls  []openRouterMessageTool `json:"tool_calls,omitempty"`
 	ToolCallID string                  `json:"tool_call_id,omitempty"`
 	Name       string                  `json:"name,omitempty"`
@@ -118,9 +118,13 @@ func (c *openRouterClient) Health(ctx context.Context) error {
 func buildOpenRouterRequest(req ChatRequest) (openRouterChatRequest, error) {
 	messages := make([]openRouterMessage, 0, len(req.Messages))
 	for _, msg := range req.Messages {
+		content, err := openAIChatContent(msg)
+		if err != nil {
+			return openRouterChatRequest{}, err
+		}
 		wire := openRouterMessage{
 			Role:       msg.Role,
-			Content:    msg.Content,
+			Content:    content,
 			ToolCallID: msg.ToolCallID,
 			Name:       msg.Name,
 		}

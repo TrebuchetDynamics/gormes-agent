@@ -41,8 +41,14 @@ type geminiContent struct {
 
 type geminiPart struct {
 	Text             string                  `json:"text,omitempty"`
+	InlineData       *geminiInlineData       `json:"inlineData,omitempty"`
 	FunctionCall     *geminiFunctionCall     `json:"functionCall,omitempty"`
 	FunctionResponse *geminiFunctionResponse `json:"functionResponse,omitempty"`
+}
+
+type geminiInlineData struct {
+	MimeType string `json:"mimeType"`
+	Data     string `json:"data"`
 }
 
 type geminiFunctionCall struct {
@@ -159,14 +165,18 @@ func translateGeminiMessages(messages []Message) (*geminiContent, []geminiConten
 				systemParts = append(systemParts, geminiPart{Text: msg.Content})
 			}
 		case "user":
+			parts, err := geminiMessageParts(msg)
+			if err != nil {
+				return nil, nil, err
+			}
 			out = append(out, geminiContent{
 				Role:  "user",
-				Parts: []geminiPart{{Text: msg.Content}},
+				Parts: parts,
 			})
 		case "assistant":
-			parts := make([]geminiPart, 0, 1+len(msg.ToolCalls))
-			if strings.TrimSpace(msg.Content) != "" {
-				parts = append(parts, geminiPart{Text: msg.Content})
+			parts, err := geminiMessageParts(msg)
+			if err != nil {
+				return nil, nil, err
 			}
 			for _, tc := range msg.ToolCalls {
 				args, err := parseGeminiFunctionArgs(tc.Arguments)

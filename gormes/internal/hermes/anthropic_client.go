@@ -45,14 +45,22 @@ type anthropicMessage struct {
 	Content []anthropicContentBlock `json:"content"`
 }
 
+type anthropicContentSource struct {
+	Type      string `json:"type"`
+	MediaType string `json:"media_type,omitempty"`
+	Data      string `json:"data,omitempty"`
+	URL       string `json:"url,omitempty"`
+}
+
 type anthropicContentBlock struct {
-	Type      string         `json:"type"`
-	Text      string         `json:"text,omitempty"`
-	ID        string         `json:"id,omitempty"`
-	Name      string         `json:"name,omitempty"`
-	Input     map[string]any `json:"input,omitempty"`
-	ToolUseID string         `json:"tool_use_id,omitempty"`
-	Content   string         `json:"content,omitempty"`
+	Type      string                  `json:"type"`
+	Text      string                  `json:"text,omitempty"`
+	ID        string                  `json:"id,omitempty"`
+	Name      string                  `json:"name,omitempty"`
+	Input     map[string]any          `json:"input,omitempty"`
+	Source    *anthropicContentSource `json:"source,omitempty"`
+	ToolUseID string                  `json:"tool_use_id,omitempty"`
+	Content   string                  `json:"content,omitempty"`
 }
 
 type anthropicToolDescriptor struct {
@@ -154,15 +162,26 @@ func translateAnthropicMessages(messages []Message) (string, []anthropicMessage,
 				systemParts = append(systemParts, msg.Content)
 			}
 		case "user":
+			blocks, err := anthropicMessageBlocks(msg)
+			if err != nil {
+				return "", nil, err
+			}
 			out = append(out, anthropicMessage{
 				Role:    "user",
-				Content: []anthropicContentBlock{{Type: "text", Text: msg.Content}},
+				Content: blocks,
 			})
 		case "assistant":
 			blocks := make([]anthropicContentBlock, 0, 1+len(msg.ToolCalls))
-			if msg.Content != "" {
-				blocks = append(blocks, anthropicContentBlock{Type: "text", Text: msg.Content})
+			messageBlocks, err := anthropicMessageBlocks(msg)
+			if err != nil {
+				return "", nil, err
 			}
+			for _, block := range messageBlocks {
+				if block.Type == "image" {
+					return "", nil, fmt.Errorf("anthropic assistant messages do not support image content")
+				}
+			}
+			blocks = append(blocks, messageBlocks...)
 			for _, tc := range msg.ToolCalls {
 				input, err := parseAnthropicToolInput(tc.Arguments)
 				if err != nil {

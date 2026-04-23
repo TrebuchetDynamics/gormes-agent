@@ -206,13 +206,20 @@ func convertBedrockMessages(messages []Message) ([]bedrocktypes.SystemContentBlo
 	for _, msg := range messages {
 		switch msg.Role {
 		case "system":
+			if len(msg.Parts) > 0 {
+				return nil, nil, fmt.Errorf("bedrock system messages do not support multimodal content")
+			}
 			if msg.Content != "" {
 				system = append(system, &bedrocktypes.SystemContentBlockMemberText{Value: msg.Content})
 			}
 		case "user":
+			content, err := bedrockMessageBlocks(msg)
+			if err != nil {
+				return nil, nil, err
+			}
 			out = append(out, bedrocktypes.Message{
 				Role:    bedrocktypes.ConversationRoleUser,
-				Content: []bedrocktypes.ContentBlock{&bedrocktypes.ContentBlockMemberText{Value: textOrFallback(msg.Content, "(empty)")}},
+				Content: content,
 			})
 		case "assistant":
 			content, err := bedrockAssistantContent(msg)
@@ -234,9 +241,16 @@ func convertBedrockMessages(messages []Message) ([]bedrocktypes.SystemContentBlo
 
 func bedrockAssistantContent(msg Message) ([]bedrocktypes.ContentBlock, error) {
 	blocks := make([]bedrocktypes.ContentBlock, 0, 1+len(msg.ToolCalls))
-	if msg.Content != "" {
-		blocks = append(blocks, &bedrocktypes.ContentBlockMemberText{Value: msg.Content})
+	messageBlocks, err := bedrockMessageBlocks(msg)
+	if err != nil {
+		return nil, err
 	}
+	for _, block := range messageBlocks {
+		if _, ok := block.(*bedrocktypes.ContentBlockMemberImage); ok {
+			return nil, fmt.Errorf("bedrock assistant messages do not support image content")
+		}
+	}
+	blocks = append(blocks, messageBlocks...)
 	for _, tc := range msg.ToolCalls {
 		input := map[string]any{}
 		if len(tc.Arguments) > 0 {
