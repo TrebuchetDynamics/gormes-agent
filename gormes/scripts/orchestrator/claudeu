@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# claudeu: codexu-argv-compatible wrapper around Claude Code CLI (`claude -p`).
+#
+# Accepts the exact argv shape the orchestrator's build_codex_cmd emits:
+#     codexu exec --json -c KEY=VALUE ... --sandbox MODE \
+#         [extra-codex-flags] --output-last-message FINAL_FILE PROMPT
+#
+# Translates to:
+#     claude --print --dangerously-skip-permissions --add-dir "$(pwd)" PROMPT
+#
+# Responsibilities:
+#   1. Parse and ignore codex-specific flags (-c, --sandbox, --json, exec).
+#   2. Run claude with the prompt in print mode.
+#   3. Copy claude's stdout into FINAL_FILE so orchestrator's
+#      collect_final_report_issues finds the 8-section TDD report.
+#   4. Emit a synthetic {"type":"thread.started","thread_id":...} line on our
+#      stdout so extract_session_id() picks up a session id.
+#   5. Forward claude's exit code.
+#
+# Diagnostic logs: $HOME/.cache/claudeu/<timestamp>-<pid>.log unless
+# CLAUDEU_LOG_DIR is set.
+set -Eeuo pipefail
+
+: "${CLAUDEU_LOG_DIR:=$HOME/.cache/claudeu}"
+mkdir -p "$CLAUDEU_LOG_DIR"
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+log="$CLAUDEU_LOG_DIR/${stamp}-$$.log"
+
+log_msg() { printf '[%s] %s\n' "$(date -u +%H:%M:%SZ)" "$*" >> "$log"; }
+
+log_msg "claudeu invoked argv-count=$#"
+log_msg "cwd=$(pwd)"
+
+final_file=""
+prompt=""
+
+while (( $# > 0 )); do
+  case "$1" in
+    exec|--json)
+      shift
+      ;;
+    -c|--sandbox|--model|-m)
+      # Consume flag + value
+      shift
+      [[ $# -gt 0 ]] && shift
+      ;;
+    --enable|--disable|--image|-i)
+      shift
+      [[ $# -gt 0 ]] && shift
+      ;;
+    --output-last-message)
+      final_file="${2:-}"
+      shift
+      [[ $# -gt 0 ]] && shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      if [[ -z "$prompt" ]]; then
+        prompt="$1"
+      else
+        log_msg "WARN: extra positional ignored: $1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+log_msg "parsed final_file=$final_file prompt-bytes=${#prompt}"
+
+if [[ -z "$prompt" ]]; then
+  echo "claudeu: no prompt argument" >&2
+  exit 2
+fi
+
+if ! command -v claude >/dev/null 2>&1; then
+  echo "claudeu: claude CLI not on PATH" >&2
+  exit 127
+fi
+
+thread_id="claudeu-$$-$(date +%s)"
+printf '{"type":"thread.started","thread_id":"%s"}\n' "$thread_id"
+
+tmp_stdout="$(mktemp "$CLAUDEU_LOG_DIR/${stamp}-$$.stdout.XXXXXX")"
+tmp_stderr="$(mktemp "$CLAUDEU_LOG_DIR/${stamp}-$$.stderr.XXXXXX")"
+trap 'rm -f "$tmp_stdout" "$tmp_stderr"' EXIT
+
+log_msg "invoking claude --print --dangerously-skip-permissions --add-dir $(pwd) (prompt via stdin)"
+
+# claude --print expects the prompt on stdin, not as an argv positional.
+# Pipe via printf so we ignore whatever stdin the orchestrator redirected
+# (orchestrator does `exec </dev/null` for its worker subshell).
+set +e
+printf '%s' "$prompt" \
+  | claude \
+      --print \
+      --dangerously-skip-permissions \
+      --add-dir "$(pwd)" \
+  > "$tmp_stdout" 2> "$tmp_stderr"
+rc=$?
+set -e
+
+log_msg "claude exited rc=$rc stdout-bytes=$(wc -c <"$tmp_stdout") stderr-bytes=$(wc -c <"$tmp_stderr")"
+
+# Persist stderr content into the log for post-mortem before cleanup trap fires.
+if [[ -s "$tmp_stderr" ]]; then
+  {
+    echo "=== claude stderr ==="
+    cat "$tmp_stderr"
+    echo "=== end stderr ==="
+  } >> "$log"
+  cat "$tmp_stderr" >&2
+fi
+
+# Copy claude's text output to the codexu-style --output-last-message file.
+if [[ -n "$final_file" ]]; then
+  cp "$tmp_stdout" "$final_file"
+  log_msg "wrote final report to $final_file"
+fi
+
+# Also preserve a copy in the log dir for debugging.
+cp "$tmp_stdout" "$log.final.md" 2>/dev/null || true
+
+exit "$rc"
