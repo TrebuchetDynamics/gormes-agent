@@ -25,6 +25,8 @@ const (
 	// EventSetHome marks the inbound chat as the platform home channel for
 	// proactive notifications and platform-only delivery targets.
 	EventSetHome
+	// EventVoice updates or inspects the persisted per-chat voice reply mode.
+	EventVoice
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -42,6 +44,8 @@ func (k EventKind) String() string {
 		return "status"
 	case EventSetHome:
 		return "sethome"
+	case EventVoice:
+		return "voice"
 	default:
 		return "unknown"
 	}

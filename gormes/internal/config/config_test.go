@@ -520,6 +520,15 @@ func TestChannelDirectoryMirrorPath_HonorsXDG(t *testing.T) {
 	}
 }
 
+func TestGatewayVoiceModePath_HonorsXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-voice-mode")
+	got := GatewayVoiceModePath()
+	want := "/tmp/gormes-test-voice-mode/gormes/gateway_voice_mode.json"
+	if got != want {
+		t.Errorf("GatewayVoiceModePath() = %q, want %q", got, want)
+	}
+}
+
 func TestStickerCachePath_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-sticker-cache")
 	got := StickerCachePath()

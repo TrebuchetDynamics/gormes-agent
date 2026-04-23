@@ -858,7 +858,8 @@
           "items": [
             {
               "name": "Voice mode port",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/gateway/voice_mode.go` now ports the shared `/voice` control plane (`toggle|on|tts|off|status`), persists per-chat `off|voice_only|all` state to `${XDG_DATA_HOME}/gormes/gateway_voice_mode.json`, and wires `cmd/gormes/gateway.go` through the shared manager while keeping STT/TTS/transcription engines as explicit follow-on sidecar scope."
             }
           ]
         },

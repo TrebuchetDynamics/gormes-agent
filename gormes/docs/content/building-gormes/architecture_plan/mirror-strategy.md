@@ -93,14 +93,14 @@ Based on the comprehensive Hermes file inventory, these Hermes files do not need
 | `HOOK.yaml` | Hook manifests now load from `$XDG_DATA_HOME/gormes/hooks/`; built-in BOOT startup execution is also live in **Phase 2.F.2** | Hook activity log and richer audit surfaces remain future work |
 | `BOOT.md` | Built-in startup automation file at `$XDG_DATA_HOME/gormes/BOOT.md`; run through an isolated background boot kernel on gateway start in **Phase 2.F.2** | Boot sequence audit remains future work |
 | `SOUL.md` | Personality system not yet implemented (Phase 4+) | Persona versioning when Phase 4 lands |
-| `gateway_voice_mode.json` | Voice mode not implemented (Phase 5.E) | Voice state mirroring if voice features land |
+| `gateway_voice_mode.json` | Shared `/voice` control plane now persists per-chat `off/voice_only/all` state for gateway chats | Live JSON surface now ships at `${XDG_DATA_HOME}/gormes/gateway_voice_mode.json` |
 | Platform state JSON files | Shared gateway exists, but most remaining adapter-specific state surfaces are still planned (Phase 2.B.4–2.B.10) | Per-platform state audit when those adapters land |
 
 **Operational State Files Discovered in Additional Research:**
 
 | Hermes File | Purpose | Gormes Status |
 |-------------|---------|---------------|
-| `gateway_voice_mode.json` | Per-chat voice mode state (off/voice_only/all) | Not implemented (Phase 5.E) |
+| `gateway_voice_mode.json` | Per-chat voice mode state (`off`, `voice_only`, `all`) | Live JSON surface now ships at `${XDG_DATA_HOME}/gormes/gateway_voice_mode.json` via `internal/gateway/voice_mode.go` |
 | `display_config` (in config.yaml) | Per-platform display settings | Partial — TUI theme only |
 | `active_profile` | Currently active profile name | Not implemented |
 | `channel_directory.json` | Cached channel/contact mappings | Live JSON mirror now ships at `${XDG_DATA_HOME}/gormes/channel_directory.json` with both `home_channels` and `directory` arrays |

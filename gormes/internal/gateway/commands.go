@@ -50,6 +50,11 @@ var CommandRegistry = []CommandDef{
 		Kind:        EventSetHome,
 		Aliases:     []string{"set-home"},
 	},
+	{
+		Name:        "voice",
+		Description: "Control per-chat voice reply mode",
+		Kind:        EventVoice,
+	},
 }
 
 var commandLookup = buildCommandLookup()
@@ -87,6 +92,13 @@ func ParseInboundText(text string) (EventKind, string) {
 	cmd, ok := ResolveCommand(body)
 	if !ok {
 		return EventUnknown, ""
+	}
+	if cmd.Kind == EventVoice {
+		fields := strings.Fields(strings.TrimPrefix(body, "/"))
+		if len(fields) <= 1 {
+			return EventVoice, "toggle"
+		}
+		return EventVoice, strings.ToLower(strings.Join(fields[1:], " "))
 	}
 	return cmd.Kind, ""
 }

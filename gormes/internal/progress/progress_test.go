@@ -751,6 +751,29 @@ func TestLoad_RealFile_Phase5BrowserAutomation(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_Phase5VoiceModePort(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	voice := p.Phases["5"].Subphases["5.E"]
+	if got := voice.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 5.E = %q, want complete", got)
+	}
+
+	items := itemsByName(voice.Items)
+	mode := items["Voice mode port"]
+	if mode.Status != StatusComplete {
+		t.Fatalf("Phase 5.E voice mode status = %q, want complete", mode.Status)
+	}
+	if !strings.Contains(mode.Note, "internal/gateway/voice_mode.go") ||
+		!strings.Contains(mode.Note, "/voice") ||
+		!strings.Contains(mode.Note, "gateway_voice_mode.json") {
+		t.Fatalf("Phase 5.E voice mode note = %q, want voice_mode.go,/voice,gateway_voice_mode.json detail", mode.Note)
+	}
+}
+
 func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {

@@ -467,6 +467,11 @@ func ChannelDirectoryMirrorPath() string {
 	return filepath.Join(xdgDataHome(), "gormes", "channel_directory.json")
 }
 
+// GatewayVoiceModePath returns the shared JSON store for per-chat /voice mode.
+func GatewayVoiceModePath() string {
+	return filepath.Join(xdgDataHome(), "gormes", "gateway_voice_mode.json")
+}
+
 // StickerCachePath returns the shared sticker lookup cache path adapters will
 // use once platform-specific sticker send flows land.
 func StickerCachePath() string {

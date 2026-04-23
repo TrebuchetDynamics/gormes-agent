@@ -42,6 +42,7 @@ type gatewayOperatorSurfaces struct {
 	homeChannels     *gateway.HomeChannels
 	channelDirectory *gateway.ChannelDirectory
 	stateMirror      *gateway.StateMirror
+	voiceModes       *gateway.VoiceModeStore
 	stickerCache     *gateway.StickerCache
 }
 
@@ -53,6 +54,10 @@ func newGatewayOperatorSurfaces(log *slog.Logger) (gatewayOperatorSurfaces, erro
 	homes := gateway.NewHomeChannels()
 	directory := gateway.NewChannelDirectory()
 	stateMirror := gateway.NewStateMirror(homes, directory, config.ChannelDirectoryMirrorPath())
+	voiceModes, err := gateway.OpenVoiceModeStore(config.GatewayVoiceModePath())
+	if err != nil {
+		return gatewayOperatorSurfaces{}, err
+	}
 	stickerCache, err := gateway.OpenStickerCache(config.StickerCachePath())
 	if err != nil {
 		return gatewayOperatorSurfaces{}, err
@@ -62,6 +67,7 @@ func newGatewayOperatorSurfaces(log *slog.Logger) (gatewayOperatorSurfaces, erro
 		homeChannels:     homes,
 		channelDirectory: directory,
 		stateMirror:      stateMirror,
+		voiceModes:       voiceModes,
 		stickerCache:     stickerCache,
 	}, nil
 }
@@ -151,6 +157,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		ChannelDirectory: surfaces.channelDirectory,
 		HomeChannels:     surfaces.homeChannels,
 		Pairings:         pairings,
+		VoiceModes:       surfaces.voiceModes,
 	}, k, slog.Default())
 
 	if cfg.Telegram.BotToken != "" {
@@ -202,7 +209,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	})
 	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
 
-	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "pairing_path", config.PairingStatePath(), "channel_directory_path", surfaces.stateMirror.Path(), "sticker_cache_path", surfaces.stickerCache.Path())
+	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "pairing_path", config.PairingStatePath(), "channel_directory_path", surfaces.stateMirror.Path(), "voice_mode_path", surfaces.voiceModes.Path(), "sticker_cache_path", surfaces.stickerCache.Path())
 	return mgr.Run(rootCtx)
 }
 

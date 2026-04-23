@@ -27,6 +27,7 @@ type ManagerConfig struct {
 	ChannelDirectory *ChannelDirectory
 	HomeChannels     *HomeChannels
 	Pairings         *PairingStore
+	VoiceModes       *VoiceModeStore
 }
 
 type kernelSubmitter interface {
@@ -126,6 +127,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 	if cfg.HomeChannels == nil {
 		cfg.HomeChannels = NewHomeChannels()
+	}
+	if cfg.VoiceModes == nil {
+		cfg.VoiceModes = newVoiceModeStore("")
 	}
 	return &Manager{
 		cfg:      cfg,
@@ -340,6 +344,8 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 			return
 		}
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, homeChannelSetMessage(home))
+	case EventVoice:
+		m.handleVoiceCommand(ctx, ch, ev)
 	case EventSubmit:
 		if m.kernel == nil {
 			return
