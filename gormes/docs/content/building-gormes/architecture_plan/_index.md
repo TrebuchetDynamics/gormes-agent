@@ -258,7 +258,7 @@ weight: 10
 - [ ] Gemini
 - [ ] OpenRouter
 - [ ] Google Code Assist
-- [ ] Codex
+- [x] Codex
 
 ### 4.B — Context Engine + Compression ⏳
 

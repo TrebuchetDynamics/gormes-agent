@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
 
 const defaultChatCompletionsPath = "/v1/chat/completions"
@@ -24,16 +23,10 @@ type httpClient struct {
 // The returned client streams without a global timeout so long turns
 // (minutes, with tool use) are not truncated; see per-phase timeouts inside.
 func NewHTTPClient(baseURL, apiKey string) Client {
-	// Clone the default transport and enforce the header-phase budget via
-	// ResponseHeaderTimeout. This caps time-to-first-byte WITHOUT affecting
-	// the streaming body read afterwards — unlike wrapping the request
-	// context, which would cancel body reads mid-stream.
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.ResponseHeaderTimeout = 5 * time.Second
 	return &httpClient{
 		baseURL: baseURL,
 		apiKey:  apiKey,
-		http:    &http.Client{Timeout: 0, Transport: transport},
+		http:    newStreamingHTTPClient(),
 	}
 }
 
@@ -69,10 +62,10 @@ type orToolDescriptor struct {
 }
 
 type orChatRequest struct {
-	Model    string              `json:"model"`
-	Messages []orMessage         `json:"messages"`
-	Stream   bool                `json:"stream"`
-	Tools    []orToolDescriptor  `json:"tools,omitempty"`
+	Model    string             `json:"model"`
+	Messages []orMessage        `json:"messages"`
+	Stream   bool               `json:"stream"`
+	Tools    []orToolDescriptor `json:"tools,omitempty"`
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {

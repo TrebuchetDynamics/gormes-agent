@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const (
@@ -25,12 +24,10 @@ type anthropicClient struct {
 }
 
 func newAnthropicClient(baseURL, apiKey string) Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.ResponseHeaderTimeout = 5 * time.Second
 	return &anthropicClient{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		apiKey:  apiKey,
-		http:    &http.Client{Timeout: 0, Transport: transport},
+		http:    newStreamingHTTPClient(),
 	}
 }
 

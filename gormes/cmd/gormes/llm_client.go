@@ -16,5 +16,8 @@ func llmProviderLabel(provider string) string {
 	if strings.EqualFold(strings.TrimSpace(provider), "anthropic") {
 		return "anthropic"
 	}
+	if strings.EqualFold(strings.TrimSpace(provider), "codex") || strings.EqualFold(strings.TrimSpace(provider), "openai-codex") {
+		return "codex"
+	}
 	return "api_server"
 }

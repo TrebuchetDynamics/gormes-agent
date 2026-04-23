@@ -14,6 +14,8 @@ func NewClient(provider, endpoint, apiKey string) Client {
 	switch normalizedProvider(provider) {
 	case "anthropic":
 		return newAnthropicClient(EffectiveEndpoint(provider, endpoint), apiKey)
+	case "codex":
+		return newCodexClient(EffectiveEndpoint(provider, endpoint), apiKey)
 	default:
 		return NewHTTPClient(EffectiveEndpoint(provider, endpoint), apiKey)
 	}
@@ -27,6 +29,10 @@ func EffectiveEndpoint(provider, endpoint string) string {
 	case "anthropic":
 		if base == "" || base == defaultOpenAIEndpoint {
 			return defaultAnthropicBaseURL
+		}
+	case "codex":
+		if base == "" || base == defaultOpenAIEndpoint {
+			return defaultCodexBaseURL
 		}
 	default:
 		if base == "" {
@@ -42,6 +48,8 @@ func normalizedProvider(provider string) string {
 		return "openai"
 	case "anthropic":
 		return "anthropic"
+	case "codex", "openai-codex", "openai_codex":
+		return "codex"
 	default:
 		return strings.ToLower(strings.TrimSpace(provider))
 	}

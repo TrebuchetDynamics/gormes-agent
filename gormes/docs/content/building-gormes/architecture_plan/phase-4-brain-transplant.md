@@ -26,7 +26,7 @@ Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
 
 Once 4.A–4.D are shipped Gormes can call LLMs directly. The `:8642` health check becomes optional.
 
-Anthropic is the first native provider path to land: `internal/hermes.NewClient` can now route directly to the Anthropic Messages API while preserving the kernel's canonical `ChatRequest`/`Event` contract, including system folding, tool use translation, and streaming reasoning deltas.
+Anthropic and Codex are now the first native provider paths to land. `internal/hermes.NewClient` can route directly to the Anthropic Messages API or the OpenAI Responses API while preserving the kernel's canonical `ChatRequest`/`Event` contract. The Codex path folds system prompts into `instructions`, translates assistant `function_call` / tool-output history into `/v1/responses` input items, streams output text plus reasoning/tool-call deltas back into canonical events, and switches CLI health checks to `/v1/models` instead of the Hermes bridge.
 
 ## Build Priority Context
 
