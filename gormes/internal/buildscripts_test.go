@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -78,6 +79,135 @@ func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
 	}
 	if exitErr.ExitCode() != 124 {
 		t.Fatalf("exit = %d, want timeout exit 124\noutput:\n%s", exitErr.ExitCode(), string(out))
+	}
+}
+
+func TestAutoCodexuOrchestratorPromotesSuccessBeforeNextCycle(t *testing.T) {
+	if _, err := exec.LookPath("timeout"); err != nil {
+		t.Skip("timeout command not available")
+	}
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot determine test file location")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(file))
+	tmpRepo := t.TempDir()
+	progressRel := filepath.Join("docs", "content", "building-gormes", "architecture_plan", "progress.json")
+
+	copyFile(t,
+		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		0o755,
+	)
+	writeFile(t,
+		filepath.Join(tmpRepo, progressRel),
+		[]byte(`{"phases":{"1":{"name":"Phase 1","subphases":{"1.A":{"name":"Alpha","items":[{"name":"Loop proof task","status":"planned"}]}}}}}`),
+		0o644,
+	)
+
+	binDir := filepath.Join(tmpRepo, "bin")
+	writeFile(t, filepath.Join(binDir, "free"), []byte("#!/usr/bin/env bash\ncat <<'EOF'\n              total        used        free      shared  buff/cache   available\nMem:          32000        1000       30000          0        1000       30000\nEOF\n"), 0o755)
+	writeFile(t, filepath.Join(binDir, "codexu"), []byte(`#!/usr/bin/env bash
+set -Eeuo pipefail
+
+final_file=""
+while (($#)); do
+  case "$1" in
+    --output-last-message)
+      final_file="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+tmp="$(mktemp)"
+jq '(.phases["1"].subphases["1.A"].items[0].status)="complete"' docs/content/building-gormes/architecture_plan/progress.json > "$tmp"
+mv "$tmp" docs/content/building-gormes/architecture_plan/progress.json
+mkdir -p fake-worker
+branch="$(git rev-parse --abbrev-ref HEAD)"
+printf '%s\n' "$branch" > "fake-worker/${branch//\//_}.txt"
+git add docs/content/building-gormes/architecture_plan/progress.json fake-worker
+git commit -m "test: complete loop proof task" >/dev/null
+commit="$(git rev-parse HEAD)"
+cat > "$final_file" <<EOF
+1) Selected task
+Task: 1 / 1.A / Loop proof task
+
+2) Pre-doc baseline
+Files:
+- docs/content/building-gormes/architecture_plan/progress.json
+
+3) RED proof
+Command: go test ./fake -run TestLoopProof
+Exit: 1
+Snippet: missing behavior
+
+4) GREEN proof
+Command: go test ./fake -run TestLoopProof
+Exit: 0
+Snippet: ok
+
+5) REFACTOR proof
+Command: go test ./fake -run TestLoopProof
+Exit: 0
+Snippet: ok
+
+6) Regression proof
+Command: go test ./fake
+Exit: 0
+Snippet: ok
+
+7) Post-doc closeout
+Files:
+- docs/content/building-gormes/architecture_plan/progress.json
+
+8) Commit
+Branch: $branch
+Commit: $commit
+Files:
+- docs/content/building-gormes/architecture_plan/progress.json
+EOF
+`), 0o755)
+
+	runCommand(t, tmpRepo, "git", "init")
+	runCommand(t, tmpRepo, "git", "config", "user.name", "Test User")
+	runCommand(t, tmpRepo, "git", "config", "user.email", "test@example.com")
+	runCommand(t, tmpRepo, "git", "add", ".")
+	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
+
+	cmd := exec.Command("timeout", "4s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
+	cmd.Dir = tmpRepo
+	cmd.Env = append(os.Environ(),
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"REPO_ROOT="+tmpRepo,
+		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"INTEGRATION_BRANCH=codexu/test-integration",
+		"MAX_AGENTS=1",
+		"HEARTBEAT_SECONDS=1",
+		"LOOP_SLEEP_SECONDS=2",
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("orchestrator exited without timeout; want forever loop\noutput:\n%s", string(out))
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("orchestrator failed with %T, want timeout exit\noutput:\n%s", err, string(out))
+	}
+	if exitErr.ExitCode() != 124 {
+		t.Fatalf("exit = %d, want timeout exit 124\noutput:\n%s", exitErr.ExitCode(), string(out))
+	}
+	if got := strings.Count(string(out), "claimed 1 / 1.A / Loop proof task"); got != 1 {
+		t.Fatalf("task claim count = %d, want exactly one claim before promotion removes it\noutput:\n%s", got, string(out))
+	}
+
+	promoted := runCommand(t, tmpRepo, "git", "show", "codexu/test-integration:"+filepath.ToSlash(progressRel))
+	if !strings.Contains(string(promoted), `"status": "complete"`) && !strings.Contains(string(promoted), `"status":"complete"`) {
+		t.Fatalf("integration branch did not contain promoted complete status:\n%s", string(promoted))
 	}
 }
 

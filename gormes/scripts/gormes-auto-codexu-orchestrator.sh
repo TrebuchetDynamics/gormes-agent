@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+ORIGINAL_REPO_ROOT="$REPO_ROOT"
 PROGRESS_JSON_REL="docs/content/building-gormes/architecture_plan/progress.json"
 PROGRESS_JSON="$REPO_ROOT/$PROGRESS_JSON_REL"
 
@@ -38,6 +39,9 @@ EXTRA_CODEX_ARGS_FILE="${EXTRA_CODEX_ARGS_FILE:-}"
 HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-20}"
 LOOP_SLEEP_SECONDS="${LOOP_SLEEP_SECONDS:-30}"
 ORCHESTRATOR_ONCE="${ORCHESTRATOR_ONCE:-0}"
+AUTO_PROMOTE_SUCCESS="${AUTO_PROMOTE_SUCCESS:-1}"
+INTEGRATION_BRANCH="${INTEGRATION_BRANCH:-codexu/autoloop}"
+INTEGRATION_WORKTREE="${INTEGRATION_WORKTREE:-}"
 MAX_RUN_WORKTREE_DIRS="${MAX_RUN_WORKTREE_DIRS:-4}"
 ACTIVE_FIRST="${ACTIVE_FIRST:-1}"
 RUNS_LEDGER="$STATE_DIR/runs.jsonl"
@@ -86,11 +90,16 @@ Env:
   HEARTBEAT_SECONDS          Status heartbeat interval while workers run
   LOOP_SLEEP_SECONDS         Sleep between forever-loop cycles (default: 30)
   ORCHESTRATOR_ONCE          Set to 1 to run a single batch and exit
+  AUTO_PROMOTE_SUCCESS       Set to 1 to promote successful workers before next cycle
+  INTEGRATION_BRANCH         Branch that accumulates promoted worker commits
+  INTEGRATION_WORKTREE       Optional managed worktree for INTEGRATION_BRANCH
   MAX_RUN_WORKTREE_DIRS      Max kept run-level worktree dirs under worktrees/ (default: 4)
   ACTIVE_FIRST               1 sorts in_progress before planned when selecting tasks
 
 Notes:
   - Default run mode loops forever. Use ORCHESTRATOR_ONCE=1 for previous one-shot behavior.
+  - Successful worker commits are promoted onto INTEGRATION_BRANCH by default,
+    and later loop cycles select tasks from that branch so work does not repeat.
   - 'safe' and 'unattended' are both fully automatic: approval_policy=never with
     workspace-write sandboxing.
   - 'full' is fully automatic with danger-full-access sandboxing.
@@ -121,6 +130,78 @@ require_cmd() {
     echo "ERROR: missing required command: $1" >&2
     exit 1
   }
+}
+
+promotion_enabled() {
+  [[ "$AUTO_PROMOTE_SUCCESS" == "1" ]]
+}
+
+safe_path_token() {
+  printf '%s' "$1" | sed -E 's#[^A-Za-z0-9._-]+#-#g; s#^-+##; s#-+$##'
+}
+
+refresh_repo_paths() {
+  PROGRESS_JSON="$REPO_ROOT/$PROGRESS_JSON_REL"
+}
+
+branch_worktree_path() {
+  local git_root="$1"
+  local branch="$2"
+
+  git -C "$git_root" worktree list --porcelain \
+    | awk -v branch_ref="refs/heads/${branch}" '
+        /^worktree / { path = substr($0, 10) }
+        /^branch / {
+          if (substr($0, 8) == branch_ref) {
+            print path
+            exit
+          }
+        }
+      '
+}
+
+setup_integration_root() {
+  promotion_enabled || return 0
+
+  require_cmd git
+
+  local source_git_root source_subdir safe_branch existing_worktree
+  source_git_root="$(git -C "$ORIGINAL_REPO_ROOT" rev-parse --show-toplevel)"
+  source_subdir="."
+  if [[ "$ORIGINAL_REPO_ROOT" != "$source_git_root" ]]; then
+    source_subdir="${ORIGINAL_REPO_ROOT#"$source_git_root"/}"
+  fi
+
+  if ! git -C "$source_git_root" show-ref --verify --quiet "refs/heads/$INTEGRATION_BRANCH"; then
+    git -C "$source_git_root" branch "$INTEGRATION_BRANCH" HEAD
+  fi
+
+  existing_worktree="$(branch_worktree_path "$source_git_root" "$INTEGRATION_BRANCH")"
+  if [[ -n "$existing_worktree" ]]; then
+    INTEGRATION_WORKTREE="$existing_worktree"
+  else
+    if [[ -z "$INTEGRATION_WORKTREE" ]]; then
+      safe_branch="$(safe_path_token "$INTEGRATION_BRANCH")"
+      INTEGRATION_WORKTREE="$RUN_ROOT/integration/$safe_branch"
+    fi
+    mkdir -p "$(dirname "$INTEGRATION_WORKTREE")"
+    git -C "$source_git_root" worktree add "$INTEGRATION_WORKTREE" "$INTEGRATION_BRANCH" >/dev/null
+  fi
+
+  if [[ -n "$(git -C "$INTEGRATION_WORKTREE" status --short)" ]]; then
+    echo "ERROR: integration worktree is dirty: $INTEGRATION_WORKTREE" >&2
+    echo "Resolve or remove it before running the forever orchestrator." >&2
+    exit 1
+  fi
+
+  git -C "$INTEGRATION_WORKTREE" reset --hard "$INTEGRATION_BRANCH" >/dev/null
+
+  if [[ "$source_subdir" == "." ]]; then
+    REPO_ROOT="$INTEGRATION_WORKTREE"
+  else
+    REPO_ROOT="$INTEGRATION_WORKTREE/$source_subdir"
+  fi
+  refresh_repo_paths
 }
 
 fresh_run_id() {
@@ -306,6 +387,14 @@ validate() {
   fi
   if [[ "$ORCHESTRATOR_ONCE" != "0" && "$ORCHESTRATOR_ONCE" != "1" ]]; then
     echo "ERROR: ORCHESTRATOR_ONCE must be 0 or 1" >&2
+    exit 1
+  fi
+  if [[ "$AUTO_PROMOTE_SUCCESS" != "0" && "$AUTO_PROMOTE_SUCCESS" != "1" ]]; then
+    echo "ERROR: AUTO_PROMOTE_SUCCESS must be 0 or 1" >&2
+    exit 1
+  fi
+  if promotion_enabled && [[ -z "$INTEGRATION_BRANCH" ]]; then
+    echo "ERROR: INTEGRATION_BRANCH must not be empty when AUTO_PROMOTE_SUCCESS=1" >&2
     exit 1
   fi
   if ! [[ "$MAX_RUN_WORKTREE_DIRS" =~ ^[0-9]+$ ]] || (( MAX_RUN_WORKTREE_DIRS < 1 )); then
@@ -1211,6 +1300,59 @@ cmd_promote_commit() {
   echo "promoted commit $commit onto $target_branch"
 }
 
+promote_successful_workers() {
+  local workers="$1"
+  promotion_enabled || return 0
+
+  local rc=0 promoted=0 i state_json status commit slug
+
+  if [[ -n "$(git -C "$GIT_ROOT" status --short)" ]]; then
+    echo "ERROR: integration branch worktree is dirty before promotion: $GIT_ROOT" >&2
+    return 1
+  fi
+
+  for (( i = 1; i <= workers; i++ )); do
+    state_json="$(load_worker_state "$i" 2>/dev/null || true)"
+    [[ -n "$state_json" ]] || continue
+
+    status="$(jq -r '.status // ""' <<<"$state_json")"
+    [[ "$status" == "success" ]] || continue
+
+    commit="$(jq -r '.commit // ""' <<<"$state_json")"
+    slug="$(jq -r '.slug // ""' <<<"$state_json")"
+    if [[ -z "$commit" || "$commit" == "null" ]]; then
+      echo "worker[$i]: success state missing commit; cannot promote" >&2
+      log_event "worker_promotion_failed" "$i" "$slug" "missing_commit"
+      rc=1
+      continue
+    fi
+
+    if git -C "$GIT_ROOT" merge-base --is-ancestor "$commit" HEAD 2>/dev/null; then
+      echo "worker[$i]: already promoted -> $slug ($commit)"
+      log_event "worker_promoted" "$i" "$slug@$commit" "already_promoted"
+      continue
+    fi
+
+    echo "worker[$i]: promoting -> $slug ($commit) onto $INTEGRATION_BRANCH"
+    if git -C "$GIT_ROOT" cherry-pick "$commit" >/dev/null; then
+      promoted=$((promoted + 1))
+      log_event "worker_promoted" "$i" "$slug@$commit" "promoted"
+    else
+      git -C "$GIT_ROOT" cherry-pick --abort >/dev/null 2>&1 || true
+      echo "worker[$i]: promotion failed -> $slug ($commit)" >&2
+      log_event "worker_promotion_failed" "$i" "$slug@$commit" "cherry_pick_failed"
+      rc=1
+    fi
+  done
+
+  if (( promoted > 0 )); then
+    echo "Promoted worker commits: $promoted"
+    echo "Integration head: $(git -C "$GIT_ROOT" rev-parse --short HEAD)"
+  fi
+
+  return "$rc"
+}
+
 run_once() {
   validate
 
@@ -1282,6 +1424,10 @@ run_once() {
     fi
   done
 
+  if ! promote_successful_workers "$workers"; then
+    rc=1
+  fi
+
   echo
   echo "Artifacts:"
   echo "  Logs:      $LOGS_DIR"
@@ -1289,6 +1435,10 @@ run_once() {
   echo "  Locks:     $LOCKS_DIR"
   echo "  State:     $STATE_DIR"
   echo "  Worktrees: $WORKTREES_DIR"
+  if promotion_enabled; then
+    echo "  Integration branch: $INTEGRATION_BRANCH"
+    echo "  Integration tree:   $GIT_ROOT"
+  fi
 
   if [[ "$rc" == "0" ]]; then
     log_event "run_completed" null "workers=${workers}" "success"
@@ -1325,6 +1475,7 @@ main() {
 
   claim_run_lock
   load_extra_args
+  setup_integration_root
 
   if [[ "$ORCHESTRATOR_ONCE" == "1" || "$COMMAND_MODE" == "resume" ]]; then
     run_once
@@ -1334,6 +1485,10 @@ main() {
   local cycle=0
   local cycle_rc=0
   echo "Forever loop enabled. Set ORCHESTRATOR_ONCE=1 to run a single batch."
+  if promotion_enabled; then
+    echo "Auto-promotion enabled: successful workers advance $INTEGRATION_BRANCH."
+    echo "Coordinator repo: $REPO_ROOT"
+  fi
 
   while true; do
     cycle=$((cycle + 1))
