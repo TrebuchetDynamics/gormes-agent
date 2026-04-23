@@ -19,6 +19,18 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	}
 }
 
+func TestBuildDefaultRegistryRegistersBrowserNavigate(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{}, "", nil, "")
+
+	entry, ok := reg.Entry("browser_navigate")
+	if !ok {
+		t.Fatal("browser_navigate not registered")
+	}
+	if entry.Toolset != "browser" {
+		t.Fatalf("browser_navigate toolset = %q, want browser", entry.Toolset)
+	}
+}
+
 func TestBuildDefaultRegistryDelegationEnabled(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{
 		Enabled:               true,

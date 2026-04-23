@@ -21,6 +21,7 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.EchoTool{}, Toolset: "core"})
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.NowTool{}, Toolset: "core"})
 	reg.MustRegisterEntry(tools.ToolEntry{Tool: &tools.RandIntTool{}, Toolset: "core"})
+	tools.RegisterBrowserTools(reg)
 	if delegation.Enabled {
 		var drafter subagent.CandidateDrafter
 		if skillsRoot != "" {

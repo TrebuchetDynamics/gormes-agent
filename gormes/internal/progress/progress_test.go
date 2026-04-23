@@ -722,6 +722,32 @@ func TestLoad_RealFile_Phase3Ledger(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_Phase5BrowserAutomation(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	browser := p.Phases["5"].Subphases["5.C"]
+	if got := browser.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 5.C = %q, want in_progress", got)
+	}
+
+	items := itemsByName(browser.Items)
+	chromedp := items["Chromedp"]
+	if chromedp.Status != StatusComplete {
+		t.Fatalf("Phase 5.C Chromedp status = %q, want complete", chromedp.Status)
+	}
+	if !strings.Contains(chromedp.Note, "browser_navigate") || !strings.Contains(chromedp.Note, "BROWSER_CDP_URL") {
+		t.Fatalf("Phase 5.C Chromedp note = %q, want browser_navigate/BROWSER_CDP_URL detail", chromedp.Note)
+	}
+
+	rod := items["Rod"]
+	if rod.Status != StatusPlanned {
+		t.Fatalf("Phase 5.C Rod status = %q, want planned", rod.Status)
+	}
+}
+
 func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {

@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 43/66 subphases shipped · 2 in progress · 21 planned
+**Overall:** 43/66 subphases shipped · 3 in progress · 20 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -306,9 +306,9 @@ weight: 10
 - [x] Daytona
 - [ ] Singularity
 
-### 5.C — Browser Automation ⏳
+### 5.C — Browser Automation 🔨
 
-- [ ] Chromedp
+- [x] Chromedp
 - [ ] Rod
 
 ### 5.D — Vision + Image Generation ⏳
