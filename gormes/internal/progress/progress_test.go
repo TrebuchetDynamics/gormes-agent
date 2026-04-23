@@ -357,6 +357,17 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if operator.Priority != "P3" {
 		t.Fatalf("Phase 2.F.4 priority = %q, want P3", operator.Priority)
 	}
+	if got := operator.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.F.4 = %q, want in_progress", got)
+	}
+	operatorItems := itemsByName(operator.Items)
+	channelDirectory := operatorItems["Channel/contact directory"]
+	if channelDirectory.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 channel directory status = %q, want complete", channelDirectory.Status)
+	}
+	if !strings.Contains(channelDirectory.Note, "ChannelDirectory") || !strings.Contains(channelDirectory.Note, "rename") {
+		t.Fatalf("Phase 2.F.4 channel directory note = %q, want ChannelDirectory/rename detail", channelDirectory.Note)
+	}
 
 	mail := p.Phases["2"].Subphases["2.B.7"]
 	if mail.Priority != "P3" {

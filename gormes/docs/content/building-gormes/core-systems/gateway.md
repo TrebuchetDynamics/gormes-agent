@@ -17,12 +17,13 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 - **slash-command registry** (Phase 2.F.1) — one canonical command registry drives parsing, help text, Telegram menus, and Slack subcommands
 - **SessionContext prompt injection + delivery target parsing** (Phase 2.B.5) — stable Current Session Context block, typed `--deliver` parsing, and a deterministic Gateway stream consumer contract
 - **HOOK.yaml loading + BOOT.md startup hook** (Phase 2.F.2) — live hook manifest discovery, per-event registry hooks, and non-blocking BOOT.md startup execution
+- **Channel/contact directory** (Phase 2.F.4) — in-memory lookup for observed gateway chats, human-readable channel names, and rename invalidation
 - **Cron delivery bridge** (Phase 2.D) — scheduled runs, SQLite `cron_runs` audit, `CRON.md` mirror, and Heartbeat `[SYSTEM:]` / `[SILENT]` delivery rules
 
 ## Planned
 
 - **Phase 2.B.4–2.B.10** — WhatsApp, Signal, Email, SMS, Matrix, Mattermost, Webhook, BlueBubbles, HomeAssistant, and the remaining long-tail connectors. See [§7 Subsystem Inventory](../architecture_plan/subsystem-inventory/).
-- **Phase 2.F.3–2.F.4** — pairing/status, home-channel routing, channel/contact directory, mirror surfaces, and sticker-cache equivalents.
+- **Phase 2.F.3–2.F.4** — pairing/status, home-channel routing, mirror surfaces, sticker-cache equivalents, and channel-directory persistence.
 
 ## Why this matters
 

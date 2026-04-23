@@ -19,11 +19,12 @@ const shutdownNotice = "Gateway is shutting down — send /stop to cancel the ac
 
 // ManagerConfig drives the shared gateway manager.
 type ManagerConfig struct {
-	AllowedChats   map[string]string
-	AllowDiscovery map[string]bool
-	CoalesceMs     int
-	SessionMap     session.Map
-	Hooks          *Hooks
+	AllowedChats     map[string]string
+	AllowDiscovery   map[string]bool
+	CoalesceMs       int
+	SessionMap       session.Map
+	Hooks            *Hooks
+	ChannelDirectory *ChannelDirectory
 }
 
 type kernelSubmitter interface {
@@ -289,6 +290,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 	if ch == nil {
 		m.log.Warn("inbound for unknown channel", "platform", ev.Platform)
 		return
+	}
+	if m.cfg.ChannelDirectory != nil {
+		m.cfg.ChannelDirectory.UpdateFromInbound(ev)
 	}
 	if m.isShuttingDown() && ev.Kind != EventCancel {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, shutdownNotice)

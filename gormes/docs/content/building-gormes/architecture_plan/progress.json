@@ -397,8 +397,8 @@
             },
             {
               "name": "Channel/contact directory",
-              "status": "planned",
-              "note": "TDD: port lookup and cache invalidation behavior before persisting directory state."
+              "status": "complete",
+              "note": "TDD landed: internal/gateway.ChannelDirectory now records normalized inbound chat/contact metadata, resolves chat IDs or human-readable channel names, invalidates stale rename aliases, and is wired into Manager inbound handling before future persistence."
             },
             {
               "name": "Mirror + sticker cache surfaces",

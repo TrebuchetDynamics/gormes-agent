@@ -39,7 +39,7 @@ The complete picture of what Gormes must absorb to retire the Python `hermes-age
 | Delivery router (`--deliver <platform>` abstraction) | `gateway/delivery.py` (`DeliveryRouter`, `DeliveryTarget`) | 2.B/2.F | 🔨 typed delivery-target parsing landed in `internal/gateway/delivery.go`; full cross-channel resolution and home-channel semantics still remain |
 | Stream consumer (SSE agent-event fan-out to gateway) | `gateway/stream_consumer.py` (`GatewayStreamConsumer`, `StreamConsumerConfig`, `StreamingConfig`) | 2.B/2.F | 🔨 deterministic frame fan-out landed in `internal/gateway/stream_consumer.go`; richer upstream buffering/edit policy remains |
 | Home channel (operator's primary notify-to chat) | `gateway/*` — `HomeChannel` class | 2.F | ⏳ planned |
-| Channel / contact directory | `gateway/channel_directory.py` | 2.F | ⏳ planned |
+| Channel / contact directory | `gateway/channel_directory.py` | 2.F | ✅ in-memory directory shipped in `internal/gateway.ChannelDirectory`; JSON persistence remains future work |
 | Platform enum + per-platform config | `gateway/*` — `Platform` (enum), `PlatformConfig` | 2.B | 🔨 Telegram/Discord/Slack config surfaces landed; canonical cross-platform enum parity remains |
 | Cron / scheduled automations | `cron/scheduler.py`, `cron/jobs.py`, `tools/cronjob_tools.py` | 2.D | ✅ shipped (scheduler + bbolt `cron_jobs` bucket + SQLite `cron_runs` audit + CRON.md mirror + Heartbeat prefix + exact-match `[SILENT]` suppression + kernel `PlatformEvent.SessionID/CronJobID` per-event override; upstream's file tick lock not needed — single-process) |
 | Webhook subscription system (GitHub events / API triggers → prompt → deliver) | `hermes_cli/webhook.py` + gateway routing | 2.B.9 / 2.D | 🔨 signed ingress/auth gates plus the typed prompt-to-delivery bridge landed in `internal/channels/webhook`; runtime adapter wiring still remains |
@@ -295,7 +295,7 @@ Upstream uses `~/.hermes/` as the state root (overridable via `HERMES_HOME`). Go
 | `~/.hermes/skins/` | CLI skin definition files | 5.Q | Planned |
 | `~/.hermes/dashboard-themes/` | Example-dashboard plugin themes | 5.I | Planned |
 | `~/.hermes/whatsapp/` | WhatsApp platform session state | 2.B.4 | Planned |
-| `~/.hermes/channel_directory.json` | Cached channel/contact mappings | 2.F | Planned — existing `channel_directory.py` row |
+| `~/.hermes/channel_directory.json` | Cached channel/contact mappings | 2.F | In-memory lookup/rename invalidation shipped; JSON persistence remains planned |
 | `~/.hermes/sticker_cache.json` | Telegram sticker lookup cache | 2.F | Planned |
 | `~/.hermes/.container-mode` | Sentinel: "running inside container" | 2.F | Planned — Gormes can detect `/.dockerenv` or use its own sentinel |
 | `~/.hermes/.managed` | Sentinel: "managed by external orchestrator" | 2.F | Planned |

@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 29/66 subphases shipped · 5 in progress · 32 planned
+**Overall:** 29/66 subphases shipped · 6 in progress · 31 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -157,10 +157,10 @@ weight: 10
 - [x] Graceful restart drain + managed shutdown
 - [ ] Pairing state + status surfaces
 
-### 2.F.4 — Home Channel + Operator Surfaces ⏳
+### 2.F.4 — Home Channel + Operator Surfaces 🔨
 
 - [ ] Home channel ownership + notify-to routing
-- [ ] Channel/contact directory
+- [x] Channel/contact directory
 - [ ] Mirror + sticker cache surfaces
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
