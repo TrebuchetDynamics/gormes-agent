@@ -13,6 +13,10 @@ TimeoutStopSec=60s
 KillMode=mixed
 KillSignal=SIGTERM
 
+# systemd user services get a minimal PATH; explicitly include the user's
+# ~/.local/bin so codexu/claudeu/opencode/etc. resolve.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
 # Companion seam defaults: let the orchestrator schedule planner, doc-improver,
 # and landing-page between cycles. Override by dropping a file in
 # ~/.config/systemd/user/gormes-orchestrator.service.d/override.conf
