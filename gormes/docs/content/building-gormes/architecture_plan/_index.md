@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 50/66 subphases shipped · 2 in progress · 14 planned
+**Overall:** 51/66 subphases shipped · 1 in progress · 14 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -28,7 +28,7 @@ weight: 10
 | Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 8/8 subphases |
-| Phase 5 — The Final Purge | 🔨 | 7/17 subphases |
+| Phase 5 — The Final Purge | 🔨 | 8/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
 ---
@@ -325,10 +325,10 @@ weight: 10
 - [x] Skill registries
 - [x] Skill auto-discovery
 
-### 5.G — MCP Integration 🔨
+### 5.G — MCP Integration ✅
 
 - [x] MCP client
-- [ ] OAuth flows
+- [x] OAuth flows
 
 ### 5.H — ACP Integration ✅
 

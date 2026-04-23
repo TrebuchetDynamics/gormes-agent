@@ -893,7 +893,8 @@
             },
             {
               "name": "OAuth flows",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/mcp/oauth.go` now ships a generic MCP OAuth 2.1 PKCE browser-callback flow, persists sanitized per-server `${XDG_DATA_HOME}/gormes/mcp-tokens/<server>{,.client}.json` state, and refreshes expired bearer tokens from cached client metadata when `LoadOAuthAccessToken` resolves a server token; `internal/mcp/oauth_test.go` covers login persistence plus refresh-backed reuse via `go test ./internal/mcp`."
             }
           ]
         },

@@ -868,11 +868,18 @@
           "items": [
             {
               "name": "Skills hub",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/skills/hub.go` now syncs materialized `.hub/catalogs/<source>/.../SKILL.md` trees into the local `.hub/cache` + `lock.json`, installs hub refs into `active/`, and `cmd/gormes/skills.go` exposes `gormes skills sync`, `gormes skills list [--source=hub]`, and `gormes skills install <ref>` against `${XDG_DATA_HOME}/gormes/skills/`."
             },
             {
               "name": "Skill registries",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/skills/registry.go` now defines `SkillMeta`, `SkillBundle`, `SkillReadinessStatus`, and `HubLockFile`, adds deterministic `FilesystemSource` + `StaticSource` discovery behind one `SkillSource` / `SourceRegistry` seam, and publishes the canonical bundled/official/Claude Marketplace/ClawHub/GitHub/Hermes Index/LobeHub/skills.sh registry catalog for future hub flows."
+            },
+            {
+              "name": "Skill auto-discovery",
+              "status": "complete",
+              "note": "TDD landed: `internal/skills` now auto-discovers the active store plus configured external skill trees with local-name precedence, writes `${XDG_DATA_HOME}/gormes/.skills_prompt_snapshot.json` for the selected prompt block metadata, and `cmd/gormes/{main,gateway,telegram}.go` plus the BOOT hook now wire the live kernels through the shared runtime and usage logger."
             }
           ]
         },
@@ -886,7 +893,8 @@
             },
             {
               "name": "OAuth flows",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/mcp/oauth.go` now ships a generic MCP OAuth 2.1 PKCE browser-callback flow, persists sanitized per-server `${XDG_DATA_HOME}/gormes/mcp-tokens/<server>{,.client}.json` state, and refreshes expired bearer tokens from cached client metadata when `LoadOAuthAccessToken` resolves a server token; `internal/mcp/oauth_test.go` covers login persistence plus refresh-backed reuse via `go test ./internal/mcp`."
             }
           ]
         },
@@ -895,7 +903,8 @@
           "items": [
             {
               "name": "ACP server side",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/acp/server.go` now ships the ACP stdio JSON-RPC baseline (`initialize`, `session/new`, `session/prompt`, `session/cancel`, `session/close`), `internal/acp/kernel_session.go` backs each ACP session with a live Gormes kernel turn loop, `cmd/gormes/acp.go` wires the Cobra entrypoint, and `acp_registry/agent.json` plus `acp_registry/icon.svg` advertise the editor manifest. Session/load, richer prompt content blocks, and ACP client fs/terminal callback bridges remain explicit follow-on scope."
             }
           ]
         },
@@ -904,7 +913,8 @@
           "items": [
             {
               "name": "Plugin SDK",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/plugins/manifest.go` now ships the typed `plugin.yaml` contract (`name`, `version`, metadata, `requires_env`, declared tools/hooks/skills/commands) plus deterministic on-disk discovery, and `pkg/gormes/types.go` re-exports `LoadPluginManifest` / `DiscoverPluginManifests` for external tooling. Plugin execution/loading, provider activation, and third-party runtime wiring remain follow-on scope under the separate `Third-party extensions` item."
             },
             {
               "name": "Third-party extensions",

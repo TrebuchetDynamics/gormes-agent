@@ -781,8 +781,8 @@ func TestLoad_RealFile_Phase5MCPClient(t *testing.T) {
 	}
 
 	mcp := p.Phases["5"].Subphases["5.G"]
-	if got := mcp.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 5.G = %q, want in_progress", got)
+	if got := mcp.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 5.G = %q, want complete", got)
 	}
 
 	items := itemsByName(mcp.Items)
@@ -795,6 +795,17 @@ func TestLoad_RealFile_Phase5MCPClient(t *testing.T) {
 		!strings.Contains(client.Note, "tools/list") ||
 		!strings.Contains(client.Note, "tools/call") {
 		t.Fatalf("Phase 5.G MCP client note = %q, want internal/mcp/client.go + handshake/tool RPC detail", client.Note)
+	}
+
+	oauth := items["OAuth flows"]
+	if oauth.Status != StatusComplete {
+		t.Fatalf("Phase 5.G OAuth flows status = %q, want complete", oauth.Status)
+	}
+	if !strings.Contains(oauth.Note, "internal/mcp/oauth.go") ||
+		!strings.Contains(oauth.Note, "mcp-tokens") ||
+		!strings.Contains(oauth.Note, "LoadOAuthAccessToken") ||
+		!strings.Contains(oauth.Note, "go test ./internal/mcp") {
+		t.Fatalf("Phase 5.G OAuth flows note = %q, want oauth.go,mcp-tokens,LoadOAuthAccessToken,test detail", oauth.Note)
 	}
 }
 
