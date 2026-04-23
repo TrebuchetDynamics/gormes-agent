@@ -252,7 +252,6 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID st
 	// we execute the tools in-process and issue a follow-up stream with the
 	// tool results appended to the message history. Capped at MaxToolIterations
 	// to prevent runaway agent loops.
-	msgs := []hermes.Message{{Role: "user", Content: text}}
 	systemMsgs := make([]hermes.Message, 0, 3)
 
 	if sessionContext != "" {
@@ -288,24 +287,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID st
 			}
 		}
 	}
-	if len(systemMsgs) > 0 {
-		msgs = append(systemMsgs, msgs...)
-	}
-
-	request := hermes.ChatRequest{
-		Model:     k.cfg.Model,
-		SessionID: k.sessionID,
-		Stream:    true,
-		Messages:  msgs,
-	}
-	if k.cfg.Tools != nil {
-		descs := k.cfg.Tools.Descriptors()
-		wireDescs := make([]hermes.ToolDescriptor, len(descs))
-		for i, d := range descs {
-			wireDescs[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
-		}
-		request.Tools = wireDescs
-	}
+	request := k.buildChatRequest(systemMsgs)
 	maxIter := k.cfg.MaxToolIterations
 	if maxIter <= 0 {
 		maxIter = 10

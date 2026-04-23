@@ -722,7 +722,8 @@
           "items": [
             {
               "name": "System + memory + tools + history assembly",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: internal/kernel/prompt_builder.go now assembles per-turn system blocks (session context, recall output, and any skill block), stable tool descriptors, and accumulated multi-turn history into hermes.ChatRequest values, with second-turn coverage locked in internal/kernel/prompt_builder_test.go and go test ./internal/kernel."
             }
           ]
         },

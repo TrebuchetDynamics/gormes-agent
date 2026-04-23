@@ -2,7 +2,7 @@
 
 Gormes is the Go operator console for Hermes — a single static binary that boots fast, runs tools in-process, and treats dropped SSE streams as a resilience problem instead of a happy-path omission. No Python runtime, no Node runtime, no per-host dependency stack once the binary is built.
 
-The current `cmd/gormes` build is a zero-CGO static binary built with Go 1.25+. A single binary ships the TUI, the Telegram bot adapter (`gormes telegram`), and the Wire Doctor (`gormes doctor`). Gormes still interoperates with Hermes' OpenAI-compatible `api_server` on port 8642 — transcript memory and prompt assembly stay upstream until the later roadmap phases land.
+The current `cmd/gormes` build is a zero-CGO static binary built with Go 1.25+. A single binary ships the TUI, the Telegram bot adapter (`gormes telegram`), and the Wire Doctor (`gormes doctor`). Gormes still interoperates with Hermes' OpenAI-compatible `api_server` on port 8642 — transcript memory still mirrors upstream, while prompt assembly now runs natively in the Go kernel.
 
 ## Install
 
@@ -69,6 +69,19 @@ GORMES_TELEGRAM_TOKEN=... GORMES_TELEGRAM_CHAT_ID=123456789 gormes telegram
 - **16 ms coalescing mailbox** — the kernel uses a replace-latest render mailbox so stalled consumers do not trigger a thundering herd of stale frames.
 - **Unified binary with isolated adapters** — TUI, Telegram adapter, and doctor all ship in one `gormes` binary with a subcommand per edge, so deployment stays simple while each adapter keeps its own dependency surface.
 - **Thin bbolt session resume** — `gormes` persists the active `session_id` through a bbolt map so a crash or reboot reattaches to the same Hermes session instead of starting a new one.
+
+## Architecture
+
+<!-- PROGRESS:START kind=readme-rollup -->
+| Phase | Status | Shipped |
+|-------|--------|---------|
+| Phase 1 — The Dashboard | ✅ | 2/2 subphases |
+| Phase 2 — The Gateway | ✅ | 20/20 subphases |
+| Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 2/8 subphases |
+| Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
+| Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
+<!-- PROGRESS:END -->
 
 ## Landing Page
 

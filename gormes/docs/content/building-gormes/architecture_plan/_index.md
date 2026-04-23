@@ -20,14 +20,14 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 36/66 subphases shipped · 1 in progress · 29 planned
+**Overall:** 37/66 subphases shipped · 1 in progress · 28 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 2/2 subphases |
 | Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 1/8 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 2/8 subphases |
 | Phase 5 — The Final Purge | ⏳ | 0/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
@@ -265,9 +265,9 @@ weight: 10
 - [ ] Long session management
 - [x] Context compression
 
-### 4.C — Native Prompt Builder ⏳
+### 4.C — Native Prompt Builder ✅
 
-- [ ] System + memory + tools + history assembly
+- [x] System + memory + tools + history assembly
 
 ### 4.D — Smart Model Routing ⏳
 

@@ -125,7 +125,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Context engine | `agent/context_engine.py` | 4.B | ⏳ planned |
 | Context compressor | `agent/context_compressor.py` + `manual_compression_feedback.py` | 4.B | 🔨 in progress — `internal/contextengine` now locks threshold budgeting, summary sizing, probe step-down, and ineffective-compression cooldown; live history mutation/manual feedback still remain |
 | Context references | `agent/context_references.py` | 4.B | ⏳ planned |
-| Prompt builder | `agent/prompt_builder.py` | 4.C | ⏳ planned |
+| Prompt builder | `agent/prompt_builder.py` | 4.C | ✅ complete — `internal/kernel/prompt_builder.go` now assembles system blocks, multi-turn history, and tool descriptors into `hermes.ChatRequest` |
 | Smart model routing | `agent/smart_model_routing.py` + `model_metadata.py` + `models_dev.py` | 4.D | ⏳ planned |
 | Trajectory | `agent/trajectory.py` | 4.E | ⏳ planned |
 | Insights | `agent/insights.py` | 4.E | ⏳ planned |

@@ -296,6 +296,29 @@ func TestLoad_RealFile_Phase4ContextCompression(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_Phase4PromptBuilder(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	builder := p.Phases["4"].Subphases["4.C"]
+	if got := builder.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 4.C = %q, want complete", got)
+	}
+	items := itemsByName(builder.Items)
+	assembly := items["System + memory + tools + history assembly"]
+	if assembly.Status != StatusComplete {
+		t.Fatalf("Phase 4.C prompt builder status = %q, want complete", assembly.Status)
+	}
+	if !strings.Contains(assembly.Note, "internal/kernel/prompt_builder.go") ||
+		!strings.Contains(assembly.Note, "hermes.ChatRequest") ||
+		!strings.Contains(assembly.Note, "internal/kernel/prompt_builder_test.go") ||
+		!strings.Contains(assembly.Note, "go test ./internal/kernel") {
+		t.Fatalf("Phase 4.C prompt builder note = %q, want package/request/test detail", assembly.Note)
+	}
+}
+
 func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
