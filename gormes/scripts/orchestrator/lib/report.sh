@@ -150,7 +150,10 @@ collect_final_report_issues() {
   local i section_title section_pattern
   for (( i = 0; i < ${#section_titles[@]}; i++ )); do
     section_title="${section_titles[$i]}"
-    section_pattern="^[[:space:]]*$((i + 1))[).][[:space:]]*${section_title}[[:space:]]*$"
+    # Accept optional leading markdown header prefix (#, ##, ..., ######) and
+    # optional trailing/surrounding ** bold markers so claude's markdown-style
+    # reports validate. The required content is the "N) <Title>" or "N. <Title>".
+    section_pattern="^[[:space:]]*(#{1,6}[[:space:]]+)?(\\*\\*)?$((i + 1))[).][[:space:]]*(\\*\\*)?${section_title}(\\*\\*)?[[:space:]]*$"
     if ! grep -Eq "$section_pattern" "$final_file"; then
       echo "Missing section '$((i + 1))) ${section_title}' in $final_file"
       missing=1
