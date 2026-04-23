@@ -75,6 +75,26 @@ func TestBuildDefaultRegistryRegistersDormantClarify(t *testing.T) {
 	}
 }
 
+func TestBuildDefaultRegistryRegistersMixtureOfAgents(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{}, "", nil, "")
+
+	entry, ok := reg.Entry("mixture_of_agents")
+	if !ok {
+		t.Fatal("mixture_of_agents not registered")
+	}
+	if entry.Toolset != "moa" {
+		t.Fatalf("mixture_of_agents toolset = %q, want moa", entry.Toolset)
+	}
+	if containsToolDescriptor(reg.AvailableDescriptors(), "mixture_of_agents") {
+		t.Fatal("mixture_of_agents unexpectedly available without OPENROUTER_API_KEY")
+	}
+
+	t.Setenv("OPENROUTER_API_KEY", "test-key")
+	if !containsToolDescriptor(reg.AvailableDescriptors(), "mixture_of_agents") {
+		t.Fatal("mixture_of_agents unavailable after OPENROUTER_API_KEY injection")
+	}
+}
+
 func TestBuildDefaultRegistryDelegationEnabled(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{
 		Enabled:               true,

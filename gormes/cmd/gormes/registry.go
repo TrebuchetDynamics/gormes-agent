@@ -36,6 +36,11 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 			return err == nil
 		},
 	})
+	reg.MustRegisterEntry(tools.ToolEntry{
+		Tool:    &tools.MixtureOfAgentsTool{},
+		Toolset: "moa",
+		CheckFn: tools.MixtureOfAgentsAvailable,
+	})
 	tools.RegisterBrowserTools(reg)
 	if delegation.Enabled {
 		var drafter subagent.CandidateDrafter

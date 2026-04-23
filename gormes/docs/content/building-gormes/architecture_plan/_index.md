@@ -20,7 +20,7 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 55/66 subphases shipped · 1 in progress · 10 planned
+**Overall:** 56/66 subphases shipped · 1 in progress · 9 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -28,7 +28,7 @@ weight: 10
 | Phase 2 — The Gateway | ✅ | 20/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 13/13 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 8/8 subphases |
-| Phase 5 — The Final Purge | 🔨 | 12/17 subphases |
+| Phase 5 — The Final Purge | 🔨 | 13/17 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
 ---
@@ -351,9 +351,9 @@ weight: 10
 
 - [x] Atomic checkpoints
 
-### 5.M — Mixture of Agents ⏳
+### 5.M — Mixture of Agents ✅
 
-- [ ] Multi-model coordination
+- [x] Multi-model coordination
 
 ### 5.N — Misc Operator Tools 🔨
 
