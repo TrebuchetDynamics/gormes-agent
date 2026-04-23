@@ -811,7 +811,8 @@
             },
             {
               "name": "Modal",
-              "status": "planned"
+              "status": "complete",
+              "note": "Go-native backend seam now lives in internal/tools/environments/modal with tested config normalization, app lookup/create, task-scoped snapshot restore fallback, shell exec translation, env passthrough, and snapshot-on-cleanup termination."
             },
             {
               "name": "Daytona",
