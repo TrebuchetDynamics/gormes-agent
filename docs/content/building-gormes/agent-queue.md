@@ -20,27 +20,7 @@ tests, and candidate policy. Keep those control-plane facts in
 `meta.autoloop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Provider interface + stream fixture harness
-
-- Phase: 4 / 4.A
-- Owner: `provider`
-- Size: `medium`
-- Status: `in_progress`
-- Contract: Provider-neutral request and stream event transcript harness
-- Trust class: system
-- Ready when: Anthropic transcript fixtures replay request, stream, finish reason, and usage data without live credentials.
-- Not ready when: A provider-specific adapter lands before shared transcript fixtures prove the contract.
-- Degraded mode: Provider status reports missing fixture coverage or unavailable adapters before kernel routing can select them.
-- Fixture: `internal/hermes provider transcript fixtures`
-- Write scope: `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -count=1`
-- Done signal: Provider transcript fixtures replay request, stream, finish reason, and usage data without live credentials.
-- Acceptance: Provider transcripts replay request, stream, finish reason, and usage data without live credentials., EOF after partial tool_call surfaces pending calls instead of dropping them., Duplicate tool-name deltas cannot concatenate into invented names.
-- Source refs: docs/content/upstream-hermes/source-study.md, docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md
-- Unblocks: Bedrock Converse payload mapping (no AWS SDK), Gemini, OpenRouter, Codex
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. Tool registry inventory + schema parity harness
+## 1. Tool registry inventory + schema parity harness
 
 - Phase: 5 / 5.A
 - Owner: `tools`

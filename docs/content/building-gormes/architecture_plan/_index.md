@@ -330,8 +330,8 @@ machine-readable queue for developing the full `gormes-agent`.
 
 ### 4.A — Provider Adapters 🔨
 
-- [ ] Provider interface + stream fixture harness
-- [ ] Tool-call normalization + continuation contract
+- [x] Provider interface + stream fixture harness
+- [x] Tool-call normalization + continuation contract
 - [x] Anthropic
 - [ ] Bedrock
 - [ ] Bedrock Converse payload mapping (no AWS SDK)
@@ -385,7 +385,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 4.H — Rate / Retry / Caching 🔨
 
 - [ ] Provider-side resilience
-- [ ] Classified provider-error taxonomy
+- [x] Classified provider-error taxonomy
 - [x] Jittered reconnect backoff schedule
 - [ ] Retry-After header parsing + HTTPError hint
 - [ ] Kernel retry honors Retry-After hint

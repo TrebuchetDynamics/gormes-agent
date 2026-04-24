@@ -1120,9 +1120,9 @@
           "items": [
             {
               "name": "Provider interface + stream fixture harness",
-              "status": "in_progress",
+              "status": "complete",
               "contract": "Provider-neutral request and stream event transcript harness",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -1151,7 +1151,7 @@
                 "EOF after partial tool_call surfaces pending calls instead of dropping them.",
                 "Duplicate tool-name deltas cannot concatenate into invented names."
               ],
-              "note": "TDD: `internal/hermes/client.go` already freezes shared ChatRequest/Message/Event/ToolCall contracts and the Anthropic adapter (`anthropic_client.go`/`anthropic_stream.go`) exercises them; the remaining closeout is a reusable fixture harness that replays provider transcripts, usage, and finish reasons across adapters before Bedrock/Gemini/OpenRouter/Codex land on the same seam. Fixture set must include regression cases for upstream PR #12072 (dropped tool_call on mid-stream stall — partial tool_calls in `internal/hermes/stream.go` pendingCalls must surface on EOF rather than disappear when `finish_reason=\"tool_calls\"` never arrives) and PR #0f778f77 (MiniMax/NVIDIA NIM tool-name duplication in the streaming accumulator) so the contract is locked before any other provider reuses it.",
+              "note": "Complete: TDD landed `internal/hermes/provider_transcript_test.go` plus reusable fixtures under `internal/hermes/testdata/provider_transcripts/`. The harness replays request bodies and SSE transcripts without live credentials, covers Anthropic request shaping, reasoning/text stream events, finish_reason mapping, usage, and tool-call accumulation, and locks the upstream #12072/#0f778f77 regressions by flushing pending OpenAI-compatible and Anthropic tool calls on EOF while proving repeated tool-name deltas do not concatenate into invented names.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -1165,9 +1165,9 @@
             },
             {
               "name": "Tool-call normalization + continuation contract",
-              "status": "in_progress",
+              "status": "complete",
               "contract": "Cross-provider tool-call continuation contract",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -1198,7 +1198,7 @@
                 "Continuation payloads preserve provider-safe finish reasons.",
                 "Cross-provider fixtures cover mid-stream stall recovery and duplicate-name accumulator safety."
               ],
-              "note": "TDD: streamed tool-call accumulation and tool-result continuation payload mapping are locked for the Anthropic adapter in `internal/hermes/stream_tools_test.go` and `anthropic_client_test.go`; the remaining closeout is cross-provider fixture coverage that pins assistant tool-call messages, tool replies, and continuation-safe finish reasons as a shared harness before Bedrock/Gemini/OpenRouter/Codex reuse the seam. Shared fixtures must pin (a) mid-stream stall recovery per upstream PR #12072 — partial tool_calls surfacing on stream EOF rather than being silently dropped from `pendingCalls` — and (b) tool-name accumulator safety per upstream PR #0f778f77 so duplicate-name deltas from MiniMax/NVIDIA NIM-style providers cannot concatenate into invented tool names.",
+              "note": "Complete: TDD added provider transcript coverage for OpenAI-compatible continuation requests so assistant `ToolCalls` and linked `tool` replies serialize from the shared `hermes.Message` model instead of being dropped to role/content only. The shared harness now proves Anthropic continuation mapping, OpenAI-compatible continuation mapping, provider-safe `tool_calls`/`stop` finish reasons, EOF recovery for partial streamed tool calls, and duplicate-name accumulator safety before Bedrock/Gemini/OpenRouter/Codex reuse the seam.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -1503,9 +1503,9 @@
             },
             {
               "name": "Classified provider-error taxonomy",
-              "status": "in_progress",
+              "status": "complete",
               "contract": "Structured provider error classification contract",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -1535,7 +1535,7 @@
                 "Auth and context-length failures are never retried as generic transient errors.",
                 "Fixture tables cover rate-limit, auth, context, retryable, and fatal cases."
               ],
-              "note": "TDD: `internal/hermes/errors.go` already classifies retryable vs fatal HTTP/auth/context/rate-limit conditions for kernel retries; the remaining closeout is a richer structured taxonomy comparable to `agent/error_classifier.py`, including explicit rate-limit/auth/context/non-retryable envelopes and broader provider fixture tables.",
+              "note": "Complete: TDD landed `internal/hermes.ClassifyProviderError` with stable provider-error kinds for `rate_limit`, `auth`, `context`, `retryable`, `non_retryable`, and `unknown` while preserving the existing coarse `Classify` retry/fatal contract used by the kernel. `internal/hermes/errors_test.go` now fixture-covers HTTP status and provider body hints for rate-limit, auth, context overflow, retryable server/transport failures, non-retryable request failures, and OpenRouter-style wrapped metadata errors without adding Retry-After hint parsing from the sibling slice.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"

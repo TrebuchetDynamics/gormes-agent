@@ -22,6 +22,5 @@ the row in `progress.json` before assigning it.
 <!-- PROGRESS:START kind=next-slices -->
 | Phase | Slice | Contract | Trust class | Fixture | Why now |
 |---|---|---|---|---|---|
-| 4 / 4.A | Provider interface + stream fixture harness | Provider-neutral request and stream event transcript harness | system | `internal/hermes provider transcript fixtures` | Already active; contract metadata keeps execution bounded. |
 | 5 / 5.A | Tool registry inventory + schema parity harness | Operation and tool descriptor parity before handler ports | operator, gateway, child-agent, system | `internal/tools upstream schema parity manifest fixtures` | Unblocks Pure core tools first, Stateful tool migration queue, CLI command registry parity + active-turn busy policy. |
 <!-- PROGRESS:END -->
