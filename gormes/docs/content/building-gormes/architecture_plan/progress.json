@@ -1053,7 +1053,8 @@
           "items": [
             {
               "name": "Portable SKILL.md format",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD: `internal/skills/portable.go` introduces a `Provenance` struct plus `RenderPortable`/`ParsePortable` that extend the existing SKILL.md frontmatter with an optional `learning:` block (session_id, distilled_at RFC3339, score, threshold, reasons, tool_names). The rendering is byte-deterministic, omits blank/empty scalars while always emitting score/threshold, and round-trips through `ParsePortable` with every field preserved. Legacy documents without the block parse to a nil Provenance so downstream code can tell \"never had provenance\" from \"all-zero provenance\"; the existing `skills.Parse` seam continues to accept portable docs unchanged so 6.D retrieval and 6.F browsing inherit the new format without code changes."
             }
           ]
         },

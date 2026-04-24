@@ -5,7 +5,7 @@ weight: 70
 
 # Phase 6 — The Learning Loop (Soul)
 
-**Status:** ⏳ planned · 4/6 sub-phases
+**Status:** ⏳ planned · 5/6 sub-phases
 
 The Learning Loop is the first Gormes-original core system — not a port. It detects when a task is complex enough to be worth learning from, distills the solution into a reusable skill, stores it, and improves the skill over successive runs. Upstream Hermes alludes to self-improvement; Gormes implements it as a dedicated subsystem.
 
@@ -17,7 +17,7 @@ The Learning Loop is the first Gormes-original core system — not a port. It de
 |---|---|---|
 | 6.A — Complexity Detector | ✅ complete | Heuristic signal for "this turn was worth learning from" now ships via `internal/learning/runtime.go`, with kernel-written JSONL decisions under `${XDG_DATA_HOME}/gormes/learning/complexity.jsonl` |
 | 6.B — Skill Extractor | ✅ complete | LLM-assisted pattern distillation now ships via `internal/learning/extractor.go`, gating on the 6.A signal and persisting JSONL skill candidates for 6.C |
-| 6.C — Skill Storage Format | ⏳ planned | Portable, human-editable Markdown (SKILL.md) with structured metadata |
+| 6.C — Skill Storage Format | ✅ complete | Portable SKILL.md with an optional `learning:` frontmatter block (session, distilled_at, score, threshold, reasons, tool_names) ships via `internal/skills/portable.go`; legacy documents keep parsing unchanged |
 | 6.D — Skill Retrieval + Matching | ✅ complete | `internal/skills.SelectHybrid` fuses the existing token-overlap lexical scorer with cosine similarity over per-skill embeddings via Reciprocal Rank Fusion |
 | 6.E — Feedback Loop | ✅ complete | Per-skill outcome log + Laplace-smoothed effectiveness score now ships via `internal/learning/feedback.go` |
 | 6.F — Skill Surface (TUI + Telegram) | ✅ complete (browsing only) | Shared `skills.BrowseView` now powers the gateway `/skills` command and `tui.RenderSkillsPane`; edit + disable flows remain follow-on |
@@ -27,6 +27,19 @@ The Learning Loop is the first Gormes-original core system — not a port. It de
 Phase 5.F (Skills system) was previously scoped as "port the upstream Python skills plumbing". That's mechanical. Phase 6 is the algorithm on top — detecting complexity, distilling patterns, scoring feedback. It depends on 5.F (needs the storage format), but it's not the same work.
 
 Positioning: **Gormes's moat over Hermes**. Hermes has a skills directory; it does not have a native learning loop that decides what's worth writing down.
+
+## 6.C Closeout
+
+Phase 6.C lands the portable storage format that bridges the 6.B extractor to the 6.D / 6.F retrieval and browsing surfaces already on disk. `internal/skills/portable.go` introduces a `Provenance` struct plus `RenderPortable` / `ParsePortable` that extend the existing SKILL.md frontmatter with an optional `learning:` block carrying:
+
+- `session_id` — the originating kernel session so operators can trace a skill back to the turn that produced it.
+- `distilled_at` — RFC 3339 UTC timestamp of the distillation.
+- `score` / `threshold` — the 6.A complexity score and the gate it crossed, always emitted (even at zero) so below-threshold manual promotions are legible.
+- `reasons` / `tool_names` — the 6.A signal reasons and the tool trace, rendered as flow-style string sequences.
+
+Rendering is byte-deterministic and omits blank scalars or empty lists so the file stays compact when provenance is partial. Parsing round-trips every field and — critically — the legacy `skills.Parse` seam still accepts portable docs without code changes: the existing 6.D retrieval and 6.F browsing consumers snapshot the same `Skill` struct as before, with the `learning:` block treated as an additive header that they can opt into via `ParsePortable` when they want the provenance metadata.
+
+A missing `learning:` block parses to a nil `Provenance` pointer instead of an all-zero struct so callers can distinguish "never had provenance" from "had below-threshold provenance" without inspecting every scalar. That keeps the door open for 6.E ranking policies that weight skills by how recently they were distilled without having to special-case pre-6.C skills.
 
 ## 6.B Closeout
 

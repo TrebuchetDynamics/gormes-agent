@@ -2,6 +2,7 @@ package skills
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -63,6 +64,9 @@ func trimScalar(value string) string {
 	value = strings.TrimSpace(value)
 	if len(value) >= 2 {
 		if value[0] == '"' && value[len(value)-1] == '"' {
+			if unq, err := strconv.Unquote(value); err == nil {
+				return unq
+			}
 			return value[1 : len(value)-1]
 		}
 		if value[0] == '\'' && value[len(value)-1] == '\'' {
