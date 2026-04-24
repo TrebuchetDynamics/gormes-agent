@@ -88,6 +88,37 @@ json_array_bullets_or_dash() {
   fi
 }
 
+json_autoloop_scalar_or_default() {
+  local json="$1"
+  local field="$2"
+  local default="$3"
+  jq -r --arg field "$field" --arg default "$default" '
+    (.autoloop[$field] // $default)
+    | if . == "" then $default else . end
+  ' <<<"$json"
+}
+
+json_autoloop_policy_or_default() {
+  local json="$1"
+  local out
+  out="$(jq -r '
+    (.autoloop.candidate_policy // [])
+    | if type == "array" then . else [] end
+    | map(select(. != null and (. | tostring | length > 0)) | "- " + tostring)
+    | join("\n")
+  ' <<<"$json")"
+  if [[ -n "$out" ]]; then
+    printf '%s\n' "$out"
+  else
+    cat <<'EOF'
+- Skip rows with blocked_by until ready_when is satisfied.
+- Skip slice_size=umbrella rows until they are split.
+- Prefer contract rows with write_scope, test_commands, and done_signal.
+- Inject selected progress metadata into the worker prompt instead of asking workers to rescan the whole roadmap.
+EOF
+  fi
+}
+
 build_prompt() {
   local worker_id="$1"
   local selected_json="$2"
@@ -125,6 +156,15 @@ build_prompt() {
   test_commands="$(json_array_bullets_or_dash "$selected_json" test_commands)"
   done_signal="$(json_array_bullets_or_dash "$selected_json" done_signal)"
 
+  local autoloop_entrypoint autoloop_plan autoloop_agent_queue autoloop_progress_schema autoloop_candidate_source autoloop_unit_test autoloop_candidate_policy
+  autoloop_entrypoint="$(json_autoloop_scalar_or_default "$selected_json" entrypoint "scripts/gormes-auto-codexu-orchestrator.sh")"
+  autoloop_plan="$(json_autoloop_scalar_or_default "$selected_json" plan "docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md")"
+  autoloop_agent_queue="$(json_autoloop_scalar_or_default "$selected_json" agent_queue "docs/content/building-gormes/agent-queue.md")"
+  autoloop_progress_schema="$(json_autoloop_scalar_or_default "$selected_json" progress_schema "docs/content/building-gormes/progress-schema.md")"
+  autoloop_candidate_source="$(json_autoloop_scalar_or_default "$selected_json" candidate_source "$PROGRESS_JSON_REL")"
+  autoloop_unit_test="$(json_autoloop_scalar_or_default "$selected_json" unit_test "scripts/orchestrator/tests/run.sh unit")"
+  autoloop_candidate_policy="$(json_autoloop_policy_or_default "$selected_json")"
+
   cat > "$prompt_file" <<EOF
 Repository root:
   $worker_dir
@@ -141,12 +181,15 @@ Selected task:
 - Current status: $status
 
 Autoloop control plane:
-- Main entrypoint: scripts/gormes-auto-codexu-orchestrator.sh
-- Candidate source: $PROGRESS_JSON_REL
-- Agent queue docs: docs/content/building-gormes/agent-queue.md
-- Progress schema docs: docs/content/building-gormes/progress-schema.md
-- Orchestrator plan: docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md
-- Orchestrator tests: scripts/orchestrator/tests/run.sh unit
+- Main entrypoint: $autoloop_entrypoint
+- Candidate source: $autoloop_candidate_source
+- Agent queue docs: $autoloop_agent_queue
+- Progress schema docs: $autoloop_progress_schema
+- Orchestrator plan: $autoloop_plan
+- Orchestrator tests: $autoloop_unit_test
+
+Candidate policy:
+$autoloop_candidate_policy
 
 Canonical progress handoff:
 - Contract: $contract

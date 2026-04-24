@@ -138,6 +138,8 @@ setup() {
   assert_output --partial "Autoloop control plane:"
   assert_output --partial "scripts/gormes-auto-codexu-orchestrator.sh"
   assert_output --partial "docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md"
+  assert_output --partial "Candidate policy:"
+  assert_output --partial "Skip rows with blocked_by until ready_when is satisfied."
 }
 
 @test "build_prompt includes selected progress handoff fields" {
@@ -166,6 +168,34 @@ setup() {
   assert_output --partial "- go test ./internal/hermes -count=1"
   assert_output --partial "- transcripts replay"
   assert_output --partial "Prefer the declared Write scope and Test commands"
+}
+
+@test "build_prompt reads autoloop control plane from selected candidate metadata" {
+  local tmp
+  tmp="$(mktmp_workspace)"
+  export STATE_DIR="$tmp/state"
+  export WORKTREES_DIR="$tmp/worktrees"
+  export REPO_SUBDIR="."
+  export RUN_ID="testrun"
+  export BASE_COMMIT="abc1234"
+  export PROGRESS_JSON_REL="fallback/progress.json"
+  mkdir -p "$STATE_DIR"
+  local selected
+  selected='{"phase_id":"1","subphase_id":"1.C","item_name":"Autoloop metadata","status":"planned","autoloop":{"entrypoint":"custom-entry.sh","plan":"docs/superpowers/plans/custom-plan.md","agent_queue":"docs/content/building-gormes/custom-queue.md","progress_schema":"docs/content/building-gormes/custom-schema.md","candidate_source":"docs/content/building-gormes/architecture_plan/progress.json","unit_test":"custom test command","candidate_policy":["Skip blocked rows.","Skip umbrella rows."]}}'
+  local prompt_file="$tmp/prompt.txt"
+  run build_prompt 1 "$selected" "0:1/1.C/Autoloop metadata" "$prompt_file"
+  assert_success
+  run cat "$prompt_file"
+  assert_success
+  assert_output --partial "- Main entrypoint: custom-entry.sh"
+  assert_output --partial "- Candidate source: docs/content/building-gormes/architecture_plan/progress.json"
+  assert_output --partial "- Agent queue docs: docs/content/building-gormes/custom-queue.md"
+  assert_output --partial "- Progress schema docs: docs/content/building-gormes/custom-schema.md"
+  assert_output --partial "- Orchestrator plan: docs/superpowers/plans/custom-plan.md"
+  assert_output --partial "- Orchestrator tests: custom test command"
+  assert_output --partial "Candidate policy:"
+  assert_output --partial "- Skip blocked rows."
+  assert_output --partial "- Skip umbrella rows."
 }
 
 @test "build_prompt omits PRIOR ATTEMPT FEEDBACK when no failure record" {
