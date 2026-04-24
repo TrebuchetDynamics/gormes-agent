@@ -1283,6 +1283,60 @@ run_once() {
   return "$rc"
 }
 
+emit_startup_env_banner() {
+  # List of env vars to dump at startup. Grouped by concern for readability.
+  local -a keys=(
+    MODE MAX_AGENTS BACKEND
+    DISABLE_COMPANIONS COMPANION_ON_IDLE COMPANION_TIMEOUT_SECONDS
+    MAX_RETRIES CANDIDATE_LOW_WATERMARK
+    ORCHESTRATOR_ONCE AUTO_PROMOTE_SUCCESS ALLOW_SOFT_SUCCESS_NONZERO
+    LOOP_SLEEP_SECONDS WORKER_TIMEOUT_SECONDS
+    COMPANION_PLANNER_CMD COMPANION_DOC_IMPROVER_CMD COMPANION_LANDINGPAGE_CMD
+  )
+
+  # Human-readable lines to stderr (visible via journalctl).
+  local -a group1=(MODE MAX_AGENTS BACKEND)
+  local -a group2=(DISABLE_COMPANIONS COMPANION_ON_IDLE COMPANION_TIMEOUT_SECONDS)
+  local -a group3=(MAX_RETRIES CANDIDATE_LOW_WATERMARK)
+  local -a group4=(ORCHESTRATOR_ONCE AUTO_PROMOTE_SUCCESS ALLOW_SOFT_SUCCESS_NONZERO)
+  local -a group5=(LOOP_SLEEP_SECONDS WORKER_TIMEOUT_SECONDS)
+  local -a group6=(COMPANION_PLANNER_CMD COMPANION_DOC_IMPROVER_CMD COMPANION_LANDINGPAGE_CMD)
+
+  _emit_env_group() {
+    local line="[startup env]"
+    local k v
+    for k in "$@"; do
+      v="${!k-}"
+      line+=" $k=$v"
+    done
+    printf '%s\n' "$line" >&2
+  }
+  _emit_env_group "${group1[@]}"
+  _emit_env_group "${group2[@]}"
+  _emit_env_group "${group3[@]}"
+  _emit_env_group "${group4[@]}"
+  _emit_env_group "${group5[@]}"
+  _emit_env_group "${group6[@]}"
+  unset -f _emit_env_group
+
+  # Structured ledger event so audit.sh / downstream tooling can read it.
+  local k v detail_json
+  detail_json='{}'
+  for k in "${keys[@]}"; do
+    v="${!k-}"
+    detail_json="$(jq -c --arg k "$k" --arg v "$v" '. + {($k): $v}' <<<"$detail_json")"
+  done
+  mkdir -p "$STATE_DIR"
+  jq -nc \
+    --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg run_id "$RUN_ID" \
+    --arg event "startup_env" \
+    --argjson detail "$detail_json" \
+    --arg status "emitted" \
+    '{ts:$ts, run_id:$run_id, event:$event, worker_id:null, detail:$detail, status:$status}' \
+    >> "$RUNS_LEDGER"
+}
+
 main() {
   parse_cli_args "$@"
 
@@ -1308,6 +1362,7 @@ main() {
 
   claim_run_lock
   load_extra_args
+  emit_startup_env_banner
   setup_integration_root
 
   if [[ "$ORCHESTRATOR_ONCE" == "1" || "$COMMAND_MODE" == "resume" ]]; then
