@@ -670,15 +670,19 @@ run_worker() {
       rc="$(cat "$run_base.exitcode")"
       original_rc="$rc"
       soft_success=0
+      local verify_failed=0
+      local report_validation_failed=0
 
       log_info "Worker $worker_id: codexu exited with code $rc"
 
       if [[ "$rc" == "0" ]] && ! wait_for_valid_final_report "$worker_id" "$final_file" "$stderr_file" "$jsonl_file"; then
         rc=1
+        report_validation_failed=1
         echo "$rc" > "$run_base.exitcode"
       fi
       if [[ "$rc" == "0" ]] && ! verify_worker_commit "$worker_id" "$final_file"; then
         rc=1
+        verify_failed=1
         echo "$rc" > "$run_base.exitcode"
       fi
 
@@ -722,11 +726,18 @@ run_worker() {
         save_worker_state "$worker_id" "$(jq -nc --arg run_id "$RUN_ID" --arg status 'failed' --arg slug "$slug" --arg reason 'timeout' '{run_id:$run_id,status:$status,slug:$slug,reason:$reason}')"
         log_event "worker_failed" "$worker_id" "$slug" "timeout"
       else
-        local reason
-        reason="$(classify_worker_failure "$rc")"
+        local failure_reason
+        failure_reason="$(classify_worker_failure "$rc")"
+        # Override the rc-based bucket with granular taxonomy when we
+        # know the specific verify/report failure that tripped rc=1.
+        if (( verify_failed == 1 )) && [[ -n "${LAST_VERIFY_REASON:-}" ]]; then
+          failure_reason="$LAST_VERIFY_REASON"
+        elif (( report_validation_failed == 1 )); then
+          failure_reason="report_validation_failed"
+        fi
         echo "worker[$worker_id]: failed($rc) -> $slug" | tee "$LOGS_DIR/worker_${worker_id}.status"
-        save_worker_state "$worker_id" "$(jq -nc --arg run_id "$RUN_ID" --arg status 'failed' --arg slug "$slug" --arg reason "$reason" --arg rc "$rc" '{run_id:$run_id,status:$status,slug:$slug,reason:$reason,rc:($rc|tonumber)}')"
-        log_event "worker_failed" "$worker_id" "$slug" "$reason"
+        save_worker_state "$worker_id" "$(jq -nc --arg run_id "$RUN_ID" --arg status 'failed' --arg slug "$slug" --arg reason "$failure_reason" --arg rc "$rc" '{run_id:$run_id,status:$status,slug:$slug,reason:$reason,rc:($rc|tonumber)}')"
+        log_event "worker_failed" "$worker_id" "$slug" "$failure_reason"
       fi
 
       return "$rc"

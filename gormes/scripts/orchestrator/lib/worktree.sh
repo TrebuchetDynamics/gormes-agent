@@ -91,22 +91,30 @@ verify_worker_commit() {
   local final_file="$2"
   local worktree_root branch head_commit report_commit report_branch commit_count status_output changed_files file
 
+  # Reset reason so a successful run doesn't leak a stale value from
+  # a prior invocation.
+  LAST_VERIFY_REASON=""
+  export LAST_VERIFY_REASON
+
   worktree_root="$(worker_worktree_root "$worker_id")"
   branch="$(worker_branch_name "$worker_id")"
   head_commit="$(git -C "$worktree_root" rev-parse HEAD)"
   if [[ "$head_commit" == "$BASE_COMMIT" ]]; then
+    LAST_VERIFY_REASON="no_commit_made"
     echo "worker[$worker_id]: HEAD did not advance beyond $BASE_COMMIT" >&2
     return 1
   fi
 
   commit_count="$(git -C "$worktree_root" rev-list --count "${BASE_COMMIT}..HEAD")"
   if [[ "$commit_count" != "1" ]]; then
+    LAST_VERIFY_REASON="wrong_commit_count"
     echo "worker[$worker_id]: commit count = $commit_count, want exactly 1" >&2
     return 1
   fi
 
   status_output="$(git -C "$worktree_root" status --short)"
   if [[ -n "$status_output" ]]; then
+    LAST_VERIFY_REASON="worktree_dirty"
     echo "worker[$worker_id]: worktree not clean after run" >&2
     printf '%s\n' "$status_output" >&2
     return 1
@@ -114,18 +122,21 @@ verify_worker_commit() {
 
   report_commit="$(extract_report_commit "$final_file")"
   if [[ -z "$report_commit" || "$head_commit" != "$report_commit"* ]]; then
+    LAST_VERIFY_REASON="report_commit_mismatch"
     echo "worker[$worker_id]: report commit does not match HEAD ($report_commit vs $head_commit)" >&2
     return 1
   fi
 
   report_branch="$(extract_report_branch "$final_file")"
   if [[ "$report_branch" != "$branch" ]]; then
+    LAST_VERIFY_REASON="branch_mismatch"
     echo "worker[$worker_id]: report branch does not match expected branch ($report_branch vs $branch)" >&2
     return 1
   fi
 
   changed_files="$(git -C "$worktree_root" diff --name-only "${BASE_COMMIT}..HEAD")"
   if [[ -z "$changed_files" ]]; then
+    LAST_VERIFY_REASON="no_commit_made"
     echo "worker[$worker_id]: commit contains no file changes" >&2
     return 1
   fi
@@ -133,6 +144,7 @@ verify_worker_commit() {
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
     if [[ "$REPO_SUBDIR" != "." && "$file" != "$REPO_SUBDIR/"* ]]; then
+      LAST_VERIFY_REASON="scope_violation"
       echo "worker[$worker_id]: changed file escaped allowed scope: $file" >&2
       return 1
     fi
