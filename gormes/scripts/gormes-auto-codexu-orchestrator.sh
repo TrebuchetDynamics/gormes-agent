@@ -62,6 +62,7 @@ EXTRA_CODEX_ARGS_FILE="${EXTRA_CODEX_ARGS_FILE:-}"
 
 HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-20}"
 LOOP_SLEEP_SECONDS="${LOOP_SLEEP_SECONDS:-30}"
+QUOTA_BACKOFF_SECONDS="${QUOTA_BACKOFF_SECONDS:-600}"
 ORCHESTRATOR_ONCE="${ORCHESTRATOR_ONCE:-0}"
 AUTO_PROMOTE_SUCCESS="${AUTO_PROMOTE_SUCCESS:-1}"
 ALLOW_SOFT_SUCCESS_NONZERO="${ALLOW_SOFT_SUCCESS_NONZERO:-1}"
@@ -139,6 +140,7 @@ Env:
   FORCE_RUN_UNDER_PRESSURE   Set to 1 to bypass safety aborts (not recommended)
   HEARTBEAT_SECONDS          Status heartbeat interval while workers run
   LOOP_SLEEP_SECONDS         Sleep between forever-loop cycles (default: 30)
+  QUOTA_BACKOFF_SECONDS      Sleep between probe cycles after provider quota exhaustion (default: 600)
   ORCHESTRATOR_ONCE          Set to 1 to run a single batch and exit
   AUTO_PROMOTE_SUCCESS       Set to 1 to promote successful workers before next cycle
   ALLOW_SOFT_SUCCESS_NONZERO Set to 1 to treat non-zero codex exits as success if report+commit pass validation
@@ -691,8 +693,14 @@ run_worker() {
       soft_success=0
       local verify_failed=0
       local report_validation_failed=0
+      local quota_exhausted=0
+      local quota_message=""
 
       log_info "Worker $worker_id: codexu exited with code $rc"
+
+      if [[ "$rc" != "0" ]] && quota_message="$(provider_quota_message "$final_file" "$stderr_file" "$jsonl_file")"; then
+        quota_exhausted=1
+      fi
 
       if [[ "$rc" == "0" ]] && ! wait_for_valid_final_report "$worker_id" "$final_file" "$stderr_file" "$jsonl_file"; then
         rc=1
@@ -705,7 +713,7 @@ run_worker() {
         echo "$rc" > "$run_base.exitcode"
       fi
 
-      if [[ "$rc" != "0" ]] && try_soft_success_nonzero "$worker_id" "$rc" "$final_file" "$stderr_file" "$jsonl_file"; then
+      if (( quota_exhausted == 0 )) && [[ "$rc" != "0" ]] && try_soft_success_nonzero "$worker_id" "$rc" "$final_file" "$stderr_file" "$jsonl_file"; then
         soft_success=1
         rc=0
         echo "$rc" > "$run_base.exitcode"
@@ -741,6 +749,13 @@ run_worker() {
           log_event "worker_success" "$worker_id" "$slug@$head_commit" "success"
         fi
         failure_record_reset "$slug"
+      elif (( quota_exhausted == 1 )); then
+        echo "worker[$worker_id]: quota-exhausted -> $slug" | tee "$LOGS_DIR/worker_${worker_id}.status"
+        save_worker_state "$worker_id" "$(jq -nc --arg run_id "$RUN_ID" --arg status 'failed' --arg slug "$slug" --arg reason 'quota_exhausted' --arg rc "$rc" --arg message "$quota_message" '{run_id:$run_id,status:$status,slug:$slug,reason:$reason,rc:($rc|tonumber),message:$message}')"
+        log_event "worker_failed" "$worker_id" "$slug" "quota_exhausted"
+        local quota_errors_json
+        quota_errors_json="$(jq -nc --arg message "$quota_message" '[$message]')"
+        failure_record_write "$slug" "$rc" "quota_exhausted" "$stderr_file" "$quota_errors_json"
       elif [[ "$rc" == "124" ]]; then
         echo "worker[$worker_id]: timeout(${WORKER_TIMEOUT_SECONDS}s) -> $slug" | tee "$LOGS_DIR/worker_${worker_id}.status"
         save_worker_state "$worker_id" "$(jq -nc --arg run_id "$RUN_ID" --arg status 'failed' --arg slug "$slug" --arg reason 'timeout' '{run_id:$run_id,status:$status,slug:$slug,reason:$reason}')"
@@ -1228,32 +1243,35 @@ run_once() {
 
   echo
   echo "Worker summary:"
-  local success_count=0 failed_count=0 timeout_count=0 other_count=0
+  local success_count=0 failed_count=0 timeout_count=0 quota_count=0 other_count=0
   for (( i = 1; i <= workers; i++ )); do
     if [[ -f "$LOGS_DIR/worker_${i}.status" ]]; then
-      local status_line
+      local status_line outcome
       status_line=$(cat "$LOGS_DIR/worker_${i}.status")
       echo "$status_line"
 
       # Count outcomes. Use $((...)) assignment instead of ((var++)) because
       # the post-increment form returns the old value, which is a "failure"
       # exit (0) under set -e when the counter is still zero.
-      if echo "$status_line" | grep -q "success"; then
-        success_count=$((success_count + 1))
-      elif echo "$status_line" | grep -q "timeout"; then
-        timeout_count=$((timeout_count + 1))
-      elif echo "$status_line" | grep -q "failed"; then
-        failed_count=$((failed_count + 1))
-      else
-        other_count=$((other_count + 1))
-      fi
+      outcome="$(worker_status_outcome "$status_line")"
+      case "$outcome" in
+        success) success_count=$((success_count + 1)) ;;
+        quota) quota_count=$((quota_count + 1)) ;;
+        timeout) timeout_count=$((timeout_count + 1)) ;;
+        failed) failed_count=$((failed_count + 1)) ;;
+        *) other_count=$((other_count + 1)) ;;
+      esac
     fi
   done
 
-  log_info "Worker outcomes - Success: $success_count, Failed: $failed_count, Timeout: $timeout_count, Other: $other_count"
+  log_info "Worker outcomes - Success: $success_count, Failed: $failed_count, Timeout: $timeout_count, Quota: $quota_count, Other: $other_count"
 
   if ! promote_successful_workers "$workers"; then
     rc=1
+  fi
+
+  if (( quota_count > 0 && success_count == 0 )); then
+    rc=75
   fi
 
   echo
@@ -1265,6 +1283,7 @@ run_once() {
   echo "  Successful:       $success_count"
   echo "  Failed:           $failed_count"
   echo "  Timeout:          $timeout_count"
+  echo "  Quota limited:    $quota_count"
   echo "  Other:            $other_count"
   echo "  Overall status:   $([[ "$rc" == "0" ]] && echo "SUCCESS ✓" || echo "FAILURE ✗")"
   echo
@@ -1287,6 +1306,9 @@ run_once() {
   if [[ "$rc" == "0" ]]; then
     log_info "Run completed successfully"
     log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count}" "success"
+  elif [[ "$rc" == "75" ]]; then
+    log_error "Run paused by provider quota exhaustion"
+    log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count} quota=${quota_count}" "quota_exhausted"
   else
     log_error "Run completed with failures"
     log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count}" "failure"
@@ -1303,7 +1325,7 @@ emit_startup_env_banner() {
     DISABLE_COMPANIONS COMPANION_ON_IDLE COMPANION_TIMEOUT_SECONDS
     MAX_RETRIES CANDIDATE_LOW_WATERMARK
     ORCHESTRATOR_ONCE AUTO_PROMOTE_SUCCESS ALLOW_SOFT_SUCCESS_NONZERO
-    LOOP_SLEEP_SECONDS WORKER_TIMEOUT_SECONDS
+    LOOP_SLEEP_SECONDS QUOTA_BACKOFF_SECONDS WORKER_TIMEOUT_SECONDS
     COMPANION_PLANNER_CMD COMPANION_DOC_IMPROVER_CMD COMPANION_LANDINGPAGE_CMD
   )
 
@@ -1312,7 +1334,7 @@ emit_startup_env_banner() {
   local -a group2=(DISABLE_COMPANIONS COMPANION_ON_IDLE COMPANION_TIMEOUT_SECONDS)
   local -a group3=(MAX_RETRIES CANDIDATE_LOW_WATERMARK)
   local -a group4=(ORCHESTRATOR_ONCE AUTO_PROMOTE_SUCCESS ALLOW_SOFT_SUCCESS_NONZERO)
-  local -a group5=(LOOP_SLEEP_SECONDS WORKER_TIMEOUT_SECONDS)
+  local -a group5=(LOOP_SLEEP_SECONDS QUOTA_BACKOFF_SECONDS WORKER_TIMEOUT_SECONDS)
   local -a group6=(COMPANION_PLANNER_CMD COMPANION_DOC_IMPROVER_CMD COMPANION_LANDINGPAGE_CMD)
 
   _emit_env_group() {
@@ -1418,6 +1440,13 @@ main() {
     if [[ "${EXHAUSTION_TRIGGERED:-0}" == "1" ]]; then
       EXHAUSTION_TRIGGERED=0
       echo "Loop cycle $cycle completed with exit $cycle_rc; exhausted → skipping sleep."
+      continue
+    fi
+
+    if [[ "$cycle_rc" == "75" ]]; then
+      echo
+      echo "Loop cycle $cycle hit provider quota; sleeping ${QUOTA_BACKOFF_SECONDS}s before next probe."
+      sleep "$QUOTA_BACKOFF_SECONDS"
       continue
     fi
 

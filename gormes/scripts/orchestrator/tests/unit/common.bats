@@ -28,6 +28,37 @@ setup() {
   assert_output "worker_error"
 }
 
+@test "worker_status_outcome does not count failed soft-success task slug as success" {
+  run worker_status_outcome "worker[3]: failed(1) -> 1__1.c__soft-success-nonzero-bats-coverage"
+  assert_success
+  assert_output "failed"
+}
+
+@test "worker_status_outcome maps explicit soft-success status to success" {
+  run worker_status_outcome "worker[3]: soft-success(nonzero=1) -> task-slug (abcdef1)"
+  assert_success
+  assert_output "success"
+}
+
+@test "provider_quota_exhausted detects codex usage limit final message" {
+  local final_file
+  final_file="$BATS_TEST_TMPDIR/quota.final.md"
+  printf "You've hit your limit resets 8:20am (America/Monterrey)\n" > "$final_file"
+
+  run provider_quota_exhausted "$final_file" "" ""
+  assert_success
+}
+
+@test "provider_quota_message returns the matched quota line" {
+  local final_file
+  final_file="$BATS_TEST_TMPDIR/quota-message.final.md"
+  printf "You've hit your limit resets 8:20am (America/Monterrey)\n" > "$final_file"
+
+  run provider_quota_message "$final_file" "" ""
+  assert_success
+  assert_output --partial "You've hit your limit"
+}
+
 @test "safe_path_token strips unsafe characters" {
   run safe_path_token "Feat/sub phase: X_Y.Z@v1"
   assert_output "Feat-sub-phase-X_Y.Z-v1"

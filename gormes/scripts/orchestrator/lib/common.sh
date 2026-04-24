@@ -70,3 +70,33 @@ classify_worker_failure() {
     printf 'worker_error\n'
   fi
 }
+
+worker_status_outcome() {
+  local line="$1"
+  if [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+(success|soft-success) ]]; then
+    printf 'success\n'
+  elif [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+quota-exhausted ]]; then
+    printf 'quota\n'
+  elif [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+timeout ]]; then
+    printf 'timeout\n'
+  elif [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+failed ]]; then
+    printf 'failed\n'
+  else
+    printf 'other\n'
+  fi
+}
+
+provider_quota_message() {
+  local file
+  for file in "$@"; do
+    [[ -n "$file" && -f "$file" ]] || continue
+    grep -Eaim1 \
+      "You've hit your limit|usage limit|rate limit|quota exceeded|too many requests|HTTP 429|429 Too Many Requests" \
+      "$file" && return 0
+  done
+  return 1
+}
+
+provider_quota_exhausted() {
+  provider_quota_message "$@" >/dev/null
+}
