@@ -977,7 +977,8 @@
             },
             {
               "name": "Session search",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD landed: `internal/tools/session_search.go` now ships the Go-native `session_search` operator-tool core with a host-injected `SessionSearchBackend` seam, deterministic JSON output (mode=recent on empty query, mode=search otherwise), `[1, 5]` limit clamping, source allowlist normalization, and current-session exclusion; `cmd/gormes/registry.go` wires the dormant `session_search` toolset behind a backend-injection gate so future TUI/gateway frontends can attach an `internal/memory.SearchSessions`-backed adapter while LLM session summarization remains explicit follow-on scope."
             },
             {
               "name": "Debug helpers",

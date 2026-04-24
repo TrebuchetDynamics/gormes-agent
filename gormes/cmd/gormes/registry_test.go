@@ -75,6 +75,40 @@ func TestBuildDefaultRegistryRegistersDormantClarify(t *testing.T) {
 	}
 }
 
+func TestBuildDefaultRegistryRegistersDormantSessionSearch(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{}, "", nil, "")
+
+	entry, ok := reg.Entry("session_search")
+	if !ok {
+		t.Fatal("session_search not registered")
+	}
+	if entry.Toolset != "session_search" {
+		t.Fatalf("session_search toolset = %q, want session_search", entry.Toolset)
+	}
+	if containsToolDescriptor(reg.AvailableDescriptors(), "session_search") {
+		t.Fatal("session_search unexpectedly available without backend")
+	}
+
+	tool, ok := reg.Get("session_search")
+	if !ok {
+		t.Fatal("session_search not retrievable")
+	}
+	search, ok := tool.(*tools.SessionSearchTool)
+	if !ok {
+		t.Fatalf("session_search tool type = %T, want *tools.SessionSearchTool", tool)
+	}
+	search.Backend = stubSessionSearchBackend{}
+	if !containsToolDescriptor(reg.AvailableDescriptors(), "session_search") {
+		t.Fatal("session_search unavailable after backend injection")
+	}
+}
+
+type stubSessionSearchBackend struct{}
+
+func (stubSessionSearchBackend) Search(context.Context, tools.SessionSearchRequest) ([]tools.SessionSearchHit, error) {
+	return nil, nil
+}
+
 func TestBuildDefaultRegistryRegistersMixtureOfAgents(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.DelegationCfg{}, "", nil, "")
 
