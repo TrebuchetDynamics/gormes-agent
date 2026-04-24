@@ -117,7 +117,7 @@ func BuildWorkerPrompt(candidate Candidate) string {
 
 	prompt.WriteString("Requirements:\n")
 	prompt.WriteString("- Read the repository context before editing.\n")
-	prompt.WriteString("- Keep changes scoped to the selected task.\n")
+	prompt.WriteString("- Keep changes scoped to the selected task and its allowed write scope.\n")
 	prompt.WriteString("- Run the relevant tests before reporting completion.\n")
 
 	return prompt.String()
