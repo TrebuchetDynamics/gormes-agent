@@ -56,6 +56,26 @@ resolve_fallback_bin() {
   return 1
 }
 
+ensure_codex_on_path() {
+  command -v codex >/dev/null 2>&1 && return 0
+
+  local candidate dir
+  for candidate in \
+    "$HOME"/.nvm/versions/node/*/bin/codex \
+    "$HOME"/.volta/bin/codex \
+    "$HOME"/.npm-global/bin/codex \
+    "$HOME"/.local/bin/codex; do
+    [[ -x "$candidate" ]] || continue
+    dir="$(dirname "$candidate")"
+    PATH="$dir:$PATH"
+    export PATH
+    log_msg "added codex CLI dir to PATH for fallback: $dir"
+    return 0
+  done
+
+  return 1
+}
+
 # Match output that indicates claude is out of credits / rate-limited in a
 # way where retrying with the same backend will keep failing.
 # Patterns cover Anthropic's credit-low message, 429 rate limits, and
@@ -71,6 +91,7 @@ is_credit_exhausted() {
     -e 'out of credits' \
     -e 'rate_limit_exceeded' \
     -e '429 Too Many Requests' \
+    -e 'hit your( usage)? limit' \
     -e 'exceeded your.*usage limit' \
     -e 'monthly usage limit' \
     -e 'quota exceeded' \
@@ -163,6 +184,7 @@ if (( rc != 0 )) && [[ "${CLAUDEU_NO_FALLBACK:-0}" != "1" ]] && is_credit_exhaus
   log_msg "credit-exhaustion pattern matched in claude output; attempting codexu fallback"
   if fallback_bin="$(resolve_fallback_bin)"; then
     log_msg "FALLBACK TO codexu: $fallback_bin with ${#ORIG_ARGV[@]} original argv"
+    ensure_codex_on_path || log_msg "WARN: codex CLI not found on PATH or known user install paths before fallback"
     # Record fallback for audit visibility (stderr lands in orchestrator's
     # stderr file per-worker).
     printf 'claudeu: credit exhausted; falling back to %s\n' "$fallback_bin" >&2
