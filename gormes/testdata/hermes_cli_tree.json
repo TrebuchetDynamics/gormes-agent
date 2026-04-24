@@ -268,8 +268,9 @@
     },
     {
       "source": "webhook.py",
-      "status": "planned",
-      "reason": "Generic webhook subcommand not yet ported."
+      "status": "ported",
+      "go": ["internal/cli/webhook.go"],
+      "reason": "Deterministic webhook subscription helpers ported: NormalizeWebhookName (strip/lowercase/space→hyphen then `^[a-z0-9][a-z0-9_-]*$` validation, sentinel error on failure), FormatWebhookBaseURL (0.0.0.0/empty host → localhost, zero port → DefaultWebhookPort 8644), BuildWebhookSubscription (default description on blank input, comma-split+trim for events/skills, default deliver=\"log\", UTC RFC3339 Z-suffixed created_at, deliver_extra populated only when DeliverChatID is set) with a WebhookSubscription/WebhookSubscriptionOpts pair matching the upstream on-disk JSON key order, plus LoadWebhookSubscriptions (missing file/malformed JSON/non-object root silently coerced to empty map matching upstream) and SaveWebhookSubscriptions (atomic .tmp+rename, mkdir-parents, nil input coerced to empty object). The interactive CLI subcommand (argparse wiring, stdout printing, HTTP self-test) stays intentionally unported — frontends wire their own flag parsers around these primitives."
     },
     {
       "source": "web_server.py",
