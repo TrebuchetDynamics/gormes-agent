@@ -681,7 +681,7 @@ run_worker() {
       local -a cmd=()
       while IFS= read -r -d '' part; do
         cmd+=("$part")
-      done < <(build_codex_cmd)
+      done < <(build_backend_cmd)
       cmd+=("${EXTRA_CODEX_CMD_ARGS[@]}")
 
       echo "worker[$worker_id]: claimed $phase_id / $subphase_id / $item_name"

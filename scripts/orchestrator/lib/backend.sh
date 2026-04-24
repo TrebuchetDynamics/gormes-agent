@@ -61,9 +61,3 @@ build_backend_cmd() {
       ;;
   esac
 }
-
-# Legacy alias — kept one release so entry script still calls build_codex_cmd
-# without breaking. Remove in Oil Release 2.
-build_codex_cmd() {
-  build_backend_cmd "$@"
-}

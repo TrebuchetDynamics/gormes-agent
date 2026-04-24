@@ -22,7 +22,7 @@ LOGF="${FAKE_CODEXU_LOG:-/dev/null}"
 final_file=""
 prompt=""
 
-# Argv parser. codexu's real shape (as built by orchestrator build_codex_cmd):
+# Argv parser. codexu's real shape (as built by orchestrator build_backend_cmd):
 #   exec --json -m MODEL -c KEY=VALUE --sandbox MODE --output-last-message FILE PROMPT
 # We accept the subcommand, ignore -m MODEL, -c key=val, --sandbox, --json,
 # and capture --output-last-message and the trailing positional PROMPT.

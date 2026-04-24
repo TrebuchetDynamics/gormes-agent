@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # claudeu: codexu-argv-compatible wrapper around Claude Code CLI (`claude -p`).
 #
-# Accepts the exact argv shape the orchestrator's build_codex_cmd emits:
+# Accepts the exact argv shape the orchestrator's build_backend_cmd emits:
 #     codexu exec --json -c KEY=VALUE ... --sandbox MODE \
 #         [extra-codex-flags] --output-last-message FINAL_FILE PROMPT
 #

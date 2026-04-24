@@ -69,9 +69,8 @@ setup() {
   assert_output --partial 'invalid MODE=wacky'
 }
 
-@test "build_codex_cmd alias produces identical output to build_backend_cmd" {
-  local alias_out direct_out
-  alias_out="$(BACKEND=codexu MODE=safe bash -c 'source "'"$ORCHESTRATOR_LIB_DIR"'/backend.sh"; build_codex_cmd | tr "\0" "|"')"
-  direct_out="$(BACKEND=codexu MODE=safe bash -c 'source "'"$ORCHESTRATOR_LIB_DIR"'/backend.sh"; build_backend_cmd | tr "\0" "|"')"
-  [[ "$alias_out" == "$direct_out" ]]
+@test "legacy build_codex_cmd alias is removed" {
+  run bash -c 'source "$1"; type build_codex_cmd' _ "$ORCHESTRATOR_LIB_DIR/backend.sh"
+  assert_failure
+  assert_output --partial 'not found'
 }
