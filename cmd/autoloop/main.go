@@ -11,6 +11,9 @@ import (
 )
 
 var commandStdout io.Writer = os.Stdout
+var serviceRunner autoloop.Runner = autoloop.ExecRunner{}
+
+const usage = "usage: autoloop run [--dry-run] | audit | digest | service install | service install-audit | service disable legacy-timers"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -45,9 +48,74 @@ func run(args []string) error {
 		}
 		_, err = fmt.Fprint(commandStdout, digest)
 		return err
+	case len(args) == 1 && args[0] == "audit":
+		digest, err := autoloop.DigestLedger(filepath.Join(digestRunRoot(root), "state", "runs.jsonl"))
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprint(commandStdout, digest)
+		return err
+	case len(args) >= 2 && args[0] == "service" && args[1] == "install":
+		force, err := serviceForce(args[2:])
+		if err != nil {
+			return err
+		}
+		return installService(root, "gormes-orchestrator.service", force)
+	case len(args) >= 2 && args[0] == "service" && args[1] == "install-audit":
+		force, err := serviceForce(args[2:])
+		if err != nil {
+			return err
+		}
+		return installService(root, "gormes-orchestrator-audit.service", force)
+	case len(args) == 3 && args[0] == "service" && args[1] == "disable" && args[2] == "legacy-timers":
+		return autoloop.DisableLegacyTimers(context.Background(), serviceRunner)
 	default:
-		return fmt.Errorf("usage: autoloop run [--dry-run] | digest")
+		return fmt.Errorf(usage)
 	}
+}
+
+func serviceForce(args []string) (bool, error) {
+	force := os.Getenv("FORCE") == "1"
+	for _, arg := range args {
+		if arg != "--force" {
+			return false, fmt.Errorf(usage)
+		}
+		force = true
+	}
+
+	return force, nil
+}
+
+func installService(root string, unitName string, force bool) error {
+	unitDir, err := systemdUserUnitDir()
+	if err != nil {
+		return err
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+
+	return autoloop.InstallService(context.Background(), autoloop.ServiceInstallOptions{
+		Runner:       serviceRunner,
+		UnitDir:      unitDir,
+		UnitName:     unitName,
+		AutoloopPath: executable,
+		WorkDir:      root,
+		AutoStart:    true,
+		Force:        force,
+	})
+}
+
+func systemdUserUnitDir() (string, error) {
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		return filepath.Join(xdgConfigHome, "systemd", "user"), nil
+	}
+	if home := os.Getenv("HOME"); home != "" {
+		return filepath.Join(home, ".config", "systemd", "user"), nil
+	}
+
+	return "", fmt.Errorf("cannot determine systemd user unit directory: set XDG_CONFIG_HOME or HOME")
 }
 
 func digestRunRoot(root string) string {
