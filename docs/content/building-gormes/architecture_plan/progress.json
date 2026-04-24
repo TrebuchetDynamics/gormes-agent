@@ -552,8 +552,8 @@
             },
             {
               "name": "`gormes gateway status` read-only command",
-              "status": "planned",
-              "note": "TDD: add a read-only `gormes gateway status` surface over the shared pairing/runtime model so operators can inspect configured channels plus paired/unpaired state without starting transports."
+              "status": "complete",
+              "note": "TDD landed: `internal/gateway/statusview.go` exposes ConfiguredChannel/ConfiguredChannels + RenderStatusSummary as a pure, deterministic read-only view over configured channels and the in-process StatusModel; `cmd/gormes/gateway_status.go` wires it as `gormes gateway status` without opening Telegram/Discord sessions, the session map, or the memory store. Output covers paired=unknown/pending/in-session/unpaired plus lifecycle=unknown/registered/running/disconnected/failed and surfaces last_error for failed phases so planned on-disk pairing.json / gateway_state.json persistence can replace the paired source without changing the command surface."
             },
             {
               "name": "Runtime status JSON + PID/process validation",

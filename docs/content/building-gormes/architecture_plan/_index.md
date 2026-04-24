@@ -20,12 +20,12 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 28/71 subphases shipped · 10 in progress · 33 planned
+**Overall:** 29/71 subphases shipped · 10 in progress · 32 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | 🔨 | 2/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 14/23 subphases |
+| Phase 2 — The Gateway | 🔨 | 15/23 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
@@ -194,10 +194,10 @@ weight: 10
 - [ ] Drain-timeout resume_pending recovery
 - [ ] Pairing read-model schema + atomic persistence
 - [ ] Pairing approval + rate-limit semantics
-- [ ] `gormes gateway status` read-only command
+- [x] `gormes gateway status` read-only command
 - [ ] Runtime status JSON + PID/process validation
 - [ ] Token-scoped gateway locks
-- [ ] Gateway /restart command + takeover markers
+- [x] Gateway /restart command + takeover markers
 - [x] Channel lifecycle writers into status model
 
 ### 2.F.4 — Home Channel + Operator Surfaces ⏳

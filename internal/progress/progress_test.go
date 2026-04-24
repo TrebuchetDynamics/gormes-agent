@@ -555,11 +555,14 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 pairing approval note = %q, want rate-limit/lockout detail", approval.Note)
 	}
 	statusReadout := lifecycleItems["`gormes gateway status` read-only command"]
-	if statusReadout.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.3 gateway status readout status = %q, want planned", statusReadout.Status)
+	if statusReadout.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.3 gateway status readout status = %q, want complete", statusReadout.Status)
 	}
 	if !strings.Contains(statusReadout.Note, "gormes gateway status") || !strings.Contains(statusReadout.Note, "configured channels") {
 		t.Fatalf("Phase 2.F.3 gateway status readout note = %q, want command/configured-channels detail", statusReadout.Note)
+	}
+	if !strings.Contains(statusReadout.Note, "statusview.go") || !strings.Contains(statusReadout.Note, "RenderStatusSummary") {
+		t.Fatalf("Phase 2.F.3 gateway status readout note = %q, want statusview.go/RenderStatusSummary detail", statusReadout.Note)
 	}
 	statusJSON := lifecycleItems["Runtime status JSON + PID/process validation"]
 	if statusJSON.Status != StatusPlanned {
