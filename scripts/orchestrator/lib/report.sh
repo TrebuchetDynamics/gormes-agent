@@ -389,7 +389,7 @@ collect_final_report_issues() {
     echo "Final report missing exit-code evidence in $final_file"
     missing=1
   fi
-  if ! grep -Eq '^[[:space:]]*Exit:[[:space:]]*`?[1-9][0-9]*`?[[:space:]]*$' "$final_file"; then
+  if ! grep -Eq '^[[:space:]]*Exit:[[:space:]]*`?[1-9][0-9]*`?([[:space:]]|$)' "$final_file"; then
     echo "Final report missing non-zero RED exit code in $final_file"
     missing=1
   fi

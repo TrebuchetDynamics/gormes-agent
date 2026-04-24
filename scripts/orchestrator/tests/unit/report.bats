@@ -40,6 +40,18 @@ setup() {
   assert_failure
 }
 
+@test "collect_final_report_issues accepts explained non-zero RED exit" {
+  local tmp report
+  tmp="$(mktmp_workspace)"
+  report="$tmp/good-explained-red-exit.final.md"
+  sed '0,/^Exit: 1$/s//Exit: 2 (gateway build failure) and 1 (cmd test failure)/' \
+    "$FIXTURES_DIR/reports/good.final.md" > "$report"
+
+  run collect_final_report_issues "$report"
+  assert_success
+  assert_output ""
+}
+
 @test "collect_final_report_issues fails on missing branch" {
   run collect_final_report_issues "$FIXTURES_DIR/reports/bad-missing-branch.final.md"
   assert_failure
