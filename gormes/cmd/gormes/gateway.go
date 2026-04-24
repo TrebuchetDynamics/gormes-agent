@@ -21,6 +21,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/gormes/internal/telemetry"
 )
 
@@ -153,6 +154,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	stateMirror := surfaces.stateMirror.StartRefresh(gatewayOperatorMirrorInterval, slog.Default())
 	defer stateMirror.Stop()
 
+	skillsHub := skills.NewHub(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes)
 	mgr := gateway.NewManager(gateway.ManagerConfig{
 		AllowedChats:     allowedChats,
 		AllowDiscovery:   allowDiscovery,
@@ -163,6 +165,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		HomeChannels:     surfaces.homeChannels,
 		Pairings:         pairings,
 		VoiceModes:       surfaces.voiceModes,
+		SkillsBrowser:    newHubSkillsBrowser(skillsHub),
 	}, k, slog.Default())
 
 	if cfg.Telegram.BotToken != "" {

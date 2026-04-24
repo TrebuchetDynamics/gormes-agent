@@ -28,6 +28,7 @@ type ManagerConfig struct {
 	HomeChannels     *HomeChannels
 	Pairings         *PairingStore
 	VoiceModes       *VoiceModeStore
+	SkillsBrowser    SkillsBrowser
 }
 
 type kernelSubmitter interface {
@@ -346,6 +347,8 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, homeChannelSetMessage(home))
 	case EventVoice:
 		m.handleVoiceCommand(ctx, ch, ev)
+	case EventSkills:
+		m.handleSkillsCommand(ctx, ch, ev)
 	case EventSubmit:
 		if m.kernel == nil {
 			return

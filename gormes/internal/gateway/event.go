@@ -27,6 +27,9 @@ const (
 	EventSetHome
 	// EventVoice updates or inspects the persisted per-chat voice reply mode.
 	EventVoice
+	// EventSkills renders the shared skill browse view (installed + hub-available)
+	// back to the originating chat.
+	EventSkills
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -46,6 +49,8 @@ func (k EventKind) String() string {
 		return "sethome"
 	case EventVoice:
 		return "voice"
+	case EventSkills:
+		return "skills"
 	default:
 		return "unknown"
 	}

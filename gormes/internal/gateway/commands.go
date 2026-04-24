@@ -55,6 +55,11 @@ var CommandRegistry = []CommandDef{
 		Description: "Control per-chat voice reply mode",
 		Kind:        EventVoice,
 	},
+	{
+		Name:        "skills",
+		Description: "Browse installed and hub-available skills",
+		Kind:        EventSkills,
+	},
 }
 
 var commandLookup = buildCommandLookup()
@@ -99,6 +104,13 @@ func ParseInboundText(text string) (EventKind, string) {
 			return EventVoice, "toggle"
 		}
 		return EventVoice, strings.ToLower(strings.Join(fields[1:], " "))
+	}
+	if cmd.Kind == EventSkills {
+		fields := strings.Fields(strings.TrimPrefix(body, "/"))
+		if len(fields) <= 1 {
+			return EventSkills, ""
+		}
+		return EventSkills, strings.Join(fields[1:], " ")
 	}
 	return cmd.Kind, ""
 }

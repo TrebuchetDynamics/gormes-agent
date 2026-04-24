@@ -1076,7 +1076,8 @@
           "items": [
             {
               "name": "TUI + Telegram browsing",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD: `internal/skills/browse.go` now ships a shared `BrowseView` plus `FormatBrowseSummary` helper consumed by a new gateway `/skills` command (`internal/gateway/skills_command.go`) and a reusable `internal/tui.RenderSkillsPane` surface. `cmd/gormes/skills_browser.go` wires the live hub into `gormes gateway` so Telegram + Discord operators browse installed and hub-available skills through the same deterministic view as the TUI."
             }
           ]
         }
