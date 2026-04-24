@@ -1058,7 +1058,8 @@
           "items": [
             {
               "name": "Hybrid lexical + semantic lookup",
-              "status": "planned"
+              "status": "complete",
+              "note": "TDD: `internal/skills/hybrid.go` adds a `SelectHybrid` entrypoint that fuses the existing token-overlap lexical scorer with cosine similarity over per-skill embeddings via Reciprocal Rank Fusion (k=60). The parallel `embeddings` slice lets callers pass nil per-skill for not-yet-embedded skills, a nil `queryEmbedding` collapses the function to a pure lexical selector (matching the legacy `Select` contract), mismatched vector dimensions contribute zero semantic score instead of panicking, and tied fused scores are broken deterministically by skill name then path."
             }
           ]
         },

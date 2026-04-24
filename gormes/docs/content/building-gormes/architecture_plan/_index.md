@@ -391,9 +391,9 @@ weight: 10
 
 - [ ] Portable SKILL.md format
 
-### 6.D — Skill Retrieval + Matching ⏳
+### 6.D — Skill Retrieval + Matching ✅
 
-- [ ] Hybrid lexical + semantic lookup
+- [x] Hybrid lexical + semantic lookup
 
 ### 6.E — Feedback Loop ✅
 
