@@ -39,6 +39,12 @@ This page is generated from the Go progress model and validation rules.
 - `fixture_ready` rows must name a concrete fixture package or path.
 - complete rows with contract metadata must use `contract_status: validated`.
 
+## Generated Agent Surfaces
+
+- `agent-queue.md` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, acceptance, and source references.
+- `blocked-slices.md` keeps blocked rows out of the execution queue while preserving their unblock condition.
+- `umbrella-cleanup.md` lists broad inventory rows that must be split before assignment.
+
 ## Good Row
 
 ```json
