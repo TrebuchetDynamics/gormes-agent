@@ -56,7 +56,7 @@ var (
 		"https://github.com/sipeed/picoclaw",
 		"relative to that donor root, not relative to the Gormes repo",
 	}
-	gatewayDonorMapHubRowPattern = regexp.MustCompile(`(?m)^\| ([^|]+) \| ` + "`" + `([^` + "`" + `]+)` + "`" + ` \| [^|]+ \| \[([^\]]+)\]\(\./([^/]+)/\) \|$`)
+	gatewayDonorMapHubRowPattern         = regexp.MustCompile(`(?m)^\| ([^|]+) \| ` + "`" + `([^` + "`" + `]+)` + "`" + ` \| [^|]+ \| \[([^\]]+)\]\(\./([^/]+)/\) \|$`)
 	gatewayDonorMapRecommendationPattern = regexp.MustCompile("Recommendation: `([^`]+)`\\.")
 )
 
@@ -76,56 +76,62 @@ var targets = []string{
 }
 
 var nativeHugoPages = map[string]struct{}{
-	"_index.md":     {},
-	"why-gormes.md": {},
-	"building-gormes/_index.md":                                     {},
-	"building-gormes/upstream-lessons.md":                           {},
-	"building-gormes/gateway-donor-map/_index.md":                   {},
-	"building-gormes/gateway-donor-map/shared-adapter-patterns.md":  {},
-	"building-gormes/porting-a-subsystem.md":                        {},
-	"building-gormes/testing.md":                                    {},
-	"building-gormes/what-hermes-gets-wrong.md":                     {},
-	"building-gormes/gateway-donor-map/telegram.md":                 {},
-	"building-gormes/gateway-donor-map/discord.md":                  {},
-	"building-gormes/gateway-donor-map/slack.md":                    {},
-	"building-gormes/gateway-donor-map/whatsapp.md":                 {},
-	"building-gormes/gateway-donor-map/matrix.md":                   {},
-	"building-gormes/gateway-donor-map/irc.md":                      {},
-	"building-gormes/gateway-donor-map/line.md":                     {},
-	"building-gormes/gateway-donor-map/onebot.md":                   {},
-	"building-gormes/gateway-donor-map/qq.md":                       {},
-	"building-gormes/gateway-donor-map/wecom.md":                    {},
-	"building-gormes/gateway-donor-map/weixin.md":                   {},
-	"building-gormes/gateway-donor-map/feishu.md":                   {},
-	"building-gormes/gateway-donor-map/dingtalk.md":                 {},
-	"building-gormes/gateway-donor-map/vk.md":                       {},
-	"building-gormes/gateway-donor-map/webhook.md":                  {},
-	"building-gormes/architecture_plan/_index.md":                   {},
-	"building-gormes/architecture_plan/phase-1-dashboard.md":        {},
-	"building-gormes/architecture_plan/phase-2-gateway.md":          {},
-	"building-gormes/architecture_plan/phase-3-memory.md":           {},
-	"building-gormes/architecture_plan/phase-4-brain-transplant.md": {},
-	"building-gormes/architecture_plan/phase-5-final-purge.md":      {},
-	"building-gormes/architecture_plan/phase-6-learning-loop.md":    {},
-	"building-gormes/architecture_plan/subsystem-inventory.md":      {},
-	"building-gormes/architecture_plan/mirror-strategy.md":          {},
-	"building-gormes/architecture_plan/technology-radar.md":         {},
+	"_index.md":                                                      {},
+	"why-gormes.md":                                                  {},
+	"building-gormes/_index.md":                                      {},
+	"building-gormes/contract-readiness.md":                          {},
+	"building-gormes/agent-queue.md":                                  {},
+	"building-gormes/next-slices.md":                                 {},
+	"building-gormes/blocked-slices.md":                              {},
+	"building-gormes/umbrella-cleanup.md":                            {},
+	"building-gormes/progress-schema.md":                             {},
+	"building-gormes/upstream-lessons.md":                            {},
+	"building-gormes/gateway-donor-map/_index.md":                    {},
+	"building-gormes/gateway-donor-map/shared-adapter-patterns.md":   {},
+	"building-gormes/porting-a-subsystem.md":                         {},
+	"building-gormes/testing.md":                                     {},
+	"building-gormes/what-hermes-gets-wrong.md":                      {},
+	"building-gormes/gateway-donor-map/telegram.md":                  {},
+	"building-gormes/gateway-donor-map/discord.md":                   {},
+	"building-gormes/gateway-donor-map/slack.md":                     {},
+	"building-gormes/gateway-donor-map/whatsapp.md":                  {},
+	"building-gormes/gateway-donor-map/matrix.md":                    {},
+	"building-gormes/gateway-donor-map/irc.md":                       {},
+	"building-gormes/gateway-donor-map/line.md":                      {},
+	"building-gormes/gateway-donor-map/onebot.md":                    {},
+	"building-gormes/gateway-donor-map/qq.md":                        {},
+	"building-gormes/gateway-donor-map/wecom.md":                     {},
+	"building-gormes/gateway-donor-map/weixin.md":                    {},
+	"building-gormes/gateway-donor-map/feishu.md":                    {},
+	"building-gormes/gateway-donor-map/dingtalk.md":                  {},
+	"building-gormes/gateway-donor-map/vk.md":                        {},
+	"building-gormes/gateway-donor-map/webhook.md":                   {},
+	"building-gormes/architecture_plan/_index.md":                    {},
+	"building-gormes/architecture_plan/phase-1-dashboard.md":         {},
+	"building-gormes/architecture_plan/phase-2-gateway.md":           {},
+	"building-gormes/architecture_plan/phase-3-memory.md":            {},
+	"building-gormes/architecture_plan/phase-4-brain-transplant.md":  {},
+	"building-gormes/architecture_plan/phase-5-final-purge.md":       {},
+	"building-gormes/architecture_plan/phase-6-learning-loop.md":     {},
+	"building-gormes/architecture_plan/subsystem-inventory.md":       {},
+	"building-gormes/architecture_plan/mirror-strategy.md":           {},
+	"building-gormes/architecture_plan/technology-radar.md":          {},
 	"building-gormes/architecture_plan/procfile-process-managers.md": {},
-	"building-gormes/architecture_plan/boundaries.md":               {},
-	"building-gormes/architecture_plan/why-go.md":                   {},
-	"building-gormes/core-systems/_index.md":                        {},
-	"building-gormes/core-systems/gateway.md":                       {},
-	"building-gormes/core-systems/learning-loop.md":                 {},
-	"building-gormes/core-systems/memory.md":                        {},
-	"building-gormes/core-systems/tool-execution.md":                {},
-	"using-gormes/_index.md":                                        {},
-	"using-gormes/configuration.md":                                 {},
-	"using-gormes/faq.md":                                           {},
-	"using-gormes/install.md":                                       {},
-	"using-gormes/quickstart.md":                                    {},
-	"using-gormes/telegram-adapter.md":                              {},
-	"using-gormes/tui-mode.md":                                      {},
-	"using-gormes/wire-doctor.md":                                   {},
+	"building-gormes/architecture_plan/boundaries.md":                {},
+	"building-gormes/architecture_plan/why-go.md":                    {},
+	"building-gormes/core-systems/_index.md":                         {},
+	"building-gormes/core-systems/gateway.md":                        {},
+	"building-gormes/core-systems/learning-loop.md":                  {},
+	"building-gormes/core-systems/memory.md":                         {},
+	"building-gormes/core-systems/tool-execution.md":                 {},
+	"using-gormes/_index.md":                                         {},
+	"using-gormes/configuration.md":                                  {},
+	"using-gormes/faq.md":                                            {},
+	"using-gormes/install.md":                                        {},
+	"using-gormes/quickstart.md":                                     {},
+	"using-gormes/telegram-adapter.md":                               {},
+	"using-gormes/tui-mode.md":                                       {},
+	"using-gormes/wire-doctor.md":                                    {},
 }
 
 func TestMirroredDocsCoverage(t *testing.T) {
@@ -155,6 +161,20 @@ func TestMirroredDocsCoverage(t *testing.T) {
 			continue
 		}
 		t.Fatalf("unexpected content file %s", rel)
+	}
+}
+
+func TestProgressJsonHasSingleCanonicalDocsCopy(t *testing.T) {
+	canonical := filepath.Join(hugoContentRoot, "building-gormes", "architecture_plan", "progress.json")
+	if _, err := os.Stat(canonical); err != nil {
+		t.Fatalf("canonical progress.json missing: %v", err)
+	}
+
+	duplicate := filepath.Join("data", "progress.json")
+	if _, err := os.Stat(duplicate); err == nil {
+		t.Fatalf("non-canonical progress copy must not exist: %s", duplicate)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat duplicate progress.json: %v", err)
 	}
 }
 

@@ -133,3 +133,178 @@ func TestRenderDocsChecklist_EmptyItemsBlankStatus(t *testing.T) {
 		t.Errorf("missing unspecified fallback; got:\n%s", got)
 	}
 }
+
+func TestRenderContractReadiness(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"2": {Name: "Phase 2", Subphases: map[string]Subphase{
+			"2.F": {Name: "Gateway", Items: []Item{{
+				Name:           "Steer",
+				Status:         StatusPlanned,
+				Contract:       "Active turn steering",
+				ContractStatus: ContractStatusDraft,
+				SliceSize:      SliceSizeSmall,
+				ExecutionOwner: ExecutionOwnerGateway,
+				TrustClass:     []string{"operator", "gateway"},
+				DegradedMode:   "busy status",
+				Fixture:        "internal/gateway fixtures",
+			}}},
+		}},
+	}}
+
+	got := RenderContractReadiness(p)
+	for _, want := range []string{
+		"| Phase | Progress item | Contract status | Owner | Size | Trust class | Fixture | Degraded mode |",
+		"2 / 2.F",
+		"Steer — Active turn steering",
+		"`draft`",
+		"`gateway`",
+		"`small`",
+		"operator, gateway",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("contract readiness missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderNextSlicesOrdersUnblockedP0ThenActiveAndSkipsBlockedUmbrella(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"1": {Name: "Phase 1", Subphases: map[string]Subphase{
+			"1.A": {Name: "Alpha", Items: []Item{
+				{Name: "planned", Status: StatusPlanned, Contract: "planned contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f"},
+				{Name: "active", Status: StatusInProgress, Contract: "active contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f"},
+				{Name: "p0", Status: StatusPlanned, Priority: "P0", Contract: "p0 contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"operator"}, Fixture: "f"},
+				{Name: "blocked", Status: StatusPlanned, Contract: "blocked contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f", BlockedBy: []string{"dependency"}},
+				{Name: "umbrella", Status: StatusPlanned, Contract: "umbrella contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeUmbrella, TrustClass: []string{"system"}, Fixture: "f"},
+			}},
+		}},
+	}}
+
+	got := RenderNextSlices(p, 10)
+	active := strings.Index(got, "active contract")
+	p0 := strings.Index(got, "p0 contract")
+	planned := strings.Index(got, "planned contract")
+	if active < 0 || p0 < 0 || planned < 0 {
+		t.Fatalf("next slices missing expected rows:\n%s", got)
+	}
+	if strings.Contains(got, "blocked contract") || strings.Contains(got, "umbrella contract") {
+		t.Fatalf("next slices included blocked or umbrella row:\n%s", got)
+	}
+	if !(p0 < active && active < planned) {
+		t.Fatalf("next slices order wrong; active=%d p0=%d planned=%d:\n%s", active, p0, planned, got)
+	}
+}
+
+func TestRenderAgentQueueIncludesExecutionCardAndSkipsBlockedUmbrella(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"4": {Name: "Phase 4", Subphases: map[string]Subphase{
+			"4.A": {Name: "Providers", Items: []Item{
+				{
+					Name:           "Provider harness",
+					Status:         StatusInProgress,
+					Contract:       "Provider-neutral transcript contract",
+					ContractStatus: ContractStatusFixtureReady,
+					SliceSize:      SliceSizeMedium,
+					ExecutionOwner: ExecutionOwnerProvider,
+					TrustClass:     []string{"system"},
+					DegradedMode:   "provider status reports gaps",
+					Fixture:        "internal/hermes/testdata/provider_transcripts",
+					SourceRefs:     []string{"docs/content/upstream-hermes/source-study.md"},
+					ReadyWhen:      []string{"fixtures replay"},
+					NotReadyWhen:   []string{"live provider call required"},
+					Acceptance:     []string{"go test ./internal/hermes passes"},
+					Unblocks:       []string{"Bedrock"},
+				},
+				{
+					Name:      "Blocked provider",
+					Status:    StatusPlanned,
+					Contract:  "blocked",
+					SliceSize: SliceSizeSmall,
+					BlockedBy: []string{"Provider harness"},
+				},
+				{
+					Name:      "Umbrella provider",
+					Status:    StatusPlanned,
+					Contract:  "umbrella",
+					SliceSize: SliceSizeUmbrella,
+				},
+			}},
+		}},
+	}}
+
+	got := RenderAgentQueue(p, 10)
+	for _, want := range []string{
+		"## 1. Provider harness",
+		"- Owner: `provider`",
+		"- Size: `medium`",
+		"- Contract: Provider-neutral transcript contract",
+		"- Ready when: fixtures replay",
+		"- Not ready when: live provider call required",
+		"- Fixture: `internal/hermes/testdata/provider_transcripts`",
+		"- Acceptance: go test ./internal/hermes passes",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("agent queue missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Blocked provider") || strings.Contains(got, "Umbrella provider") {
+		t.Fatalf("agent queue included blocked or umbrella row:\n%s", got)
+	}
+}
+
+func TestRenderBlockedSlices(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"3": {Name: "Phase 3", Subphases: map[string]Subphase{
+			"3.E": {Name: "Memory", Items: []Item{{
+				Name:      "Cross-chat",
+				Contract:  "Scoped recall",
+				BlockedBy: []string{"schema"},
+				ReadyWhen: []string{"schema ships"},
+				Unblocks:  []string{"operator evidence"},
+			}}},
+		}},
+	}}
+
+	got := RenderBlockedSlices(p)
+	for _, want := range []string{"Cross-chat", "schema ships", "operator evidence"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("blocked slices missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderUmbrellaCleanup(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"5": {Name: "Phase 5", Subphases: map[string]Subphase{
+			"5.A": {Name: "Tools", Items: []Item{{
+				Name:           "61-tool registry port",
+				SliceSize:      SliceSizeUmbrella,
+				ExecutionOwner: ExecutionOwnerTools,
+				NotReadyWhen:   []string{"not split"},
+				Unblocks:       []string{"schema parity"},
+			}}},
+		}},
+	}}
+
+	got := RenderUmbrellaCleanup(p)
+	for _, want := range []string{"61-tool registry port", "`tools`", "not split", "schema parity"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("umbrella cleanup missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderProgressSchema(t *testing.T) {
+	got := RenderProgressSchema()
+	for _, want := range []string{
+		"`slice_size`",
+		"`execution_owner`",
+		"`ready_when`",
+		"`in_progress` rows cannot use `slice_size: umbrella`",
+		"`agent-queue.md`",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("progress schema missing %q:\n%s", want, got)
+		}
+	}
+}

@@ -1,6 +1,6 @@
-// Command progress-gen validates progress.json and regenerates the
-// marker-bounded regions in README.md and the architecture_plan
-// _index.md. Run from the main Makefile.
+// Command progress-gen validates the canonical architecture progress.json,
+// regenerates marker-bounded roadmap regions, and refreshes generated site
+// progress data. Run from the main Makefile.
 package main
 
 import (
@@ -14,7 +14,7 @@ import (
 
 func main() {
 	validate := flag.Bool("validate", false, "validate progress.json only (read-only)")
-	write := flag.Bool("write", false, "regenerate marker regions in README.md and _index.md")
+	write := flag.Bool("write", false, "regenerate marker regions and generated progress docs")
 	flag.Parse()
 
 	if !*validate && !*write {
@@ -22,15 +22,21 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Resolve paths relative to the main module root (this binary is
-	// invoked from gormes/ by the Makefile).
+	// Resolve paths relative to the main module root.
 	root, err := os.Getwd()
 	if err != nil {
 		die(err)
 	}
 	progressPath := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
-	readmePath := filepath.Join(root, "..", "README.md")
+	readmePath := filepath.Join(root, "README.md")
 	docsIndexPath := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "_index.md")
+	contractReadinessPath := filepath.Join(root, "docs", "content", "building-gormes", "contract-readiness.md")
+	agentQueuePath := filepath.Join(root, "docs", "content", "building-gormes", "agent-queue.md")
+	nextSlicesPath := filepath.Join(root, "docs", "content", "building-gormes", "next-slices.md")
+	blockedSlicesPath := filepath.Join(root, "docs", "content", "building-gormes", "blocked-slices.md")
+	umbrellaCleanupPath := filepath.Join(root, "docs", "content", "building-gormes", "umbrella-cleanup.md")
+	progressSchemaPath := filepath.Join(root, "docs", "content", "building-gormes", "progress-schema.md")
+	siteProgressPath := filepath.Join(root, "www.gormes.ai", "internal", "site", "data", "progress.json")
 
 	p, err := progress.Load(progressPath)
 	if err != nil {
@@ -60,12 +66,58 @@ func main() {
 	} else {
 		fmt.Println("progress-gen: README.md regenerated")
 	}
+	if err := rewrite(contractReadinessPath, "contract-readiness", progress.RenderContractReadiness(p)); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: contract readiness regenerated")
+	}
+	if err := rewrite(agentQueuePath, "agent-queue", progress.RenderAgentQueue(p, 10)); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: agent queue regenerated")
+	}
+	if err := rewrite(nextSlicesPath, "next-slices", progress.RenderNextSlices(p, 10)); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: next slices regenerated")
+	}
+	if err := rewrite(blockedSlicesPath, "blocked-slices", progress.RenderBlockedSlices(p)); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: blocked slices regenerated")
+	}
+	if err := rewrite(umbrellaCleanupPath, "umbrella-cleanup", progress.RenderUmbrellaCleanup(p)); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: umbrella cleanup regenerated")
+	}
+	if err := rewrite(progressSchemaPath, "progress-schema", progress.RenderProgressSchema()); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: progress schema regenerated")
+	}
+	if err := syncFile(progressPath, siteProgressPath); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Println("progress-gen: site progress data refreshed")
+	}
 	if len(errs) > 0 {
 		for _, e := range errs {
 			fmt.Fprintln(os.Stderr, "progress-gen:", e)
 		}
 		os.Exit(1)
 	}
+}
+
+func syncFile(src, dst string) error {
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", src, err)
+	}
+	if err := os.WriteFile(dst, b, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", dst, err)
+	}
+	return nil
 }
 
 func rewrite(path, kind, body string) error {

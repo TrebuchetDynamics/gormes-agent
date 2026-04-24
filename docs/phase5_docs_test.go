@@ -30,9 +30,9 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 		}
 	}
 
-	docsProgress, err := os.ReadFile("data/progress.json")
+	docsProgress, err := os.ReadFile("content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
-		t.Fatalf("read docs/data/progress.json: %v", err)
+		t.Fatalf("read canonical progress.json: %v", err)
 	}
 	for _, want := range []string{
 		`"5": {`,
@@ -41,7 +41,7 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 		`"status": "complete"`,
 	} {
 		if !strings.Contains(string(docsProgress), want) {
-			t.Fatalf("docs/data/progress.json is missing %q", want)
+			t.Fatalf("canonical progress.json is missing %q", want)
 		}
 	}
 

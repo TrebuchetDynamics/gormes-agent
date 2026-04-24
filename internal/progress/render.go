@@ -82,3 +82,358 @@ func RenderDocsChecklist(p *Progress) string {
 	}
 	return b.String()
 }
+
+// RenderContractReadiness returns a markdown table for progress rows that have
+// contract metadata. The canonical progress JSON remains the source of truth.
+func RenderContractReadiness(p *Progress) string {
+	rows := contractRows(p)
+	if len(rows) == 0 {
+		return "_No progress rows currently carry contract metadata._\n"
+	}
+
+	var b strings.Builder
+	b.WriteString("| Phase | Progress item | Contract status | Owner | Size | Trust class | Fixture | Degraded mode |\n")
+	b.WriteString("|---|---|---|---|---|---|---|---|\n")
+	for _, row := range rows {
+		it := row.Item
+		fmt.Fprintf(&b, "| %s | %s | `%s` | `%s` | `%s` | %s | `%s` | %s |\n",
+			mdCell(row.PhaseKey+" / "+row.SubphaseKey),
+			mdCell(it.Name+" — "+it.Contract),
+			mdCell(string(it.ContractStatus)),
+			mdCell(string(it.ExecutionOwner)),
+			mdCell(string(it.SliceSize)),
+			mdCell(joinOrDash(it.TrustClass)),
+			mdCell(it.Fixture),
+			mdCell(it.DegradedMode),
+		)
+	}
+	return b.String()
+}
+
+// RenderNextSlices returns the highest-leverage unblocked, non-umbrella
+// contract-bearing rows.
+func RenderNextSlices(p *Progress, limit int) string {
+	if limit <= 0 {
+		limit = 10
+	}
+	rows := nextSliceRows(contractRows(p), limit)
+	if len(rows) == 0 {
+		return "_No contract-ready progress rows are available._\n"
+	}
+
+	var b strings.Builder
+	b.WriteString("| Phase | Slice | Contract | Trust class | Fixture | Why now |\n")
+	b.WriteString("|---|---|---|---|---|---|\n")
+	for _, row := range rows {
+		it := row.Item
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | `%s` | %s |\n",
+			mdCell(row.PhaseKey+" / "+row.SubphaseKey),
+			mdCell(it.Name),
+			mdCell(it.Contract),
+			mdCell(joinOrDash(it.TrustClass)),
+			mdCell(it.Fixture),
+			mdCell(whyNow(it)),
+		)
+	}
+	return b.String()
+}
+
+// RenderAgentQueue returns execution cards for unblocked, non-umbrella rows
+// that an autonomous worker can turn into a focused implementation attempt.
+func RenderAgentQueue(p *Progress, limit int) string {
+	if limit <= 0 {
+		limit = 10
+	}
+	rows := nextSliceRows(contractRows(p), limit)
+	if len(rows) == 0 {
+		return "_No unblocked contract rows are ready for autonomous execution._\n"
+	}
+
+	var b strings.Builder
+	for i, row := range rows {
+		it := row.Item
+		fmt.Fprintf(&b, "## %d. %s\n\n", i+1, it.Name)
+		fmt.Fprintf(&b, "- Phase: %s / %s\n", row.PhaseKey, row.SubphaseKey)
+		fmt.Fprintf(&b, "- Owner: `%s`\n", it.ExecutionOwner)
+		fmt.Fprintf(&b, "- Size: `%s`\n", it.SliceSize)
+		fmt.Fprintf(&b, "- Status: `%s`\n", it.Status)
+		if it.Priority != "" {
+			fmt.Fprintf(&b, "- Priority: `%s`\n", it.Priority)
+		}
+		fmt.Fprintf(&b, "- Contract: %s\n", mdCell(it.Contract))
+		fmt.Fprintf(&b, "- Trust class: %s\n", mdCell(joinOrDash(it.TrustClass)))
+		fmt.Fprintf(&b, "- Ready when: %s\n", mdCell(joinOrDash(it.ReadyWhen)))
+		fmt.Fprintf(&b, "- Not ready when: %s\n", mdCell(joinOrDash(it.NotReadyWhen)))
+		fmt.Fprintf(&b, "- Degraded mode: %s\n", mdCell(it.DegradedMode))
+		fmt.Fprintf(&b, "- Fixture: `%s`\n", mdCell(it.Fixture))
+		fmt.Fprintf(&b, "- Acceptance: %s\n", mdCell(joinOrDash(it.Acceptance)))
+		fmt.Fprintf(&b, "- Source refs: %s\n", mdCell(joinOrDash(it.SourceRefs)))
+		if len(it.Unblocks) > 0 {
+			fmt.Fprintf(&b, "- Unblocks: %s\n", mdCell(joinOrDash(it.Unblocks)))
+		}
+		fmt.Fprintf(&b, "- Why now: %s\n\n", mdCell(whyNow(it)))
+	}
+	return b.String()
+}
+
+// RenderBlockedSlices returns rows that cannot start until another roadmap row
+// is complete or another readiness condition becomes true.
+func RenderBlockedSlices(p *Progress) string {
+	rows := blockedRows(contractRows(p))
+	if len(rows) == 0 {
+		return "_No contract-bearing rows are currently blocked._\n"
+	}
+
+	var b strings.Builder
+	b.WriteString("| Phase | Slice | Blocked by | Ready when | Unblocks |\n")
+	b.WriteString("|---|---|---|---|---|\n")
+	for _, row := range rows {
+		it := row.Item
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n",
+			mdCell(row.PhaseKey+" / "+row.SubphaseKey),
+			mdCell(it.Name),
+			mdCell(joinOrDash(it.BlockedBy)),
+			mdCell(joinOrDash(it.ReadyWhen)),
+			mdCell(joinOrDash(it.Unblocks)),
+		)
+	}
+	return b.String()
+}
+
+// RenderUmbrellaCleanup returns planned rows that are inventory buckets rather
+// than executable implementation slices.
+func RenderUmbrellaCleanup(p *Progress) string {
+	rows := umbrellaRows(p)
+	if len(rows) == 0 {
+		return "_No umbrella rows are currently marked for cleanup._\n"
+	}
+
+	var b strings.Builder
+	b.WriteString("| Phase | Umbrella row | Owner | Not ready when | Split into |\n")
+	b.WriteString("|---|---|---|---|---|\n")
+	for _, row := range rows {
+		it := row.Item
+		fmt.Fprintf(&b, "| %s | %s | `%s` | %s | %s |\n",
+			mdCell(row.PhaseKey+" / "+row.SubphaseKey),
+			mdCell(it.Name),
+			mdCell(string(it.ExecutionOwner)),
+			mdCell(joinOrDash(it.NotReadyWhen)),
+			mdCell(joinOrDash(it.Unblocks)),
+		)
+	}
+	return b.String()
+}
+
+// RenderProgressSchema returns the operator-facing schema reference for
+// contract-aware progress rows.
+func RenderProgressSchema() string {
+	return strings.TrimSpace(`
+## Item Fields
+
+| Field | Required when | Meaning |
+|---|---|---|
+| `+"`name`"+` | every item | Human-readable roadmap row name. |
+| `+"`status`"+` | every item | `+"`planned`"+`, `+"`in_progress`"+`, or `+"`complete`"+`. |
+| `+"`priority`"+` | optional | `+"`P0`"+` through `+"`P4`"+`. Item-level `+"`P0`"+` rows require contract metadata. |
+| `+"`contract`"+` | active/P0 handoffs | The upstream behavior or Gormes-native behavior being preserved. |
+| `+"`contract_status`"+` | contract rows | `+"`missing`"+`, `+"`draft`"+`, `+"`fixture_ready`"+`, or `+"`validated`"+`. |
+| `+"`slice_size`"+` | contract rows and umbrella rows | `+"`small`"+`, `+"`medium`"+`, `+"`large`"+`, or `+"`umbrella`"+`. |
+| `+"`execution_owner`"+` | contract rows and umbrella rows | `+"`docs`"+`, `+"`gateway`"+`, `+"`memory`"+`, `+"`provider`"+`, `+"`tools`"+`, `+"`skills`"+`, or `+"`orchestrator`"+`. |
+| `+"`trust_class`"+` | active/P0 handoffs | Allowed caller classes: `+"`operator`"+`, `+"`gateway`"+`, `+"`child-agent`"+`, `+"`system`"+`. |
+| `+"`degraded_mode`"+` | active/P0 handoffs | How partial capability is visible in doctor, status, audit, logs, or generated docs. |
+| `+"`fixture`"+` | active/P0 handoffs | Local package/path/fixture set proving compatibility without live credentials. |
+| `+"`source_refs`"+` | active/P0 handoffs | Docs or code references used to derive the contract. |
+| `+"`blocked_by`"+` | optional | Roadmap rows or conditions blocking this slice. Requires `+"`ready_when`"+`. |
+| `+"`unblocks`"+` | optional | Downstream rows enabled by this slice. |
+| `+"`ready_when`"+` | contract rows and blocked rows | Concrete condition that makes the row assignable. |
+| `+"`not_ready_when`"+` | umbrella rows, optional elsewhere | Conditions that make the row unsafe or too broad to assign. |
+| `+"`acceptance`"+` | active/P0 handoffs | Testable done criteria. |
+
+## Validation Rules
+
+- `+"`docs/data/progress.json`"+` must not exist.
+- `+"`in_progress`"+` rows cannot use `+"`slice_size: umbrella`"+`.
+- item-level `+"`P0`"+` and `+"`in_progress`"+` rows must include full contract metadata.
+- contract rows must declare `+"`slice_size`"+`, `+"`execution_owner`"+`, and `+"`ready_when`"+`.
+- blocked rows must declare `+"`ready_when`"+`.
+- `+"`fixture_ready`"+` rows must name a concrete fixture package or path.
+- complete rows with contract metadata must use `+"`contract_status: validated`"+`.
+
+## Generated Agent Surfaces
+
+- `+"`agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, acceptance, and source references.
+- `+"`blocked-slices.md`"+` keeps blocked rows out of the execution queue while preserving their unblock condition.
+- `+"`umbrella-cleanup.md`"+` lists broad inventory rows that must be split before assignment.
+
+## Good Row
+
+`+"```json"+`
+{
+  "name": "Provider transcript harness",
+  "status": "planned",
+  "priority": "P1",
+  "contract": "Provider-neutral request and stream event transcript harness",
+  "contract_status": "fixture_ready",
+  "slice_size": "medium",
+  "execution_owner": "provider",
+  "trust_class": ["system"],
+  "degraded_mode": "Provider status reports missing fixture coverage before routing can select the adapter.",
+  "fixture": "internal/hermes/testdata/provider_transcripts",
+  "source_refs": ["docs/content/upstream-hermes/source-study.md"],
+  "ready_when": ["Anthropic transcript fixtures replay without live credentials."],
+  "acceptance": ["All provider transcript fixtures pass under go test ./internal/hermes."]
+}
+`+"```"+`
+
+## Bad Row
+
+`+"```json"+`
+{
+  "name": "Port CLI",
+  "status": "in_progress",
+  "slice_size": "umbrella"
+}
+`+"```"+`
+
+This is invalid because an active execution row cannot be an umbrella, and it
+does not explain the contract, fixture, caller trust class, degraded mode, or
+acceptance criteria.
+`) + "\n"
+}
+
+type contractRow struct {
+	PhaseKey    string
+	PhaseName   string
+	SubphaseKey string
+	Subphase    string
+	Item        Item
+}
+
+func contractRows(p *Progress) []contractRow {
+	var rows []contractRow
+	for _, phKey := range sortedMapKeys(p.Phases) {
+		ph := p.Phases[phKey]
+		for _, spKey := range sortedMapKeys(ph.Subphases) {
+			sp := ph.Subphases[spKey]
+			for _, it := range sp.Items {
+				if it.Contract == "" {
+					continue
+				}
+				rows = append(rows, contractRow{
+					PhaseKey:    phKey,
+					PhaseName:   ph.Name,
+					SubphaseKey: spKey,
+					Subphase:    sp.Name,
+					Item:        it,
+				})
+			}
+		}
+	}
+	return rows
+}
+
+func nextSliceRows(rows []contractRow, limit int) []contractRow {
+	var out []contractRow
+	seen := map[string]struct{}{}
+	for bucket := 0; bucket <= 4 && len(out) < limit; bucket++ {
+		for _, row := range rows {
+			if len(row.Item.BlockedBy) > 0 || row.Item.SliceSize == SliceSizeUmbrella {
+				continue
+			}
+			if nextSliceBucket(row.Item) != bucket {
+				continue
+			}
+			key := row.PhaseKey + "\x00" + row.SubphaseKey + "\x00" + row.Item.Name
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			out = append(out, row)
+			if len(out) == limit {
+				break
+			}
+		}
+	}
+	return out
+}
+
+func nextSliceBucket(it Item) int {
+	switch {
+	case it.Priority == "P0":
+		return 0
+	case it.Status == StatusInProgress:
+		return 1
+	case it.ContractStatus == ContractStatusFixtureReady:
+		return 2
+	case len(it.Unblocks) > 0:
+		return 3
+	case it.ContractStatus == ContractStatusDraft:
+		return 4
+	default:
+		return 5
+	}
+}
+
+func whyNow(it Item) string {
+	switch {
+	case it.Status == StatusInProgress:
+		return "Already active; contract metadata keeps execution bounded."
+	case it.Priority == "P0":
+		return "P0 handoff; needs contract proof before closeout."
+	case len(it.BlockedBy) > 0:
+		return "Blocked by " + joinOrDash(it.BlockedBy) + "; keep dependencies visible."
+	case len(it.Unblocks) > 0:
+		return "Unblocks " + joinOrDash(it.Unblocks) + "."
+	default:
+		return "Contract metadata is present; ready for a focused spec or fixture slice."
+	}
+}
+
+func blockedRows(rows []contractRow) []contractRow {
+	var out []contractRow
+	for _, row := range rows {
+		if len(row.Item.BlockedBy) > 0 {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
+func umbrellaRows(p *Progress) []contractRow {
+	var rows []contractRow
+	for _, phKey := range sortedMapKeys(p.Phases) {
+		ph := p.Phases[phKey]
+		for _, spKey := range sortedMapKeys(ph.Subphases) {
+			sp := ph.Subphases[spKey]
+			for _, it := range sp.Items {
+				if it.SliceSize != SliceSizeUmbrella {
+					continue
+				}
+				rows = append(rows, contractRow{
+					PhaseKey:    phKey,
+					PhaseName:   ph.Name,
+					SubphaseKey: spKey,
+					Subphase:    sp.Name,
+					Item:        it,
+				})
+			}
+		}
+	}
+	return rows
+}
+
+func joinOrDash(values []string) string {
+	if len(values) == 0 {
+		return "-"
+	}
+	return strings.Join(values, ", ")
+}
+
+func mdCell(s string) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "|", `\|`)
+	if s == "" {
+		return "-"
+	}
+	return s
+}
