@@ -14,6 +14,8 @@ Use it to avoid assigning work before the dependency chain is ready.
 | Phase | Slice | Blocked by | Ready when | Unblocks |
 |---|---|---|---|---|
 | 2 / 2.B.4 | WhatsApp identity resolution + self-chat guard | Bridge-vs-native runtime decision | The bridge-vs-native runtime decision identifies which identity source owns the bot/self peer for a session. | - |
+| 2 / 2.B.5 | BlueBubbles iMessage session-context prompt guidance | BlueBubbles iMessage bubble formatting parity | BlueBubbles outbound formatting splits blank-line paragraphs into separate iMessage sends, so prompt guidance has a matching delivery contract. | - |
+| 2 / 2.E.1 | Durable subagent/job ledger | GBrain minion-orchestrator routing policy | Routing policy fixtures define which work may enter durable orchestration and which callers are allowed to submit or observe each lane. | - |
 | 2 / 2.F.3 | Unauthorized DM pairing response contract | Pairing approval + rate-limit semantics | Pairing approval, rate limiting, and allowlist checks are fixture-locked. | - |
 | 2 / 2.F.5 | Steer slash command registry + queue fallback | 2.E.2 | 2.E.2 is complete and the shared CommandDef registry is stable for gateway commands. | Mid-run steer injection between tool calls, Gateway-handled slash commands bypass active-session guard |
 | 3 / 3.E.7 | Honcho host integration compatibility fixtures | Honcho-compatible scope/source tool schema, Interrupted-turn memory sync suppression | Public honcho_* schemas expose scope/source controls and interrupted turns cannot persist partial memory observations. | - |

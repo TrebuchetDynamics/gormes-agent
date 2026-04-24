@@ -18,17 +18,17 @@ weight: 30
 | Phase 2.B.2 — Gateway Chassis + Discord | ✅ complete | P1 | Shared gateway manager, Telegram migrated onto the chassis, `gormes gateway` multi-channel entrypoint, and Discord as the second real adapter |
 | Phase 2.B.3 — Slack on Shared Chassis | 🔨 in progress | P1 | `internal/slack` has a Socket Mode bot, threaded reply flow, and placeholder updates; the remaining work is now split into CommandRegistry parser wiring, a `gateway.Channel` shim, then config/doctor/`cmd/gormes gateway` registration |
 | Phase 2.B.4 — WhatsApp Adapter | 🔨 in progress | P1 | Transport-neutral ingress normalization and command passthrough are landed in `internal/channels/whatsapp`; bridge-first runtime selection, identity resolution/self-chat guards, and pairing/reconnect/send lifecycle still remain |
-| Phase 2.B.5 — Session Context + Delivery Routing | ✅ complete | P1 | Session-store handle resolution, SessionContext prompt injection, typed `--deliver` parsing, and deterministic gateway stream fan-out now live together in `internal/gateway` |
+| Phase 2.B.5 — Session Context + Delivery Routing | 🔨 in progress | P1 | Session-store handle resolution, baseline SessionContext prompt injection, typed `--deliver` parsing, and deterministic gateway stream fan-out now live together in `internal/gateway`; upstream f731c2c2 adds BlueBubbles/iMessage prompt guidance and non-editable progress/commentary fallback fixtures as narrow follow-up slices |
 | Phase 2.B.6 — Signal Adapter | 🔨 in progress | P2 | Shared ingress normalization, session identity, and reply/send semantics are landed in `internal/channels/signal`; transport/bootstrap wiring still remains |
 | Phase 2.B.7 — Email + SMS Adapters | ✅ complete | P3 | RFC 822 email normalization plus SMS number/session normalization and segmented outbound delivery contracts now ride the shared gateway seam without special-casing the kernel |
 | Phase 2.B.8 — Matrix + Mattermost Adapters | 🔨 in progress | P4 | The shared threaded-text contract is landed in `internal/channels/threadtext`; Matrix and Mattermost still need their platform seams plus the real client/bootstrap layers |
 | Phase 2.B.9 — Webhook + Trigger Ingress | ✅ complete | P4 | Signed ingress/auth parsing plus the typed prompt-to-delivery bridge now live together in `internal/channels/webhook`, leaving only future runtime binding work |
-| Phase 2.B.10 — Regional + Device Adapter Flood | 🔨 in progress | P4 | BlueBubbles and HomeAssistant ship usable edges; DingTalk now also has a contract-tested Stream Mode bootstrap + reply retry layer; Feishu still needs transport/bootstrap plus the Drive comment rules/reply workflow, and WeCom/WeiXin plus QQ Bot still have runtime bootstraps queued |
+| Phase 2.B.10 — Regional + Device Adapter Flood | 🔨 in progress | P4 | BlueBubbles and HomeAssistant ship usable edges; upstream f731c2c2 now queues BlueBubbles iMessage bubble-formatting parity; DingTalk has a contract-tested Stream Mode bootstrap + reply retry layer; Feishu still needs transport/bootstrap plus the Drive comment rules/reply workflow, and WeCom/WeiXin plus QQ Bot still have runtime bootstraps queued |
 | Phase 2.B.11 — Discord Forum Channels | ⏳ planned | P3 | Port upstream forum-channel ingress + thread lifecycle on top of the shipped 2.B.2 Discord adapter, then the forum media + outbound polish slice; baseline Discord contract must not regress |
 | Phase 2.C — Thin Mapping Persistence | ✅ complete | P0 | bbolt-backed `(platform, chat_id) -> session_id` resume; no transcript ownership moved into Go |
 | Phase 2.D — Cron / Scheduled Automations | ✅ complete | P2 | `internal/cron` package with `robfig/cron/v3` scheduler, bbolt `cron_jobs` bucket, SQLite `cron_runs` audit table, CRON.md mirror, Heartbeat `[SYSTEM:]` prefix + exact-match `[SILENT]` suppression, kernel `PlatformEvent.SessionID`/`CronJobID` per-event override, generic `DeliverySink` interface, plus the shipped `scripts/gormes-architecture-planner-tasks-manager.sh` operator automation that writes `.codex/planner/architecture-planner-tasks.md`, report/state artifacts, validation logs, and periodic systemd/cron scheduling. Opt-in via `[cron].enabled=true` + `[telegram].allowed_chat_id`. Ship criterion proven live against Ollama (commits `e0b2fcea`…`8aa9a6e6`). Natural-language cron parsing deferred to Phase 4.C; planner-wrapper compatibility is tracked separately in Phase 1.C |
 | **Phase 2.E.0 — Deterministic Subagent Runtime** | ✅ complete | **P0** | Runtime core landed: deterministic lifecycle manager, max-depth guard, bounded batch execution, timeout/cancellation scopes, typed result envelope, `[delegation]` config, Go-native `delegate_task`, and append-only run logging |
-| **Phase 2.E.1 — Delegation Policy + Child Execution** | ✅ complete | **P0** | Runner-enforced blocked-tool/allowlist policy, typed child tool-call audit, and a live Hermes child stream loop are now landed |
+| **Phase 2.E.1 — Delegation Policy + Child Execution** | 🔨 in progress | **P0** | Runner-enforced blocked-tool/allowlist policy, typed child tool-call audit, and a live Hermes child stream loop are landed; GBrain's unified `minion-orchestrator` now adds a routing-policy slice plus a blocked durable-job ledger slice |
 | Phase 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation | ⏳ planned | P1 | Kernel-side interrupt propagation that fans out one cancel across parallel `tool_calls`, sidecar sandbox jobs, and delegated subagent children; blocks parallel-tool execution and 2.F.5 mid-run steering |
 | **Phase 2.G — OS-AI Spine: Skills Runtime** | ✅ complete | **P0** | Static skills runtime and the first reviewed learning-loop proof are in-tree: validated `SKILL.md` parsing, active-store snapshots, deterministic selection + prompt rendering, kernel injection, append-only usage logging, delegated candidate drafting into the inactive store, and explicit promotion into the active store. |
 | Phase 2.F.1 — Slash Command Registry + Gateway Dispatch | ✅ complete | P1 | Canonical command registry now drives gateway parsing, help text, Telegram menus, and Slack subcommand exposure from one shared source of truth |
@@ -74,9 +74,10 @@ semantics.
 
 GBrain adds one complementary lesson: gateway-triggered work that can outlive a
 single turn should enter a durable job/subagent ledger instead of depending on
-one in-memory process. Phase 2.D cron and Phase 2.E subagents are the first
-substrates; future queue/restart/resume work should converge on the same
-ledger contract.
+one in-memory process. Its current `minion-orchestrator` skill merged the older
+jobs lane and LLM subagent lane behind one policy surface. Gormes should borrow
+that routing discipline first, then add the smallest SQLite-first ledger needed
+for cron/subagent replay without importing the whole Minions queue.
 
 ## TDD Priority Queue
 

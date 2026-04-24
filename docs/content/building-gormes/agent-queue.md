@@ -20,7 +20,70 @@ tests, and candidate policy. Keep those control-plane facts in
 `meta.autoloop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Interrupted-turn memory sync suppression
+## 1. Non-editable gateway progress/commentary send fallback
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P3`
+- Contract: Channels without placeholder/edit capabilities receive progress-safe interim or final assistant messages through the plain Send path without EditMessage calls
+- Trust class: gateway, system
+- Ready when: A fake channel can implement only gateway.Channel while the manager render path is exercised from an originating inbound event.
+- Not ready when: The slice adds platform-specific BlueBubbles logic to gateway.Manager instead of testing capability-based behavior shared by all non-editable channels.
+- Degraded mode: Non-editable channels continue to receive final responses, but quick commentary/interim updates may be suppressed until the send-fallback fixture proves no edit path is attempted.
+- Fixture: `internal/gateway/manager_test.go`
+- Write scope: `internal/gateway/manager.go`, `internal/gateway/manager_test.go`, `internal/gateway/fake_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway -run NonEditable -count=1`, `go test ./internal/gateway -run Manager_Outbound -count=1`
+- Done signal: Gateway manager tests cover both editable streaming and Channel-only send fallback without platform-specific branches.
+- Acceptance: A Channel-only fake receives terminal assistant output through Send with the original chat target., The same fixture proves no SendPlaceholder or EditMessage method is required for non-editable channels., Editable channel streaming/coalescing tests keep their existing placeholder/edit behavior.
+- Source refs: ../hermes-agent/tests/gateway/test_run_progress_topics.py@f731c2c2, internal/gateway/manager.go, internal/gateway/channel.go, internal/gateway/fake_test.go
+- Unblocks: BlueBubbles iMessage session-context prompt guidance
+- Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
+
+## 2. BlueBubbles iMessage bubble formatting parity
+
+- Phase: 2 / 2.B.10
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P3`
+- Contract: BlueBubbles outbound iMessage sends are non-editable, markdown-stripped, paragraph-split bubbles without pagination suffixes
+- Trust class: gateway, system
+- Ready when: The first-pass BlueBubbles adapter already owns Send, markdown stripping, cached GUID resolution, and home-channel fallback in internal/channels/bluebubbles.
+- Not ready when: The slice attempts to add live BlueBubbles HTTP/webhook registration, attachment download, reactions, typing indicators, or edit-message support.
+- Degraded mode: BlueBubbles remains a usable first-pass adapter, but long replies may still arrive as one stripped text send until paragraph splitting and suffix-free chunking are fixture-locked.
+- Fixture: `internal/channels/bluebubbles/bot_test.go`
+- Write scope: `internal/channels/bluebubbles/bot.go`, `internal/channels/bluebubbles/bot_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/channels/bluebubbles -count=1`
+- Done signal: BlueBubbles adapter tests prove paragraph-to-bubble sends, suffix-free chunking, and no edit/placeholder capability.
+- Acceptance: Send splits blank-line-separated paragraphs into separate SendText calls while preserving existing chat GUID resolution and home-channel fallback., Long paragraph chunks omit `(n/m)` pagination suffixes and concatenate back to the stripped original text., Bot does not implement gateway.MessageEditor or gateway.PlaceholderCapable, preserving non-editable iMessage semantics.
+- Source refs: ../hermes-agent/gateway/platforms/bluebubbles.py@f731c2c2, ../hermes-agent/tests/gateway/test_bluebubbles.py@f731c2c2, internal/channels/bluebubbles/bot.go, internal/gateway/channel.go
+- Unblocks: BlueBubbles iMessage session-context prompt guidance
+- Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
+
+## 3. GBrain minion-orchestrator routing policy
+
+- Phase: 2 / 2.E.1
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Durable-job routing separates deterministic restart-survivable work from live LLM subagents, following GBrain's unified minion-orchestrator skill while keeping Gormes Go-native subagent APIs
+- Trust class: operator, child-agent, system
+- Ready when: Phase 2.E.0 and 2.E.1 subagent runtime slices are complete and append-only run logs exist for child executions.
+- Not ready when: The slice ports GBrain's Postgres/PGLite queue, shell-job executor, pause/resume runtime, or supervisor instead of only fixture-locking routing decisions and trust boundaries.
+- Degraded mode: Until the policy lands, Gormes exposes in-memory subagents plus append-only run logs only; durable minion routing is documented as unavailable in status/doctor surfaces.
+- Fixture: `internal/subagent/minion_policy_test.go`
+- Write scope: `internal/subagent/`, `internal/cron/`, `internal/config/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/subagent ./internal/cron ./internal/config -count=1`
+- Done signal: Routing policy tests prove which work enters durable orchestration, which trust classes may submit it, and that existing delegate_task names remain stable.
+- Acceptance: Policy fixtures classify deterministic shell/cron-like work separately from judgment-heavy LLM subagents., Child-agent trust cannot submit privileged deterministic shell jobs through the durable-job route., Existing delegate_task and subagent manager APIs remain Go-native and are not renamed to Minions.
+- Source refs: ../gbrain/skills/minion-orchestrator/SKILL.md, ../gbrain/skills/conventions/subagent-routing.md, docs/content/upstream-gbrain/architecture.md, internal/subagent/manager.go, internal/cron/executor.go
+- Unblocks: Durable subagent/job ledger
+- Why now: Unblocks Durable subagent/job ledger.
+
+## 4. Interrupted-turn memory sync suppression
 
 - Phase: 3 / 3.E.7
 - Owner: `memory`
@@ -41,7 +104,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Honcho host integration compatibility fixtures, Cross-chat operator evidence
 - Why now: Unblocks Honcho host integration compatibility fixtures, Cross-chat operator evidence.
 
-## 2. Honcho-compatible scope/source tool schema
+## 5. Honcho-compatible scope/source tool schema
 
 - Phase: 3 / 3.E.7
 - Owner: `memory`
@@ -62,7 +125,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Cross-chat deny-path fixtures, Honcho host integration compatibility fixtures
 - Why now: Unblocks Cross-chat deny-path fixtures, Honcho host integration compatibility fixtures.
 
-## 3. Bedrock Converse payload mapping (no AWS SDK)
+## 6. Bedrock Converse payload mapping (no AWS SDK)
 
 - Phase: 4 / 4.A
 - Owner: `provider`
@@ -82,7 +145,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Bedrock stream event decoding (SSE fixtures)
 - Why now: Unblocks Bedrock stream event decoding (SSE fixtures).
 
-## 4. Codex Responses pure conversion harness
+## 7. Codex Responses pure conversion harness
 
 - Phase: 4 / 4.A
 - Owner: `provider`
@@ -102,7 +165,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Codex stream repair + tool-call leak sanitizer, Codex OAuth state + stale-token relogin
 - Why now: Unblocks Codex stream repair + tool-call leak sanitizer, Codex OAuth state + stale-token relogin.
 
-## 5. Tool-call argument repair + schema sanitizer
+## 8. Tool-call argument repair + schema sanitizer
 
 - Phase: 4 / 4.A
 - Owner: `provider`
@@ -122,7 +185,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Codex stream repair + tool-call leak sanitizer, OpenRouter, Bedrock stream event decoding (SSE fixtures)
 - Why now: Unblocks Codex stream repair + tool-call leak sanitizer, OpenRouter, Bedrock stream event decoding (SSE fixtures).
 
-## 6. Skill preprocessing + dynamic slash commands
+## 9. Skill preprocessing + dynamic slash commands
 
 - Phase: 5 / 5.F
 - Owner: `skills`
@@ -142,7 +205,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Toolset-aware skills prompt snapshot, TUI + Telegram browsing
 - Why now: Unblocks Toolset-aware skills prompt snapshot, TUI + Telegram browsing.
 
-## 7. PTY bridge protocol adapter
+## 10. PTY bridge protocol adapter
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -161,45 +224,5 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/hermes_cli/pty_bridge.py, ../hermes-agent/tests/hermes_cli/test_pty_bridge.py, ../hermes-agent/hermes_cli/web_server.py
 - Unblocks: SSE streaming to Bubble Tea TUI, Dashboard PTY chat sidecar contract
 - Why now: Unblocks SSE streaming to Bubble Tea TUI, Dashboard PTY chat sidecar contract.
-
-## 8. OpenAI-compatible chat-completions API server
-
-- Phase: 5 / 5.Q
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Contract: OpenAI-compatible chat.completions HTTP surface over the native Gormes turn loop
-- Trust class: operator, gateway
-- Ready when: Native kernel turn loop, gateway session handles, and provider event streaming are stable enough for HTTP replay fixtures.
-- Not ready when: The server shells out to Python api_server or creates a second session store instead of using native Gormes state.
-- Degraded mode: API health and error envelopes report auth, body-size, content-normalization, and streaming failures without starting hidden sessions.
-- Fixture: `internal/apiserver/chat_completions_test.go`
-- Write scope: `internal/gateway/`, `internal/kernel/`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway ./internal/kernel ./internal/apiserver -count=1`
-- Done signal: Chat-completions HTTP fixtures prove auth, body limits, content normalization, streaming envelopes, and session continuity over native Gormes state.
-- Acceptance: Bearer/API-key auth, request body limits, and OpenAI error envelopes are fixture-covered., Chat content parts normalize to the same user-message shape used by gateway sessions., Streaming and non-streaming responses include stable X-Hermes-Session-Id continuity.
-- Source refs: ../hermes-agent/gateway/platforms/api_server.py, ../hermes-agent/tests/gateway/test_api_server.py, docs/content/upstream-hermes/user-guide/features/api-server.md, docs/content/building-gormes/architecture_plan/phase-5-final-purge.md
-- Unblocks: Responses API store + run event stream, Gateway proxy mode forwarding contract, Dashboard API client contract
-- Why now: Unblocks Responses API store + run event stream, Gateway proxy mode forwarding contract, Dashboard API client contract.
-
-## 9. Tool registry inventory + schema parity harness
-
-- Phase: 5 / 5.A
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Operation and tool descriptor parity before handler ports
-- Trust class: operator, gateway, child-agent, system
-- Ready when: Upstream tool descriptor inventory can be captured without porting handlers in the same slice.
-- Not ready when: Handler implementation starts before descriptor parity fixtures exist.
-- Degraded mode: Doctor reports disabled tools, missing dependencies, schema drift, and unavailable provider-specific paths.
-- Fixture: `internal/tools upstream schema parity manifest fixtures`
-- Write scope: `internal/tools/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -count=1`
-- Done signal: Tool descriptor parity fixtures capture names, schemas, trust classes, dependencies, and degraded status before handler ports.
-- Acceptance: Upstream tool names, toolsets, required env vars, schemas, result envelopes, trust classes, and degraded status are captured in fixtures., No handler port can mark complete until its descriptor parity row exists., Doctor can report missing dependencies or disabled provider-specific paths.
-- Source refs: docs/content/upstream-hermes/reference/tools-reference.md, docs/content/building-gormes/architecture_plan/phase-5-final-purge.md
-- Unblocks: Pure core tools first, Stateful tool migration queue, CLI command registry parity + active-turn busy policy
-- Why now: Unblocks Pure core tools first, Stateful tool migration queue, CLI command registry parity + active-turn busy policy.
 
 <!-- PROGRESS:END -->

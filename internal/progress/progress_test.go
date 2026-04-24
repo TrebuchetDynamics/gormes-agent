@@ -188,14 +188,16 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		t.Fatalf("Phase 2.E.0 = %q, want complete", got)
 	}
 	runtimeNext := p.Phases["2"].Subphases["2.E.1"]
-	if got := runtimeNext.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.E.1 = %q, want complete", got)
+	if got := runtimeNext.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.E.1 = %q, want in_progress", got)
 	}
 	runtimeNextItems := itemStatusByName(runtimeNext.Items)
 	for name, want := range map[string]Status{
 		"Runner-enforced tool allowlists + blocked-tool policy": StatusComplete,
 		"Tool-call audit in typed child results":                StatusComplete,
 		"Real child Hermes stream loop":                         StatusComplete,
+		"GBrain minion-orchestrator routing policy":             StatusPlanned,
+		"Durable subagent/job ledger":                           StatusPlanned,
 	} {
 		if got := runtimeNextItems[name]; got != want {
 			t.Errorf("Phase 2.E.1 item %q = %q, want %q", name, got, want)
@@ -271,8 +273,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if e1.Priority != "P0" {
 		t.Fatalf("Phase 2.E.1 priority = %q, want P0", e1.Priority)
 	}
-	if got := e1.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.E.1 = %q, want complete", got)
+	if got := e1.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.E.1 = %q, want in_progress", got)
 	}
 	e1Items := itemsByName(e1.Items)
 	policy := e1Items["Runner-enforced tool allowlists + blocked-tool policy"]
@@ -295,6 +297,23 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	if !strings.Contains(child.Note, "HermesRunner") {
 		t.Fatalf("Phase 2.E.1 child runner note = %q, want HermesRunner implementation detail", child.Note)
+	}
+	minionPolicy := e1Items["GBrain minion-orchestrator routing policy"]
+	if minionPolicy.Status != StatusPlanned {
+		t.Fatalf("Phase 2.E.1 minion policy status = %q, want planned", minionPolicy.Status)
+	}
+	if minionPolicy.ContractStatus != ContractStatusFixtureReady || minionPolicy.SliceSize != SliceSizeSmall || minionPolicy.ExecutionOwner != ExecutionOwnerOrchestrator {
+		t.Fatalf("Phase 2.E.1 minion policy metadata = status %q size %q owner %q, want fixture_ready/small/orchestrator", minionPolicy.ContractStatus, minionPolicy.SliceSize, minionPolicy.ExecutionOwner)
+	}
+	if !containsString(minionPolicy.SourceRefs, "../gbrain/skills/minion-orchestrator/SKILL.md") || !containsString(minionPolicy.Unblocks, "Durable subagent/job ledger") {
+		t.Fatalf("Phase 2.E.1 minion policy refs/unblocks = refs %v unblocks %v, want GBrain skill ref and durable ledger unblock", minionPolicy.SourceRefs, minionPolicy.Unblocks)
+	}
+	durableLedger := e1Items["Durable subagent/job ledger"]
+	if durableLedger.Status != StatusPlanned {
+		t.Fatalf("Phase 2.E.1 durable ledger status = %q, want planned", durableLedger.Status)
+	}
+	if durableLedger.ContractStatus != ContractStatusDraft || !containsString(durableLedger.BlockedBy, "GBrain minion-orchestrator routing policy") {
+		t.Fatalf("Phase 2.E.1 durable ledger metadata = contract_status %q blocked_by %v, want draft blocked by minion policy", durableLedger.ContractStatus, durableLedger.BlockedBy)
 	}
 
 	whatsApp := p.Phases["2"].Subphases["2.B.4"]
@@ -361,8 +380,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.B.5 = %q, want complete", got)
+	if got := routing.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.B.5 = %q, want in_progress", got)
 	}
 	routingItems := itemsByName(routing.Items)
 	sessionStore := routingItems["Gateway session store + SessionSource parity"]
@@ -383,6 +402,20 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	streamFanout := routingItems["Gateway stream consumer for agent-event fan-out"]
 	if streamFanout.Status != StatusComplete {
 		t.Fatalf("Phase 2.B.5 stream fanout status = %q, want complete", streamFanout.Status)
+	}
+	bluePrompt := routingItems["BlueBubbles iMessage session-context prompt guidance"]
+	if bluePrompt.Status != StatusPlanned {
+		t.Fatalf("Phase 2.B.5 BlueBubbles prompt guidance status = %q, want planned", bluePrompt.Status)
+	}
+	if bluePrompt.ContractStatus != ContractStatusFixtureReady || !containsString(bluePrompt.BlockedBy, "BlueBubbles iMessage bubble formatting parity") {
+		t.Fatalf("Phase 2.B.5 BlueBubbles prompt guidance metadata = contract_status %q blocked_by %v, want fixture_ready blocked by formatter", bluePrompt.ContractStatus, bluePrompt.BlockedBy)
+	}
+	nonEditableFallback := routingItems["Non-editable gateway progress/commentary send fallback"]
+	if nonEditableFallback.Status != StatusPlanned {
+		t.Fatalf("Phase 2.B.5 non-editable fallback status = %q, want planned", nonEditableFallback.Status)
+	}
+	if nonEditableFallback.ContractStatus != ContractStatusFixtureReady || !containsString(nonEditableFallback.Unblocks, "BlueBubbles iMessage session-context prompt guidance") {
+		t.Fatalf("Phase 2.B.5 non-editable fallback metadata = contract_status %q unblocks %v, want fixture_ready unblocking BlueBubbles prompt guidance", nonEditableFallback.ContractStatus, nonEditableFallback.Unblocks)
 	}
 
 	hooks := p.Phases["2"].Subphases["2.F.1"]
@@ -540,6 +573,13 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	if !strings.Contains(blueBubblesHA.Note, "internal/channels/bluebubbles") || !strings.Contains(blueBubblesHA.Note, "internal/channels/homeassistant") {
 		t.Fatalf("Phase 2.B.10 BlueBubbles + HomeAssistant adapters note = %q, want BlueBubbles/HomeAssistant contract detail", blueBubblesHA.Note)
+	}
+	blueBubblesParity := longTailItems["BlueBubbles iMessage bubble formatting parity"]
+	if blueBubblesParity.Status != StatusPlanned {
+		t.Fatalf("Phase 2.B.10 BlueBubbles iMessage parity status = %q, want planned", blueBubblesParity.Status)
+	}
+	if blueBubblesParity.ContractStatus != ContractStatusFixtureReady || !containsString(blueBubblesParity.Unblocks, "BlueBubbles iMessage session-context prompt guidance") {
+		t.Fatalf("Phase 2.B.10 BlueBubbles iMessage parity metadata = contract_status %q unblocks %v, want fixture_ready unblocking prompt guidance", blueBubblesParity.ContractStatus, blueBubblesParity.Unblocks)
 	}
 	feishu := longTailItems["Feishu shared-chassis bot seam"]
 	if feishu.Status != StatusComplete {

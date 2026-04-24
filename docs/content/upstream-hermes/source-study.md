@@ -186,6 +186,15 @@ Good mechanics to keep:
 - cached session runtime only when the effective configuration signature
   matches.
 
+Latest sync delta (2026-04-24): upstream commit `f731c2c2` tightened
+BlueBubbles/iMessage behavior. `gateway/platforms/bluebubbles.py` now treats
+BlueBubbles as non-editable, splits blank-line paragraphs into separate
+iMessage bubbles, and removes pagination suffixes from long-message chunks.
+`gateway/session.py` also adds a platform note that asks the model for short,
+conversational, blank-line-separated replies. Gormes should keep this as
+capability-based gateway behavior plus a BlueBubbles formatter fixture, not a
+special-case branch in the kernel.
+
 Risk to avoid: the running-agent command path is a long imperative chain inside
 one very large file. Gormes should put active-turn policy in the command
 registry itself, then let adapters and `gateway.Manager` consume that policy.

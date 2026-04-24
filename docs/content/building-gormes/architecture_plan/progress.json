@@ -332,6 +332,53 @@
               "note": "TDD landed: each inbound submit now injects a stable Current Session Context system block ahead of recall/user messages, covering source metadata plus deterministic delivery-target exposure."
             },
             {
+              "name": "BlueBubbles iMessage session-context prompt guidance",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Gateway session-context prompts tell the agent when the origin is BlueBubbles/iMessage and ask for short, blank-line-separated message bubbles",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Until this lands, BlueBubbles still sends replies through the first-pass adapter but the model is not explicitly guided toward iMessage-length bubble formatting.",
+              "fixture": "internal/gateway/session_context_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/session.py@f731c2c2",
+                "../hermes-agent/tests/gateway/test_session.py@f731c2c2",
+                "internal/gateway/session_context.go",
+                "internal/channels/bluebubbles/bot.go"
+              ],
+              "blocked_by": [
+                "BlueBubbles iMessage bubble formatting parity"
+              ],
+              "ready_when": [
+                "BlueBubbles outbound formatting splits blank-line paragraphs into separate iMessage sends, so prompt guidance has a matching delivery contract."
+              ],
+              "not_ready_when": [
+                "The slice changes general session-context ordering or adds provider/runtime behavior instead of only adding the platform-specific BlueBubbles note."
+              ],
+              "acceptance": [
+                "BuildSessionContextPrompt includes an iMessage/BlueBubbles platform note for source platform `bluebubbles`.",
+                "The note asks for short conversational replies and blank-line-separated blocks that map to separate bubbles.",
+                "Non-BlueBubbles session-context prompts remain byte-for-byte stable except for intentional test fixture updates."
+              ],
+              "note": "TDD: mirror upstream f731c2c2 `gateway/session.py` prompt guidance in Gormes' `internal/gateway/session_context.go`, but keep it blocked until the BlueBubbles send formatter can actually honor blank-line bubble boundaries.",
+              "write_scope": [
+                "internal/gateway/session_context.go",
+                "internal/gateway/session_context_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run SessionContext -count=1"
+              ],
+              "done_signal": [
+                "Session-context tests prove BlueBubbles origins receive iMessage bubble guidance while other platform prompts stay stable."
+              ]
+            },
+            {
               "name": "DeliveryRouter + --deliver target parsing",
               "status": "complete",
               "note": "TDD landed: --deliver parsing now covers origin/local/platform/platform:chat/platform:chat:thread forms with explicit invalid-shape tests before future adapter routing binds them to live channels."
@@ -340,6 +387,55 @@
               "name": "Gateway stream consumer for agent-event fan-out",
               "status": "complete",
               "note": "TDD landed: a typed GatewayStreamConsumer contract now replays one render frame to multiple delivery targets in deterministic order and preserves later deliveries when one sink fails."
+            },
+            {
+              "name": "Non-editable gateway progress/commentary send fallback",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Channels without placeholder/edit capabilities receive progress-safe interim or final assistant messages through the plain Send path without EditMessage calls",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Non-editable channels continue to receive final responses, but quick commentary/interim updates may be suppressed until the send-fallback fixture proves no edit path is attempted.",
+              "fixture": "internal/gateway/manager_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/gateway/test_run_progress_topics.py@f731c2c2",
+                "internal/gateway/manager.go",
+                "internal/gateway/channel.go",
+                "internal/gateway/fake_test.go"
+              ],
+              "ready_when": [
+                "A fake channel can implement only gateway.Channel while the manager render path is exercised from an originating inbound event."
+              ],
+              "not_ready_when": [
+                "The slice adds platform-specific BlueBubbles logic to gateway.Manager instead of testing capability-based behavior shared by all non-editable channels."
+              ],
+              "unblocks": [
+                "BlueBubbles iMessage session-context prompt guidance"
+              ],
+              "acceptance": [
+                "A Channel-only fake receives terminal assistant output through Send with the original chat target.",
+                "The same fixture proves no SendPlaceholder or EditMessage method is required for non-editable channels.",
+                "Editable channel streaming/coalescing tests keep their existing placeholder/edit behavior."
+              ],
+              "note": "TDD: port the upstream f731c2c2 BlueBubbles quick-reply guard as a Go capability fixture: non-editable adapters should never be forced through the edit-message coalescer just to surface safe interim/commentary text.",
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_test.go",
+                "internal/gateway/fake_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run NonEditable -count=1",
+                "go test ./internal/gateway -run Manager_Outbound -count=1"
+              ],
+              "done_signal": [
+                "Gateway manager tests cover both editable streaming and Channel-only send fallback without platform-specific branches."
+              ]
             }
           ]
         },
@@ -435,6 +531,53 @@
               "name": "BlueBubbles + HomeAssistant adapters",
               "status": "complete",
               "note": "TDD landed: internal/channels/bluebubbles and internal/channels/homeassistant now freeze webhook-auth, cached home-channel delivery, filtered state-change formatting, cooldown, and persistent-notification contracts before any SDK wiring."
+            },
+            {
+              "name": "BlueBubbles iMessage bubble formatting parity",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "BlueBubbles outbound iMessage sends are non-editable, markdown-stripped, paragraph-split bubbles without pagination suffixes",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "BlueBubbles remains a usable first-pass adapter, but long replies may still arrive as one stripped text send until paragraph splitting and suffix-free chunking are fixture-locked.",
+              "fixture": "internal/channels/bluebubbles/bot_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/bluebubbles.py@f731c2c2",
+                "../hermes-agent/tests/gateway/test_bluebubbles.py@f731c2c2",
+                "internal/channels/bluebubbles/bot.go",
+                "internal/gateway/channel.go"
+              ],
+              "ready_when": [
+                "The first-pass BlueBubbles adapter already owns Send, markdown stripping, cached GUID resolution, and home-channel fallback in internal/channels/bluebubbles."
+              ],
+              "not_ready_when": [
+                "The slice attempts to add live BlueBubbles HTTP/webhook registration, attachment download, reactions, typing indicators, or edit-message support."
+              ],
+              "unblocks": [
+                "BlueBubbles iMessage session-context prompt guidance"
+              ],
+              "acceptance": [
+                "Send splits blank-line-separated paragraphs into separate SendText calls while preserving existing chat GUID resolution and home-channel fallback.",
+                "Long paragraph chunks omit `(n/m)` pagination suffixes and concatenate back to the stripped original text.",
+                "Bot does not implement gateway.MessageEditor or gateway.PlaceholderCapable, preserving non-editable iMessage semantics."
+              ],
+              "note": "Upstream Hermes f731c2c2 changed BlueBubbles to `SUPPORTS_MESSAGE_EDITING = False`, split blank-line paragraphs into separate iMessage bubbles, and removed pagination suffixes from chunked sends. Gormes' shipped first-pass adapter has the right package boundary but still sends one stripped body, so this is a narrow parity slice.",
+              "write_scope": [
+                "internal/channels/bluebubbles/bot.go",
+                "internal/channels/bluebubbles/bot_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/bluebubbles -count=1"
+              ],
+              "done_signal": [
+                "BlueBubbles adapter tests prove paragraph-to-bubble sends, suffix-free chunking, and no edit/placeholder capability."
+              ]
             },
             {
               "name": "Feishu shared-chassis bot seam",
@@ -603,6 +746,108 @@
               "name": "Real child Hermes stream loop",
               "status": "complete",
               "note": "TDD landed: HermesRunner now executes a real child OpenStream loop with token/output streaming, multi-iteration tool_calls continuation through executeChildTool, explicit stream-open error handling, and registry wiring that opts delegate_task into the real runner whenever a live Hermes client is available."
+            },
+            {
+              "name": "GBrain minion-orchestrator routing policy",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Durable-job routing separates deterministic restart-survivable work from live LLM subagents, following GBrain's unified minion-orchestrator skill while keeping Gormes Go-native subagent APIs",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Until the policy lands, Gormes exposes in-memory subagents plus append-only run logs only; durable minion routing is documented as unavailable in status/doctor surfaces.",
+              "fixture": "internal/subagent/minion_policy_test.go",
+              "source_refs": [
+                "../gbrain/skills/minion-orchestrator/SKILL.md",
+                "../gbrain/skills/conventions/subagent-routing.md",
+                "docs/content/upstream-gbrain/architecture.md",
+                "internal/subagent/manager.go",
+                "internal/cron/executor.go"
+              ],
+              "ready_when": [
+                "Phase 2.E.0 and 2.E.1 subagent runtime slices are complete and append-only run logs exist for child executions."
+              ],
+              "not_ready_when": [
+                "The slice ports GBrain's Postgres/PGLite queue, shell-job executor, pause/resume runtime, or supervisor instead of only fixture-locking routing decisions and trust boundaries."
+              ],
+              "unblocks": [
+                "Durable subagent/job ledger"
+              ],
+              "acceptance": [
+                "Policy fixtures classify deterministic shell/cron-like work separately from judgment-heavy LLM subagents.",
+                "Child-agent trust cannot submit privileged deterministic shell jobs through the durable-job route.",
+                "Existing delegate_task and subagent manager APIs remain Go-native and are not renamed to Minions."
+              ],
+              "note": "GBrain v0.20.4 merged the older `gbrain-jobs` intent into the unified `minion-orchestrator` skill. Gormes should borrow the routing policy first: deterministic durable work and LLM subagents share an operator-visible control plane, but shell-like work stays privileged and no Postgres queue is imported in this slice.",
+              "write_scope": [
+                "internal/subagent/",
+                "internal/cron/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/subagent ./internal/cron ./internal/config -count=1"
+              ],
+              "done_signal": [
+                "Routing policy tests prove which work enters durable orchestration, which trust classes may submit it, and that existing delegate_task names remain stable."
+              ]
+            },
+            {
+              "name": "Durable subagent/job ledger",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "SQLite-first job ledger records restartable subagent and deterministic work state with claim, progress, result, error, parent-child, and cancellation fields",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Doctor and status report append-only run logs without restart rehydration until the durable ledger can claim and resume work.",
+              "fixture": "internal/subagent/durable_ledger_test.go",
+              "source_refs": [
+                "../gbrain/src/core/minions/queue.ts",
+                "../gbrain/src/core/minions/handlers/subagent.ts",
+                "../gbrain/skills/minion-orchestrator/SKILL.md",
+                "docs/content/upstream-gbrain/gormes-takeaways.md",
+                "internal/subagent/runlog.go",
+                "internal/cron/executor.go"
+              ],
+              "blocked_by": [
+                "GBrain minion-orchestrator routing policy"
+              ],
+              "ready_when": [
+                "Routing policy fixtures define which work may enter durable orchestration and which callers are allowed to submit or observe each lane."
+              ],
+              "not_ready_when": [
+                "The slice tries to implement every GBrain Minions status, Postgres/PGLite compatibility, supervisor process management, or arbitrary shell-job submission."
+              ],
+              "acceptance": [
+                "A SQLite-backed ledger records job id, job kind, status, parent id, depth, progress JSON, result JSON, error text, timestamps, and cancellation intent.",
+                "Subagent and cron/deterministic job fixtures use the same ledger contract without changing existing public delegate_task behavior.",
+                "Status or doctor output distinguishes append-only run logs from durable restart/replay support."
+              ],
+              "note": "Keep this blocked behind the policy row. The first implementation should be the smallest SQLite-first ledger needed for cron/subagent replay; claim/renew/complete/fail/cancel and parent child_done events matter before pause/resume, attachments, supervisor, or full GBrain queue parity.",
+              "write_scope": [
+                "internal/subagent/",
+                "internal/cron/",
+                "internal/audit/",
+                "internal/doctor/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/subagent ./internal/cron ./internal/audit ./internal/doctor -count=1"
+              ],
+              "done_signal": [
+                "Durable ledger tests prove minimal restartable job state exists and doctor/status surfaces expose whether replay is available."
+              ]
             }
           ]
         },

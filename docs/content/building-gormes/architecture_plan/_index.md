@@ -37,12 +37,12 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 27/71 subphases shipped · 11 in progress · 33 planned
+**Overall:** 25/71 subphases shipped · 13 in progress · 33 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | 🔨 | 2/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 13/23 subphases |
+| Phase 2 — The Gateway | 🔨 | 11/23 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
@@ -109,12 +109,14 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Inbound normalization + command passthrough
 - [ ] Pairing, reconnect, and send contract
 
-### 2.B.5 — Session Context + Delivery Routing ✅
+### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
 - [x] SessionContext prompt injection
+- [ ] BlueBubbles iMessage session-context prompt guidance
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
+- [ ] Non-editable gateway progress/commentary send fallback
 
 ### 2.B.6 — Signal Adapter 🔨
 
@@ -143,6 +145,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 2.B.10 — Regional + Device Adapter Flood 🔨
 
 - [x] BlueBubbles + HomeAssistant adapters
+- [ ] BlueBubbles iMessage bubble formatting parity
 - [x] Feishu shared-chassis bot seam
 - [x] WeCom + WeiXin shared-chassis bot seam
 - [x] DingTalk shared-chassis bot seam
@@ -183,11 +186,13 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Typed result envelope
 - [x] Append-only run log
 
-### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution ✅
+### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution 🔨
 
 - [x] Runner-enforced tool allowlists + blocked-tool policy
 - [x] Tool-call audit in typed child results
 - [x] Real child Hermes stream loop
+- [ ] GBrain minion-orchestrator routing policy
+- [ ] Durable subagent/job ledger
 
 ### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ⏳
 
