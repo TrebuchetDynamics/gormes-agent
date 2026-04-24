@@ -20,15 +20,15 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 27/67 subphases shipped · 12 in progress · 28 planned
+**Overall:** 27/71 subphases shipped · 12 in progress · 32 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | 🔨 | 2/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 13/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 13/23 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
-| Phase 5 — The Final Purge | 🔨 | 1/17 subphases |
+| Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 
 ---
@@ -134,7 +134,13 @@ weight: 10
 - [ ] WeCom + WeiXin transport/bootstrap layer
 - [x] DingTalk transport/bootstrap layer
 - [ ] DingTalk real SDK binding
+- [ ] DingTalk AI Cards streaming + emoji reactions + media
 - [ ] QQ Bot transport/bootstrap layer
+
+### 2.B.11 — Discord Forum Channels ⏳
+
+- [ ] Discord forum channel ingress + thread lifecycle
+- [ ] Discord forum media + polish parity
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -161,6 +167,10 @@ weight: 10
 - [x] Runner-enforced tool allowlists + blocked-tool policy
 - [x] Tool-call audit in typed child results
 - [x] Real child Hermes stream loop
+
+### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ⏳
+
+- [ ] Interrupt propagation to concurrent-tool workers
 
 ### 2.F.1 — Slash Command Registry + Gateway Dispatch ✅
 
@@ -195,6 +205,12 @@ weight: 10
 - [ ] Channel directory refresh + stale-target invalidation
 - [ ] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
+
+### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ⏳
+
+- [ ] Steer slash command registry + queue fallback
+- [ ] Mid-run steer injection between tool calls
+- [ ] Gateway-handled slash commands bypass active-session guard
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
@@ -460,6 +476,10 @@ weight: 10
 - [ ] OpenAI-compatible chat-completions API server
 - [ ] Responses API store + run event stream
 - [ ] API server health + cron admin endpoints
+
+### 5.R — Code Execution Mode Policy ⏳
+
+- [ ] Execute_code project/strict execution modes + defaults
 
 ## Phase 6 — The Learning Loop (Soul) ⏳
 

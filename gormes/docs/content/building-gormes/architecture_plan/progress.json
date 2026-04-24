@@ -343,9 +343,30 @@
               "note": "TDD: bind the frozen Stream Mode/runtime contract to the real DingTalk SDK, credential checks, receive loop, and send lifecycle without widening the already-tested session-webhook retry seam."
             },
             {
+              "name": "DingTalk AI Cards streaming + emoji reactions + media",
+              "status": "planned",
+              "note": "TDD: port upstream PR #4459913f as three dependency-ordered slices on top of the existing DingTalk bot seam and Stream Mode transport: (a) AI Cards streaming-update contract with coalesced token pushes and terminal-frame semantics, (b) emoji reaction send/receive parity, and (c) media (image/file) attachment routing. Freeze each seam with fixture-backed tests and a DingTalk-shaped failure fallback before binding any of the three to the real SDK in `DingTalk real SDK binding`."
+            },
+            {
               "name": "QQ Bot transport/bootstrap layer",
               "status": "planned",
               "note": "TDD: freeze gateway/event receive loops, passive-reply lifecycle, and platform-specific send failure handling before binding a real QQ transport."
+            }
+          ]
+        },
+        "2.B.11": {
+          "name": "Discord Forum Channels",
+          "priority": "P3",
+          "items": [
+            {
+              "name": "Discord forum channel ingress + thread lifecycle",
+              "status": "planned",
+              "note": "TDD: port upstream PR #e5333e79 (forum channel support) as an additive seam on top of the already-shipped 2.B.2 Discord adapter. Freeze forum-channel detection, canonical thread IDs derived from forum posts, and open/close/archive lifecycle normalization into gateway events with fixture-backed tests before widening outbound routing. Do not change the baseline 2.B.2 Discord contract or shared chassis tests."
+            },
+            {
+              "name": "Discord forum media + polish parity",
+              "status": "planned",
+              "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green — attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress."
             }
           ]
         },
@@ -428,6 +449,17 @@
               "name": "Real child Hermes stream loop",
               "status": "complete",
               "note": "TDD landed: HermesRunner now executes a real child OpenStream loop with token/output streaming, multi-iteration tool_calls continuation through executeChildTool, explicit stream-open error handling, and registry wiring that opts delegate_task into the real runner whenever a live Hermes client is available."
+            }
+          ]
+        },
+        "2.E.2": {
+          "name": "OS-AI Spine: Concurrent-Tool Cancellation",
+          "priority": "P1",
+          "items": [
+            {
+              "name": "Interrupt propagation to concurrent-tool workers",
+              "status": "planned",
+              "note": "TDD: port upstream PR #11907 (interrupt propagation to concurrent-tool workers) as a kernel-side cancellation contract that covers parallel tool_calls fan-out, sidecar sandbox jobs, and delegated subagent children. Freeze the seam with fixture-backed concurrent-tool tests that prove one interrupt cancels every in-flight worker and returns a single coherent cancel envelope before parallel-tool execution or 2.F.5 mid-run steering land on top."
             }
           ]
         },
@@ -562,6 +594,27 @@
               "name": "Mirror + sticker cache surfaces",
               "status": "planned",
               "note": "TDD: prove cache key and mirror-write contracts before adapter-specific caches land."
+            }
+          ]
+        },
+        "2.F.5": {
+          "name": "Gateway Mid-Run Steering + Active-Turn Policy",
+          "priority": "P2",
+          "items": [
+            {
+              "name": "Steer slash command registry + queue fallback",
+              "status": "planned",
+              "note": "TDD: port upstream PR #12116 `/steer` ingress (see `gateway/run.py` steer handler) as a CommandDef on the shared registry with queue-fallback when no agent is running, explicit missing-argument usage text, and deterministic preview truncation. Keep the mid-run inject hook unimplemented until the next 2.F.5 slice lands."
+            },
+            {
+              "name": "Mid-run steer injection between tool calls",
+              "status": "planned",
+              "note": "TDD: expose a running-agent steer hook on the kernel so `/steer <prompt>` lands BETWEEN tool calls (not at turn boundary) via a single deterministic callback; prove ordering against concurrent-tool fan-out and the 2.E.2 cancellation contract. Must fall back to the 2.F.5 queue slice when the kernel has no live tool-call iteration in flight, and must refuse to duplicate prompts already routed through that fallback."
+            },
+            {
+              "name": "Gateway-handled slash commands bypass active-session guard",
+              "status": "planned",
+              "note": "TDD: mirror upstream PRs #12334 and #511ed4da — registry-resolved gateway slash commands must execute even while an agent is running for that session, without interrupting the running turn and without queuing discardable command text. Keep non-gateway/unknown commands behind the existing busy-state response so only the safe registry surface bypasses the guard; cover both allowed and denied paths with fixture tests before shipping."
             }
           ]
         },
@@ -1444,6 +1497,16 @@
               "name": "API server health + cron admin endpoints",
               "status": "planned",
               "note": "TDD: port /health/detailed plus /api/jobs list/create/update/delete/pause/resume/trigger after the Phase 5.N cronjob store/API parity slices land, reusing the same auth and OpenAI-style error envelope instead of creating a second cron control plane."
+            }
+          ]
+        },
+        "5.R": {
+          "name": "Code Execution Mode Policy",
+          "items": [
+            {
+              "name": "Execute_code project/strict execution modes + defaults",
+              "status": "planned",
+              "note": "TDD: port upstream PR #11971 — add `project` (default) and `strict` execution modes to `execute_code` that narrow CWD/filesystem scope, tighten network-egress rules per mode, and preserve the Phase 5.K sandboxed-exec blocked-result envelope. Land mode config parsing first with explicit off/project/strict cases, then wire mode selection into the existing sandbox guard without widening the 5.K filesystem/network blocking contract. Keep PR #11956's script-own-temp-dir behavior documented in the mode contract before any runtime default change."
             }
           ]
         }
