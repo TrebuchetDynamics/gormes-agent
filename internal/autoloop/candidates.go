@@ -320,7 +320,7 @@ func candidateBucket(candidate Candidate) int {
 		return candidateBucketP0
 	case candidate.Status == "in_progress":
 		return candidateBucketInProgress
-	case candidate.ContractStatus == "fixture_ready" || candidate.Status == "fixture_ready" || candidate.Fixture != "":
+	case candidate.ContractStatus == "fixture_ready":
 		return candidateBucketFixtureReady
 	case len(candidate.Unblocks) > 0:
 		return candidateBucketUnblocks

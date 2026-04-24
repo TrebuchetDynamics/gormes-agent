@@ -174,8 +174,8 @@ func TestNormalizeCandidatesUsesExecutionBuckets(t *testing.T) {
 				"subphases": {
 					"3.E.6": {
 						"items": [
-							{"item_name": "draft candidate", "status": "planned", "contract_status": "draft"},
-							{"item_name": "fixture candidate", "status": "planned", "fixture": "ready.json"},
+							{"item_name": "draft candidate", "status": "planned", "contract_status": "draft", "fixture": "draft.json"},
+							{"item_name": "fixture candidate", "status": "planned", "contract_status": "fixture_ready", "fixture": "ready.json"},
 							{"item_name": "active candidate", "status": "in_progress"},
 							{"item_name": "p0 candidate", "status": "planned", "priority": "P0"},
 							{"item_name": "unblocking candidate", "status": "planned", "unblocks": ["task 4"]}
@@ -198,6 +198,9 @@ func TestNormalizeCandidatesUsesExecutionBuckets(t *testing.T) {
 	wantNames := []string{"p0 candidate", "active candidate", "fixture candidate", "unblocking candidate", "draft candidate"}
 	if !reflect.DeepEqual(gotNames, wantNames) {
 		t.Fatalf("candidate order = %#v, want %#v", gotNames, wantNames)
+	}
+	if got[4].SelectionReason() != "draft contract" {
+		t.Fatalf("draft candidate SelectionReason() = %q, want %q", got[4].SelectionReason(), "draft contract")
 	}
 }
 
