@@ -417,6 +417,14 @@ func BootPath() string {
 	return filepath.Join(xdgDataHome(), "gormes", "BOOT.md")
 }
 
+// PairingPath returns the XDG-backed location of pairing.json — the on-disk
+// read model for per-platform paired/unpaired state used by gateway adapters
+// before any approval UX. Honors XDG_DATA_HOME; falls back to
+// ~/.local/share/gormes/pairing.json.
+func PairingPath() string {
+	return filepath.Join(xdgDataHome(), "gormes", "pairing.json")
+}
+
 // SkillsUsageLogPath returns the append-only JSONL path for skill usage.
 // Explicit override wins; otherwise it lives under the skills root.
 func (c Config) SkillsUsageLogPath() string {

@@ -541,11 +541,14 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 
 	lifecycleStore := lifecycleItems["Pairing read-model schema + atomic persistence"]
-	if lifecycleStore.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.3 pairing read model status = %q, want planned", lifecycleStore.Status)
+	if lifecycleStore.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.3 pairing read model status = %q, want complete", lifecycleStore.Status)
 	}
 	if !strings.Contains(lifecycleStore.Note, "gateway/pairing.py") || !strings.Contains(lifecycleStore.Note, "pairing.json") {
 		t.Fatalf("Phase 2.F.3 pairing read model note = %q, want pairing-donor/pairing.json detail", lifecycleStore.Note)
+	}
+	if !strings.Contains(lifecycleStore.Note, "internal/gateway/pairing.go") || !strings.Contains(lifecycleStore.Note, "PairingStore") {
+		t.Fatalf("Phase 2.F.3 pairing read model note = %q, want Go implementation detail", lifecycleStore.Note)
 	}
 	approval := lifecycleItems["Pairing approval + rate-limit semantics"]
 	if approval.Status != StatusPlanned {

@@ -192,7 +192,7 @@ weight: 10
 - [x] Adapter startup failure cleanup contract
 - [ ] Active-turn follow-up queue + late-arrival drain policy
 - [ ] Drain-timeout resume_pending recovery
-- [ ] Pairing read-model schema + atomic persistence
+- [x] Pairing read-model schema + atomic persistence
 - [ ] Pairing approval + rate-limit semantics
 - [x] `gormes gateway status` read-only command
 - [ ] Runtime status JSON + PID/process validation

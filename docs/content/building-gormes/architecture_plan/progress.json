@@ -542,8 +542,8 @@
             },
             {
               "name": "Pairing read-model schema + atomic persistence",
-              "status": "planned",
-              "note": "TDD: port the minimal read model from upstream `gateway/pairing.py` into an XDG-backed `pairing.json` with atomic writes, deterministic ordering, and per-platform paired/unpaired state before any approval UX."
+              "status": "complete",
+              "note": "TDD landed: `internal/gateway/pairing.go` introduces `PairingStore` — the minimal Go port of upstream `gateway/pairing.py`'s paired-user read model — with `MarkPaired`/`MarkUnpaired`/`IsPaired`/`Snapshot`, XDG-backed `pairing.json` (resolved by `config.PairingPath` under `$XDG_DATA_HOME/gormes/pairing.json`), temp-file+rename atomic writes at mode 0600, and a `(platform, user_id)`-sorted snapshot for deterministic rendering. Pending codes, rate limits, and failed-attempt lockouts stay deliberately out of this slice — they belong to the sibling `Pairing approval + rate-limit semantics` item below."
             },
             {
               "name": "Pairing approval + rate-limit semantics",

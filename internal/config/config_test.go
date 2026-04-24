@@ -284,6 +284,26 @@ func TestBootPath_HonorsXDG(t *testing.T) {
 	}
 }
 
+func TestPairingPath_HonorsXDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-pairing")
+	got := PairingPath()
+	want := "/tmp/gormes-test-pairing/gormes/pairing.json"
+	if got != want {
+		t.Errorf("PairingPath() = %q, want %q", got, want)
+	}
+}
+
+func TestPairingPath_DefaultsToHomeLocalShare(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	got := PairingPath()
+	want := filepath.Join(home, ".local", "share", "gormes", "pairing.json")
+	if got != want {
+		t.Errorf("PairingPath() default = %q, want %q", got, want)
+	}
+}
+
 func TestLoad_SkillsRootEnvOverride(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("GORMES_SKILLS_ROOT", "/tmp/custom-skills")
