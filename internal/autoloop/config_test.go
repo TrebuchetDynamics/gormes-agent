@@ -69,3 +69,32 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		t.Fatalf("MaxAgents = %d, want %d", cfg.MaxAgents, 7)
 	}
 }
+
+func TestConfigFromEnvRejectsEmptyRepoRoot(t *testing.T) {
+	if _, err := ConfigFromEnv("", map[string]string{}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvRejectsInvalidMaxAgents(t *testing.T) {
+	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_AGENTS": "many"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvRejectsZeroMaxAgents(t *testing.T) {
+	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_AGENTS": "0"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvReadsProgressJSONOverride(t *testing.T) {
+	cfg, err := ConfigFromEnv("repo", map[string]string{"PROGRESS_JSON": "/tmp/progress.json"})
+	if err != nil {
+		t.Fatalf("ConfigFromEnv() error = %v", err)
+	}
+
+	if cfg.ProgressJSON != "/tmp/progress.json" {
+		t.Fatalf("ProgressJSON = %q, want %q", cfg.ProgressJSON, "/tmp/progress.json")
+	}
+}

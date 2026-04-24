@@ -3,6 +3,9 @@ package autoloop
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -23,13 +26,15 @@ type Runner interface {
 	Run(context.Context, Command) Result
 }
 
+var ErrUnexpectedCommand = errors.New("unexpected fake runner command")
+
 type ExecRunner struct{}
 
 func (ExecRunner) Run(ctx context.Context, command Command) Result {
 	cmd := exec.CommandContext(ctx, command.Name, command.Args...)
 	cmd.Dir = command.Dir
-	if command.Env != nil {
-		cmd.Env = command.Env
+	if len(command.Env) > 0 {
+		cmd.Env = append(os.Environ(), command.Env...)
 	}
 
 	var stdout bytes.Buffer
@@ -54,7 +59,7 @@ type FakeRunner struct {
 func (runner *FakeRunner) Run(_ context.Context, command Command) Result {
 	runner.Commands = append(runner.Commands, command)
 	if len(runner.Results) == 0 {
-		return Result{}
+		return Result{Err: fmt.Errorf("%w: %s", ErrUnexpectedCommand, command.Name)}
 	}
 
 	result := runner.Results[0]
