@@ -36,6 +36,23 @@ setup_integration_root() {
     git -C "$source_git_root" worktree add "$INTEGRATION_WORKTREE" "$INTEGRATION_BRANCH" >/dev/null
   fi
 
+  # Clear stale .git/index.lock (e.g. from a crashed prior cherry-pick) so
+  # subsequent git operations on the integration worktree don't wedge.
+  if [[ -n "$INTEGRATION_WORKTREE" && -d "$INTEGRATION_WORKTREE" ]]; then
+    local git_dir lock_age_s
+    git_dir="$(git -C "$INTEGRATION_WORKTREE" rev-parse --absolute-git-dir 2>/dev/null || true)"
+    if [[ -n "$git_dir" && -f "$git_dir/index.lock" ]]; then
+      lock_age_s=$(( $(date +%s) - $(stat -c %Y "$git_dir/index.lock" 2>/dev/null || echo 0) ))
+      if (( lock_age_s > 60 )); then
+        echo "setup_integration_root: removing stale $git_dir/index.lock (age=${lock_age_s}s)"
+        rm -f "$git_dir/index.lock"
+        if type log_event >/dev/null 2>&1; then
+          log_event "git_lock_cleaned" null "path=$git_dir/index.lock age=$lock_age_s" "cleaned" || true
+        fi
+      fi
+    fi
+  fi
+
   if [[ -n "$(git -C "$INTEGRATION_WORKTREE" status --short)" ]]; then
     echo "ERROR: integration worktree is dirty: $INTEGRATION_WORKTREE" >&2
     echo "Resolve or remove it before running the forever orchestrator." >&2
