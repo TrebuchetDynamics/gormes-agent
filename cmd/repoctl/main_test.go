@@ -10,8 +10,12 @@ import (
 )
 
 func TestRunRejectsUnknownCommand(t *testing.T) {
-	if err := run([]string{"nope"}); err == nil {
+	err := run([]string{"nope"})
+	if err == nil {
 		t.Fatal("run returned nil for unknown command")
+	}
+	if !strings.Contains(err.Error(), "compat go122") {
+		t.Fatalf("usage does not include compat go122: %v", err)
 	}
 }
 
