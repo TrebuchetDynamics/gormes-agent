@@ -92,6 +92,7 @@ PLANNER_EVERY_N_CYCLES="${PLANNER_EVERY_N_CYCLES:-4}"
 DOC_IMPROVER_EVERY_N_CYCLES="${DOC_IMPROVER_EVERY_N_CYCLES:-6}"
 LANDINGPAGE_EVERY_N_HOURS="${LANDINGPAGE_EVERY_N_HOURS:-24}"
 PLANNER_ROOT="${PLANNER_ROOT:-$REPO_ROOT/.codex/planner}"
+CANDIDATE_LOW_WATERMARK="${CANDIDATE_LOW_WATERMARK:-5}"
 
 GIT_ROOT=""
 REPO_SUBDIR=""
@@ -163,6 +164,9 @@ Env:
   COMPANION_PLANNER_CMD      Override path for planner companion (default: scripts/gormes-architecture-planner-tasks-manager.sh)
   COMPANION_DOC_IMPROVER_CMD Override path for doc-improver companion (default: scripts/documentation-improver.sh)
   COMPANION_LANDINGPAGE_CMD  Override path for landingpage companion (default: scripts/landingpage-improver.sh)
+  CANDIDATE_LOW_WATERMARK    When write_candidates_file yields fewer than this many unfinished
+                             tasks, run_once fires the planner companion synchronously to
+                             refill the pool. Default: 5
 
 Notes:
   - Default run mode loops forever. Use ORCHESTRATOR_ONCE=1 for previous one-shot behavior.
@@ -1063,6 +1067,26 @@ cmd_cleanup() {
   echo "cleanup complete"
 }
 
+maybe_refill_candidates() {
+  local watermark="${CANDIDATE_LOW_WATERMARK:-5}"
+  [[ "$watermark" =~ ^[0-9]+$ ]] || watermark=5
+  local before; before="$(candidate_count)"
+  if (( before >= watermark )); then
+    return 0
+  fi
+  if [[ "${DISABLE_COMPANIONS:-0}" == "1" ]]; then
+    return 0
+  fi
+  echo "Candidate pool low ($before < $watermark); running planner companion synchronously to refill"
+  log_event "candidate_refill_triggered" null "before=$before watermark=$watermark" "triggered"
+  run_companion planner --sync || true
+  # Re-read progress.json (planner may have edited it) and regenerate candidates
+  write_candidates_file
+  local after; after="$(candidate_count)"
+  log_event "candidate_refilled" null "before=$before after=$after" "refilled"
+  echo "Candidate pool refill: $before -> $after"
+}
+
 run_once() {
   validate
 
@@ -1072,6 +1096,7 @@ run_once() {
   preflight_resource_safety
   cleanup_stale_locks
   write_candidates_file
+  maybe_refill_candidates
   enforce_worktree_dir_cap
   log_event "run_started" null "mode=$MODE workers=$MAX_AGENTS" "started"
 
