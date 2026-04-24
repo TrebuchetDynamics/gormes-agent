@@ -166,6 +166,29 @@ func validateExecutionMetadata(phKey, spKey string, index int, it Item) []error 
 		if len(it.ReadyWhen) == 0 {
 			add("contract row missing ready_when")
 		}
+		if len(it.WriteScope) == 0 {
+			add("contract row missing write_scope")
+		}
+		if len(it.TestCommands) == 0 {
+			add("contract row missing test_commands")
+		}
+		if len(it.DoneSignal) == 0 {
+			add("contract row missing done_signal")
+		}
+	}
+	for _, list := range []struct {
+		field  string
+		values []string
+	}{
+		{field: "write_scope", values: it.WriteScope},
+		{field: "test_commands", values: it.TestCommands},
+		{field: "done_signal", values: it.DoneSignal},
+	} {
+		for i, value := range list.values {
+			if strings.TrimSpace(value) == "" {
+				add("%s[%d] is blank", list.field, i)
+			}
+		}
 	}
 	if it.Status == StatusInProgress && it.SliceSize == SliceSizeUmbrella {
 		add("in_progress item cannot have slice_size %q", SliceSizeUmbrella)

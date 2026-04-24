@@ -35,9 +35,9 @@ Every subsystem plan should answer four questions before implementation:
 4. What fixture proves compatibility without a live provider or platform?
 
 For autonomous agents, the canonical progress row must also name the
-`execution_owner`, `slice_size`, `ready_when`, and `not_ready_when` conditions.
-Assignable slices are small/medium/large rows; `umbrella` rows stay inventory
-until split.
+`execution_owner`, `slice_size`, `ready_when`, `not_ready_when`, `write_scope`,
+`test_commands`, and `done_signal` conditions. Assignable slices are
+small/medium/large rows; `umbrella` rows stay inventory until split.
 
 ## Contributor path
 

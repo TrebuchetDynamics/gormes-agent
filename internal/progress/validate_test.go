@@ -127,6 +127,9 @@ func TestValidate_AcceptsContractMetadata(t *testing.T) {
 				ReadyWhen:      []string{"dependency is complete"},
 				NotReadyWhen:   []string{"live credentials are required"},
 				Acceptance:     []string{"fixture passes"},
+				WriteScope:     []string{"internal/gateway/"},
+				TestCommands:   []string{"go test ./internal/gateway -count=1"},
+				DoneSignal:     []string{"fixture passes locally"},
 			}}},
 		}}},
 	}
@@ -186,6 +189,43 @@ func TestValidate_RejectsContractRowMissingExecutionMetadata(t *testing.T) {
 		"contract row missing slice_size",
 		"contract row missing execution_owner",
 		"contract row missing ready_when",
+		"contract row missing write_scope",
+		"contract row missing test_commands",
+		"contract row missing done_signal",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error missing %q:\n%s", want, msg)
+		}
+	}
+}
+
+func TestValidate_RejectsBlankAutonomousHandoffFields(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{
+				Name:           "contract row",
+				Status:         StatusPlanned,
+				Contract:       "contract",
+				ContractStatus: ContractStatusDraft,
+				SliceSize:      SliceSizeSmall,
+				ExecutionOwner: ExecutionOwnerGateway,
+				ReadyWhen:      []string{"ready"},
+				WriteScope:     []string{"internal/gateway/", " "},
+				TestCommands:   []string{"go test ./internal/gateway -count=1", ""},
+				DoneSignal:     []string{"fixture passes", "\t"},
+			}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil {
+		t.Fatalf("Validate() = nil, want blank field errors")
+	}
+	msg := err.Error()
+	for _, want := range []string{
+		"write_scope[1] is blank",
+		"test_commands[1] is blank",
+		"done_signal[1] is blank",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error missing %q:\n%s", want, msg)
@@ -212,6 +252,9 @@ func TestValidate_RejectsInProgressUmbrella(t *testing.T) {
 				ReadyWhen:      []string{"split first"},
 				NotReadyWhen:   []string{"still broad"},
 				Acceptance:     []string{"split"},
+				WriteScope:     []string{"internal/tools/"},
+				TestCommands:   []string{"go test ./internal/tools -count=1"},
+				DoneSignal:     []string{"row is split before implementation"},
 			}}},
 		}}},
 	}
@@ -247,6 +290,9 @@ func TestValidate_RejectsFixtureReadyWithoutConcreteFixture(t *testing.T) {
 				ExecutionOwner: ExecutionOwnerProvider,
 				ReadyWhen:      []string{"ready"},
 				Fixture:        "fixtures",
+				WriteScope:     []string{"internal/hermes/"},
+				TestCommands:   []string{"go test ./internal/hermes -count=1"},
+				DoneSignal:     []string{"fixtures replay"},
 			}}},
 		}}},
 	}
@@ -268,6 +314,9 @@ func TestValidate_RejectsCompleteContractWithoutValidatedStatus(t *testing.T) {
 				SliceSize:      SliceSizeSmall,
 				ExecutionOwner: ExecutionOwnerProvider,
 				ReadyWhen:      []string{"ready"},
+				WriteScope:     []string{"internal/hermes/"},
+				TestCommands:   []string{"go test ./internal/hermes -count=1"},
+				DoneSignal:     []string{"fixtures replay"},
 			}}},
 		}}},
 	}

@@ -28,20 +28,23 @@ This page is generated from the Go progress model and validation rules.
 | `ready_when` | contract rows and blocked rows | Concrete condition that makes the row assignable. |
 | `not_ready_when` | umbrella rows, optional elsewhere | Conditions that make the row unsafe or too broad to assign. |
 | `acceptance` | active/P0 handoffs | Testable done criteria. |
+| `write_scope` | contract rows | Files, directories, or packages an autonomous agent may edit for this slice. |
+| `test_commands` | contract rows | Commands that prove the slice without live provider or platform credentials. |
+| `done_signal` | contract rows | Observable evidence that the row can move forward or close. |
 
 ## Validation Rules
 
 - `docs/data/progress.json` must not exist.
 - `in_progress` rows cannot use `slice_size: umbrella`.
 - item-level `P0` and `in_progress` rows must include full contract metadata.
-- contract rows must declare `slice_size`, `execution_owner`, and `ready_when`.
+- contract rows must declare `slice_size`, `execution_owner`, `ready_when`, `write_scope`, `test_commands`, and `done_signal`.
 - blocked rows must declare `ready_when`.
 - `fixture_ready` rows must name a concrete fixture package or path.
 - complete rows with contract metadata must use `contract_status: validated`.
 
 ## Generated Agent Surfaces
 
-- `agent-queue.md` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, acceptance, and source references.
+- `agent-queue.md` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands, done signal, acceptance, and source references.
 - `blocked-slices.md` keeps blocked rows out of the execution queue while preserving their unblock condition.
 - `umbrella-cleanup.md` lists broad inventory rows that must be split before assignment.
 
@@ -61,6 +64,9 @@ This page is generated from the Go progress model and validation rules.
   "fixture": "internal/hermes/testdata/provider_transcripts",
   "source_refs": ["docs/content/upstream-hermes/source-study.md"],
   "ready_when": ["Anthropic transcript fixtures replay without live credentials."],
+  "write_scope": ["internal/hermes/"],
+  "test_commands": ["go test ./internal/hermes -count=1"],
+  "done_signal": ["Provider transcript replay passes from captured fixtures."],
   "acceptance": ["All provider transcript fixtures pass under go test ./internal/hermes."]
 }
 ```

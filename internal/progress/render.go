@@ -166,6 +166,9 @@ func RenderAgentQueue(p *Progress, limit int) string {
 		fmt.Fprintf(&b, "- Not ready when: %s\n", mdCell(joinOrDash(it.NotReadyWhen)))
 		fmt.Fprintf(&b, "- Degraded mode: %s\n", mdCell(it.DegradedMode))
 		fmt.Fprintf(&b, "- Fixture: `%s`\n", mdCell(it.Fixture))
+		fmt.Fprintf(&b, "- Write scope: %s\n", mdCell(joinCodeOrDash(it.WriteScope)))
+		fmt.Fprintf(&b, "- Test commands: %s\n", mdCell(joinCodeOrDash(it.TestCommands)))
+		fmt.Fprintf(&b, "- Done signal: %s\n", mdCell(joinOrDash(it.DoneSignal)))
 		fmt.Fprintf(&b, "- Acceptance: %s\n", mdCell(joinOrDash(it.Acceptance)))
 		fmt.Fprintf(&b, "- Source refs: %s\n", mdCell(joinOrDash(it.SourceRefs)))
 		if len(it.Unblocks) > 0 {
@@ -248,20 +251,23 @@ func RenderProgressSchema() string {
 | `+"`ready_when`"+` | contract rows and blocked rows | Concrete condition that makes the row assignable. |
 | `+"`not_ready_when`"+` | umbrella rows, optional elsewhere | Conditions that make the row unsafe or too broad to assign. |
 | `+"`acceptance`"+` | active/P0 handoffs | Testable done criteria. |
+| `+"`write_scope`"+` | contract rows | Files, directories, or packages an autonomous agent may edit for this slice. |
+| `+"`test_commands`"+` | contract rows | Commands that prove the slice without live provider or platform credentials. |
+| `+"`done_signal`"+` | contract rows | Observable evidence that the row can move forward or close. |
 
 ## Validation Rules
 
 - `+"`docs/data/progress.json`"+` must not exist.
 - `+"`in_progress`"+` rows cannot use `+"`slice_size: umbrella`"+`.
 - item-level `+"`P0`"+` and `+"`in_progress`"+` rows must include full contract metadata.
-- contract rows must declare `+"`slice_size`"+`, `+"`execution_owner`"+`, and `+"`ready_when`"+`.
+- contract rows must declare `+"`slice_size`"+`, `+"`execution_owner`"+`, `+"`ready_when`"+`, `+"`write_scope`"+`, `+"`test_commands`"+`, and `+"`done_signal`"+`.
 - blocked rows must declare `+"`ready_when`"+`.
 - `+"`fixture_ready`"+` rows must name a concrete fixture package or path.
 - complete rows with contract metadata must use `+"`contract_status: validated`"+`.
 
 ## Generated Agent Surfaces
 
-- `+"`agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, acceptance, and source references.
+- `+"`agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands, done signal, acceptance, and source references.
 - `+"`blocked-slices.md`"+` keeps blocked rows out of the execution queue while preserving their unblock condition.
 - `+"`umbrella-cleanup.md`"+` lists broad inventory rows that must be split before assignment.
 
@@ -281,6 +287,9 @@ func RenderProgressSchema() string {
   "fixture": "internal/hermes/testdata/provider_transcripts",
   "source_refs": ["docs/content/upstream-hermes/source-study.md"],
   "ready_when": ["Anthropic transcript fixtures replay without live credentials."],
+  "write_scope": ["internal/hermes/"],
+  "test_commands": ["go test ./internal/hermes -count=1"],
+  "done_signal": ["Provider transcript replay passes from captured fixtures."],
   "acceptance": ["All provider transcript fixtures pass under go test ./internal/hermes."]
 }
 `+"```"+`
@@ -427,6 +436,17 @@ func joinOrDash(values []string) string {
 		return "-"
 	}
 	return strings.Join(values, ", ")
+}
+
+func joinCodeOrDash(values []string) string {
+	if len(values) == 0 {
+		return "-"
+	}
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, "`"+value+"`")
+	}
+	return strings.Join(quoted, ", ")
 }
 
 func mdCell(s string) string {

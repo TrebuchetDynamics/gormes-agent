@@ -213,6 +213,9 @@ func TestRenderAgentQueueIncludesExecutionCardAndSkipsBlockedUmbrella(t *testing
 					ReadyWhen:      []string{"fixtures replay"},
 					NotReadyWhen:   []string{"live provider call required"},
 					Acceptance:     []string{"go test ./internal/hermes passes"},
+					WriteScope:     []string{"internal/hermes"},
+					TestCommands:   []string{"go test ./internal/hermes"},
+					DoneSignal:     []string{"provider transcripts replay"},
 					Unblocks:       []string{"Bedrock"},
 				},
 				{
@@ -240,8 +243,11 @@ func TestRenderAgentQueueIncludesExecutionCardAndSkipsBlockedUmbrella(t *testing
 		"- Contract: Provider-neutral transcript contract",
 		"- Ready when: fixtures replay",
 		"- Not ready when: live provider call required",
+		"- Write scope: `internal/hermes`",
+		"- Test commands: `go test ./internal/hermes`",
 		"- Fixture: `internal/hermes/testdata/provider_transcripts`",
 		"- Acceptance: go test ./internal/hermes passes",
+		"- Done signal: provider transcripts replay",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("agent queue missing %q:\n%s", want, got)
@@ -300,6 +306,9 @@ func TestRenderProgressSchema(t *testing.T) {
 		"`slice_size`",
 		"`execution_owner`",
 		"`ready_when`",
+		"`write_scope`",
+		"`test_commands`",
+		"`done_signal`",
 		"`in_progress` rows cannot use `slice_size: umbrella`",
 		"`agent-queue.md`",
 	} {

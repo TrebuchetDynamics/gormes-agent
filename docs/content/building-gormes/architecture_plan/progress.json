@@ -76,7 +76,18 @@
                 "Non-timeout/non-OOM codex exits can become soft_success_nonzero only after final-report and commit verification pass.",
                 "Timeout and OOM exits remain hard failures."
               ],
-              "note": "P0 umbrella: stop false failure rows when codex exits non-zero despite valid final report + single clean commit; preserve promotion flow and keep loop throughput viable at higher parallelism. Partials landed since the prior audit: (a) granular failure taxonomy replaces the conflated `contract_or_test_failure` status with `no_commit_made|wrong_commit_count|worktree_dirty|branch_mismatch|report_commit_mismatch|scope_violation|report_validation_failed` — `verify_worker_commit` exports `LAST_VERIFY_REASON` and `run_worker` stamps it into the `runs.jsonl` status (`scripts/orchestrator/lib/worktree.sh`, `scripts/gormes-auto-codexu-orchestrator.sh`), and `scripts/orchestrator/tests/unit/failures.bats` now covers `failure_record_write`/`_read`/`_reset` and poisoned-task thresholds over the new reason set; (b) `try_soft_success_nonzero` in the main entry script recovers a non-zero codex rc into a `soft_success_nonzero` worker_success iff the final report validates and `verify_worker_commit` is clean — the default was flipped on (`ALLOW_SOFT_SUCCESS_NONZERO=\"${ALLOW_SOFT_SUCCESS_NONZERO:-1}\"` at `scripts/gormes-auto-codexu-orchestrator.sh:67`), but `try_soft_success_nonzero` itself still has no direct bats coverage. The remaining closeout is owned by the sibling slice below (bats coverage for the soft-success recovery path)."
+              "note": "P0 umbrella: stop false failure rows when codex exits non-zero despite valid final report + single clean commit; preserve promotion flow and keep loop throughput viable at higher parallelism. Partials landed since the prior audit: (a) granular failure taxonomy replaces the conflated `contract_or_test_failure` status with `no_commit_made|wrong_commit_count|worktree_dirty|branch_mismatch|report_commit_mismatch|scope_violation|report_validation_failed` — `verify_worker_commit` exports `LAST_VERIFY_REASON` and `run_worker` stamps it into the `runs.jsonl` status (`scripts/orchestrator/lib/worktree.sh`, `scripts/gormes-auto-codexu-orchestrator.sh`), and `scripts/orchestrator/tests/unit/failures.bats` now covers `failure_record_write`/`_read`/`_reset` and poisoned-task thresholds over the new reason set; (b) `try_soft_success_nonzero` in the main entry script recovers a non-zero codex rc into a `soft_success_nonzero` worker_success iff the final report validates and `verify_worker_commit` is clean — the default was flipped on (`ALLOW_SOFT_SUCCESS_NONZERO=\"${ALLOW_SOFT_SUCCESS_NONZERO:-1}\"` at `scripts/gormes-auto-codexu-orchestrator.sh:67`), but `try_soft_success_nonzero` itself still has no direct bats coverage. The remaining closeout is owned by the sibling slice below (bats coverage for the soft-success recovery path).",
+              "write_scope": [
+                "scripts/gormes-auto-codexu-orchestrator.sh",
+                "scripts/orchestrator/lib/",
+                "scripts/orchestrator/tests/unit/"
+              ],
+              "test_commands": [
+                "scripts/orchestrator/tests/run.sh unit"
+              ],
+              "done_signal": [
+                "Fail-fast aborts terminate worker process trees and successful workers are still harvested before the failed cycle pauses."
+              ]
             },
             {
               "name": "Soft-success-nonzero bats coverage",
@@ -113,7 +124,17 @@
                 "ALLOW_SOFT_SUCCESS_NONZERO=0 rejects even with valid report and clean commit.",
                 "Valid report plus clean commit plus allowed non-zero rc records soft_success_nonzero with original_rc."
               ],
-              "note": "TDD: the default was already flipped on (`ALLOW_SOFT_SUCCESS_NONZERO=\"${ALLOW_SOFT_SUCCESS_NONZERO:-1}\"` at `scripts/gormes-auto-codexu-orchestrator.sh:67`) but `try_soft_success_nonzero` itself still has no direct bats coverage. Add `scripts/orchestrator/tests/unit/` (and/or `integration/`) bats tests that call `try_soft_success_nonzero` directly and pin (a) rc=124/137 always reject (timeouts/OOM are NOT soft-successable) regardless of `ALLOW_SOFT_SUCCESS_NONZERO`, (b) invalid final report rejects regardless of rc, (c) dirty verify_worker_commit rejects regardless of rc, (d) `ALLOW_SOFT_SUCCESS_NONZERO=0` rejects regardless of report/commit, (e) `ALLOW_SOFT_SUCCESS_NONZERO=1` + valid final report + clean commit + rc∈{non-124,non-137} returns success and the caller flips worker state to `soft_success_nonzero` with `original_rc` preserved. Do not re-open the default-flip decision; the already-landed `scripts/gormes-auto-codexu-orchestrator.sh:67` default is intentionally on-by-default and any flip belongs in a separate change. Blocks marking the umbrella item complete."
+              "note": "TDD: the default was already flipped on (`ALLOW_SOFT_SUCCESS_NONZERO=\"${ALLOW_SOFT_SUCCESS_NONZERO:-1}\"` at `scripts/gormes-auto-codexu-orchestrator.sh:67`) but `try_soft_success_nonzero` itself still has no direct bats coverage. Add `scripts/orchestrator/tests/unit/` (and/or `integration/`) bats tests that call `try_soft_success_nonzero` directly and pin (a) rc=124/137 always reject (timeouts/OOM are NOT soft-successable) regardless of `ALLOW_SOFT_SUCCESS_NONZERO`, (b) invalid final report rejects regardless of rc, (c) dirty verify_worker_commit rejects regardless of rc, (d) `ALLOW_SOFT_SUCCESS_NONZERO=0` rejects regardless of report/commit, (e) `ALLOW_SOFT_SUCCESS_NONZERO=1` + valid final report + clean commit + rc∈{non-124,non-137} returns success and the caller flips worker state to `soft_success_nonzero` with `original_rc` preserved. Do not re-open the default-flip decision; the already-landed `scripts/gormes-auto-codexu-orchestrator.sh:67` default is intentionally on-by-default and any flip belongs in a separate change. Blocks marking the umbrella item complete.",
+              "write_scope": [
+                "scripts/gormes-auto-codexu-orchestrator.sh",
+                "scripts/orchestrator/tests/unit/"
+              ],
+              "test_commands": [
+                "scripts/orchestrator/tests/run.sh unit"
+              ],
+              "done_signal": [
+                "Direct try_soft_success_nonzero cases cover reject and recovery paths with original_rc preserved."
+              ]
             },
             {
               "name": "Planner wrapper/test consistency closeout",
@@ -713,7 +734,18 @@
                 "No-running-agent paths queue follow-up guidance instead of dropping it.",
                 "Running-agent paths do not inject mid-run guidance until the next slice owns that hook."
               ],
-              "note": "TDD: port upstream PR #12116 `/steer` ingress (see `gateway/run.py` steer handler) as a CommandDef on the shared registry with queue-fallback when no agent is running, explicit missing-argument usage text, and deterministic preview truncation. Keep the mid-run inject hook unimplemented until the next 2.F.5 slice lands."
+              "note": "TDD: port upstream PR #12116 `/steer` ingress (see `gateway/run.py` steer handler) as a CommandDef on the shared registry with queue-fallback when no agent is running, explicit missing-argument usage text, and deterministic preview truncation. Keep the mid-run inject hook unimplemented until the next 2.F.5 slice lands.",
+              "write_scope": [
+                "internal/gateway/",
+                "internal/channels/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/channels/... -count=1"
+              ],
+              "done_signal": [
+                "The shared command registry exposes /steer and no-agent paths return visible queued guidance."
+              ]
             },
             {
               "name": "Mid-run steer injection between tool calls",
@@ -1014,7 +1046,18 @@
                 "Conflicting user bindings deny user-scope widening.",
                 "Allowed user-scope searches include source allowlist evidence."
               ],
-              "note": "TDD: prove unknown, unresolved, or conflicting user_id bindings cannot widen recall or session search, and pin same-chat fallback behavior with fixture-backed allow/deny cases before cross-chat access is exposed as shipped."
+              "note": "TDD: prove unknown, unresolved, or conflicting user_id bindings cannot widen recall or session search, and pin same-chat fallback behavior with fixture-backed allow/deny cases before cross-chat access is exposed as shipped.",
+              "write_scope": [
+                "internal/memory/",
+                "internal/goncho/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/memory ./internal/goncho -count=1"
+              ],
+              "done_signal": [
+                "Cross-chat recall fixtures prove unknown and conflicting identities cannot widen search scope."
+              ]
             },
             {
               "name": "Cross-chat operator evidence",
@@ -1097,7 +1140,17 @@
                 "EOF after partial tool_call surfaces pending calls instead of dropping them.",
                 "Duplicate tool-name deltas cannot concatenate into invented names."
               ],
-              "note": "TDD: `internal/hermes/client.go` already freezes shared ChatRequest/Message/Event/ToolCall contracts and the Anthropic adapter (`anthropic_client.go`/`anthropic_stream.go`) exercises them; the remaining closeout is a reusable fixture harness that replays provider transcripts, usage, and finish reasons across adapters before Bedrock/Gemini/OpenRouter/Codex land on the same seam. Fixture set must include regression cases for upstream PR #12072 (dropped tool_call on mid-stream stall — partial tool_calls in `internal/hermes/stream.go` pendingCalls must surface on EOF rather than disappear when `finish_reason=\"tool_calls\"` never arrives) and PR #0f778f77 (MiniMax/NVIDIA NIM tool-name duplication in the streaming accumulator) so the contract is locked before any other provider reuses it."
+              "note": "TDD: `internal/hermes/client.go` already freezes shared ChatRequest/Message/Event/ToolCall contracts and the Anthropic adapter (`anthropic_client.go`/`anthropic_stream.go`) exercises them; the remaining closeout is a reusable fixture harness that replays provider transcripts, usage, and finish reasons across adapters before Bedrock/Gemini/OpenRouter/Codex land on the same seam. Fixture set must include regression cases for upstream PR #12072 (dropped tool_call on mid-stream stall — partial tool_calls in `internal/hermes/stream.go` pendingCalls must surface on EOF rather than disappear when `finish_reason=\"tool_calls\"` never arrives) and PR #0f778f77 (MiniMax/NVIDIA NIM tool-name duplication in the streaming accumulator) so the contract is locked before any other provider reuses it.",
+              "write_scope": [
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -count=1"
+              ],
+              "done_signal": [
+                "Provider transcript fixtures replay request, stream, finish reason, and usage data without live credentials."
+              ]
             },
             {
               "name": "Tool-call normalization + continuation contract",
@@ -1134,7 +1187,17 @@
                 "Continuation payloads preserve provider-safe finish reasons.",
                 "Cross-provider fixtures cover mid-stream stall recovery and duplicate-name accumulator safety."
               ],
-              "note": "TDD: streamed tool-call accumulation and tool-result continuation payload mapping are locked for the Anthropic adapter in `internal/hermes/stream_tools_test.go` and `anthropic_client_test.go`; the remaining closeout is cross-provider fixture coverage that pins assistant tool-call messages, tool replies, and continuation-safe finish reasons as a shared harness before Bedrock/Gemini/OpenRouter/Codex reuse the seam. Shared fixtures must pin (a) mid-stream stall recovery per upstream PR #12072 — partial tool_calls surfacing on stream EOF rather than being silently dropped from `pendingCalls` — and (b) tool-name accumulator safety per upstream PR #0f778f77 so duplicate-name deltas from MiniMax/NVIDIA NIM-style providers cannot concatenate into invented tool names."
+              "note": "TDD: streamed tool-call accumulation and tool-result continuation payload mapping are locked for the Anthropic adapter in `internal/hermes/stream_tools_test.go` and `anthropic_client_test.go`; the remaining closeout is cross-provider fixture coverage that pins assistant tool-call messages, tool replies, and continuation-safe finish reasons as a shared harness before Bedrock/Gemini/OpenRouter/Codex reuse the seam. Shared fixtures must pin (a) mid-stream stall recovery per upstream PR #12072 — partial tool_calls surfacing on stream EOF rather than being silently dropped from `pendingCalls` — and (b) tool-name accumulator safety per upstream PR #0f778f77 so duplicate-name deltas from MiniMax/NVIDIA NIM-style providers cannot concatenate into invented tool names.",
+              "write_scope": [
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -count=1"
+              ],
+              "done_signal": [
+                "Cross-provider fixtures prove tool-call accumulation and continuation payloads preserve provider-safe semantics."
+              ]
             },
             {
               "name": "Anthropic",
@@ -1246,7 +1309,18 @@
                 "Compression remains an explicit engine boundary, not a hidden kernel side effect.",
                 "Fixtures replay context status without live provider calls."
               ],
-              "note": "TDD: port the `agent/context_engine.py` interface, `get_status` payload, update_model_context behavior, and unknown tool error shape before any compressor implementation is wired into the agent loop."
+              "note": "TDD: port the `agent/context_engine.py` interface, `get_status` payload, update_model_context behavior, and unknown tool error shape before any compressor implementation is wired into the agent loop.",
+              "write_scope": [
+                "internal/kernel/",
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel ./internal/hermes -count=1"
+              ],
+              "done_signal": [
+                "Context status fixtures expose budget, compression state, and unknown-tool errors without live provider calls."
+              ]
             },
             {
               "name": "Compression token-budget trigger + summary sizing",
@@ -1403,7 +1477,18 @@
                 "Kernel retry policy reports schedule and provider hint decisions.",
                 "Unavailable cache/rate/budget capability is visible before routing relies on it."
               ],
-              "note": "Umbrella tracker for 4.H closeout. Already shipped: `internal/hermes/errors.go` classifies retryable vs fatal HTTP status plus 'context length' body signals, and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. Remaining work is owned by the sibling slices below — `Classified provider-error taxonomy`, `Jittered reconnect backoff schedule`, `Retry-After header parsing + HTTPError hint`, `Kernel retry honors Retry-After hint`, `Prompt-cache capability guard`, and `Provider rate guard + budget telemetry`."
+              "note": "Umbrella tracker for 4.H closeout. Already shipped: `internal/hermes/errors.go` classifies retryable vs fatal HTTP status plus 'context length' body signals, and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. Remaining work is owned by the sibling slices below — `Classified provider-error taxonomy`, `Jittered reconnect backoff schedule`, `Retry-After header parsing + HTTPError hint`, `Kernel retry honors Retry-After hint`, `Prompt-cache capability guard`, and `Provider rate guard + budget telemetry`.",
+              "write_scope": [
+                "internal/hermes/",
+                "internal/kernel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes ./internal/kernel -count=1"
+              ],
+              "done_signal": [
+                "Retry, cache, rate, budget, and provider-hint behavior is fixture-covered and visible in provider/kernel status."
+              ]
             },
             {
               "name": "Classified provider-error taxonomy",
@@ -1439,7 +1524,17 @@
                 "Auth and context-length failures are never retried as generic transient errors.",
                 "Fixture tables cover rate-limit, auth, context, retryable, and fatal cases."
               ],
-              "note": "TDD: `internal/hermes/errors.go` already classifies retryable vs fatal HTTP/auth/context/rate-limit conditions for kernel retries; the remaining closeout is a richer structured taxonomy comparable to `agent/error_classifier.py`, including explicit rate-limit/auth/context/non-retryable envelopes and broader provider fixture tables."
+              "note": "TDD: `internal/hermes/errors.go` already classifies retryable vs fatal HTTP/auth/context/rate-limit conditions for kernel retries; the remaining closeout is a richer structured taxonomy comparable to `agent/error_classifier.py`, including explicit rate-limit/auth/context/non-retryable envelopes and broader provider fixture tables.",
+              "write_scope": [
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -count=1"
+              ],
+              "done_signal": [
+                "Fixture tables classify rate-limit, auth, context, retryable, and fatal provider errors deterministically."
+              ]
             },
             {
               "name": "Jittered reconnect backoff schedule",
@@ -1529,7 +1624,17 @@
                 "No handler port can mark complete until its descriptor parity row exists.",
                 "Doctor can report missing dependencies or disabled provider-specific paths."
               ],
-              "note": "TDD: snapshot upstream `tools/registry.py`, `toolsets.py`, and discovered schemas into a Go parity fixture that proves names, toolsets, required env vars, and JSON result shapes before porting handlers."
+              "note": "TDD: snapshot upstream `tools/registry.py`, `toolsets.py`, and discovered schemas into a Go parity fixture that proves names, toolsets, required env vars, and JSON result shapes before porting handlers.",
+              "write_scope": [
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -count=1"
+              ],
+              "done_signal": [
+                "Tool descriptor parity fixtures capture names, schemas, trust classes, dependencies, and degraded status before handler ports."
+              ]
             },
             {
               "name": "Pure core tools first",
@@ -1995,7 +2100,17 @@
                 "Invalid, disabled, or unreviewed drafts never enter prompt injection.",
                 "Atomic writes preserve human-editable skill files and version history."
               ],
-              "note": "TDD: extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable SKILL.md files."
+              "note": "TDD: extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable SKILL.md files.",
+              "write_scope": [
+                "internal/skills/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -count=1"
+              ],
+              "done_signal": [
+                "SKILL.md metadata fixtures prove invalid, disabled, or unreviewed drafts stay out of prompt injection."
+              ]
             }
           ]
         },

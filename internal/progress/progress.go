@@ -72,6 +72,9 @@ type Item struct {
 	ReadyWhen      []string       `json:"ready_when,omitempty"`
 	NotReadyWhen   []string       `json:"not_ready_when,omitempty"`
 	Acceptance     []string       `json:"acceptance,omitempty"`
+	WriteScope     []string       `json:"write_scope,omitempty"`
+	TestCommands   []string       `json:"test_commands,omitempty"`
+	DoneSignal     []string       `json:"done_signal,omitempty"`
 	// Optional, reserved, not rendered yet.
 	PR    string `json:"pr,omitempty"`
 	Owner string `json:"owner,omitempty"`
