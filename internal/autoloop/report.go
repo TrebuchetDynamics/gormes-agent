@@ -66,11 +66,11 @@ func acceptanceEvidence(acceptance []string) (bool, bool) {
 	var hasGreen bool
 
 	for _, item := range acceptance {
-		lower := strings.ToLower(item)
-		if strings.Contains(lower, "red") && strings.Contains(lower, "exit 1") {
+		lower := strings.ToLower(strings.TrimSpace(item))
+		if strings.HasPrefix(lower, "red:") && strings.Contains(lower, "exit 1") {
 			hasRed = true
 		}
-		if strings.Contains(lower, "green") && strings.Contains(lower, "exit 0") {
+		if strings.HasPrefix(lower, "green:") && strings.Contains(lower, "exit 0") {
 			hasGreen = true
 		}
 	}

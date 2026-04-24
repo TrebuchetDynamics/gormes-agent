@@ -76,3 +76,17 @@ func TestParseFinalReportRejectsEvidenceOutsideAcceptance(t *testing.T) {
 		t.Fatal("ParseFinalReport() error = nil, want missing acceptance evidence error")
 	}
 }
+
+func TestParseFinalReportRejectsMisleadingAcceptanceEvidence(t *testing.T) {
+	report := strings.Join([]string{
+		"Commit: abc123",
+		"Acceptance:",
+		"- not red, no exit 1 evidence",
+		"- not green, no exit 0 evidence",
+	}, "\n")
+
+	_, err := ParseFinalReport(report)
+	if err == nil {
+		t.Fatal("ParseFinalReport() error = nil, want missing labeled evidence error")
+	}
+}

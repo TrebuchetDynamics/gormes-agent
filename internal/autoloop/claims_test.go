@@ -3,6 +3,7 @@ package autoloop
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -30,5 +31,31 @@ func TestCleanupStaleLocksRemovesExpiredClaim(t *testing.T) {
 	}
 	if _, err := os.Stat(claimPath); !os.IsNotExist(err) {
 		t.Fatalf("claim file exists after cleanup, stat error = %v", err)
+	}
+}
+
+func TestCleanupStaleLocksKeepsLiveUnexpiredClaim(t *testing.T) {
+	lockRoot := t.TempDir()
+	lockDir := filepath.Join(lockRoot, "task.lock")
+	claimPath := lockDir + ".claim.json"
+	now := time.Unix(200, 0)
+
+	if err := os.Mkdir(lockDir, 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+	claim := `{"pid":` + strconv.Itoa(os.Getpid()) + `,"claimed_at_epoch":190}`
+	if err := os.WriteFile(claimPath, []byte(claim), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	if err := CleanupStaleLocks(lockRoot, time.Minute, func() time.Time { return now }); err != nil {
+		t.Fatalf("CleanupStaleLocks() error = %v", err)
+	}
+
+	if _, err := os.Stat(lockDir); err != nil {
+		t.Fatalf("lock dir stat error = %v", err)
+	}
+	if _, err := os.Stat(claimPath); err != nil {
+		t.Fatalf("claim file stat error = %v", err)
 	}
 }
