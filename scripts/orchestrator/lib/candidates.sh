@@ -17,6 +17,7 @@ normalize_candidates() {
 
     ($boost_csv | split(",") | map(ascii_downcase | gsub("[[:space:]]+"; ""))
       | map(select(. != ""))) as $boost |
+    (.meta.autoloop // {}) as $autoloop |
 
     [
       (.phases // {})
@@ -49,7 +50,8 @@ normalize_candidates() {
           write_scope: ($item.write_scope // []),
           test_commands: ($item.test_commands // []),
           done_signal: ($item.done_signal // []),
-          note: ($item.note // "")
+          note: ($item.note // ""),
+          autoloop: $autoloop
         }
       | select(.item_name != null and .item_name != "")
       | select(.status != "complete")

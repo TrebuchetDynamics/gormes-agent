@@ -33,6 +33,12 @@ setup() {
   tmp="$(mktmp_workspace)"
   cat > "$tmp/progress.json" <<'JSON'
 {
+  "meta": {
+    "autoloop": {
+      "entrypoint": "scripts/gormes-auto-codexu-orchestrator.sh",
+      "candidate_policy": ["skip blocked rows"]
+    }
+  },
   "phases": {
     "1": {
       "subphases": {
@@ -77,6 +83,8 @@ JSON
   echo "$output" | jq -e '.[0].write_scope == ["internal/gateway/"]'
   echo "$output" | jq -e '.[0].test_commands == ["go test ./internal/gateway -count=1"]'
   echo "$output" | jq -e '.[0].done_signal == ["gateway fixtures pass"]'
+  echo "$output" | jq -e '.[0].autoloop.entrypoint == "scripts/gormes-auto-codexu-orchestrator.sh"'
+  echo "$output" | jq -e '.[0].autoloop.candidate_policy == ["skip blocked rows"]'
 }
 
 @test "normalize_candidates does not prioritize when ACTIVE_FIRST=0" {
