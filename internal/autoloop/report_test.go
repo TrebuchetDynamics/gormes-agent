@@ -10,11 +10,11 @@ func TestParseFinalReportRequiresAcceptanceAndCommit(t *testing.T) {
 	report := strings.Join([]string{
 		"Summary:",
 		"Commit: abc123def",
-		"RED: go test ./internal/autoloop -run TestThing exited with exit 1",
-		"GREEN: go test ./internal/autoloop exited with exit 0",
 		"Acceptance:",
 		"- claim cleanup removes stale locks",
 		"- failures are recorded",
+		"- RED: go test ./internal/autoloop -run TestThing exited with exit 1",
+		"- GREEN: go test ./internal/autoloop exited with exit 0",
 		"",
 	}, "\n")
 
@@ -24,8 +24,13 @@ func TestParseFinalReportRequiresAcceptanceAndCommit(t *testing.T) {
 	}
 
 	want := FinalReport{
-		Commit:     "abc123def",
-		Acceptance: []string{"claim cleanup removes stale locks", "failures are recorded"},
+		Commit: "abc123def",
+		Acceptance: []string{
+			"claim cleanup removes stale locks",
+			"failures are recorded",
+			"RED: go test ./internal/autoloop -run TestThing exited with exit 1",
+			"GREEN: go test ./internal/autoloop exited with exit 0",
+		},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseFinalReport() = %#v, want %#v", got, want)
@@ -53,5 +58,21 @@ func TestParseFinalReportRejectsMissingRed(t *testing.T) {
 	_, err := ParseFinalReport(report)
 	if err == nil {
 		t.Fatal("ParseFinalReport() error = nil, want missing RED error")
+	}
+}
+
+func TestParseFinalReportRejectsEvidenceOutsideAcceptance(t *testing.T) {
+	report := strings.Join([]string{
+		"Commit: abc123",
+		"RED: go test exited with exit 1",
+		"GREEN: go test exited with exit 0",
+		"Acceptance:",
+		"- implementation is complete",
+		"- tests were considered",
+	}, "\n")
+
+	_, err := ParseFinalReport(report)
+	if err == nil {
+		t.Fatal("ParseFinalReport() error = nil, want missing acceptance evidence error")
 	}
 }
