@@ -4,6 +4,7 @@
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd)"
+ORCHESTRATOR_SCRIPTS_DIR="$REPO_ROOT/scripts"
 LEGACY_SCRIPTS_DIR="$REPO_ROOT/testdata/legacy-shell/scripts"
 ORCHESTRATOR_LIB_DIR="$LEGACY_SCRIPTS_DIR/orchestrator/lib"
 ENTRY_SCRIPT="$LEGACY_SCRIPTS_DIR/gormes-auto-codexu-orchestrator.sh"
