@@ -306,9 +306,12 @@ const (
 )
 
 func candidateRank(candidate Candidate, activeFirst bool, boosts map[string]struct{}) int {
-	rank := candidateBucket(candidate)
+	rank := 0
 	if _, ok := boosts[strings.ToLower(strings.TrimSpace(candidate.SubphaseID))]; !ok {
 		rank += 100
+	}
+	if activeFirst {
+		rank += candidateBucket(candidate)
 	}
 
 	return rank

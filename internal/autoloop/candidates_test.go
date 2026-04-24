@@ -186,7 +186,7 @@ func TestNormalizeCandidatesUsesExecutionBuckets(t *testing.T) {
 		}
 	}`)
 
-	got, err := NormalizeCandidates(path, CandidateOptions{})
+	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true})
 	if err != nil {
 		t.Fatalf("NormalizeCandidates() error = %v", err)
 	}
@@ -201,6 +201,45 @@ func TestNormalizeCandidatesUsesExecutionBuckets(t *testing.T) {
 	}
 	if got[4].SelectionReason() != "draft contract" {
 		t.Fatalf("draft candidate SelectionReason() = %q, want %q", got[4].SelectionReason(), "draft contract")
+	}
+}
+
+func TestNormalizeCandidatesActiveFirstFalseSortsByKeyAfterPriorityBoost(t *testing.T) {
+	path := writeProgressJSON(t, `{
+		"phases": {
+			"3": {
+				"subphases": {
+					"3.E.6": {
+						"items": [
+							{"item_name": "a draft candidate", "status": "planned", "contract_status": "draft"},
+							{"item_name": "z p0 candidate", "status": "planned", "priority": "P0"}
+						]
+					},
+					"3.E.7": {
+						"items": [
+							{"item_name": "boosted planned candidate", "status": "planned"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+
+	got, err := NormalizeCandidates(path, CandidateOptions{
+		ActiveFirst:   false,
+		PriorityBoost: []string{"3.E.7"},
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates() error = %v", err)
+	}
+
+	var gotNames []string
+	for _, candidate := range got {
+		gotNames = append(gotNames, candidate.ItemName)
+	}
+	wantNames := []string{"boosted planned candidate", "a draft candidate", "z p0 candidate"}
+	if !reflect.DeepEqual(gotNames, wantNames) {
+		t.Fatalf("candidate order = %#v, want %#v", gotNames, wantNames)
 	}
 }
 
@@ -329,10 +368,10 @@ func TestNormalizeCandidatesItemNameFallbacksAndUnknownStatus(t *testing.T) {
 	}
 
 	want := []Candidate{
+		{PhaseID: "5", SubphaseID: "5.B.1", ItemName: "id candidate", Status: "unknown"},
 		{PhaseID: "5", SubphaseID: "5.B.1", ItemName: "item-name candidate", Status: "planned"},
 		{PhaseID: "5", SubphaseID: "5.B.1", ItemName: "name candidate", Status: "planned"},
 		{PhaseID: "5", SubphaseID: "5.B.1", ItemName: "title candidate", Status: "planned"},
-		{PhaseID: "5", SubphaseID: "5.B.1", ItemName: "id candidate", Status: "unknown"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("NormalizeCandidates() = %#v, want %#v", got, want)
