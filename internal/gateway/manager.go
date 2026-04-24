@@ -30,6 +30,15 @@ type ManagerConfig struct {
 	// and read it back later via Manager.Status. A nil value makes the
 	// manager create its own time.Now-backed StatusModel.
 	Status *StatusModel
+	// RestartMarkers persists /restart takeover markers so replayed inbound
+	// updates do not trigger repeated restarts after the process comes back.
+	RestartMarkers RestartMarkerStore
+	// RestartFunc is invoked after the user-visible restart notice and optional
+	// grace pause. Nil means /restart replies with an unsupported notice.
+	RestartFunc RestartFunc
+	// RestartGracePause gives the outbound restart notice a short flush window
+	// before RestartFunc runs.
+	RestartGracePause time.Duration
 }
 
 type kernelSubmitter interface {
