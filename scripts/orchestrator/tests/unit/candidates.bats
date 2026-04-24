@@ -28,6 +28,57 @@ setup() {
   assert_equal "$first_status" "in_progress"
 }
 
+@test "normalize_candidates keeps agent handoff metadata and skips blocked umbrella rows" {
+  local tmp
+  tmp="$(mktmp_workspace)"
+  cat > "$tmp/progress.json" <<'JSON'
+{
+  "phases": {
+    "1": {
+      "subphases": {
+        "1.A": {
+          "items": [
+            {
+              "name": "Ready slice",
+              "status": "planned",
+              "contract": "Ready contract",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "write_scope": ["internal/gateway/"],
+              "test_commands": ["go test ./internal/gateway -count=1"],
+              "done_signal": ["gateway fixtures pass"],
+              "source_refs": ["docs/content/building-gormes/agent-queue.md"]
+            },
+            {
+              "name": "Blocked slice",
+              "status": "planned",
+              "blocked_by": ["Ready slice"]
+            },
+            {
+              "name": "Umbrella slice",
+              "status": "planned",
+              "slice_size": "umbrella"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+JSON
+  export PROGRESS_JSON="$tmp/progress.json"
+  run normalize_candidates
+  assert_success
+  local names
+  names="$(echo "$output" | jq -r '[.[].item_name] | join(",")')"
+  assert_equal "$names" "Ready slice"
+  echo "$output" | jq -e '.[0].agent_ready == true'
+  echo "$output" | jq -e '.[0].contract == "Ready contract"'
+  echo "$output" | jq -e '.[0].write_scope == ["internal/gateway/"]'
+  echo "$output" | jq -e '.[0].test_commands == ["go test ./internal/gateway -count=1"]'
+  echo "$output" | jq -e '.[0].done_signal == ["gateway fixtures pass"]'
+}
+
 @test "normalize_candidates does not prioritize when ACTIVE_FIRST=0" {
   export ACTIVE_FIRST=0
   run normalize_candidates

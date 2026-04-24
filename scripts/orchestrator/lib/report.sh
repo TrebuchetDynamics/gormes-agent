@@ -65,6 +65,29 @@ EOF
   printf '%s\n' "$block"
 }
 
+json_scalar_or_dash() {
+  local json="$1"
+  local field="$2"
+  jq -r --arg field "$field" '.[$field] // "" | if . == "" then "-" else . end' <<<"$json"
+}
+
+json_array_bullets_or_dash() {
+  local json="$1"
+  local field="$2"
+  local out
+  out="$(jq -r --arg field "$field" '
+    (.[$field] // [])
+    | if type == "array" then . else [] end
+    | map(select(. != null and (. | tostring | length > 0)) | "- " + tostring)
+    | join("\n")
+  ' <<<"$json")"
+  if [[ -z "$out" ]]; then
+    printf '%s\n' "- (not declared)"
+  else
+    printf '%s\n' "$out"
+  fi
+}
+
 build_prompt() {
   local worker_id="$1"
   local selected_json="$2"
@@ -83,6 +106,25 @@ build_prompt() {
   local retry_block=""
   retry_block="$(build_retry_context_block "$slug")"
 
+  local contract contract_status slice_size execution_owner degraded_mode fixture note
+  local source_refs blocked_by unblocks ready_when not_ready_when acceptance write_scope test_commands done_signal
+  contract="$(json_scalar_or_dash "$selected_json" contract)"
+  contract_status="$(json_scalar_or_dash "$selected_json" contract_status)"
+  slice_size="$(json_scalar_or_dash "$selected_json" slice_size)"
+  execution_owner="$(json_scalar_or_dash "$selected_json" execution_owner)"
+  degraded_mode="$(json_scalar_or_dash "$selected_json" degraded_mode)"
+  fixture="$(json_scalar_or_dash "$selected_json" fixture)"
+  note="$(json_scalar_or_dash "$selected_json" note)"
+  source_refs="$(json_array_bullets_or_dash "$selected_json" source_refs)"
+  blocked_by="$(json_array_bullets_or_dash "$selected_json" blocked_by)"
+  unblocks="$(json_array_bullets_or_dash "$selected_json" unblocks)"
+  ready_when="$(json_array_bullets_or_dash "$selected_json" ready_when)"
+  not_ready_when="$(json_array_bullets_or_dash "$selected_json" not_ready_when)"
+  acceptance="$(json_array_bullets_or_dash "$selected_json" acceptance)"
+  write_scope="$(json_array_bullets_or_dash "$selected_json" write_scope)"
+  test_commands="$(json_array_bullets_or_dash "$selected_json" test_commands)"
+  done_signal="$(json_array_bullets_or_dash "$selected_json" done_signal)"
+
   cat > "$prompt_file" <<EOF
 Repository root:
   $worker_dir
@@ -98,6 +140,52 @@ Selected task:
 - Phase/Subphase/Item: $phase_id / $subphase_id / $item_name
 - Current status: $status
 
+Autoloop control plane:
+- Main entrypoint: scripts/gormes-auto-codexu-orchestrator.sh
+- Candidate source: $PROGRESS_JSON_REL
+- Agent queue docs: docs/content/building-gormes/agent-queue.md
+- Progress schema docs: docs/content/building-gormes/progress-schema.md
+- Orchestrator plan: docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md
+- Orchestrator tests: scripts/orchestrator/tests/run.sh unit
+
+Canonical progress handoff:
+- Contract: $contract
+- Contract status: $contract_status
+- Slice size: $slice_size
+- Execution owner: $execution_owner
+- Fixture: $fixture
+- Degraded mode: $degraded_mode
+
+Ready when:
+$ready_when
+
+Not ready when:
+$not_ready_when
+
+Blocked by:
+$blocked_by
+
+Write scope:
+$write_scope
+
+Test commands:
+$test_commands
+
+Done signal:
+$done_signal
+
+Acceptance from progress.json:
+$acceptance
+
+Source refs:
+$source_refs
+
+Unblocks:
+$unblocks
+
+Progress note:
+$note
+
 Isolated execution context:
 - Git worktree: $worker_dir
 - Git branch: $branch
@@ -108,6 +196,8 @@ Selection contract:
   $PROGRESS_JSON_REL
 - Do not switch to another task in this run.
 - Keep all changes inside the current repository root.
+- Prefer the declared Write scope and Test commands above. Do not broaden scope
+  unless the first failing command proves the declared scope is insufficient.
 - Create exactly one new commit on $branch.
 - Do not amend, squash, or rewrite history.
 - Leave the worktree clean after your commit.

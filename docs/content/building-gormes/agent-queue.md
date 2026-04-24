@@ -14,6 +14,14 @@ slice size, contract, trust class, degraded-mode requirement, fixture target,
 write scope, test commands, done signal, acceptance checks, and source
 references.
 
+The autonomous loop uses `scripts/gormes-auto-codexu-orchestrator.sh` as the
+main entrypoint. That script reads the same canonical `progress.json`, injects
+the selected row's handoff fields into the worker prompt, and uses
+`docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md` as the
+orchestrator improvement plan. Do not duplicate these instructions into each
+row; keep shared behavior here and row-specific execution facts in
+`progress.json`.
+
 <!-- PROGRESS:START kind=agent-queue -->
 ## 1. Orchestrator failure-row stabilization for 4-8 workers
 

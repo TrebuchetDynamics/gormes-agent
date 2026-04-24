@@ -26,21 +26,43 @@ normalize_candidates() {
       | to_entries[]
       | .key as $subphase_id
       | (.value.items // [])[]
+      | . as $item
       | {
           phase_id: $phase_id,
           subphase_id: $subphase_id,
-          item_name: (.item_name // .name // .title // .id),
-          status: ((.status // "unknown") | tostring | ascii_downcase)
+          item_name: ($item.item_name // $item.name // $item.title // $item.id),
+          status: (($item.status // "unknown") | tostring | ascii_downcase),
+          priority: ($item.priority // ""),
+          contract: ($item.contract // ""),
+          contract_status: ($item.contract_status // ""),
+          slice_size: (($item.slice_size // "") | tostring | ascii_downcase),
+          execution_owner: ($item.execution_owner // ""),
+          trust_class: ($item.trust_class // []),
+          degraded_mode: ($item.degraded_mode // ""),
+          fixture: ($item.fixture // ""),
+          source_refs: ($item.source_refs // []),
+          blocked_by: ($item.blocked_by // []),
+          unblocks: ($item.unblocks // []),
+          ready_when: ($item.ready_when // []),
+          not_ready_when: ($item.not_ready_when // []),
+          acceptance: ($item.acceptance // []),
+          write_scope: ($item.write_scope // []),
+          test_commands: ($item.test_commands // []),
+          done_signal: ($item.done_signal // []),
+          note: ($item.note // "")
         }
       | select(.item_name != null and .item_name != "")
       | select(.status != "complete")
+      | select((.blocked_by | length) == 0)
+      | select(.slice_size != "umbrella")
       | . + {
+          agent_ready: ((.contract != "") and ((.write_scope | length) > 0) and ((.test_commands | length) > 0) and ((.done_signal | length) > 0)),
           status_rank: status_rank(.status),
           priority_rank: ((.subphase_id | ascii_downcase) as $sp_lower | if ($boost | index($sp_lower)) != null then 0 else 1 end)
         }
     ]
     | unique_by([.phase_id, .subphase_id, .item_name])
-    | sort_by([.priority_rank, .status_rank, .phase_id, .subphase_id, .item_name])
+    | sort_by([.priority_rank, (if .agent_ready then 0 else 1 end), .status_rank, .phase_id, .subphase_id, .item_name])
     | map(del(.status_rank, .priority_rank))
   ' "$PROGRESS_JSON"
 }

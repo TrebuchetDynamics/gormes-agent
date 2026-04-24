@@ -47,13 +47,16 @@ Use the planning docs in this order:
    Gormes absorbs from Hermes and GBrain.
 2. Pick work from [Agent Queue](./agent-queue/) for an autonomous-worker-ready
    handoff, then use [Next Slices](./next-slices/) for the shorter ranking.
-3. Check [Contract Readiness](./contract-readiness/) before implementation; an
+3. Run through `scripts/gormes-auto-codexu-orchestrator.sh` when using the
+   unattended loop; it consumes the same canonical progress rows and injects
+   row-specific handoff fields into worker prompts.
+4. Check [Contract Readiness](./contract-readiness/) before implementation; an
    active or P0 row must name its contract, trust class, degraded mode, fixture,
    source references, and acceptance checks.
-4. Check [Blocked Slices](./blocked-slices/) and
+5. Check [Blocked Slices](./blocked-slices/) and
    [Umbrella Cleanup](./umbrella-cleanup/) before assigning a row.
-5. Use [Progress Schema](./progress-schema/) when editing canonical progress.
-6. Write the spec/plan from [Porting a Subsystem](./porting-a-subsystem/),
+6. Use [Progress Schema](./progress-schema/) when editing canonical progress.
+7. Write the spec/plan from [Porting a Subsystem](./porting-a-subsystem/),
    then implement with the fixture classes in [Testing](./testing/).
 
 ## Contents

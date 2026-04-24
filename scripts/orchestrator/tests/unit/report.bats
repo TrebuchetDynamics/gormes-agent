@@ -135,6 +135,37 @@ setup() {
   assert_output --partial "ACCEPTANCE CRITERIA"
   assert_output --partial "9) Acceptance check"
   assert_output --partial "Criterion:"
+  assert_output --partial "Autoloop control plane:"
+  assert_output --partial "scripts/gormes-auto-codexu-orchestrator.sh"
+  assert_output --partial "docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md"
+}
+
+@test "build_prompt includes selected progress handoff fields" {
+  local tmp
+  tmp="$(mktmp_workspace)"
+  export STATE_DIR="$tmp/state"
+  export WORKTREES_DIR="$tmp/worktrees"
+  export REPO_SUBDIR="."
+  export RUN_ID="testrun"
+  export BASE_COMMIT="abc1234"
+  export PROGRESS_JSON_REL="docs/content/building-gormes/architecture_plan/progress.json"
+  mkdir -p "$STATE_DIR"
+  local selected
+  selected='{"phase_id":"4","subphase_id":"4.A","item_name":"Provider harness","status":"in_progress","contract":"Provider transcript contract","contract_status":"fixture_ready","slice_size":"medium","execution_owner":"provider","fixture":"internal/hermes fixtures","degraded_mode":"status reports gaps","ready_when":["fixtures replay"],"not_ready_when":["live provider call required"],"write_scope":["internal/hermes/"],"test_commands":["go test ./internal/hermes -count=1"],"done_signal":["transcripts replay"],"acceptance":["fixture passes"],"source_refs":["docs/content/upstream-hermes/source-study.md"],"unblocks":["Bedrock"],"note":"Keep provider quirks out of kernel."}'
+  local prompt_file="$tmp/prompt.txt"
+  run build_prompt 1 "$selected" "0:4/4.A/Provider harness" "$prompt_file"
+  assert_success
+  run cat "$prompt_file"
+  assert_success
+  assert_output --partial "Canonical progress handoff:"
+  assert_output --partial "- Contract: Provider transcript contract"
+  assert_output --partial "- Contract status: fixture_ready"
+  assert_output --partial "- Slice size: medium"
+  assert_output --partial "- Execution owner: provider"
+  assert_output --partial "- internal/hermes/"
+  assert_output --partial "- go test ./internal/hermes -count=1"
+  assert_output --partial "- transcripts replay"
+  assert_output --partial "Prefer the declared Write scope and Test commands"
 }
 
 @test "build_prompt omits PRIOR ATTEMPT FEEDBACK when no failure record" {
