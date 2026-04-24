@@ -197,6 +197,7 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 								"write_scope": ["internal/hermes/"],
 								"test_commands": ["go test ./internal/hermes -count=1"],
 								"done_signal": ["provider transcript replay passes"],
+								"unblocks": ["Bedrock adapter"],
 								"note": "Use captured transcript fixtures."
 							}
 						]
@@ -249,6 +250,10 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 		"- fixtures replay",
 		"Not ready when:",
 		"- live provider call required",
+		"Blocked by:",
+		"- (none declared)",
+		"Unblocks:",
+		"- Bedrock adapter",
 		"Allowed write scope:",
 		"- internal/hermes/",
 		"Required test commands:",
@@ -263,6 +268,27 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 		"Note: Use captured transcript fixtures.",
 		"Requirements:",
 		"- Keep changes scoped to the selected task and its allowed write scope.",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt = %q, want %q", prompt, want)
+		}
+	}
+}
+
+func TestBuildWorkerPromptRendersDependencyMetadata(t *testing.T) {
+	prompt := BuildWorkerPrompt(Candidate{
+		PhaseID:    "12",
+		SubphaseID: "12.A",
+		ItemName:   "blocked candidate",
+		Status:     "planned",
+		BlockedBy:  []string{"Hermes fixtures"},
+	})
+
+	for _, want := range []string{
+		"Blocked by:",
+		"- Hermes fixtures",
+		"Unblocks:",
+		"- (none declared)",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt = %q, want %q", prompt, want)

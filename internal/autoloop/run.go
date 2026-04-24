@@ -93,6 +93,10 @@ func BuildWorkerPrompt(candidate Candidate) string {
 	writePromptList(&prompt, candidate.ReadyWhen)
 	prompt.WriteString("- Not ready when:\n")
 	writePromptList(&prompt, candidate.NotReadyWhen)
+	prompt.WriteString("- Blocked by:\n")
+	writePromptList(&prompt, candidate.BlockedBy)
+	prompt.WriteString("- Unblocks:\n")
+	writePromptList(&prompt, candidate.Unblocks)
 	prompt.WriteString("\n")
 
 	prompt.WriteString("Worker boundaries:\n")
