@@ -25,12 +25,12 @@ machine-readable queue for developing the full `gormes-agent`.
 - The generated checklist below is rebuilt from `progress.json`; do not hand-edit
   content between `PROGRESS` markers.
 - Use the phase pages for design intent and boundaries, then use
-  [Contract Readiness](../contract-readiness/) and [Agent Queue](../agent-queue/)
+  [Contract Readiness](../contract-readiness/) and [Agent Queue](../autoloop/agent-queue/)
   for assignable work.
 - When a row is too broad for one agent, split it in `progress.json` first and
-  let [Umbrella Cleanup](../umbrella-cleanup/) show the remaining inventory.
+  let [Umbrella Cleanup](../autoloop/umbrella-cleanup/) show the remaining inventory.
 - When a row is blocked, keep the unblock condition explicit so
-  [Blocked Slices](../blocked-slices/) stays useful to operators and autoloop.
+  [Blocked Slices](../autoloop/blocked-slices/) stays useful to operators and autoloop.
 
 ---
 

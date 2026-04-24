@@ -16,7 +16,7 @@ slice size, contract, trust class, degraded-mode requirement, fixture target,
 write scope, test commands, done signal, acceptance checks, and source
 references.
 
-Shared unattended-loop facts live in [Autoloop Handoff](./autoloop-handoff/):
+Shared unattended-loop facts live in [Autoloop Handoff](../autoloop-handoff/):
 the main entrypoint, orchestrator plan, candidate source, generated docs,
 tests, and candidate policy. Keep those control-plane facts in
 `meta.autoloop`, and keep row-specific execution facts in `progress.json`.

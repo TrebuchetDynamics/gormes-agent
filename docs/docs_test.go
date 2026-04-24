@@ -478,20 +478,27 @@ func resolveContentLink(sourceRel, link string) error {
 	if idx := strings.IndexAny(target, "?#"); idx >= 0 {
 		target = target[:idx]
 	}
-	candidate := filepath.Clean(filepath.Join(sourceDir, target))
 
-	checks := []string{
-		candidate + ".md",
-		filepath.Join(candidate, "_index.md"),
-		filepath.Join(candidate, "index.md"),
-	}
-	if strings.HasSuffix(target, "/") {
-		checks = append([]string{filepath.Join(candidate, "_index.md")}, checks...)
+	sourceDirs := []string{sourceDir}
+	if base := filepath.Base(sourceRel); base != "_index.md" && filepath.Ext(base) == ".md" {
+		sourceDirs = append(sourceDirs, filepath.Join(sourceDir, strings.TrimSuffix(base, ".md")))
 	}
 
-	for _, check := range checks {
-		if _, err := os.Stat(check); err == nil {
-			return nil
+	for _, dir := range sourceDirs {
+		candidate := filepath.Clean(filepath.Join(dir, target))
+		checks := []string{
+			candidate + ".md",
+			filepath.Join(candidate, "_index.md"),
+			filepath.Join(candidate, "index.md"),
+		}
+		if strings.HasSuffix(target, "/") {
+			checks = append([]string{filepath.Join(candidate, "_index.md")}, checks...)
+		}
+
+		for _, check := range checks {
+			if _, err := os.Stat(check); err == nil {
+				return nil
+			}
 		}
 	}
 
