@@ -51,7 +51,7 @@
             {
               "name": "Planner wrapper/test consistency closeout",
               "status": "planned",
-              "note": "TDD: reconcile the current wrapper policy before treating the planner-task-manager rename as fully stable. The worktree deletes scripts/gormes-architecture-task-manager.sh and scripts/architectureplanneragent.sh while internal/architectureplanneragent_test.go and docs/superpowers/plans/2026-04-23-gormes-architecture-task-manager-script.md still expect compatibility wrappers; either restore tiny exec wrappers or update tests/docs to a single-entrypoint policy, then run the internal script tests."
+              "note": "P0: the `go test ./internal/ -run ArchitecturePlanner` suite is currently RED — `TestArchitecturePlannerAgentRunsCodexuAndInstallsPeriodicTimer` fails at architectureplanneragent_test.go:38 because it reads `scripts/gormes-architecture-task-manager.sh` which no longer exists in the worktree (only `scripts/gormes-architecture-planner-tasks-manager.sh` remains). TDD: pick one policy and finish it in a single slice — either (a) restore tiny exec wrappers at `scripts/gormes-architecture-task-manager.sh` and `scripts/architectureplanneragent.sh` that exec the renamed script, or (b) update `internal/architectureplanneragent_test.go` plus `docs/superpowers/plans/2026-04-23-gormes-architecture-task-manager-script.md` to a single-entrypoint policy that drops the `task-manager-help`/`legacy-help` subtests. Either path must leave `go test ./internal/ -run ArchitecturePlanner -count=1` green."
             }
           ]
         }
@@ -886,8 +886,23 @@
             },
             {
               "name": "Bedrock",
-              "status": "in_progress",
-              "note": "TDD: not landed on main. Five codexu/* worker attempts on 2026-04-23 produced candidate Bedrock adapters (`feat(phase4): add bedrock provider adapter` x2, `feat(provider): add bedrock client`, `feat(provider): add native Bedrock adapter`, `feat(gormes): add native bedrock provider adapter`) but none merged — no `bedrock_*.go` file is tracked in `internal/hermes/` and `grep -i bedrock|converse[sS]tream` over that package returns zero matches. Execution agents should split this into three small TDD slices before another full-rewrite attempt: (1) Bedrock Converse request-payload shaping + canonical Message->Bedrock tool-aware mapping with pure fixtures (no AWS SDK), (2) Bedrock stream event decoding (reasoning/text/tool-use deltas) into the shared `hermes.Event` model from captured SSE fixtures, (3) minimal SigV4 signing + credential seam gated behind a small dep-isolated helper so future regional/error handling can land without pulling the full AWS SDK into kernel paths."
+              "status": "planned",
+              "note": "Umbrella only: not landed on main. Five codexu/* worker attempts on 2026-04-23 produced candidate Bedrock adapters (`feat(phase4): add bedrock provider adapter` x2, `feat(provider): add bedrock client`, `feat(provider): add native Bedrock adapter`, `feat(gormes): add native bedrock provider adapter`) but none merged — no `bedrock_*.go` file is tracked in `internal/hermes/` and `grep -i bedrock|converse[sS]tream` over that package returns zero matches. Execute via the three dependency-ordered TDD slices below (payload mapping -> stream decoding -> SigV4/credential seam) before another full-rewrite attempt."
+            },
+            {
+              "name": "Bedrock Converse payload mapping (no AWS SDK)",
+              "status": "planned",
+              "note": "TDD first slice: port Bedrock Converse request-payload shaping plus canonical Message->Bedrock tool-aware mapping with pure fixtures and no AWS SDK dependency. Land alongside a request-body golden file that pins role/tool-result block order, reasoning/cache-control passthrough, and max_tokens/temperature translation. Gates the next two slices."
+            },
+            {
+              "name": "Bedrock stream event decoding (SSE fixtures)",
+              "status": "planned",
+              "note": "TDD second slice: decode Bedrock stream reasoning/text/tool-use deltas and stop reasons into the shared `hermes.Event` model from captured SSE fixtures, reusing the Anthropic stream harness where possible. No AWS SDK dependency — the fixture set must cover empty-stream, retry-safe finish, truncated-stream, and tool-call-split events before the SigV4 slice lands."
+            },
+            {
+              "name": "Bedrock SigV4 + credential seam",
+              "status": "planned",
+              "note": "TDD third slice: land minimal SigV4 signing plus a narrow credential seam behind a dep-isolated helper so regional/error handling and eventual full AWS SDK adoption stay off the kernel hot path. Requires the payload-mapping and stream-decoding fixtures to be green first; unit tests must cover signing-determinism, missing-credential failure, and region-override selection without network calls."
             },
             {
               "name": "Gemini",

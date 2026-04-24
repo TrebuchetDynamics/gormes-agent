@@ -298,6 +298,9 @@ weight: 10
 - [ ] Tool-call normalization + continuation contract
 - [x] Anthropic
 - [ ] Bedrock
+- [ ] Bedrock Converse payload mapping (no AWS SDK)
+- [ ] Bedrock stream event decoding (SSE fixtures)
+- [ ] Bedrock SigV4 + credential seam
 - [ ] Gemini
 - [ ] OpenRouter
 - [ ] Google Code Assist

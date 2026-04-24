@@ -814,9 +814,13 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	if toolSchema.Status != StatusPlanned {
 		t.Fatalf("Phase 3.E.7 tool schema status = %q, want planned", toolSchema.Status)
 	}
-	denyEvidence := crossChatItems["Cross-chat deny-path + operator evidence"]
-	if denyEvidence.Status != StatusPlanned {
-		t.Fatalf("Phase 3.E.7 deny-path evidence status = %q, want planned", denyEvidence.Status)
+	denyFixtures := crossChatItems["Cross-chat deny-path fixtures"]
+	if denyFixtures.Status != StatusPlanned {
+		t.Fatalf("Phase 3.E.7 deny-path fixtures status = %q, want planned", denyFixtures.Status)
+	}
+	operatorEvidence3E7 := crossChatItems["Cross-chat operator evidence"]
+	if operatorEvidence3E7.Status != StatusPlanned {
+		t.Fatalf("Phase 3.E.7 operator evidence status = %q, want planned", operatorEvidence3E7.Status)
 	}
 
 	insights := p.Phases["3"].Subphases["3.E.5"]

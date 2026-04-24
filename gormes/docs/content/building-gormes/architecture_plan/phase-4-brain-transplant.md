@@ -15,7 +15,7 @@ Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
 
 | Subphase | Status | Deliverable |
 |---|---|---|
-| 4.A — Provider Adapters | ◌ in_progress | Anthropic is landed on the shared provider seam; candidate Bedrock adapters have appeared on codexu/* worker branches but none have merged to main, and Gemini, OpenRouter, Google Code Assist, and Codex are still planned over the same contract |
+| 4.A — Provider Adapters | ◌ in_progress | Anthropic is landed on the shared provider seam; Bedrock is fully planned (none of the five codexu/* worker attempts on 2026-04-23 merged to main) and now tracked as three dependency-ordered TDD slices in the ledger — payload mapping, stream decoding, SigV4/credential seam — and Gemini, OpenRouter, Google Code Assist, and Codex are still planned over the same contract |
 | 4.B — Context Engine + Compression | ⏳ planned | Port `agent/{context_engine,context_compressor,context_references}.py`; execute as smaller slices: interface/status contract, token-budget trigger, tool-result pruning with protected head/tail summary, then manual feedback/context references |
 | 4.C — Native Prompt Builder | ⏳ planned | Port `agent/prompt_builder.py`; execute as smaller slices: context-file discovery and injection scan, model-specific role/tool guidance, toolset-aware skills prompt snapshots, and memory/session-search guidance assembly |
 | 4.D — Smart Model Routing | ◌ in_progress | Model metadata and the pure routing/fallback selector remain planned; the kernel now supports turn-scoped model overrides that persist across tool iterations without mutating the default model |

@@ -110,7 +110,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
 | Anthropic adapter | `agent/anthropic_adapter.py` | 4.A | ✅ complete |
-| Bedrock adapter | `agent/bedrock_adapter.py` | 4.A | 🔨 partial — five codexu/* worker branches on 2026-04-23 landed candidate Bedrock adapter commits, but none merged to main; no `bedrock_*.go` file is tracked in `internal/hermes/`, and `grep -i bedrock\|converse[sS]tream` over that package returns zero matches. Plan splits the rewrite into payload mapping, stream event decoding, and SigV4/credential seam slices |
+| Bedrock adapter | `agent/bedrock_adapter.py` | 4.A | ⏳ planned — five codexu/* worker branches on 2026-04-23 landed candidate Bedrock adapter commits, but none merged to main; no `bedrock_*.go` file is tracked in `internal/hermes/`, and `grep -i bedrock\|converse[sS]tream` over that package returns zero matches. Plan splits the rewrite into three TDD slices (payload mapping, stream event decoding, SigV4/credential seam), all tracked as separate planned items under `4.A` in the ledger |
 | Gemini Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | 4.A | ⏳ planned |
 | OpenRouter client | `agent/openrouter_client.py` | 4.A | ⏳ planned |
 | Google Code Assist | `agent/google_code_assist.py` | 4.A | ⏳ planned |
