@@ -56,8 +56,9 @@
     },
     {
       "source": "colors.py",
-      "status": "planned",
-      "reason": "ANSI color palette helpers not yet ported; Bubble Tea lipgloss is used ad hoc inside internal/tui/."
+      "status": "ported",
+      "go": ["internal/cli/colors.go"],
+      "reason": "ANSI palette (Reset/Bold/Dim/Red/Green/Yellow/Blue/Magenta/Cyan), ColorEnv-driven ShouldUseColor (NO_COLOR / TERM=dumb / TTY precedence), and Colorize() wrapper are ported with deterministic, TTY-free tests."
     },
     {
       "source": "commands.py",
