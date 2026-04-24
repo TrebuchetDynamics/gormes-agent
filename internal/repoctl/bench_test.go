@@ -42,10 +42,10 @@ func TestRecordBenchmarkUpdatesBinaryMetrics(t *testing.T) {
 			LastMeasured string `json:"last_measured"`
 		} `json:"binary"`
 		History []struct {
-			SizeBytes int64  `json:"size_bytes"`
-			SizeMB    string `json:"size_mb"`
-			Commit    string `json:"commit"`
-			Date      string `json:"date"`
+			SizeBytes int64   `json:"size_bytes"`
+			SizeMB    float64 `json:"size_mb"`
+			Commit    string  `json:"commit"`
+			Date      string  `json:"date"`
 		} `json:"history"`
 	}
 	raw, err := os.ReadFile(benchPath)
@@ -64,7 +64,7 @@ func TestRecordBenchmarkUpdatesBinaryMetrics(t *testing.T) {
 	if got.Binary.Commit != "abc123" || got.Binary.LastMeasured != "2026-04-24" {
 		t.Fatalf("binary metadata = %+v", got.Binary)
 	}
-	if len(got.History) != 1 || got.History[0].SizeMB != "2.0" {
+	if len(got.History) != 1 || got.History[0].SizeMB != 2.0 {
 		t.Fatalf("history = %+v", got.History)
 	}
 }
@@ -170,7 +170,7 @@ func TestRecordBenchmarkPreservesRepoStyleMetadata(t *testing.T) {
 		t.Fatalf("history length = %d", len(history))
 	}
 	first := history[0].(map[string]any)
-	if first["size_bytes"] != float64(3*1024*1024) || first["size_mb"] != "3.0" || first["commit"] != "def456" || first["date"] != "2026-04-24" || first["phase"] != "Phase 2 - The Gateway" {
+	if first["size_bytes"] != float64(3*1024*1024) || first["size_mb"] != 3.0 || first["commit"] != "def456" || first["date"] != "2026-04-24" || first["phase"] != "Phase 2 - The Gateway" {
 		t.Fatalf("new history entry = %+v", first)
 	}
 	second := history[1].(map[string]any)

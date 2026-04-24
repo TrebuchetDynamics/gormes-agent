@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -61,6 +62,10 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 
 	date := opts.Now().Format("2006-01-02")
 	sizeMB := fmt.Sprintf("%.1f", float64(info.Size())/1048576)
+	historySizeMB, err := strconv.ParseFloat(sizeMB, 64)
+	if err != nil {
+		return err
+	}
 
 	binary, _ := bench["binary"].(map[string]any)
 	if binary == nil {
@@ -77,7 +82,7 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 		entry := map[string]any{
 			"date":       date,
 			"size_bytes": info.Size(),
-			"size_mb":    sizeMB,
+			"size_mb":    historySizeMB,
 			"commit":     commit,
 			"phase":      currentPhase(opts.Root, history),
 		}
