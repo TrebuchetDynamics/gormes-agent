@@ -117,6 +117,7 @@ Usage:
   $0 abort [run_id]        # terminate active worker pids for run
   $0 cleanup               # cleanup stale locks and enforce worktree cap
   $0 promote-commit <run_id> <worker_id> [target_branch]
+  $0 verify-gh-auth [repo_slug]   # check gh CLI auth + repo view access
 
 Env:
   REPO_ROOT                  Default: $REPO_ROOT
@@ -141,6 +142,10 @@ Env:
   ORCHESTRATOR_ONCE          Set to 1 to run a single batch and exit
   AUTO_PROMOTE_SUCCESS       Set to 1 to promote successful workers before next cycle
   ALLOW_SOFT_SUCCESS_NONZERO Set to 1 to treat non-zero codex exits as success if report+commit pass validation
+  PROMOTION_MODE             "pr" (default) opens a PR per successful worker and falls back
+                             to cherry-pick on any gh/push failure. "cherry-pick" skips the
+                             PR flow entirely.
+  PR_REPO_SLUG               owner/name for gh pr create (default: TrebuchetDynamics/gormes-agent)
   INTEGRATION_BRANCH         Branch that accumulates promoted worker commits
   INTEGRATION_WORKTREE       Optional managed worktree for INTEGRATION_BRANCH
   MAX_RUN_WORKTREE_DIRS      Max kept run-level worktree dirs under worktrees/ (default: 4)
@@ -309,7 +314,7 @@ parse_cli_args() {
         COMMAND_MODE="resume"
         shift 2
         ;;
-      status|tail|abort|cleanup|promote-commit)
+      status|tail|abort|cleanup|promote-commit|verify-gh-auth)
         COMMAND_MODE="$1"
         shift
         # Remaining positional args belong to the subcommand.
@@ -1358,6 +1363,9 @@ main() {
     validate
     cmd_promote_commit "${CMD_ARGS[0]}" "${CMD_ARGS[1]}" "${CMD_ARGS[2]:-}"
     return 0
+  elif [[ "$COMMAND_MODE" == "verify-gh-auth" ]]; then
+    orchestrator_verify_gh_auth "${CMD_ARGS[0]:-$PR_REPO_SLUG}"
+    return $?
   fi
 
   claim_run_lock
