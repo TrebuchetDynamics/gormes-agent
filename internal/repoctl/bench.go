@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -68,34 +69,36 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 	binary["size_bytes"] = info.Size()
 	binary["size_mb"] = sizeMB
 	binary["commit"] = commit
-	if _, ok := binary["last_measured"]; ok {
-		binary["last_measured"] = date
-	}
-	if _, ok := binary["date"]; ok {
-		binary["date"] = date
-	}
-	if _, hasLastMeasured := binary["last_measured"]; !hasLastMeasured {
-		if _, hasDate := binary["date"]; !hasDate {
-			binary["date"] = date
-		}
-	}
+	binary["last_measured"] = date
 	bench["binary"] = binary
 
-	entry := map[string]any{
-		"size_bytes": info.Size(),
-		"size_mb":    sizeMB,
-		"commit":     commit,
-		"date":       date,
-	}
 	history, _ := bench["history"].([]any)
-	bench["history"] = append(history, entry)
+	if len(history) == 0 || historyDate(history[0]) != date {
+		entry := map[string]any{
+			"date":       date,
+			"size_bytes": info.Size(),
+			"size_mb":    sizeMB,
+			"commit":     commit,
+			"phase":      currentPhase(opts.Root, history),
+		}
+		history = append([]any{entry}, history...)
+	}
+	bench["history"] = history
 
 	raw, err := json.MarshalIndent(bench, "", "  ")
 	if err != nil {
 		return err
 	}
 	raw = append(raw, '\n')
-	return os.WriteFile(benchPath, raw, 0o644)
+	if err := os.WriteFile(benchPath, raw, 0o644); err != nil {
+		return err
+	}
+
+	docsBenchPath := filepath.Join(opts.Root, "docs", "data", "benchmarks.json")
+	if err := os.MkdirAll(filepath.Dir(docsBenchPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(docsBenchPath, raw, 0o644)
 }
 
 func gitCommit(root string) (string, error) {
@@ -104,4 +107,136 @@ func gitCommit(root string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+func historyDate(entry any) string {
+	fields, ok := entry.(map[string]any)
+	if !ok {
+		return ""
+	}
+	date, _ := fields["date"].(string)
+	return date
+}
+
+func currentPhase(root string, history []any) string {
+	if phase := phaseFromArchPlan(filepath.Join(root, "docs", "ARCH_PLAN.md")); phase != "" {
+		return phase
+	}
+	if phase := phaseFromProgress(filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")); phase != "" {
+		return phase
+	}
+	for _, entry := range history {
+		fields, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		phase, _ := fields["phase"].(string)
+		if phase != "" {
+			return phase
+		}
+	}
+	return "unknown"
+}
+
+func phaseFromArchPlan(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "## Phase") {
+			continue
+		}
+		rest := strings.TrimSpace(strings.TrimPrefix(line, "## Phase"))
+		if rest == "" {
+			continue
+		}
+		return "Phase " + rest
+	}
+	return ""
+}
+
+func phaseFromProgress(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var progress struct {
+		Phases map[string]struct {
+			Name      string                          `json:"name"`
+			Status    string                          `json:"status"`
+			Subphases map[string]progressSubphaseJSON `json:"subphases"`
+		} `json:"phases"`
+	}
+	if err := json.Unmarshal(raw, &progress); err != nil {
+		return ""
+	}
+
+	keys := make([]string, 0, len(progress.Phases))
+	for key := range progress.Phases {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return phaseKeyLess(keys[i], keys[j])
+	})
+
+	for _, key := range keys {
+		phase := progress.Phases[key]
+		if phase.Name == "" {
+			continue
+		}
+		if phaseIncomplete(phase.Status, phase.Subphases) {
+			return phase.Name
+		}
+	}
+	return ""
+}
+
+type progressSubphaseJSON struct {
+	Status string `json:"status"`
+	Items  []struct {
+		Status string `json:"status"`
+	} `json:"items"`
+}
+
+func phaseIncomplete(status string, subphases map[string]progressSubphaseJSON) bool {
+	if len(subphases) == 0 {
+		return status != "complete"
+	}
+	for _, subphase := range subphases {
+		if len(subphase.Items) == 0 {
+			if subphase.Status != "complete" {
+				return true
+			}
+			continue
+		}
+		for _, item := range subphase.Items {
+			if item.Status != "complete" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func phaseKeyLess(left, right string) bool {
+	leftInt, leftErr := parsePhaseKey(left)
+	rightInt, rightErr := parsePhaseKey(right)
+	if leftErr == nil && rightErr == nil {
+		return leftInt < rightInt
+	}
+	if leftErr == nil {
+		return true
+	}
+	if rightErr == nil {
+		return false
+	}
+	return left < right
+}
+
+func parsePhaseKey(key string) (int, error) {
+	var n int
+	_, err := fmt.Sscanf(key, "%d", &n)
+	return n, err
 }

@@ -36,10 +36,10 @@ func TestRecordBenchmarkUpdatesBinaryMetrics(t *testing.T) {
 
 	var got struct {
 		Binary struct {
-			SizeBytes int64  `json:"size_bytes"`
-			SizeMB    string `json:"size_mb"`
-			Commit    string `json:"commit"`
-			Date      string `json:"date"`
+			SizeBytes    int64  `json:"size_bytes"`
+			SizeMB       string `json:"size_mb"`
+			Commit       string `json:"commit"`
+			LastMeasured string `json:"last_measured"`
 		} `json:"binary"`
 		History []struct {
 			SizeBytes int64  `json:"size_bytes"`
@@ -61,7 +61,7 @@ func TestRecordBenchmarkUpdatesBinaryMetrics(t *testing.T) {
 	if got.Binary.SizeMB != "2.0" {
 		t.Fatalf("size_mb = %q", got.Binary.SizeMB)
 	}
-	if got.Binary.Commit != "abc123" || got.Binary.Date != "2026-04-24" {
+	if got.Binary.Commit != "abc123" || got.Binary.LastMeasured != "2026-04-24" {
 		t.Fatalf("binary metadata = %+v", got.Binary)
 	}
 	if len(got.History) != 1 || got.History[0].SizeMB != "2.0" {
@@ -170,12 +170,142 @@ func TestRecordBenchmarkPreservesRepoStyleMetadata(t *testing.T) {
 		t.Fatalf("history length = %d", len(history))
 	}
 	first := history[0].(map[string]any)
-	if first["size_mb"] != 16.2 || first["phase"] != "Phase 2 - The Gateway" {
-		t.Fatalf("existing history entry was not preserved: %+v", first)
+	if first["size_bytes"] != float64(3*1024*1024) || first["size_mb"] != "3.0" || first["commit"] != "def456" || first["date"] != "2026-04-24" || first["phase"] != "Phase 2 - The Gateway" {
+		t.Fatalf("new history entry = %+v", first)
 	}
-	last := history[1].(map[string]any)
-	if last["size_bytes"] != float64(3*1024*1024) || last["size_mb"] != "3.0" || last["commit"] != "def456" || last["date"] != "2026-04-24" {
-		t.Fatalf("new history entry = %+v", last)
+	second := history[1].(map[string]any)
+	if second["size_mb"] != 16.2 || second["phase"] != "Phase 2 - The Gateway" {
+		t.Fatalf("existing history entry was not preserved after new entry: %+v", second)
+	}
+}
+
+func TestRecordBenchmarkCopiesBenchmarksToDocsData(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "gormes")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RecordBenchmark(BenchmarkOptions{
+		Root:      root,
+		Binary:    bin,
+		Now:       func() time.Time { return time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC) },
+		GitCommit: func(string) (string, error) { return "abc123", nil },
+	})
+	if err != nil {
+		t.Fatalf("RecordBenchmark: %v", err)
+	}
+
+	rootBench, err := os.ReadFile(filepath.Join(root, "benchmarks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	docsBench, err := os.ReadFile(filepath.Join(root, "docs", "data", "benchmarks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(docsBench) != string(rootBench) {
+		t.Fatalf("docs/data/benchmarks.json did not match root benchmarks.json")
+	}
+}
+
+func TestRecordBenchmarkAvoidsDuplicateSameDayHistory(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "gormes")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	benchPath := filepath.Join(root, "benchmarks.json")
+	if err := os.WriteFile(benchPath, []byte(`{"binary":{},"history":[{"date":"2026-04-24","size_mb":1.0,"phase":"Phase 1"}]}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RecordBenchmark(BenchmarkOptions{
+		Root:      root,
+		Binary:    bin,
+		Now:       func() time.Time { return time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC) },
+		GitCommit: func(string) (string, error) { return "abc123", nil },
+	})
+	if err != nil {
+		t.Fatalf("RecordBenchmark: %v", err)
+	}
+
+	var got struct {
+		History []map[string]any `json:"history"`
+	}
+	raw, err := os.ReadFile(benchPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.History) != 1 {
+		t.Fatalf("history length = %d, want 1: %+v", len(got.History), got.History)
+	}
+}
+
+func TestRecordBenchmarkInfersPhaseFromProgressJSON(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "gormes")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{"binary":{},"history":[]}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(root, "docs", "ARCH_PLAN.md"), "# Stub\n\nNo real phase marker.\n")
+	writeTestFile(t, filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
+  "phases": {
+    "1": {
+      "name": "Phase 1 - Complete",
+      "subphases": {
+        "1.A": {"items": [{"status": "complete"}]}
+      }
+    },
+    "2": {
+      "name": "Phase 2 - In Progress",
+      "subphases": {
+        "2.A": {"items": [{"status": "complete"}, {"status": "planned"}]}
+      }
+    }
+  }
+}
+`)
+
+	err := RecordBenchmark(BenchmarkOptions{
+		Root:      root,
+		Binary:    bin,
+		Now:       func() time.Time { return time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC) },
+		GitCommit: func(string) (string, error) { return "abc123", nil },
+	})
+	if err != nil {
+		t.Fatalf("RecordBenchmark: %v", err)
+	}
+
+	var got struct {
+		History []struct {
+			Phase string `json:"phase"`
+		} `json:"history"`
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "benchmarks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.History) == 0 || got.History[0].Phase != "Phase 2 - In Progress" {
+		t.Fatalf("history = %+v", got.History)
 	}
 }
 
@@ -231,4 +361,14 @@ func runGit(t *testing.T, dir string, args ...string) []byte {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 	return out
+}
+
+func writeTestFile(t *testing.T, path string, data string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
