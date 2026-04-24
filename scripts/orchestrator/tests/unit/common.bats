@@ -40,6 +40,67 @@ setup() {
   assert_output "success"
 }
 
+@test "worker_status_outcome maps fail-fast abort status to aborted" {
+  run worker_status_outcome "worker[4]: aborted-fail-fast -> prior worker failure"
+  assert_success
+  assert_output "aborted"
+}
+
+@test "abort_worker_pids terminates live worker pids" {
+  sleep 30 &
+  local pid="$!"
+
+  run abort_worker_pids "unit-test" "$pid"
+  assert_success
+
+  local i
+  for i in {1..20}; do
+    if ! proc_alive "$pid"; then
+      wait "$pid" 2>/dev/null || true
+      return 0
+    fi
+    sleep 0.05
+  done
+
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  fail "pid $pid was still alive after abort_worker_pids"
+}
+
+@test "should_pause_after_cycle pauses non-quota failures by default" {
+  run should_pause_after_cycle 1
+  assert_success
+}
+
+@test "should_pause_after_cycle does not pause success or quota backoff" {
+  run should_pause_after_cycle 0
+  assert_failure
+
+  run should_pause_after_cycle 75
+  assert_failure
+}
+
+@test "should_pause_after_cycle respects PAUSE_ON_RUN_FAILURE=0" {
+  run env PAUSE_ON_RUN_FAILURE=0 bash -c 'source "$1"; should_pause_after_cycle 1' _ "$ORCHESTRATOR_LIB_DIR/common.sh"
+  assert_failure
+}
+
+@test "should_run_post_cycle_companions allows only clean cycles by default" {
+  run should_run_post_cycle_companions 0
+  assert_success
+
+  run should_run_post_cycle_companions 1
+  assert_failure
+
+  run should_run_post_cycle_companions 75
+  assert_failure
+}
+
+@test "should_run_post_cycle_companions allows override for failed cycles" {
+  run env SKIP_COMPANIONS_ON_RUN_FAILURE=0 bash -c 'source "$1"; should_run_post_cycle_companions 1' _ "$ORCHESTRATOR_LIB_DIR/common.sh"
+  assert_success
+}
+
 @test "provider_quota_exhausted detects codex usage limit final message" {
   local final_file
   final_file="$BATS_TEST_TMPDIR/quota.final.md"

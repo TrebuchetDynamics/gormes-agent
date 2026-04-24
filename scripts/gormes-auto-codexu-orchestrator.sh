@@ -66,6 +66,9 @@ QUOTA_BACKOFF_SECONDS="${QUOTA_BACKOFF_SECONDS:-600}"
 ORCHESTRATOR_ONCE="${ORCHESTRATOR_ONCE:-0}"
 AUTO_PROMOTE_SUCCESS="${AUTO_PROMOTE_SUCCESS:-1}"
 ALLOW_SOFT_SUCCESS_NONZERO="${ALLOW_SOFT_SUCCESS_NONZERO:-1}"
+FAIL_FAST_ON_WORKER_FAILURE="${FAIL_FAST_ON_WORKER_FAILURE:-1}"
+PAUSE_ON_RUN_FAILURE="${PAUSE_ON_RUN_FAILURE:-1}"
+SKIP_COMPANIONS_ON_RUN_FAILURE="${SKIP_COMPANIONS_ON_RUN_FAILURE:-1}"
 INTEGRATION_BRANCH="${INTEGRATION_BRANCH:-codexu/autoloop}"
 INTEGRATION_WORKTREE="${INTEGRATION_WORKTREE:-}"
 MAX_RUN_WORKTREE_DIRS="${MAX_RUN_WORKTREE_DIRS:-4}"
@@ -144,6 +147,9 @@ Env:
   ORCHESTRATOR_ONCE          Set to 1 to run a single batch and exit
   AUTO_PROMOTE_SUCCESS       Set to 1 to promote successful workers before next cycle
   ALLOW_SOFT_SUCCESS_NONZERO Set to 1 to treat non-zero codex exits as success if report+commit pass validation
+  FAIL_FAST_ON_WORKER_FAILURE Set to 1 to terminate remaining workers after first worker failure (default: 1)
+  PAUSE_ON_RUN_FAILURE       Set to 1 to stop forever mode after non-quota failures (default: 1)
+  SKIP_COMPANIONS_ON_RUN_FAILURE Set to 1 to run companions only after clean cycles (default: 1)
   PROMOTION_MODE             "pr" (default) opens a PR per successful worker and falls back
                              to cherry-pick on any gh/push failure. "cherry-pick" skips the
                              PR flow entirely.
@@ -442,6 +448,18 @@ validate() {
   fi
   if [[ "$ALLOW_SOFT_SUCCESS_NONZERO" != "0" && "$ALLOW_SOFT_SUCCESS_NONZERO" != "1" ]]; then
     echo "ERROR: ALLOW_SOFT_SUCCESS_NONZERO must be 0 or 1" >&2
+    exit 1
+  fi
+  if [[ "$FAIL_FAST_ON_WORKER_FAILURE" != "0" && "$FAIL_FAST_ON_WORKER_FAILURE" != "1" ]]; then
+    echo "ERROR: FAIL_FAST_ON_WORKER_FAILURE must be 0 or 1" >&2
+    exit 1
+  fi
+  if [[ "$PAUSE_ON_RUN_FAILURE" != "0" && "$PAUSE_ON_RUN_FAILURE" != "1" ]]; then
+    echo "ERROR: PAUSE_ON_RUN_FAILURE must be 0 or 1" >&2
+    exit 1
+  fi
+  if [[ "$SKIP_COMPANIONS_ON_RUN_FAILURE" != "0" && "$SKIP_COMPANIONS_ON_RUN_FAILURE" != "1" ]]; then
+    echo "ERROR: SKIP_COMPANIONS_ON_RUN_FAILURE must be 0 or 1" >&2
     exit 1
   fi
   if promotion_enabled && [[ -z "$INTEGRATION_BRANCH" ]]; then
@@ -819,12 +837,6 @@ run_worker_resume() {
 
   # resume falls back to normal selector; determinism restored by existing locks + active-first order.
   run_worker "$worker_id"
-}
-
-# Check if process is alive and not zombie using /proc
-proc_alive() {
-  local pid=$1
-  [[ -d "/proc/$pid" ]] && ! grep -q 'Z)' "/proc/$pid/stat" 2>/dev/null
 }
 
 # Get memory pressure from PSI (Linux 4.20+)
@@ -1214,15 +1226,18 @@ run_once() {
   done
 
   # Wait for workers using wait -n for faster reaping (Bash 4.3+)
+  local fail_fast_triggered=0
   while (( ${#remaining[@]} > 0 )); do
     local new_remaining=()
     local found_done=false
+    local worker_failed_this_pass=false
 
     for pid in "${remaining[@]}"; do
       if ! proc_alive "$pid"; then
         # Process has exited - reap it
         if ! wait "$pid"; then
           rc=1
+          worker_failed_this_pass=true
         fi
         found_done=true
       else
@@ -1231,6 +1246,34 @@ run_once() {
     done
 
     remaining=("${new_remaining[@]}")
+
+    if $worker_failed_this_pass && [[ "$FAIL_FAST_ON_WORKER_FAILURE" == "1" ]] && (( fail_fast_triggered == 0 )) && (( ${#remaining[@]} > 0 )); then
+      fail_fast_triggered=1
+      echo "Fail-fast: worker failure detected; aborting ${#remaining[@]} still-running worker(s) to avoid wasted tokens." >&2
+      log_event "run_fail_fast_abort" null "aborting=${#remaining[@]}" "aborting"
+
+      local abort_pid abort_worker_id
+      for abort_pid in "${remaining[@]}"; do
+        abort_worker_id=""
+        for (( i = 0; i < ${#pids[@]}; i++ )); do
+          if [[ "${pids[$i]}" == "$abort_pid" ]]; then
+            abort_worker_id="$((i + 1))"
+            break
+          fi
+        done
+
+        if [[ -n "$abort_worker_id" ]]; then
+          echo "worker[$abort_worker_id]: aborted-fail-fast -> prior worker failure" | tee "$LOGS_DIR/worker_${abort_worker_id}.status"
+          save_worker_state "$abort_worker_id" "$(jq -nc \
+            --arg run_id "$RUN_ID" \
+            --arg status "aborted" \
+            --arg reason "fail_fast_worker_failure" \
+            '{run_id:$run_id,status:$status,reason:$reason}')"
+        fi
+      done
+
+      abort_worker_pids "worker failure in run $RUN_ID" "${remaining[@]}"
+    fi
 
     if ! $found_done && (( ${#remaining[@]} > 0 )); then
       # No process exited this iteration - sleep briefly
@@ -1243,7 +1286,7 @@ run_once() {
 
   echo
   echo "Worker summary:"
-  local success_count=0 failed_count=0 timeout_count=0 quota_count=0 other_count=0
+  local success_count=0 failed_count=0 timeout_count=0 quota_count=0 aborted_count=0 other_count=0
   for (( i = 1; i <= workers; i++ )); do
     if [[ -f "$LOGS_DIR/worker_${i}.status" ]]; then
       local status_line outcome
@@ -1258,13 +1301,14 @@ run_once() {
         success) success_count=$((success_count + 1)) ;;
         quota) quota_count=$((quota_count + 1)) ;;
         timeout) timeout_count=$((timeout_count + 1)) ;;
+        aborted) aborted_count=$((aborted_count + 1)) ;;
         failed) failed_count=$((failed_count + 1)) ;;
         *) other_count=$((other_count + 1)) ;;
       esac
     fi
   done
 
-  log_info "Worker outcomes - Success: $success_count, Failed: $failed_count, Timeout: $timeout_count, Quota: $quota_count, Other: $other_count"
+  log_info "Worker outcomes - Success: $success_count, Failed: $failed_count, Timeout: $timeout_count, Quota: $quota_count, Aborted: $aborted_count, Other: $other_count"
 
   if ! promote_successful_workers "$workers"; then
     rc=1
@@ -1284,6 +1328,7 @@ run_once() {
   echo "  Failed:           $failed_count"
   echo "  Timeout:          $timeout_count"
   echo "  Quota limited:    $quota_count"
+  echo "  Aborted:          $aborted_count"
   echo "  Other:            $other_count"
   echo "  Overall status:   $([[ "$rc" == "0" ]] && echo "SUCCESS ✓" || echo "FAILURE ✗")"
   echo
@@ -1305,13 +1350,13 @@ run_once() {
 
   if [[ "$rc" == "0" ]]; then
     log_info "Run completed successfully"
-    log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count}" "success"
+    log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count} aborted=${aborted_count}" "success"
   elif [[ "$rc" == "75" ]]; then
     log_error "Run paused by provider quota exhaustion"
-    log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count} quota=${quota_count}" "quota_exhausted"
+    log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count} quota=${quota_count} aborted=${aborted_count}" "quota_exhausted"
   else
     log_error "Run completed with failures"
-    log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count}" "failure"
+    log_event "run_completed" null "workers=${workers} success=${success_count} failed=${failed_count} aborted=${aborted_count}" "failure"
   fi
 
   enforce_worktree_dir_cap
@@ -1325,6 +1370,7 @@ emit_startup_env_banner() {
     DISABLE_COMPANIONS COMPANION_ON_IDLE COMPANION_TIMEOUT_SECONDS
     MAX_RETRIES CANDIDATE_LOW_WATERMARK
     ORCHESTRATOR_ONCE AUTO_PROMOTE_SUCCESS ALLOW_SOFT_SUCCESS_NONZERO
+    FAIL_FAST_ON_WORKER_FAILURE PAUSE_ON_RUN_FAILURE SKIP_COMPANIONS_ON_RUN_FAILURE
     LOOP_SLEEP_SECONDS QUOTA_BACKOFF_SECONDS WORKER_TIMEOUT_SECONDS
     COMPANION_PLANNER_CMD COMPANION_DOC_IMPROVER_CMD COMPANION_LANDINGPAGE_CMD
   )
@@ -1333,7 +1379,7 @@ emit_startup_env_banner() {
   local -a group1=(MODE MAX_AGENTS BACKEND)
   local -a group2=(DISABLE_COMPANIONS COMPANION_ON_IDLE COMPANION_TIMEOUT_SECONDS)
   local -a group3=(MAX_RETRIES CANDIDATE_LOW_WATERMARK)
-  local -a group4=(ORCHESTRATOR_ONCE AUTO_PROMOTE_SUCCESS ALLOW_SOFT_SUCCESS_NONZERO)
+  local -a group4=(ORCHESTRATOR_ONCE AUTO_PROMOTE_SUCCESS ALLOW_SOFT_SUCCESS_NONZERO FAIL_FAST_ON_WORKER_FAILURE PAUSE_ON_RUN_FAILURE SKIP_COMPANIONS_ON_RUN_FAILURE)
   local -a group5=(LOOP_SLEEP_SECONDS QUOTA_BACKOFF_SECONDS WORKER_TIMEOUT_SECONDS)
   local -a group6=(COMPANION_PLANNER_CMD COMPANION_DOC_IMPROVER_CMD COMPANION_LANDINGPAGE_CMD)
 
@@ -1410,7 +1456,12 @@ main() {
     else
       once_rc="$?"
     fi
-    maybe_run_companions 1 "${PROMOTED_LAST_CYCLE:-0}"
+    if should_run_post_cycle_companions "$once_rc"; then
+      maybe_run_companions 1 "${PROMOTED_LAST_CYCLE:-0}"
+    else
+      echo "Skipping companions after run exit $once_rc to avoid wasted tokens."
+      log_event "companions_skipped_unclean_cycle" null "cycle=1 rc=$once_rc" "skipped"
+    fi
     return "$once_rc"
   fi
 
@@ -1435,7 +1486,12 @@ main() {
       cycle_rc="$?"
     fi
 
-    maybe_run_companions "$cycle" "${PROMOTED_LAST_CYCLE:-0}"
+    if should_run_post_cycle_companions "$cycle_rc"; then
+      maybe_run_companions "$cycle" "${PROMOTED_LAST_CYCLE:-0}"
+    else
+      echo "Skipping companions after run exit $cycle_rc to avoid wasted tokens."
+      log_event "companions_skipped_unclean_cycle" null "cycle=$cycle rc=$cycle_rc" "skipped"
+    fi
 
     if [[ "${EXHAUSTION_TRIGGERED:-0}" == "1" ]]; then
       EXHAUSTION_TRIGGERED=0
@@ -1448,6 +1504,13 @@ main() {
       echo "Loop cycle $cycle hit provider quota; sleeping ${QUOTA_BACKOFF_SECONDS}s before next probe."
       sleep "$QUOTA_BACKOFF_SECONDS"
       continue
+    fi
+
+    if should_pause_after_cycle "$cycle_rc"; then
+      echo
+      echo "Loop cycle $cycle completed with exit $cycle_rc; pausing forever loop to avoid wasted tokens."
+      log_event "loop_paused" null "cycle=$cycle rc=$cycle_rc" "paused"
+      return 0
     fi
 
     echo

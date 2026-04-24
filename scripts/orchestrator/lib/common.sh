@@ -71,6 +71,38 @@ classify_worker_failure() {
   fi
 }
 
+# Check if process is alive and not a zombie.
+proc_alive() {
+  local pid="$1"
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  [[ -d "/proc/$pid" ]] && ! grep -q 'Z)' "/proc/$pid/stat" 2>/dev/null
+}
+
+abort_worker_pids() {
+  local reason="${1:-worker failure}"
+  shift || true
+
+  local pid
+  for pid in "$@"; do
+    if proc_alive "$pid"; then
+      kill -TERM "$pid" 2>/dev/null || true
+      log_warn "Aborted worker pid $pid after $reason"
+    fi
+  done
+}
+
+should_pause_after_cycle() {
+  local cycle_rc="$1"
+  [[ "${PAUSE_ON_RUN_FAILURE:-1}" == "1" ]] || return 1
+  [[ "$cycle_rc" != "0" && "$cycle_rc" != "75" ]]
+}
+
+should_run_post_cycle_companions() {
+  local cycle_rc="$1"
+  [[ "${SKIP_COMPANIONS_ON_RUN_FAILURE:-1}" == "1" ]] || return 0
+  [[ "$cycle_rc" == "0" ]]
+}
+
 worker_status_outcome() {
   local line="$1"
   if [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+(success|soft-success) ]]; then
@@ -79,6 +111,8 @@ worker_status_outcome() {
     printf 'quota\n'
   elif [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+timeout ]]; then
     printf 'timeout\n'
+  elif [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+aborted-fail-fast ]]; then
+    printf 'aborted\n'
   elif [[ "$line" =~ ^worker\[[0-9]+\]:[[:space:]]+failed ]]; then
     printf 'failed\n'
   else
