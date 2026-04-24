@@ -1,5 +1,8 @@
 # Orchestrator Internals
 
+> This directory is **commit-frozen**. See [FROZEN.md](./FROZEN.md) before
+> changing any `.sh` under `lib/` or the entry script.
+
 Companion libraries and tests for `gormes/scripts/gormes-auto-codexu-orchestrator.sh`.
 
 ## Layout
