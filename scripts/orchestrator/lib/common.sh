@@ -78,15 +78,67 @@ proc_alive() {
   [[ -d "/proc/$pid" ]] && ! grep -q 'Z)' "/proc/$pid/stat" 2>/dev/null
 }
 
+process_tree_pids() {
+  local root="$1"
+  [[ "$root" =~ ^[0-9]+$ ]] || return 0
+
+  local child
+  if command -v pgrep >/dev/null 2>&1; then
+    while IFS= read -r child; do
+      [[ -n "$child" ]] || continue
+      process_tree_pids "$child"
+    done < <(pgrep -P "$root" 2>/dev/null || true)
+  fi
+
+  printf '%s\n' "$root"
+}
+
 abort_worker_pids() {
   local reason="${1:-worker failure}"
   shift || true
 
-  local pid
+  local pid tree_pid
+  local -a tree=()
+  local grace="${FAIL_FAST_ABORT_GRACE_SECONDS:-2}"
+  [[ "$grace" =~ ^[0-9]+$ ]] || grace=2
+
   for pid in "$@"; do
     if proc_alive "$pid"; then
-      kill -TERM "$pid" 2>/dev/null || true
+      tree=()
+      while IFS= read -r tree_pid; do
+        [[ -n "$tree_pid" ]] && tree+=("$tree_pid")
+      done < <(process_tree_pids "$pid")
+
+      if (( ${#tree[@]} > 0 )); then
+        kill -TERM "${tree[@]}" 2>/dev/null || true
+      fi
       log_warn "Aborted worker pid $pid after $reason"
+    fi
+  done
+
+  local deadline=$((SECONDS + grace))
+  while (( SECONDS < deadline )); do
+    local any_alive=0
+    for pid in "$@"; do
+      if proc_alive "$pid"; then
+        any_alive=1
+        break
+      fi
+    done
+    (( any_alive == 0 )) && return 0
+    sleep 0.1
+  done
+
+  for pid in "$@"; do
+    if proc_alive "$pid"; then
+      tree=()
+      while IFS= read -r tree_pid; do
+        [[ -n "$tree_pid" ]] && tree+=("$tree_pid")
+      done < <(process_tree_pids "$pid")
+      if (( ${#tree[@]} > 0 )); then
+        kill -KILL "${tree[@]}" 2>/dev/null || true
+      fi
+      log_warn "Force-killed worker pid $pid after $reason"
     fi
   done
 }

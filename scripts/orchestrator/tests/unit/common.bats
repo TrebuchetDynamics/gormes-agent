@@ -67,6 +67,39 @@ setup() {
   fail "pid $pid was still alive after abort_worker_pids"
 }
 
+@test "abort_worker_pids terminates worker process trees" {
+  bash -c 'trap "" TERM; sleep 30 & wait' &
+  local pid="$!"
+
+  local child=""
+  local i
+  for i in {1..20}; do
+    child="$(pgrep -P "$pid" 2>/dev/null | head -n1 || true)"
+    [[ -n "$child" ]] && break
+    sleep 0.05
+  done
+  [[ -n "$child" ]] || {
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    fail "test worker child never started"
+  }
+
+  run env FAIL_FAST_ABORT_GRACE_SECONDS=0 bash -c 'source "$1"; abort_worker_pids "unit-test-tree" "$2"' _ "$ORCHESTRATOR_LIB_DIR/common.sh" "$pid"
+  assert_success
+
+  for i in {1..20}; do
+    if ! proc_alive "$pid" && ! proc_alive "$child"; then
+      wait "$pid" 2>/dev/null || true
+      return 0
+    fi
+    sleep 0.05
+  done
+
+  kill -KILL "$pid" "$child" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  fail "worker process tree was still alive after abort_worker_pids"
+}
+
 @test "should_pause_after_cycle pauses non-quota failures by default" {
   run should_pause_after_cycle 1
   assert_success

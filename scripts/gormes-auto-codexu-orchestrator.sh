@@ -1250,6 +1250,12 @@ run_once() {
       done
 
       abort_worker_pids "worker failure in run $RUN_ID" "${remaining[@]}"
+      # The workers above are now explicitly recorded as aborted and their
+      # process trees have been terminated. Do not wait indefinitely for
+      # nested model/timeout processes; continue to summary and promotion so
+      # already-successful workers are harvested before the failed cycle
+      # pauses.
+      remaining=()
     fi
 
     if ! $found_done && (( ${#remaining[@]} > 0 )); then
