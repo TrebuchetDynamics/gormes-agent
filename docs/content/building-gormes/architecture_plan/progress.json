@@ -221,8 +221,8 @@
             },
             {
               "name": "Signal transport/bootstrap layer",
-              "status": "planned",
-              "note": "TDD: freeze signal-cli or bridge client lifecycle, receive-loop reconnect/error handling, and outbound attachment/send seams before binding a real transport."
+              "status": "complete",
+              "note": "TDD landed: internal/channels/signal.Transport now freezes the signal-cli/bridge lifecycle (Start/Close), a receive-loop ReceiveError seam where transient errors keep Bot.Run draining while Fatal aborts, and an Attachment-aware SendOptions + Bot.SendAttachments seam for outbound media — all before any real transport binding."
             }
           ]
         },

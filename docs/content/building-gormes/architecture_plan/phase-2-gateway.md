@@ -19,7 +19,7 @@ weight: 30
 | Phase 2.B.3 — Slack on Shared Chassis | 🔨 in progress | P1 | `internal/slack` has a Socket Mode bot, threaded reply flow, and placeholder updates; the remaining work is now split into CommandRegistry parser wiring, a `gateway.Channel` shim, then config/doctor/`cmd/gormes gateway` registration |
 | Phase 2.B.4 — WhatsApp Adapter | 🔨 in progress | P1 | Transport-neutral ingress normalization and command passthrough are landed in `internal/channels/whatsapp`; bridge-first runtime selection plus pairing/reconnect/send lifecycle still remain |
 | Phase 2.B.5 — Session Context + Delivery Routing | ✅ complete | P1 | Session-store handle resolution, SessionContext prompt injection, typed `--deliver` parsing, and deterministic gateway stream fan-out now live together in `internal/gateway` |
-| Phase 2.B.6 — Signal Adapter | 🔨 in progress | P2 | Shared ingress normalization, session identity, and reply/send semantics are landed in `internal/channels/signal`; transport/bootstrap wiring still remains |
+| Phase 2.B.6 — Signal Adapter | ✅ complete | P2 | Shared ingress normalization, session identity, reply/send semantics, and the transport/bootstrap seam (`Transport` lifecycle, transient/fatal `ReceiveError`, attachment-aware send) now all live in `internal/channels/signal`, ready for a real signal-cli or bridge binding |
 | Phase 2.B.7 — Email + SMS Adapters | ✅ complete | P3 | RFC 822 email normalization plus SMS number/session normalization and segmented outbound delivery contracts now ride the shared gateway seam without special-casing the kernel |
 | Phase 2.B.8 — Matrix + Mattermost Adapters | 🔨 in progress | P4 | The shared threaded-text contract is landed in `internal/channels/threadtext`; Matrix and Mattermost still need their platform seams plus the real client/bootstrap layers |
 | Phase 2.B.9 — Webhook + Trigger Ingress | ✅ complete | P4 | Signed ingress/auth parsing plus the typed prompt-to-delivery bridge now live together in `internal/channels/webhook`, leaving only future runtime binding work |
@@ -59,8 +59,8 @@ Phase 2 is no longer just "ship more adapters." The backlog is now dominated by 
    Keep this decomposed: home-channel ownership rules, notify-to delivery routing, manager remember-source, channel-directory persistence/lookup, refresh/stale-target invalidation, then mirror/sticker-cache surfaces.
 7. **P1 — 2.B.4 WhatsApp runtime closeout**
    `NormalizeInbound` is landed; the next slices are bridge-first runtime selection and the pairing/reconnect/send contract on top of that ingress seam.
-8. **P2/P4 — 2.B.6 plus 2.B.8 transport/bot closeout**
-   Signal still needs real transport/bootstrap work; Matrix and Mattermost only have the shared threaded-text contract today, so land each platform seam before client/bootstrap code.
+8. **P4 — 2.B.8 transport/bot closeout**
+   Signal's transport/bootstrap seam is now frozen on top of `internal/channels/signal.Transport`, so the remaining closeout is Matrix and Mattermost: each still has only the shared threaded-text contract today, so land each platform seam before client/bootstrap code.
 9. **P4 — 2.B.10 regional runtime layers**
    DingTalk now has the first real bootstrap contract but still needs real SDK binding. Feishu needs three distinct follow-ups: transport/bootstrap, Drive comment rule/pairing resolution, then Drive comment reply workflow. WeCom/WeiXin and QQ should advance as separate transport/bootstrap slices on top of their existing shared-bot seams.
 
