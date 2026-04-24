@@ -25,7 +25,7 @@ func CleanupStaleLocks(lockRoot string, ttl time.Duration, now func() time.Time)
 	}
 
 	for _, lockPath := range matches {
-		_, err := os.Stat(lockPath)
+		info, err := os.Stat(lockPath)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
@@ -37,6 +37,16 @@ func CleanupStaleLocks(lockRoot string, ttl time.Duration, now func() time.Time)
 		if keep && processLive(claim.PID) {
 			continue
 		}
+		if !info.IsDir() {
+			locked, release, err := tryExclusiveFileLock(lockPath)
+			if err != nil {
+				return err
+			}
+			if !locked {
+				continue
+			}
+			release()
+		}
 
 		if err := os.RemoveAll(lockPath); err != nil {
 			return err
@@ -47,6 +57,29 @@ func CleanupStaleLocks(lockRoot string, ttl time.Duration, now func() time.Time)
 	}
 
 	return nil
+}
+
+func tryExclusiveFileLock(path string) (bool, func(), error) {
+	file, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return true, func() {}, nil
+		}
+		return false, nil, err
+	}
+
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
+			return false, nil, nil
+		}
+		return false, nil, err
+	}
+
+	return true, func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		_ = file.Close()
+	}, nil
 }
 
 func readValidLockClaim(lockPath string, ttl time.Duration, current time.Time) (lockClaim, bool) {

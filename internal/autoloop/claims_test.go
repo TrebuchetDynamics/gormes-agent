@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -212,6 +213,65 @@ func TestCleanupStaleLocksRemovesDeadPIDBeforeTTLExpires(t *testing.T) {
 	if _, err := os.Stat(claimPath); !os.IsNotExist(err) {
 		t.Fatalf("claim file exists after cleanup, stat error = %v", err)
 	}
+}
+
+func TestCleanupStaleLocksKeepsActivelyFlockedRegularFileWithMissingClaim(t *testing.T) {
+	lockRoot := t.TempDir()
+	lockPath := filepath.Join(lockRoot, "task.lock")
+	claimPath := lockPath + ".claim.json"
+	file := holdExclusiveFlock(t, lockPath)
+	defer file.Close()
+
+	if err := CleanupStaleLocks(lockRoot, time.Minute, func() time.Time { return time.Unix(200, 0) }); err != nil {
+		t.Fatalf("CleanupStaleLocks() error = %v", err)
+	}
+
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("lock file stat error = %v", err)
+	}
+	if _, err := os.Stat(claimPath); !os.IsNotExist(err) {
+		t.Fatalf("claim file exists after cleanup, stat error = %v", err)
+	}
+}
+
+func TestCleanupStaleLocksKeepsActivelyFlockedRegularFileWithMalformedClaim(t *testing.T) {
+	lockRoot := t.TempDir()
+	lockPath := filepath.Join(lockRoot, "task.lock")
+	claimPath := lockPath + ".claim.json"
+	file := holdExclusiveFlock(t, lockPath)
+	defer file.Close()
+
+	if err := os.WriteFile(claimPath, []byte("{not json"), 0o644); err != nil {
+		t.Fatalf("WriteFile() claim error = %v", err)
+	}
+
+	if err := CleanupStaleLocks(lockRoot, time.Minute, func() time.Time { return time.Unix(200, 0) }); err != nil {
+		t.Fatalf("CleanupStaleLocks() error = %v", err)
+	}
+
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("lock file stat error = %v", err)
+	}
+	if _, err := os.Stat(claimPath); err != nil {
+		t.Fatalf("claim file stat error = %v", err)
+	}
+}
+
+func holdExclusiveFlock(t *testing.T, path string) *os.File {
+	t.Helper()
+
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		t.Fatalf("OpenFile() error = %v", err)
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		t.Fatalf("Flock() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+	})
+	return file
 }
 
 func deadPID() int {
