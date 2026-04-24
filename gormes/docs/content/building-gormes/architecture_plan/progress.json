@@ -1130,7 +1130,7 @@
             {
               "name": "Provider-side resilience",
               "status": "in_progress",
-              "note": "Umbrella tracker for 4.H closeout. Already shipped: `internal/hermes/errors.go` classifies retryable vs fatal HTTP status plus 'context length' body signals, and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. Remaining work is owned by the sibling slices below — `Classified provider-error taxonomy`, `Retry-After + jittered backoff policy`, `Prompt-cache capability guard`, and `Provider rate guard + budget telemetry`. Do not re-implement Retry-After parsing here; that closeout lives in `Retry-After + jittered backoff policy`."
+              "note": "Umbrella tracker for 4.H closeout. Already shipped: `internal/hermes/errors.go` classifies retryable vs fatal HTTP status plus 'context length' body signals, and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. Remaining work is owned by the sibling slices below — `Classified provider-error taxonomy`, `Jittered reconnect backoff schedule`, `Retry-After header parsing + HTTPError hint`, `Kernel retry honors Retry-After hint`, `Prompt-cache capability guard`, and `Provider rate guard + budget telemetry`."
             },
             {
               "name": "Classified provider-error taxonomy",
@@ -1138,9 +1138,21 @@
               "note": "TDD: `internal/hermes/errors.go` already classifies retryable vs fatal HTTP/auth/context/rate-limit conditions for kernel retries; the remaining closeout is a richer structured taxonomy comparable to `agent/error_classifier.py`, including explicit rate-limit/auth/context/non-retryable envelopes and broader provider fixture tables."
             },
             {
-              "name": "Retry-After + jittered backoff policy",
-              "status": "in_progress",
-              "note": "TDD: the jittered backoff half is shipped — `internal/kernel/retry.go` RetryBudget applies a 1s/2s/4s/8s/16s +/-20% schedule with retry_test.go coverage and the kernel reconnect path consumes it. The Retry-After half is NOT landed — `internal/hermes/errors.go` HTTPError carries only {Status, Body} with no Retry-After field, and no code path parses the header or body hint. Split the remaining slice into (a) Retry-After header parsing + capped hint on HTTPError with table-driven fixtures, then (b) kernel open-stream retry prefers provider hint over schedule when present, with unit tests asserting the merged delay."
+              "name": "Jittered reconnect backoff schedule",
+              "status": "complete",
+              "note": "TDD landed: `internal/kernel/retry.go` RetryBudget applies a 1s/2s/4s/8s/16s +/-20% schedule across five attempts with `retry_test.go` coverage, and the kernel reconnect path consumes it on every open-stream retry. Do not extend this slice; Retry-After plumbing lives in the sibling slices below."
+            },
+            {
+              "name": "Retry-After header parsing + HTTPError hint",
+              "priority": "P1",
+              "status": "planned",
+              "note": "TDD slice 1 of 2: extend `internal/hermes/errors.go` so `HTTPError` carries a parsed Retry-After hint alongside `{Status, Body}`. Cover both integer-seconds and HTTP-date header forms, optional JSON body hints (`retry_after`/`retryAfter`) when the header is absent, a capped upper bound so a malicious provider cannot stall the kernel past the reconnect budget, and deterministic zero-hint behavior when no signal is present. Pure unit tests over table-driven fixtures; no kernel coupling in this slice. Gates the Retry-After hint consumption slice below."
+            },
+            {
+              "name": "Kernel retry honors Retry-After hint",
+              "priority": "P1",
+              "status": "planned",
+              "note": "TDD slice 2 of 2: once `HTTPError` carries a capped Retry-After hint, make `internal/kernel` open-stream retry prefer the provider hint over the jittered schedule when present, and fall back to the existing RetryBudget cleanly when absent. Unit tests must pin (a) hint preferred over schedule, (b) hint capped so it never exceeds the reconnect budget's upper bound, (c) absent hint leaves the jittered schedule untouched, and (d) ctx cancellation still returns promptly from the merged wait. Requires the header parsing slice to be green first; do not widen the already-shipped `Jittered reconnect backoff schedule` coverage."
             },
             {
               "name": "Prompt-cache capability guard",

@@ -22,7 +22,7 @@ Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
 | 4.E — Trajectory + Insights | ⏳ planned | Port the opt-in trajectory writer with redaction gates, then bridge native runtime metrics into the existing Phase 3 insights rollup |
 | 4.F — Title Generation | ⏳ planned | Freeze title prompt/truncation behavior before wiring auto-naming into session persistence |
 | 4.G — Credentials + OAuth | ⏳ planned | Port XDG-scoped token storage, credential-pool selection, and Google OAuth refresh/device-browser flows before provider adapters consume secrets |
-| 4.H — Rate / Retry / Caching | ◌ in_progress | Jittered reconnect backoff (1s/2s/4s/8s/16s +/-20%) is landed and wired into the kernel; Retry-After header/body parsing and capped provider-hint plumbing on `HTTPError` are not, so the retry half is still partial. Remaining slices: Retry-After parsing + capped hint, richer structured error taxonomy, prompt-cache capability guards, and provider rate/budget telemetry |
+| 4.H — Rate / Retry / Caching | ◌ in_progress | Jittered reconnect backoff (1s/2s/4s/8s/16s +/-20%) is landed and wired into the kernel; Retry-After header parsing on `HTTPError` and kernel consumption of the provider hint are still planned, so the retry half is partial. Remaining slices: Retry-After header parsing + HTTPError hint, kernel retry honors Retry-After hint, richer structured error taxonomy, prompt-cache capability guards, and provider rate/budget telemetry |
 
 Once 4.A–4.D are shipped Gormes can call LLMs directly. The `:8642` health check becomes optional.
 
@@ -42,14 +42,15 @@ Phase 4 should not start with "port `run_agent.py`." The next execution agents s
 
 1. **4.A shared transcript fixture harness closeout** — harvest Anthropic request/stream transcripts into reusable fixtures that assert usage, finish reasons, and shared event decoding, so Bedrock/Gemini/OpenRouter/Codex can be added against one replayable contract.
 2. **4.A cross-provider tool-continuation fixtures** — pin assistant tool-call messages, streamed tool-call deltas, and tool-result continuation payloads against the Anthropic adapter before adding a second provider to the harness.
-3. **4.H Retry-After parsing + capped provider-hint plumbing** — add Retry-After header/body parsing to `internal/hermes/errors.go`, surface a capped hint on HTTPError, and make the kernel open-stream retry prefer the provider hint over the fixed schedule; do **not** widen the jittered backoff path that is already green.
-4. **4.A Bedrock payload mapping (no AWS SDK)** — port only the Converse request shaping and canonical Message→Bedrock tool-aware mapping with pure fixtures, proving the 5 prior codexu/* attempts can be replaced by a tightly scoped slice.
-5. **4.A Bedrock stream event decoding (SSE fixtures)** — decode reasoning/text/tool-use deltas into the shared `hermes.Event` model from recorded SSE fixtures, without binding the real AWS SDK yet.
-6. **4.A Bedrock minimal SigV4 + credential seam** — land credential discovery and signing behind a small dep-isolated helper so regional/error handling can follow without dragging the full AWS SDK into kernel paths.
-7. **4.H structured error-taxonomy closeout** — extend the current retryable/fatal classification into explicit rate-limit/auth/context/non-retryable envelopes without regressing the shipped retry path.
-8. **4.D model metadata registry** — context limits, pricing, capability flags, and provider-family facts in a read-only registry.
-9. **4.D routing selector** — a pure fallback/override selector over the metadata registry before any automatic model choice is allowed.
-10. **4.B context-engine status contract** — `get_status`, context-window updates, token-budget trigger, and compression cooldown behavior once the provider seam is frozen.
-11. **4.C prompt-builder context-file discovery** — SOUL/HERMES/AGENTS/CLAUDE ordering, truncation, frontmatter stripping, and prompt-injection scans after the context-engine contract is pinned.
+3. **4.H Retry-After header parsing + HTTPError hint** — add Retry-After header (integer-seconds and HTTP-date) plus optional JSON body-hint parsing to `internal/hermes/errors.go` and surface a capped hint on `HTTPError`. Pure unit tests over table-driven fixtures; do **not** couple to the kernel in this slice.
+4. **4.H Kernel retry honors Retry-After hint** — once `HTTPError` carries a capped hint, make `internal/kernel` open-stream retry prefer the provider hint over the jittered schedule when present and fall back cleanly when absent; do **not** widen the already-green `Jittered reconnect backoff schedule`.
+5. **4.A Bedrock payload mapping (no AWS SDK)** — port only the Converse request shaping and canonical Message→Bedrock tool-aware mapping with pure fixtures, proving the 5 prior codexu/* attempts can be replaced by a tightly scoped slice.
+6. **4.A Bedrock stream event decoding (SSE fixtures)** — decode reasoning/text/tool-use deltas into the shared `hermes.Event` model from recorded SSE fixtures, without binding the real AWS SDK yet.
+7. **4.A Bedrock minimal SigV4 + credential seam** — land credential discovery and signing behind a small dep-isolated helper so regional/error handling can follow without dragging the full AWS SDK into kernel paths.
+8. **4.H structured error-taxonomy closeout** — extend the current retryable/fatal classification into explicit rate-limit/auth/context/non-retryable envelopes without regressing the shipped retry path.
+9. **4.D model metadata registry** — context limits, pricing, capability flags, and provider-family facts in a read-only registry.
+10. **4.D routing selector** — a pure fallback/override selector over the metadata registry before any automatic model choice is allowed.
+11. **4.B context-engine status contract** — `get_status`, context-window updates, token-budget trigger, and compression cooldown behavior once the provider seam is frozen.
+12. **4.C prompt-builder context-file discovery** — SOUL/HERMES/AGENTS/CLAUDE ordering, truncation, frontmatter stripping, and prompt-injection scans after the context-engine contract is pinned.
 
-Only after the Bedrock slices (1–6) are green should more provider-specific adapters land. This keeps retry, role mapping, and tool-call continuation bugs visible instead of hiding them behind a large native-agent-loop rewrite.
+Only after the Bedrock slices (5–7) are green should more provider-specific adapters land. This keeps retry, role mapping, and tool-call continuation bugs visible instead of hiding them behind a large native-agent-loop rewrite.

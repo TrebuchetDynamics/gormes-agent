@@ -367,7 +367,9 @@ weight: 10
 
 - [ ] Provider-side resilience
 - [ ] Classified provider-error taxonomy
-- [ ] Retry-After + jittered backoff policy
+- [x] Jittered reconnect backoff schedule
+- [ ] Retry-After header parsing + HTTPError hint
+- [ ] Kernel retry honors Retry-After hint
 - [ ] Prompt-cache capability guard
 - [ ] Provider rate guard + budget telemetry
 

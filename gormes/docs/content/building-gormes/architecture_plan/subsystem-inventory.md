@@ -134,7 +134,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Credential pool | `agent/credential_pool.py` | 4.G | ⏳ planned |
 | Credential files | `tools/credential_files.py` | 4.G | ⏳ planned |
 | Rate limit tracker | `agent/rate_limit_tracker.py` + `nous_rate_guard.py` | 4.H | ⏳ planned |
-| Retry utils | `agent/retry_utils.py` | 4.H | 🔨 partial — `internal/kernel/retry.go` applies 1s/2s/4s/8s/16s reconnect backoff with +/-20% jitter and is covered by `retry_test.go`, but Retry-After header/body parsing and capped provider-hint plumbing on `HTTPError` are not yet landed and remain the closeout slice before this can flip to shipped |
+| Retry utils | `agent/retry_utils.py` | 4.H | 🔨 partial — `internal/kernel/retry.go` applies 1s/2s/4s/8s/16s reconnect backoff with +/-20% jitter and is covered by `retry_test.go` (tracked as the shipped `Jittered reconnect backoff schedule` slice). Remaining closeout is split into two dependent slices in the ledger: `Retry-After header parsing + HTTPError hint` (pure parser on `HTTPError`), then `Kernel retry honors Retry-After hint` (kernel prefers provider hint over schedule). Both must land before this flips to shipped |
 | Prompt caching | `agent/prompt_caching.py` | 4.H | ⏳ planned |
 | Subdirectory hints | `agent/subdirectory_hints.py` | 4.B | ⏳ planned |
 | Skill commands / utils | `agent/skill_commands.py`, `agent/skill_utils.py` | 4.C | ⏳ planned |

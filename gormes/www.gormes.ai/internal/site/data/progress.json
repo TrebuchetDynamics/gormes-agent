@@ -343,9 +343,40 @@
               "note": "TDD: bind the frozen Stream Mode/runtime contract to the real DingTalk SDK, credential checks, receive loop, and send lifecycle without widening the already-tested session-webhook retry seam."
             },
             {
+              "name": "DingTalk AI Cards streaming-update contract",
+              "status": "planned",
+              "note": "TDD slice 1 of 3 from upstream PR #4459913f: freeze the AI Cards streaming-update contract on top of the existing DingTalk bot seam and Stream Mode transport — coalesced token pushes, terminal-frame semantics, and a DingTalk-shaped failure fallback — with fixture-backed tests before binding to the real SDK in `DingTalk real SDK binding`. Gates the next two slices."
+            },
+            {
+              "name": "DingTalk emoji reaction send/receive parity",
+              "status": "planned",
+              "note": "TDD slice 2 of 3 from upstream PR #4459913f: freeze emoji reaction send/receive parity on the DingTalk bot seam with fixture-backed tests and a DingTalk-shaped failure fallback. Requires the AI Cards streaming-update slice to be green first; do not bind to the real SDK until `DingTalk real SDK binding` lands."
+            },
+            {
+              "name": "DingTalk media (image/file) attachment routing",
+              "status": "planned",
+              "note": "TDD slice 3 of 3 from upstream PR #4459913f: freeze media (image/file) attachment routing on the DingTalk bot seam with fixture-backed tests and a DingTalk-shaped failure fallback. Requires the streaming-update and emoji-reaction slices to be green first; do not bind to the real SDK until `DingTalk real SDK binding` lands."
+            },
+            {
               "name": "QQ Bot transport/bootstrap layer",
               "status": "planned",
               "note": "TDD: freeze gateway/event receive loops, passive-reply lifecycle, and platform-specific send failure handling before binding a real QQ transport."
+            }
+          ]
+        },
+        "2.B.11": {
+          "name": "Discord Forum Channels",
+          "priority": "P3",
+          "items": [
+            {
+              "name": "Discord forum channel ingress + thread lifecycle",
+              "status": "planned",
+              "note": "TDD: port upstream PR #e5333e79 (forum channel support) as an additive seam on top of the already-shipped 2.B.2 Discord adapter. Freeze forum-channel detection, canonical thread IDs derived from forum posts, and open/close/archive lifecycle normalization into gateway events with fixture-backed tests before widening outbound routing. Do not change the baseline 2.B.2 Discord contract or shared chassis tests."
+            },
+            {
+              "name": "Discord forum media + polish parity",
+              "status": "planned",
+              "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green — attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress."
             }
           ]
         },
@@ -428,6 +459,17 @@
               "name": "Real child Hermes stream loop",
               "status": "complete",
               "note": "TDD landed: HermesRunner now executes a real child OpenStream loop with token/output streaming, multi-iteration tool_calls continuation through executeChildTool, explicit stream-open error handling, and registry wiring that opts delegate_task into the real runner whenever a live Hermes client is available."
+            }
+          ]
+        },
+        "2.E.2": {
+          "name": "OS-AI Spine: Concurrent-Tool Cancellation",
+          "priority": "P1",
+          "items": [
+            {
+              "name": "Interrupt propagation to concurrent-tool workers",
+              "status": "planned",
+              "note": "TDD: port upstream PR #11907 (interrupt propagation to concurrent-tool workers) as a kernel-side cancellation contract that covers parallel tool_calls fan-out, sidecar sandbox jobs, and delegated subagent children. Freeze the seam with fixture-backed concurrent-tool tests that prove one interrupt cancels every in-flight worker and returns a single coherent cancel envelope before parallel-tool execution or 2.F.5 mid-run steering land on top."
             }
           ]
         },
@@ -562,6 +604,27 @@
               "name": "Mirror + sticker cache surfaces",
               "status": "planned",
               "note": "TDD: prove cache key and mirror-write contracts before adapter-specific caches land."
+            }
+          ]
+        },
+        "2.F.5": {
+          "name": "Gateway Mid-Run Steering + Active-Turn Policy",
+          "priority": "P2",
+          "items": [
+            {
+              "name": "Steer slash command registry + queue fallback",
+              "status": "planned",
+              "note": "TDD: port upstream PR #12116 `/steer` ingress (see `gateway/run.py` steer handler) as a CommandDef on the shared registry with queue-fallback when no agent is running, explicit missing-argument usage text, and deterministic preview truncation. Keep the mid-run inject hook unimplemented until the next 2.F.5 slice lands."
+            },
+            {
+              "name": "Mid-run steer injection between tool calls",
+              "status": "planned",
+              "note": "TDD: expose a running-agent steer hook on the kernel so `/steer <prompt>` lands BETWEEN tool calls (not at turn boundary) via a single deterministic callback; prove ordering against concurrent-tool fan-out and the 2.E.2 cancellation contract. Must fall back to the 2.F.5 queue slice when the kernel has no live tool-call iteration in flight, and must refuse to duplicate prompts already routed through that fallback."
+            },
+            {
+              "name": "Gateway-handled slash commands bypass active-session guard",
+              "status": "planned",
+              "note": "TDD: mirror upstream PRs #12334 and #511ed4da — registry-resolved gateway slash commands must execute even while an agent is running for that session, without interrupting the running turn and without queuing discardable command text. Keep non-gateway/unknown commands behind the existing busy-state response so only the safe registry surface bypasses the guard; cover both allowed and denied paths with fixture tests before shipping."
             }
           ]
         },
@@ -1067,7 +1130,7 @@
             {
               "name": "Provider-side resilience",
               "status": "in_progress",
-              "note": "TDD: `internal/hermes/errors.go` now classifies retryable vs fatal HTTP status + 'context length' body signals and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. The remaining closeout is Retry-After header/body parsing (HTTPError currently exposes only {Status, Body} — no RetryAfter field), capped hint plumbing into the kernel retry path so 429/slowdown responses respect provider guidance, and provider fixtures that prove the merged policy under `httptest`."
+              "note": "Umbrella tracker for 4.H closeout. Already shipped: `internal/hermes/errors.go` classifies retryable vs fatal HTTP status plus 'context length' body signals, and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. Remaining work is owned by the sibling slices below — `Classified provider-error taxonomy`, `Jittered reconnect backoff schedule`, `Retry-After header parsing + HTTPError hint`, `Kernel retry honors Retry-After hint`, `Prompt-cache capability guard`, and `Provider rate guard + budget telemetry`."
             },
             {
               "name": "Classified provider-error taxonomy",
@@ -1075,9 +1138,21 @@
               "note": "TDD: `internal/hermes/errors.go` already classifies retryable vs fatal HTTP/auth/context/rate-limit conditions for kernel retries; the remaining closeout is a richer structured taxonomy comparable to `agent/error_classifier.py`, including explicit rate-limit/auth/context/non-retryable envelopes and broader provider fixture tables."
             },
             {
-              "name": "Retry-After + jittered backoff policy",
-              "status": "in_progress",
-              "note": "TDD: the jittered backoff half is shipped — `internal/kernel/retry.go` RetryBudget applies a 1s/2s/4s/8s/16s +/-20% schedule with retry_test.go coverage and the kernel reconnect path consumes it. The Retry-After half is NOT landed — `internal/hermes/errors.go` HTTPError carries only {Status, Body} with no Retry-After field, and no code path parses the header or body hint. Split the remaining slice into (a) Retry-After header parsing + capped hint on HTTPError with table-driven fixtures, then (b) kernel open-stream retry prefers provider hint over schedule when present, with unit tests asserting the merged delay."
+              "name": "Jittered reconnect backoff schedule",
+              "status": "complete",
+              "note": "TDD landed: `internal/kernel/retry.go` RetryBudget applies a 1s/2s/4s/8s/16s +/-20% schedule across five attempts with `retry_test.go` coverage, and the kernel reconnect path consumes it on every open-stream retry. Do not extend this slice; Retry-After plumbing lives in the sibling slices below."
+            },
+            {
+              "name": "Retry-After header parsing + HTTPError hint",
+              "priority": "P1",
+              "status": "planned",
+              "note": "TDD slice 1 of 2: extend `internal/hermes/errors.go` so `HTTPError` carries a parsed Retry-After hint alongside `{Status, Body}`. Cover both integer-seconds and HTTP-date header forms, optional JSON body hints (`retry_after`/`retryAfter`) when the header is absent, a capped upper bound so a malicious provider cannot stall the kernel past the reconnect budget, and deterministic zero-hint behavior when no signal is present. Pure unit tests over table-driven fixtures; no kernel coupling in this slice. Gates the Retry-After hint consumption slice below."
+            },
+            {
+              "name": "Kernel retry honors Retry-After hint",
+              "priority": "P1",
+              "status": "planned",
+              "note": "TDD slice 2 of 2: once `HTTPError` carries a capped Retry-After hint, make `internal/kernel` open-stream retry prefer the provider hint over the jittered schedule when present, and fall back to the existing RetryBudget cleanly when absent. Unit tests must pin (a) hint preferred over schedule, (b) hint capped so it never exceeds the reconnect budget's upper bound, (c) absent hint leaves the jittered schedule untouched, and (d) ctx cancellation still returns promptly from the merged wait. Requires the header parsing slice to be green first; do not widen the already-shipped `Jittered reconnect backoff schedule` coverage."
             },
             {
               "name": "Prompt-cache capability guard",
@@ -1444,6 +1519,16 @@
               "name": "API server health + cron admin endpoints",
               "status": "planned",
               "note": "TDD: port /health/detailed plus /api/jobs list/create/update/delete/pause/resume/trigger after the Phase 5.N cronjob store/API parity slices land, reusing the same auth and OpenAI-style error envelope instead of creating a second cron control plane."
+            }
+          ]
+        },
+        "5.R": {
+          "name": "Code Execution Mode Policy",
+          "items": [
+            {
+              "name": "Execute_code project/strict execution modes + defaults",
+              "status": "planned",
+              "note": "TDD: port upstream PR #11971 — add `project` (default) and `strict` execution modes to `execute_code` that narrow CWD/filesystem scope, tighten network-egress rules per mode, and preserve the Phase 5.K sandboxed-exec blocked-result envelope. Land mode config parsing first with explicit off/project/strict cases, then wire mode selection into the existing sandbox guard without widening the 5.K filesystem/network blocking contract. Keep PR #11956's script-own-temp-dir behavior documented in the mode contract before any runtime default change."
             }
           ]
         }
