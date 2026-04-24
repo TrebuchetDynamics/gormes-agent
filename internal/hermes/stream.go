@@ -107,6 +107,9 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 		}
 		f, err := s.sse.Next(ctx)
 		if err != nil {
+			if err == io.EOF && len(s.pendingCalls) > 0 {
+				return s.flushPendingCallsOnEOF(), nil
+			}
 			return Event{}, err
 		}
 		if strings.TrimSpace(f.data) == "[DONE]" {
@@ -170,6 +173,16 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 		}
 		return head, nil
 	}
+}
+
+func (s *chatStream) flushPendingCallsOnEOF() Event {
+	ev := Event{
+		Kind:         EventDone,
+		FinishReason: "tool_calls",
+		ToolCalls:    flushPending(s.pendingCalls),
+	}
+	s.pendingCalls = make(map[int]*pendingToolCall)
+	return ev
 }
 
 // flushPending converts the accumulator map into a sorted, finalised ToolCall slice.

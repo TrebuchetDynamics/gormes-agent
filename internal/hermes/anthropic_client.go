@@ -100,7 +100,7 @@ func (c *anthropicClient) OpenStream(ctx context.Context, req ChatRequest) (Stre
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &HTTPError{Status: resp.StatusCode, Body: string(raw)}
+		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
 	}
 	return newAnthropicStream(resp.Body), nil
 }
@@ -123,7 +123,7 @@ func (c *anthropicClient) Health(ctx context.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
-		return &HTTPError{Status: resp.StatusCode, Body: string(raw)}
+		return newHTTPError(resp.StatusCode, string(raw), resp.Header)
 	}
 	return nil
 }

@@ -49,14 +49,28 @@ func (c *httpClient) Health(ctx context.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
-		return &HTTPError{Status: resp.StatusCode, Body: string(body)}
+		return newHTTPError(resp.StatusCode, string(body), resp.Header)
 	}
 	return nil
 }
 
 type orMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string       `json:"role"`
+	Content    string       `json:"content"`
+	ToolCalls  []orToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string       `json:"tool_call_id,omitempty"`
+	Name       string       `json:"name,omitempty"`
+}
+
+type orToolCall struct {
+	ID       string         `json:"id"`
+	Type     string         `json:"type"`
+	Function orToolFunction `json:"function"`
+}
+
+type orToolFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
 }
 
 type orToolDescriptor struct {
@@ -69,17 +83,14 @@ type orToolDescriptor struct {
 }
 
 type orChatRequest struct {
-	Model    string              `json:"model"`
-	Messages []orMessage         `json:"messages"`
-	Stream   bool                `json:"stream"`
-	Tools    []orToolDescriptor  `json:"tools,omitempty"`
+	Model    string             `json:"model"`
+	Messages []orMessage        `json:"messages"`
+	Stream   bool               `json:"stream"`
+	Tools    []orToolDescriptor `json:"tools,omitempty"`
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
-	msgs := make([]orMessage, len(req.Messages))
-	for i, m := range req.Messages {
-		msgs[i] = orMessage{Role: m.Role, Content: m.Content}
-	}
+	msgs := makeOpenAICompatibleMessages(req.Messages)
 	tools := make([]orToolDescriptor, len(req.Tools))
 	for i, t := range req.Tools {
 		tools[i] = orToolDescriptor{
@@ -119,10 +130,41 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &HTTPError{Status: resp.StatusCode, Body: string(raw)}
+		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
 	}
 	// The body stays open for streaming; chatStream owns the Close.
 	return newChatStream(resp.Body, resp.Header.Get("X-Hermes-Session-Id")), nil
+}
+
+func makeOpenAICompatibleMessages(messages []Message) []orMessage {
+	out := make([]orMessage, 0, len(messages))
+	for _, msg := range messages {
+		wire := orMessage{
+			Role:       msg.Role,
+			Content:    msg.Content,
+			ToolCallID: msg.ToolCallID,
+			Name:       msg.Name,
+		}
+		if len(msg.ToolCalls) > 0 {
+			wire.ToolCalls = make([]orToolCall, 0, len(msg.ToolCalls))
+			for _, call := range msg.ToolCalls {
+				args := string(call.Arguments)
+				if args == "" {
+					args = "{}"
+				}
+				wire.ToolCalls = append(wire.ToolCalls, orToolCall{
+					ID:   call.ID,
+					Type: "function",
+					Function: orToolFunction{
+						Name:      call.Name,
+						Arguments: args,
+					},
+				})
+			}
+		}
+		out = append(out, wire)
+	}
+	return out
 }
 
 // OpenRunEvents subscribes to SSE stream for a run's events.
@@ -150,7 +192,7 @@ func (c *httpClient) OpenRunEvents(ctx context.Context, runID string) (RunEventS
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &HTTPError{Status: resp.StatusCode, Body: string(raw)}
+		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
 	}
 	return newRunEventStream(resp.Body), nil
 }

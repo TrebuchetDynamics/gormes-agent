@@ -104,6 +104,9 @@ func (s *anthropicStream) Recv(ctx context.Context) (Event, error) {
 		}
 		frame, err := s.sse.Next(ctx)
 		if err != nil {
+			if err == io.EOF && len(s.toolCalls) > 0 {
+				return s.flushToolCallsOnEOF(), nil
+			}
 			return Event{}, err
 		}
 		eventType := anthropicFrameType(frame)
@@ -175,6 +178,17 @@ func (s *anthropicStream) Recv(ctx context.Context) (Event, error) {
 			continue
 		}
 	}
+}
+
+func (s *anthropicStream) flushToolCallsOnEOF() Event {
+	ev := Event{
+		Kind:         EventDone,
+		FinishReason: "tool_calls",
+		TokensIn:     s.inputTokens,
+		ToolCalls:    flushAnthropicToolCalls(s.toolCalls),
+	}
+	s.toolCalls = make(map[int]*anthropicPendingToolCall)
+	return ev
 }
 
 func anthropicFrameType(frame *sseFrame) string {

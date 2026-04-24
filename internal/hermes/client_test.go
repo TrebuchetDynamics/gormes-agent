@@ -3,6 +3,7 @@ package hermes
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,6 +85,7 @@ func TestOpenStream_Happy(t *testing.T) {
 
 func TestOpenStream_Retry_429(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "3")
 		http.Error(w, "slow down", 429)
 	}))
 	defer srv.Close()
@@ -96,6 +98,99 @@ func TestOpenStream_Retry_429(t *testing.T) {
 	if Classify(err) != ClassRetryable {
 		t.Errorf("Classify = %v, want ClassRetryable", Classify(err))
 	}
+	var httpErr *HTTPError
+	if !errors.As(err, &httpErr) {
+		t.Fatalf("error type = %T, want *HTTPError", err)
+	}
+	if httpErr.RetryAfter != 3*time.Second {
+		t.Fatalf("RetryAfter = %v, want 3s", httpErr.RetryAfter)
+	}
+}
+
+func TestOpenStream_RetryAfterHintSources(t *testing.T) {
+	futureRetry := time.Now().Add(4 * time.Second).UTC().Format(http.TimeFormat)
+	cases := []struct {
+		name       string
+		header     string
+		body       string
+		want       time.Duration
+		wantMax    time.Duration
+		wantRange  bool
+		statusCode int
+	}{
+		{
+			name:       "http date header",
+			header:     futureRetry,
+			body:       `{"error":{"message":"slow down"}}`,
+			wantMax:    4 * time.Second,
+			wantRange:  true,
+			statusCode: http.StatusTooManyRequests,
+		},
+		{
+			name:       "snake body hint",
+			body:       `{"retry_after":2}`,
+			want:       2 * time.Second,
+			statusCode: http.StatusTooManyRequests,
+		},
+		{
+			name:       "nested camel body hint",
+			body:       `{"error":{"message":"slow down","retryAfter":4}}`,
+			want:       4 * time.Second,
+			statusCode: http.StatusTooManyRequests,
+		},
+		{
+			name:       "caps maliciously long header",
+			header:     "999",
+			body:       `{"error":{"message":"slow down"}}`,
+			want:       16 * time.Second,
+			statusCode: http.StatusTooManyRequests,
+		},
+		{
+			name:       "missing signal",
+			body:       `{"error":{"message":"slow down"}}`,
+			want:       0,
+			statusCode: http.StatusTooManyRequests,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpErr := openStreamHTTPError(t, tc.statusCode, tc.header, tc.body)
+			if tc.wantRange {
+				if httpErr.RetryAfter <= 0 || httpErr.RetryAfter > tc.wantMax {
+					t.Fatalf("RetryAfter = %v, want >0 and <= %v", httpErr.RetryAfter, tc.wantMax)
+				}
+				return
+			}
+			if httpErr.RetryAfter != tc.want {
+				t.Fatalf("RetryAfter = %v, want %v", httpErr.RetryAfter, tc.want)
+			}
+		})
+	}
+}
+
+func openStreamHTTPError(t *testing.T, statusCode int, retryAfter, body string) *HTTPError {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if retryAfter != "" {
+			w.Header().Set("Retry-After", retryAfter)
+		}
+		w.WriteHeader(statusCode)
+		fmt.Fprint(w, body)
+	}))
+	defer srv.Close()
+
+	c := NewHTTPClient(srv.URL, "")
+	_, err := c.OpenStream(context.Background(), ChatRequest{Model: "hermes-agent"})
+	if err == nil {
+		t.Fatal("OpenStream() err = nil, want HTTPError")
+	}
+	var httpErr *HTTPError
+	if !errors.As(err, &httpErr) {
+		t.Fatalf("error type = %T, want *HTTPError", err)
+	}
+	return httpErr
 }
 
 // TestOpenStream_DropNoLeak is the goroutine-leak invariant required by the

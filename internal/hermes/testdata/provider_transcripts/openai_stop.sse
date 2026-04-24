@@ -1,0 +1,4 @@
+data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":21,"completion_tokens":3}}
+
+data: [DONE]
+
