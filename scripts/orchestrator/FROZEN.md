@@ -4,6 +4,12 @@ As of the commit that introduced this file, this directory and the
 companion entry script `scripts/gormes-auto-codexu-orchestrator.sh`
 are considered **frozen** for architectural change.
 
+## Active freeze exception
+
+The user-approved Autoloop + Repoctl Go port may replace frozen shell files with
+Go implementations, vendored parity fixtures, or tiny wrappers. Production
+behavior changes still require parity tests.
+
 ## What's frozen
 
 - `scripts/gormes-auto-codexu-orchestrator.sh`

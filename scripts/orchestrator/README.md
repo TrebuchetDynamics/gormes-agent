@@ -1,34 +1,32 @@
-# Orchestrator Internals
+# Autoloop Internals
 
-> This directory is **commit-frozen**. See [FROZEN.md](./FROZEN.md) before
-> changing any `.sh` under `lib/` or the entry script.
-
-Companion libraries and tests for `scripts/gormes-auto-codexu-orchestrator.sh`.
+The production implementation now lives in Go under `cmd/autoloop` and
+`internal/autoloop`. This directory contains transitional wrappers, systemd
+templates, and historical notes for the old shell entrypoints.
 
 ## Layout
 
-- `lib/` — sourced modules. Each file is side-effect-free; they declare functions that the entry script or tests call. Module docstrings at the top of each file list env vars they read.
-- `tests/bootstrap.sh` — downloads and verifies vendored bats-core, bats-assert, bats-support into `tests/vendor/` (gitignored).
-- `tests/run.sh unit` / `tests/run.sh integration` / `tests/run.sh unit integration` — test runner.
-- `tests/fixtures/` — canned progress JSON, report markdown (good + 6 bad), and mock backend binaries (`fake-codexu`, `fake-planner`, `fake-doc-improver`, `fake-landingpage`).
+- `*.sh` — tiny compatibility wrappers that exec `go run ./cmd/autoloop ...`.
+- `systemd/` — templates rendered or installed by `autoloop service ...`.
+- `FROZEN.md` — freeze policy and the active Go-port exception.
 
 ## Running tests
 
 ```sh
-make -C .. orchestrator-test        # unit only, <5s
-make -C .. orchestrator-test-all    # unit + integration, <2min
+go test ./internal/autoloop ./cmd/autoloop -count=1
 ```
 
-## Adding a new library module
+## Legacy shell
 
-1. Create `lib/<name>.sh`. Start with the standard header (module doc + depends-on list).
-2. Add a `unit/<name>.bats` test file, load `'../lib/test_env'` in setup, call `source_lib <name>` after `load_helpers`.
-3. Add the new name to the `for _lib in ...` loop at the top of `gormes-auto-codexu-orchestrator.sh`.
-4. Run `make orchestrator-test-all`.
+Long-form frozen shell retained for parity lives under
+`testdata/legacy-shell/scripts/orchestrator/` and is marked vendored for
+language reporting.
 
 ## Backends
 
-`lib/backend.sh` is the backend adapter. `BACKEND` (env var) or the equivalent CLI flag selects which agent CLI drives workers. The orchestrator's worker contract is unchanged across backends; each backend only translates argv.
+`internal/autoloop` owns backend adapters. `BACKEND` (env var) or the equivalent
+CLI flag selects which agent CLI drives workers. The worker contract is
+unchanged across backends; each backend only translates argv.
 
 | Backend | Binary | CLI flag | Notes |
 |---|---|---|---|

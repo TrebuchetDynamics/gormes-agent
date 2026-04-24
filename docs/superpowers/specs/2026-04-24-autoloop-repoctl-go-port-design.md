@@ -1,6 +1,6 @@
 # Autoloop + Repoctl Go Port Design
 
-**Status:** Draft for review
+**Status:** Implemented; final verification in progress
 **Author:** Codex
 **Date:** 2026-04-24
 
@@ -52,7 +52,7 @@ the Go replacement proves equivalent.
 
 ## Decision Summary
 
-The accepted design is:
+The accepted design has been cut over:
 
 1. `cmd/autoloop` replaces the orchestrator, audit, digest, systemd install,
    and companion scheduling scripts.
@@ -62,12 +62,12 @@ The accepted design is:
    systemd rendering.
 4. `internal/repoctl` owns benchmark, progress, README, and compatibility
    maintenance logic.
-5. `scripts/*.sh` and `scripts/orchestrator/**/*.sh` stay temporarily only as
-   compatibility wrappers or legacy parity fixtures.
-6. Long legacy shell moves to `testdata/legacy-shell/` during parity and is
-   marked `linguist-vendored` in `.gitattributes`.
-7. Final production target is no meaningful shell logic. Remaining shell, if
-   any, must be a tiny wrapper that execs a Go binary.
+5. `scripts/*.sh` and `scripts/orchestrator/**/*.sh` now remain as tiny
+   compatibility wrappers or test harnesses, not production shell logic.
+6. Long legacy shell lives under `testdata/legacy-shell/` as parity fixtures and
+   is marked `linguist-vendored` in `.gitattributes`.
+7. The production target is now Go-first automation. Remaining shell under
+   `scripts/` must stay a tiny wrapper that execs a Go command.
 
 ## Command Surface
 
@@ -76,7 +76,7 @@ The accepted design is:
 `autoloop` is the self-development automation binary. It is not shipped as the
 main user runtime. It coordinates agent workers that develop this repository.
 
-Planned subcommands:
+Implemented subcommands:
 
 ```text
 autoloop run
@@ -100,7 +100,7 @@ The `service` subcommands replace `install-service.sh`, `install-audit.sh`, and
 
 `repoctl` is repo maintenance tooling. It does not spawn agent workers.
 
-Planned subcommands:
+Implemented subcommands:
 
 ```text
 repoctl benchmark record
@@ -118,8 +118,9 @@ scripts/update-readme.sh
 scripts/check-go1.22-compat.sh
 ```
 
-The Makefile should call `go run ./cmd/repoctl ...` during the transition, then
-the compiled `repoctl` binary where appropriate.
+The Makefile calls `go run ./cmd/repoctl ...` for repo maintenance during this
+transition. Compiled `repoctl` binaries may replace those calls later where
+appropriate.
 
 ## Package Layout
 
@@ -198,7 +199,7 @@ Go toolchain, matching current behavior.
 
 ## Legacy Shell Handling
 
-During parity, legacy shell moves instead of disappearing:
+For parity, legacy shell moved instead of disappearing:
 
 ```text
 testdata/legacy-shell/scripts/...
@@ -210,8 +211,8 @@ testdata/legacy-shell/scripts/...
 testdata/legacy-shell/** linguist-vendored
 ```
 
-Live scripts under `scripts/` should become small wrappers only after their Go
-replacement passes parity:
+Live scripts under `scripts/` are small wrappers after their Go replacements
+passed targeted parity checks:
 
 ```sh
 #!/usr/bin/env sh
@@ -287,10 +288,10 @@ timer install, and legacy timer disable behavior under `autoloop service`.
 
 ### Phase 6: Cutover + Shell Reduction
 
-Update docs, Makefile, systemd templates, and operator commands to call Go
-binaries. Replace live shell scripts with tiny wrappers or delete them. Keep
-legacy shell only under vendored parity fixtures until one release cycle proves
-the Go tools reliable.
+Completed for this port. Docs, Makefile targets, systemd rendering, and
+operator entrypoints now route through `cmd/repoctl` or `cmd/autoloop`. Live
+shell scripts are wrappers; legacy long-form shell remains only as vendored
+parity fixtures under `testdata/legacy-shell/`.
 
 ## Testing Requirements
 

@@ -4,6 +4,11 @@
 
 **Goal:** Replace production shell automation with typed Go tools named `repoctl` and `autoloop`, while retaining legacy shell only as temporary parity fixtures or tiny wrappers.
 
+**Status:** Implemented; `cmd/repoctl` and `cmd/autoloop` are the production
+automation entrypoints, long-form legacy shell is vendored under
+`testdata/legacy-shell`, and live `scripts/` entrypoints are compatibility
+wrappers.
+
 **Architecture:** `repoctl` owns deterministic repo maintenance commands and should land first. `autoloop` owns self-development orchestration, preserving the current shell contract through typed config, injectable command execution, fixture parity tests, and staged cutover. Long legacy shell is moved under vendored parity fixtures before production scripts are replaced.
 
 **Tech Stack:** Go 1.25+, standard library, existing `internal/progress`, Cobra only where needed, git/agent/systemd external commands behind injectable runners, Markdown docs tests.
@@ -11,6 +16,11 @@
 ---
 
 ## File Structure
+
+Implementation note: the port has been cut over at this structure. `cmd/repoctl`
+and `internal/repoctl` own repo maintenance, `cmd/autoloop` and
+`internal/autoloop` own self-development automation, `testdata/legacy-shell`
+retains parity fixtures, and remaining shell under `scripts/` is wrapper-only.
 
 Create these files:
 
@@ -3121,6 +3131,10 @@ git commit -m "chore(autoloop): wrap orchestrator entrypoints with Go"
 ---
 
 ### Task 15: Final Verification And Docs Update
+
+Cutover note: this task documents the completed Go cutover rather than changing
+automation behavior. Verification covers `repoctl`, `autoloop`, docs tests,
+`cmd/gormes`, language-shape scan, and whitespace checks.
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-04-24-autoloop-repoctl-go-port-design.md`
