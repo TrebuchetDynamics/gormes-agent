@@ -1,6 +1,8 @@
 ---
 title: "Next Slices"
-weight: 35
+weight: 30
+aliases:
+  - /building-gormes/next-slices/
 ---
 
 # Next Slices

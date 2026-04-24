@@ -1,6 +1,8 @@
 ---
 title: "Autoloop Handoff"
-weight: 33
+weight: 10
+aliases:
+  - /building-gormes/autoloop-handoff/
 ---
 
 # Autoloop Handoff

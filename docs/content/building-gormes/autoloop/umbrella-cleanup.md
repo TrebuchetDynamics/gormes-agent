@@ -1,6 +1,8 @@
 ---
 title: "Umbrella Cleanup"
-weight: 37
+weight: 50
+aliases:
+  - /building-gormes/umbrella-cleanup/
 ---
 
 # Umbrella Cleanup

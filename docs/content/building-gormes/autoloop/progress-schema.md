@@ -1,6 +1,8 @@
 ---
 title: "Progress Schema"
-weight: 38
+weight: 60
+aliases:
+  - /building-gormes/progress-schema/
 ---
 
 # Progress Schema

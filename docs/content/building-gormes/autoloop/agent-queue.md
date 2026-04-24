@@ -1,6 +1,8 @@
 ---
 title: "Agent Queue"
-weight: 34
+weight: 20
+aliases:
+  - /building-gormes/agent-queue/
 ---
 
 # Agent Queue
