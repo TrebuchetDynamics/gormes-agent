@@ -91,7 +91,7 @@ func TestNormalizeCandidatesPreservesExecutionMetadataAndSkipsBlockedUmbrella(t 
 								"contract_status": " DRAFT ",
 								"slice_size": " Small ",
 								"execution_owner": " Agent ",
-								"trust_class": " T1 ",
+								"trust_class": ["system"],
 								"degraded_mode": " use legacy path ",
 								"fixture": " progress_fixture.json ",
 								"source_refs": [" docs/plan.md ", " "],
@@ -102,7 +102,7 @@ func TestNormalizeCandidatesPreservesExecutionMetadataAndSkipsBlockedUmbrella(t 
 								"acceptance": [" metadata retained "],
 								"write_scope": [" internal/autoloop "],
 								"test_commands": [" go test ./internal/autoloop "],
-								"done_signal": " commit merged ",
+								"done_signal": ["provider transcript replay passes"],
 								"note": " Keep human note casing. "
 							},
 							{
@@ -138,7 +138,7 @@ func TestNormalizeCandidatesPreservesExecutionMetadataAndSkipsBlockedUmbrella(t 
 			ContractStatus: "draft",
 			SliceSize:      "small",
 			ExecutionOwner: "agent",
-			TrustClass:     "T1",
+			TrustClass:     []string{"system"},
 			DegradedMode:   "use legacy path",
 			Fixture:        "progress_fixture.json",
 			SourceRefs:     []string{"docs/plan.md"},
@@ -149,7 +149,7 @@ func TestNormalizeCandidatesPreservesExecutionMetadataAndSkipsBlockedUmbrella(t 
 			Acceptance:     []string{"metadata retained"},
 			WriteScope:     []string{"internal/autoloop"},
 			TestCommands:   []string{"go test ./internal/autoloop"},
-			DoneSignal:     "commit merged",
+			DoneSignal:     []string{"provider transcript replay passes"},
 			Note:           "Keep human note casing.",
 		},
 	}
@@ -158,6 +158,12 @@ func TestNormalizeCandidatesPreservesExecutionMetadataAndSkipsBlockedUmbrella(t 
 	}
 	if got[0].SelectionReason() != "P0 handoff" {
 		t.Fatalf("SelectionReason() = %q, want %q", got[0].SelectionReason(), "P0 handoff")
+	}
+	if !reflect.DeepEqual(got[0].TrustClass, []string{"system"}) {
+		t.Fatalf("TrustClass = %#v, want %#v", got[0].TrustClass, []string{"system"})
+	}
+	if !reflect.DeepEqual(got[0].DoneSignal, []string{"provider transcript replay passes"}) {
+		t.Fatalf("DoneSignal = %#v, want %#v", got[0].DoneSignal, []string{"provider transcript replay passes"})
 	}
 }
 

@@ -26,7 +26,7 @@ type Candidate struct {
 	ContractStatus string
 	SliceSize      string
 	ExecutionOwner string
-	TrustClass     string
+	TrustClass     []string
 	DegradedMode   string
 	Fixture        string
 	SourceRefs     []string
@@ -37,7 +37,7 @@ type Candidate struct {
 	Acceptance     []string
 	WriteScope     []string
 	TestCommands   []string
-	DoneSignal     string
+	DoneSignal     []string
 	Note           string
 }
 
@@ -109,7 +109,7 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 					ContractStatus: lowerTrim(item.ContractStatus),
 					SliceSize:      sliceSize,
 					ExecutionOwner: lowerTrim(item.ExecutionOwner),
-					TrustClass:     strings.TrimSpace(item.TrustClass),
+					TrustClass:     trimStringSlice(item.TrustClass),
 					DegradedMode:   strings.TrimSpace(item.DegradedMode),
 					Fixture:        strings.TrimSpace(item.Fixture),
 					SourceRefs:     trimStringSlice(item.SourceRefs),
@@ -120,7 +120,7 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 					Acceptance:     trimStringSlice(item.Acceptance),
 					WriteScope:     trimStringSlice(item.WriteScope),
 					TestCommands:   trimStringSlice(item.TestCommands),
-					DoneSignal:     strings.TrimSpace(item.DoneSignal),
+					DoneSignal:     trimStringSlice(item.DoneSignal),
 					Note:           strings.TrimSpace(item.Note),
 				}
 				seenKey := candidateSortKey(candidate)
@@ -252,7 +252,7 @@ type progressItem struct {
 	ContractStatus string   `json:"contract_status"`
 	SliceSize      string   `json:"slice_size"`
 	ExecutionOwner string   `json:"execution_owner"`
-	TrustClass     string   `json:"trust_class"`
+	TrustClass     []string `json:"trust_class"`
 	DegradedMode   string   `json:"degraded_mode"`
 	Fixture        string   `json:"fixture"`
 	SourceRefs     []string `json:"source_refs"`
@@ -263,7 +263,7 @@ type progressItem struct {
 	Acceptance     []string `json:"acceptance"`
 	WriteScope     []string `json:"write_scope"`
 	TestCommands   []string `json:"test_commands"`
-	DoneSignal     string   `json:"done_signal"`
+	DoneSignal     []string `json:"done_signal"`
 	Note           string   `json:"note"`
 }
 
