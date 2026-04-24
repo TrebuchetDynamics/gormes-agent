@@ -13,6 +13,7 @@ type Config struct {
 	Backend      string
 	Mode         string
 	MaxAgents    int
+	MaxPhase     int
 }
 
 func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
@@ -27,6 +28,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		Backend:      "codexu",
 		Mode:         "safe",
 		MaxAgents:    4,
+		MaxPhase:     3,
 	}
 
 	if value := env["PROGRESS_JSON"]; value != "" {
@@ -50,6 +52,16 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 			return Config{}, fmt.Errorf("MAX_AGENTS must be at least 1")
 		}
 		cfg.MaxAgents = maxAgents
+	}
+	if value := env["MAX_PHASE"]; value != "" {
+		maxPhase, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("MAX_PHASE must be an integer: %w", err)
+		}
+		if maxPhase < 1 {
+			return Config{}, fmt.Errorf("MAX_PHASE must be at least 1")
+		}
+		cfg.MaxPhase = maxPhase
 	}
 
 	return cfg, nil

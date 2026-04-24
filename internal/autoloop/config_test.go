@@ -38,6 +38,10 @@ func TestConfigFromEnvDefaultsToRepoRootPaths(t *testing.T) {
 	if cfg.MaxAgents != 4 {
 		t.Fatalf("MaxAgents = %d, want %d", cfg.MaxAgents, 4)
 	}
+
+	if cfg.MaxPhase != 3 {
+		t.Fatalf("MaxPhase = %d, want %d", cfg.MaxPhase, 3)
+	}
 }
 
 func TestConfigFromEnvReadsOverrides(t *testing.T) {
@@ -48,6 +52,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		"BACKEND":    "claudeu",
 		"MODE":       "full",
 		"MAX_AGENTS": "7",
+		"MAX_PHASE":  "5",
 	})
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
@@ -68,6 +73,10 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	if cfg.MaxAgents != 7 {
 		t.Fatalf("MaxAgents = %d, want %d", cfg.MaxAgents, 7)
 	}
+
+	if cfg.MaxPhase != 5 {
+		t.Fatalf("MaxPhase = %d, want %d", cfg.MaxPhase, 5)
+	}
 }
 
 func TestConfigFromEnvRejectsEmptyRepoRoot(t *testing.T) {
@@ -84,6 +93,18 @@ func TestConfigFromEnvRejectsInvalidMaxAgents(t *testing.T) {
 
 func TestConfigFromEnvRejectsZeroMaxAgents(t *testing.T) {
 	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_AGENTS": "0"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvRejectsInvalidMaxPhase(t *testing.T) {
+	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_PHASE": "many"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvRejectsZeroMaxPhase(t *testing.T) {
+	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_PHASE": "0"}); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }

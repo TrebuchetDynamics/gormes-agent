@@ -53,6 +53,56 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 	}
 }
 
+func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"3": {
+				"subphases": {
+					"3.E": {
+						"items": [
+							{"item_name": "phase 3 candidate", "status": "planned"}
+						]
+					}
+				}
+			},
+			"4": {
+				"subphases": {
+					"4.A": {
+						"items": [
+							{"item_name": "phase 4 active candidate", "status": "in_progress"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+
+	summary, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     t.TempDir(),
+			ProgressJSON: progressPath,
+			Backend:      "codexu",
+			Mode:         "safe",
+			MaxAgents:    4,
+			MaxPhase:     3,
+		},
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	wantSelected := []Candidate{
+		{PhaseID: "3", SubphaseID: "3.E", ItemName: "phase 3 candidate", Status: "planned"},
+	}
+	if summary.Candidates != 1 {
+		t.Fatalf("Candidates = %d, want 1", summary.Candidates)
+	}
+	if !reflect.DeepEqual(summary.Selected, wantSelected) {
+		t.Fatalf("Selected = %#v, want %#v", summary.Selected, wantSelected)
+	}
+}
+
 func TestRunOnceExecutesOncePerSelectedCandidate(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{
 		"phases": {

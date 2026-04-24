@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 
 type CandidateOptions struct {
 	ActiveFirst   bool
 	PriorityBoost []string
+	MaxPhase      int
 }
 
 type Candidate struct {
@@ -33,6 +35,9 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 	var candidates []Candidate
 	seen := make(map[string]struct{})
 	for _, phase := range progress.Phases {
+		if phaseAboveMax(phase.ID, opts.MaxPhase) {
+			continue
+		}
 		for _, subphase := range phase.allSubphases() {
 			for _, item := range subphase.Items {
 				name := firstNonEmpty(item.ItemName, item.Name, item.Title, item.ID)
@@ -77,6 +82,19 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 	})
 
 	return candidates, nil
+}
+
+func phaseAboveMax(phaseID string, maxPhase int) bool {
+	if maxPhase < 1 {
+		return false
+	}
+
+	phaseNum, err := strconv.Atoi(strings.TrimSpace(phaseID))
+	if err != nil {
+		return false
+	}
+
+	return phaseNum > maxPhase
 }
 
 func firstNonEmpty(vals ...string) string {

@@ -40,6 +40,8 @@ Useful environment variables:
 - `BACKEND`: select `codexu`, `claudeu`, or `opencode`.
 - `MODE`: select `safe`, `unattended`, or `full`.
 - `MAX_AGENTS`: cap selected rows for one run.
+- `MAX_PHASE`: cap eligible roadmap phases. Defaults to `3`, so Phase 4+
+  rows are held until the operator raises the ceiling.
 
 ## Documentation Contract
 

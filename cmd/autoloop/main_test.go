@@ -53,6 +53,7 @@ func TestRunCommandDryRunPrintsSummary(t *testing.T) {
 	t.Setenv("BACKEND", "opencode")
 	t.Setenv("MODE", "safe")
 	t.Setenv("MAX_AGENTS", "1")
+	t.Setenv("MAX_PHASE", "12")
 
 	var stdout bytes.Buffer
 	oldStdout := commandStdout
@@ -109,6 +110,7 @@ func TestRunCommandBackendFlagSetsBackend(t *testing.T) {
 	t.Setenv("BACKEND", "codexu")
 	t.Setenv("MODE", "safe")
 	t.Setenv("MAX_AGENTS", "1")
+	t.Setenv("MAX_PHASE", "12")
 
 	var stdout bytes.Buffer
 	oldStdout := commandStdout

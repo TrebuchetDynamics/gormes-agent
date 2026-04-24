@@ -76,6 +76,43 @@ func TestNormalizeCandidatesPriorityBoostWins(t *testing.T) {
 	}
 }
 
+func TestNormalizeCandidatesHonorsMaxPhase(t *testing.T) {
+	path := writeProgressJSON(t, `{
+		"phases": {
+			"3": {
+				"subphases": {
+					"3.E": {
+						"items": [
+							{"name": "phase 3 candidate", "status": "planned"}
+						]
+					}
+				}
+			},
+			"4": {
+				"subphases": {
+					"4.A": {
+						"items": [
+							{"name": "phase 4 candidate", "status": "in_progress"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+
+	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true, MaxPhase: 3})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates() error = %v", err)
+	}
+
+	want := []Candidate{
+		{PhaseID: "3", SubphaseID: "3.E", ItemName: "phase 3 candidate", Status: "planned"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("NormalizeCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestNormalizeCandidatesUsesSubPhasesFallback(t *testing.T) {
 	path := writeProgressJSON(t, `{
 		"phases": {

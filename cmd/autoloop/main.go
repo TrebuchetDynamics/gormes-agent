@@ -246,7 +246,7 @@ func runAutoloop(cfg autoloop.Config, dryRun bool) error {
 
 func autoloopEnv() map[string]string {
 	env := map[string]string{}
-	for _, key := range []string{"PROGRESS_JSON", "RUN_ROOT", "BACKEND", "MODE", "MAX_AGENTS"} {
+	for _, key := range []string{"PROGRESS_JSON", "RUN_ROOT", "BACKEND", "MODE", "MAX_AGENTS", "MAX_PHASE"} {
 		env[key] = os.Getenv(key)
 	}
 

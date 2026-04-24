@@ -18,7 +18,10 @@ type RunSummary struct {
 }
 
 func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
-	candidates, err := NormalizeCandidates(opts.Config.ProgressJSON, CandidateOptions{ActiveFirst: true})
+	candidates, err := NormalizeCandidates(opts.Config.ProgressJSON, CandidateOptions{
+		ActiveFirst: true,
+		MaxPhase:    opts.Config.MaxPhase,
+	})
 	if err != nil {
 		return RunSummary{}, err
 	}

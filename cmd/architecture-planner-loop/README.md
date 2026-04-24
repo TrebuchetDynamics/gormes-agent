@@ -28,6 +28,25 @@ The planner context includes:
 
 Override source paths with `HERMES_DIR`, `GBRAIN_DIR`, and `HONCHO_DIR`.
 
+Real `run` executions synchronize the three external source repos before
+building planner context:
+
+- existing git repo: `git -C <path> pull --ff-only`
+- missing repo: `git clone <url> <path>`
+
+Default clone URLs:
+
+- Hermes: `https://github.com/NousResearch/hermes-agent.git`
+- GBrain: `https://github.com/garrytan/gbrain.git`
+- Honcho: `https://github.com/plastic-labs/honcho`
+
+Override clone URLs with `HERMES_REPO_URL`, `GBRAIN_REPO_URL`, and
+`HONCHO_REPO_URL`. `PLANNER_SYNC_REPOS=0` is reserved for tests and controlled
+local debugging.
+
+Dry-run mode writes planner context and prompt artifacts without pulling or
+cloning external repositories.
+
 ## Artifacts
 
 By default artifacts are written under `.codex/architecture-planner/`:
