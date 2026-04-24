@@ -189,7 +189,7 @@ weight: 10
 ### 2.F.3 — Restart / Pairing / Status 🔨
 
 - [x] Graceful restart drain + managed shutdown
-- [ ] Adapter startup failure cleanup contract
+- [x] Adapter startup failure cleanup contract
 - [ ] Active-turn follow-up queue + late-arrival drain policy
 - [ ] Drain-timeout resume_pending recovery
 - [ ] Pairing read-model schema + atomic persistence

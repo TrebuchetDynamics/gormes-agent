@@ -224,6 +224,7 @@ func (m *Manager) Run(ctx context.Context) error {
 					Err:      err,
 				})
 				m.log.Warn("channel exited with error", "channel", c.Name(), "err", err)
+				m.safeAdapterDisconnect(ctx, c, err)
 			}
 		}(ch)
 	}
@@ -536,6 +537,26 @@ func (m *Manager) fireHook(ctx context.Context, ev HookEvent) {
 		return
 	}
 	m.cfg.Hooks.Fire(ctx, ev)
+}
+
+// safeAdapterDisconnect mirrors upstream GatewayRunner._safe_adapter_disconnect:
+// when a channel's Run exits early with a non-Canceled error we treat that as
+// a startup failure and invoke the optional StartupCloser so partial
+// resources can be released. Cleanup errors are logged alongside the
+// original startup failure so the first-cause signal is never masked.
+func (m *Manager) safeAdapterDisconnect(ctx context.Context, c Channel, startupErr error) {
+	closer, ok := c.(StartupCloser)
+	if !ok {
+		return
+	}
+	if err := closer.Close(ctx); err != nil {
+		m.log.Warn(
+			"adapter startup cleanup failed",
+			"channel", c.Name(),
+			"cleanup_err", err,
+			"startup_err", startupErr,
+		)
+	}
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {

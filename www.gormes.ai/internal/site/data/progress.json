@@ -527,8 +527,8 @@
             },
             {
               "name": "Adapter startup failure cleanup contract",
-              "status": "planned",
-              "note": "TDD: mirror upstream GatewayRunner._safe_adapter_disconnect by proving partially-started channel resources are closed when Connect/Run startup returns false or errors, and that cleanup errors are logged without masking the original startup failure."
+              "status": "complete",
+              "note": "TDD landed: `internal/gateway/channel.go` exposes an optional `StartupCloser{ Close(ctx) error }` interface and `internal/gateway/manager.go` mirrors upstream `GatewayRunner._safe_adapter_disconnect` via `Manager.safeAdapterDisconnect` — when a channel's `Run` exits with a non-nil non-`context.Canceled` error, the manager invokes `Close` on that channel once so partially-started resources are released, and cleanup errors are logged on a dedicated `adapter startup cleanup failed` line that carries both `cleanup_err` and `startup_err` so the original startup failure is never masked."
             },
             {
               "name": "Active-turn follow-up queue + late-arrival drain policy",

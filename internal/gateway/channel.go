@@ -39,3 +39,15 @@ type TypingCapable interface {
 type ReactionCapable interface {
 	ReactToMessage(ctx context.Context, chatID, msgID string) (undo func(), err error)
 }
+
+// StartupCloser is implemented by channels that need to release
+// partially-acquired resources (open sockets, long-poll handles, reply
+// queues, scoped credential locks) when Run exits early with a non-nil
+// error other than context.Canceled. The manager treats such an exit as
+// a startup failure and invokes Close once per channel instance to mirror
+// upstream GatewayRunner._safe_adapter_disconnect. Close must be safe to
+// call even if Run never acquired any resources. Errors from Close are
+// logged but must never mask or replace the original startup failure.
+type StartupCloser interface {
+	Close(ctx context.Context) error
+}
