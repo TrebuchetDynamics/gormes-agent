@@ -389,7 +389,7 @@ func nextSliceRows(rows []contractRow, limit int) []contractRow {
 	seen := map[string]struct{}{}
 	for bucket := 0; bucket <= 4 && len(out) < limit; bucket++ {
 		for _, row := range rows {
-			if len(row.Item.BlockedBy) > 0 || row.Item.SliceSize == SliceSizeUmbrella {
+			if row.Item.Status == StatusComplete || len(row.Item.BlockedBy) > 0 || row.Item.SliceSize == SliceSizeUmbrella {
 				continue
 			}
 			if nextSliceBucket(row.Item) != bucket {
@@ -444,7 +444,7 @@ func whyNow(it Item) string {
 func blockedRows(rows []contractRow) []contractRow {
 	var out []contractRow
 	for _, row := range rows {
-		if len(row.Item.BlockedBy) > 0 {
+		if row.Item.Status != StatusComplete && len(row.Item.BlockedBy) > 0 {
 			out = append(out, row)
 		}
 	}

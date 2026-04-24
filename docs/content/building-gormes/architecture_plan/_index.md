@@ -66,8 +66,8 @@ machine-readable queue for developing the full `gormes-agent`.
 
 ### 1.C — Automation Reliability 🔨
 
-- [ ] Orchestrator failure-row stabilization for 4-8 workers
-- [ ] Soft-success-nonzero bats coverage
+- [x] Orchestrator failure-row stabilization for 4-8 workers
+- [x] Soft-success-nonzero bats coverage
 - [ ] Planner wrapper/test consistency closeout
 
 ## Phase 2 — The Gateway 🔨

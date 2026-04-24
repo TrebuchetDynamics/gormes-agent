@@ -5,6 +5,7 @@
 #
 # Modes via FAKE_CODEXU_MODE env var:
 #   success (default) - emit valid 8-section final report, commit 1 file, exit 0
+#   success_nonzero   - emit valid final report, commit 1 file, exit FAKE_CODEXU_EXIT (default 2)
 #   contract_fail     - emit incomplete final report, exit 1
 #   timeout           - sleep FAKE_CODEXU_SLEEP (default 99999)
 #   conflict          - commit a change that will collide on progress.fixture.json
@@ -99,7 +100,7 @@ REPORT
     exit 1
     ;;
 
-  success)
+  success|success_nonzero)
     # Parse prompt to find the Repository root (first 2-space-indented line) and
     # the declared Git branch. build_prompt emits:
     #
@@ -173,6 +174,9 @@ Criterion: fake-codexu produced a commit on the worker branch — PASS
 Criterion: final report contains all required sections — PASS
 Criterion: repository root matched the worker worktree — PASS
 REPORT
+    if [[ "$MODE" == "success_nonzero" ]]; then
+      exit "${FAKE_CODEXU_EXIT:-2}"
+    fi
     exit 0
     ;;
 

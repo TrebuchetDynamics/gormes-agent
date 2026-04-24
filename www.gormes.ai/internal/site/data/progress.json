@@ -59,9 +59,9 @@
           "items": [
             {
               "name": "Orchestrator failure-row stabilization for 4-8 workers",
-              "status": "in_progress",
+              "status": "complete",
               "contract": "Worker verification and failure-taxonomy contract",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -69,7 +69,7 @@
                 "system"
               ],
               "degraded_mode": "The orchestrator records precise failure reasons, poisoned-task thresholds, soft-success decisions, and original exit codes instead of collapsing failures into one generic status.",
-              "fixture": "scripts/orchestrator unit fixtures for failure taxonomy and soft-success recovery",
+              "fixture": "scripts/orchestrator/tests/unit/{failures,soft-success}.bats",
               "source_refs": [
                 "docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
                 "scripts/orchestrator/lib/worktree.sh",
@@ -90,7 +90,7 @@
                 "Non-timeout/non-OOM codex exits can become soft_success_nonzero only after final-report and commit verification pass.",
                 "Timeout and OOM exits remain hard failures."
               ],
-              "note": "P0 umbrella: stop false failure rows when codex exits non-zero despite valid final report + single clean commit; preserve promotion flow and keep loop throughput viable at higher parallelism. Partials landed since the prior audit: (a) granular failure taxonomy replaces the conflated `contract_or_test_failure` status with `no_commit_made|wrong_commit_count|worktree_dirty|branch_mismatch|report_commit_mismatch|scope_violation|report_validation_failed` — `verify_worker_commit` exports `LAST_VERIFY_REASON` and `run_worker` stamps it into the `runs.jsonl` status (`scripts/orchestrator/lib/worktree.sh`, `scripts/gormes-auto-codexu-orchestrator.sh`), and `scripts/orchestrator/tests/unit/failures.bats` now covers `failure_record_write`/`_read`/`_reset` and poisoned-task thresholds over the new reason set; (b) `try_soft_success_nonzero` in the main entry script recovers a non-zero codex rc into a `soft_success_nonzero` worker_success iff the final report validates and `verify_worker_commit` is clean — the default was flipped on (`ALLOW_SOFT_SUCCESS_NONZERO=\"${ALLOW_SOFT_SUCCESS_NONZERO:-1}\"` at `scripts/gormes-auto-codexu-orchestrator.sh:67`), but `try_soft_success_nonzero` itself still has no direct bats coverage. The remaining closeout is owned by the sibling slice below (bats coverage for the soft-success recovery path).",
+              "note": "Complete: failure rows now preserve granular verify/report reasons, poisoned-task records are covered, and soft-success recovery has direct unit coverage for timeout/OOM rejection, opt-out rejection, invalid-report rejection, dirty-commit rejection, valid report + clean commit recovery, and worker-state original_rc preservation via scripts/orchestrator/tests/unit/soft-success.bats.",
               "write_scope": [
                 "scripts/gormes-auto-codexu-orchestrator.sh",
                 "scripts/orchestrator/lib/",
@@ -106,9 +106,9 @@
             {
               "name": "Soft-success-nonzero bats coverage",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "Soft-success nonzero recovery guard",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -116,13 +116,10 @@
                 "system"
               ],
               "degraded_mode": "When the recovery guard refuses a non-zero exit, the worker state keeps the original exit reason and does not promote the run.",
-              "fixture": "scripts/orchestrator tests that call try_soft_success_nonzero directly",
+              "fixture": "scripts/orchestrator/tests/unit/soft-success.bats",
               "source_refs": [
                 "docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
                 "scripts/gormes-auto-codexu-orchestrator.sh"
-              ],
-              "blocked_by": [
-                "Orchestrator failure-row stabilization for 4-8 workers"
               ],
               "ready_when": [
                 "Orchestrator failure-row stabilization remains active and try_soft_success_nonzero is testable without running the full worker loop."
@@ -138,7 +135,7 @@
                 "ALLOW_SOFT_SUCCESS_NONZERO=0 rejects even with valid report and clean commit.",
                 "Valid report plus clean commit plus allowed non-zero rc records soft_success_nonzero with original_rc."
               ],
-              "note": "TDD: the default was already flipped on (`ALLOW_SOFT_SUCCESS_NONZERO=\"${ALLOW_SOFT_SUCCESS_NONZERO:-1}\"` at `scripts/gormes-auto-codexu-orchestrator.sh:67`) but `try_soft_success_nonzero` itself still has no direct bats coverage. Add `scripts/orchestrator/tests/unit/` (and/or `integration/`) bats tests that call `try_soft_success_nonzero` directly and pin (a) rc=124/137 always reject (timeouts/OOM are NOT soft-successable) regardless of `ALLOW_SOFT_SUCCESS_NONZERO`, (b) invalid final report rejects regardless of rc, (c) dirty verify_worker_commit rejects regardless of rc, (d) `ALLOW_SOFT_SUCCESS_NONZERO=0` rejects regardless of report/commit, (e) `ALLOW_SOFT_SUCCESS_NONZERO=1` + valid final report + clean commit + rc∈{non-124,non-137} returns success and the caller flips worker state to `soft_success_nonzero` with `original_rc` preserved. Do not re-open the default-flip decision; the already-landed `scripts/gormes-auto-codexu-orchestrator.sh:67` default is intentionally on-by-default and any flip belongs in a separate change. Blocks marking the umbrella item complete.",
+              "note": "TDD landed: scripts/orchestrator/tests/unit/soft-success.bats source-loads the legacy entrypoint, directly covers try_soft_success_nonzero reject/recovery paths, and runs a one-worker fake-codexu success_nonzero fixture to prove worker state records mode=soft_success_nonzero with original_rc preserved. The default ALLOW_SOFT_SUCCESS_NONZERO remains on-by-default.",
               "write_scope": [
                 "scripts/gormes-auto-codexu-orchestrator.sh",
                 "scripts/orchestrator/tests/unit/"

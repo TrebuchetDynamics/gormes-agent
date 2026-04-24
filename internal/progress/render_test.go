@@ -176,6 +176,7 @@ func TestRenderNextSlicesOrdersUnblockedP0ThenActiveAndSkipsBlockedUmbrella(t *t
 				{Name: "p0", Status: StatusPlanned, Priority: "P0", Contract: "p0 contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"operator"}, Fixture: "f"},
 				{Name: "blocked", Status: StatusPlanned, Contract: "blocked contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f", BlockedBy: []string{"dependency"}},
 				{Name: "umbrella", Status: StatusPlanned, Contract: "umbrella contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeUmbrella, TrustClass: []string{"system"}, Fixture: "f"},
+				{Name: "complete", Status: StatusComplete, Contract: "complete contract", ContractStatus: ContractStatusValidated, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f"},
 			}},
 		}},
 	}}
@@ -187,8 +188,8 @@ func TestRenderNextSlicesOrdersUnblockedP0ThenActiveAndSkipsBlockedUmbrella(t *t
 	if active < 0 || p0 < 0 || planned < 0 {
 		t.Fatalf("next slices missing expected rows:\n%s", got)
 	}
-	if strings.Contains(got, "blocked contract") || strings.Contains(got, "umbrella contract") {
-		t.Fatalf("next slices included blocked or umbrella row:\n%s", got)
+	if strings.Contains(got, "blocked contract") || strings.Contains(got, "umbrella contract") || strings.Contains(got, "complete contract") {
+		t.Fatalf("next slices included blocked, umbrella, or complete row:\n%s", got)
 	}
 	if !(p0 < active && active < planned) {
 		t.Fatalf("next slices order wrong; active=%d p0=%d planned=%d:\n%s", active, p0, planned, got)
@@ -231,6 +232,13 @@ func TestRenderAgentQueueIncludesExecutionCardAndSkipsBlockedUmbrella(t *testing
 					Contract:  "umbrella",
 					SliceSize: SliceSizeUmbrella,
 				},
+				{
+					Name:           "Completed provider",
+					Status:         StatusComplete,
+					Contract:       "complete",
+					ContractStatus: ContractStatusValidated,
+					SliceSize:      SliceSizeSmall,
+				},
 			}},
 		}},
 	}}
@@ -253,21 +261,31 @@ func TestRenderAgentQueueIncludesExecutionCardAndSkipsBlockedUmbrella(t *testing
 			t.Fatalf("agent queue missing %q:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "Blocked provider") || strings.Contains(got, "Umbrella provider") {
-		t.Fatalf("agent queue included blocked or umbrella row:\n%s", got)
+	if strings.Contains(got, "Blocked provider") || strings.Contains(got, "Umbrella provider") || strings.Contains(got, "Completed provider") {
+		t.Fatalf("agent queue included blocked, umbrella, or complete row:\n%s", got)
 	}
 }
 
 func TestRenderBlockedSlices(t *testing.T) {
 	p := &Progress{Phases: map[string]Phase{
 		"3": {Name: "Phase 3", Subphases: map[string]Subphase{
-			"3.E": {Name: "Memory", Items: []Item{{
-				Name:      "Cross-chat",
-				Contract:  "Scoped recall",
-				BlockedBy: []string{"schema"},
-				ReadyWhen: []string{"schema ships"},
-				Unblocks:  []string{"operator evidence"},
-			}}},
+			"3.E": {Name: "Memory", Items: []Item{
+				{
+					Name:      "Cross-chat",
+					Contract:  "Scoped recall",
+					BlockedBy: []string{"schema"},
+					ReadyWhen: []string{"schema ships"},
+					Unblocks:  []string{"operator evidence"},
+				},
+				{
+					Name:           "Completed blocked row",
+					Status:         StatusComplete,
+					Contract:       "complete",
+					ContractStatus: ContractStatusValidated,
+					BlockedBy:      []string{"old schema"},
+					ReadyWhen:      []string{"old schema shipped"},
+				},
+			}},
 		}},
 	}}
 
@@ -276,6 +294,9 @@ func TestRenderBlockedSlices(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("blocked slices missing %q:\n%s", want, got)
 		}
+	}
+	if strings.Contains(got, "Completed blocked row") {
+		t.Fatalf("blocked slices included complete row:\n%s", got)
 	}
 }
 

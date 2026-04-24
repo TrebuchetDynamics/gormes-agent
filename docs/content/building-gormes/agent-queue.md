@@ -20,27 +20,7 @@ tests, and candidate policy. Keep those control-plane facts in
 `meta.autoloop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Orchestrator failure-row stabilization for 4-8 workers
-
-- Phase: 1 / 1.C
-- Owner: `orchestrator`
-- Size: `large`
-- Status: `in_progress`
-- Contract: Worker verification and failure-taxonomy contract
-- Trust class: operator, system
-- Ready when: Failure taxonomy and soft-success recovery behavior are covered by direct orchestrator unit fixtures.
-- Not ready when: The row is treated as complete before direct try_soft_success_nonzero coverage lands.
-- Degraded mode: The orchestrator records precise failure reasons, poisoned-task thresholds, soft-success decisions, and original exit codes instead of collapsing failures into one generic status.
-- Fixture: `scripts/orchestrator unit fixtures for failure taxonomy and soft-success recovery`
-- Write scope: `scripts/gormes-auto-codexu-orchestrator.sh`, `scripts/orchestrator/lib/`, `scripts/orchestrator/tests/unit/`
-- Test commands: `scripts/orchestrator/tests/run.sh unit`
-- Done signal: Fail-fast aborts terminate worker process trees and successful workers are still harvested before the failed cycle pauses.
-- Acceptance: Failure rows emit a granular reason instead of contract_or_test_failure., Non-timeout/non-OOM codex exits can become soft_success_nonzero only after final-report and commit verification pass., Timeout and OOM exits remain hard failures.
-- Source refs: docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md, scripts/orchestrator/lib/worktree.sh, scripts/gormes-auto-codexu-orchestrator.sh
-- Unblocks: Soft-success-nonzero bats coverage, Planner wrapper/test consistency closeout
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. Provider interface + stream fixture harness
+## 1. Provider interface + stream fixture harness
 
 - Phase: 4 / 4.A
 - Owner: `provider`
@@ -60,7 +40,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Bedrock Converse payload mapping (no AWS SDK), Gemini, OpenRouter, Codex
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 3. Tool registry inventory + schema parity harness
+## 2. Tool registry inventory + schema parity harness
 
 - Phase: 5 / 5.A
 - Owner: `tools`
