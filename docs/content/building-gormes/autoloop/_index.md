@@ -12,13 +12,13 @@ contributors, and worker agents use the same queue.
 
 ## Start Here
 
-- [Autoloop Handoff](./autoloop-handoff/) explains the shared entrypoint, queue
+- [Autoloop Handoff](autoloop-handoff/) explains the shared entrypoint, queue
   source, generated docs, tests, and candidate policy.
-- [Agent Queue](./agent-queue/) lists rows that are ready for autonomous worker
+- [Agent Queue](agent-queue/) lists rows that are ready for autonomous worker
   execution.
-- [Next Slices](./next-slices/) shows the short ranking of high-leverage work.
-- [Blocked Slices](./blocked-slices/) keeps blocked rows visible without making
+- [Next Slices](next-slices/) shows the short ranking of high-leverage work.
+- [Blocked Slices](blocked-slices/) keeps blocked rows visible without making
   them assignable.
-- [Umbrella Cleanup](./umbrella-cleanup/) lists broad rows that need to be split
+- [Umbrella Cleanup](umbrella-cleanup/) lists broad rows that need to be split
   before assignment.
-- [Progress Schema](./progress-schema/) defines the row fields autoloop expects.
+- [Progress Schema](progress-schema/) defines the row fields autoloop expects.

@@ -9,9 +9,9 @@ Autoloop uses the building-gormes docs tree as its development control plane:
 
 - Canonical queue: `docs/content/building-gormes/architecture_plan/progress.json`
 - Human handoff: `docs/content/building-gormes/`
-- Autoloop handoff: `docs/content/building-gormes/autoloop-handoff.md`
-- Worker-ready rows: `docs/content/building-gormes/agent-queue.md`
-- Schema contract: `docs/content/building-gormes/progress-schema.md`
+- Autoloop handoff: `docs/content/building-gormes/autoloop/autoloop-handoff.md`
+- Worker-ready rows: `docs/content/building-gormes/autoloop/agent-queue.md`
+- Schema contract: `docs/content/building-gormes/autoloop/progress-schema.md`
 
 `progress.json` is the machine-readable source of truth. Generated
 building-gormes pages are the operator-facing explanation of the same rows.
