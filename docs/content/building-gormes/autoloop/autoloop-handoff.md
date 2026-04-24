@@ -13,7 +13,7 @@ This page is generated from `meta.autoloop` in the canonical progress file:
 It keeps shared unattended-loop facts in one place so autonomous workers do not
 guess the entrypoint, plan, candidate source, generated docs, or selection
 policy from scattered prose. Row-specific execution facts stay in
-<a href="../agent-queue/">Agent Queue</a> and canonical progress rows.
+[Agent Queue](../agent-queue/) and canonical progress rows.
 
 `autoloop` is intended to execute the building-gormes architecture plan. It
 selects work from `progress.json`, uses the generated building-gormes pages as
