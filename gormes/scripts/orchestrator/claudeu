@@ -130,15 +130,24 @@ tmp_stdout="$(mktemp "$CLAUDEU_LOG_DIR/${stamp}-$$.stdout.XXXXXX")"
 tmp_stderr="$(mktemp "$CLAUDEU_LOG_DIR/${stamp}-$$.stderr.XXXXXX")"
 trap 'rm -f "$tmp_stdout" "$tmp_stderr"' EXIT
 
-log_msg "invoking claude --print --dangerously-skip-permissions --add-dir $(pwd) (prompt via stdin)"
+log_msg "invoking claude --print --output-format stream-json --dangerously-skip-permissions --add-dir $(pwd) (prompt via stdin)"
 
-# claude --print expects the prompt on stdin, not as an argv positional.
-# Pipe via printf so we ignore whatever stdin the orchestrator redirected
-# (orchestrator does `exec </dev/null` for its worker subshell).
+# --output-format stream-json makes claude emit NDJSON events on stdout. The
+# final event is {"type":"result","subtype":"success","result":"<full text>",
+# "usage":{"input_tokens":N,"output_tokens":M,"cache_read_input_tokens":K}}.
+# We stream events through to OUR stdout (orchestrator captures this into
+# $LOGS_DIR/*.jsonl), extract the final text for --output-last-message, and
+# emit one extra synthetic {"type":"cost_summary","usage":...} line that
+# audit.sh's cost_block can sum via .usage at the top level.
+#
+# Pipe the prompt via stdin; orchestrator's `exec </dev/null` in the worker
+# subshell closes our inherited stdin so argv-positional doesn't work either.
 set +e
 printf '%s' "$prompt" \
   | claude \
       --print \
+      --output-format stream-json \
+      --verbose \
       --dangerously-skip-permissions \
       --add-dir "$(pwd)" \
   > "$tmp_stdout" 2> "$tmp_stderr"
@@ -179,6 +188,12 @@ fi
 thread_id="claudeu-$$-$(date +%s)"
 printf '{"type":"thread.started","thread_id":"%s"}\n' "$thread_id"
 
+# Stream claude's NDJSON events through to our stdout so the orchestrator's
+# per-worker jsonl file captures them (audit.sh's cost_block scans it).
+if [[ -s "$tmp_stdout" ]]; then
+  cat "$tmp_stdout"
+fi
+
 # Persist stderr content into the log for post-mortem before cleanup trap fires.
 if [[ -s "$tmp_stderr" ]]; then
   {
@@ -189,13 +204,61 @@ if [[ -s "$tmp_stderr" ]]; then
   cat "$tmp_stderr" >&2
 fi
 
-# Copy claude's text output to the codexu-style --output-last-message file.
+# Extract final text from the stream-json "result" event and write to the
+# codexu-style --output-last-message file so collect_final_report_issues
+# finds the 8-section TDD report claude authored.
+final_result=""
+if [[ -s "$tmp_stdout" ]]; then
+  # `first(...)` emits the first matching result event only — claude normally
+  # emits exactly one. Don't pipe to `tail -n1` here: the result text is
+  # multi-line TDD markdown and `tail -n1` would keep only the last line.
+  final_result="$(jq -rc 'first(inputs | select(.type=="result" and .subtype=="success") | .result // empty)' --null-input "$tmp_stdout" 2>/dev/null || true)"
+fi
+
 if [[ -n "$final_file" ]]; then
-  cp "$tmp_stdout" "$final_file"
-  log_msg "wrote final report to $final_file"
+  if [[ -n "$final_result" ]]; then
+    printf '%s' "$final_result" > "$final_file"
+    log_msg "wrote final report to $final_file (from result event, ${#final_result} bytes)"
+  else
+    # Fallback: claude crashed before emitting result; dump raw stream so we
+    # at least have SOMETHING for the orchestrator's report validator.
+    cp "$tmp_stdout" "$final_file"
+    log_msg "WARN: no result event found; wrote raw stream to $final_file ($(wc -c <"$tmp_stdout") bytes)"
+  fi
+fi
+
+# Audit's cost_block sums `.usage.input_tokens // 0` across every jsonl
+# event where `.usage != null`. Claude's stream-json result event already
+# has `.usage` at the top level, so audit picks it up automatically.
+# We only emit a synthetic `cost_summary` as a fallback when the result
+# event is missing (e.g. claude crashed mid-run) — that way we avoid
+# double-counting tokens when the result event is present.
+if [[ -s "$tmp_stdout" ]]; then
+  has_result_usage="$(jq -rc 'select(.type=="result" and (.usage // null) != null) | .usage.input_tokens // 0' "$tmp_stdout" 2>/dev/null | head -n1)"
+  if [[ -z "$has_result_usage" ]]; then
+    # Sum across assistant-message usage entries so audit has something
+    # to cost even on a mid-run crash.
+    cost_line="$(jq -sc '
+      [.[] | select(.type=="assistant" and (.message.usage // null) != null) | .message.usage] as $u
+      | if ($u|length) > 0 then
+          {type:"cost_summary", usage: ($u | reduce .[] as $x ({};
+            .input_tokens = ((.input_tokens // 0) + ($x.input_tokens // 0))
+            | .output_tokens = ((.output_tokens // 0) + ($x.output_tokens // 0))
+            | .cache_read_input_tokens = ((.cache_read_input_tokens // 0) + ($x.cache_read_input_tokens // 0))
+          ))}
+        else empty end
+    ' "$tmp_stdout" 2>/dev/null)"
+    if [[ -n "$cost_line" ]]; then
+      printf '%s\n' "$cost_line"
+      log_msg "emitted fallback cost_summary (no result event): $cost_line"
+    fi
+  else
+    log_msg "result event has usage (input_tokens=$has_result_usage); audit will sum it directly"
+  fi
 fi
 
 # Also preserve a copy in the log dir for debugging.
-cp "$tmp_stdout" "$log.final.md" 2>/dev/null || true
+cp "$tmp_stdout" "$log.stream.jsonl" 2>/dev/null || true
+[[ -n "$final_result" ]] && printf '%s' "$final_result" > "$log.final.md" 2>/dev/null || true
 
 exit "$rc"
