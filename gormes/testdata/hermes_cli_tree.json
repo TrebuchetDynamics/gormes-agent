@@ -120,8 +120,9 @@
     },
     {
       "source": "dump.py",
-      "status": "planned",
-      "reason": "Debug state-dump subcommand not yet ported."
+      "status": "in_progress",
+      "go": ["internal/cli/dump.go"],
+      "reason": "Deterministic helpers (RedactAPIKey, MemoryProvider, GetModelAndProvider, CountMCPServers, ConfiguredPlatforms, FormatCronSummary, CountSkillsInHome, ConfigOverrides) ported; interactive stdout printer stays unported."
     },
     {
       "source": "env_loader.py",
