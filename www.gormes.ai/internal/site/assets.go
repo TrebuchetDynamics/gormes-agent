@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-//go:embed templates/*.tmpl templates/partials/*.tmpl static/* install.sh
+//go:embed templates/*.tmpl templates/partials/*.tmpl static/* installers/install.sh
 var siteFS embed.FS
 
 //go:embed data/benchmarks.json
@@ -46,7 +46,7 @@ func loadSite() (*Site, error) {
 		return nil, err
 	}
 
-	install, err := siteFS.ReadFile("install.sh")
+	install, err := siteFS.ReadFile("installers/install.sh")
 	if err != nil {
 		return nil, err
 	}

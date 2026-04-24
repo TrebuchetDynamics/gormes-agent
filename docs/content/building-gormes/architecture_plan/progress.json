@@ -1980,7 +1980,7 @@
             {
               "name": "Unix installer (install.sh) source-backed update flow",
               "status": "planned",
-              "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into `www.gormes.ai/internal/site/install.sh` with user-scoped PATH publication, managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain — no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them."
+              "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into canonical `scripts/install.sh`, with the site embedding a synced `www.gormes.ai/internal/site/installers/install.sh` copy. The installer uses user-scoped PATH publication, a managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain — no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them."
             },
             {
               "name": "Windows installer (install.ps1 + install.cmd) parity",

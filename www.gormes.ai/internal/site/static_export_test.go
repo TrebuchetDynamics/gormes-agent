@@ -89,8 +89,8 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read install.sh: %v", err)
 	}
-	if !strings.Contains(string(installBody), "github.com/TrebuchetDynamics/gormes-agent/cmd/gormes") {
-		t.Fatalf("install.sh missing TrebuchetDynamics module path")
+	if !strings.Contains(string(installBody), "https://github.com/TrebuchetDynamics/gormes-agent.git") {
+		t.Fatalf("install.sh missing TrebuchetDynamics repo URL")
 	}
 }
 
