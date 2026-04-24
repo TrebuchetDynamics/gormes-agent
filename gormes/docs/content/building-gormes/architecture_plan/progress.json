@@ -548,7 +548,7 @@
             {
               "name": "Pairing approval + rate-limit semantics",
               "status": "planned",
-              "note": "TDD: freeze code generation, expiry, max-pending, failed-attempt lockout, and per-user request rate limiting from upstream PairingStore before adapters start issuing pairing codes."
+              "note": "TDD: freeze code generation, expiry, max-pending, failed-attempt lockout, and per-user request rate limiting from upstream PairingStore before adapters start issuing pairing codes. Must cover the upstream PR #1a9a2d7f trap: when Telegram `message.from_user` is None (forwarded messages, anonymous admin mode, certain client edge cases) the pairing flow must fall back to `chat.id` for DMs (Telegram guarantees `chat.id == user.id` for private chats) so the allowlist check and pairing-code key do not collapse to a literal 'null' and permanently lock the real user out. Fixture tests must pin (a) DM with from_user=None resolves user_id from chat.id, (b) non-DM (group/channel) with from_user=None must NOT synthesize a user_id, (c) allowlist-denied users still hit the existing failed-attempt lockout path."
             },
             {
               "name": "`gormes gateway status` read-only command",
