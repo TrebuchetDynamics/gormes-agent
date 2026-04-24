@@ -6,3 +6,5 @@ docs/www-tests/playwright.config.mjs -linguist-detectable
 
 # Optional: enable this only if docs browser behavior should not count.
 # docs/static/site.js -linguist-detectable
+
+testdata/legacy-shell/** linguist-vendored

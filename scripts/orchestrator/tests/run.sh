@@ -17,6 +17,9 @@ for tier in "${tiers[@]}"; do
     unit|integration)
       bats_paths+=("$SCRIPT_DIR/$tier")
       ;;
+    *.bats)
+      bats_paths+=("$SCRIPT_DIR/$tier")
+      ;;
     *)
       echo "ERROR: unknown tier '$tier'" >&2
       exit 1

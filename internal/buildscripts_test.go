@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/repoctl"
 )
 
 func TestAutoCodexuOrchestratorScriptExistsAndIsExecutable(t *testing.T) {
@@ -41,7 +43,7 @@ func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
 	tmpRepo := t.TempDir()
 
 	copyFile(t,
-		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		legacyAutoCodexuOrchestratorPath(repoRoot),
 		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
 		0o755,
 	)
@@ -67,6 +69,7 @@ func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
 		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"REPO_ROOT="+tmpRepo,
 		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
 		"LOOP_SLEEP_SECONDS=5",
 	)
 	out, err := cmd.CombinedOutput()
@@ -91,7 +94,7 @@ func TestAutoCodexuOrchestratorReusesExistingIntegrationWorktree(t *testing.T) {
 	tmpRepo := t.TempDir()
 
 	copyFile(t,
-		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		legacyAutoCodexuOrchestratorPath(repoRoot),
 		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
 		0o755,
 	)
@@ -119,6 +122,7 @@ func TestAutoCodexuOrchestratorReusesExistingIntegrationWorktree(t *testing.T) {
 		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"REPO_ROOT="+tmpRepo,
 		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
 		"ORCHESTRATOR_ONCE=1",
 	)
 	out, err := cmd.CombinedOutput()
@@ -139,7 +143,7 @@ func TestAutoCodexuOrchestratorDoesNotSigpipeExistingIntegrationWorktreeLookup(t
 	tmpRepo := t.TempDir()
 
 	copyFile(t,
-		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		legacyAutoCodexuOrchestratorPath(repoRoot),
 		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
 		0o755,
 	)
@@ -184,6 +188,7 @@ esac
 		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"REPO_ROOT="+tmpRepo,
 		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
 		"TEST_REPO_ROOT="+tmpRepo,
 		"ORCHESTRATOR_ONCE=1",
 	)
@@ -210,7 +215,7 @@ func TestAutoCodexuOrchestratorPromotesSuccessBeforeNextCycle(t *testing.T) {
 	progressRel := filepath.Join("docs", "content", "building-gormes", "architecture_plan", "progress.json")
 
 	copyFile(t,
-		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		legacyAutoCodexuOrchestratorPath(repoRoot),
 		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
 		0o755,
 	)
@@ -284,6 +289,11 @@ Branch: $branch
 Commit: $commit
 Files:
 - docs/content/building-gormes/architecture_plan/progress.json
+
+9) Acceptance check
+Criterion: Loop proof task selected once — PASS
+Criterion: progress.json status promoted to complete — PASS
+Criterion: worker commit recorded in final report — PASS
 EOF
 `), 0o755)
 
@@ -299,6 +309,7 @@ EOF
 		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"REPO_ROOT="+tmpRepo,
 		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
 		"INTEGRATION_BRANCH=codexu/test-integration",
 		"MAX_AGENTS=1",
 		"HEARTBEAT_SECONDS=1",
@@ -339,7 +350,7 @@ func TestAutoCodexuOrchestratorAcceptsNonZeroCodexExitWithValidCommitAndReport(t
 	progressRel := filepath.Join("docs", "content", "building-gormes", "architecture_plan", "progress.json")
 
 	copyFile(t,
-		filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh"),
+		legacyAutoCodexuOrchestratorPath(repoRoot),
 		filepath.Join(tmpRepo, "scripts", "gormes-auto-codexu-orchestrator.sh"),
 		0o755,
 	)
@@ -411,6 +422,11 @@ Branch: $branch
 Commit: $commit
 Files:
 - docs/content/building-gormes/architecture_plan/progress.json
+
+9) Acceptance check
+Criterion: Soft success task selected once — PASS
+Criterion: progress.json status promoted to complete — PASS
+Criterion: non-zero codex exit accepted with valid report — PASS
 EOF
 # Simulate codex non-zero despite valid commit/report.
 exit 1
@@ -428,6 +444,7 @@ exit 1
 		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"REPO_ROOT="+tmpRepo,
 		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
 		"INTEGRATION_BRANCH=codexu/test-soft-success",
 		"MAX_AGENTS=1",
 		"HEARTBEAT_SECONDS=1",
@@ -452,21 +469,11 @@ exit 1
 }
 
 func TestRecordBenchmarkHandlesArchPlanStub(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot determine test file location")
-	}
-	repoRoot := filepath.Dir(filepath.Dir(file))
 	tmpRepo := t.TempDir()
 
-	copyFile(t,
-		filepath.Join(repoRoot, "scripts", "record-benchmark.sh"),
-		filepath.Join(tmpRepo, "scripts", "record-benchmark.sh"),
-		0o755,
-	)
-	copyFile(t,
-		filepath.Join(repoRoot, "docs", "ARCH_PLAN.md"),
+	writeFile(t,
 		filepath.Join(tmpRepo, "docs", "ARCH_PLAN.md"),
+		[]byte("# Stub architecture plan\n\nNo current phase marker here.\n"),
 		0o644,
 	)
 	writeFile(t,
@@ -494,9 +501,8 @@ func TestRecordBenchmarkHandlesArchPlanStub(t *testing.T) {
 	runCommand(t, tmpRepo, "git", "add", ".")
 	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
 
-	out := runCommand(t, tmpRepo, "bash", "scripts/record-benchmark.sh")
-	if len(out) == 0 {
-		t.Fatal("record-benchmark.sh produced no output")
+	if err := repoctl.RecordBenchmark(repoctl.BenchmarkOptions{Root: tmpRepo}); err != nil {
+		t.Fatalf("RecordBenchmark: %v", err)
 	}
 
 	var got struct {
@@ -553,6 +559,14 @@ func copyFile(t *testing.T, src, dst string, mode os.FileMode) {
 	if err := os.WriteFile(dst, data, mode); err != nil {
 		t.Fatalf("write %s: %v", dst, err)
 	}
+}
+
+func legacyAutoCodexuOrchestratorPath(repoRoot string) string {
+	return filepath.Join(repoRoot, "testdata", "legacy-shell", "scripts", "gormes-auto-codexu-orchestrator.sh")
+}
+
+func legacyOrchestratorLibDir(repoRoot string) string {
+	return filepath.Join(repoRoot, "testdata", "legacy-shell", "scripts", "orchestrator", "lib")
 }
 
 func writeFile(t *testing.T, dst string, data []byte, mode os.FileMode) {

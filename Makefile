@@ -22,17 +22,17 @@ generate-progress:
 
 define record-benchmark
 	@echo "Recording benchmark..."
-	@bash scripts/record-benchmark.sh
+	@go run ./cmd/repoctl benchmark record
 endef
 
 define update-readme
 	@echo "Updating README.md..."
-	@bash scripts/update-readme.sh
+	@go run ./cmd/repoctl readme update
 endef
 
 define record-progress
 	@echo "Updating progress..."
-	@bash scripts/record-progress.sh
+	@go run ./cmd/repoctl progress sync
 endef
 
 update-readme:
@@ -65,7 +65,14 @@ orchestrator-test-all:
 
 orchestrator-lint:
 	@if command -v shellcheck >/dev/null 2>&1; then \
-	  shellcheck scripts/gormes-auto-codexu-orchestrator.sh scripts/orchestrator/lib/*.sh; \
+	  shellcheck scripts/gormes-auto-codexu-orchestrator.sh \
+	    scripts/orchestrator/audit.sh \
+	    scripts/orchestrator/daily-digest.sh \
+	    scripts/orchestrator/install-service.sh \
+	    scripts/orchestrator/install-audit.sh \
+	    scripts/orchestrator/disable-legacy-timers.sh \
+	    testdata/legacy-shell/scripts/gormes-auto-codexu-orchestrator.sh \
+	    testdata/legacy-shell/scripts/orchestrator/lib/*.sh; \
 	else \
 	  echo "shellcheck not installed; skipping"; \
 	fi
