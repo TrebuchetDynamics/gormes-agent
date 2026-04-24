@@ -10,6 +10,7 @@ set -Eeuo pipefail
 : "${RUN_ROOT:=$REPO_ROOT/gormes/.codex/orchestrator}"
 : "${RUNS_LEDGER:=$RUN_ROOT/state/runs.jsonl}"
 : "${COMPANIONS_DIR:=$RUN_ROOT/companions}"
+: "${LOGS_DIR:=$RUN_ROOT/logs}"
 : "${INTEGRATION_WT:=$RUN_ROOT/integration/codexu-autoloop}"
 : "${AUDIT_DIR:=$HOME/.cache/gormes-orchestrator-audit}"
 : "${CURSOR_FILE:=$AUDIT_DIR/cursor}"
@@ -199,9 +200,26 @@ gormes-orchestrator-audit @ $ts
 SUMMARY
 
 # Companions compact line
+companion_tail_failing_logs() {
+  # Args: comps_json
+  # Side effect: prints "--- last 10 lines of <log> ---" + tail for any
+  # companion whose rc is non-empty and not 0. Looks up logs via ls -t under
+  # $LOGS_DIR/companion_<name>.*.log.
+  local comps_json="$1"
+  local name rc latest_log
+  while IFS='|' read -r name rc; do
+    [[ -n "$rc" && "$rc" != "0" ]] || continue
+    latest_log="$(ls -t "${LOGS_DIR}/companion_${name}."*.log 2>/dev/null | head -n1 || true)"
+    [[ -n "$latest_log" && -f "$latest_log" ]] || continue
+    printf '      --- last 10 lines of %s ---\n' "$(basename "$latest_log")"
+    tail -n 10 "$latest_log" | sed 's/^/      /'
+  done < <(jq -r 'to_entries[] | "\(.key)|\(.value.rc // "")"' <<<"$comps_json")
+}
+
 if [[ "$comps" != "{}" ]]; then
   printf '  companions:\n'
   jq -r 'to_entries[] | "    \(.key): rc=\(.value.rc // "?") ts=\(.value.ts_utc // "?") cycle=\(.value.cycle // "?")"' <<<"$comps"
+  companion_tail_failing_logs "$comps"
 fi
 
 # Alert-worthy conditions (prefix with WARN/ERROR so grep -E 'WARN|ERROR' finds them)
