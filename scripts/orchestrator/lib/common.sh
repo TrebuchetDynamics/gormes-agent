@@ -134,3 +134,62 @@ provider_quota_message() {
 provider_quota_exhausted() {
   provider_quota_message "$@" >/dev/null
 }
+
+read_progress_summary() {
+  local summary complete in_progress planned total
+  local progress_json="${PROGRESS_JSON:-}"
+
+  if [[ ! -f "$progress_json" && -n "${REPO_ROOT:-}" && -n "${PROGRESS_JSON_REL:-}" ]]; then
+    progress_json="$REPO_ROOT/$PROGRESS_JSON_REL"
+  fi
+
+  if [[ -f "$progress_json" ]]; then
+    summary="$(jq -r '
+      try (
+        [
+          (.phases // {})
+          | to_entries[]
+          | (.value.subphases // .value.sub_phases // {})
+          | to_entries[]
+          | (.value.items // [])[]
+          | ((.status // "unknown") | tostring | ascii_downcase)
+        ] as $statuses
+        | [
+            ($statuses | map(select(. == "complete")) | length),
+            ($statuses | map(select(. == "in_progress")) | length),
+            ($statuses | map(select(. == "planned")) | length)
+          ] as $counts
+        | "\($counts[0]) \($counts[1]) \($counts[2]) \($counts[0] + $counts[1] + $counts[2])"
+      ) catch "0 0 0 0"
+    ' "$progress_json" 2>/dev/null || true)"
+
+    IFS=' ' read -r complete in_progress planned total <<< "${summary:-0 0 0 0}"
+
+    if [[ "${total:-0}" == "0" ]]; then
+      summary="$(jq -r '
+        try (
+          [ .phases[]?.subphases[]? | (.items // [])[] | ((.status // "unknown") | tostring | ascii_downcase) ] as $statuses
+          | [
+              ($statuses | map(select(. == "complete")) | length),
+              ($statuses | map(select(. == "in_progress")) | length),
+              ($statuses | map(select(. == "planned")) | length)
+            ] as $counts
+          | "\($counts[0]) \($counts[1]) \($counts[2]) \($counts[0] + $counts[1] + $counts[2])"
+        ) catch "0 0 0 0"
+      ' "$progress_json" 2>/dev/null || true)"
+      IFS=' ' read -r complete in_progress planned total <<< "${summary:-0 0 0 0}"
+    fi
+
+    [[ "$complete" =~ ^[0-9]+$ ]] || complete=0
+    [[ "$in_progress" =~ ^[0-9]+$ ]] || in_progress=0
+    [[ "$planned" =~ ^[0-9]+$ ]] || planned=0
+    [[ "$total" =~ ^[0-9]+$ ]] || total=0
+  else
+    complete=0
+    in_progress=0
+    planned=0
+    total=0
+  fi
+
+  printf '%d %d %d %d\n' "$complete" "$in_progress" "$planned" "$total"
+}

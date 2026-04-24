@@ -101,6 +101,96 @@ setup() {
   assert_success
 }
 
+@test "read_progress_summary reads canonical object-shaped progress.json" {
+  local progress_file
+  progress_file="$BATS_TEST_TMPDIR/progress.json"
+  cat > "$progress_file" <<'JSON'
+{
+  "phases": {
+    "1": {
+      "subphases": {
+        "1.A": {
+          "items": [
+            {"name": "done", "status": "complete"},
+            {"name": "active", "status": "in_progress"},
+            {"name": "next", "status": "planned"}
+          ]
+        }
+      }
+    },
+    "2": {
+      "subphases": {
+        "2.A": {
+          "items": [
+            {"name": "later", "status": "planned"}
+          ]
+        }
+      }
+    }
+  }
+}
+JSON
+
+  run env PROGRESS_JSON="$progress_file" bash -c 'source "$1"; read_progress_summary' _ "$ORCHESTRATOR_LIB_DIR/common.sh"
+  assert_success
+  assert_output "1 1 2 4"
+}
+
+@test "read_progress_summary splits counts with orchestrator IFS" {
+  local progress_file
+  progress_file="$BATS_TEST_TMPDIR/progress.json"
+  cat > "$progress_file" <<'JSON'
+{
+  "phases": {
+    "1": {
+      "subphases": {
+        "1.A": {
+          "items": [
+            {"name": "done", "status": "complete"},
+            {"name": "active", "status": "in_progress"},
+            {"name": "next", "status": "planned"}
+          ]
+        }
+      }
+    }
+  }
+}
+JSON
+
+  run env PROGRESS_JSON="$progress_file" bash -c 'IFS=$'"'"'\n\t'"'"'; source "$1"; read_progress_summary' _ "$ORCHESTRATOR_LIB_DIR/common.sh"
+  assert_success
+  assert_output "1 1 1 3"
+}
+
+@test "read_progress_summary falls back to REPO_ROOT canonical path" {
+  local repo_root progress_rel progress_file
+  repo_root="$BATS_TEST_TMPDIR/repo"
+  progress_rel="docs/content/building-gormes/architecture_plan/progress.json"
+  progress_file="$repo_root/$progress_rel"
+  mkdir -p "$(dirname "$progress_file")"
+  cat > "$progress_file" <<'JSON'
+{
+  "phases": {
+    "1": {
+      "subphases": {
+        "1.A": {
+          "items": [
+            {"name": "done", "status": "complete"},
+            {"name": "next", "status": "planned"}
+          ]
+        }
+      }
+    }
+  }
+}
+JSON
+
+  run env -u PROGRESS_JSON REPO_ROOT="$repo_root" PROGRESS_JSON_REL="$progress_rel" \
+    bash -c 'source "$1"; read_progress_summary' _ "$ORCHESTRATOR_LIB_DIR/common.sh"
+  assert_success
+  assert_output "1 0 1 2"
+}
+
 @test "provider_quota_exhausted detects codex usage limit final message" {
   local final_file
   final_file="$BATS_TEST_TMPDIR/quota.final.md"

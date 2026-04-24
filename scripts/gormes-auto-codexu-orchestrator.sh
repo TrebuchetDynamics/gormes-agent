@@ -915,39 +915,6 @@ emit_heartbeat_json() {
     }'
 }
 
-# Read progress from progress.json using a single resilient jq query
-read_progress_summary() {
-  local summary complete in_progress planned total
-
-  if [[ -f "$PROGRESS_JSON" ]]; then
-    summary="$(jq -r '
-      try (
-        [ .phases[]?.subphases[]? | (.items // [])[] | .status ] as $statuses
-        | [
-            ($statuses | map(select(. == "complete")) | length),
-            ($statuses | map(select(. == "in_progress")) | length),
-            ($statuses | map(select(. == "planned")) | length)
-          ] as $counts
-        | "\($counts[0]) \($counts[1]) \($counts[2]) \($counts[0] + $counts[1] + $counts[2])"
-      ) catch "0 0 0 0"
-    ' "$PROGRESS_JSON" 2>/dev/null || true)"
-
-    read -r complete in_progress planned total <<< "${summary:-0 0 0 0}"
-
-    [[ "$complete" =~ ^[0-9]+$ ]] || complete=0
-    [[ "$in_progress" =~ ^[0-9]+$ ]] || in_progress=0
-    [[ "$planned" =~ ^[0-9]+$ ]] || planned=0
-    [[ "$total" =~ ^[0-9]+$ ]] || total=0
-  else
-    complete=0
-    in_progress=0
-    planned=0
-    total=0
-  fi
-
-  printf '%d %d %d %d\n' "$complete" "$in_progress" "$planned" "$total"
-}
-
 # Get current item a worker is working on
 get_worker_task() {
   local worker_num=$1
@@ -999,7 +966,7 @@ heartbeat_loop() {
     fi
 
     local progress_complete progress_in_progress progress_planned progress_total
-    read -r progress_complete progress_in_progress progress_planned progress_total <<< "$(read_progress_summary)"
+    IFS=' ' read -r progress_complete progress_in_progress progress_planned progress_total <<< "$(read_progress_summary)"
 
     [[ "$progress_complete" =~ ^[0-9]+$ ]] || progress_complete=0
     [[ "$progress_in_progress" =~ ^[0-9]+$ ]] || progress_in_progress=0
@@ -1170,6 +1137,16 @@ run_once() {
     echo "No unfinished tasks in $PROGRESS_JSON_REL"
     log_event "run_completed" null "no unfinished tasks" "empty"
     return 0
+  fi
+
+  local progress_complete progress_in_progress progress_planned progress_total
+  IFS=' ' read -r progress_complete progress_in_progress progress_planned progress_total <<< "$(read_progress_summary)"
+  [[ "$progress_total" =~ ^[0-9]+$ ]] || progress_total=0
+  if (( progress_total == 0 )); then
+    echo "ERROR: progress summary returned 0 total from $PROGRESS_JSON while candidate pool has $total tasks." >&2
+    echo "Refusing to launch workers until the canonical progress parser is healthy." >&2
+    log_event "progress_summary_failed" null "progress_json=$PROGRESS_JSON candidates=$total" "failed"
+    return 1
   fi
 
   workers="$MAX_AGENTS"
