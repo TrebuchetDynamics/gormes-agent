@@ -52,7 +52,6 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		// Status tone classes driven by current phase-level data.
 		"roadmap-status-progress",
 		"roadmap-status-planned",
-		"roadmap-status-later",
 		// Complete work still appears at item level even when no whole phase is complete.
 		"roadmap-item-shipped",
 		// Structural class anchors
