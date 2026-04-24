@@ -3,10 +3,11 @@
 # Source this via `load '../lib/test_env'` inside bats setup().
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ORCHESTRATOR_SCRIPTS_DIR="$(cd "$TESTS_DIR/../.." && pwd)"
-ORCHESTRATOR_LIB_DIR="$ORCHESTRATOR_SCRIPTS_DIR/orchestrator/lib"
-ENTRY_SCRIPT="$ORCHESTRATOR_SCRIPTS_DIR/gormes-auto-codexu-orchestrator.sh"
-FIXTURES_DIR="$TESTS_DIR/fixtures"
+REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd)"
+LEGACY_SCRIPTS_DIR="$REPO_ROOT/testdata/legacy-shell/scripts"
+ORCHESTRATOR_LIB_DIR="$LEGACY_SCRIPTS_DIR/orchestrator/lib"
+ENTRY_SCRIPT="$LEGACY_SCRIPTS_DIR/gormes-auto-codexu-orchestrator.sh"
+FIXTURES_DIR="$LEGACY_SCRIPTS_DIR/orchestrator/tests/fixtures"
 
 load_helpers() {
   load "$TESTS_DIR/vendor/bats-support/load"
