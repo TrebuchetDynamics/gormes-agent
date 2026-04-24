@@ -61,6 +61,102 @@ func TestCleanupStaleLocksKeepsLiveUnexpiredClaim(t *testing.T) {
 	}
 }
 
+func TestCleanupStaleLocksKeepsFreshDirectoryLockWithMissingClaim(t *testing.T) {
+	lockRoot := t.TempDir()
+	lockDir := filepath.Join(lockRoot, "task.lock")
+	claimPath := lockDir + ".claim.json"
+	now := time.Now()
+
+	if err := os.Mkdir(lockDir, 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+
+	if err := CleanupStaleLocks(lockRoot, time.Minute, func() time.Time { return now }); err != nil {
+		t.Fatalf("CleanupStaleLocks() error = %v", err)
+	}
+
+	if _, err := os.Stat(lockDir); err != nil {
+		t.Fatalf("lock dir stat error = %v", err)
+	}
+	if _, err := os.Stat(claimPath); !os.IsNotExist(err) {
+		t.Fatalf("claim file exists after cleanup, stat error = %v", err)
+	}
+}
+
+func TestCleanupStaleLocksRemovesOldDirectoryLockWithMissingClaim(t *testing.T) {
+	lockRoot := t.TempDir()
+	lockDir := filepath.Join(lockRoot, "task.lock")
+	claimPath := lockDir + ".claim.json"
+	now := time.Now()
+
+	if err := os.Mkdir(lockDir, 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+	makeOld(t, lockDir, now.Add(-2*time.Minute))
+
+	if err := CleanupStaleLocks(lockRoot, time.Minute, func() time.Time { return now }); err != nil {
+		t.Fatalf("CleanupStaleLocks() error = %v", err)
+	}
+
+	if _, err := os.Stat(lockDir); !os.IsNotExist(err) {
+		t.Fatalf("lock dir exists after cleanup, stat error = %v", err)
+	}
+	if _, err := os.Stat(claimPath); !os.IsNotExist(err) {
+		t.Fatalf("claim file exists after cleanup, stat error = %v", err)
+	}
+}
+
+func TestCleanupStaleLocksKeepsFreshDirectoryLockWithMalformedClaim(t *testing.T) {
+	lockRoot := t.TempDir()
+	lockDir := filepath.Join(lockRoot, "task.lock")
+	claimPath := lockDir + ".claim.json"
+	now := time.Now()
+
+	if err := os.Mkdir(lockDir, 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+	if err := os.WriteFile(claimPath, []byte("{not json"), 0o644); err != nil {
+		t.Fatalf("WriteFile() claim error = %v", err)
+	}
+
+	if err := CleanupStaleLocks(lockRoot, time.Minute, func() time.Time { return now }); err != nil {
+		t.Fatalf("CleanupStaleLocks() error = %v", err)
+	}
+
+	if _, err := os.Stat(lockDir); err != nil {
+		t.Fatalf("lock dir stat error = %v", err)
+	}
+	if _, err := os.Stat(claimPath); err != nil {
+		t.Fatalf("claim file stat error = %v", err)
+	}
+}
+
+func TestCleanupStaleLocksRemovesOldDirectoryLockWithMalformedClaim(t *testing.T) {
+	lockRoot := t.TempDir()
+	lockDir := filepath.Join(lockRoot, "task.lock")
+	claimPath := lockDir + ".claim.json"
+	now := time.Now()
+
+	if err := os.Mkdir(lockDir, 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+	if err := os.WriteFile(claimPath, []byte("{not json"), 0o644); err != nil {
+		t.Fatalf("WriteFile() claim error = %v", err)
+	}
+	makeOld(t, lockDir, now.Add(-2*time.Minute))
+
+	if err := CleanupStaleLocks(lockRoot, time.Minute, func() time.Time { return now }); err != nil {
+		t.Fatalf("CleanupStaleLocks() error = %v", err)
+	}
+
+	if _, err := os.Stat(lockDir); !os.IsNotExist(err) {
+		t.Fatalf("lock dir exists after cleanup, stat error = %v", err)
+	}
+	if _, err := os.Stat(claimPath); !os.IsNotExist(err) {
+		t.Fatalf("claim file exists after cleanup, stat error = %v", err)
+	}
+}
+
 func TestCleanupStaleLocksRemovesExpiredRegularFileLock(t *testing.T) {
 	lockRoot := t.TempDir()
 	lockPath := filepath.Join(lockRoot, "task.lock")
@@ -329,4 +425,12 @@ func deadPID() int {
 		}
 	}
 	return os.Getpid() + 1000000
+}
+
+func makeOld(t *testing.T, path string, old time.Time) {
+	t.Helper()
+
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatalf("Chtimes() error = %v", err)
+	}
 }

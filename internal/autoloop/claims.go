@@ -14,6 +14,14 @@ type lockClaim struct {
 	ClaimedAtEpoch int64 `json:"claimed_at_epoch"`
 }
 
+type claimState int
+
+const (
+	claimValid claimState = iota
+	claimInvalid
+	claimExpired
+)
+
 func CleanupStaleLocks(lockRoot string, ttl time.Duration, now func() time.Time) error {
 	if now == nil {
 		now = time.Now
@@ -33,8 +41,12 @@ func CleanupStaleLocks(lockRoot string, ttl time.Duration, now func() time.Time)
 			return err
 		}
 
-		claim, keep := readValidLockClaim(lockPath, ttl, now())
-		if keep && processLive(claim.PID) {
+		current := now()
+		claim, state := readLockClaim(lockPath, ttl, current)
+		if state == claimValid && processLive(claim.PID) {
+			continue
+		}
+		if info.IsDir() && state == claimInvalid && current.Sub(info.ModTime()) <= ttl {
 			continue
 		}
 		var release func()
@@ -93,24 +105,24 @@ func tryExclusiveFileLock(path string) (bool, func(), error) {
 	}, nil
 }
 
-func readValidLockClaim(lockPath string, ttl time.Duration, current time.Time) (lockClaim, bool) {
+func readLockClaim(lockPath string, ttl time.Duration, current time.Time) (lockClaim, claimState) {
 	raw, err := os.ReadFile(lockPath + ".claim.json")
 	if err != nil {
-		return lockClaim{}, false
+		return lockClaim{}, claimInvalid
 	}
 
 	var claim lockClaim
 	if err := json.Unmarshal(raw, &claim); err != nil {
-		return lockClaim{}, false
+		return lockClaim{}, claimInvalid
 	}
 	if claim.PID <= 0 {
-		return lockClaim{}, false
+		return lockClaim{}, claimInvalid
 	}
 	if current.Sub(time.Unix(claim.ClaimedAtEpoch, 0)) > ttl {
-		return lockClaim{}, false
+		return claim, claimExpired
 	}
 
-	return claim, true
+	return claim, claimValid
 }
 
 func processLive(pid int) bool {
