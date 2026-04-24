@@ -258,7 +258,7 @@ func legacyReportFixtureWithOptions(options legacyReportOptions) string {
 func readReportFixture(t *testing.T, name string) string {
 	t.Helper()
 
-	path := filepath.Join("..", "..", "scripts", "orchestrator", "tests", "fixtures", "reports", name)
+	path := filepath.Join("..", "..", "testdata", "legacy-shell", "scripts", "orchestrator", "tests", "fixtures", "reports", name)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(%s) error = %v", path, err)
