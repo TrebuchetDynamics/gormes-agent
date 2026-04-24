@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-23",
+    "last_updated": "2026-04-24",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -935,12 +935,12 @@
             {
               "name": "Provider interface + stream fixture harness",
               "status": "in_progress",
-              "note": "TDD: `internal/hermes/client.go` already freezes shared ChatRequest/Message/Event/ToolCall contracts and the Anthropic adapter (`anthropic_client.go`/`anthropic_stream.go`) exercises them; the remaining closeout is a reusable fixture harness that replays provider transcripts, usage, and finish reasons across adapters before Bedrock/Gemini/OpenRouter/Codex land on the same seam."
+              "note": "TDD: `internal/hermes/client.go` already freezes shared ChatRequest/Message/Event/ToolCall contracts and the Anthropic adapter (`anthropic_client.go`/`anthropic_stream.go`) exercises them; the remaining closeout is a reusable fixture harness that replays provider transcripts, usage, and finish reasons across adapters before Bedrock/Gemini/OpenRouter/Codex land on the same seam. Fixture set must include regression cases for upstream PR #12072 (dropped tool_call on mid-stream stall — partial tool_calls in `internal/hermes/stream.go` pendingCalls must surface on EOF rather than disappear when `finish_reason=\"tool_calls\"` never arrives) and PR #0f778f77 (MiniMax/NVIDIA NIM tool-name duplication in the streaming accumulator) so the contract is locked before any other provider reuses it."
             },
             {
               "name": "Tool-call normalization + continuation contract",
               "status": "in_progress",
-              "note": "TDD: streamed tool-call accumulation and tool-result continuation payload mapping are locked for the Anthropic adapter in `internal/hermes/stream_tools_test.go` and `anthropic_client_test.go`; the remaining closeout is cross-provider fixture coverage that pins assistant tool-call messages, tool replies, and continuation-safe finish reasons as a shared harness before Bedrock/Gemini/OpenRouter/Codex reuse the seam."
+              "note": "TDD: streamed tool-call accumulation and tool-result continuation payload mapping are locked for the Anthropic adapter in `internal/hermes/stream_tools_test.go` and `anthropic_client_test.go`; the remaining closeout is cross-provider fixture coverage that pins assistant tool-call messages, tool replies, and continuation-safe finish reasons as a shared harness before Bedrock/Gemini/OpenRouter/Codex reuse the seam. Shared fixtures must pin (a) mid-stream stall recovery per upstream PR #12072 — partial tool_calls surfacing on stream EOF rather than being silently dropped from `pendingCalls` — and (b) tool-name accumulator safety per upstream PR #0f778f77 so duplicate-name deltas from MiniMax/NVIDIA NIM-style providers cannot concatenate into invented tool names."
             },
             {
               "name": "Anthropic",
@@ -985,7 +985,12 @@
             {
               "name": "Codex",
               "status": "planned",
-              "note": "TDD: add a Codex provider adapter on the shared stream contract, including developer-message role handling, tool-call deltas, and explicit unsupported-feature errors before native Codex routing is allowed."
+              "note": "TDD: add a Codex provider adapter on the shared stream contract, including developer-message role handling, tool-call deltas, and explicit unsupported-feature errors before native Codex routing is allowed. Upstream PR #12360 requires Codex auth state to live under Gormes's own home rather than touching `~/.codex/auth.json`, and upstream PR #2a2e5c0f requires 401/403 token-refresh failures to force a relogin rather than silently retrying with a stale token — freeze both behaviors as fake-auth unit tests in the Codex adapter slice before any live Codex request can fire."
+            },
+            {
+              "name": "Cross-provider reasoning-tag sanitization",
+              "status": "planned",
+              "note": "TDD: port upstream PRs #ec48ec55 (strip `<think>` blocks from stored assistant content), #9489d157 (strip unterminated `<think>` blocks from visible content), and #bd01ec78 (strip all reasoning-tag variants from `/resume` recap) as one shared sanitization contract over `internal/hermes` event/assistant-content boundaries. Pure fixture-driven tests must cover closed `<think>...</think>` blocks, unterminated `<think>...` at stream EOF, and mixed reasoning-tag variants (`<think>`, `<reasoning>`, `<thought>`) without mutating the raw SSE transcript, and must separate (a) what is stored into assistant history, (b) what is rendered to operators, and (c) what `/resume`-style recap surfaces expose. Land before Codex/Gemini/OpenRouter/Bedrock bring new reasoning-model surfaces through the shared harness so each adapter inherits the same storage-vs-render behavior rather than reinventing it."
             }
           ]
         },
@@ -1015,7 +1020,7 @@
             {
               "name": "Tool-result pruning + protected head/tail summary",
               "status": "planned",
-              "note": "TDD: freeze old tool-output pruning, protected system/first-turn head messages, recent-tail preservation, and summary prefix compatibility before mutating live message history."
+              "note": "TDD: freeze old tool-output pruning, protected system/first-turn head messages, recent-tail preservation, and summary prefix compatibility before mutating live message history. Must keep tool-call arguments JSON valid when shrinking per upstream PR #3128d9fc — a pruning pass that truncates an argument string mid-JSON breaks the continuation payload on the next turn, so the head/tail contract has to respect tool-call argument boundaries and never emit partial JSON values."
             },
             {
               "name": "Manual compression feedback + context references",

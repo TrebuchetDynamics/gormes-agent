@@ -323,6 +323,7 @@ weight: 10
 - [ ] OpenRouter
 - [ ] Google Code Assist
 - [ ] Codex
+- [ ] Cross-provider reasoning-tag sanitization
 
 ### 4.B — Context Engine + Compression ⏳
 

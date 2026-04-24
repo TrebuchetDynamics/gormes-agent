@@ -13,7 +13,7 @@ Discord is now shipped in Gormes, so this donor page is about parity gaps and re
 
 Evidence level:
 
-- Donor code for this dossier was verified against the external sibling repo at `/home/xel/git/sages-openclaw/workspace-mineru/picoclaw`.
+- Donor code for this dossier was verified against the external sibling repo at `<picoclaw donor repo>`.
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
@@ -44,7 +44,7 @@ The voice and TTS surface in `picoclaw/pkg/channels/discord/voice.go` is broader
 
 ## Picoclaw Donor Files
 
-- Provenance note: the following `pkg/...` and `docs/...` paths are relative to the external donor root `/home/xel/git/sages-openclaw/workspace-mineru/picoclaw` at commit `6421f146a99df1bebcd4b1ca8de2a289dfca3622`, not relative to the Gormes repo.
+- Provenance note: the following `pkg/...` and `docs/...` paths are relative to the external donor root `<picoclaw donor repo>` at commit `6421f146a99df1bebcd4b1ca8de2a289dfca3622`, not relative to the Gormes repo.
 - `picoclaw/pkg/channels/discord/discord.go`
 - `picoclaw/pkg/channels/discord/voice.go`
 - `picoclaw/pkg/channels/discord/discord_test.go`
