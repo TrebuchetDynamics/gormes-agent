@@ -96,7 +96,13 @@ func systemdPathValue(path string) string {
 		return escaped
 	}
 
-	escaped = strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(escaped)
+	escaped = strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		"\n", `\n`,
+		"\r", `\r`,
+		"\t", `\t`,
+	).Replace(escaped)
 	return `"` + escaped + `"`
 }
 
@@ -105,7 +111,9 @@ func isMissingSystemdUnit(result Result) bool {
 	for _, marker := range []string{
 		"missing",
 		"not loaded",
+		"not-loaded",
 		"not found",
+		"not-found",
 		"does not exist",
 		"no such file",
 	} {

@@ -40,6 +40,19 @@ func TestRenderServiceUnitInjectsPaths(t *testing.T) {
 			t.Fatalf("RenderServiceUnit() = %q, want %q", quoted, want)
 		}
 	}
+
+	controlEscaped := RenderServiceUnit(ServiceUnitOptions{
+		AutoloopPath: "/tmp/gormes\nrepo/bin/autoloop",
+		WorkDir:      "/tmp/gormes\trepo",
+	})
+	for _, want := range []string{
+		`WorkingDirectory="/tmp/gormes\trepo"`,
+		`ExecStart="/tmp/gormes\nrepo/bin/autoloop" run`,
+	} {
+		if !strings.Contains(controlEscaped, want) {
+			t.Fatalf("RenderServiceUnit() = %q, want %q", controlEscaped, want)
+		}
+	}
 }
 
 func TestInstallServiceWritesUnitAndReloadsSystemd(t *testing.T) {
@@ -228,6 +241,40 @@ func TestDisableLegacyTimersIgnoresMissingTimerAndContinues(t *testing.T) {
 
 	if got, want := len(runner.Commands), 2; got != want {
 		t.Fatalf("commands length = %d, want %d", got, want)
+	}
+}
+
+func TestDisableLegacyTimersIgnoresHyphenatedMissingStates(t *testing.T) {
+	tests := []struct {
+		name   string
+		stderr string
+	}{
+		{
+			name:   "not-loaded",
+			stderr: "Warning: The unit file, source configuration file or drop-ins of gormes-architecture-planner-tasks-manager.timer changed on disk. Run 'systemctl --user daemon-reload' to reload units.\nFailed to disable unit: Unit gormes-architecture-planner-tasks-manager.timer is not-loaded.",
+		},
+		{
+			name:   "not-found",
+			stderr: "Failed to disable unit: Unit gormes-architecture-planner-tasks-manager.timer not-found.",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runner := &FakeRunner{
+				Results: []Result{
+					{Stderr: test.stderr, Err: errors.New(test.name)},
+					{},
+				},
+			}
+
+			if err := DisableLegacyTimers(context.Background(), runner); err != nil {
+				t.Fatalf("DisableLegacyTimers() error = %v", err)
+			}
+			if got, want := len(runner.Commands), 2; got != want {
+				t.Fatalf("commands length = %d, want %d", got, want)
+			}
+		})
 	}
 }
 
