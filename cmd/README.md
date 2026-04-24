@@ -37,6 +37,12 @@ To preview what the autoloop would select without starting worker agents:
 go run ./cmd/autoloop run --dry-run
 ```
 
+To preview the architecture planner context without starting a planner agent:
+
+```sh
+go run ./cmd/architecture-planner-loop run --dry-run
+```
+
 Optional repo health checks:
 
 ```sh
@@ -67,10 +73,12 @@ To build real binaries instead:
 go build -o bin/gormes ./cmd/gormes
 go build -o bin/repoctl ./cmd/repoctl
 go build -o bin/autoloop ./cmd/autoloop
+go build -o bin/architecture-planner-loop ./cmd/architecture-planner-loop
 
 ./bin/gormes --offline
 ./bin/repoctl progress sync
 ./bin/autoloop run --dry-run
+./bin/architecture-planner-loop run --dry-run
 ```
 
 ## Commands
@@ -81,6 +89,7 @@ go build -o bin/autoloop ./cmd/autoloop
 | `progress-gen` | Progress document generator. It validates the roadmap progress JSON and rewrites generated Markdown pages. | `go run ./cmd/progress-gen -validate` or `make generate-progress` |
 | `repoctl` | Repository maintenance CLI. It records binary benchmarks, syncs progress mirrors, updates README benchmark text, and runs the Go 1.22 compatibility check. | `go run ./cmd/repoctl progress sync` |
 | `autoloop` | Self-development orchestration CLI. It consumes the building-gormes progress/docs control plane to execute roadmap phase work. Dry-run mode only lists selected work and does not start worker agents. | `go run ./cmd/autoloop run --dry-run` |
+| `architecture-planner-loop` | Planning improvement CLI. It studies local Hermes/GBrain/Honcho sources plus upstream and building-gormes docs, then asks `codexu` or `claudeu` to refine the architecture plan and progress rows. Dry-run mode only writes planner context and prompt artifacts. | `go run ./cmd/architecture-planner-loop run --dry-run` |
 
 ## Common Recipes
 
@@ -121,6 +130,12 @@ Preview what autoloop would select:
 go run ./cmd/autoloop run --dry-run
 ```
 
+Preview what the architecture planner would study:
+
+```sh
+go run ./cmd/architecture-planner-loop run --dry-run
+```
+
 ## How They Fit Together
 
 `gormes` is the product runtime. The other commands support the repository and
@@ -146,6 +161,15 @@ commands, candidate normalization, backend command construction, and typed
 orchestration primitives. Full end-to-end runtime parity for `autoloop run`
 remains staged follow-up work, so long-form legacy shell fixtures still live
 under `testdata/legacy-shell/` as the parity oracle.
+
+`architecture-planner-loop` is the planner-improvement loop. It does not execute
+roadmap implementation rows. Instead it builds a context bundle from
+`hermes-agent`, `gbrain`, `honcho`, `docs/content/upstream-hermes`,
+`docs/content/upstream-gbrain`, and `docs/content/building-gormes`, then asks a
+planner backend to refine the architecture plan and progress rows that autoloop
+will later execute. See
+[`cmd/architecture-planner-loop/README.md`](./architecture-planner-loop/README.md)
+for the command-specific contract.
 
 ## Build Integration
 

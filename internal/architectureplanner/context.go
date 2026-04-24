@@ -1,0 +1,133 @@
+package architectureplanner
+
+import (
+	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+)
+
+type SourceRoot struct {
+	Name      string   `json:"name"`
+	Path      string   `json:"path"`
+	Exists    bool     `json:"exists"`
+	FileCount int      `json:"file_count"`
+	Samples   []string `json:"samples,omitempty"`
+}
+
+type ContextBundle struct {
+	GeneratedUTC  string       `json:"generated_utc"`
+	RepoRoot      string       `json:"repo_root"`
+	ProgressJSON  string       `json:"progress_json"`
+	ProgressStats ProgressInfo `json:"progress_stats"`
+	SourceRoots   []SourceRoot `json:"source_roots"`
+}
+
+type ProgressInfo struct {
+	Items      int `json:"items"`
+	Planned    int `json:"planned"`
+	InProgress int `json:"in_progress"`
+	Complete   int `json:"complete"`
+}
+
+func CollectContext(cfg Config, now time.Time) (ContextBundle, error) {
+	progressInfo := ProgressInfo{}
+	if p, err := progress.Load(cfg.ProgressJSON); err == nil {
+		stats := p.Stats()
+		progressInfo = ProgressInfo{
+			Items:      stats.Items.Total,
+			Planned:    stats.Items.Planned,
+			InProgress: stats.Items.InProgress,
+			Complete:   stats.Items.Complete,
+		}
+	} else {
+		return ContextBundle{}, err
+	}
+
+	roots := cfg.SourceRoots()
+	for i := range roots {
+		if err := enrichSourceRoot(&roots[i]); err != nil {
+			return ContextBundle{}, err
+		}
+	}
+
+	return ContextBundle{
+		GeneratedUTC:  now.UTC().Format(time.RFC3339),
+		RepoRoot:      cfg.RepoRoot,
+		ProgressJSON:  cfg.ProgressJSON,
+		ProgressStats: progressInfo,
+		SourceRoots:   roots,
+	}, nil
+}
+
+func writeContext(path string, bundle ContextBundle) error {
+	data, err := json.MarshalIndent(bundle, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o644)
+}
+
+func enrichSourceRoot(root *SourceRoot) error {
+	info, err := os.Stat(root.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			root.Exists = false
+			return nil
+		}
+		return err
+	}
+	if !info.IsDir() {
+		root.Exists = false
+		return nil
+	}
+
+	root.Exists = true
+	var samples []string
+	err = filepath.WalkDir(root.Path, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case ".git", ".codex", ".worktrees", "node_modules", "dist", "build":
+				if path != root.Path {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		root.FileCount++
+		if len(samples) < 12 && sampleFile(path) {
+			rel, err := filepath.Rel(root.Path, path)
+			if err != nil {
+				return err
+			}
+			samples = append(samples, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	sort.Strings(samples)
+	root.Samples = samples
+	return nil
+}
+
+func sampleFile(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".go", ".py", ".ts", ".js", ".md", ".json", ".yaml", ".yml":
+		return true
+	default:
+		return false
+	}
+}
