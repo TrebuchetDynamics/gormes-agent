@@ -59,8 +59,9 @@ setup() {
   assert_equal "$head" "add-a"
 }
 
-@test "promote_successful_workers aborts cherry-pick on conflict" {
-  # Worker 1 commits a→"one"; integration then commits a→"two"; worker's cherry-pick will conflict.
+@test "promote_successful_workers auto-resolves cherry-pick conflict with -Xtheirs" {
+  # Worker 1 commits a→"one"; integration then commits a→"two"; with -Xtheirs the
+  # worker's version wins on conflicting hunks and the cherry-pick succeeds.
   ( cd "$GIT_ROOT" && git -c user.email=t@t -c user.name=T checkout -q -b feat )
   ( cd "$GIT_ROOT" && echo one > a && git -c user.email=t@t -c user.name=T add a && git -c user.email=t@t -c user.name=T commit -q -m feat-a )
   local worker_commit
@@ -69,8 +70,51 @@ setup() {
   ( cd "$GIT_ROOT" && echo two > a && git -c user.email=t@t -c user.name=T add a && git -c user.email=t@t -c user.name=T commit -q -m int-a )
   write_worker_state 1 "foo__bar" "$worker_commit" "success"
   run promote_successful_workers 1
-  assert_failure
+  assert_success
   [[ ! -f "$GIT_ROOT/.git/CHERRY_PICK_HEAD" ]]
+  # Worker's version ("one") wins on the conflicting hunk.
+  assert_equal "$(cat "$GIT_ROOT/a")" "one"
+  # Integration branch advanced: init, int-a, feat-a (cherry-picked).
+  local count
+  count="$(git -C "$GIT_ROOT" rev-list --count "$INTEGRATION_BRANCH")"
+  assert_equal "$count" "3"
+}
+
+@test "cherry-pick auto-resolves progress.json overlap with Xtheirs" {
+  # Both worker branches edit the same line of progress.fixture.json to
+  # different values — the canonical failure mode. With -Xtheirs both
+  # cherry-picks succeed and integration grows by two commits.
+  ( cd "$GIT_ROOT" && echo '{"item":"pending"}' > progress.fixture.json && git -c user.email=t@t -c user.name=T add progress.fixture.json && git -c user.email=t@t -c user.name=T commit -q -m base )
+
+  # Worker 1: progress.fixture.json → {"item":"worker1_done"}
+  ( cd "$GIT_ROOT" && git -c user.email=t@t -c user.name=T checkout -q -b w1 )
+  ( cd "$GIT_ROOT" && echo '{"item":"worker1_done"}' > progress.fixture.json && git -c user.email=t@t -c user.name=T add progress.fixture.json && git -c user.email=t@t -c user.name=T commit -q -m w1-flip )
+  local w1_commit
+  w1_commit="$(git -C "$GIT_ROOT" rev-parse HEAD)"
+
+  # Worker 2: branched from the same base, writes {"item":"worker2_done"}
+  ( cd "$GIT_ROOT" && git checkout -q "$INTEGRATION_BRANCH" )
+  ( cd "$GIT_ROOT" && git -c user.email=t@t -c user.name=T checkout -q -b w2 )
+  ( cd "$GIT_ROOT" && echo '{"item":"worker2_done"}' > progress.fixture.json && git -c user.email=t@t -c user.name=T add progress.fixture.json && git -c user.email=t@t -c user.name=T commit -q -m w2-flip )
+  local w2_commit
+  w2_commit="$(git -C "$GIT_ROOT" rev-parse HEAD)"
+
+  ( cd "$GIT_ROOT" && git checkout -q "$INTEGRATION_BRANCH" )
+  local base_count
+  base_count="$(git -C "$GIT_ROOT" rev-list --count "$INTEGRATION_BRANCH")"
+
+  write_worker_state 1 "w__one" "$w1_commit" "success"
+  write_worker_state 2 "w__two" "$w2_commit" "success"
+  # Call directly (not via `run`) so the exported PROMOTED_LAST_CYCLE
+  # survives into the parent shell for inspection.
+  promote_successful_workers 2
+  [[ ! -f "$GIT_ROOT/.git/CHERRY_PICK_HEAD" ]]
+  assert_equal "$PROMOTED_LAST_CYCLE" "2"
+
+  # Integration branch grew by exactly 2 commits.
+  local after_count
+  after_count="$(git -C "$GIT_ROOT" rev-list --count "$INTEGRATION_BRANCH")"
+  assert_equal "$after_count" "$((base_count + 2))"
 }
 
 @test "promote_successful_workers exports PROMOTED_LAST_CYCLE" {

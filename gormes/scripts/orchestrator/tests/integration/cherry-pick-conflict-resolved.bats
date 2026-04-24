@@ -1,9 +1,10 @@
 #!/usr/bin/env bats
-# Pins the 79% promotion-failure behavior measured in the 24h audit:
-# two workers edit the same line of progress.fixture.json from the same
-# BASE_COMMIT, both produce valid commits, but sequential cherry-pick
-# promotion only lands the first one. The second should log
-# cherry_pick_failed and leave no CHERRY_PICK_HEAD behind.
+# Pins the -Xtheirs conflict-resolution behavior introduced to fix the 79%
+# promotion-failure mode measured in the 24h audit. Two workers edit the
+# same line of progress.fixture.json from the same BASE_COMMIT; both produce
+# valid commits; sequential cherry-pick promotion with -Xtheirs lands BOTH.
+# The second worker's version wins on the overlapping hunk, which is
+# semantically correct since each worker owns its own progress entries.
 
 load '../lib/test_env'
 
@@ -21,8 +22,8 @@ setup() {
   # progress.fixture.json must be tracked at BASE_COMMIT so each worker's
   # worktree starts from the same line-level content. The conflict mode in
   # fake-codexu overwrites this file with a PID-tagged payload, so the two
-  # parallel workers will end up with different commits that can't both be
-  # cherry-picked onto the integration branch.
+  # parallel workers end up with different commits that overlap on the same
+  # hunk; -Xtheirs resolves the overlap in favour of the incoming worker.
   echo '{}' > "$REPO_ROOT/progress.fixture.json"
 
   mkdir -p "$REPO_ROOT/docs/content/building-gormes/architecture_plan"
@@ -51,10 +52,10 @@ setup() {
   export KEEP_WORKTREES=0
 }
 
-@test "two conflicting workers: one promotes, other emits cherry_pick_failed, integration clean" {
+@test "two conflicting workers both promote via -Xtheirs, integration clean" {
   run "$ENTRY_SCRIPT"
-  # The run itself may return non-zero because one worker fails promotion;
-  # we care about the ledger + git state, not the exit code.
+  # With -Xtheirs both cherry-picks land cleanly; we care about the ledger +
+  # git state, not the exit code.
 
   [ -f "$RUN_ROOT/state/runs.jsonl" ]
 
@@ -63,31 +64,28 @@ setup() {
   success_count="$(grep -c 'worker_success' "$RUN_ROOT/state/runs.jsonl" || true)"
   assert_equal "$success_count" "2"
 
-  # Sequential promotion: one cherry-pick lands, the other conflicts.
+  # Sequential promotion: both cherry-picks land.
   grep -q 'worker_promoted' "$RUN_ROOT/state/runs.jsonl"
-  grep -q 'cherry_pick_failed' "$RUN_ROOT/state/runs.jsonl"
 
-  # Exactly one promoted-row (not 0, not 2). We don't pin which worker wins
-  # because the promotion loop order depends on which worker_state file is
-  # iterated first.
+  # Exactly two promoted rows (one per worker).
   local promoted_count
   promoted_count="$(grep -c 'worker_promoted.*promoted' "$RUN_ROOT/state/runs.jsonl" || true)"
-  assert_equal "$promoted_count" "1"
+  assert_equal "$promoted_count" "2"
 
-  # Exactly one cherry_pick_failed.
+  # No cherry_pick_failed events — -Xtheirs resolved the overlap.
   local failed_count
   failed_count="$(grep -c 'cherry_pick_failed' "$RUN_ROOT/state/runs.jsonl" || true)"
-  assert_equal "$failed_count" "1"
+  assert_equal "$failed_count" "0"
 
-  # Clean abort: no lingering CHERRY_PICK_HEAD in the integration worktree.
+  # No lingering CHERRY_PICK_HEAD in the integration worktree.
   # The integration worktree lives under $RUN_ROOT/integration/... and its
   # per-worktree git dir is at $REPO_ROOT/.git/worktrees/<safe_branch>/.
   run bash -c "find '$REPO_ROOT/.git/worktrees' -name CHERRY_PICK_HEAD 2>/dev/null"
   assert_success
   assert_output ""
 
-  # Integration branch advanced by exactly one commit beyond init.
+  # Integration branch advanced by exactly two commits beyond init.
   run git -C "$REPO_ROOT" log --oneline "$INTEGRATION_BRANCH"
   assert_success
-  [ "$(echo "$output" | wc -l)" -eq 2 ]
+  [ "$(echo "$output" | wc -l)" -eq 3 ]
 }

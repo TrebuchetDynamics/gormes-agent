@@ -118,7 +118,7 @@ promote_successful_workers() {
     fi
 
     echo "worker[$i]: promoting -> $slug ($commit) onto $INTEGRATION_BRANCH"
-    if git -C "$GIT_ROOT" cherry-pick "$commit" >/dev/null; then
+    if git -C "$GIT_ROOT" cherry-pick -Xtheirs "$commit" >/dev/null; then
       promoted=$((promoted + 1))
       log_event "worker_promoted" "$i" "$slug@$commit" "promoted"
     else
