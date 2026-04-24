@@ -161,6 +161,11 @@ Branch: $report_branch
 Commit: $head_sha
 Files:
 - $fname
+
+9) Acceptance check
+Criterion: fake-codexu produced a commit on the worker branch — PASS
+Criterion: final report contains all required sections — PASS
+Criterion: repository root matched the worker worktree — PASS
 REPORT
     exit 0
     ;;
@@ -228,6 +233,11 @@ Branch: $branch
 Commit: $head_sha
 Files:
 - progress.fixture.json
+
+9) Acceptance check
+Criterion: fake-codexu produced a commit on the worker branch — PASS
+Criterion: final report contains all required sections — PASS
+Criterion: progress.fixture.json was updated in-place — PASS
 REPORT
     exit 0
     ;;

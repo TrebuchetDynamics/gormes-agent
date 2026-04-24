@@ -81,15 +81,60 @@ setup() {
   assert_output ""
 }
 
-@test "collect_final_report_issues accepts optional section 9 Runtime flags" {
+@test "collect_final_report_issues accepts optional section 10 Runtime flags" {
   local tmp
   tmp="$(mktmp_workspace)"
-  local report="$tmp/good-with-section9.final.md"
+  local report="$tmp/good-with-section10.final.md"
   cat "$FIXTURES_DIR/reports/good.final.md" > "$report"
-  printf '\n9) Runtime flags\nAllowMultiCommit: true\nTolerateWorktreeUntracked: true\n' >> "$report"
+  printf '\n10) Runtime flags\nAllowMultiCommit: true\nTolerateWorktreeUntracked: true\n' >> "$report"
   run collect_final_report_issues "$report"
   assert_success
   assert_output ""
+}
+
+@test "collect_final_report_issues accepts sections 9 (Acceptance) and 10 (Runtime flags) together" {
+  local tmp
+  tmp="$(mktmp_workspace)"
+  local report="$tmp/good-with-sections-9-and-10.final.md"
+  # good.final.md already has section 9 Acceptance check; append section 10.
+  cat "$FIXTURES_DIR/reports/good.final.md" > "$report"
+  printf '\n10) Runtime flags\nAllowMultiCommit: true\n' >> "$report"
+  run collect_final_report_issues "$report"
+  assert_success
+  assert_output ""
+}
+
+@test "collect_final_report_issues rejects report with no Acceptance section" {
+  run collect_final_report_issues "$FIXTURES_DIR/reports/bad-no-acceptance.final.md"
+  assert_failure
+  assert_output --partial "Acceptance check"
+}
+
+@test "collect_final_report_issues rejects Acceptance section with a FAIL criterion" {
+  run collect_final_report_issues "$FIXTURES_DIR/reports/bad-acceptance-fail.final.md"
+  assert_failure
+  assert_output --partial "failing criterion"
+}
+
+@test "build_prompt announces acceptance-criteria contract" {
+  local tmp
+  tmp="$(mktmp_workspace)"
+  export STATE_DIR="$tmp/state"
+  export WORKTREES_DIR="$tmp/worktrees"
+  export REPO_SUBDIR="."
+  export RUN_ID="testrun"
+  export BASE_COMMIT="abc1234"
+  export PROGRESS_JSON_REL="docs/progress.json"
+  mkdir -p "$STATE_DIR"
+  local selected='{"phase_id":"1","subphase_id":"1.A","item_name":"Item A1","status":"planned"}'
+  local prompt_file="$tmp/prompt.txt"
+  run build_prompt 1 "$selected" "0:1/1.A/Item A1" "$prompt_file"
+  assert_success
+  run cat "$prompt_file"
+  assert_success
+  assert_output --partial "ACCEPTANCE CRITERIA"
+  assert_output --partial "9) Acceptance check"
+  assert_output --partial "Criterion:"
 }
 
 @test "build_prompt omits PRIOR ATTEMPT FEEDBACK when no failure record" {

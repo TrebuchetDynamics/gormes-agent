@@ -34,8 +34,3 @@ Branch: codexu/test-run/worker1
 Commit: abc1234def5678
 Files:
 - internal/foo/foo.go
-
-9) Acceptance check
-Criterion: TestBar fails before implementation — PASS
-Criterion: TestBar passes after implementation — PASS
-Criterion: progress.json entry marked in_progress with symbol note — PASS

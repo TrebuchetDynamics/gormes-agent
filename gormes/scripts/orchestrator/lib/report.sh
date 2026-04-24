@@ -114,6 +114,24 @@ Selection contract:
 - If blocked/conflict/not-viable, provide the exact command + exact error and stop without creating extra commits.
 
 ==================================================
+ACCEPTANCE CRITERIA (YOU DEFINE THEM; YOU VERIFY THEM)
+==================================================
+Before writing any test, draft 3-5 concrete, observable criteria for this task.
+Include them at the TOP of your report in a new section (before section 1).
+
+At the END of your report, add a new section:
+  9) Acceptance check
+With each criterion on its own line prefixed by \`Criterion:\` and labeled PASS or FAIL:
+  Criterion: the new struct Foo has methods Bar and Baz — PASS
+  Criterion: TestFoo covers the empty-input edge case — PASS
+  Criterion: progress.json entry marked complete with symbol note — PASS
+  Criterion: no breaking change to the existing Handler interface — FAIL: I had to rename Run() to Execute()
+
+Any FAIL means you do NOT claim the task done. The orchestrator rejects this report
+if any Criterion line contains "FAIL".
+==================================================
+
+==================================================
 1) DOCUMENTATION GATE (MANDATORY: BEFORE + AFTER)
 ==================================================
 Before writing tests:
@@ -210,6 +228,7 @@ collect_final_report_issues() {
     "Regression proof"
     "Post-doc closeout"
     "Commit"
+    "Acceptance check"
   )
   local i section_title section_pattern
   for (( i = 0; i < ${#section_titles[@]}; i++ )); do
@@ -251,6 +270,19 @@ collect_final_report_issues() {
   fi
   if ! grep -Eq '^[[:space:]]*Commit:[[:space:]]*`?[0-9a-f]{7,40}`?[[:space:]]*$' "$final_file"; then
     echo "Final report missing Commit hash in $final_file"
+    missing=1
+  fi
+
+  # Acceptance criteria: 3+ `Criterion:` lines; none may contain "FAIL".
+  local criterion_count fail_count
+  criterion_count="$(grep -Ec '^[[:space:]]*Criterion:[[:space:]]*.+' "$final_file" || true)"
+  if (( criterion_count < 3 )); then
+    echo "Acceptance check missing 3+ criteria in $final_file"
+    missing=1
+  fi
+  fail_count="$(grep -Ec '^[[:space:]]*Criterion:.*FAIL' "$final_file" || true)"
+  if (( fail_count > 0 )); then
+    echo "Acceptance check has failing criterion in $final_file"
     missing=1
   fi
 

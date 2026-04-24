@@ -38,4 +38,4 @@ Files:
 9) Acceptance check
 Criterion: TestBar fails before implementation — PASS
 Criterion: TestBar passes after implementation — PASS
-Criterion: progress.json entry marked in_progress with symbol note — PASS
+Criterion: no breaking change to the existing Handler interface — FAIL: I had to rename Run() to Execute()

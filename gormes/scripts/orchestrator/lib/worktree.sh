@@ -88,10 +88,12 @@ enforce_worktree_dir_cap() {
 
 report_has_runtime_flag() {
   # Args: <final_file> <flag_name>
-  # Returns 0 if final report has a "9) Runtime flags" section containing
+  # Returns 0 if final report has a "10) Runtime flags" section containing
   # `<flag_name>: true` (case-insensitive), 1 otherwise. Accepts markdown
   # header prefix and bold markers on the section title, same flexibility as
-  # the rest of the report validator.
+  # the rest of the report validator. Historical note: Runtime flags lived
+  # at section 9 before Orchestrator Final Polish; Acceptance check took 9
+  # and Runtime flags moved to 10.
   local final_file="$1"
   local flag_name="$2"
 
@@ -99,7 +101,7 @@ report_has_runtime_flag() {
 
   awk -v flag="$flag_name" '
     BEGIN { IGNORECASE = 1; in_section = 0 }
-    /^[[:space:]]*(#{1,6}[[:space:]]+)?(\*\*)?9[).][[:space:]]*(\*\*)?Runtime flags(\*\*)?/ {
+    /^[[:space:]]*(#{1,6}[[:space:]]+)?(\*\*)?10[).][[:space:]]*(\*\*)?Runtime flags(\*\*)?/ {
       in_section = 1
       next
     }
