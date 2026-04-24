@@ -872,12 +872,12 @@
             {
               "name": "Provider interface + stream fixture harness",
               "status": "in_progress",
-              "note": "TDD: `internal/hermes/client.go` already freezes shared ChatRequest/Message/Event/ToolCall contracts and Anthropic+Bedrock tests exercise them; the remaining closeout is a reusable fixture harness that replays provider transcripts, usage, and finish reasons across adapters before Gemini/OpenRouter/Codex land."
+              "note": "TDD: `internal/hermes/client.go` already freezes shared ChatRequest/Message/Event/ToolCall contracts and the Anthropic adapter (`anthropic_client.go`/`anthropic_stream.go`) exercises them; the remaining closeout is a reusable fixture harness that replays provider transcripts, usage, and finish reasons across adapters before Bedrock/Gemini/OpenRouter/Codex land on the same seam."
             },
             {
               "name": "Tool-call normalization + continuation contract",
               "status": "in_progress",
-              "note": "TDD: streamed tool-call accumulation and tool-result continuation payload mapping are already shared across Anthropic/Bedrock; the remaining closeout is cross-provider fixture coverage that locks assistant tool-call messages, tool replies, and continuation-safe finish reasons so later adapters cannot diverge silently."
+              "note": "TDD: streamed tool-call accumulation and tool-result continuation payload mapping are locked for the Anthropic adapter in `internal/hermes/stream_tools_test.go` and `anthropic_client_test.go`; the remaining closeout is cross-provider fixture coverage that pins assistant tool-call messages, tool replies, and continuation-safe finish reasons as a shared harness before Bedrock/Gemini/OpenRouter/Codex reuse the seam."
             },
             {
               "name": "Anthropic",
@@ -886,8 +886,8 @@
             },
             {
               "name": "Bedrock",
-              "status": "complete",
-              "note": "TDD landed in `internal/hermes`: the native Bedrock ConverseStream adapter now resolves region defaults, delegates AWS credential loading and SigV4 request signing to the AWS SDK, maps canonical system/user/assistant/tool messages into Bedrock tool-aware conversation payloads, streams reasoning/text/tool-use deltas back into the shared event model, and translates Bedrock API error codes into retry-safe `HTTPError` classifications without requiring live AWS credentials in tests."
+              "status": "in_progress",
+              "note": "TDD: not landed on main. Five codexu/* worker attempts on 2026-04-23 produced candidate Bedrock adapters (`feat(phase4): add bedrock provider adapter` x2, `feat(provider): add bedrock client`, `feat(provider): add native Bedrock adapter`, `feat(gormes): add native bedrock provider adapter`) but none merged — no `bedrock_*.go` file is tracked in `internal/hermes/` and `grep -i bedrock|converse[sS]tream` over that package returns zero matches. Execution agents should split this into three small TDD slices before another full-rewrite attempt: (1) Bedrock Converse request-payload shaping + canonical Message->Bedrock tool-aware mapping with pure fixtures (no AWS SDK), (2) Bedrock stream event decoding (reasoning/text/tool-use deltas) into the shared `hermes.Event` model from captured SSE fixtures, (3) minimal SigV4 signing + credential seam gated behind a small dep-isolated helper so future regional/error handling can land without pulling the full AWS SDK into kernel paths."
             },
             {
               "name": "Gemini",
@@ -1051,8 +1051,8 @@
           "items": [
             {
               "name": "Provider-side resilience",
-              "status": "complete",
-              "note": "TDD landed in `internal/hermes` + `internal/kernel`: provider HTTP failures now classify rate-limit/auth/context signals from status + body, surface capped `Retry-After` hints on `HTTPError`, and feed the kernel's open-stream retry delay selection so 429/slowdown responses back off deterministically without live provider credentials in tests."
+              "status": "in_progress",
+              "note": "TDD: `internal/hermes/errors.go` now classifies retryable vs fatal HTTP status + 'context length' body signals and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. The remaining closeout is Retry-After header/body parsing (HTTPError currently exposes only {Status, Body} — no RetryAfter field), capped hint plumbing into the kernel retry path so 429/slowdown responses respect provider guidance, and provider fixtures that prove the merged policy under `httptest`."
             },
             {
               "name": "Classified provider-error taxonomy",
@@ -1061,8 +1061,8 @@
             },
             {
               "name": "Retry-After + jittered backoff policy",
-              "status": "complete",
-              "note": "TDD landed in `internal/hermes/errors.go` + `internal/kernel/retry.go`: Retry-After hints parse from headers/body, delays are capped, the reconnect budget uses 1s/2s/4s/8s/16s backoff with +/-20% jitter, and kernel open-stream retries combine provider hints with that schedule under tests."
+              "status": "in_progress",
+              "note": "TDD: the jittered backoff half is shipped — `internal/kernel/retry.go` RetryBudget applies a 1s/2s/4s/8s/16s +/-20% schedule with retry_test.go coverage and the kernel reconnect path consumes it. The Retry-After half is NOT landed — `internal/hermes/errors.go` HTTPError carries only {Status, Body} with no Retry-After field, and no code path parses the header or body hint. Split the remaining slice into (a) Retry-After header parsing + capped hint on HTTPError with table-driven fixtures, then (b) kernel open-stream retry prefers provider hint over schedule when present, with unit tests asserting the merged delay."
             },
             {
               "name": "Prompt-cache capability guard",

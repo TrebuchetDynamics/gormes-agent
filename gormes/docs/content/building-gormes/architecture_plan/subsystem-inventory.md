@@ -110,7 +110,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
 | Anthropic adapter | `agent/anthropic_adapter.py` | 4.A | ✅ complete |
-| Bedrock adapter | `agent/bedrock_adapter.py` | 4.A | ✅ complete |
+| Bedrock adapter | `agent/bedrock_adapter.py` | 4.A | 🔨 partial — five codexu/* worker branches on 2026-04-23 landed candidate Bedrock adapter commits, but none merged to main; no `bedrock_*.go` file is tracked in `internal/hermes/`, and `grep -i bedrock\|converse[sS]tream` over that package returns zero matches. Plan splits the rewrite into payload mapping, stream event decoding, and SigV4/credential seam slices |
 | Gemini Cloud Code adapter | `agent/gemini_cloudcode_adapter.py` | 4.A | ⏳ planned |
 | OpenRouter client | `agent/openrouter_client.py` | 4.A | ⏳ planned |
 | Google Code Assist | `agent/google_code_assist.py` | 4.A | ⏳ planned |
@@ -120,7 +120,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Billing + cost + usage types | `agent/*` — `BillingRoute`, `CanonicalUsage`, `CostResult` classes | 4.E / 4.H | ⏳ planned |
 | Provider failover | `agent/*` — `FailoverReason` enum + routing logic | 4.H | ⏳ planned |
 | Model metadata types | `agent/model_metadata.py` — `ModelCapabilities`, `ModelInfo` classes | 4.D | ⏳ planned |
-| Error classifier output type | `agent/error_classifier.py` — `ClassifiedError` class | 4.H | 🔨 partial — `internal/hermes/errors.go` now exposes retryable/fatal/unknown classes plus Retry-After hint plumbing; upstream-style structured `ClassifiedError` fields remain unported |
+| Error classifier output type | `agent/error_classifier.py` — `ClassifiedError` class | 4.H | 🔨 partial — `internal/hermes/errors.go` exposes retryable/fatal/unknown classes over status + body signals, but HTTPError still carries only `{Status, Body}` with no Retry-After field and upstream-style structured `ClassifiedError` envelopes remain unported |
 | Local edit snapshot | `agent/*` — `LocalEditSnapshot` (for checkpoint rewind) | 5.L | ⏳ planned |
 | Context engine | `agent/context_engine.py` | 4.B | ⏳ planned — split into interface/status-tool contract before compressor wiring |
 | Context compressor | `agent/context_compressor.py` + `manual_compression_feedback.py` | 4.B | ⏳ planned — split into token-budget trigger, protected head/tail summary, old tool-output pruning, and manual feedback |
@@ -134,7 +134,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Credential pool | `agent/credential_pool.py` | 4.G | ⏳ planned |
 | Credential files | `tools/credential_files.py` | 4.G | ⏳ planned |
 | Rate limit tracker | `agent/rate_limit_tracker.py` + `nous_rate_guard.py` | 4.H | ⏳ planned |
-| Retry utils | `agent/retry_utils.py` | 4.H | ✅ shipped — `internal/kernel/retry.go` now applies 1s/2s/4s/8s/16s reconnect backoff with +/-20% jitter, and `internal/hermes/errors.go` caps provider Retry-After hints before kernel retries |
+| Retry utils | `agent/retry_utils.py` | 4.H | 🔨 partial — `internal/kernel/retry.go` applies 1s/2s/4s/8s/16s reconnect backoff with +/-20% jitter and is covered by `retry_test.go`, but Retry-After header/body parsing and capped provider-hint plumbing on `HTTPError` are not yet landed and remain the closeout slice before this can flip to shipped |
 | Prompt caching | `agent/prompt_caching.py` | 4.H | ⏳ planned |
 | Subdirectory hints | `agent/subdirectory_hints.py` | 4.B | ⏳ planned |
 | Skill commands / utils | `agent/skill_commands.py`, `agent/skill_utils.py` | 4.C | ⏳ planned |

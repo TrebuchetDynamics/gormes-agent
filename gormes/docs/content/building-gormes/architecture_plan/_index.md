@@ -297,7 +297,7 @@ weight: 10
 - [ ] Provider interface + stream fixture harness
 - [ ] Tool-call normalization + continuation contract
 - [x] Anthropic
-- [x] Bedrock
+- [ ] Bedrock
 - [ ] Gemini
 - [ ] OpenRouter
 - [ ] Google Code Assist
@@ -344,9 +344,9 @@ weight: 10
 
 ### 4.H — Rate / Retry / Caching 🔨
 
-- [x] Provider-side resilience
+- [ ] Provider-side resilience
 - [ ] Classified provider-error taxonomy
-- [x] Retry-After + jittered backoff policy
+- [ ] Retry-After + jittered backoff policy
 - [ ] Prompt-cache capability guard
 - [ ] Provider rate guard + budget telemetry
 
