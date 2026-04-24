@@ -1,0 +1,275 @@
+{
+  "comment": "Phase 5.O — Hermes CLI Parity manifest. One entry per upstream hermes_cli/*.py file. Status values: 'ported' (Go port exists and covers tracked scope), 'in_progress' (Go port exists for some scope), 'planned' (no Go port yet), 'not_applicable' (no Go port required — e.g. Python packaging metadata). Keep the 'go' destinations module-relative to gormes/.",
+  "files": [
+    {
+      "source": "__init__.py",
+      "status": "not_applicable",
+      "reason": "Python package marker; the Go CLI uses cmd/gormes/version.go for the equivalent __version__ surface."
+    },
+    {
+      "source": "auth.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/auth.go"],
+      "reason": "Go auth subcommand exists; upstream covers many provider-specific flows — broader OAuth breadth remains follow-on."
+    },
+    {
+      "source": "auth_commands.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/auth.go"],
+      "reason": "Subcommand shims share cmd/gormes/auth.go; per-provider commands are collapsed into auth.go for now."
+    },
+    {
+      "source": "backup.py",
+      "status": "planned",
+      "reason": "Backup/restore of ${GORMES_HOME} is not yet ported."
+    },
+    {
+      "source": "banner.py",
+      "status": "planned",
+      "reason": "Interactive TUI banner/start-screen remains upstream-only; cmd/gormes/main.go enters tui.Model directly without a banner."
+    },
+    {
+      "source": "callbacks.py",
+      "status": "planned",
+      "reason": "Typer callback plumbing is Python-specific; the cobra tree in cmd/gormes/ uses its own idioms — no direct port needed once commands land."
+    },
+    {
+      "source": "claw.py",
+      "status": "planned",
+      "reason": "openclaw migration subcommand remains upstream-only."
+    },
+    {
+      "source": "cli_output.py",
+      "status": "planned",
+      "reason": "Terminal output helpers (color, tables) remain upstream-only; Go CLI uses direct fmt/bubbletea output."
+    },
+    {
+      "source": "clipboard.py",
+      "status": "planned",
+      "reason": "Clipboard integration not yet ported."
+    },
+    {
+      "source": "codex_models.py",
+      "status": "in_progress",
+      "go": ["internal/hermes/codex_client.go"],
+      "reason": "Codex provider model list lives inside the Go codex client; a dedicated command surface remains follow-on."
+    },
+    {
+      "source": "colors.py",
+      "status": "planned",
+      "reason": "ANSI color palette helpers not yet ported; Bubble Tea lipgloss is used ad hoc inside internal/tui/."
+    },
+    {
+      "source": "commands.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/main.go"],
+      "reason": "Top-level command dispatch is shared between cmd/gormes/main.go and the per-subcommand files (auth, doctor, gateway, memory, skills, plugins, acp, session, telegram, version)."
+    },
+    {
+      "source": "completion.py",
+      "status": "planned",
+      "reason": "Shell completion generation remains upstream-only; cobra supports completions natively but no command is wired yet."
+    },
+    {
+      "source": "config.py",
+      "status": "in_progress",
+      "go": ["internal/config/config.go"],
+      "reason": "Go config layer ports core settings, XDG paths, and dotenv loading; the full upstream command-driven config surface is broader."
+    },
+    {
+      "source": "copilot_auth.py",
+      "status": "planned",
+      "reason": "GitHub Copilot auth flow not yet ported."
+    },
+    {
+      "source": "cron.py",
+      "status": "in_progress",
+      "go": ["internal/cron/scheduler.go", "internal/cron/store.go"],
+      "reason": "Go cron engine handles scheduling, persistence, and execution; operator CLI surface (list/add/remove subcommands) remains follow-on."
+    },
+    {
+      "source": "curses_ui.py",
+      "status": "planned",
+      "reason": "Curses-based fallback UI remains upstream-only; gormes uses Bubble Tea (internal/tui)."
+    },
+    {
+      "source": "debug.py",
+      "status": "in_progress",
+      "go": ["internal/tools/debug_helpers.go"],
+      "reason": "Redacting DebugSession is ported as a tool-side helper; CLI-facing debug subcommand remains follow-on."
+    },
+    {
+      "source": "default_soul.py",
+      "status": "in_progress",
+      "go": ["docker/SOUL.md", "packaging/homebrew/gormes.rb"],
+      "reason": "The default SOUL.md template ships with the OCI image and Homebrew formula (see Phase 5.P)."
+    },
+    {
+      "source": "dingtalk_auth.py",
+      "status": "planned",
+      "reason": "DingTalk OAuth flow not yet ported."
+    },
+    {
+      "source": "doctor.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/doctor.go", "internal/doctor/doctor.go"],
+      "reason": "Go doctor covers baseline environment + tool checks; full upstream 52k-line doctor (providers, gateway, skills) is incremental."
+    },
+    {
+      "source": "dump.py",
+      "status": "planned",
+      "reason": "Debug state-dump subcommand not yet ported."
+    },
+    {
+      "source": "env_loader.py",
+      "status": "ported",
+      "go": ["internal/config/dotenv.go"],
+      "reason": "Dotenv loading replicates upstream precedence with Go-native parsing."
+    },
+    {
+      "source": "gateway.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/gateway.go", "internal/gateway/manager.go"],
+      "reason": "Go gateway chassis + multi-channel manager + operator subcommand are live; upstream gateway.py is 156kB and covers more providers than the current port."
+    },
+    {
+      "source": "logs.py",
+      "status": "planned",
+      "reason": "Log tail/query subcommand not yet ported."
+    },
+    {
+      "source": "main.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/main.go"],
+      "reason": "Go entrypoint starts the Bubble Tea TUI and wires every registered subcommand; upstream main.py is 310kB and couples many concerns the Go tree splits out."
+    },
+    {
+      "source": "mcp_config.py",
+      "status": "in_progress",
+      "go": ["internal/mcp/client.go"],
+      "reason": "MCP client and OAuth are ported; an operator-facing mcp-config CLI surface remains follow-on."
+    },
+    {
+      "source": "memory_setup.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/memory.go", "internal/memory/memory.go"],
+      "reason": "Memory bootstrap and CLI command exist; upstream memory_setup covers additional setup wizards."
+    },
+    {
+      "source": "model_normalize.py",
+      "status": "in_progress",
+      "go": ["internal/hermes/client.go"],
+      "reason": "Model normalization is folded into the Go provider clients; a standalone helper package is not required."
+    },
+    {
+      "source": "models.py",
+      "status": "in_progress",
+      "go": ["internal/hermes/client.go"],
+      "reason": "Model catalogue is embedded in the provider clients; an operator `gormes models` subcommand remains follow-on."
+    },
+    {
+      "source": "model_switch.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/model_routing.go", "internal/kernel/model_routing.go"],
+      "reason": "Runtime model routing ported to the kernel; an explicit interactive model-switch subcommand remains follow-on."
+    },
+    {
+      "source": "nous_subscription.py",
+      "status": "planned",
+      "reason": "Nous subscription provisioning flow not yet ported."
+    },
+    {
+      "source": "pairing.py",
+      "status": "in_progress",
+      "go": ["internal/gateway/pairing.go"],
+      "reason": "Gateway pairing flow is ported inside the gateway package; the CLI-level pairing subcommand is follow-on."
+    },
+    {
+      "source": "platforms.py",
+      "status": "planned",
+      "reason": "Platform-detection helpers remain upstream-only; Go uses runtime.GOOS directly."
+    },
+    {
+      "source": "plugins.py",
+      "status": "in_progress",
+      "go": ["internal/plugins/runtime.go", "internal/plugins/manifest.go"],
+      "reason": "Typed plugin manifest + runtime discovery are ported (Phase 5.I)."
+    },
+    {
+      "source": "plugins_cmd.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/plugins.go"],
+      "reason": "Go `gormes plugins list` subcommand ported; install/enable/disable surfaces remain follow-on."
+    },
+    {
+      "source": "profiles.py",
+      "status": "planned",
+      "reason": "Named-profile subcommand not yet ported."
+    },
+    {
+      "source": "providers.py",
+      "status": "in_progress",
+      "go": ["internal/hermes/client.go"],
+      "reason": "Provider registry is part of the Go hermes package; a user-facing `providers` subcommand remains follow-on."
+    },
+    {
+      "source": "runtime_provider.py",
+      "status": "in_progress",
+      "go": ["internal/hermes/http_client.go", "internal/kernel/kernel.go"],
+      "reason": "Runtime provider routing lives in internal/hermes and internal/kernel; explicit CLI operator surface remains follow-on."
+    },
+    {
+      "source": "setup.py",
+      "status": "planned",
+      "reason": "126kB upstream interactive setup wizard not yet ported."
+    },
+    {
+      "source": "skills_config.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/skills.go", "internal/skills/"],
+      "reason": "Skills registry + `gormes skills` subcommands are ported (Phase 5.F / 5.F.1 / 5.F.2); broader config surfaces remain follow-on."
+    },
+    {
+      "source": "skills_hub.py",
+      "status": "in_progress",
+      "go": ["cmd/gormes/skills_browser.go", "internal/skills/"],
+      "reason": "Hub sync/install ported (Phase 5.F.1); richer hub browsing UX remains follow-on."
+    },
+    {
+      "source": "skin_engine.py",
+      "status": "planned",
+      "reason": "Skin theme engine port is tracked as explicit follow-on scope under Phase 5.Q."
+    },
+    {
+      "source": "status.py",
+      "status": "planned",
+      "reason": "`hermes status` rollup subcommand not yet ported."
+    },
+    {
+      "source": "tips.py",
+      "status": "planned",
+      "reason": "Tip-of-the-day subsystem not yet ported."
+    },
+    {
+      "source": "tools_config.py",
+      "status": "in_progress",
+      "go": ["internal/tools/"],
+      "reason": "Tool registry and toolset gating are ported (Phase 5.A/5.J); an operator-facing tools-config subcommand remains follow-on."
+    },
+    {
+      "source": "uninstall.py",
+      "status": "planned",
+      "reason": "Uninstall subcommand not yet ported; Homebrew uninstall handles the brew path."
+    },
+    {
+      "source": "webhook.py",
+      "status": "planned",
+      "reason": "Generic webhook subcommand not yet ported."
+    },
+    {
+      "source": "web_server.py",
+      "status": "planned",
+      "reason": "Web dashboard server is explicitly deferred until Phase 7+ per phase-5 scope notes."
+    }
+  ]
+}
