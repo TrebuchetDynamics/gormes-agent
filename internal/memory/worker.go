@@ -1,0 +1,70 @@
+package memory
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+)
+
+// turnPayload is the shared JSON schema for AppendUserTurn and
+// FinalizeAssistantTurn. See spec §7.3.
+type turnPayload struct {
+	SessionID string `json:"session_id"`
+	Content   string `json:"content"`
+	TsUnix    int64  `json:"ts_unix"`
+	ChatID    string `json:"chat_id"`     // new in 3.C; empty string for non-scoped turns
+	Cron      int    `json:"cron"`        // 0 when absent = non-cron turn
+	CronJobID string `json:"cron_job_id"` // "" when absent -> NULL via nullIfEmpty
+	MetaJSON  string `json:"meta_json"`
+}
+
+// run is the worker loop. Exactly one goroutine owns s.db.
+func (s *SqliteStore) run() {
+	defer close(s.done)
+	for cmd := range s.queue {
+		s.handleCommand(cmd)
+	}
+}
+
+func (s *SqliteStore) handleCommand(cmd store.Command) {
+	var p turnPayload
+	if err := json.Unmarshal(cmd.Payload, &p); err != nil {
+		s.log.Warn("memory: malformed payload, dropping",
+			"kind", cmd.Kind.String(), "err", err)
+		return
+	}
+	if p.Content == "" {
+		s.log.Warn("memory: empty content, dropping",
+			"kind", cmd.Kind.String())
+		return
+	}
+	var role string
+	switch cmd.Kind {
+	case store.AppendUserTurn:
+		role = "user"
+	case store.FinalizeAssistantTurn:
+		role = "assistant"
+	default:
+		s.log.Warn("memory: unknown command kind, dropping", "kind", cmd.Kind.String())
+		return
+	}
+	_, err := s.db.ExecContext(context.Background(),
+		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, cron, cron_job_id, meta_json)
+		 VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.SessionID, role, p.Content, p.TsUnix, p.ChatID, p.Cron, nullIfEmpty(p.CronJobID), nullIfEmpty(p.MetaJSON))
+	if err != nil {
+		s.log.Warn("memory: INSERT failed", "kind", cmd.Kind.String(), "err", err)
+	}
+}
+
+// nullIfEmpty returns nil for empty strings so the database sees a
+// SQL NULL. Used by AppendUserTurn's cron_job_id column write — non-
+// cron turns omit the field; writing "" instead of NULL would violate
+// the idiomatic "NULL means unset" expectation for downstream readers.
+func nullIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}

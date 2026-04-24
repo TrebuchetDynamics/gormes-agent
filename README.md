@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="gormes/assets/gormes-agent-logo.png" alt="GORMES-AGENT" width="600">
+  <img src="assets/gormes-agent-logo.png" alt="GORMES-AGENT" width="600">
 </p>
 
 <p align="center">
@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
-  <a href="https://github.com/TrebuchetDynamics/gormes"><img src="https://img.shields.io/badge/GitHub-TrebuchetDynamics%2Fgormes-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
-  <a href="https://github.com/TrebuchetDynamics/gormes/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
+  <a href="https://github.com/TrebuchetDynamics/gormes-agent"><img src="https://img.shields.io/badge/GitHub-TrebuchetDynamics%2Fgormes--agent-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
+  <a href="https://github.com/TrebuchetDynamics/gormes-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
 </p>
 
 ---
@@ -118,8 +118,8 @@ Start here:
 Quick start:
 
 ```bash
-git clone https://github.com/TrebuchetDynamics/gormes.git
-cd gormes
+git clone https://github.com/TrebuchetDynamics/gormes-agent.git
+cd gormes-agent
 make build
 ./bin/gormes
 ```
