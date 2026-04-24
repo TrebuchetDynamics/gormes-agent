@@ -343,9 +343,19 @@
               "note": "TDD: bind the frozen Stream Mode/runtime contract to the real DingTalk SDK, credential checks, receive loop, and send lifecycle without widening the already-tested session-webhook retry seam."
             },
             {
-              "name": "DingTalk AI Cards streaming + emoji reactions + media",
+              "name": "DingTalk AI Cards streaming-update contract",
               "status": "planned",
-              "note": "TDD: port upstream PR #4459913f as three dependency-ordered slices on top of the existing DingTalk bot seam and Stream Mode transport: (a) AI Cards streaming-update contract with coalesced token pushes and terminal-frame semantics, (b) emoji reaction send/receive parity, and (c) media (image/file) attachment routing. Freeze each seam with fixture-backed tests and a DingTalk-shaped failure fallback before binding any of the three to the real SDK in `DingTalk real SDK binding`."
+              "note": "TDD slice 1 of 3 from upstream PR #4459913f: freeze the AI Cards streaming-update contract on top of the existing DingTalk bot seam and Stream Mode transport — coalesced token pushes, terminal-frame semantics, and a DingTalk-shaped failure fallback — with fixture-backed tests before binding to the real SDK in `DingTalk real SDK binding`. Gates the next two slices."
+            },
+            {
+              "name": "DingTalk emoji reaction send/receive parity",
+              "status": "planned",
+              "note": "TDD slice 2 of 3 from upstream PR #4459913f: freeze emoji reaction send/receive parity on the DingTalk bot seam with fixture-backed tests and a DingTalk-shaped failure fallback. Requires the AI Cards streaming-update slice to be green first; do not bind to the real SDK until `DingTalk real SDK binding` lands."
+            },
+            {
+              "name": "DingTalk media (image/file) attachment routing",
+              "status": "planned",
+              "note": "TDD slice 3 of 3 from upstream PR #4459913f: freeze media (image/file) attachment routing on the DingTalk bot seam with fixture-backed tests and a DingTalk-shaped failure fallback. Requires the streaming-update and emoji-reaction slices to be green first; do not bind to the real SDK until `DingTalk real SDK binding` lands."
             },
             {
               "name": "QQ Bot transport/bootstrap layer",
@@ -1120,7 +1130,7 @@
             {
               "name": "Provider-side resilience",
               "status": "in_progress",
-              "note": "TDD: `internal/hermes/errors.go` now classifies retryable vs fatal HTTP status + 'context length' body signals and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. The remaining closeout is Retry-After header/body parsing (HTTPError currently exposes only {Status, Body} — no RetryAfter field), capped hint plumbing into the kernel retry path so 429/slowdown responses respect provider guidance, and provider fixtures that prove the merged policy under `httptest`."
+              "note": "Umbrella tracker for 4.H closeout. Already shipped: `internal/hermes/errors.go` classifies retryable vs fatal HTTP status plus 'context length' body signals, and `internal/kernel/retry.go` holds a 1s/2s/4s/8s/16s +/-20% reconnect budget wired into open-stream retries. Remaining work is owned by the sibling slices below — `Classified provider-error taxonomy`, `Retry-After + jittered backoff policy`, `Prompt-cache capability guard`, and `Provider rate guard + budget telemetry`. Do not re-implement Retry-After parsing here; that closeout lives in `Retry-After + jittered backoff policy`."
             },
             {
               "name": "Classified provider-error taxonomy",

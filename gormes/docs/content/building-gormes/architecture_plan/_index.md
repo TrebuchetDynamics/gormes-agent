@@ -134,7 +134,9 @@ weight: 10
 - [ ] WeCom + WeiXin transport/bootstrap layer
 - [x] DingTalk transport/bootstrap layer
 - [ ] DingTalk real SDK binding
-- [ ] DingTalk AI Cards streaming + emoji reactions + media
+- [ ] DingTalk AI Cards streaming-update contract
+- [ ] DingTalk emoji reaction send/receive parity
+- [ ] DingTalk media (image/file) attachment routing
 - [ ] QQ Bot transport/bootstrap layer
 
 ### 2.B.11 — Discord Forum Channels ⏳
