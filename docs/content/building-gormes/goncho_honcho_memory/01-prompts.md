@@ -1,5 +1,5 @@
 ---
-title: "Goncho Replication Kit — 01 Prompts (Verbatim)"
+title: "Prompts"
 weight: 1
 ---
 

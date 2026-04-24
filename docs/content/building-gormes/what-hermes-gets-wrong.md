@@ -1,6 +1,6 @@
 ---
 title: "What Hermes Gets Wrong"
-weight: 30
+weight: 24
 ---
 
 # What Hermes Gets Wrong

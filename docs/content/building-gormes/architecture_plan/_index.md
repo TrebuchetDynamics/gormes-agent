@@ -1,6 +1,6 @@
 ---
 title: "Architecture Plan"
-weight: 10
+weight: 20
 ---
 
 # Gormes — Executive Roadmap
@@ -14,6 +14,23 @@ weight: 10
 - [Landing page](https://gormes.ai) — Marketing + roadmap section
 - [docs.gormes.ai](https://docs.gormes.ai/building-gormes/architecture_plan/) — This page
 - [Source code](https://github.com/TrebuchetDynamics/gormes-agent) — Implementation
+
+**Execution control plane:** `cmd/autoloop` consumes this `progress.json` and
+the generated `docs/content/building-gormes/` pages to select and execute
+eligible phase work. The roadmap is not only status reporting; it is the
+machine-readable queue for developing the full `gormes-agent`.
+
+## How To Read This Roadmap
+
+- The generated checklist below is rebuilt from `progress.json`; do not hand-edit
+  content between `PROGRESS` markers.
+- Use the phase pages for design intent and boundaries, then use
+  [Contract Readiness](../contract-readiness/) and [Agent Queue](../agent-queue/)
+  for assignable work.
+- When a row is too broad for one agent, split it in `progress.json` first and
+  let [Umbrella Cleanup](../umbrella-cleanup/) show the remaining inventory.
+- When a row is blocked, keep the unblock condition explicit so
+  [Blocked Slices](../blocked-slices/) stays useful to operators and autoloop.
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: "Goncho Replication Kit — 02 Tool Schemas (Verbatim)"
+title: "Tool Schemas"
 weight: 2
 ---
 

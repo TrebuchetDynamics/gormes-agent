@@ -1,6 +1,6 @@
 ---
-title: "Goncho — The Honcho Port (Integrated Memory + Social Cognition)"
-weight: 45
+title: "Goncho Honcho Memory"
+weight: 46
 ---
 
 # Goncho — The Honcho Port
@@ -10,6 +10,26 @@ weight: 45
 **Audience:** Gormes contributors and future AI agents continuing the port. This is an **architecture reference**, not a migration cookbook — the cookbook lives in `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` and the Phase 3 ledger in `architecture_plan/phase-3-memory.md`.
 
 > **Instruction to future agents:** This document is **not complete**. It is explicitly too large to write in one pass. Each top-level section has a **"Coverage / TODO"** footer calling out what is still missing. When you open this file, pick one TODO, fill it in against the real upstream source at `/workspace-mineru/honcho/src/**` (not from memory or training), and cross it off. Do not rewrite existing sections without a reason — they are cross-referenced from Phase 3 and the Goncho spec. If a section drifts out of date with upstream Honcho, add a `> **Drift note (YYYY-MM-DD):** ...` admonition rather than silently rewriting.
+
+---
+
+## How To Use This Reference
+
+This is the long-form Goncho port reference. Use it as a map, not as a single
+linear read.
+
+| Need | Read |
+|---|---|
+| Boundary and packaging rules | §0, §12, §14 |
+| Honcho concepts to preserve | §1, §2, §6, §7 |
+| API and tool edge | §3, [Tool Schemas](./02-tool-schemas/) |
+| Deriver, dialectic, and dreamer mechanics | §5, [Prompts](./01-prompts/) |
+| Implementation order | §13, then the Phase 3 ledger |
+| Open follow-up work | Coverage/TODO footers and §15 |
+
+When adding detail, update the smallest relevant section and cross off its
+Coverage/TODO item in the same change. If a new topic needs more than a short
+subsection, create a sibling page and link it from this index.
 
 ---
 

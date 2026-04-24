@@ -26,6 +26,12 @@ PicoClaw is useful to Gormes as a donor repo for Go channel-edge work, not as th
 2. Cross-check the channel with the current [gateway core-system doc](../core-systems/gateway/) and the [Phase 2 gateway ledger](../architecture_plan/phase-2-gateway/).
 3. Lift transport-edge ideas only. Rebuild them inside Gormes's kernel/session boundaries.
 
+## Decision Labels
+
+- `copy candidate` — donor control flow is close enough to port after reshaping it around Gormes interfaces.
+- `adapt pattern only` — donor code proves useful transport mechanics, but product behavior and runtime boundaries must be rebuilt.
+- `not worth reusing` — donor coverage is too thin or too coupled to justify porting work.
+
 ## Verified Shared Donor Files
 
 These PicoClaw files are the highest-leverage shared references across more than one adapter:
@@ -63,6 +69,8 @@ These PicoClaw files are the highest-leverage shared references across more than
 - [Phase 2 Gateway](../architecture_plan/phase-2-gateway/) for the roadmap order and shipped/planned status
 - [Subsystem Inventory](../architecture_plan/subsystem-inventory/) for the current port ledger
 
-## Planned Channel Dossiers
+## Reading Order
 
-The next pass should split this donor map into dedicated per-channel dossiers for Telegram, Discord, Slack, WhatsApp, Matrix, IRC, LINE, OneBot, QQ, WeCom, WeiXin, Feishu, DingTalk, VK, and webhook-family adapters.
+This section is already split into shared patterns plus per-channel dossiers.
+Start with the shared page, read the triage row for the channel, then open only
+the dossier you are about to turn into a spec or progress row.
