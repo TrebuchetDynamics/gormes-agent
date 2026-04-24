@@ -87,7 +87,7 @@ COMMAND_MODE="run"
 # Companion scheduling defaults (planner / doc-improver / landingpage).
 DISABLE_COMPANIONS="${DISABLE_COMPANIONS:-0}"
 COMPANION_ON_IDLE="${COMPANION_ON_IDLE:-1}"
-COMPANION_TIMEOUT_SECONDS="${COMPANION_TIMEOUT_SECONDS:-1800}"
+COMPANION_TIMEOUT_SECONDS="${COMPANION_TIMEOUT_SECONDS:-600}"
 PLANNER_EVERY_N_CYCLES="${PLANNER_EVERY_N_CYCLES:-4}"
 DOC_IMPROVER_EVERY_N_CYCLES="${DOC_IMPROVER_EVERY_N_CYCLES:-6}"
 LANDINGPAGE_EVERY_N_HOURS="${LANDINGPAGE_EVERY_N_HOURS:-24}"
@@ -156,7 +156,7 @@ Env:
   # Companion scheduling (planner / doc-improver / landingpage between cycles)
   DISABLE_COMPANIONS         Set to 1 to fully disable all companion runs (default: 0)
   COMPANION_ON_IDLE          1 gates companions to idle/post-promotion cycles; 0 runs every cycle (default: 1)
-  COMPANION_TIMEOUT_SECONDS  Wall-clock timeout per companion invocation (default: 1800)
+  COMPANION_TIMEOUT_SECONDS  Wall-clock timeout per companion invocation (default: 600)
   PLANNER_EVERY_N_CYCLES     Run planner companion every N cycles (default: 4)
   DOC_IMPROVER_EVERY_N_CYCLES Run doc-improver every N cycles with promotion (default: 6)
   LANDINGPAGE_EVERY_N_HOURS  Run landing-page companion every N hours (default: 24)

@@ -41,6 +41,31 @@ companion_cycles_since() {
   printf '%d\n' $(( current_cycle - last ))
 }
 
+companion_already_running() {
+  local name="$1"
+  local pid_file
+  pid_file="$(companion_state_dir)/${name}.pid"
+  [[ -f "$pid_file" ]] || return 1
+  local pid
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+companion_reap_stale() {
+  local state_dir
+  state_dir="$(companion_state_dir)"
+  [[ -d "$state_dir" ]] || return 0
+  local pid_file pid
+  for pid_file in "$state_dir"/*.pid; do
+    [[ -f "$pid_file" ]] || continue
+    pid="$(cat "$pid_file" 2>/dev/null || true)"
+    if [[ -z "$pid" ]] || [[ ! "$pid" =~ ^[0-9]+$ ]] || ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$pid_file"
+    fi
+  done
+}
+
 _candidates_remaining() {
   local cf="${CANDIDATES_FILE:-}"
   [[ -n "$cf" && -f "$cf" ]] || { printf '0\n'; return; }
@@ -65,6 +90,7 @@ _planner_external_recent() {
 should_run_planner() {
   local cycle="$1"
   [[ "${DISABLE_COMPANIONS:-0}" == "1" ]] && return 1
+  companion_already_running planner && return 1
   _planner_external_recent && return 1
   local remaining total
   remaining="$(_candidates_remaining)"
@@ -82,6 +108,7 @@ should_run_planner() {
 should_run_doc_improver() {
   local cycle="$1"
   [[ "${DISABLE_COMPANIONS:-0}" == "1" ]] && return 1
+  companion_already_running doc_improver && return 1
   local promoted="${PROMOTED_LAST_CYCLE:-0}"
   (( promoted >= 1 )) || return 1
   local since
@@ -91,6 +118,7 @@ should_run_doc_improver() {
 
 should_run_landingpage() {
   [[ "${DISABLE_COMPANIONS:-0}" == "1" ]] && return 1
+  companion_already_running landingpage && return 1
   local last
   last="$(companion_last_ts landingpage)"
   local now
@@ -101,6 +129,13 @@ should_run_landingpage() {
 
 run_companion() {
   local name="$1"
+  local sync_mode=0
+  shift || true
+  if [[ "${1:-}" == "--sync" ]]; then
+    sync_mode=1
+    shift
+  fi
+
   local cmd_var_name
   case "$name" in
     planner)       cmd_var_name="COMPANION_PLANNER_CMD" ;;
@@ -119,30 +154,76 @@ run_companion() {
     esac
   fi
 
-  mkdir -p "$(companion_state_dir)"
+  local state_dir
+  state_dir="$(companion_state_dir)"
+  mkdir -p "$state_dir"
+  local pid_file="$state_dir/${name}.pid"
+  local log_file="${LOGS_DIR}/companion_${name}.$(date -u +%Y%m%dT%H%M%SZ).log"
+
+  # Skip if already running.
+  if [[ -f "$pid_file" ]]; then
+    local prev_pid
+    prev_pid="$(cat "$pid_file" 2>/dev/null || true)"
+    if [[ "$prev_pid" =~ ^[0-9]+$ ]] && kill -0 "$prev_pid" 2>/dev/null; then
+      return 0
+    fi
+    rm -f "$pid_file"
+  fi
+
+  local timeout_s="${COMPANION_TIMEOUT_SECONDS:-600}"
   local ts_start
   ts_start="$(date +%s)"
   local ts_utc
   ts_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  local rc=0
-  (
-    cd "$GIT_ROOT"
-    AUTO_COMMIT=1 AUTO_PUSH=0 PLANNER_INSTALL_SCHEDULE=0 \
-      timeout "${COMPANION_TIMEOUT_SECONDS:-1800}" bash "$cmd" \
-      >"$LOGS_DIR/companion_${name}.out.log" 2>"$LOGS_DIR/companion_${name}.err.log"
-  ) || rc=$?
 
-  jq -n \
-    --arg name "$name" \
-    --argjson ts_epoch "$ts_start" \
-    --arg ts_utc "$ts_utc" \
-    --argjson cycle "${ORCH_CURRENT_CYCLE:-0}" \
-    --argjson rc "$rc" \
-    '{name:$name,ts_epoch:$ts_epoch,ts_utc:$ts_utc,cycle:$cycle,rc:$rc}' \
-    > "$(companion_state_dir)/${name}.last.json"
+  if (( sync_mode == 1 )); then
+    # Foreground execution (used by candidate refill, Task 7).
+    local rc=0
+    (
+      cd "$GIT_ROOT"
+      AUTO_COMMIT=1 AUTO_PUSH=0 PLANNER_INSTALL_SCHEDULE=0 \
+        timeout "$timeout_s" bash "$cmd" \
+        >"$log_file" 2>&1
+    ) || rc=$?
+    jq -n \
+      --arg name "$name" \
+      --argjson ts_epoch "$ts_start" \
+      --arg ts_utc "$ts_utc" \
+      --argjson cycle "${ORCH_CURRENT_CYCLE:-0}" \
+      --argjson rc "$rc" \
+      --arg log_file "$log_file" \
+      --argjson sync true \
+      '{name:$name,ts_epoch:$ts_epoch,ts_utc:$ts_utc,cycle:$cycle,rc:$rc,log_file:$log_file,sync:$sync}' \
+      > "$state_dir/${name}.last.json"
+    type log_event >/dev/null 2>&1 && log_event "companion_${name}_completed" null "rc=$rc sync=1" "completed" || true
+    return "$rc"
+  fi
 
-  type log_event >/dev/null 2>&1 && log_event "companion_${name}_completed" null "rc=$rc" "completed" || true
-  return "$rc"
+  # Detached launch: setsid + nohup so the child survives the orchestrator
+  # and does not block the main forever-loop. The inner bash -c script
+  # records its own last.json + cleans its pid file when done.
+  local current_cycle="${ORCH_CURRENT_CYCLE:-0}"
+  setsid nohup bash -c "
+    cd '$GIT_ROOT' || exit 1
+    export AUTO_COMMIT=1 AUTO_PUSH=0 PLANNER_INSTALL_SCHEDULE=0
+    timeout '$timeout_s' bash '$cmd' >'$log_file' 2>&1
+    ec=\$?
+    jq -n \
+      --arg name '$name' \
+      --argjson ts_epoch '$ts_start' \
+      --arg ts_utc '$ts_utc' \
+      --argjson cycle '$current_cycle' \
+      --argjson rc \$ec \
+      --arg log_file '$log_file' \
+      --argjson sync false \
+      '{name:\$name,ts_epoch:\$ts_epoch,ts_utc:\$ts_utc,cycle:\$cycle,rc:\$rc,log_file:\$log_file,sync:\$sync}' \
+      > '$state_dir/${name}.last.json'
+    rm -f '$pid_file'
+  " </dev/null >/dev/null 2>&1 &
+  local bg_pid=$!
+  echo "$bg_pid" > "$pid_file"
+  type log_event >/dev/null 2>&1 && log_event "companion_${name}_started" null "pid=$bg_pid async=1" "started" || true
+  return 0
 }
 
 maybe_run_companions() {
@@ -152,6 +233,8 @@ maybe_run_companions() {
   export PROMOTED_LAST_CYCLE="$promoted"
 
   [[ "${DISABLE_COMPANIONS:-0}" == "1" ]] && return 0
+
+  companion_reap_stale
 
   local exhausted=0
   local remaining

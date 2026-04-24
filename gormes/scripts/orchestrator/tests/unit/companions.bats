@@ -100,3 +100,111 @@ write_companion_state() {
   run should_run_landingpage
   assert_failure
 }
+
+@test "companion_already_running reports true for live pid, false otherwise" {
+  # No pid file => not running.
+  run companion_already_running planner
+  assert_failure
+
+  # Pid file pointing at a long-running fake => running.
+  sleep 30 &
+  local live_pid=$!
+  echo "$live_pid" > "$ORCH_COMPANION_STATE_DIR/planner.pid"
+  run companion_already_running planner
+  assert_success
+
+  # Kill and test that dead pid => not running.
+  kill "$live_pid" 2>/dev/null || true
+  wait "$live_pid" 2>/dev/null || true
+  run companion_already_running planner
+  assert_failure
+
+  # Garbage pid file => not running.
+  echo "not-a-pid" > "$ORCH_COMPANION_STATE_DIR/planner.pid"
+  run companion_already_running planner
+  assert_failure
+
+  rm -f "$ORCH_COMPANION_STATE_DIR/planner.pid"
+}
+
+@test "companion_reap_stale drops dead pid files, keeps live ones" {
+  # Live pid should survive.
+  sleep 30 &
+  local live_pid=$!
+  echo "$live_pid" > "$ORCH_COMPANION_STATE_DIR/planner.pid"
+
+  # Dead pid (a very unlikely PID; force-fabricate).
+  echo "2147483646" > "$ORCH_COMPANION_STATE_DIR/doc_improver.pid"
+  # Garbage pid.
+  echo "junk" > "$ORCH_COMPANION_STATE_DIR/landingpage.pid"
+
+  run companion_reap_stale
+  assert_success
+
+  [ -f "$ORCH_COMPANION_STATE_DIR/planner.pid" ]
+  [ ! -f "$ORCH_COMPANION_STATE_DIR/doc_improver.pid" ]
+  [ ! -f "$ORCH_COMPANION_STATE_DIR/landingpage.pid" ]
+
+  kill "$live_pid" 2>/dev/null || true
+  wait "$live_pid" 2>/dev/null || true
+  rm -f "$ORCH_COMPANION_STATE_DIR/planner.pid"
+}
+
+@test "run_companion returns <1s even if companion takes 5s (async)" {
+  export GIT_ROOT="$TMP_WS"
+  local fake_dir="$TMP_WS/bin"
+  mkdir -p "$fake_dir"
+  cat > "$fake_dir/slow-planner" <<'EOF'
+#!/usr/bin/env bash
+sleep 5
+EOF
+  chmod +x "$fake_dir/slow-planner"
+  export COMPANION_PLANNER_CMD="$fake_dir/slow-planner"
+  export COMPANION_TIMEOUT_SECONDS=30
+
+  local before after delta
+  before="$(date +%s)"
+  run run_companion planner
+  after="$(date +%s)"
+  assert_success
+  delta=$(( after - before ))
+  (( delta < 3 )) || { echo "run_companion took ${delta}s (expected <3)" >&2; false; }
+
+  local pid_file="$ORCH_COMPANION_STATE_DIR/planner.pid"
+  [ -f "$pid_file" ]
+  local bg_pid
+  bg_pid="$(cat "$pid_file")"
+  [[ "$bg_pid" =~ ^[0-9]+$ ]]
+
+  # Clean up: kill the whole session so timeout + bash -c + sleep all exit.
+  if kill -0 "$bg_pid" 2>/dev/null; then
+    kill -TERM -"$bg_pid" 2>/dev/null || kill -TERM "$bg_pid" 2>/dev/null || true
+    sleep 0.2
+    kill -KILL -"$bg_pid" 2>/dev/null || kill -KILL "$bg_pid" 2>/dev/null || true
+  fi
+  rm -f "$pid_file"
+}
+
+@test "run_companion --sync runs foreground and returns rc" {
+  export GIT_ROOT="$TMP_WS"
+  local fake_dir="$TMP_WS/bin"
+  mkdir -p "$fake_dir"
+  cat > "$fake_dir/quick-planner" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "$fake_dir/quick-planner"
+  export COMPANION_PLANNER_CMD="$fake_dir/quick-planner"
+  export COMPANION_TIMEOUT_SECONDS=30
+
+  run run_companion planner --sync
+  assert_success
+
+  # No pid file should linger for sync mode.
+  [ ! -f "$ORCH_COMPANION_STATE_DIR/planner.pid" ]
+  [ -f "$ORCH_COMPANION_STATE_DIR/planner.last.json" ]
+  run jq -r '.sync' "$ORCH_COMPANION_STATE_DIR/planner.last.json"
+  assert_output "true"
+  run jq -r '.rc' "$ORCH_COMPANION_STATE_DIR/planner.last.json"
+  assert_output "0"
+}

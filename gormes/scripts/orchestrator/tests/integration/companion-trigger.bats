@@ -57,14 +57,32 @@ setup() {
   mkdir -p "$PLANNER_ROOT"
 }
 
+# Wait up to $1 seconds for marker file $2 to exist. Returns 0 if it appears,
+# 1 if it times out. Companions now run async (setsid nohup), so the
+# orchestrator exits before the marker exists on disk.
+wait_for_marker() {
+  local timeout="$1"
+  local marker="$2"
+  local waited=0
+  while (( waited < timeout )); do
+    [ -f "$marker" ] && return 0
+    sleep 1
+    waited=$(( waited + 1 ))
+  done
+  return 1
+}
+
 @test "orchestrator triggers companions after successful cycle" {
   run "$ENTRY_SCRIPT"
   # Planner fires when interval reached (every 1 cycle, no external state).
+  wait_for_marker 10 "$FAKE_COMPANION_MARKER_DIR/planner.marker"
   [ -f "$FAKE_COMPANION_MARKER_DIR/planner.marker" ]
   # Landing-page fires because N_HOURS=0 → always.
+  wait_for_marker 10 "$FAKE_COMPANION_MARKER_DIR/landingpage.marker"
   [ -f "$FAKE_COMPANION_MARKER_DIR/landingpage.marker" ]
   # Doc-improver only fires when a promotion happened this cycle.
   if [ -f "$RUN_ROOT/state/runs.jsonl" ] && grep -q 'worker_promoted' "$RUN_ROOT/state/runs.jsonl"; then
+    wait_for_marker 10 "$FAKE_COMPANION_MARKER_DIR/doc_improver.marker"
     [ -f "$FAKE_COMPANION_MARKER_DIR/doc_improver.marker" ]
   fi
 }
@@ -72,6 +90,8 @@ setup() {
 @test "DISABLE_COMPANIONS=1 blocks all companion runs" {
   export DISABLE_COMPANIONS=1
   run "$ENTRY_SCRIPT"
+  # Give any (incorrectly-fired) async companion a chance to write its marker.
+  sleep 2
   [ ! -f "$FAKE_COMPANION_MARKER_DIR/planner.marker" ]
   [ ! -f "$FAKE_COMPANION_MARKER_DIR/doc_improver.marker" ]
   [ ! -f "$FAKE_COMPANION_MARKER_DIR/landingpage.marker" ]
