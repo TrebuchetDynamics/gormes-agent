@@ -172,14 +172,33 @@ func TestRunOnceExecutesOncePerSelectedCandidate(t *testing.T) {
 	}
 }
 
-func TestRunOncePassesSelectedTaskPromptToBackend(t *testing.T) {
+func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"item_name": "prompted candidate", "status": "planned"}
+							{
+								"item_name": "prompted candidate",
+								"status": "planned",
+								"priority": "P0",
+								"contract": "Provider-neutral transcript contract",
+								"contract_status": "draft",
+								"slice_size": "medium",
+								"execution_owner": "provider",
+								"trust_class": ["system"],
+								"degraded_mode": "provider status reports missing fixtures",
+								"fixture": "captured provider transcript fixture",
+								"source_refs": ["docs/content/upstream-hermes/source-study.md"],
+								"ready_when": ["provider transcript fixtures are captured"],
+								"not_ready_when": ["live provider calls are required"],
+								"acceptance": ["provider transcript replay passes"],
+								"write_scope": ["internal/hermes/"],
+								"test_commands": ["go test ./internal/hermes -count=1"],
+								"done_signal": ["provider transcript replay passes"],
+								"note": "Use captured transcript fixtures."
+							}
 						]
 					}
 				}
@@ -217,6 +236,22 @@ func TestRunOncePassesSelectedTaskPromptToBackend(t *testing.T) {
 		"Selected task:",
 		"12 / 12.A / prompted candidate",
 		"Current status: planned",
+		"Priority: P0",
+		"Execution owner: provider",
+		"Slice size: medium",
+		"Contract: Provider-neutral transcript contract",
+		"Trust class:",
+		"- system",
+		"Allowed write scope:",
+		"- internal/hermes/",
+		"Required test commands:",
+		"- go test ./internal/hermes -count=1",
+		"Done signal:",
+		"- provider transcript replay passes",
+		"Source references:",
+		"- docs/content/upstream-hermes/source-study.md",
+		"Degraded mode: provider status reports missing fixtures",
+		"Note: Use captured transcript fixtures.",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt = %q, want %q", prompt, want)
