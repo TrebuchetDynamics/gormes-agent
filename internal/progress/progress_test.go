@@ -86,6 +86,62 @@ func TestLoad_RealFile(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_ContractMetadata(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if err := Validate(p); err != nil {
+		t.Fatalf("Validate() = %v, want nil", err)
+	}
+
+	cases := []struct {
+		phase    string
+		subphase string
+		item     string
+		contract string
+		trust    string
+	}{
+		{"1", "1.C", "Orchestrator failure-row stabilization for 4-8 workers", "Worker verification and failure-taxonomy contract", "system"},
+		{"1", "1.C", "Soft-success-nonzero bats coverage", "Soft-success nonzero recovery guard", "operator"},
+		{"2", "2.F.5", "Steer slash command registry + queue fallback", "Registry-owned active-turn steering command", "gateway"},
+		{"3", "3.E.7", "Cross-chat deny-path fixtures", "Same-chat default recall with explicit user-scope widening", "system"},
+		{"4", "4.A", "Provider interface + stream fixture harness", "Provider-neutral request and stream event transcript harness", "system"},
+		{"4", "4.A", "Tool-call normalization + continuation contract", "Cross-provider tool-call continuation contract", "system"},
+		{"4", "4.B", "ContextEngine interface + status tool contract", "Stable context engine status and compression boundary", "operator"},
+		{"4", "4.H", "Provider-side resilience", "Provider resilience umbrella over retry, cache, rate, and budget behavior", "system"},
+		{"4", "4.H", "Classified provider-error taxonomy", "Structured provider error classification contract", "system"},
+		{"5", "5.A", "Tool registry inventory + schema parity harness", "Operation and tool descriptor parity before handler ports", "child-agent"},
+		{"6", "6.C", "Portable SKILL.md format", "Reviewed skill-as-code storage format", "operator"},
+	}
+
+	for _, tc := range cases {
+		items := itemsByName(p.Phases[tc.phase].Subphases[tc.subphase].Items)
+		it := items[tc.item]
+		if it.Contract != tc.contract {
+			t.Fatalf("%s contract = %q, want %q", tc.item, it.Contract, tc.contract)
+		}
+		if it.DegradedMode == "" || it.Fixture == "" || len(it.SourceRefs) == 0 {
+			t.Fatalf("%s missing degraded_mode, fixture, or source_refs: %+v", tc.item, it)
+		}
+		if it.ContractStatus == "" || len(it.Acceptance) == 0 {
+			t.Fatalf("%s missing contract_status or acceptance: %+v", tc.item, it)
+		}
+		if !containsString(it.TrustClass, tc.trust) {
+			t.Fatalf("%s trust_class = %v, want %q", tc.item, it.TrustClass, tc.trust)
+		}
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, v := range values {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {

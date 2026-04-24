@@ -41,6 +41,242 @@ func TestValidate_RejectsBadStatus(t *testing.T) {
 	}
 }
 
+func TestValidate_RejectsBadTrustClass(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{Name: "x", Status: StatusPlanned, TrustClass: []string{"unknown"}}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "trust_class") {
+		t.Errorf("Validate() = %v, want trust_class error", err)
+	}
+}
+
+func TestValidate_RejectsBadPriority(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{Name: "x", Status: StatusPlanned, Priority: "urgent"}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "priority") {
+		t.Errorf("Validate() = %v, want priority error", err)
+	}
+}
+
+func TestValidate_RejectsBadContractStatus(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{Name: "x", Status: StatusPlanned, ContractStatus: "almost"}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "contract_status") {
+		t.Errorf("Validate() = %v, want contract_status error", err)
+	}
+}
+
+func TestValidate_RejectsBadSliceSize(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{Name: "x", Status: StatusPlanned, SliceSize: "huge"}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "slice_size") {
+		t.Errorf("Validate() = %v, want slice_size error", err)
+	}
+}
+
+func TestValidate_RejectsBadExecutionOwner(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{Name: "x", Status: StatusPlanned, ExecutionOwner: "everyone"}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "execution_owner") {
+		t.Errorf("Validate() = %v, want execution_owner error", err)
+	}
+}
+
+func TestValidate_AcceptsContractMetadata(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{
+				Name:           "x",
+				Status:         StatusPlanned,
+				Priority:       "P0",
+				Contract:       "contract",
+				ContractStatus: ContractStatusDraft,
+				SliceSize:      SliceSizeSmall,
+				ExecutionOwner: ExecutionOwnerGateway,
+				TrustClass:     []string{"operator", "gateway", "child-agent", "system"},
+				DegradedMode:   "doctor reports degraded status",
+				Fixture:        "internal/example fixtures",
+				SourceRefs:     []string{"docs/content/upstream-hermes/source-study.md"},
+				BlockedBy:      []string{"dependency"},
+				Unblocks:       []string{"downstream"},
+				ReadyWhen:      []string{"dependency is complete"},
+				NotReadyWhen:   []string{"live credentials are required"},
+				Acceptance:     []string{"fixture passes"},
+			}}},
+		}}},
+	}
+	if err := Validate(p); err != nil {
+		t.Errorf("Validate() = %v, want nil", err)
+	}
+}
+
+func TestValidate_RejectsActiveOrP0MissingContractMetadata(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{
+				{Name: "active", Status: StatusInProgress},
+				{Name: "p0", Status: StatusPlanned, Priority: "P0"},
+			}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil {
+		t.Fatalf("Validate() = nil, want metadata errors")
+	}
+	msg := err.Error()
+	for _, want := range []string{
+		"active/P0 item missing contract",
+		"active/P0 item missing contract_status",
+		"active/P0 item missing trust_class",
+		"active/P0 item missing degraded_mode",
+		"active/P0 item missing fixture",
+		"active/P0 item missing source_refs",
+		"active/P0 item missing acceptance",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error missing %q:\n%s", want, msg)
+		}
+	}
+}
+
+func TestValidate_RejectsContractRowMissingExecutionMetadata(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{
+				Name:           "contract row",
+				Status:         StatusPlanned,
+				Contract:       "contract",
+				ContractStatus: ContractStatusDraft,
+			}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil {
+		t.Fatalf("Validate() = nil, want execution metadata errors")
+	}
+	msg := err.Error()
+	for _, want := range []string{
+		"contract row missing slice_size",
+		"contract row missing execution_owner",
+		"contract row missing ready_when",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error missing %q:\n%s", want, msg)
+		}
+	}
+}
+
+func TestValidate_RejectsInProgressUmbrella(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{
+				Name:           "bad active umbrella",
+				Status:         StatusInProgress,
+				Priority:       "P1",
+				Contract:       "contract",
+				ContractStatus: ContractStatusDraft,
+				SliceSize:      SliceSizeUmbrella,
+				ExecutionOwner: ExecutionOwnerTools,
+				TrustClass:     []string{"system"},
+				DegradedMode:   "visible",
+				Fixture:        "internal/tools fixtures",
+				SourceRefs:     []string{"docs/content/building-gormes/progress-schema.md"},
+				ReadyWhen:      []string{"split first"},
+				NotReadyWhen:   []string{"still broad"},
+				Acceptance:     []string{"split"},
+			}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "in_progress item cannot have slice_size") {
+		t.Errorf("Validate() = %v, want in_progress umbrella error", err)
+	}
+}
+
+func TestValidate_RejectsBlockedWithoutReadyWhen(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{Name: "blocked", Status: StatusPlanned, BlockedBy: []string{"x"}}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "blocked item missing ready_when") {
+		t.Errorf("Validate() = %v, want blocked ready_when error", err)
+	}
+}
+
+func TestValidate_RejectsFixtureReadyWithoutConcreteFixture(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{
+				Name:           "fixture ready",
+				Status:         StatusPlanned,
+				Contract:       "contract",
+				ContractStatus: ContractStatusFixtureReady,
+				SliceSize:      SliceSizeSmall,
+				ExecutionOwner: ExecutionOwnerProvider,
+				ReadyWhen:      []string{"ready"},
+				Fixture:        "fixtures",
+			}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "fixture_ready item needs concrete fixture") {
+		t.Errorf("Validate() = %v, want concrete fixture error", err)
+	}
+}
+
+func TestValidate_RejectsCompleteContractWithoutValidatedStatus(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{{
+				Name:           "complete",
+				Status:         StatusComplete,
+				Contract:       "contract",
+				ContractStatus: ContractStatusDraft,
+				SliceSize:      SliceSizeSmall,
+				ExecutionOwner: ExecutionOwnerProvider,
+				ReadyWhen:      []string{"ready"},
+			}}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "complete contract row must use contract_status") {
+		t.Errorf("Validate() = %v, want complete validated error", err)
+	}
+}
+
 func TestValidate_RejectsBothItemsAndStatus(t *testing.T) {
 	p := &Progress{
 		Meta: Meta{Version: "2.0"},

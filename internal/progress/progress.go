@@ -17,6 +17,36 @@ const (
 	StatusPlanned    Status = "planned"
 )
 
+type ContractStatus string
+
+const (
+	ContractStatusMissing      ContractStatus = "missing"
+	ContractStatusDraft        ContractStatus = "draft"
+	ContractStatusFixtureReady ContractStatus = "fixture_ready"
+	ContractStatusValidated    ContractStatus = "validated"
+)
+
+type SliceSize string
+
+const (
+	SliceSizeSmall    SliceSize = "small"
+	SliceSizeMedium   SliceSize = "medium"
+	SliceSizeLarge    SliceSize = "large"
+	SliceSizeUmbrella SliceSize = "umbrella"
+)
+
+type ExecutionOwner string
+
+const (
+	ExecutionOwnerDocs         ExecutionOwner = "docs"
+	ExecutionOwnerGateway      ExecutionOwner = "gateway"
+	ExecutionOwnerMemory       ExecutionOwner = "memory"
+	ExecutionOwnerProvider     ExecutionOwner = "provider"
+	ExecutionOwnerTools        ExecutionOwner = "tools"
+	ExecutionOwnerSkills       ExecutionOwner = "skills"
+	ExecutionOwnerOrchestrator ExecutionOwner = "orchestrator"
+)
+
 type Meta struct {
 	Version     string            `json:"version"`
 	LastUpdated string            `json:"last_updated"`
@@ -24,8 +54,24 @@ type Meta struct {
 }
 
 type Item struct {
-	Name   string `json:"name"`
-	Status Status `json:"status"`
+	Name     string `json:"name"`
+	Status   Status `json:"status"`
+	Priority string `json:"priority,omitempty"`
+	// Optional contract metadata turns roadmap rows into executable architecture
+	// requirements without forcing every historical item to be rewritten at once.
+	Contract       string         `json:"contract,omitempty"`
+	ContractStatus ContractStatus `json:"contract_status,omitempty"`
+	SliceSize      SliceSize      `json:"slice_size,omitempty"`
+	ExecutionOwner ExecutionOwner `json:"execution_owner,omitempty"`
+	TrustClass     []string       `json:"trust_class,omitempty"`
+	DegradedMode   string         `json:"degraded_mode,omitempty"`
+	Fixture        string         `json:"fixture,omitempty"`
+	SourceRefs     []string       `json:"source_refs,omitempty"`
+	BlockedBy      []string       `json:"blocked_by,omitempty"`
+	Unblocks       []string       `json:"unblocks,omitempty"`
+	ReadyWhen      []string       `json:"ready_when,omitempty"`
+	NotReadyWhen   []string       `json:"not_ready_when,omitempty"`
+	Acceptance     []string       `json:"acceptance,omitempty"`
 	// Optional, reserved, not rendered yet.
 	PR    string `json:"pr,omitempty"`
 	Owner string `json:"owner,omitempty"`
