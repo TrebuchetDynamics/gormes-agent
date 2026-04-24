@@ -20,12 +20,12 @@ weight: 10
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 27/71 subphases shipped · 11 in progress · 33 planned
+**Overall:** 28/71 subphases shipped · 11 in progress · 32 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | 🔨 | 2/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 13/23 subphases |
+| Phase 2 — The Gateway | 🔨 | 14/23 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
@@ -171,9 +171,9 @@ weight: 10
 - [x] Tool-call audit in typed child results
 - [x] Real child Hermes stream loop
 
-### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ⏳
+### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ✅
 
-- [ ] Interrupt propagation to concurrent-tool workers
+- [x] Interrupt propagation to concurrent-tool workers
 
 ### 2.F.1 — Slash Command Registry + Gateway Dispatch ✅
 

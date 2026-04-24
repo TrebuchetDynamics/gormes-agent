@@ -474,8 +474,8 @@
           "items": [
             {
               "name": "Interrupt propagation to concurrent-tool workers",
-              "status": "planned",
-              "note": "TDD: port upstream PR #11907 (interrupt propagation to concurrent-tool workers) as a kernel-side cancellation contract that covers parallel tool_calls fan-out, sidecar sandbox jobs, and delegated subagent children. Freeze the seam with fixture-backed concurrent-tool tests that prove one interrupt cancels every in-flight worker and returns a single coherent cancel envelope before parallel-tool execution or 2.F.5 mid-run steering land on top."
+              "status": "complete",
+              "note": "TDD landed: `internal/kernel.executeToolCallsConcurrent` (see `internal/kernel/toolexec_concurrent.go`) runs parallel tool_calls with bounded concurrency, preserves input order, and propagates one parent-context cancel to every in-flight and queued worker. The shared `cancelEnvelope = {\"error\":\"cancelled\",\"reason\":\"parent_cancelled\"}` freezes a single coherent cancel envelope that parallel tool_calls fan-out, sidecar sandbox jobs, and delegated subagent children will all share. Fixture-backed tests (`internal/kernel/toolexec_concurrent_test.go`) prove (a) N concurrent workers all observe ctx.Done within <500ms of cancel, (b) the returned slice preserves order and carries the coherent envelope for every cancelled call, (c) audit records carry status=\"cancelled\" per call, and (d) a pre-cancelled parent ctx short-circuits queued workers with the same envelope. The existing sequential `executeToolCalls` path is untouched so no wire-format regression lands before upstream PR #11907's parallel-tool execution or 2.F.5 mid-run steering wire this seam in."
             }
           ]
         },
