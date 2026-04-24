@@ -31,6 +31,7 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 	}
 
 	var candidates []Candidate
+	seen := make(map[string]struct{})
 	for _, phase := range progress.Phases {
 		for _, subphase := range phase.allSubphases() {
 			for _, item := range subphase.Items {
@@ -40,16 +41,26 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 				}
 
 				status := strings.ToLower(strings.TrimSpace(item.Status))
+				if status == "" {
+					status = "unknown"
+				}
 				if status == "complete" {
 					continue
 				}
 
-				candidates = append(candidates, Candidate{
+				candidate := Candidate{
 					PhaseID:    strings.TrimSpace(phase.ID),
 					SubphaseID: strings.TrimSpace(subphase.ID),
 					ItemName:   name,
 					Status:     status,
-				})
+				}
+				seenKey := candidateSortKey(candidate)
+				if _, ok := seen[seenKey]; ok {
+					continue
+				}
+				seen[seenKey] = struct{}{}
+
+				candidates = append(candidates, candidate)
 			}
 		}
 	}
@@ -80,21 +91,67 @@ func firstNonEmpty(vals ...string) string {
 }
 
 type progressJSON struct {
-	Phases []progressPhase `json:"phases"`
+	Phases progressPhases `json:"phases"`
+}
+
+type progressPhases []progressPhase
+
+func (phases *progressPhases) UnmarshalJSON(data []byte) error {
+	var keyed map[string]progressPhase
+	if err := json.Unmarshal(data, &keyed); err == nil {
+		*phases = make([]progressPhase, 0, len(keyed))
+		for id, phase := range keyed {
+			phase.ID = firstNonEmpty(id, phase.ID)
+			*phases = append(*phases, phase)
+		}
+
+		return nil
+	}
+
+	var listed []progressPhase
+	if err := json.Unmarshal(data, &listed); err != nil {
+		return err
+	}
+	*phases = listed
+
+	return nil
 }
 
 type progressPhase struct {
-	ID        string             `json:"id"`
-	Subphases []progressSubphase `json:"subphases"`
-	SubPhases []progressSubphase `json:"sub_phases"`
+	ID        string            `json:"id"`
+	Subphases progressSubphases `json:"subphases"`
+	SubPhases progressSubphases `json:"sub_phases"`
 }
 
 func (phase progressPhase) allSubphases() []progressSubphase {
-	if len(phase.SubPhases) == 0 {
+	if len(phase.Subphases) > 0 {
 		return phase.Subphases
 	}
 
-	return append(append([]progressSubphase{}, phase.Subphases...), phase.SubPhases...)
+	return phase.SubPhases
+}
+
+type progressSubphases []progressSubphase
+
+func (subphases *progressSubphases) UnmarshalJSON(data []byte) error {
+	var keyed map[string]progressSubphase
+	if err := json.Unmarshal(data, &keyed); err == nil {
+		*subphases = make([]progressSubphase, 0, len(keyed))
+		for id, subphase := range keyed {
+			subphase.ID = firstNonEmpty(id, subphase.ID)
+			*subphases = append(*subphases, subphase)
+		}
+
+		return nil
+	}
+
+	var listed []progressSubphase
+	if err := json.Unmarshal(data, &listed); err != nil {
+		return err
+	}
+	*subphases = listed
+
+	return nil
 }
 
 type progressSubphase struct {
@@ -124,7 +181,7 @@ func priorityBoostSet(boosts []string) map[string]struct{} {
 
 func candidateRank(candidate Candidate, activeFirst bool, boosts map[string]struct{}) int {
 	rank := 0
-	if _, ok := boosts[strings.ToLower(strings.TrimSpace(candidate.PhaseID)+"."+strings.TrimSpace(candidate.SubphaseID))]; !ok {
+	if _, ok := boosts[strings.ToLower(strings.TrimSpace(candidate.SubphaseID))]; !ok {
 		rank += 10
 	}
 
