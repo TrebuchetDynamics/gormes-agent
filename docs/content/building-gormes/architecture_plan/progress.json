@@ -389,9 +389,9 @@
             },
             {
               "name": "WhatsApp outbound pairing gate + raw peer mapping",
-              "status": "planned",
+              "status": "complete",
               "contract": "WhatsApp outbound sends are gated by pairing state and map normalized gateway chat IDs back to bridge/native raw peers",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -420,7 +420,7 @@
                 "Bridge and native raw DM/group peer IDs are reconstructed from the normalized gateway chat/session handle.",
                 "Reply metadata from the originating inbound event is preserved in the outbound send request."
               ],
-              "note": "TDD: land only the transport-neutral pairing/send gate. Use fakes for bridge/native senders and prove normalized gateway targets map back to raw WhatsApp peers without starting a live transport.",
+              "note": "Complete: TDD landed a transport-neutral WhatsApp gateway channel send gate. internal/channels/whatsapp/send_contract_test.go proves unpaired and unresolved outbound targets return degraded status without touching the fake sender, while paired bridge DM and native group sends reconstruct raw WhatsApp peers from normalized gateway chat IDs and preserve inbound reply message metadata.",
               "write_scope": [
                 "internal/channels/whatsapp/",
                 "internal/gateway/",
