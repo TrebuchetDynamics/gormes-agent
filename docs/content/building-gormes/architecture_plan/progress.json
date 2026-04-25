@@ -505,9 +505,9 @@
             },
             {
               "name": "Slack gateway.Channel adapter shim",
-              "status": "planned",
+              "status": "complete",
               "contract": "Slack Socket Mode can run under the shared gateway.Manager through a narrow gateway.Channel shim without replacing the existing Slack client or reply fixtures",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -538,7 +538,7 @@
                 "Send posts plain text to the correct Slack channel/thread and returns the Slack timestamp as msgID without opening a real Slack connection in tests.",
                 "Existing internal/slack bot/coalescing tests stay green, proving the shim did not rewrite the current standalone behavior."
               ],
-              "note": "TDD: adapt internal/slack onto the gateway.Channel interface and Manager lifecycle without rewriting the existing Socket Mode client or coalesced reply tests.",
+              "note": "TDD landed: internal/slack.Channel implements gateway.Channel on the existing Slack Client seam, translates Slack events into gateway.InboundEvent for Manager ingress, posts sends through Slack channel/thread timestamps, and preserves standalone Slack bot parser/coalescing behavior.",
               "write_scope": [
                 "internal/slack/",
                 "internal/gateway/",
