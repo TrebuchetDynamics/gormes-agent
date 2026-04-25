@@ -37,12 +37,12 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 30/74 subphases shipped · 18 in progress · 26 planned
+**Overall:** 31/74 subphases shipped · 18 in progress · 25 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 3/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 12/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 13/20 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 12/14 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
@@ -103,14 +103,14 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Slack gateway.Channel adapter shim
 - [ ] Slack config + cmd/gormes gateway registration
 
-### 2.B.4 — WhatsApp Adapter 🔨
+### 2.B.4 — WhatsApp Adapter ✅
 
 - [x] Bridge-vs-native runtime decision
 - [x] WhatsApp identity resolution + self-chat guard
 - [x] Inbound normalization + command passthrough
-- [ ] Pairing, reconnect, and send contract
-- [ ] WhatsApp outbound pairing gate + raw peer mapping
-- [ ] WhatsApp reconnect backoff + send retry policy
+- [x] Pairing, reconnect, and send contract
+- [x] WhatsApp outbound pairing gate + raw peer mapping
+- [x] WhatsApp reconnect backoff + send retry policy
 
 ### 2.B.5 — Session Context + Delivery Routing 🔨
 
@@ -163,10 +163,12 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Interrupt propagation to concurrent-tool workers
 
-### 2.E.3 — OS-AI Spine: Durable Job Resilience ⏳
+### 2.E.3 — OS-AI Spine: Durable Job Resilience 🔨
 
-- [ ] Durable job backpressure + timeout audit
-- [ ] Durable worker supervisor status seam
+- [x] Durable job backpressure + timeout audit
+- [x] Durable worker supervisor status seam
+- [ ] Durable pause/resume intent contract
+- [ ] Durable replay and inbox message contract
 
 ### 2.F.1 — Slash Command Registry + Gateway Dispatch ✅
 
@@ -292,6 +294,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Interrupted-turn memory sync suppression
 - [x] Honcho-compatible scope/source tool schema
 - [x] Honcho host integration compatibility fixtures
+- [ ] SillyTavern persona and group-chat mapping fixtures
 - [x] Cross-chat deny-path fixtures
 - [ ] Cross-chat operator evidence
 
@@ -509,7 +512,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
 - [ ] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
-- [ ] TUI mouse tracking config + slash toggle
+- [x] TUI mouse tracking config + slash toggle
 - [ ] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [x] Responses API store + run event stream

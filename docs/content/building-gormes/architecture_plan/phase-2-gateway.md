@@ -17,7 +17,7 @@ weight: 30
 | Phase 2.B.1 — Telegram Scout | ✅ complete | P1 | Telegram adapter over the existing kernel, long-poll ingress, edit coalescing at the messaging edge |
 | Phase 2.B.2 — Gateway Chassis + Discord | ✅ complete | P1 | Shared gateway manager, Telegram migrated onto the chassis, `gormes gateway` multi-channel entrypoint, and Discord as the second real adapter |
 | Phase 2.B.3 — Slack on Shared Chassis | 🔨 in progress | P1 | `internal/slack` has a Socket Mode bot, threaded reply flow, and placeholder updates; the remaining work is now split into CommandRegistry parser wiring, a `gateway.Channel` shim, then config/doctor/`cmd/gormes gateway` registration |
-| Phase 2.B.4 — WhatsApp Adapter | 🔨 in progress | P1 | Transport-neutral ingress normalization, command passthrough, and bridge-vs-native runtime selection are landed in `internal/channels/whatsapp`; identity resolution/self-chat guards plus pairing/reconnect/send lifecycle still remain |
+| Phase 2.B.4 — WhatsApp Adapter | ✅ complete | P1 | Transport-neutral runtime selection, ingress normalization, command passthrough, identity/self-chat guards, outbound pairing gates, raw peer mapping, and bounded reconnect/send retry contracts are fixture-locked in `internal/channels/whatsapp`; live bridge/native transport startup and QR UX belong in new follow-up rows rather than the closed 2.B.4 umbrella |
 | Phase 2.B.5 — Session Context + Delivery Routing | 🔨 in progress | P1 | Session-store handle resolution, baseline SessionContext prompt injection, typed `--deliver` parsing, and deterministic gateway stream fan-out now live together in `internal/gateway`; BlueBubbles/iMessage prompt guidance and non-editable progress/commentary fallback fixtures remain narrow follow-up slices |
 | Phase 2.B.10 — WeChat Adapter | ✅ complete | P1 | WeCom/WeiXin shared-bot ingress, reply-path contracts, WebSocket/callback bootstrap, credential validation, and outbound push/reply lifecycle seams are landed |
 | Phase 2.B.11 — Discord Forum Channels | 🔨 in progress | P3 | Forum-channel detection, parent-forum ingress routing, canonical thread IDs, and thread lifecycle gateway events are landed; media + outbound polish remains planned |
@@ -93,8 +93,8 @@ Phase 2 is no longer just "ship more adapters." The backlog is now dominated by 
    Add `gormes gateway status` as a read-only view over configured channels plus pairing/runtime state, port runtime-status JSON/PID validation, then add token-scoped credential locks and `/restart` takeover/dedup markers before threading live lifecycle updates into that model.
 6. **P3 — 2.F.4 Home Channel + Operator Surfaces**
    Keep this decomposed: home-channel ownership rules, notify-to delivery routing, manager remember-source, channel-directory persistence/lookup, refresh/stale-target invalidation, then mirror/sticker-cache surfaces.
-7. **P1 — 2.B.4 WhatsApp runtime closeout**
-   `NormalizeInbound` and `DecideRuntime` are landed; the next slices are WhatsApp identity resolution/self-chat guards followed by the pairing/reconnect/send contract on top of those ingress and startup seams.
+7. **P1 — closed 2.B.4 WhatsApp contract closeout**
+   `NormalizeInbound`, `DecideRuntime`, identity/self-chat guards, outbound pairing gates, raw peer mapping, and reconnect/send retry contracts are landed. Do not reopen the umbrella row for live bridge/native startup or QR UX; add a new small Phase 7/backlog row with explicit transport scope if upstream drift requires it.
 8. **P7 — paused channel backlog**
    Signal, Email/SMS, Matrix/Mattermost, Webhook, BlueBubbles/HomeAssistant, Feishu, DingTalk, and QQ stay in Phase 7 until Telegram, Discord, Slack, WhatsApp, and WeChat are stable. Keep the backlog split into platform seams before client/bootstrap code: Signal transport, Matrix/Mattermost bot seams and clients, Feishu transport plus Drive-comment rules/replies, DingTalk real SDK binding, and QQ transport/bootstrap.
 

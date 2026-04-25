@@ -502,7 +502,7 @@ func TestPhase3IdentityLineageExecutionPlanIsLinkedAndSequenced(t *testing.T) {
 	phase3 := readDoc(t, "content/building-gormes/architecture_plan/phase-3-memory.md")
 	for _, want := range []string{
 		"2026-04-22-gormes-phase3-identity-lineage-execution-plan",
-		"3.E.7 schema exposure -> 3.E.7 deny-path fixtures -> 3.E.7 operator evidence -> 3.E.8 parent_session_id -> 3.E.8 lineage-aware hits/evidence",
+		"3.E.7 SillyTavern persona/group-chat mapping fixtures -> 3.E.7 operator evidence -> 3.E.8 parent_session_id -> 3.E.8 lineage-aware hits/evidence",
 	} {
 		if !strings.Contains(phase3, want) {
 			t.Fatalf("phase-3-memory doc is missing %q", want)

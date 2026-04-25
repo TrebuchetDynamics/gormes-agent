@@ -23,17 +23,17 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 
 - **Shipped visibility spine** (3.E.1–3.E.5) — session index mirror, tool audit, transcript export, memory status, and daily insights logging are landed.
 - **`last_seen` closeout** (3.E.6) — shipped: schema v3g backfills `relationships.last_seen`, repeated relationship observations advance it without rewriting legacy `updated_at`, and recall attenuation uses `COALESCE(NULLIF(last_seen, 0), updated_at)`.
-- **Cross-chat identity closeout** (3.E.7) — GONCHO identity hierarchy is `user_id > chat_id > session_id`; `internal/session` persists canonical chat-to-user bindings, and `internal/memory` now has the same-chat default fence plus opt-in canonical user/source-filtered recall. The internal GONCHO service accepts those parameters, but Honcho-compatible tool schema exposure plus deny-path fixtures and operator evidence still remain.
+- **Cross-chat identity closeout** (3.E.7) — GONCHO identity hierarchy is `user_id > chat_id > session_id`; `internal/session` persists canonical chat-to-user bindings, and `internal/memory`, `internal/goncho`, and `internal/gonchotools` now cover same-chat default fencing, opt-in canonical user/source-filtered recall, Honcho-compatible schemas, deny paths, and baseline host mappings. The remaining gates are SillyTavern persona/group-chat mapping fixtures and operator-readable evidence.
 - **Session lineage + cross-source search closeout** (3.E.8) — source-filtered search spans one canonical `user_id` across chats inside `internal/memory` and the internal GONCHO service; `parent_session_id`, lineage-aware hits, and operator-auditable search evidence still remain.
 
 ## Identity + lineage contract
 
 - **GONCHO identity hierarchy** — `user_id > chat_id > session_id`.
 - **Recall fence** — same-chat by default; opt-in cross-chat only when a canonical `user_id` resolves.
-- **Tool boundary** — `honcho_search` and `honcho_context` unmarshal `scope` / `sources` today through the internal service types, but their schemas do not advertise those fields yet.
+- **Tool boundary** — `honcho_search` and `honcho_context` preserve the external Honcho-compatible tool names and now advertise `scope` / `sources` while the implementation stays in the internal `goncho` package.
 - **Lineage rule** — `parent_session_id` is append-only metadata on descendants, not a rewrite of ancestor history.
 - **Implementation plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-plan.md`.
-- **Execution plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`; closeout order is `3.E.6.1 -> 3.E.7.2 -> 3.E.8.1 -> 3.E.8.2`.
+- **Execution plan** — `docs/superpowers/plans/2026-04-22-gormes-phase3-identity-lineage-execution-plan.md`; remaining closeout order is SillyTavern mapping, cross-chat operator evidence, then 3.E.8 lineage.
 
 ## Why this is not just "chat logs"
 

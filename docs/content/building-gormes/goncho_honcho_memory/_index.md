@@ -659,7 +659,7 @@ As of 2026-04-24 the scaffolding Goncho stands on is mostly built. Summaries bel
 4. `honcho_reasoning` — deterministic synthesis from context.
 5. `honcho_conclude` — create/delete manual conclusions.
 
-All are 5s-timeout-gated, JSON-marshaled, with hardcoded schemas. **The `scope` and `sources` params exist on the service but are not yet advertised in the tool schemas** — that's the Phase 3.E.7 closeout gate.
+All are 5s-timeout-gated, JSON-marshaled, with hardcoded schemas. `honcho_search` and `honcho_context` now advertise `scope` and `sources`; the remaining Phase 3.E.7 closeout gates are SillyTavern-specific persona/group-chat mapping fixtures and operator-readable cross-chat evidence.
 
 ### 12.5 LLM pipeline (`internal/hermes/` + `internal/kernel/`)
 

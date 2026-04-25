@@ -350,8 +350,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if whatsApp.Priority != "P1" {
 		t.Fatalf("Phase 2.B.4 priority = %q, want P1", whatsApp.Priority)
 	}
-	if got := whatsApp.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.4 = %q, want in_progress", got)
+	if got := whatsApp.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.4 = %q, want complete", got)
 	}
 	whatsAppItems := itemsByName(whatsApp.Items)
 	decision := whatsAppItems["Bridge-vs-native runtime decision"]
@@ -369,11 +369,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.B.4 inbound normalization note = %q, want NormalizeInbound/ParseInboundText detail", inbound.Note)
 	}
 	whatsAppPairing := whatsAppItems["Pairing, reconnect, and send contract"]
-	if whatsAppPairing.Status != StatusPlanned {
-		t.Fatalf("Phase 2.B.4 pairing/reconnect/send status = %q, want planned", whatsAppPairing.Status)
+	if whatsAppPairing.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.4 pairing/reconnect/send status = %q, want complete", whatsAppPairing.Status)
 	}
-	if !strings.Contains(whatsAppPairing.Note, "pairing state") || !strings.Contains(whatsAppPairing.Note, "reconnects") {
-		t.Fatalf("Phase 2.B.4 pairing/reconnect/send note = %q, want pairing-state/reconnect detail", whatsAppPairing.Note)
+	if !strings.Contains(whatsAppPairing.Note, "split rows") || !strings.Contains(whatsAppPairing.Note, "validated complete") || !strings.Contains(whatsAppPairing.Note, "remaining WhatsApp drift") {
+		t.Fatalf("Phase 2.B.4 pairing/reconnect/send note = %q, want split-row closeout detail", whatsAppPairing.Note)
 	}
 
 	weChat := p.Phases["2"].Subphases["2.B.10"]

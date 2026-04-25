@@ -5,11 +5,11 @@ weight: 40
 
 # WhatsApp
 
-WhatsApp is partially ported for Phase 2.B.4, but PicoClaw actually offers two distinct donors: a bridge-based adapter and an optional build-tagged native adapter. A future Gormes porter needs to treat those as different decisions, not one blended implementation.
+WhatsApp's Phase 2.B.4 contract surface is now fixture-locked, but PicoClaw still offers two distinct donors for future live transport work: a bridge-based adapter and an optional build-tagged native adapter. A future Gormes porter needs to treat those as different decisions, not one blended implementation.
 
 ## Status
 
-Gormes does not yet ship a runnable WhatsApp adapter. The current Go surface has a transport-neutral `internal/channels/whatsapp.NormalizeInbound` contract that normalizes direct/group peer IDs and passes generic slash commands through `gateway.ParseInboundText`, plus `internal/channels/whatsapp.DecideRuntime` for bridge-vs-native startup selection, session-path ownership, and bot/self-chat policy. Pairing, reconnect, and outbound send lifecycle are still planned. The upstream Hermes docs currently describe a built-in Baileys bridge flow, while PicoClaw supports:
+Gormes does not yet ship a runnable WhatsApp adapter, bridge process, or QR pairing UX. The current Go surface has transport-neutral `internal/channels/whatsapp` contracts for `NormalizeInbound`, `DecideRuntime`, bot identity/self-chat suppression, outbound pairing gates, raw peer mapping, and bounded reconnect/send retry behavior. The upstream Hermes docs currently describe a built-in Baileys bridge flow, while PicoClaw supports:
 
 Evidence level:
 
@@ -17,7 +17,7 @@ Evidence level:
 - The donor commit inspected for this research was `6421f146a99df1bebcd4b1ca8de2a289dfca3622`.
 - The upstream donor repo is `https://github.com/sipeed/picoclaw`.
 - Any `pkg/...` or `docs/...` path listed below is relative to that donor root, not relative to the Gormes repo.
-- Current Gormes status and operator-facing behavior were verified in-tree against `internal/channels/whatsapp/inbound.go`, `internal/channels/whatsapp/inbound_test.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `docs/content/upstream-hermes/user-guide/messaging/whatsapp.md`.
+- Current Gormes status and operator-facing behavior were verified in-tree against `internal/channels/whatsapp/inbound.go`, `internal/channels/whatsapp/inbound_test.go`, `internal/channels/whatsapp/send_contract_test.go`, `internal/channels/whatsapp/reconnect_contract_test.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, and `docs/content/upstream-hermes/user-guide/messaging/whatsapp.md`.
 
 - a thin bridge-based WebSocket adapter in `picoclaw/pkg/channels/whatsapp/whatsapp.go`
 - an optional in-process `whatsmeow` adapter in `picoclaw/pkg/channels/whatsapp_native/whatsapp_native.go`, compiled behind the `whatsapp_native` build tag
@@ -87,10 +87,11 @@ Rebuild in Gormes-native form:
 
 ## Port Order Recommendation
 
-1. Decide whether Gormes wants bridge-first or native-first ownership and freeze that in a runtime-selection contract.
-2. Keep the existing `NormalizeInbound` command-passthrough tests as the invariant for both runtime paths.
-3. If bridge-first, port only the thin adapter ideas from `picoclaw/pkg/channels/whatsapp/whatsapp.go` and keep the bridge contract explicitly external.
-4. If native-first, port lifecycle pieces from `picoclaw/pkg/channels/whatsapp_native/whatsapp_native.go` before worrying about parity extras.
+1. Treat the 2.B.4 runtime-selection, normalization, identity, send-gate, and reconnect contracts as closed baseline behavior.
+2. Add a new small row before implementing any live bridge/native startup, QR pairing UX, or long-running transport process.
+3. Keep the existing `NormalizeInbound` command-passthrough tests as the invariant for both runtime paths.
+4. If bridge-first, port only the thin adapter ideas from `picoclaw/pkg/channels/whatsapp/whatsapp.go` and keep the bridge contract explicitly external.
+5. If native-first, port lifecycle pieces from `picoclaw/pkg/channels/whatsapp_native/whatsapp_native.go` before worrying about parity extras.
 5. Treat build-tag strategy as a product and release decision, not an automatic code reuse choice.
 
 ## Code References

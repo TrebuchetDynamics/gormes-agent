@@ -154,7 +154,7 @@ type Subagent struct {
 
 **Why third:** Telegram proves the pattern. Scale first to Discord, Slack, WhatsApp, and WeChat. Platform breadth matters for adoption, but it doesn't differentiate architecturally, so the remaining channels are paused into Phase 7.
 
-**Status:** 🔨 Shared gateway chassis + `gormes gateway` landed; Telegram (2.B.1) and Discord (2.B.2) are shipped. Slack has a private Socket Mode bot but still needs shared runtime registration, WhatsApp has ingress normalization, and WeChat has WeCom/WeiXin shared-bot seams before real transports.
+**Status:** 🔨 Shared gateway chassis + `gormes gateway` landed; Telegram (2.B.1), Discord (2.B.2), and the WhatsApp 2.B.4 transport-neutral contract surface are shipped. Slack has a private Socket Mode bot but still needs shared runtime registration, while WeChat has WeCom/WeiXin shared-bot seams before real transports.
 
 ---
 
