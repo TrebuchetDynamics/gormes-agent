@@ -64,36 +64,22 @@ func gitHeadSha(repoRoot string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func gitWorkingTreeDirty(repoRoot string) (bool, error) {
-	cmd := exec.Command("git", "-C", repoRoot, "status", "--porcelain")
+func gitChangedPaths(repoRoot, baseCommit, headCommit string) ([]string, error) {
+	cmd := exec.Command("git", "-C", repoRoot, "diff", "--name-only", "-z", baseCommit, headCommit)
 	out, err := cmd.Output()
 	if err != nil {
-		return false, fmt.Errorf("git status --porcelain: %w", err)
+		return nil, fmt.Errorf("git diff --name-only %s %s: %w", baseCommit, headCommit, err)
 	}
-	return strings.TrimSpace(string(out)) != "", nil
-}
 
-func gitCommitAll(repoRoot, message string) error {
-	if out, err := exec.Command("git", "-C", repoRoot, "add", "-A").CombinedOutput(); err != nil {
-		return fmt.Errorf("git add -A: %w: %s", err, strings.TrimSpace(string(out)))
+	var paths []string
+	for _, path := range strings.Split(string(out), "\x00") {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		paths = append(paths, path)
 	}
-	cmd := exec.Command("git", "-C", repoRoot, "commit", "-m", message)
-	cmd.Env = append(os.Environ(),
-		"GIT_AUTHOR_NAME=gormes-autoloop",
-		"GIT_AUTHOR_EMAIL=autoloop@gormes.local",
-		"GIT_COMMITTER_NAME=gormes-autoloop",
-		"GIT_COMMITTER_EMAIL=autoloop@gormes.local",
-	)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("git commit: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-func gitCleanupAfterFailure(repoRoot string) {
-	_ = exec.Command("git", "-C", repoRoot, "merge", "--abort").Run()
-	_ = exec.Command("git", "-C", repoRoot, "reset", "--hard").Run()
-	_ = exec.Command("git", "-C", repoRoot, "clean", "-fd").Run()
+	return paths, nil
 }
 
 func sanitizeBranchSegment(value string) string {

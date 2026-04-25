@@ -584,6 +584,84 @@ func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 	}
 }
 
+func TestRunOnceFailsWhenWorkerCommitsOutsideWriteScope(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"12": {
+				"subphases": {
+					"12.A": {
+						"items": [
+							{
+								"item_name": "scope leaking worker",
+								"status": "planned",
+								"contract": "scope contract",
+								"contract_status": "draft",
+								"write_scope": ["allowed/"]
+							}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	runRoot := t.TempDir()
+	runner := runnerFunc(func(_ context.Context, command Command) Result {
+		switch command.Name {
+		case "opencode":
+			outsidePath := filepath.Join(repoRoot, "outside", "scope.txt")
+			if err := os.MkdirAll(filepath.Dir(outsidePath), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(outsidePath, []byte("scope leak\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			runGitCommand(t, repoRoot, "add", "outside/scope.txt")
+			runGitCommand(t, repoRoot, "commit", "-m", "scope leak")
+			return Result{}
+		case "git", "gh":
+			return Result{}
+		default:
+			return Result{Err: ErrUnexpectedCommand}
+		}
+	})
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     repoRoot,
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "opencode",
+			Mode:         "safe",
+			MaxAgents:    1,
+		},
+		Runner: runner,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want write scope violation")
+	}
+	if !strings.Contains(err.Error(), "outside declared write scope") {
+		t.Fatalf("RunOnce() error = %q, want write scope violation context", err)
+	}
+	if !strings.Contains(err.Error(), "outside/scope.txt") {
+		t.Fatalf("RunOnce() error = %q, want changed path in error", err)
+	}
+	if current := mustGitCurrentBranch(t, repoRoot); current != "master" {
+		t.Fatalf("current branch = %q, want master restored", current)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	var got []string
+	for _, event := range events {
+		got = append(got, event.Event+":"+event.Status)
+	}
+	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:write_scope_violation"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+}
+
 func TestRunOnceFailsWhenWorkerLeavesWorkerBranch(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
@@ -739,6 +817,16 @@ func runGitCommand(t *testing.T, repoRoot string, args ...string) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, output)
 	}
+}
+
+func mustGitCurrentBranch(t *testing.T, repoRoot string) string {
+	t.Helper()
+
+	out, err := exec.Command("git", "-C", repoRoot, "branch", "--show-current").Output()
+	if err != nil {
+		t.Fatalf("git branch --show-current failed: %v", err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func readLedgerEvents(t *testing.T, path string) []LedgerEvent {

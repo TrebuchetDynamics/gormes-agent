@@ -201,6 +201,23 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 				return RunSummary{}, err
 			}
 			if commitSha != workerBaseCommit {
+				if err := ensureChangedPathsWithinWriteScope(opts.Config.RepoRoot, workerBaseCommit, commitSha, candidate); err != nil {
+					if ledgerErr := appendRunLedgerEvent(opts.Config, LedgerEvent{
+						TS:     time.Now().UTC(),
+						RunID:  runID,
+						Event:  "worker_failed",
+						Worker: workerID,
+						Task:   task,
+						Branch: workerBranch,
+						Commit: commitSha,
+						Status: "write_scope_violation",
+						Detail: err.Error(),
+					}); ledgerErr != nil {
+						return RunSummary{}, ledgerErr
+					}
+					restoreBranchIfClean(opts.Config.RepoRoot, baseBranch)
+					return RunSummary{}, err
+				}
 				if err := gitRestoreBranch(opts.Config.RepoRoot, baseBranch); err != nil {
 					return RunSummary{}, err
 				}
@@ -381,6 +398,58 @@ func ensureCurrentBranch(repoRoot string, expected string) error {
 		return fmt.Errorf("worker branch changed: current %s, want %s", current, expected)
 	}
 	return nil
+}
+
+func ensureChangedPathsWithinWriteScope(repoRoot string, baseCommit string, headCommit string, candidate Candidate) error {
+	paths, err := gitChangedPaths(repoRoot, baseCommit, headCommit)
+	if err != nil {
+		return err
+	}
+
+	var violations []string
+	for _, path := range paths {
+		if !candidateAllowsPath(candidate, path) {
+			violations = append(violations, path)
+		}
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+
+	allowed := strings.Join(candidate.WriteScope, ", ")
+	if strings.TrimSpace(allowed) == "" {
+		allowed = "(none declared)"
+	}
+	return fmt.Errorf("worker changed paths outside declared write scope: %s (allowed: %s)", strings.Join(violations, ", "), allowed)
+}
+
+func candidateAllowsPath(candidate Candidate, path string) bool {
+	path = cleanRepoPath(path)
+	if path == "" {
+		return false
+	}
+	for _, scope := range candidate.WriteScope {
+		scope = cleanRepoPath(scope)
+		if scope == "" {
+			continue
+		}
+		if path == scope || strings.HasPrefix(path, scope+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func cleanRepoPath(path string) string {
+	path = strings.TrimSpace(filepath.ToSlash(path))
+	for strings.HasPrefix(path, "./") {
+		path = strings.TrimPrefix(path, "./")
+	}
+	path = strings.Trim(path, "/")
+	if path == "." {
+		return ""
+	}
+	return path
 }
 
 func candidateTaskName(candidate Candidate) string {
