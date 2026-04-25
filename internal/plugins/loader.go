@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +16,13 @@ import (
 const defaultGormesVersion = "1.0.0"
 
 var pluginNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+var pluginToolRowRE = regexp.MustCompile(`\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,`)
+var pluginToolsetRE = regexp.MustCompile(`toolset\s*=\s*["']([^"']+)["']`)
+var pluginCheckRE = regexp.MustCompile(`check_fn\s*=\s*([A-Za-z_][A-Za-z0-9_]*)`)
+var pluginAuthStatusRE = regexp.MustCompile(`get_auth_status\(\s*["']([A-Za-z0-9_-]+)["']\s*\)`)
+var pythonSchemaAssignRE = regexp.MustCompile(`(?m)^([A-Z0-9_]+_SCHEMA)\s*=\s*\{`)
+var pythonCommonStringAssignRE = regexp.MustCompile(`(?m)^COMMON_STRING\s*=\s*\{`)
+var trailingCommaRE = regexp.MustCompile(`,\s*([}\]])`)
 
 type rawPluginManifest struct {
 	Name           string          `yaml:"name"`
@@ -116,6 +124,8 @@ func LoadDir(dir string, opts LoadOptions) PluginStatus {
 		manifest = manifestFromRaw(raw)
 	}
 
+	tools, toolEvidence := loadPythonToolPackage(dir, &manifest)
+
 	var dashboard *DashboardManifest
 	if hasDashboardManifest {
 		parsed, parseEvidence, ok := parseDashboardManifest(dashboardPath)
@@ -134,11 +144,13 @@ func LoadDir(dir string, opts LoadOptions) PluginStatus {
 	status.Label = manifest.Label
 	status.Description = manifest.Description
 	status.Dashboard = dashboard
+	status.Tools = tools
 
 	validation := validateManifest(manifest, dashboard, hasPluginManifest, hasDashboardManifest, opts.CurrentGormesVersion)
 	credentialEvidence := missingCredentialEvidence(manifest, opts)
 	status.Evidence = append(status.Evidence, validation...)
 	status.Evidence = append(status.Evidence, credentialEvidence...)
+	status.Evidence = append(status.Evidence, toolEvidence...)
 
 	if len(validation) > 0 {
 		status.State = StateInvalid
@@ -218,6 +230,230 @@ func manifestFromRaw(raw rawPluginManifest) Manifest {
 		})
 	}
 	return manifest
+}
+
+func loadPythonToolPackage(dir string, manifest *Manifest) ([]ToolMetadata, []Evidence) {
+	initPath := filepath.Join(dir, "__init__.py")
+	toolsPath := filepath.Join(dir, "tools.py")
+	if !fileExists(initPath) || !fileExists(toolsPath) {
+		return nil, nil
+	}
+
+	initData, err := os.ReadFile(initPath)
+	if err != nil {
+		return nil, []Evidence{evidence(EvidenceMalformedManifest, "__init__.py", err.Error())}
+	}
+	toolsData, err := os.ReadFile(toolsPath)
+	if err != nil {
+		return nil, []Evidence{evidence(EvidenceMalformedManifest, "tools.py", err.Error())}
+	}
+
+	initSource := string(initData)
+	toolsSource := string(toolsData)
+	inferPythonAuthRequirements(toolsSource, manifest)
+
+	rows := parsePythonToolRows(initSource)
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	toolset := firstRegexpSubmatch(pluginToolsetRE, initSource)
+	check := firstRegexpSubmatch(pluginCheckRE, initSource)
+	schemas := parsePythonSchemaConstants(toolsSource)
+	envelope := inferPythonResultEnvelope(toolsSource)
+
+	out := make([]ToolMetadata, 0, len(rows))
+	for _, row := range rows {
+		schema := schemas[row.schema]
+		meta := ToolMetadata{
+			Name:           row.name,
+			Toolset:        toolset,
+			Description:    pythonSchemaDescription(schema),
+			Schema:         schema,
+			Handler:        row.handler,
+			Check:          check,
+			SourceFile:     "tools.py",
+			ResultEnvelope: envelope,
+		}
+		out = append(out, meta)
+		if !hasCapability(*manifest, CapabilityTool, row.name) {
+			manifest.Capabilities = append(manifest.Capabilities, Capability{
+				Kind:        CapabilityTool,
+				Name:        row.name,
+				SourceField: "__init__.py:_TOOLS",
+			})
+		}
+	}
+	sortToolMetadata(out)
+	return out, nil
+}
+
+type pythonToolRow struct {
+	name    string
+	schema  string
+	handler string
+}
+
+func parsePythonToolRows(source string) []pythonToolRow {
+	matches := pluginToolRowRE.FindAllStringSubmatch(source, -1)
+	out := make([]pythonToolRow, 0, len(matches))
+	seen := make(map[string]bool, len(matches))
+	for _, match := range matches {
+		if len(match) != 4 || seen[match[1]] {
+			continue
+		}
+		seen[match[1]] = true
+		out = append(out, pythonToolRow{
+			name:    strings.TrimSpace(match[1]),
+			schema:  strings.TrimSpace(match[2]),
+			handler: strings.TrimSpace(match[3]),
+		})
+	}
+	return out
+}
+
+func inferPythonAuthRequirements(source string, manifest *Manifest) {
+	for _, match := range pluginAuthStatusRE.FindAllStringSubmatch(source, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		provider := strings.TrimSpace(match[1])
+		if provider == "" {
+			continue
+		}
+		appendUniqueString(&manifest.RequiresAuth, "providers."+provider)
+	}
+}
+
+func parsePythonSchemaConstants(source string) map[string]json.RawMessage {
+	common := ""
+	if open, ok := assignmentOpenBrace(source, pythonCommonStringAssignRE); ok {
+		if block, ok := extractBalancedBlock(source, open); ok {
+			if normalized, ok := normalizePythonDictLiteral(block, nil); ok {
+				common = string(normalized)
+			}
+		}
+	}
+
+	replacements := map[string]string{}
+	if common != "" {
+		replacements["COMMON_STRING"] = common
+	}
+
+	matches := pythonSchemaAssignRE.FindAllStringSubmatchIndex(source, -1)
+	out := make(map[string]json.RawMessage, len(matches))
+	for _, match := range matches {
+		if len(match) < 4 {
+			continue
+		}
+		name := source[match[2]:match[3]]
+		open := strings.Index(source[match[0]:match[1]], "{")
+		if open < 0 {
+			continue
+		}
+		block, ok := extractBalancedBlock(source, match[0]+open)
+		if !ok {
+			continue
+		}
+		normalized, ok := normalizePythonDictLiteral(block, replacements)
+		if !ok {
+			continue
+		}
+		out[name] = normalized
+	}
+	return out
+}
+
+func assignmentOpenBrace(source string, re *regexp.Regexp) (int, bool) {
+	match := re.FindStringIndex(source)
+	if len(match) != 2 {
+		return 0, false
+	}
+	open := strings.Index(source[match[0]:match[1]], "{")
+	if open < 0 {
+		return 0, false
+	}
+	return match[0] + open, true
+}
+
+func extractBalancedBlock(source string, open int) (string, bool) {
+	if open < 0 || open >= len(source) || source[open] != '{' {
+		return "", false
+	}
+	depth := 0
+	inString := byte(0)
+	escaped := false
+	for i := open; i < len(source); i++ {
+		ch := source[i]
+		if inString != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == inString {
+				inString = 0
+			}
+			continue
+		}
+		switch ch {
+		case '\'', '"':
+			inString = ch
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return source[open : i+1], true
+			}
+		}
+	}
+	return "", false
+}
+
+func normalizePythonDictLiteral(block string, replacements map[string]string) (json.RawMessage, bool) {
+	normalized := block
+	for name, value := range replacements {
+		normalized = strings.ReplaceAll(normalized, name, value)
+	}
+	normalized = strings.NewReplacer("True", "true", "False", "false", "None", "null").Replace(normalized)
+	for {
+		next := trailingCommaRE.ReplaceAllString(normalized, `$1`)
+		if next == normalized {
+			break
+		}
+		normalized = next
+	}
+
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, []byte(normalized)); err != nil {
+		return nil, false
+	}
+	return append(json.RawMessage(nil), buf.Bytes()...), true
+}
+
+func pythonSchemaDescription(schema json.RawMessage) string {
+	var payload struct {
+		Description string `json:"description"`
+	}
+	if len(schema) == 0 || json.Unmarshal(schema, &payload) != nil {
+		return ""
+	}
+	return payload.Description
+}
+
+func inferPythonResultEnvelope(source string) ToolResultEnvelope {
+	envelope := ToolResultEnvelope{Encoding: "json-string"}
+	if strings.Contains(source, "tool_result") {
+		envelope.SuccessFields = []string{"success", "action", "result"}
+	}
+	if strings.Contains(source, "tool_error") {
+		envelope.ErrorFields = []string{"error"}
+	}
+	return envelope
 }
 
 func mergeDashboardMetadata(manifest *Manifest, dashboard *DashboardManifest, hasPluginManifest bool) {
@@ -367,6 +603,7 @@ func sortPluginStatus(status PluginStatus) PluginStatus {
 		return status.Evidence[i].Field < status.Evidence[j].Field
 	})
 	sortCapabilityStatuses(status.Capabilities)
+	sortToolMetadata(status.Tools)
 	return status
 }
 
@@ -391,6 +628,19 @@ func sortCapabilityStatuses(items []CapabilityStatus) {
 	})
 }
 
+func sortToolMetadata(items []ToolMetadata) {
+	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+}
+
+func hasCapability(manifest Manifest, kind CapabilityKind, name string) bool {
+	for _, cap := range manifest.Capabilities {
+		if cap.Kind == kind && cap.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func cleanStrings(in []string) []string {
 	seen := make(map[string]bool, len(in))
 	out := make([]string, 0, len(in))
@@ -403,6 +653,20 @@ func cleanStrings(in []string) []string {
 		out = append(out, item)
 	}
 	return out
+}
+
+func appendUniqueString(items *[]string, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+	for _, item := range *items {
+		if item == value {
+			return
+		}
+	}
+	*items = append(*items, value)
+	sort.Strings(*items)
 }
 
 func cloneEvidence(in []Evidence) []Evidence {
@@ -434,4 +698,12 @@ func nonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func firstRegexpSubmatch(re *regexp.Regexp, source string) string {
+	match := re.FindStringSubmatch(source)
+	if len(match) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(match[1])
 }
