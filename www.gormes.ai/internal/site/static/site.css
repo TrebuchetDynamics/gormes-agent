@@ -177,8 +177,12 @@ a:focus-visible,
     linear-gradient(to right, rgba(238, 236, 229, 0.07) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(238, 236, 229, 0.07) 1px, transparent 1px);
   background-size: 32px 32px;
-  -webkit-mask-image: linear-gradient(to right, transparent 50%, black 100%);
-          mask-image: linear-gradient(to right, transparent 50%, black 100%);
+  /* Soft falloff: fully hidden until 65%, fades through 75%, fully
+     visible at 100%. Confines the grid to the right ~35% of the
+     hero so it stops bleeding into the CTA zone, and the soft
+     mid-gradient prevents the cutoff from looking clipped. */
+  -webkit-mask-image: linear-gradient(to right, transparent 65%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,1) 100%);
+          mask-image: linear-gradient(to right, transparent 65%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,1) 100%);
 }
 .hero-inner {
   position: relative;
@@ -199,11 +203,12 @@ a:focus-visible,
 .hero-title {
   font-family: var(--font-display);
   font-weight: 900;
-  /* clamp tuned for mobile: 30px floor on narrow phones so the
-     headline + subhead + hero-note + CTAs all fit in the first
-     viewport at 360x800 (the v10 mobile regression). Cap stays
-     at 60px on desktop where vertical space isn't constrained. */
-  font-size: clamp(28px, 7vw, 56px);
+  /* clamp tuned for both ends: 28px floor on narrow phones so the
+     headline + subhead + hero-note + CTAs fit in the first viewport
+     at 360x800; 64px cap on desktop so it has presence at 1280+ but
+     doesn't blow line length once hero-content's 680px max-width
+     applies. */
+  font-size: clamp(28px, 7vw, 64px);
   line-height: 0.98;
   margin: 0 0 24px;
   overflow-wrap: break-word;
@@ -904,6 +909,61 @@ a:focus-visible,
   }
   .copy-btn {
     padding: 6px 8px;
+  }
+}
+
+/* Desktop pass — composing for desktop intentionally, not just
+   scaling up mobile. Three breakpoints: 768 (3-up install grid),
+   1024 (hero composition + section rhythm), 1280 (page width). */
+
+@media (min-width: 768px) {
+  /* Install steps as a 3-up grid on desktop — UNIX / WINDOWS /
+     RUN side by side instead of stacked. Biggest single visual
+     upgrade for the desktop view: turns the install section
+     from "list" into "system overview". */
+  .install-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Hero composition: text column anchored away from the page
+     edge so the right-side empty/grid space gets proportional
+     visual weight. clamp keeps the inset breathing-room
+     reasonable across 1024-1600 viewports without hardcoding a
+     value that feels too inset at 1024 or too loose at 1600. */
+  .hero-inner {
+    padding-left: clamp(40px, 8vw, 120px);
+    padding-top: 96px;
+    padding-bottom: 96px;
+  }
+  /* Subhead larger on desktop for readability — width stays
+     constrained by hero-subhead max-width 560 so line-length
+     stays in the ~65-75ch zone. */
+  .hero-subhead p {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  /* Section rhythm tier-up: 72→96 between sections so desktop
+     feels deliberate, not cramped. Internal block gaps stay at
+     the existing 24-32 range so sections don't get floaty. */
+  .install-inner,
+  .why-inner,
+  .audience-inner,
+  .roadmap-inner {
+    padding: 96px var(--pad);
+  }
+}
+
+@media (min-width: 1280px) {
+  /* Bump the page max-width on very wide screens so the
+     install-grid columns have room to breathe. Hero-content's
+     own 680px max-width keeps the headline measure unchanged;
+     this only affects the grid sections that benefit from extra
+     horizontal real estate. */
+  :root {
+    --max-width: 1120px;
   }
 }
 
