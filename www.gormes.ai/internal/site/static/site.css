@@ -133,13 +133,18 @@ a:focus-visible,
   text-transform: uppercase;
 }
 
+/* Section titles sit a clear step below the hero (Fraunces 60+) so
+   they don't compete. DM Sans 19px / weight 600 / --muted-strong
+   color — section headers introduce, they don't shout. Hero is
+   king. */
 .section-title {
   font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 26px;
-  line-height: 1.12;
-  margin: 0 0 24px;
-  color: var(--text);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  margin: 0 0 22px;
+  color: var(--muted-strong);
   overflow-wrap: break-word;
 }
 
@@ -147,9 +152,10 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 /* Spacing rhythm: hero is the largest beat (96px top, 72px bottom);
-   subsequent sections breathe at 64px; footer at 32. Inside-block
-   gaps stay tight (12-24px). The variation gives the page pacing
-   instead of one uniform medium beat. */
+   subsequent sections breathe at 72px (between-section register);
+   footer at 32 (closing register). Inside-block gaps stay tight
+   (12-24px). The variation gives the page pacing instead of one
+   uniform medium beat. */
 .hero-inner {
   padding: 96px var(--pad) 72px;
 }
@@ -226,11 +232,16 @@ a:focus-visible,
   transform: translateY(-1px);
   border-bottom: 1px solid transparent;
 }
+/* CTA hierarchy: INSTALL is the dominant button — bigger padding,
+   larger font, full accent fill. VIEW SOURCE is intentionally
+   muted (--label color, no border) so it reads as a secondary
+   text link, not a peer button. */
 .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 13px;
-  padding: 14px 24px;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  padding: 16px 32px;
 }
 .btn-primary:hover {
   background: var(--accent-hover);
@@ -238,21 +249,22 @@ a:focus-visible,
 }
 .btn-secondary {
   background: transparent;
-  color: var(--muted-strong);
-  border-color: var(--border-strong);
-  font-size: 12px;
-  padding: 10px 16px;
+  color: var(--label);
+  border-color: transparent;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  padding: 10px 4px;
 }
 .btn-secondary:hover {
-  border-color: var(--accent);
   color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .install {
   border-bottom: 1px solid var(--border);
 }
 .install-inner {
-  padding: 64px var(--pad);
+  padding: 72px var(--pad);
 }
 .install-header {
   max-width: 560px;
@@ -368,20 +380,22 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .why-inner {
-  padding: 64px var(--pad);
+  padding: 72px var(--pad);
 }
-/* Pain block: "the problem zone." Stronger left accent (4px),
-   subtle red-tinted bg wash, generous outer margin so the block
-   reads as a moment of contrast against neutral neighbors. Bullets
-   inside are tight (6px gap) and high-contrast text-color so they
-   land like a punch, not whispered notes. */
+/* Pain block: hard-stop moment. Bigger top margin so the block
+   reads as a deliberate visual punch, deeper red-tint bg wash,
+   tighter bullet gap and heavier weight so the four pain points
+   land as one rapid sequence rather than separate notes. The
+   pain block → fix cards transition uses a smaller bottom margin
+   (32px) so the cards read as the answer to this block, not as
+   a separate section. */
 .pain-block {
   border: 1px solid var(--border);
   border-left: 4px solid var(--danger);
-  background: rgba(221, 119, 119, 0.05);
+  background: rgba(221, 119, 119, 0.08);
   border-radius: 0;
-  padding: 20px 22px 22px;
-  margin: 32px 0 40px;
+  padding: 22px 22px 24px;
+  margin: 56px 0 32px;
 }
 .pain-block p {
   font-weight: 700;
@@ -394,12 +408,12 @@ a:focus-visible,
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 .why-pain-list li {
   font-size: 14.5px;
   color: var(--text);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.45;
   padding-left: 22px;
   position: relative;
@@ -432,18 +446,21 @@ a:focus-visible,
 }
 .feature-card h3 {
   font-family: var(--font-body);
-  margin: 0 0 8px;
-  font-size: 15.5px;
+  margin: 0 0 12px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
   overflow-wrap: break-word;
   color: var(--text);
 }
 .feature-card p {
+  /* 13px is the floor — anything smaller becomes hard to read on
+     mobile. Density comes from line-height (1.5) and color
+     (var(--muted)) instead. */
   margin: 0;
   font-size: 13px;
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.5;
   overflow-wrap: break-word;
 }
 
@@ -451,7 +468,7 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .roadmap-inner {
-  padding: 64px var(--pad);
+  padding: 72px var(--pad);
 }
 .roadmap-summary {
   display: grid;
@@ -502,18 +519,19 @@ a:focus-visible,
 .roadmap-details {
   margin: 0 0 18px;
 }
-/* "View full phase-by-phase checklist" reads as a real CTA, not a
-   soft caption: full-width centered button, accent border, fills
-   with accent on hover. */
+/* "View full phase-by-phase checklist" reads as the page's only
+   "explore deeper" CTA — bigger padding, slightly larger font,
+   wider letter-spacing, accent border, fills with accent on hover.
+   This is the action-bar at the bottom of the visible roadmap. */
 .roadmap-details-summary {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--accent);
   cursor: pointer;
-  padding: 16px 20px;
+  padding: 18px 26px;
   background: transparent;
   border: 1px solid var(--accent);
   border-radius: 0;
