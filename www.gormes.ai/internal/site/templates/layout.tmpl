@@ -45,13 +45,8 @@
     </main>
     <footer class="footer">
       <div class="footer-inner">
-        <nav class="footer-nav" aria-label="Secondary">
-          {{range .FooterNav}}<a href="{{.Href}}">{{.Label}}</a>{{end}}
-        </nav>
-        <div class="footer-meta">
-          <p class="footer-left">{{.FooterLeft}}</p>
-          <p class="footer-right">{{.FooterRight}}</p>
-        </div>
+        <p class="footer-left">{{.FooterLeft}}</p>
+        <p class="footer-right">{{.FooterRight}}</p>
       </div>
     </footer>
   </div>
