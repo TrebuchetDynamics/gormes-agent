@@ -174,8 +174,8 @@ a:focus-visible,
   pointer-events: none;
   z-index: 0;
   background-image:
-    linear-gradient(to right, rgba(238, 236, 229, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(238, 236, 229, 0.07) 1px, transparent 1px);
+    linear-gradient(to right, rgba(238, 236, 229, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(238, 236, 229, 0.12) 1px, transparent 1px);
   background-size: 32px 32px;
   /* Soft falloff: fully hidden until 65%, fades through 75%, fully
      visible at 100%. Confines the grid to the right ~35% of the
@@ -203,17 +203,19 @@ a:focus-visible,
 .hero-title {
   font-family: var(--font-display);
   font-weight: 900;
-  /* clamp tuned for both ends: 28px floor on narrow phones so the
-     headline + subhead + hero-note + CTAs fit in the first viewport
-     at 360x800; 64px cap on desktop so it has presence at 1280+ but
-     doesn't blow line length once hero-content's 680px max-width
-     applies. */
   font-size: clamp(28px, 7vw, 64px);
-  line-height: 0.98;
+  /* Hierarchy fix: title locks the eye. Pure white (#ffffff)
+     instead of off-white --text, sharper SOFT axis (0 instead of
+     18), tighter line-height + letter-spacing so the headline
+     reads dense and decisive next to the dimmed supporting
+     copy. The whole point: title sits one tier brighter than
+     anything else on the page. */
+  line-height: 0.94;
+  letter-spacing: -0.02em;
   margin: 0 0 24px;
   overflow-wrap: break-word;
-  font-variation-settings: "opsz" 144, "SOFT" 18;
-  color: var(--text);
+  font-variation-settings: "opsz" 144, "SOFT" 0;
+  color: #ffffff;
 }
 /* Terminal-prompt signature: mono "$" in accent color before the
    serif headline. Sized at 0.62em so it reads as a deliberate
@@ -240,39 +242,41 @@ a:focus-visible,
   margin: 0 0 28px;
   max-width: 560px;
 }
-/* Three-tier descent: identity line in full text-color, the
-   "operations problem" line a step muted, the "no virtualenvs"
-   factual closer dimmer still. Eye picks up the order without
-   thinking about it. */
+/* Subhead is supporting copy, not parallel content. Each line
+   sits one tier dimmer than the previous, AND the whole stack
+   sits one tier dimmer than v19 so the headline above is
+   unambiguously the dominant element. Tighter line-height (1.4)
+   and tighter inter-line margin (6/4/0) make the stack feel
+   like one block of supporting prose, not three peer paragraphs. */
 .hero-subhead p {
   font-size: 17px;
-  margin: 0 0 8px;
-  line-height: 1.48;
+  margin: 0 0 6px;
+  line-height: 1.4;
   overflow-wrap: break-word;
 }
 .hero-subhead p:nth-child(2) { margin-bottom: 4px; }
 .hero-subhead p:nth-child(3) { margin-bottom: 0; }
 .hero-subhead p:nth-child(1) {
-  color: var(--text);
+  color: var(--muted-strong);
   font-weight: 500;
 }
-.hero-subhead p:nth-child(2) { color: var(--muted-strong); }
-.hero-subhead p:nth-child(3) { color: var(--muted); }
-/* "Early-stage." stamp sits between subhead and CTAs: claim →
-   qualifier → action. Wider gap below (32px) so the stamp and
-   the CTA pair don't visually merge into one block — the eye
-   reads them as two distinct elements. Border-left at lower
-   saturation so the accent rule signals without competing with
-   the $ prompt above and the INSTALL button below. */
+.hero-subhead p:nth-child(2) { color: var(--muted); }
+.hero-subhead p:nth-child(3) { color: var(--label); }
+/* "Early-stage." reads as a margin note, not a section.
+   Background dropped, padding tightened, font dimmed — the
+   block no longer interrupts the hero composition; it sits
+   between subhead and CTA as light annotation. Left border-rule
+   at low saturation is the only retained signal of identity
+   on the block. */
 .hero-note {
-  margin: 0 0 32px;
+  margin: 0 0 28px;
   max-width: 560px;
   border-left: 2px solid rgba(240, 200, 75, 0.55);
-  background: var(--bg-1);
-  padding: 10px 16px 12px;
+  background: transparent;
+  padding: 4px 0 4px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 /* Stamp and body are <p> elements (block-level) so text-extraction
    tools and screen readers always see the line break between
@@ -283,7 +287,7 @@ a:focus-visible,
 .hero-note-stamp {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -291,15 +295,15 @@ a:focus-visible,
 }
 .hero-note-body {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--muted-strong);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
 }
 .hero-ctas {
-  /* INSTALL + VIEW SOURCE form a tight pair — 6px gap so the
-     secondary link reads as attached to the button, not a
-     detached afterthought below it. */
-  margin: 0;
+  /* Small top margin to clearly separate the action from the
+     supporting text above. Reads as the natural endpoint of the
+     hero, not just another block in the rhythm. */
+  margin: 8px 0 0;
   display: flex;
   align-items: center;
   gap: 6px;
