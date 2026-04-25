@@ -3,7 +3,6 @@ package site
 import (
 	"encoding/json"
 	"html/template"
-	"strconv"
 )
 
 func binarySizeMB() string {
@@ -19,22 +18,6 @@ func binarySizeMB() string {
 		return "17"
 	}
 	return data.Binary.SizeMB
-}
-
-func binarySizeMBFloat() float64 {
-	if len(benchmarksJSON) == 0 {
-		return 17.0
-	}
-	var data struct {
-		Binary struct {
-			SizeMB string `json:"size_mb"`
-		} `json:"binary"`
-	}
-	if err := json.Unmarshal(benchmarksJSON, &data); err != nil {
-		return 17.0
-	}
-	size, _ := strconv.ParseFloat(data.Binary.SizeMB, 64)
-	return size
 }
 
 type NavLink struct {
@@ -53,14 +36,6 @@ type InstallStep struct {
 }
 
 type FeatureCard struct {
-	Title string
-	Body  string
-}
-
-// AudienceCard is one "Who Gormes is for" persona row in the audience
-// section. Title is a short noun-phrase; Body is one sentence of
-// concrete framing so a visitor can self-identify quickly.
-type AudienceCard struct {
 	Title string
 	Body  string
 }
@@ -96,17 +71,12 @@ type LandingPage struct {
 	Title               string
 	Description         string
 	Nav                 []NavLink
-	FooterNav           []NavLink
 	HeroKicker          string
 	HeroHeadline        string
-	// HeroSubheadLines is rendered as a stack of short paragraphs —
-	// three tight lines instead of one dense block, so the operations
-	// pitch reads as a punch on mobile rather than a wall of prose.
-	HeroSubheadLines []string
-	HeroFilterLine   string
-	HeroStatusLine   string
-	PrimaryCTA       Link
-	SecondaryCTA     Link
+	HeroLines           []string
+	HeroFilterLine      string
+	PrimaryCTA          Link
+	SecondaryCTA        Link
 	InstallSteps        []InstallStep
 	InstallFootnote     string
 	InstallFootnoteLink string
@@ -115,22 +85,11 @@ type LandingPage struct {
 	DocsLinkLabel       string
 	DocsLinkHref        string
 
-	// "Why Gormes" section: manifesto + pain frame + fix cards.
-	// All three sub-blocks render under a single #why section so the
-	// reader gets identity → problem → solution in one visual unit.
-	WhyLabel            string
-	WhyManifestoLine    string
-	WhyManifestoBullets []string
-	WhyPainHeadline     string
-	WhyPainBullets      []string
-	WhyFixSubhead       string
-	FeatureCards        []FeatureCard
-
-	// "Who Gormes is for" — audience filter section. Three personas
-	// aimed at production-agent operators, not AI tinkerers.
-	AudienceLabel    string
-	AudienceHeadline string
-	AudienceCards    []AudienceCard
+	// "Why Gormes" section: pain frame + technical fix cards.
+	WhyLabel        string
+	WhyPainHeadline string
+	WhyPainBullets  []string
+	FeatureCards    []FeatureCard
 
 	// Roadmap section: summary block (current focus + next milestone)
 	// up top, then the full phase-by-phase checklist behind a <details>
@@ -149,7 +108,7 @@ type LandingPage struct {
 	// tag linking to the TrebuchetDynamics company site. Must not
 	// carry user input; DefaultPage is the only writer.
 	FooterLeft  template.HTML
-	FooterRight string
+	FooterRight template.HTML
 }
 
 func DefaultPage() LandingPage {
@@ -161,21 +120,14 @@ func DefaultPage() LandingPage {
 			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		},
-		FooterNav: []NavLink{
-			{Label: "Why Gormes", Href: "#why"},
-			{Label: "Who it's for", Href: "#audience"},
-			{Label: "Docs", Href: "https://docs.gormes.ai/"},
-			{Label: "Company", Href: "https://trebuchetdynamics.com/"},
-		},
-		HeroKicker:   "§ 01 · OPEN SOURCE · MIT · UNDER CONSTRUCTION",
+		HeroKicker:   "§ 01 · OPEN SOURCE · MIT LICENSE · UNDER CONSTRUCTION",
 		HeroHeadline: "One Go Binary. No Python. No Drift.",
-		HeroSubheadLines: []string{
+		HeroLines: []string{
 			"Gormes is a Go-native runtime for AI agents.",
 			"Built to solve the operations problem — not the AI problem.",
 			"One static binary. No virtualenvs. No dependency hell.",
 		},
-		HeroFilterLine: "Early-stage. Built for developers who care about reliability over polish.",
-		HeroStatusLine: "Hermes is no longer required. The full Go runtime is still under active construction.",
+		HeroFilterLine: "Early-stage, reliability-first runtime. Built for developers who care about reliability over polish.",
 		PrimaryCTA:     Link{Label: "Install", Href: "#install"},
 		SecondaryCTA:   Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		InstallSteps: []InstallStep{
@@ -183,55 +135,37 @@ func DefaultPage() LandingPage {
 			{Label: "2. WINDOWS POWERSHELL", Command: "irm https://gormes.ai/install.ps1 | iex"},
 			{Label: "3. RUN", Command: "gormes"},
 		},
-		InstallFootnote:     "Installs a prebuilt static binary. Rerun the installer to update.",
-		InstallFootnoteLink: "Source-backed installer is temporary during early development →",
+		InstallFootnote:     "Source-backed for now. Installers manage a checkout while binary releases settle.",
+		InstallFootnoteLink: "Read the installer source →",
 		InstallFootnoteHref: "https://github.com/TrebuchetDynamics/gormes-agent/tree/main/scripts",
-		DocsNote:            "Deeper reference material lives at",
 		DocsLinkLabel:       "docs.gormes.ai →",
 		DocsLinkHref:        "https://docs.gormes.ai/",
 		WhyLabel:            "§ 02 · WHY GORMES",
-		WhyManifestoLine:    "Gormes is not about smarter agents.",
-		WhyManifestoBullets: []string{
-			"It's about agents that don't fail to install.",
-			"It's about agents that don't drift between environments.",
-			"It's about agents that don't crash after six hours.",
-			"It's about agents that don't lose work on dropped connections.",
-		},
-		WhyPainHeadline: "Why Hermes-stack agents break in production.",
+		WhyPainHeadline:     "Why Hermes breaks in production — and how Gormes fixes it.",
 		WhyPainBullets: []string{
-			"Python environments drift between dev, staging, and prod.",
-			"npm and Nix builds break silently on host package skew.",
-			"Multi-process Python orchestration crashes or hangs under load.",
-			"SSE streams drop on flaky networks and kill long-running agents.",
-			"Debugging a single failure spans Python, Node, and OS runtimes.",
+			"environments drift",
+			"installs fail",
+			"agents crash mid-run",
+			"streams drop and lose work",
 		},
-		WhyFixSubhead: "How Gormes fixes it.",
 		FeatureCards: []FeatureCard{
 			{Title: "Single Static Binary", Body: "Zero CGO. ~" + binarySizeMB() + " MB. scp it to Termux, Alpine, a fresh VPS — it runs. No Python, no virtualenv, no Nix."},
 			{Title: "No Runtime Drift", Body: "Pure Go. No pip, no npm, no env activation. The binary you tested is the binary that deploys."},
 			{Title: "Streams That Don't Drop", Body: "Route-B reconnect treats SSE drops as recoverable, not fatal. Your agent doesn't lose work to a flaky network."},
 			{Title: "Local Validation", Body: "gormes doctor --offline checks tool schemas before you burn tokens. Catch bad wiring before a model round-trip."},
 		},
-		AudienceLabel:    "§ 03 · WHO GORMES IS FOR",
-		AudienceHeadline: "Production-runtime concerns, not AI demos.",
-		AudienceCards: []AudienceCard{
-			{Title: "Operators of long-running agents", Body: "You need agents that survive restarts, network blips, and host upgrades — not just impressive demos."},
-			{Title: "Developers tired of Python/Nix/npm breakage", Body: "You're tired of an agent that worked yesterday breaking today because a transitive dep ticked over."},
-			{Title: "Builders who want one binary that just runs", Body: "You'd rather scp one file to a Termux session or Alpine VPS than reproduce a virtualenv."},
-		},
 		RoadmapLabel:    "§ 04 · BUILD STATE",
 		RoadmapHeadline: "What works today, and what's still being wired up.",
 		RoadmapCurrentFocus: []string{
-			"Gateway stability — Slack shared runtime, WhatsApp, WeChat adapters.",
-			"Memory system — SQLite + FTS5 lattice, ontological graph, neural recall.",
-			"Brain transplant — replacing the Hermes runtime with a Go-native agent loop.",
+			"Gateway stability",
+			"Memory system",
 		},
-		RoadmapNextMilestone:  "Fully independent Go-native brain — agent orchestration with no Hermes backend.",
+		RoadmapNextMilestone:  "Full Go-native runtime, no Hermes",
 		RoadmapDetailsSummary: "View full phase-by-phase checklist",
 		ProgressTracker:       progressTrackerLabel(),
 		ProgressTrackerURL:    "https://docs.gormes.ai/building-gormes/architecture_plan/",
 		RoadmapPhases:         buildRoadmapPhases(loadEmbeddedProgress()),
 		FooterLeft:            `Gormes v0.1.0 · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
-		FooterRight:           "MIT License · 2026",
+		FooterRight:           `<a href="https://docs.gormes.ai/">docs.gormes.ai →</a> · MIT License · 2026`,
 	}
 }

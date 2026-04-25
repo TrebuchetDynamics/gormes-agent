@@ -23,28 +23,31 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	wants := []string{
 		"One Go Binary. No Python. No Drift.",
 		"Gormes is a Go-native runtime for AI agents.",
-		"Built to solve the operations problem — not the AI problem.",
+		"Built to solve the operations problem",
 		"One static binary. No virtualenvs. No dependency hell.",
-		"Early-stage. Built for developers who care about reliability over polish.",
-		"Hermes is no longer required. The full Go runtime is still under active construction.",
-		`class="btn btn-primary"`,
-		`class="btn btn-ghost"`,
-		`class="footer-nav"`,
+		"Early-stage, reliability-first runtime.",
+		"Built for developers who care about reliability over polish.",
+		`<a href="#install">Install</a>`,
+		`<a href="#roadmap">Roadmap</a>`,
+		`<a href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>`,
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"irm https://gormes.ai/install.ps1 | iex",
-		"Installs a prebuilt static binary",
-		// Why-Gormes section: manifesto + pain frame + fix cards.
-		"Gormes is not about smarter agents.",
-		"Why Hermes-stack agents break in production.",
-		"Python environments drift between dev, staging, and prod.",
-		"How Gormes fixes it.",
-		// Audience filter
-		"WHO GORMES IS FOR",
-		"Operators of long-running agents",
+		"Source-backed for now",
+		"Read the installer source →",
+		// Features: pain frame before technical fix cards.
+		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"Hermes breaks in production because:",
+		"environments drift",
+		"installs fail",
+		"agents crash mid-run",
+		"streams drop and lose work",
 		// Roadmap summary + collapse
 		"What works today, and what&#39;s still being wired up.",
 		"Current focus",
+		"Gateway stability",
+		"Memory system",
 		"Next milestone",
+		"Full Go-native runtime, no Hermes",
 		"View full phase-by-phase checklist",
 		`<details class="roadmap-details">`,
 		// Favicons + social-card meta tags rendered in <head>.
@@ -67,6 +70,10 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Phase 6",
 	}
 	rejects := []string{
+		`<div class="hero-image">`,
+		`go-gopher-bear-lowpoly.png`,
+		`<a href="https://docs.gormes.ai/">Docs</a>`,
+		`<a href="https://trebuchetdynamics.com/">Company</a>`,
 		"Run Hermes Through a Go Operator Console.",
 		"Hermes, In a Single Static Binary.",
 		"Requires Hermes backend at localhost:8642.",
@@ -87,18 +94,12 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"A static Go binary that talks to your Hermes backend over HTTP.",
 		"Why a Go layer matters.",
 		"Boots Like a Tool",
-		// Operations-first v1 copy that buried "what is Gormes for" behind lineage
+		// Older revisions that buried the first-screen hierarchy.
 		"Gormes is a Go-native rewrite of Hermes Agent — built to solve the operations problem, not the AI problem.",
-		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"Gormes is a Go-native runtime for AI agents — built to fix",
+		"Why Hermes-stack agents break in production.",
 		"Rerun the installer to update the managed Gormes checkout.",
 		"Source-backed for now →",
-		// v2 single-paragraph subhead replaced by 3-line stack.
-		"Gormes is a Go-native runtime for AI agents — built to fix the reliability and deployment problems",
-		// Hero illustration removed in v3.
-		`alt="Gormes Gopher"`,
-		`class="hero-image"`,
-		`class="hero-content"`,
-		`class="btn-secondary"`,
 	}
 	for _, want := range wants {
 		if !strings.Contains(text, want) {
@@ -129,6 +130,29 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	}
 	if !strings.Contains(string(css), "--bg-0") {
 		t.Fatalf("site.css missing --bg-0 design token")
+	}
+	cssText := string(css)
+	for _, want := range []string{
+		".hero-title {\n  font-family: var(--font-display);",
+		".section-title {\n  font-family: var(--font-body);",
+		".feature-card h3 {\n  font-family: var(--font-body);",
+		".feature-card h3::after {",
+		".install-step {\n  background: var(--bg-1);",
+		".roadmap-title {\n  font-family: var(--font-body);",
+		".cmd {\n  background: var(--bg-1);",
+	} {
+		if !strings.Contains(cssText, want) {
+			t.Fatalf("site.css missing typography/layout contract %q", want)
+		}
+	}
+	if strings.Contains(cssText, ".section-title {\n  font-family: var(--font-display);") {
+		t.Fatalf("section titles should not use display serif")
+	}
+	if strings.Contains(cssText, ".feature-card h3 {\n  font-family: var(--font-display);") {
+		t.Fatalf("feature titles should not use display serif")
+	}
+	if strings.Contains(cssText, ".roadmap-title {\n  font-family: var(--font-display);") {
+		t.Fatalf("roadmap titles should not use display serif")
 	}
 
 	// Favicon set + OG social card must land in dist/static/. Guarding
