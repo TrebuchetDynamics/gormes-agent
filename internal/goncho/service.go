@@ -164,22 +164,41 @@ func (s *Service) Context(ctx context.Context, params ContextParams) (ContextRes
 	if peer == "" {
 		return ContextResult{}, fmt.Errorf("goncho: peer is required")
 	}
+	sessionKey := strings.TrimSpace(params.SessionKey)
+	unavailable := contextUnavailableEvidence(params)
 
 	card, err := getPeerCard(ctx, s.db, s.workspaceID, peer)
 	if err != nil {
 		return ContextResult{}, err
 	}
 
-	searchResult, err := s.Search(ctx, SearchParams{
-		Peer:       peer,
-		Query:      params.Query,
-		MaxTokens:  params.MaxTokens,
-		SessionKey: params.SessionKey,
-		Scope:      params.Scope,
-		Sources:    params.Sources,
-	})
-	if err != nil {
-		return ContextResult{}, err
+	searchResult := SearchResultSet{
+		WorkspaceID: s.workspaceID,
+		Peer:        peer,
+		Query:       params.Query,
+	}
+	if limitToSession(params) && sessionKey == "" {
+		unavailable = append(unavailable, ContextUnavailableEvidence{
+			Field:      "limit_to_session",
+			Capability: "session_scoped_representation",
+			Reason:     "limit_to_session requires session_key; recall was not widened through scope=user",
+		})
+	} else {
+		scope := params.Scope
+		if limitToSession(params) {
+			scope = ""
+		}
+		searchResult, err = s.Search(ctx, SearchParams{
+			Peer:       peer,
+			Query:      params.Query,
+			MaxTokens:  params.MaxTokens,
+			SessionKey: sessionKey,
+			Scope:      scope,
+			Sources:    params.Sources,
+		})
+		if err != nil {
+			return ContextResult{}, err
+		}
 	}
 
 	conclusions := make([]string, 0, len(searchResult.Results))
@@ -191,8 +210,8 @@ func (s *Service) Context(ctx context.Context, params ContextParams) (ContextRes
 	}
 
 	recentMessages := []MessageSlice{}
-	if strings.TrimSpace(params.SessionKey) != "" {
-		recentMessages, err = recentTurns(ctx, s.db, params.SessionKey, s.recentLimit)
+	if sessionKey != "" {
+		recentMessages, err = recentTurns(ctx, s.db, sessionKey, s.recentLimit)
 		if err != nil {
 			return ContextResult{}, err
 		}
@@ -201,13 +220,58 @@ func (s *Service) Context(ctx context.Context, params ContextParams) (ContextRes
 	return ContextResult{
 		WorkspaceID:    s.workspaceID,
 		Peer:           peer,
-		SessionKey:     strings.TrimSpace(params.SessionKey),
+		SessionKey:     sessionKey,
 		PeerCard:       card,
 		Representation: buildRepresentation(peer, card, conclusions),
 		Summary:        "",
 		Conclusions:    conclusions,
 		RecentMessages: recentMessages,
+		Unavailable:    unavailable,
 	}, nil
+}
+
+func limitToSession(params ContextParams) bool {
+	return params.LimitToSession != nil && *params.LimitToSession
+}
+
+func contextUnavailableEvidence(params ContextParams) []ContextUnavailableEvidence {
+	var unavailable []ContextUnavailableEvidence
+
+	if strings.TrimSpace(params.PeerTarget) != "" {
+		unavailable = append(unavailable, ContextUnavailableEvidence{
+			Field:      "peer_target",
+			Capability: "directional_representation",
+			Reason:     "peer_target requires observer/observed representation storage",
+		})
+	}
+	if strings.TrimSpace(params.PeerPerspective) != "" {
+		unavailable = append(unavailable, ContextUnavailableEvidence{
+			Field:      "peer_perspective",
+			Capability: "directional_representation",
+			Reason:     "peer_perspective requires observer/observed representation storage",
+		})
+	}
+	if params.SearchTopK != nil {
+		unavailable = append(unavailable, unsupportedSemanticRepresentationOption("search_top_k"))
+	}
+	if params.SearchMaxDistance != nil {
+		unavailable = append(unavailable, unsupportedSemanticRepresentationOption("search_max_distance"))
+	}
+	if params.IncludeMostFrequent != nil {
+		unavailable = append(unavailable, unsupportedSemanticRepresentationOption("include_most_frequent"))
+	}
+	if params.MaxConclusions != nil {
+		unavailable = append(unavailable, unsupportedSemanticRepresentationOption("max_conclusions"))
+	}
+	return unavailable
+}
+
+func unsupportedSemanticRepresentationOption(field string) ContextUnavailableEvidence {
+	return ContextUnavailableEvidence{
+		Field:      field,
+		Capability: "semantic_representation_options",
+		Reason:     "semantic representation options require the future observation table",
+	}
 }
 
 func buildRepresentation(peer string, card, conclusions []string) string {

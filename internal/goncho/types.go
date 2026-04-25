@@ -72,12 +72,19 @@ type SearchResultSet struct {
 
 // ContextParams controls honcho_context reads.
 type ContextParams struct {
-	Peer       string   `json:"peer"`
-	Query      string   `json:"query,omitempty"`
-	MaxTokens  int      `json:"max_tokens,omitempty"`
-	SessionKey string   `json:"session_key,omitempty"`
-	Scope      string   `json:"scope,omitempty"`
-	Sources    []string `json:"sources,omitempty"`
+	Peer                string   `json:"peer"`
+	Query               string   `json:"query,omitempty"`
+	MaxTokens           int      `json:"max_tokens,omitempty"`
+	SessionKey          string   `json:"session_key,omitempty"`
+	Scope               string   `json:"scope,omitempty"`
+	Sources             []string `json:"sources,omitempty"`
+	PeerTarget          string   `json:"peer_target,omitempty"`
+	PeerPerspective     string   `json:"peer_perspective,omitempty"`
+	LimitToSession      *bool    `json:"limit_to_session,omitempty"`
+	SearchTopK          *int     `json:"search_top_k,omitempty"`
+	SearchMaxDistance   *float64 `json:"search_max_distance,omitempty"`
+	IncludeMostFrequent *bool    `json:"include_most_frequent,omitempty"`
+	MaxConclusions      *int     `json:"max_conclusions,omitempty"`
 }
 
 // MessageSlice is one recent message excerpt included in context responses.
@@ -86,14 +93,23 @@ type MessageSlice struct {
 	Content string `json:"content"`
 }
 
+// ContextUnavailableEvidence names a requested context capability that Goncho
+// accepted but cannot yet fulfill with the current local storage model.
+type ContextUnavailableEvidence struct {
+	Field      string `json:"field"`
+	Capability string `json:"capability"`
+	Reason     string `json:"reason"`
+}
+
 // ContextResult is the stable JSON shape for honcho_context.
 type ContextResult struct {
-	WorkspaceID    string         `json:"workspace_id"`
-	Peer           string         `json:"peer"`
-	SessionKey     string         `json:"session_key,omitempty"`
-	PeerCard       []string       `json:"peer_card"`
-	Representation string         `json:"representation"`
-	Summary        string         `json:"summary,omitempty"`
-	Conclusions    []string       `json:"conclusions,omitempty"`
-	RecentMessages []MessageSlice `json:"recent_messages,omitempty"`
+	WorkspaceID    string                       `json:"workspace_id"`
+	Peer           string                       `json:"peer"`
+	SessionKey     string                       `json:"session_key,omitempty"`
+	PeerCard       []string                     `json:"peer_card"`
+	Representation string                       `json:"representation"`
+	Summary        string                       `json:"summary,omitempty"`
+	Conclusions    []string                     `json:"conclusions,omitempty"`
+	RecentMessages []MessageSlice               `json:"recent_messages,omitempty"`
+	Unavailable    []ContextUnavailableEvidence `json:"unavailable,omitempty"`
 }
