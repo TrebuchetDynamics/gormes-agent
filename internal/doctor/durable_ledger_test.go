@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -265,6 +266,77 @@ func TestCheckDurableLedgerReportsLifecycleControlEvidence(t *testing.T) {
 	for _, want := range []string{"paused=1", "resume_pending=1", "unsupported=1"} {
 		if !strings.Contains(lifecycle.Note, want) {
 			t.Fatalf("lifecycle note = %q, want %q", lifecycle.Note, want)
+		}
+	}
+}
+
+func TestCheckDurableLedgerReportsReplayInboxAndProtectedSubmitEvidenceSeparately(t *testing.T) {
+	ctx := context.Background()
+	ms, err := memory.OpenSqlite(filepath.Join(t.TempDir(), "ledger.db"), 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer ms.Close(ctx)
+	ledger, err := subagent.NewDurableLedger(ms.DB())
+	if err != nil {
+		t.Fatalf("NewDurableLedger: %v", err)
+	}
+	now := time.Now().UTC()
+	if err := ledger.RecordSupervisorStatus(ctx, subagent.DurableSupervisorReport{
+		Available:  true,
+		ReportedAt: now,
+	}); err != nil {
+		t.Fatalf("RecordSupervisorStatus: %v", err)
+	}
+	if err := ledger.RecordWorkerHeartbeat(ctx, subagent.DurableWorkerHeartbeat{
+		WorkerID:    "worker-a",
+		HeartbeatAt: now,
+	}); err != nil {
+		t.Fatalf("RecordWorkerHeartbeat: %v", err)
+	}
+	if _, err := ledger.Submit(ctx, subagent.DurableJobSubmission{ID: "replay-waiting", Kind: subagent.WorkKindCronJob}); err != nil {
+		t.Fatalf("Submit replay-waiting: %v", err)
+	}
+	if _, ok, err := ledger.Replay(ctx, "replay-waiting", subagent.DurableReplayRequest{ID: "replay-waiting:again"}); !errors.Is(err, subagent.ErrDurableReplayUnavailable) || ok {
+		t.Fatalf("Replay waiting ok=%v err=%v, want ErrDurableReplayUnavailable and false", ok, err)
+	}
+	if _, err := ledger.Submit(ctx, subagent.DurableJobSubmission{ID: "agent:target", Kind: subagent.WorkKindLLMSubagent}); err != nil {
+		t.Fatalf("Submit agent:target: %v", err)
+	}
+	if _, err := ledger.SendInboxMessage(ctx, subagent.DurableInboxMessageSubmission{
+		JobID:       "agent:target",
+		Sender:      "operator:ada",
+		SenderTrust: subagent.TrustOperator,
+		Payload:     json.RawMessage(`{"directive":"audit me"}`),
+	}); err != nil {
+		t.Fatalf("SendInboxMessage: %v", err)
+	}
+	if _, err := ledger.SubmitWithTrust(ctx, subagent.TrustChildAgent, subagent.DurableJobSubmission{
+		ID:   "shell:denied",
+		Kind: subagent.WorkKindShellCommand,
+	}); !errors.Is(err, subagent.ErrDurableRouteDenied) {
+		t.Fatalf("SubmitWithTrust child shell err=%v, want ErrDurableRouteDenied", err)
+	}
+
+	result := CheckDurableLedger(ctx, ledger, "")
+
+	if result.Status != StatusWarn {
+		t.Fatalf("Status = %v, want WARN: %+v", result.Status, result)
+	}
+	for _, want := range []string{"1 replay-unavailable", "1 inbox-unread", "1 protected-submit-denied"} {
+		if !strings.Contains(result.Summary, want) {
+			t.Fatalf("Summary = %q, want %q", result.Summary, want)
+		}
+	}
+	warnItems := map[string]bool{}
+	for _, item := range result.Items {
+		if item.Status == StatusWarn {
+			warnItems[item.Name] = true
+		}
+	}
+	for _, name := range []string{"replay", "inbox", "protected_submit"} {
+		if !warnItems[name] {
+			t.Fatalf("warn items = %+v, want %s item WARN in %+v", warnItems, name, result.Items)
 		}
 	}
 }

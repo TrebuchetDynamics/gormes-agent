@@ -13,6 +13,8 @@ import (
 var ErrDurableJobNotFound = errors.New("subagent: durable job not found")
 var ErrDurableBackpressure = errors.New("subagent: durable queue backpressure")
 var ErrDurableLifecycleDenied = errors.New("subagent: durable lifecycle control denied")
+var ErrDurableReplayUnavailable = errors.New("subagent: durable replay unavailable")
+var ErrDurableInboxClaimDenied = errors.New("subagent: durable inbox claim denied")
 
 const durableStaleWaitingAfter = time.Hour
 
@@ -62,12 +64,38 @@ type DurableJobSubmission struct {
 	MaxWaiting int
 }
 
+type DurableReplayRequest struct {
+	ID            string
+	DataOverrides json.RawMessage
+	RequestedAt   time.Time
+}
+
 type DurableClaim struct {
 	WorkerID  string
 	LockUntil time.Time
 	TimeoutAt time.Time
 	Timeout   time.Duration
 	Kinds     []WorkKind
+}
+
+type DurableJobListFilter struct {
+	Kind   WorkKind
+	Status DurableJobStatus
+}
+
+type DurableInboxMessageSubmission struct {
+	JobID       string
+	Sender      string
+	SenderTrust TrustClass
+	Payload     json.RawMessage
+	SentAt      time.Time
+}
+
+type DurableInboxClaim struct {
+	Trust     TrustClass
+	JobID     string
+	Actor     string
+	ClaimedAt time.Time
 }
 
 type DurableLedgerOptions struct {
@@ -93,8 +121,10 @@ type DurableJob struct {
 	Kind              WorkKind
 	Status            DurableJobStatus
 	ParentID          string
+	ReplayOf          string
 	Depth             int
 	Progress          json.RawMessage
+	DataOverrides     json.RawMessage
 	Result            json.RawMessage
 	ErrorText         string
 	CancelRequested   bool
@@ -123,6 +153,17 @@ type DurableChildEvent struct {
 	ErrorText string
 	Payload   json.RawMessage
 	CreatedAt time.Time
+}
+
+type DurableInboxMessage struct {
+	ID          int64
+	JobID       string
+	Sender      string
+	SenderTrust TrustClass
+	Payload     json.RawMessage
+	UnreadAt    time.Time
+	ReadAt      time.Time
+	ReadBy      string
 }
 
 type DurableWorkerHeartbeat struct {
@@ -173,6 +214,7 @@ type DurableWorkerStatus struct {
 
 type DurableLedgerStatus struct {
 	ReplayAvailable             bool
+	ReplayUnavailable           int
 	Total                       int
 	Waiting                     int
 	Active                      int
@@ -188,6 +230,8 @@ type DurableLedgerStatus struct {
 	QueueFull                   bool
 	MaxWaiting                  int
 	CancelRequested             int
+	InboxUnread                 int
+	ProtectedSubmitDenied       int
 	Worker                      DurableWorkerStatus
 }
 
@@ -217,6 +261,20 @@ func NewDurableLedgerWithOptions(db *sql.DB, opts DurableLedgerOptions) (*Durabl
 		return nil, fmt.Errorf("subagent: index durable ledger: %w", err)
 	}
 	return &DurableLedger{db: db, maxWaiting: opts.MaxWaiting}, nil
+}
+
+func (l *DurableLedger) SubmitWithTrust(ctx context.Context, trust TrustClass, sub DurableJobSubmission) (DurableJob, error) {
+	if l == nil || l.db == nil {
+		return DurableJob{}, errors.New("subagent: durable ledger is nil")
+	}
+	policy := DefaultMinionRoutingPolicy()
+	if !policy.CanSubmit(trust, sub.Kind) {
+		if err := l.recordProtectedSubmitDenied(ctx, trust, sub); err != nil {
+			return DurableJob{}, err
+		}
+		return DurableJob{}, fmt.Errorf("%w: %s cannot submit %s", ErrDurableRouteDenied, trust, sub.Kind)
+	}
+	return l.Submit(ctx, sub)
 }
 
 func (l *DurableLedger) Submit(ctx context.Context, sub DurableJobSubmission) (DurableJob, error) {
@@ -583,11 +641,110 @@ func (l *DurableLedger) Resume(ctx context.Context, id string, intent DurableLif
 	return resumed, true, nil
 }
 
+func (l *DurableLedger) Replay(ctx context.Context, sourceID string, req DurableReplayRequest) (DurableJob, bool, error) {
+	if l == nil || l.db == nil {
+		return DurableJob{}, false, errors.New("subagent: durable ledger is nil")
+	}
+	sourceID = strings.TrimSpace(sourceID)
+	if sourceID == "" {
+		return DurableJob{}, false, errors.New("subagent: durable replay source id is empty")
+	}
+	newID := strings.TrimSpace(req.ID)
+	if newID == "" {
+		return DurableJob{}, false, errors.New("subagent: durable replay id is empty")
+	}
+	dataOverrides, err := durableJSON(req.DataOverrides, `{}`)
+	if err != nil {
+		return DurableJob{}, false, fmt.Errorf("subagent: data_overrides json: %w", err)
+	}
+	now := durableNow()
+	requestedAt := now
+	if !req.RequestedAt.IsZero() {
+		requestedAt = req.RequestedAt.UTC().UnixNano()
+	}
+
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	defer tx.Rollback()
+
+	source, err := durableGet(ctx, tx, sourceID)
+	if errors.Is(err, ErrDurableJobNotFound) {
+		return DurableJob{}, false, nil
+	}
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	if source.Status != DurableJobCompleted && source.Status != DurableJobFailed {
+		if err := durableInsertReplayUnavailableEvent(ctx, tx, source, requestedAt); err != nil {
+			return DurableJob{}, false, err
+		}
+		if err := tx.Commit(); err != nil {
+			return DurableJob{}, false, err
+		}
+		return DurableJob{}, false, ErrDurableReplayUnavailable
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO durable_jobs
+			(id, kind, status, parent_id, replay_of, depth, progress_json,
+			 data_overrides_json, result_json, error_text, cancel_requested,
+			 cancel_reason, lock_owner, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}', '', 0, '', '', ?, ?)`,
+		newID, source.Kind, DurableJobWaiting, source.ParentID, source.ID, source.Depth,
+		string(source.Progress), dataOverrides, now, now)
+	if err != nil {
+		return DurableJob{}, false, fmt.Errorf("subagent: replay durable job: %w", err)
+	}
+	if err := durableInsertReplayCreatedEvent(ctx, tx, source, newID, dataOverrides, requestedAt); err != nil {
+		return DurableJob{}, false, err
+	}
+	replayed, err := durableGet(ctx, tx, newID)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return DurableJob{}, false, err
+	}
+	return replayed, true, nil
+}
+
 func (l *DurableLedger) Get(ctx context.Context, id string) (DurableJob, error) {
 	if l == nil || l.db == nil {
 		return DurableJob{}, errors.New("subagent: durable ledger is nil")
 	}
 	return durableGet(ctx, l.db, id)
+}
+
+func (l *DurableLedger) List(ctx context.Context, filter DurableJobListFilter) ([]DurableJob, error) {
+	if l == nil || l.db == nil {
+		return nil, errors.New("subagent: durable ledger is nil")
+	}
+	query, args := durableJobListSQL(filter)
+	rows, err := l.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jobs []DurableJob
+	for rows.Next() {
+		job, err := durableScanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
+func (l *DurableLedger) Progress(ctx context.Context, id string) (json.RawMessage, error) {
+	job, err := l.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return append(json.RawMessage(nil), job.Progress...), nil
 }
 
 func (l *DurableLedger) ChildEvents(ctx context.Context, parentID string) ([]DurableChildEvent, error) {
@@ -616,6 +773,159 @@ func (l *DurableLedger) ChildEvents(ctx context.Context, parentID string) ([]Dur
 		ev.Payload = json.RawMessage(payload)
 		ev.CreatedAt = durableTime(created)
 		out = append(out, ev)
+	}
+	return out, rows.Err()
+}
+
+func (l *DurableLedger) SendInboxMessage(ctx context.Context, sub DurableInboxMessageSubmission) (DurableInboxMessage, error) {
+	if l == nil || l.db == nil {
+		return DurableInboxMessage{}, errors.New("subagent: durable ledger is nil")
+	}
+	jobID := strings.TrimSpace(sub.JobID)
+	if jobID == "" {
+		return DurableInboxMessage{}, errors.New("subagent: durable inbox job id is empty")
+	}
+	payload, err := durableJSON(sub.Payload, `{}`)
+	if err != nil {
+		return DurableInboxMessage{}, fmt.Errorf("subagent: inbox payload json: %w", err)
+	}
+	sender := strings.TrimSpace(sub.Sender)
+	if sender == "" {
+		sender = string(sub.SenderTrust)
+	}
+	if sender == "" {
+		return DurableInboxMessage{}, errors.New("subagent: durable inbox sender is empty")
+	}
+	unreadAt := durableNow()
+	if !sub.SentAt.IsZero() {
+		unreadAt = sub.SentAt.UTC().UnixNano()
+	}
+
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DurableInboxMessage{}, err
+	}
+	defer tx.Rollback()
+	if _, err := durableGet(ctx, tx, jobID); err != nil {
+		return DurableInboxMessage{}, err
+	}
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO durable_job_inbox
+			(job_id, sender, sender_trust, payload_json, unread_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		jobID, sender, sub.SenderTrust, payload, unreadAt)
+	if err != nil {
+		return DurableInboxMessage{}, fmt.Errorf("subagent: send durable inbox message: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return DurableInboxMessage{}, err
+	}
+	msg, err := durableInboxMessageByID(ctx, tx, id)
+	if err != nil {
+		return DurableInboxMessage{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return DurableInboxMessage{}, err
+	}
+	return msg, nil
+}
+
+func (l *DurableLedger) ClaimInboxMessages(ctx context.Context, jobID string, claim DurableInboxClaim) ([]DurableInboxMessage, error) {
+	if l == nil || l.db == nil {
+		return nil, errors.New("subagent: durable ledger is nil")
+	}
+	jobID = strings.TrimSpace(jobID)
+	if jobID == "" {
+		return nil, errors.New("subagent: durable inbox job id is empty")
+	}
+	if !durableInboxClaimAllowed(jobID, claim) {
+		return nil, ErrDurableInboxClaimDenied
+	}
+	claimedAt := durableNow()
+	if !claim.ClaimedAt.IsZero() {
+		claimedAt = claim.ClaimedAt.UTC().UnixNano()
+	}
+	actor := durableInboxClaimActor(claim)
+
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if _, err := durableGet(ctx, tx, jobID); err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `
+		SELECT id
+		FROM durable_job_inbox
+		WHERE job_id = ? AND read_at IS NULL
+		ORDER BY id`, jobID)
+	if err != nil {
+		return nil, err
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	updateSQL, updateArgs := durableInboxClaimUpdateSQL(ids, claimedAt, actor)
+	if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
+		return nil, err
+	}
+	msgs, err := durableInboxMessagesByIDs(ctx, tx, ids)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return msgs, nil
+}
+
+func (l *DurableLedger) InboxMessages(ctx context.Context, jobID string) ([]DurableInboxMessage, error) {
+	if l == nil || l.db == nil {
+		return nil, errors.New("subagent: durable ledger is nil")
+	}
+	jobID = strings.TrimSpace(jobID)
+	if jobID == "" {
+		return nil, errors.New("subagent: durable inbox job id is empty")
+	}
+	if _, err := l.Get(ctx, jobID); err != nil {
+		return nil, err
+	}
+	rows, err := l.db.QueryContext(ctx, `
+		SELECT id, job_id, sender, sender_trust, payload_json, unread_at, read_at, read_by
+		FROM durable_job_inbox
+		WHERE job_id = ?
+		ORDER BY id`, jobID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []DurableInboxMessage
+	for rows.Next() {
+		msg, err := durableScanInboxMessage(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, msg)
 	}
 	return out, rows.Err()
 }
@@ -762,8 +1072,17 @@ func (l *DurableLedger) Status(ctx context.Context) (DurableLedgerStatus, error)
 		SELECT COUNT(*) FROM durable_job_events
 		WHERE type = 'backpressure_denied'`).Scan(&st.BackpressureDenied)
 	_ = l.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM durable_job_events
+		WHERE type = 'replay_unavailable'`).Scan(&st.ReplayUnavailable)
+	_ = l.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM durable_job_events
+		WHERE type = 'protected_submit_denied'`).Scan(&st.ProtectedSubmitDenied)
+	_ = l.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM durable_jobs
 		WHERE cancel_requested = 1`).Scan(&st.CancelRequested)
+	_ = l.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM durable_job_inbox
+		WHERE read_at IS NULL`).Scan(&st.InboxUnread)
 	_ = l.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM durable_jobs
 		WHERE status = ? AND resume_requested_at IS NOT NULL`,
@@ -914,14 +1233,23 @@ type durableQuerier interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+type durableScanner interface {
+	Scan(...any) error
+}
+
 func durableGet(ctx context.Context, q durableQuerier, id string) (DurableJob, error) {
+	return durableScanJob(q.QueryRowContext(ctx, durableJobSelectSQL+` WHERE id = ?`, id))
+}
+
+func durableScanJob(scanner durableScanner) (DurableJob, error) {
 	var j DurableJob
-	var progress, result string
+	var progress, dataOverrides, result string
 	var cancelRequested int
 	var created, updated int64
 	var started, finished, lockUntil, timeoutAt, pausedAt, resumeRequestedAt sql.NullInt64
-	err := q.QueryRowContext(ctx, durableJobSelectSQL+` WHERE id = ?`, id).Scan(
-		&j.ID, &j.Kind, &j.Status, &j.ParentID, &j.Depth, &progress, &result,
+	err := scanner.Scan(
+		&j.ID, &j.Kind, &j.Status, &j.ParentID, &j.ReplayOf, &j.Depth, &progress,
+		&dataOverrides, &result,
 		&j.ErrorText, &cancelRequested, &j.CancelReason,
 		&j.PauseActor, &j.PauseReason, &pausedAt,
 		&j.ResumeActor, &j.ResumeReason, &resumeRequestedAt, &j.LockOwner,
@@ -934,6 +1262,7 @@ func durableGet(ctx context.Context, q durableQuerier, id string) (DurableJob, e
 		return DurableJob{}, err
 	}
 	j.Progress = json.RawMessage(progress)
+	j.DataOverrides = json.RawMessage(dataOverrides)
 	j.Result = json.RawMessage(result)
 	j.CancelRequested = cancelRequested != 0
 	j.CreatedAt = durableTime(created)
@@ -945,6 +1274,25 @@ func durableGet(ctx context.Context, q durableQuerier, id string) (DurableJob, e
 	j.StartedAt = durableNullTime(started)
 	j.FinishedAt = durableNullTime(finished)
 	return j, nil
+}
+
+func durableJobListSQL(filter DurableJobListFilter) (string, []any) {
+	query := durableJobSelectSQL
+	var clauses []string
+	var args []any
+	if filter.Kind != "" {
+		clauses = append(clauses, "kind = ?")
+		args = append(args, filter.Kind)
+	}
+	if filter.Status != "" {
+		clauses = append(clauses, "status = ?")
+		args = append(args, filter.Status)
+	}
+	if len(clauses) > 0 {
+		query += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	query += " ORDER BY created_at, id"
+	return query, args
 }
 
 func durableClaimJob(ctx context.Context, tx *sql.Tx, id string, claim DurableClaim, now int64) (DurableJob, bool, error) {
@@ -1027,6 +1375,73 @@ func durableInsertBackpressureEvent(ctx context.Context, tx *sql.Tx, id string, 
 	return err
 }
 
+func (l *DurableLedger) recordProtectedSubmitDenied(ctx context.Context, trust TrustClass, sub DurableJobSubmission) error {
+	id := strings.TrimSpace(sub.ID)
+	if id == "" {
+		id = "protected-submit-denied"
+	}
+	payload := map[string]any{
+		"type":     "protected_submit_denied",
+		"job_id":   id,
+		"job_kind": string(sub.Kind),
+		"trust":    string(trust),
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = l.db.ExecContext(ctx, `
+		INSERT INTO durable_job_events
+			(job_id, type, job_kind, payload_json, created_at)
+		VALUES (?, 'protected_submit_denied', ?, ?, ?)`,
+		id, sub.Kind, string(raw), durableNow())
+	return err
+}
+
+func durableInsertReplayUnavailableEvent(ctx context.Context, tx *sql.Tx, source DurableJob, requestedAt int64) error {
+	payload := map[string]any{
+		"type":      "replay_unavailable",
+		"job_id":    source.ID,
+		"job_kind":  string(source.Kind),
+		"status":    string(source.Status),
+		"replay_of": source.ReplayOf,
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO durable_job_events
+			(job_id, type, job_kind, payload_json, created_at)
+		VALUES (?, 'replay_unavailable', ?, ?, ?)`,
+		source.ID, source.Kind, string(raw), requestedAt)
+	return err
+}
+
+func durableInsertReplayCreatedEvent(ctx context.Context, tx *sql.Tx, source DurableJob, replayID, dataOverrides string, requestedAt int64) error {
+	var overrides any
+	if err := json.Unmarshal([]byte(dataOverrides), &overrides); err != nil {
+		return err
+	}
+	payload := map[string]any{
+		"type":           "replay_created",
+		"job_id":         replayID,
+		"job_kind":       string(source.Kind),
+		"replay_of":      source.ID,
+		"data_overrides": overrides,
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO durable_job_events
+			(job_id, type, child_id, job_kind, payload_json, created_at)
+		VALUES (?, 'replay_created', ?, ?, ?, ?)`,
+		source.ID, replayID, source.Kind, string(raw), requestedAt)
+	return err
+}
+
 func durableInsertLifecycleEvent(ctx context.Context, tx *sql.Tx, job DurableJob, eventType, action, actor, reason string, trust TrustClass, requestedAt int64) error {
 	payload := map[string]any{
 		"type":         eventType,
@@ -1048,6 +1463,104 @@ func durableInsertLifecycleEvent(ctx context.Context, tx *sql.Tx, job DurableJob
 		VALUES (?, ?, ?, ?, ?)`,
 		job.ID, eventType, job.Kind, string(raw), requestedAt)
 	return err
+}
+
+func durableInboxClaimAllowed(jobID string, claim DurableInboxClaim) bool {
+	switch claim.Trust {
+	case TrustOperator, TrustSystem:
+		return true
+	case TrustChildAgent:
+		return strings.TrimSpace(claim.JobID) == jobID
+	default:
+		return false
+	}
+}
+
+func durableInboxClaimActor(claim DurableInboxClaim) string {
+	actor := strings.TrimSpace(claim.Actor)
+	if actor != "" {
+		return actor
+	}
+	if jobID := strings.TrimSpace(claim.JobID); jobID != "" {
+		return jobID
+	}
+	return string(claim.Trust)
+}
+
+func durableInboxClaimUpdateSQL(ids []int64, claimedAt int64, actor string) (string, []any) {
+	var b strings.Builder
+	b.WriteString(`UPDATE durable_job_inbox SET read_at = ?, read_by = ? WHERE id IN (`)
+	args := []any{claimedAt, actor}
+	for i, id := range ids {
+		if i > 0 {
+			b.WriteString(`,`)
+		}
+		b.WriteString(`?`)
+		args = append(args, id)
+	}
+	b.WriteString(`)`)
+	return b.String(), args
+}
+
+func durableInboxMessagesByIDs(ctx context.Context, q interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, ids []int64) ([]DurableInboxMessage, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var b strings.Builder
+	b.WriteString(`
+		SELECT id, job_id, sender, sender_trust, payload_json, unread_at, read_at, read_by
+		FROM durable_job_inbox
+		WHERE id IN (`)
+	args := make([]any, 0, len(ids))
+	for i, id := range ids {
+		if i > 0 {
+			b.WriteString(`,`)
+		}
+		b.WriteString(`?`)
+		args = append(args, id)
+	}
+	b.WriteString(`)
+		ORDER BY id`)
+	rows, err := q.QueryContext(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []DurableInboxMessage
+	for rows.Next() {
+		msg, err := durableScanInboxMessage(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, msg)
+	}
+	return out, rows.Err()
+}
+
+func durableInboxMessageByID(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, id int64) (DurableInboxMessage, error) {
+	return durableScanInboxMessage(q.QueryRowContext(ctx, `
+		SELECT id, job_id, sender, sender_trust, payload_json, unread_at, read_at, read_by
+		FROM durable_job_inbox
+		WHERE id = ?`, id))
+}
+
+func durableScanInboxMessage(scanner durableScanner) (DurableInboxMessage, error) {
+	var msg DurableInboxMessage
+	var payload string
+	var unreadAt int64
+	var readAt sql.NullInt64
+	err := scanner.Scan(&msg.ID, &msg.JobID, &msg.Sender, &msg.SenderTrust, &payload, &unreadAt, &readAt, &msg.ReadBy)
+	if err != nil {
+		return DurableInboxMessage{}, err
+	}
+	msg.Payload = json.RawMessage(payload)
+	msg.UnreadAt = durableTime(unreadAt)
+	msg.ReadAt = durableNullTime(readAt)
+	return msg, nil
 }
 
 func durableInsertChildEvent(ctx context.Context, tx *sql.Tx, job DurableJob, outcome DurableChildOutcome, errorText string) error {
@@ -1169,7 +1682,7 @@ func validDurableKind(kind WorkKind) bool {
 }
 
 const durableJobSelectSQL = `
-	SELECT id, kind, status, parent_id, depth, progress_json, result_json,
+	SELECT id, kind, status, parent_id, replay_of, depth, progress_json, data_overrides_json, result_json,
 	       error_text, cancel_requested, cancel_reason, pause_actor, pause_reason, paused_at,
 	       resume_actor, resume_reason, resume_requested_at, lock_owner, lock_until, timeout_at,
 	       created_at, updated_at, started_at, finished_at
@@ -1181,8 +1694,10 @@ CREATE TABLE IF NOT EXISTS durable_jobs (
 	kind             TEXT    NOT NULL CHECK(kind IN ('shell_command','cron_job','llm_subagent')),
 	status           TEXT    NOT NULL CHECK(status IN ('waiting','active','waiting-children','paused','completed','failed','cancelled')),
 	parent_id        TEXT    NOT NULL DEFAULT '',
+	replay_of        TEXT    NOT NULL DEFAULT '',
 	depth            INTEGER NOT NULL DEFAULT 0 CHECK(depth >= 0),
 	progress_json    TEXT    NOT NULL DEFAULT '{}',
+	data_overrides_json TEXT NOT NULL DEFAULT '{}',
 	result_json      TEXT    NOT NULL DEFAULT '{}',
 	error_text       TEXT    NOT NULL DEFAULT '',
 	cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)),
@@ -1205,6 +1720,8 @@ CREATE INDEX IF NOT EXISTS idx_durable_jobs_claim
 	ON durable_jobs(status, kind, created_at);
 CREATE INDEX IF NOT EXISTS idx_durable_jobs_parent
 	ON durable_jobs(parent_id);
+CREATE INDEX IF NOT EXISTS idx_durable_jobs_replay
+	ON durable_jobs(replay_of);
 
 CREATE TABLE IF NOT EXISTS durable_job_events (
 	id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1219,6 +1736,19 @@ CREATE TABLE IF NOT EXISTS durable_job_events (
 );
 CREATE INDEX IF NOT EXISTS idx_durable_job_events_job
 	ON durable_job_events(job_id, id);
+
+CREATE TABLE IF NOT EXISTS durable_job_inbox (
+	id           INTEGER PRIMARY KEY AUTOINCREMENT,
+	job_id       TEXT    NOT NULL,
+	sender       TEXT    NOT NULL,
+	sender_trust TEXT    NOT NULL DEFAULT '',
+	payload_json TEXT    NOT NULL DEFAULT '{}',
+	unread_at    INTEGER NOT NULL,
+	read_at      INTEGER,
+	read_by      TEXT    NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_durable_job_inbox_unread
+	ON durable_job_inbox(job_id, read_at, id);
 
 CREATE TABLE IF NOT EXISTS durable_worker_heartbeats (
 	worker_id    TEXT PRIMARY KEY,
@@ -1252,8 +1782,10 @@ CREATE TABLE durable_jobs_lifecycle_migration (
 	kind             TEXT    NOT NULL CHECK(kind IN ('shell_command','cron_job','llm_subagent')),
 	status           TEXT    NOT NULL CHECK(status IN ('waiting','active','waiting-children','paused','completed','failed','cancelled')),
 	parent_id        TEXT    NOT NULL DEFAULT '',
+	replay_of        TEXT    NOT NULL DEFAULT '',
 	depth            INTEGER NOT NULL DEFAULT 0 CHECK(depth >= 0),
 	progress_json    TEXT    NOT NULL DEFAULT '{}',
+	data_overrides_json TEXT NOT NULL DEFAULT '{}',
 	result_json      TEXT    NOT NULL DEFAULT '{}',
 	error_text       TEXT    NOT NULL DEFAULT '',
 	cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)),
@@ -1279,12 +1811,16 @@ CREATE INDEX IF NOT EXISTS idx_durable_jobs_claim
 	ON durable_jobs(status, kind, created_at);
 CREATE INDEX IF NOT EXISTS idx_durable_jobs_parent
 	ON durable_jobs(parent_id);
+CREATE INDEX IF NOT EXISTS idx_durable_jobs_replay
+	ON durable_jobs(replay_of);
 CREATE INDEX IF NOT EXISTS idx_durable_jobs_timeout
 	ON durable_jobs(status, timeout_at);
 CREATE INDEX IF NOT EXISTS idx_durable_jobs_lifecycle
 	ON durable_jobs(status, resume_requested_at);
 CREATE INDEX IF NOT EXISTS idx_durable_job_events_type
 	ON durable_job_events(type, created_at);
+CREATE INDEX IF NOT EXISTS idx_durable_job_inbox_unread
+	ON durable_job_inbox(job_id, read_at, id);
 CREATE INDEX IF NOT EXISTS idx_durable_worker_heartbeats_seen
 	ON durable_worker_heartbeats(heartbeat_at);
 CREATE INDEX IF NOT EXISTS idx_durable_worker_events_type
@@ -1299,6 +1835,8 @@ func durableLedgerMigrate(db *sql.DB) error {
 		name string
 		spec string
 	}{
+		{name: "replay_of", spec: "TEXT NOT NULL DEFAULT ''"},
+		{name: "data_overrides_json", spec: "TEXT NOT NULL DEFAULT '{}'"},
 		{name: "pause_actor", spec: "TEXT NOT NULL DEFAULT ''"},
 		{name: "pause_reason", spec: "TEXT NOT NULL DEFAULT ''"},
 		{name: "paused_at", spec: "INTEGER"},
@@ -1339,12 +1877,12 @@ func durableEnsurePausedStatus(db *sql.DB) error {
 	}
 	if _, err := tx.Exec(`
 		INSERT INTO durable_jobs_lifecycle_migration
-			(id, kind, status, parent_id, depth, progress_json, result_json,
-			 error_text, cancel_requested, cancel_reason, pause_actor,
+			(id, kind, status, parent_id, replay_of, depth, progress_json,
+			 data_overrides_json, result_json, error_text, cancel_requested, cancel_reason, pause_actor,
 			 pause_reason, paused_at, resume_actor, resume_reason, resume_requested_at,
 			 lock_owner, lock_until, timeout_at, created_at, updated_at, started_at, finished_at)
-		SELECT id, kind, status, parent_id, depth, progress_json, result_json,
-		       error_text, cancel_requested, cancel_reason, pause_actor,
+		SELECT id, kind, status, parent_id, replay_of, depth, progress_json,
+		       data_overrides_json, result_json, error_text, cancel_requested, cancel_reason, pause_actor,
 		       pause_reason, paused_at, resume_actor, resume_reason, resume_requested_at,
 		       lock_owner, lock_until, timeout_at, created_at, updated_at, started_at, finished_at
 		FROM durable_jobs`); err != nil {
