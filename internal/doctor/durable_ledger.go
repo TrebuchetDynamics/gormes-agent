@@ -44,8 +44,12 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 	supervisorDegraded := status.Worker.Supervisor != subagent.DurableSupervisorAvailable
 	restartIntent := status.Worker.RestartIntent.Requested
 	lifecycleDegraded := status.Paused > 0 || status.ResumePending > 0 || status.LifecycleControlUnsupported > 0
+	replayDegraded := status.ReplayUnavailable > 0
+	inboxDegraded := status.InboxUnread > 0
+	protectedSubmitDegraded := status.ProtectedSubmitDenied > 0
 	if status.QueueFull || status.TimedOut > 0 || status.StaleWaiting > 0 ||
-		workerDegraded || supervisorDegraded || restartIntent || lifecycleDegraded {
+		workerDegraded || supervisorDegraded || restartIntent || lifecycleDegraded ||
+		replayDegraded || inboxDegraded || protectedSubmitDegraded {
 		result.Status = StatusWarn
 		if status.QueueFull {
 			prefix = "queue full; restart/replay available"
@@ -55,6 +59,12 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 			prefix = "restart intent recorded; restart/replay available"
 		} else if lifecycleDegraded {
 			prefix = "durable lifecycle control pending; restart/replay available"
+		} else if replayDegraded {
+			prefix = "replay unavailable evidence recorded; restart/replay available"
+		} else if inboxDegraded {
+			prefix = "inbox unread; restart/replay available"
+		} else if protectedSubmitDegraded {
+			prefix = "protected submit denied; restart/replay available"
 		}
 	}
 	supervisorNote := string(status.Worker.Supervisor)
@@ -66,9 +76,10 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 		restartReason = "none"
 	}
 	result.Summary = fmt.Sprintf(
-		"%s (%d total, %d waiting, %d claimed, %d stalled, %d timeout-at, %d timed-out, %d stale waiting, %d backpressure-denied, %d paused, %d resume-pending, %d lifecycle-unsupported, worker=%s, supervisor=%s, restart_intent=%d reason=%s)",
+		"%s (%d total, %d waiting, %d claimed, %d stalled, %d timeout-at, %d timed-out, %d stale waiting, %d backpressure-denied, %d replay-unavailable, %d inbox-unread, %d protected-submit-denied, %d paused, %d resume-pending, %d lifecycle-unsupported, worker=%s, supervisor=%s, restart_intent=%d reason=%s)",
 		prefix, status.Total, status.Waiting, status.Claimed, status.Stalled,
 		status.TimeoutScheduled, status.TimedOut, status.StaleWaiting, status.BackpressureDenied,
+		status.ReplayUnavailable, status.InboxUnread, status.ProtectedSubmitDenied,
 		status.Paused, status.ResumePending, status.LifecycleControlUnsupported,
 		status.Worker.Liveness, supervisorNote, status.Worker.RestartIntent.AuditEvents, restartReason,
 	)
@@ -96,14 +107,32 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 	if lifecycleDegraded {
 		lifecycleStatus = StatusWarn
 	}
+	replayStatus := StatusPass
+	if replayDegraded {
+		replayStatus = StatusWarn
+	}
+	inboxStatus := StatusPass
+	if inboxDegraded {
+		inboxStatus = StatusWarn
+	}
+	protectedSubmitStatus := StatusPass
+	if protectedSubmitDegraded {
+		protectedSubmitStatus = StatusWarn
+	}
 	result.Items = []ItemInfo{
 		{Name: "ledger", Status: StatusPass, Note: "SQLite durable job ledger configured"},
+		{Name: "replay", Status: replayStatus, Note: fmt.Sprintf(
+			"available=%t unavailable=%d",
+			status.ReplayAvailable, status.ReplayUnavailable,
+		)},
 		{Name: "queue_health", Status: queueStatus, Note: fmt.Sprintf(
 			"waiting=%d claimed=%d stalled=%d timeout_at=%d timed_out=%d stale_waiting=%d queue_full=%t max_waiting=%d",
 			status.Waiting, status.Claimed, status.Stalled, status.TimeoutScheduled,
 			status.TimedOut, status.StaleWaiting, status.QueueFull, status.MaxWaiting,
 		)},
 		{Name: "backpressure", Status: backpressureStatus, Note: fmt.Sprintf("%d denied", status.BackpressureDenied)},
+		{Name: "inbox", Status: inboxStatus, Note: fmt.Sprintf("%d unread", status.InboxUnread)},
+		{Name: "protected_submit", Status: protectedSubmitStatus, Note: fmt.Sprintf("%d denied", status.ProtectedSubmitDenied)},
 		{Name: "cancel_intent", Status: StatusPass, Note: fmt.Sprintf("%d requested", status.CancelRequested)},
 		{Name: "lifecycle_control", Status: lifecycleStatus, Note: fmt.Sprintf(
 			"paused=%d resume_pending=%d unsupported=%d",

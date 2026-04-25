@@ -105,6 +105,22 @@ func (MinionRoutingPolicy) CanSubmit(trust TrustClass, kind WorkKind) bool {
 	}
 }
 
+// CanObserve reports whether a caller may read durable job state for a work
+// kind through get/list/progress-style surfaces.
+func (MinionRoutingPolicy) CanObserve(trust TrustClass, kind WorkKind) bool {
+	switch trust {
+	case TrustOperator, TrustSystem, TrustChildAgent:
+	default:
+		return false
+	}
+	switch kind {
+	case WorkKindShellCommand, WorkKindCronJob, WorkKindLLMSubagent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Route classifies work into the smallest policy surface needed for this
 // phase: deterministic shell/cron-like work takes the durable-job lane, while
 // judgment-heavy LLM work remains a live Go-native delegate_task subagent.
