@@ -263,6 +263,22 @@ func findConclusions(ctx context.Context, db *sql.DB, workspaceID, observer, pee
 	return hits, nil
 }
 
+func insertAssistantChatTurn(ctx context.Context, db *sql.DB, sessionID, peer, content, metaJSON string) error {
+	sessionID = strings.TrimSpace(sessionID)
+	peer = strings.TrimSpace(peer)
+	if sessionID == "" || peer == "" || strings.TrimSpace(content) == "" {
+		return nil
+	}
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO turns(session_id, role, content, ts_unix, chat_id, meta_json, memory_sync_status)
+		VALUES(?, 'assistant', ?, ?, ?, ?, 'ready')
+	`, sessionID, content, time.Now().Unix(), peer, nullIfBlank(metaJSON))
+	if err != nil {
+		return fmt.Errorf("goncho: insert assistant chat turn: %w", err)
+	}
+	return nil
+}
+
 func findTurns(ctx context.Context, db *sql.DB, query, sessionKey string, filter compiledSearchFilter, limit int) ([]SearchHit, error) {
 	if strings.TrimSpace(sessionKey) == "" {
 		return nil, nil

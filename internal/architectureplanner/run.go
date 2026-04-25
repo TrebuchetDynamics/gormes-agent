@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/autoloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
 type RunOptions struct {
@@ -107,6 +109,16 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		return summary, nil
 	}
 
+	// Snapshot progress.json BEFORE the LLM backend runs so we can verify
+	// the backend's edits preserved every existing Health block. Health
+	// metadata is owned by the autoloop runtime; the planner is only
+	// allowed to update spec fields. A missing file is fine — it means
+	// there is nothing to preserve yet.
+	beforeDoc, err := loadProgressForValidation(cfg.ProgressJSON)
+	if err != nil {
+		return RunSummary{}, fmt.Errorf("planner: load before-doc: %w", err)
+	}
+
 	argv, err := plannerBackendCommand(cfg.Backend, cfg.Mode, rawReportPath)
 	if err != nil {
 		return RunSummary{}, err
@@ -118,6 +130,22 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	})
 	if result.Err != nil {
 		return RunSummary{}, commandError(argv[0], result)
+	}
+
+	// Reload progress.json after the backend's edits and reject the
+	// regeneration if any Health block was dropped or modified. Skipped
+	// entirely when there was no before-doc (fresh checkout) or when the
+	// after-doc cannot be loaded (treat as no regeneration to validate).
+	if beforeDoc != nil {
+		afterDoc, loadErr := loadProgressForValidation(cfg.ProgressJSON)
+		if loadErr != nil {
+			return RunSummary{}, fmt.Errorf("planner: load after-doc: %w", loadErr)
+		}
+		if afterDoc != nil {
+			if err := validateHealthPreservation(beforeDoc, afterDoc); err != nil {
+				return RunSummary{}, fmt.Errorf("planner: regeneration rejected: %w", err)
+			}
+		}
 	}
 
 	if err := writeReport(reportPath, rawReportPath, result, bundle, now); err != nil {
@@ -225,4 +253,76 @@ func commandError(name string, result autoloop.Result) error {
 		return fmt.Errorf("%s failed: %w", name, result.Err)
 	}
 	return fmt.Errorf("%s failed: %w: %s", name, result.Err, output)
+}
+
+// loadProgressForValidation reads progress.json for the health-preservation
+// gate. Returns (nil, nil) when the file does not exist so the gate skips
+// gracefully on a fresh checkout (there is no prior state to preserve).
+// Other read/parse errors propagate so the planner refuses to silently
+// proceed against a corrupted progress.json.
+func loadProgressForValidation(path string) (*progress.Progress, error) {
+	prog, err := progress.Load(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return prog, nil
+}
+
+// validateHealthPreservation rejects planner regenerations that drop or
+// modify any existing Health block. Rows missing from the after-doc are
+// considered intentional deletions (planner removed them) and pass.
+// Spec hash mismatch is NOT validated here — that triggers stale-clear
+// in autoloop's selection layer (L3), not a planner-side rejection.
+func validateHealthPreservation(before, after *progress.Progress) error {
+	beforeIndex := indexItems(before)
+	afterIndex := indexItems(after)
+
+	for key, beforeItem := range beforeIndex {
+		afterItem, exists := afterIndex[key]
+		if !exists {
+			continue // intentional deletion
+		}
+		if !healthEqual(beforeItem.Health, afterItem.Health) {
+			return fmt.Errorf("planner output dropped or modified health block for %s/%s/%s",
+				key.phaseID, key.subphaseID, key.itemName)
+		}
+	}
+	return nil
+}
+
+type itemKey struct{ phaseID, subphaseID, itemName string }
+
+// indexItems flattens a Progress document into a map keyed by
+// (phaseID, subphaseID, itemName). Returns an empty map when prog is nil.
+// Item pointers are taken from the underlying slice so callers can read
+// fields without copying the whole row.
+func indexItems(prog *progress.Progress) map[itemKey]*progress.Item {
+	out := map[itemKey]*progress.Item{}
+	if prog == nil {
+		return out
+	}
+	for phaseID, phase := range prog.Phases {
+		for subID, sub := range phase.Subphases {
+			for i := range sub.Items {
+				it := &sub.Items[i]
+				out[itemKey{phaseID, subID, it.Name}] = it
+			}
+		}
+	}
+	return out
+}
+
+// healthEqual compares two RowHealth pointers for deep equality, treating
+// (nil, nil) as equal but (nil, non-nil) or (non-nil, nil) as different.
+func healthEqual(a, b *progress.RowHealth) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return reflect.DeepEqual(a, b)
 }

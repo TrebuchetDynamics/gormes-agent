@@ -389,8 +389,12 @@ func (s *Service) Chat(ctx context.Context, peer string, params ChatParams) (Cha
 	}
 
 	unavailable := chatUnavailableEvidence(params)
+	content := buildChatContent(peer, query, reasoningLevel, card, searchResult.Results, unavailable)
+	if err := insertAssistantChatTurn(ctx, s.db, params.SessionID, peer, content, ""); err != nil {
+		return ChatResult{}, err
+	}
 	return ChatResult{
-		Content: buildChatContent(peer, query, reasoningLevel, card, searchResult.Results, unavailable),
+		Content: content,
 	}, nil
 }
 

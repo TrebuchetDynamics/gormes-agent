@@ -40,9 +40,10 @@ type workerRun struct {
 
 func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	candidates, err := NormalizeCandidates(opts.Config.ProgressJSON, CandidateOptions{
-		ActiveFirst:   true,
-		PriorityBoost: opts.Config.PriorityBoost,
-		MaxPhase:      opts.Config.MaxPhase,
+		ActiveFirst:        true,
+		PriorityBoost:      opts.Config.PriorityBoost,
+		MaxPhase:           opts.Config.MaxPhase,
+		IncludeQuarantined: opts.Config.IncludeQuarantined,
 	})
 	if err != nil {
 		return RunSummary{}, err

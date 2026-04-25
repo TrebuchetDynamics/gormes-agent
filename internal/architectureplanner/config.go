@@ -3,6 +3,7 @@ package architectureplanner
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 )
 
 type Config struct {
@@ -20,6 +21,12 @@ type Config struct {
 	HonchoRepoURL   string
 	Validate        bool
 	SyncRepos       bool
+	// PlannerQuarantineLimit caps how many quarantined rows are surfaced in
+	// the planner's call-to-action context block. 0 means no cap. Sourced
+	// from GORMES_PLANNER_QUARANTINE_LIMIT, default 5 (mirrors the autoloop
+	// runtime setting added in Task 4 — kept in sync but as a separate field
+	// because the planner's Config is independent of autoloop's).
+	PlannerQuarantineLimit int
 }
 
 func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
@@ -29,20 +36,21 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 
 	parent := filepath.Dir(repoRoot)
 	cfg := Config{
-		RepoRoot:        repoRoot,
-		ProgressJSON:    filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
-		RunRoot:         filepath.Join(repoRoot, ".codex", "architecture-planner"),
-		AutoloopRunRoot: filepath.Join(repoRoot, ".codex", "orchestrator"),
-		Backend:         "codexu",
-		Mode:            "safe",
-		HermesDir:       filepath.Join(parent, "hermes-agent"),
-		GBrainDir:       filepath.Join(parent, "gbrain"),
-		HonchoDir:       filepath.Join(parent, "honcho"),
-		HermesRepoURL:   "https://github.com/NousResearch/hermes-agent.git",
-		GBrainRepoURL:   "https://github.com/garrytan/gbrain.git",
-		HonchoRepoURL:   "https://github.com/plastic-labs/honcho",
-		Validate:        true,
-		SyncRepos:       true,
+		RepoRoot:               repoRoot,
+		ProgressJSON:           filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		RunRoot:                filepath.Join(repoRoot, ".codex", "architecture-planner"),
+		AutoloopRunRoot:        filepath.Join(repoRoot, ".codex", "orchestrator"),
+		Backend:                "codexu",
+		Mode:                   "safe",
+		HermesDir:              filepath.Join(parent, "hermes-agent"),
+		GBrainDir:              filepath.Join(parent, "gbrain"),
+		HonchoDir:              filepath.Join(parent, "honcho"),
+		HermesRepoURL:          "https://github.com/NousResearch/hermes-agent.git",
+		GBrainRepoURL:          "https://github.com/garrytan/gbrain.git",
+		HonchoRepoURL:          "https://github.com/plastic-labs/honcho",
+		Validate:               true,
+		SyncRepos:              true,
+		PlannerQuarantineLimit: 5,
 	}
 
 	if value := env["PROGRESS_JSON"]; value != "" {
@@ -83,6 +91,16 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 	}
 	if value := env["PLANNER_SYNC_REPOS"]; value == "0" {
 		cfg.SyncRepos = false
+	}
+	if value := env["GORMES_PLANNER_QUARANTINE_LIMIT"]; value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("GORMES_PLANNER_QUARANTINE_LIMIT must be an integer: %w", err)
+		}
+		if n < 0 {
+			return Config{}, fmt.Errorf("GORMES_PLANNER_QUARANTINE_LIMIT must be non-negative")
+		}
+		cfg.PlannerQuarantineLimit = n
 	}
 
 	return cfg, nil

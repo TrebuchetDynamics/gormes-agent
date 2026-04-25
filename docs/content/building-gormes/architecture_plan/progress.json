@@ -2079,9 +2079,9 @@
             {
               "name": "Goncho streaming chat persistence contract",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho streaming chat stores the final assistant response once and never turns partial stream chunks into memory",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -2120,7 +2120,7 @@
                 "Successful streamed assistant responses are stored exactly once with the same session and assistant peer as non-streaming chat.",
                 "Token/counting metadata can be attached after completion without affecting the stored text."
               ],
-              "note": "Honcho docs make streaming a chat-response transport detail. Goncho should preserve memory quality by treating only completed assistant messages as durable facts.",
+              "note": "Complete: TDD landed internal/goncho/streaming_chat_persistence_test.go. The fixture proves stream=true degraded chat persists the final assistant response once, streaming handlers buffer chunks until completion, token metadata attaches after completion without mutating stored text, and interrupted streams return evidence without flushing partial assistant content to memory.",
               "write_scope": [
                 "internal/goncho/",
                 "internal/gonchotools/",

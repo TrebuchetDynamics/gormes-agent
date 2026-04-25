@@ -2,10 +2,13 @@ package autoloop
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
 type CandidateOptions struct {
@@ -15,6 +18,12 @@ type CandidateOptions struct {
 	IncludeBlocked  bool
 	IncludeUmbrella bool
 	IncludePaused   bool
+	// IncludeQuarantined causes NormalizeCandidates to surface rows whose
+	// Health.Quarantine block is current (spec hash matches). Default false:
+	// quarantined rows are filtered out so the run loop avoids known-bad
+	// targets. Stale quarantines (spec hash mismatch) are always surfaced and
+	// flagged with Candidate.StaleQuarantine regardless of this setting.
+	IncludeQuarantined bool
 }
 
 type Candidate struct {
@@ -40,28 +49,61 @@ type Candidate struct {
 	TestCommands   []string
 	DoneSignal     []string
 	Note           string
+	// Health is the row's autoloop execution-history block, if any. Surfaced
+	// here so the run loop and reporting can consult quarantine / failure
+	// counts without re-loading progress.json.
+	Health *progress.RowHealth
 	// StaleQuarantine is set by Task 5's selection logic when the row's
 	// existing Quarantine.SpecHash no longer matches the current ItemSpecHash
 	// (planner reshape detected). The run loop forwards this to the health
 	// accumulator so Flush clears the stale block atomically with run health.
 	StaleQuarantine bool
+	// PenaltyApplied is the ranking penalty derived from Health
+	// (ConsecutiveFailures + 2*len(BackendsTried)). Recorded so the reason
+	// string and downstream tooling can surface why a row sank in priority.
+	PenaltyApplied int
+}
+
+// failurePenalty returns the ranking penalty for n consecutive failures.
+// 0 -> 0, 1 -> 5, 2 -> 20, 3+ -> 45 (capped). Rows past the quarantine
+// threshold should already be filtered by NormalizeCandidates, but the cap
+// covers manual-override scenarios where IncludeQuarantined is set.
+func failurePenalty(n int) int {
+	switch {
+	case n <= 0:
+		return 0
+	case n == 1:
+		return 5
+	case n == 2:
+		return 20
+	default:
+		return 45
+	}
 }
 
 func (candidate Candidate) SelectionReason() string {
+	var base string
 	switch candidateBucket(candidate) {
 	case candidateBucketP0:
-		return "P0 handoff"
+		base = "P0 handoff"
 	case candidateBucketInProgress:
-		return "already active"
+		base = "already active"
 	case candidateBucketFixtureReady:
-		return "fixture ready"
+		base = "fixture ready"
 	case candidateBucketUnblocks:
-		return "unblocks downstream work"
+		base = "unblocks downstream work"
 	case candidateBucketDraft:
-		return "draft contract"
+		base = "draft contract"
 	default:
-		return "planned row"
+		base = "planned row"
 	}
+	if candidate.PenaltyApplied > 0 {
+		base += fmt.Sprintf(" penalty=%d", candidate.PenaltyApplied)
+	}
+	if candidate.StaleQuarantine {
+		base += " quarantine_stale_cleared"
+	}
+	return base
 }
 
 func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error) {
@@ -70,15 +112,15 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 		return nil, err
 	}
 
-	var progress progressJSON
-	if err := json.Unmarshal(data, &progress); err != nil {
+	var progressDoc progressJSON
+	if err := json.Unmarshal(data, &progressDoc); err != nil {
 		return nil, err
 	}
 
-	completed := completedItemSet(progress)
+	completed := completedItemSet(progressDoc)
 	var candidates []Candidate
 	seen := make(map[string]struct{})
-	for _, phase := range progress.Phases {
+	for _, phase := range progressDoc.Phases {
 		if phaseAboveMax(phase.ID, opts.MaxPhase) {
 			continue
 		}
@@ -136,6 +178,30 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 				if !agentQueueCandidate(candidate) {
 					continue
 				}
+
+				// Honor row health (Task 5):
+				//   - Active quarantine (spec hash matches current spec) is
+				//     filtered out unless IncludeQuarantined is set.
+				//   - Stale quarantine (spec hash mismatch) surfaces the row
+				//     with StaleQuarantine=true so the run loop can clear the
+				//     block atomically with this run's health updates.
+				//   - Consecutive-failure / backends-tried penalty is recorded
+				//     on the candidate so the sort below can demote it.
+				candidate.Health = item.Health
+				if item.Health != nil && item.Health.Quarantine != nil {
+					currentHash := progress.ItemSpecHash(itemPtr(item))
+					if currentHash != item.Health.Quarantine.SpecHash {
+						candidate.StaleQuarantine = true
+					} else if !opts.IncludeQuarantined {
+						continue
+					}
+				}
+				if item.Health != nil {
+					pen := failurePenalty(item.Health.ConsecutiveFailures)
+					pen += 2 * len(item.Health.BackendsTried)
+					candidate.PenaltyApplied = pen
+				}
+
 				seenKey := candidateSortKey(candidate)
 				if _, ok := seen[seenKey]; ok {
 					continue
@@ -149,8 +215,8 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 
 	boosts := priorityBoostSet(opts.PriorityBoost)
 	sort.Slice(candidates, func(i, j int) bool {
-		left := candidateRank(candidates[i], opts.ActiveFirst, boosts)
-		right := candidateRank(candidates[j], opts.ActiveFirst, boosts)
+		left := candidateRank(candidates[i], opts.ActiveFirst, boosts) + candidates[i].PenaltyApplied
+		right := candidateRank(candidates[j], opts.ActiveFirst, boosts) + candidates[j].PenaltyApplied
 		if left != right {
 			return left < right
 		}
@@ -159,6 +225,14 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 	})
 
 	return candidates, nil
+}
+
+// itemPtr returns a pointer to a progress.Item view of the given progressItem
+// suitable for passing to progress.ItemSpecHash. Lifted to a helper so the
+// conversion happens in one place.
+func itemPtr(item progressItem) *progress.Item {
+	view := item.toProgressItem()
+	return &view
 }
 
 func phaseAboveMax(phaseID string, maxPhase int) bool {
@@ -283,6 +357,24 @@ type progressItem struct {
 	TestCommands   []string `json:"test_commands"`
 	DoneSignal     []string `json:"done_signal"`
 	Note           string   `json:"note"`
+	// Health mirrors progress.Item.Health so candidate selection can honor
+	// quarantine and ranking penalties without re-loading the file through
+	// the canonical progress.Load path.
+	Health *progress.RowHealth `json:"health,omitempty"`
+}
+
+// toProgressItem builds a progress.Item view containing only the fields used
+// by progress.ItemSpecHash. Values are passed through verbatim so the digest
+// matches the one progress.Load + progress.ItemSpecHash would produce against
+// the same file.
+func (item progressItem) toProgressItem() progress.Item {
+	return progress.Item{
+		Contract:       item.Contract,
+		ContractStatus: progress.ContractStatus(item.ContractStatus),
+		BlockedBy:      append([]string(nil), item.BlockedBy...),
+		WriteScope:     append([]string(nil), item.WriteScope...),
+		Fixture:        item.Fixture,
+	}
 }
 
 func priorityBoostSet(boosts []string) map[string]struct{} {

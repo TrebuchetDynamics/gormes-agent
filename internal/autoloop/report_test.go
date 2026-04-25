@@ -2,6 +2,7 @@ package autoloop
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -264,4 +265,167 @@ func readReportFixture(t *testing.T, name string) string {
 		t.Fatalf("ReadFile(%s) error = %v", path, err)
 	}
 	return string(raw)
+}
+
+// setupRepoWithCommit initializes a git repo at dir with one commit on
+// `main`, then creates a `worker` branch with one additional commit checked
+// out as HEAD. Returns the worktree path (== dir) and the base branch name
+// (`main`). The worker commit is reachable from HEAD but not from main, so
+// `main..HEAD` yields exactly one commit and a non-empty diff.
+func setupRepoWithCommit(t *testing.T) (workdir string, baseBranch string) {
+	t.Helper()
+	dir := t.TempDir()
+	mustGit(t, dir, "init", "-b", "main")
+	mustGit(t, dir, "config", "user.email", "test@example.com")
+	mustGit(t, dir, "config", "user.name", "Test User")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("init\n"), 0o644); err != nil {
+		t.Fatalf("write README: %v", err)
+	}
+	mustGit(t, dir, "add", "README.md")
+	mustGit(t, dir, "commit", "-m", "init")
+	// Branch off main and add a worker commit so main..HEAD is non-empty.
+	mustGit(t, dir, "checkout", "-b", "worker")
+	if err := os.WriteFile(filepath.Join(dir, "worker.txt"), []byte("worker change\n"), 0o644); err != nil {
+		t.Fatalf("write worker.txt: %v", err)
+	}
+	mustGit(t, dir, "add", "worker.txt")
+	mustGit(t, dir, "commit", "-m", "worker change")
+	return dir, "main"
+}
+
+// setupRepoNoCommits initializes an empty git repo (no commits).
+func setupRepoNoCommits(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	mustGit(t, dir, "init", "-b", "main")
+	mustGit(t, dir, "config", "user.email", "test@example.com")
+	mustGit(t, dir, "config", "user.name", "Test User")
+	return dir
+}
+
+func mustGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+}
+
+func TestTryRepairReport_NoCommitFails(t *testing.T) {
+	dir := setupRepoNoCommits(t)
+	rep, _, err := TryRepairReport(RepairContext{
+		WorkerStdout: "PASS\nok",
+		WorktreePath: dir,
+		BaseBranch:   "main",
+	})
+	if err == nil {
+		t.Fatalf("expected repair to fail with no commit; got rep=%+v", rep)
+	}
+}
+
+func TestTryRepairReport_NoPassFails(t *testing.T) {
+	dir, base := setupRepoWithCommit(t)
+	rep, _, err := TryRepairReport(RepairContext{
+		WorkerStdout: "FAIL: foo broke",
+		WorktreePath: dir,
+		BaseBranch:   base,
+	})
+	if err == nil {
+		t.Fatalf("expected repair to fail without PASS token; got rep=%+v", rep)
+	}
+}
+
+func TestTryRepairReport_AcceptanceMissingFails(t *testing.T) {
+	dir, base := setupRepoWithCommit(t)
+	rep, _, err := TryRepairReport(RepairContext{
+		WorkerStdout:    "ok\nPASS",
+		WorktreePath:    dir,
+		BaseBranch:      base,
+		AcceptanceLines: []string{"acceptance-line-A"}, // not in stdout
+	})
+	if err == nil {
+		t.Fatalf("expected repair to fail when acceptance line missing; got rep=%+v", rep)
+	}
+}
+
+func TestTryRepairReport_AcceptanceEmptyAcceptsOnPassEvidence(t *testing.T) {
+	dir, base := setupRepoWithCommit(t)
+	rep, notes, err := TryRepairReport(RepairContext{
+		WorkerStdout: "all good\nPASS\nok\n",
+		WorktreePath: dir,
+		BaseBranch:   base,
+		// AcceptanceLines empty → fallback rule: accept on PASS evidence.
+	})
+	if err != nil || rep == nil {
+		t.Fatalf("expected repair to succeed, got err=%v rep=%v", err, rep)
+	}
+	if rep.Commit == "" {
+		t.Fatal("expected reconstructed commit")
+	}
+	if len(notes) == 0 {
+		t.Fatal("expected at least one RepairNote")
+	}
+	// Synthesized acceptance must satisfy the existing acceptanceEvidence
+	// contract (one RED with exit 1, one GREEN with exit 0).
+	hasRed, hasGreen := acceptanceEvidence(rep.Acceptance)
+	if !hasRed {
+		t.Fatalf("synthesized acceptance lacks RED evidence: %v", rep.Acceptance)
+	}
+	if !hasGreen {
+		t.Fatalf("synthesized acceptance lacks GREEN evidence: %v", rep.Acceptance)
+	}
+}
+
+func TestTryRepairReport_AllAcceptanceLinesPresentAccepts(t *testing.T) {
+	dir, base := setupRepoWithCommit(t)
+	rep, _, err := TryRepairReport(RepairContext{
+		WorkerStdout:    "acceptance-A done\nacceptance-B done\nPASS\nok",
+		WorktreePath:    dir,
+		BaseBranch:      base,
+		AcceptanceLines: []string{"acceptance-A", "acceptance-B"},
+	})
+	if err != nil || rep == nil {
+		t.Fatalf("expected repair to succeed, got err=%v", err)
+	}
+	if rep.Commit == "" {
+		t.Fatal("expected reconstructed commit")
+	}
+}
+
+func TestTryRepairReport_EmptyDiffFails(t *testing.T) {
+	dir, base := setupRepoWithCommit(t)
+	// Reset to the base branch so HEAD..base diff is empty.
+	mustGit(t, dir, "reset", "--hard", base)
+	rep, _, err := TryRepairReport(RepairContext{
+		WorkerStdout: "PASS\nok",
+		WorktreePath: dir,
+		BaseBranch:   base,
+	})
+	if err == nil {
+		t.Fatalf("expected repair to fail with empty diff; got rep=%+v", rep)
+	}
+}
+
+func TestWriteRepairArtifact_WritesJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "repairs", "run-1-worker-2.json")
+	rep := &FinalReport{Commit: "abc123", Acceptance: []string{"GREEN: ok"}}
+	notes := []RepairNote{{Field: "commit", Source: "git_log", Detail: "abc123"}}
+	if err := writeRepairArtifact(path, Candidate{ItemName: "row-x"}, rep, "diff body\n", notes, "PASS\nok\n"); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	got := string(body)
+	for _, want := range []string{`"commit": "abc123"`, `"ItemName": "row-x"`, `"PASS\nok\n"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("artifact missing %q\n%s", want, got)
+		}
+	}
 }
