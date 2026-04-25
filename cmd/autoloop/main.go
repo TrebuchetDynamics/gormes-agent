@@ -268,7 +268,18 @@ func dashIfEmpty(value string) string {
 
 func autoloopEnv() map[string]string {
 	env := map[string]string{}
-	for _, key := range []string{"PROGRESS_JSON", "RUN_ROOT", "BACKEND", "MODE", "MAX_AGENTS", "MAX_PHASE", "PRIORITY_BOOST"} {
+	for _, key := range []string{
+		"PROGRESS_JSON",
+		"RUN_ROOT",
+		"BACKEND",
+		"MODE",
+		"MAX_AGENTS",
+		"MAX_PHASE",
+		"PRIORITY_BOOST",
+		"POST_PROMOTION_VERIFY_COMMANDS",
+		"POST_PROMOTION_REPAIR",
+		"POST_PROMOTION_REPAIR_ATTEMPTS",
+	} {
 		env[key] = os.Getenv(key)
 	}
 

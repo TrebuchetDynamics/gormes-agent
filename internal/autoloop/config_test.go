@@ -159,6 +159,16 @@ func TestConfigFromEnvReactiveDefaults(t *testing.T) {
 	if cfg.PlannerQuarantineLimit != 5 {
 		t.Fatalf("PlannerQuarantineLimit = %d, want 5", cfg.PlannerQuarantineLimit)
 	}
+	wantVerify := defaultPostPromotionVerifyCommands()
+	if !reflect.DeepEqual(cfg.PostPromotionVerifyCommands, wantVerify) {
+		t.Fatalf("PostPromotionVerifyCommands = %#v, want %#v", cfg.PostPromotionVerifyCommands, wantVerify)
+	}
+	if cfg.PostPromotionRepairEnabled != true {
+		t.Fatalf("PostPromotionRepairEnabled = %v, want true", cfg.PostPromotionRepairEnabled)
+	}
+	if cfg.PostPromotionRepairAttempts != 1 {
+		t.Fatalf("PostPromotionRepairAttempts = %d, want 1", cfg.PostPromotionRepairAttempts)
+	}
 }
 
 func TestConfigFromEnvReactiveOverrides(t *testing.T) {
@@ -169,6 +179,9 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 		"GORMES_INCLUDE_QUARANTINED":      "true",
 		"GORMES_REPORT_REPAIR":            "0",
 		"GORMES_PLANNER_QUARANTINE_LIMIT": "9",
+		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/autoloop -count=1;;go run ./cmd/autoloop progress validate",
+		"POST_PROMOTION_REPAIR":           "off",
+		"POST_PROMOTION_REPAIR_ATTEMPTS":  "2",
 	})
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
@@ -191,6 +204,16 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 	}
 	if cfg.PlannerQuarantineLimit != 9 {
 		t.Fatalf("PlannerQuarantineLimit = %d, want 9", cfg.PlannerQuarantineLimit)
+	}
+	verifyWant := []string{"go test ./internal/autoloop -count=1", "go run ./cmd/autoloop progress validate"}
+	if !reflect.DeepEqual(cfg.PostPromotionVerifyCommands, verifyWant) {
+		t.Fatalf("PostPromotionVerifyCommands = %#v, want %#v", cfg.PostPromotionVerifyCommands, verifyWant)
+	}
+	if cfg.PostPromotionRepairEnabled != false {
+		t.Fatalf("PostPromotionRepairEnabled = %v, want false", cfg.PostPromotionRepairEnabled)
+	}
+	if cfg.PostPromotionRepairAttempts != 2 {
+		t.Fatalf("PostPromotionRepairAttempts = %d, want 2", cfg.PostPromotionRepairAttempts)
 	}
 }
 
@@ -250,5 +273,20 @@ func TestConfigFromEnvRejectsInvalidQuarantineThreshold(t *testing.T) {
 func TestConfigFromEnvRejectsInvalidReportRepair(t *testing.T) {
 	if _, err := ConfigFromEnv("repo", map[string]string{"GORMES_REPORT_REPAIR": "maybe"}); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvRejectsInvalidPostPromotionRepair(t *testing.T) {
+	if _, err := ConfigFromEnv("repo", map[string]string{"POST_PROMOTION_REPAIR": "maybe"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvRejectsInvalidPostPromotionRepairAttempts(t *testing.T) {
+	if _, err := ConfigFromEnv("repo", map[string]string{"POST_PROMOTION_REPAIR_ATTEMPTS": "many"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+	if _, err := ConfigFromEnv("repo", map[string]string{"POST_PROMOTION_REPAIR_ATTEMPTS": "-1"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want non-negative error")
 	}
 }

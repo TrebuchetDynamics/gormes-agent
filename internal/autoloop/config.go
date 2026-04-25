@@ -24,6 +24,10 @@ type Config struct {
 	IncludeQuarantined      bool     // GORMES_INCLUDE_QUARANTINED, default false
 	ReportRepairEnabled     bool     // GORMES_REPORT_REPAIR, default true (Task 6)
 	PlannerQuarantineLimit  int      // GORMES_PLANNER_QUARANTINE_LIMIT, default 5 (Task 7)
+
+	PostPromotionVerifyCommands []string // POST_PROMOTION_VERIFY_COMMANDS, default full-suite gate
+	PostPromotionRepairEnabled  bool     // POST_PROMOTION_REPAIR, default true
+	PostPromotionRepairAttempts int      // POST_PROMOTION_REPAIR_ATTEMPTS, default 1
 }
 
 func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
@@ -47,6 +51,10 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		IncludeQuarantined:      false,
 		ReportRepairEnabled:     true,
 		PlannerQuarantineLimit:  5,
+
+		PostPromotionVerifyCommands: defaultPostPromotionVerifyCommands(),
+		PostPromotionRepairEnabled:  true,
+		PostPromotionRepairAttempts: 1,
 	}
 
 	if value := env["PROGRESS_JSON"]; value != "" {
@@ -133,8 +141,42 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.PlannerQuarantineLimit = n
 	}
+	if value := env["POST_PROMOTION_VERIFY_COMMANDS"]; value != "" {
+		commands := splitCommandList(value)
+		if len(commands) == 0 {
+			return Config{}, fmt.Errorf("POST_PROMOTION_VERIFY_COMMANDS must contain at least one command")
+		}
+		cfg.PostPromotionVerifyCommands = commands
+	}
+	if value := env["POST_PROMOTION_REPAIR"]; value != "" {
+		b, err := parseBoolEnv(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("POST_PROMOTION_REPAIR: %w", err)
+		}
+		cfg.PostPromotionRepairEnabled = b
+	}
+	if value := env["POST_PROMOTION_REPAIR_ATTEMPTS"]; value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("POST_PROMOTION_REPAIR_ATTEMPTS must be an integer: %w", err)
+		}
+		if n < 0 {
+			return Config{}, fmt.Errorf("POST_PROMOTION_REPAIR_ATTEMPTS must be non-negative")
+		}
+		cfg.PostPromotionRepairAttempts = n
+	}
 
 	return cfg, nil
+}
+
+func defaultPostPromotionVerifyCommands() []string {
+	return []string{
+		"go test ./... -count=1",
+		"(cd www.gormes.ai && go test ./... -count=1)",
+		"go run ./cmd/autoloop progress validate",
+		"go run ./cmd/autoloop run --dry-run",
+		"(cd www.gormes.ai && npm run test:e2e -- --reporter=line)",
+	}
 }
 
 func splitCSV(value string) []string {
@@ -143,6 +185,21 @@ func splitCSV(value string) []string {
 		trimmed := strings.TrimSpace(part)
 		if trimmed != "" {
 			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func splitCommandList(value string) []string {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	var out []string
+	for _, line := range strings.Split(value, "\n") {
+		for _, part := range strings.Split(line, ";;") {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				out = append(out, trimmed)
+			}
 		}
 	}
 	return out
