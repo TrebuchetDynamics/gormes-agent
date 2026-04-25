@@ -129,7 +129,7 @@ func TestRunPrePromotionVerify_DisabledByDefaultIsNoop(t *testing.T) {
 	})
 	worker := workerRun{ID: 1, Task: "phase/sub/item", Branch: "autoloop/test/w1", RepoRoot: filepath.Join(dir, "worktree-1")}
 
-	if err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker); err != nil {
+	if err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker, 1); err != nil {
 		t.Fatalf("disabled gate should not error: %v", err)
 	}
 	if calls != 0 {
@@ -159,7 +159,7 @@ func TestRunPrePromotionVerify_RunsInWorkerWorktree(t *testing.T) {
 		return Result{}
 	})
 
-	if err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker); err != nil {
+	if err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker, 1); err != nil {
 		t.Fatalf("verify should pass: %v", err)
 	}
 	if seenDir != worktreePath {
@@ -190,7 +190,7 @@ func TestRunPrePromotionVerify_FailureEmitsWorkerFailedAndPreventsPromotion(t *t
 		return Result{}
 	})
 
-	err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker)
+	err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker, 1)
 	if err == nil {
 		t.Fatal("verify failure must propagate as error")
 	}
@@ -219,6 +219,173 @@ func TestRunPrePromotionVerify_FailureEmitsWorkerFailedAndPreventsPromotion(t *t
 	for _, want := range []string{`"worker":7`, `"task":"2/2.B/test-row"`, "command=2/3", "command=3/3"} {
 		if !strings.Contains(failedDetail, want) {
 			t.Errorf("worker_failed event missing %q\n%s", want, failedDetail)
+		}
+	}
+}
+
+// TestRunPrePromotionGate_RepairFixesFailingVerify exercises the
+// verify→repair→verify orchestration. The runner closure simulates an LLM
+// repair: the first verify fails, the backend command "fixes" things by
+// flipping a counter so subsequent verify commands pass.
+func TestRunPrePromotionGate_RepairFixesFailingVerify(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                   filepath.Join(dir, "main"),
+		RunRoot:                    filepath.Join(dir, "runroot"),
+		Backend:                    "codexu",
+		Mode:                       "safe",
+		PrePromotionVerifyCommands: []string{"go test ./..."},
+		PrePromotionRepairEnabled:  true,
+		PrePromotionRepairAttempts: 1,
+	}
+	worktreePath := filepath.Join(dir, "worktree-1")
+	if err := os.MkdirAll(worktreePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	worker := workerRun{ID: 4, Task: "2/2.B/test", Branch: "autoloop/test/w4", RepoRoot: worktreePath}
+
+	repairRan := false
+	verifyCalls := 0
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		// The backend repair command is the codexu invocation; the verify
+		// commands run via "sh -lc ...". Distinguish by Name.
+		if cmd.Name == "sh" {
+			verifyCalls++
+			// First verify fails; verifies after repair pass.
+			if !repairRan {
+				return Result{Err: errors.New("exit status 1"), Stderr: "boom"}
+			}
+			return Result{}
+		}
+		// Backend repair invocation. Mark repair as run.
+		repairRan = true
+		return Result{}
+	})
+
+	if err := runPrePromotionGate(context.Background(), cfg, runner, "run-A", worker); err != nil {
+		t.Fatalf("gate should pass after repair: %v", err)
+	}
+	if !repairRan {
+		t.Fatal("repair was never invoked despite verify failure")
+	}
+	if verifyCalls != 2 {
+		t.Fatalf("expected 2 verify calls (initial + post-repair), got %d", verifyCalls)
+	}
+
+	body := readLedgerLines(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	wantEvents := []string{
+		`"event":"pre_promotion_verify_started"`,
+		`"event":"worker_failed"`,
+		`"status":"pre_promotion_verify_failed"`,
+		`"event":"pre_promotion_repair_started"`,
+		`"event":"pre_promotion_repair_succeeded"`,
+		`"event":"pre_promotion_verify_succeeded"`,
+	}
+	for _, want := range wantEvents {
+		var found bool
+		for _, line := range body {
+			if strings.Contains(line, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("ledger missing %q\nfull ledger:\n%s", want, strings.Join(body, "\n"))
+		}
+	}
+}
+
+// TestRunPrePromotionGate_RepairDisabledShortCircuits verifies that when
+// the operator opts out of repair (PRE_PROMOTION_REPAIR=0), a verify
+// failure is terminal — no repair is invoked and the gate returns the
+// original verify error.
+func TestRunPrePromotionGate_RepairDisabledShortCircuits(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                   filepath.Join(dir, "main"),
+		RunRoot:                    filepath.Join(dir, "runroot"),
+		PrePromotionVerifyCommands: []string{"false"},
+		PrePromotionRepairEnabled:  false,
+		PrePromotionRepairAttempts: 1,
+	}
+	worker := workerRun{ID: 1, Task: "phase/sub/item", Branch: "br", RepoRoot: filepath.Join(dir, "wt")}
+
+	backendInvoked := false
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		if cmd.Name != "sh" {
+			backendInvoked = true
+		}
+		return Result{Err: errors.New("exit status 1")}
+	})
+
+	err := runPrePromotionGate(context.Background(), cfg, runner, "run-A", worker)
+	if err == nil {
+		t.Fatal("expected verify failure to propagate when repair disabled")
+	}
+	if backendInvoked {
+		t.Fatal("backend should NOT be invoked when PrePromotionRepairEnabled=false")
+	}
+}
+
+// TestRunPrePromotionGate_RepairAttemptsExhausted verifies the loop bound:
+// when verify keeps failing across attempts, the gate eventually gives up
+// with the final verify error (and still no main-side modifications).
+func TestRunPrePromotionGate_RepairAttemptsExhausted(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                   filepath.Join(dir, "main"),
+		RunRoot:                    filepath.Join(dir, "runroot"),
+		Backend:                    "codexu",
+		Mode:                       "safe",
+		PrePromotionVerifyCommands: []string{"false"},
+		PrePromotionRepairEnabled:  true,
+		PrePromotionRepairAttempts: 2,
+	}
+	worktreePath := filepath.Join(dir, "wt")
+	if err := os.MkdirAll(worktreePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	worker := workerRun{ID: 2, Task: "task", Branch: "br", RepoRoot: worktreePath}
+
+	repairCalls := 0
+	verifyCalls := 0
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		if cmd.Name == "sh" {
+			verifyCalls++
+			return Result{Err: errors.New("exit status 1"), Stderr: "still broken"}
+		}
+		repairCalls++
+		return Result{} // repair always claims success but verify keeps failing
+	})
+
+	if err := runPrePromotionGate(context.Background(), cfg, runner, "run-A", worker); err == nil {
+		t.Fatal("expected gate to fail after exhausting repair attempts")
+	}
+	if repairCalls != 2 {
+		t.Fatalf("expected 2 repair attempts, got %d", repairCalls)
+	}
+	if verifyCalls != 3 {
+		t.Fatalf("expected 3 verify calls (1 initial + 2 post-repair), got %d", verifyCalls)
+	}
+}
+
+func TestBuildPrePromotionRepairPrompt_NamesBranchAndCommands(t *testing.T) {
+	worker := workerRun{Branch: "autoloop/run-A/w4", Task: "2/2.B/sample"}
+	prompt := BuildPrePromotionRepairPrompt(
+		[]string{"go test ./...", "go vet ./..."},
+		worker,
+		errors.New("simulated verify failure"),
+	)
+	for _, want := range []string{
+		"autoloop/run-A/w4",
+		"2/2.B/sample",
+		"go test ./...",
+		"go vet ./...",
+		"simulated verify failure",
+		"NOT yet on main",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("prompt missing %q\n%s", want, prompt)
 		}
 	}
 }

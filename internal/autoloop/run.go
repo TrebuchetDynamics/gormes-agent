@@ -395,6 +395,141 @@ func runPostPromotionGate(ctx context.Context, cfg Config, runner Runner, runID 
 	return lastErr
 }
 
+// runPrePromotionGate orchestrates the pre-promotion verify-repair-verify
+// loop. Empty PrePromotionVerifyCommands → no-op. On verify failure: when
+// PrePromotionRepairEnabled and PrePromotionRepairAttempts > 0, dispatch the
+// LLM-driven repair against the worker's worktree, then re-verify. Loop up
+// to PrePromotionRepairAttempts times. If the gate ultimately fails, the
+// final ledger event is a worker_failed/pre_promotion_verify_failed (or
+// pre_promotion_repair_failed if repair itself errored), main is never
+// touched, and the error propagates up so finishWorker bails before
+// promoteWorkerCommit.
+func runPrePromotionGate(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun) error {
+	if len(cfg.PrePromotionVerifyCommands) == 0 {
+		return nil
+	}
+
+	verifyErr := runPrePromotionVerify(ctx, cfg, runner, runID, worker, 1)
+	if verifyErr == nil {
+		return nil
+	}
+
+	attempts := cfg.PrePromotionRepairAttempts
+	if !cfg.PrePromotionRepairEnabled || attempts <= 0 {
+		// Repair disabled — the verify_failed event was already emitted by
+		// runPrePromotionVerify itself, so just propagate the error.
+		return verifyErr
+	}
+
+	lastErr := verifyErr
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if repairErr := runPrePromotionRepair(ctx, cfg, runner, runID, attempt, worker, lastErr); repairErr != nil {
+			return errors.Join(lastErr, repairErr)
+		}
+		lastErr = runPrePromotionVerify(ctx, cfg, runner, runID, worker, attempt+1)
+		if lastErr == nil {
+			return nil
+		}
+	}
+	return lastErr
+}
+
+// runPrePromotionRepair dispatches the LLM backend against the worker's
+// worktree with a prompt that names the failing verify commands and the
+// captured error. The repair runs ON the worker's branch, so any commits
+// the LLM produces accumulate on the worker branch (not main). After the
+// backend exits, the worktree must be clean — uncommitted changes or merge
+// conflicts mark the repair as failed.
+func runPrePromotionRepair(ctx context.Context, cfg Config, runner Runner, runID string, attempt int, worker workerRun, cause error) error {
+	if err := appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "pre_promotion_repair_started",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "started",
+		Detail: fmt.Sprintf("attempt=%d", attempt),
+	}); err != nil {
+		return err
+	}
+
+	argv, err := BuildBackendCommand(cfg.Backend, cfg.Mode)
+	if err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "pre_promotion_repair_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Status: "failed",
+			Detail: truncateLedgerDetail(err.Error()),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+
+	args := append([]string(nil), argv[1:]...)
+	args = append(args, BuildPrePromotionRepairPrompt(cfg.PrePromotionVerifyCommands, worker, cause))
+	result := runner.Run(ctx, Command{
+		Name: argv[0],
+		Args: args,
+		Dir:  worker.RepoRoot,
+		Env:  postPromotionCommandEnv(cfg),
+	})
+	if result.Err != nil {
+		err := postPromotionCommandError("pre-promotion repair", argv[0], result)
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "pre_promotion_repair_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d: %s", attempt, commandFailureDetail(result))),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+	if err := ensureNoMergeConflicts(worker.RepoRoot); err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "pre_promotion_repair_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d clean-check: %s", attempt, err.Error())),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+	if err := ensureWorktreeClean(worker.RepoRoot); err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "pre_promotion_repair_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d clean-check: %s", attempt, err.Error())),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+
+	return appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "pre_promotion_repair_succeeded",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "ok",
+		Detail: fmt.Sprintf("attempt=%d", attempt),
+	})
+}
+
 // runPrePromotionVerify runs cfg.PrePromotionVerifyCommands inside the
 // worker's worktree before the worker's commit is cherry-picked onto main.
 // Empty command list is a no-op (default — preserves the post-promotion-only
@@ -406,7 +541,7 @@ func runPostPromotionGate(ctx context.Context, cfg Config, runner Runner, runID 
 // All commands run regardless of which one fails first, mirroring the
 // post-promotion gate's behavior so the operator (and any future repair
 // hook) sees a complete failure picture in one ledger entry.
-func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun) error {
+func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun, attempt int) error {
 	if len(cfg.PrePromotionVerifyCommands) == 0 {
 		return nil
 	}
@@ -418,7 +553,7 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		Task:   worker.Task,
 		Branch: worker.Branch,
 		Status: "started",
-		Detail: fmt.Sprintf("commands=%d", len(cfg.PrePromotionVerifyCommands)),
+		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(cfg.PrePromotionVerifyCommands)),
 	}); err != nil {
 		return err
 	}
@@ -451,8 +586,8 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 			Task:   worker.Task,
 			Branch: worker.Branch,
 			Status: "pre_promotion_verify_failed",
-			Detail: truncateLedgerDetail(fmt.Sprintf("failed=%d/%d\n\n%s",
-				len(commandErrs), len(cfg.PrePromotionVerifyCommands),
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d failed=%d/%d\n\n%s",
+				attempt, len(commandErrs), len(cfg.PrePromotionVerifyCommands),
 				strings.Join(failureDetails, "\n\n---\n\n"))),
 		})
 		return errors.Join(append(commandErrs, ledgerErr)...)
@@ -466,7 +601,7 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		Task:   worker.Task,
 		Branch: worker.Branch,
 		Status: "ok",
-		Detail: fmt.Sprintf("commands=%d", len(cfg.PrePromotionVerifyCommands)),
+		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(cfg.PrePromotionVerifyCommands)),
 	})
 }
 
@@ -927,13 +1062,12 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			if err := ensureCurrentBranch(cfg.RepoRoot, baseBranch); err != nil {
 				return err
 			}
-			// Pre-promotion verify gate: when enabled, run the configured
-			// verify commands inside the worker's worktree on the worker's
-			// branch BEFORE the commit is cherry-picked onto main. A
-			// failing verify aborts here as a worker_failed outcome, so
-			// main never enters a briefly-broken state. Empty
+			// Pre-promotion gate: verify the worker's worktree, optionally
+			// repair on failure, re-verify, and only promote if the gate
+			// passes. A failing gate aborts here as a worker_failed
+			// outcome so main never enters a briefly-broken state. Empty
 			// PrePromotionVerifyCommands is a no-op (current behavior).
-			if err := runPrePromotionVerify(ctx, cfg, runner, runID, worker); err != nil {
+			if err := runPrePromotionGate(ctx, cfg, runner, runID, worker); err != nil {
 				return err
 			}
 			if err := promoteWorkerCommit(ctx, cfg, runner, runID, worker.ID, worker.Task, worker.Branch, commitSha); err != nil {
@@ -1363,6 +1497,48 @@ func selectAcrossSubphases(candidates []Candidate, maxAgents int) []Candidate {
 
 func BuildWorkerPrompt(candidate Candidate) string {
 	return BuildWorkerPromptWithBranch(candidate, "")
+}
+
+// BuildPrePromotionRepairPrompt produces the LLM prompt the pre-promotion
+// repair gate hands to the backend when verify fails. Critically, the
+// repair runs ON THE WORKER'S BRANCH inside the worker's worktree, so any
+// commits the LLM produces accumulate on that branch (they will be
+// cherry-picked onto main only if the post-repair re-verify passes).
+//
+// The prompt names the failing commands and the truncated cause, and tells
+// the LLM to scope its edits to the worker's task — not to widen scope to
+// unrelated parts of the tree.
+func BuildPrePromotionRepairPrompt(verifyCommands []string, worker workerRun, cause error) string {
+	var prompt strings.Builder
+
+	prompt.WriteString("Mission:\n")
+	prompt.WriteString("Repair this autoloop worker's branch in its worktree so the pre-promotion verify gate passes BEFORE the commit is cherry-picked onto main.\n\n")
+
+	prompt.WriteString("Context:\n")
+	fmt.Fprintf(&prompt, "- You are working in the worker's isolated worktree (branch %q, task %q).\n", worker.Branch, worker.Task)
+	prompt.WriteString("- The worker's commit is NOT yet on main. Failed verifies here keep main clean; only after this gate passes does promote run.\n")
+	prompt.WriteString("- Keep edits minimal and tightly scoped to making the failing commands pass. Do not widen scope to unrelated phases.\n")
+	prompt.WriteString("- The worker has already produced one commit on this branch; your repair commits stack on top of it.\n\n")
+
+	prompt.WriteString("Failing verification:\n")
+	if cause == nil {
+		prompt.WriteString("- (no error detail available)\n\n")
+	} else {
+		fmt.Fprintf(&prompt, "- %s\n\n", truncateLedgerDetail(cause.Error()))
+	}
+
+	prompt.WriteString("Verify commands to restore:\n")
+	writePromptList(&prompt, verifyCommands)
+	prompt.WriteString("\n")
+
+	prompt.WriteString("Requirements:\n")
+	prompt.WriteString("- Inspect the failure before editing.\n")
+	prompt.WriteString("- Fix code, tests, docs, or progress metadata required for the failing verify commands to pass.\n")
+	prompt.WriteString("- Run the verify commands above after repair to confirm they pass locally.\n")
+	prompt.WriteString("- Stage and commit repair changes on this branch with a clear message before exiting.\n")
+	prompt.WriteString("- Leave the worktree with no uncommitted changes or unresolved merge conflicts.\n")
+
+	return prompt.String()
 }
 
 func BuildPostPromotionRepairPrompt(verifyCommands []string, cause error) string {

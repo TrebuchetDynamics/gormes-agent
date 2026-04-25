@@ -42,6 +42,14 @@ type Config struct {
 	// Compose with PostPromotionVerifyCommands for defense-in-depth (pre
 	// catches per-worker breakage; post catches cross-worker integration).
 	PrePromotionVerifyCommands []string // PRE_PROMOTION_VERIFY_COMMANDS
+	// PrePromotionRepairEnabled gates the LLM-driven repair attempt that
+	// runs in the worker's worktree when the pre-promotion verify fails.
+	// Default: true. Set PRE_PROMOTION_REPAIR=0 to skip repair and treat
+	// the first failure as a terminal worker_failed outcome.
+	PrePromotionRepairEnabled bool // PRE_PROMOTION_REPAIR
+	// PrePromotionRepairAttempts caps the number of repair iterations per
+	// worker before giving up. Default: 1 (one repair pass + one re-verify).
+	PrePromotionRepairAttempts int // PRE_PROMOTION_REPAIR_ATTEMPTS
 
 	// PlannerTriggersPath is the JSONL ledger autoloop appends to when a
 	// row's quarantine state changes in a way the planner needs to react
@@ -82,6 +90,8 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		PostPromotionRepairEnabled:  true,
 		PostPromotionRepairAttempts: 1,
 		PrePromotionVerifyCommands:  nil,
+		PrePromotionRepairEnabled:   true,
+		PrePromotionRepairAttempts:  1,
 
 		PlannerTriggersPath: filepath.Join(repoRoot, ".codex", "architecture-planner", "triggers.jsonl"),
 	}
@@ -211,6 +221,23 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 			return Config{}, fmt.Errorf("PRE_PROMOTION_VERIFY_COMMANDS must contain at least one command")
 		}
 		cfg.PrePromotionVerifyCommands = commands
+	}
+	if value := env["PRE_PROMOTION_REPAIR"]; value != "" {
+		b, err := parseBoolEnv(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PRE_PROMOTION_REPAIR: %w", err)
+		}
+		cfg.PrePromotionRepairEnabled = b
+	}
+	if value := env["PRE_PROMOTION_REPAIR_ATTEMPTS"]; value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PRE_PROMOTION_REPAIR_ATTEMPTS must be an integer: %w", err)
+		}
+		if n < 0 {
+			return Config{}, fmt.Errorf("PRE_PROMOTION_REPAIR_ATTEMPTS must be non-negative")
+		}
+		cfg.PrePromotionRepairAttempts = n
 	}
 	if value := env["POST_PROMOTION_REPAIR"]; value != "" {
 		b, err := parseBoolEnv(value)
