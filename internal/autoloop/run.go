@@ -80,6 +80,10 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	// success / failure outcomes for each candidate; Flush at the end of the
 	// run mutates progress.json in one batched write.
 	acc := newHealthAccumulator(runID, time.Now, opts.Config.QuarantineThreshold)
+	runner := opts.Runner
+	if runner == nil {
+		runner = ExecRunner{}
+	}
 	chain := opts.Config.BackendFallback
 	if len(chain) == 0 {
 		chain = []string{opts.Config.Backend}
@@ -132,6 +136,16 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			})
 			return fmt.Errorf("flush health: %w", err)
 		}
+		if err := commitRunHealth(ctx, opts.Config, runner); err != nil {
+			_ = appendRunLedgerEvent(opts.Config, LedgerEvent{
+				TS:     time.Now().UTC(),
+				RunID:  runID,
+				Event:  "health_update_failed",
+				Status: "failed",
+				Detail: err.Error(),
+			})
+			return fmt.Errorf("commit health: %w", err)
+		}
 		_ = appendRunLedgerEvent(opts.Config, LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
@@ -156,11 +170,6 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			Status: "degraded",
 			Detail: fmt.Sprintf("from=%s to=%s threshold=%d", from, to, opts.Config.BackendDegradeThreshold),
 		})
-	}
-
-	runner := opts.Runner
-	if runner == nil {
-		runner = ExecRunner{}
 	}
 
 	argv, err := BuildBackendCommand(opts.Config.Backend, opts.Config.Mode)
@@ -638,6 +647,47 @@ func promoteWorkerCommit(ctx context.Context, cfg Config, runner Runner, runID s
 		Commit: commitSha,
 		Status: "promoted",
 	})
+}
+
+func commitRunHealth(ctx context.Context, cfg Config, runner Runner) error {
+	if cfg.RepoRoot == "" || cfg.ProgressJSON == "" || !repoHasGit(cfg.RepoRoot) {
+		return nil
+	}
+	rel, err := filepath.Rel(cfg.RepoRoot, cfg.ProgressJSON)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return nil
+	}
+
+	status := runner.Run(ctx, Command{
+		Name: "git",
+		Args: []string{"status", "--short", "--", rel},
+		Dir:  cfg.RepoRoot,
+	})
+	if status.Err != nil {
+		return fmt.Errorf("check progress health status: %w", status.Err)
+	}
+	if strings.TrimSpace(status.Stdout) == "" {
+		return nil
+	}
+
+	add := runner.Run(ctx, Command{
+		Name: "git",
+		Args: []string{"add", "--", rel},
+		Dir:  cfg.RepoRoot,
+	})
+	if add.Err != nil {
+		return fmt.Errorf("stage progress health: %w", add.Err)
+	}
+
+	commit := runner.Run(ctx, Command{
+		Name: "git",
+		Args: []string{"commit", "-m", "autoloop: record run health", "--", rel},
+		Dir:  cfg.RepoRoot,
+	})
+	if commit.Err != nil {
+		return fmt.Errorf("commit progress health: %w", commit.Err)
+	}
+	return nil
 }
 
 func removeCleanWorkerWorktree(repoRoot, worktreePath string) {
