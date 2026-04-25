@@ -27,6 +27,7 @@ const (
 	LineageStatusMissing = "missing"
 	LineageStatusOrphan  = "orphan"
 	LineageStatusLoop    = "loop"
+	LineageStatusError   = "error"
 )
 
 // LineageAuditEntry is the read model rendered by the operator session mirror.

@@ -708,20 +708,23 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 }
 
 func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent) bool {
-	sessionID, err := resolveSessionID(ctx, m.cfg.SessionMap, ev.ChatKey())
+	resolved, err := resolveSession(ctx, m.cfg.SessionMap, ev.ChatKey())
 	if err != nil {
 		m.log.Warn("load session mapping", "key", ev.ChatKey(), "err", err)
 	}
 	sessionContext := BuildSessionContextPrompt(SessionContext{
 		Source:             sessionSourceFromInbound(ev),
 		SessionKey:         ev.ChatKey(),
-		SessionID:          sessionID,
+		SessionID:          resolved.SessionID,
+		RequestedSessionID: resolved.RequestedSessionID,
+		ResumePath:         resolved.ResumePath,
+		ResumeStatus:       resolved.ResumeStatus,
 		ConnectedPlatforms: m.connectedPlatforms(),
 	})
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           ev.SubmitText(),
-		SessionID:      sessionID,
+		SessionID:      resolved.SessionID,
 		SessionContext: sessionContext,
 	}); err != nil {
 		m.clearTurn()

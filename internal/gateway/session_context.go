@@ -26,7 +26,17 @@ type SessionContext struct {
 	Source             SessionSource
 	SessionKey         string
 	SessionID          string
+	RequestedSessionID string
+	ResumePath         []string
+	ResumeStatus       string
 	ConnectedPlatforms []string
+}
+
+type resolvedSession struct {
+	SessionID          string
+	RequestedSessionID string
+	ResumePath         []string
+	ResumeStatus       string
 }
 
 func sessionSourceFromInbound(ev InboundEvent) SessionSource {
@@ -46,18 +56,68 @@ func sessionSourceFromInbound(ev InboundEvent) SessionSource {
 }
 
 func resolveSessionID(ctx context.Context, smap session.Map, chatKey string) (string, error) {
+	resolved, err := resolveSession(ctx, smap, chatKey)
+	return resolved.SessionID, err
+}
+
+func resolveSession(ctx context.Context, smap session.Map, chatKey string) (resolvedSession, error) {
 	key := strings.TrimSpace(chatKey)
 	if key == "" || smap == nil {
-		return key, nil
+		return resolvedSession{SessionID: key}, nil
 	}
 	stored, err := smap.Get(ctx, key)
 	if err != nil {
-		return key, err
+		return resolvedSession{SessionID: key}, err
 	}
 	if stored = strings.TrimSpace(stored); stored != "" {
-		return stored, nil
+		resolved := resolvedSession{SessionID: stored}
+		resolver, ok := smap.(session.LineageResolver)
+		if !ok {
+			return resolved, nil
+		}
+		lineage, err := resolver.ResolveLineageTip(ctx, stored)
+		if err != nil {
+			resolved.RequestedSessionID = stored
+			resolved.ResumeStatus = session.LineageStatusError
+			return resolved, err
+		}
+		status := strings.TrimSpace(lineage.Status)
+		if status == "" {
+			status = session.LineageStatusOK
+		}
+		resolved.ResumePath = cleanResumePath(lineage.Path)
+		if status != session.LineageStatusOK {
+			if status != session.LineageStatusMissing || len(resolved.ResumePath) > 1 {
+				resolved.RequestedSessionID = stored
+				resolved.ResumeStatus = status
+			}
+			if resolved.ResumeStatus == "" {
+				resolved.ResumePath = nil
+			}
+			return resolved, nil
+		}
+		if live := strings.TrimSpace(lineage.LiveSessionID); live != "" {
+			resolved.SessionID = live
+		}
+		if resolved.SessionID == stored {
+			resolved.ResumePath = nil
+		} else {
+			resolved.RequestedSessionID = stored
+		}
+		return resolved, nil
 	}
-	return key, nil
+	return resolvedSession{SessionID: key}, nil
+}
+
+func cleanResumePath(path []string) []string {
+	out := make([]string, 0, len(path))
+	for _, id := range path {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // BuildSessionContextPrompt renders the gateway's per-turn session metadata as
@@ -91,6 +151,23 @@ func BuildSessionContextPrompt(ctx SessionContext) string {
 	}
 	if sessionID := strings.TrimSpace(ctx.SessionID); sessionID != "" {
 		lines = append(lines, "**Session ID:** `"+sessionID+"`")
+	}
+	if requested := strings.TrimSpace(ctx.RequestedSessionID); requested != "" {
+		lines = append(lines, "**Requested Session ID:** `"+requested+"`")
+	}
+	if len(ctx.ResumePath) > 1 {
+		parts := make([]string, 0, len(ctx.ResumePath))
+		for _, id := range ctx.ResumePath {
+			if id = strings.TrimSpace(id); id != "" {
+				parts = append(parts, "`"+id+"`")
+			}
+		}
+		if len(parts) > 1 {
+			lines = append(lines, "**Resume Continuation:** "+strings.Join(parts, " -> "))
+		}
+	}
+	if status := strings.TrimSpace(ctx.ResumeStatus); status != "" && status != session.LineageStatusOK {
+		lines = append(lines, "**Resume Continuation Status:** `"+status+"`")
 	}
 
 	targets := []string{"`origin`", "`local`"}
