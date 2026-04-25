@@ -108,6 +108,23 @@ By default artifacts are written under `.codex/architecture-planner/`:
 
 Override the artifact root with `RUN_ROOT`.
 
+## Autoloop Audit Feedback
+
+Every planner run reads the autoloop ledger
+(`.codex/orchestrator/state/runs.jsonl` by default; override with
+`AUTOLOOP_RUN_ROOT`) for the last 7 days and surfaces a summary inside the
+planner prompt:
+
+- aggregate counts (claimed / succeeded / promoted / failed / promotion_failed)
+- productivity percentage (promoted ÷ claimed)
+- toxic subphases (highest fail counts in window) — candidates for splitting
+- hot subphases (most claims) — candidates for tightening ready_when /
+  write_scope
+- recent failed task list with statuses
+
+The planner is instructed to use this signal to split or re-spec rows that
+keep failing instead of adding new work elsewhere.
+
 ## Service Timer
 
 Install the long-running planner timer with:
