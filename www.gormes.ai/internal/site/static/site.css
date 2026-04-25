@@ -174,8 +174,8 @@ a:focus-visible,
   pointer-events: none;
   z-index: 0;
   background-image:
-    linear-gradient(to right, rgba(238, 236, 229, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(238, 236, 229, 0.05) 1px, transparent 1px);
+    linear-gradient(to right, rgba(238, 236, 229, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(238, 236, 229, 0.07) 1px, transparent 1px);
   background-size: 32px 32px;
   -webkit-mask-image: linear-gradient(to right, transparent 50%, black 100%);
           mask-image: linear-gradient(to right, transparent 50%, black 100%);
@@ -199,7 +199,11 @@ a:focus-visible,
 .hero-title {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(38px, 8vw, 66px);
+  /* clamp tuned for mobile: 30px floor on narrow phones so the
+     headline + subhead + hero-note + CTAs all fit in the first
+     viewport at 360x800 (the v10 mobile regression). Cap stays
+     at 60px on desktop where vertical space isn't constrained. */
+  font-size: clamp(30px, 7.5vw, 60px);
   line-height: 0.98;
   margin: 0 0 24px;
   overflow-wrap: break-word;
@@ -218,7 +222,7 @@ a:focus-visible,
   display: inline-block;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 0.62em;
+  font-size: 0.58em;
   color: var(--accent);
   margin-right: 0.5em;
   letter-spacing: 0;
@@ -817,14 +821,27 @@ a:focus-visible,
     justify-content: flex-start;
     gap: 14px;
   }
+  /* Mobile hero — tightened so headline + subhead + early-stage
+     stamp + CTAs all fit above the fold on 360x800 phones. The
+     desktop clamp(30, 7.5vw, 60) already handles fluid sizing
+     correctly down to mobile, so no separate font-size override
+     here (the previous clamp(34, 13vw, 46) was actually pushing
+     the headline larger on mobile than the desktop cap, which
+     was the root cause of the v10 fold regression). */
   .hero-inner {
-    padding: 54px var(--pad) 42px;
+    padding: 48px var(--pad) 32px;
   }
   .hero-title {
-    font-size: clamp(34px, 13vw, 46px);
+    margin-bottom: 18px;
+  }
+  .hero-subhead {
+    margin-bottom: 22px;
   }
   .hero-subhead p {
     font-size: 16px;
+  }
+  .hero-note {
+    margin-bottom: 12px;
   }
   .hero-ctas .btn-primary {
     flex: 1 1 100%;
