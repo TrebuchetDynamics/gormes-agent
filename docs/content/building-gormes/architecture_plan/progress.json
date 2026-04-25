@@ -842,6 +842,11 @@
               "done_signal": [
                 "Discord session-source metadata fixtures prove guild, parent-channel, and triggering-message IDs flow into session context without route regressions."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T13:09:35Z",
+                "last_success": "2026-04-25T13:09:35Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b35d692f gateway/session.py",
@@ -1466,6 +1471,11 @@
               "done_signal": [
                 "Pairing approval fixtures prove code entropy/expiry, pending limits, lockout, per-user rate limiting, and Telegram from_user fallback without adapter sends or agent sessions."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T13:09:35Z",
+                "last_success": "2026-04-25T13:09:35Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T11:39:48Z"
@@ -4340,6 +4350,11 @@
               "done_signal": [
                 "Unsupported-temperature fixtures prove one stripped retry, no retry for unrelated errors, and no temperature in Codex Responses payloads."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T13:09:35Z",
+                "last_success": "2026-04-25T13:09:35Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b35d692f agent/auxiliary_client.py",
@@ -4510,9 +4525,9 @@
                 "Tool parity tests prove the embedded manifest reflects Hermes b35d692f Discord, cron, Feishu, and platform-toolset schema drift before handlers port."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-25T12:56:32Z",
-                "last_success": "2026-04-25T12:56:32Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T13:09:35Z",
+                "last_success": "2026-04-25T13:09:35Z"
               },
               "provenance": {
                 "origin_type": "upstream",
