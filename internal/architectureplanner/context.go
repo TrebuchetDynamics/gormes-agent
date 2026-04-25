@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
@@ -34,6 +35,12 @@ type ContextBundle struct {
 	// Capped by Config.PlannerQuarantineLimit. Empty when no rows are
 	// quarantined or when progress.json could not be loaded.
 	QuarantinedRows []QuarantinedRowContext `json:"quarantined_rows,omitempty"`
+	// TriggerEvents lists the autoloop trigger events consumed by this
+	// planner run. Populated from plannertriggers.ReadTriggersSinceCursor;
+	// rendered into the prompt's "Recent Autoloop Signals" section so the
+	// LLM sees which row state changes prompted this run. Empty when the
+	// run was scheduled (no new events since the last cursor advance).
+	TriggerEvents []plannertriggers.TriggerEvent `json:"trigger_events,omitempty"`
 }
 
 // QuarantinedRowContext is the planner-side view of one autoloop-quarantined

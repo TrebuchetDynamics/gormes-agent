@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/autoloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
@@ -87,6 +88,47 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		bundle = FilterContextByKeywords(bundle, opts.Keywords)
 	}
 
+	// Consume any autoloop trigger events queued since the last planner
+	// run. The cursor advances in a deferred call below so a regen
+	// rejection or backend failure still moves past these events — they
+	// represent state transitions, not work to retry. LoadCursor and
+	// ReadTriggersSinceCursor soft-fail to empty so a missing/corrupt
+	// ledger never blocks the run.
+	cursor, _ := plannertriggers.LoadCursor(cfg.TriggersCursorPath)
+	triggerEvents, _ := plannertriggers.ReadTriggersSinceCursor(cfg.PlannerTriggersPath, cursor)
+	trigger := "scheduled"
+	if len(triggerEvents) > 0 {
+		trigger = "event"
+	}
+	bundle.TriggerEvents = triggerEvents
+	defer func() {
+		// Dry-run is purely observational — leave the cursor where it is
+		// so the operator can re-run with --dry-run as many times as they
+		// want without burning trigger events. Real runs (success OR
+		// failure) advance the cursor: trigger events represent state
+		// transitions, not work to retry.
+		if opts.DryRun {
+			return
+		}
+		if len(triggerEvents) > 0 {
+			newCursor := plannertriggers.TriggerCursor{
+				LastConsumedID: triggerEvents[len(triggerEvents)-1].ID,
+				LastReadAt:     now.UTC().Format(time.RFC3339),
+			}
+			_ = plannertriggers.SaveCursor(cfg.TriggersCursorPath, newCursor)
+		}
+	}()
+	triggerEventIDs := func() []string {
+		if len(triggerEvents) == 0 {
+			return nil
+		}
+		ids := make([]string, 0, len(triggerEvents))
+		for _, ev := range triggerEvents {
+			ids = append(ids, ev.ID)
+		}
+		return ids
+	}()
+
 	contextPath := filepath.Join(cfg.RunRoot, "context.json")
 	promptPath := filepath.Join(cfg.RunRoot, "latest_prompt.txt")
 	reportPath := filepath.Join(cfg.RunRoot, "latest_planner_report.md")
@@ -144,15 +186,16 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	})
 	if result.Err != nil {
 		appendPlannerLedger(ledgerPath, LedgerEvent{
-			TS:          now.UTC().Format(time.RFC3339),
-			RunID:       runID,
-			Trigger:     "scheduled",
-			Backend:     cfg.Backend,
-			Mode:        cfg.Mode,
-			Status:      "backend_failed",
-			Detail:      strings.TrimSpace(result.Stderr),
-			BeforeStats: computeStats(beforeDoc),
-			Keywords:    opts.Keywords,
+			TS:            now.UTC().Format(time.RFC3339),
+			RunID:         runID,
+			Trigger:       trigger,
+			TriggerEvents: triggerEventIDs,
+			Backend:       cfg.Backend,
+			Mode:          cfg.Mode,
+			Status:        "backend_failed",
+			Detail:        strings.TrimSpace(result.Stderr),
+			BeforeStats:   computeStats(beforeDoc),
+			Keywords:      opts.Keywords,
 		})
 		return RunSummary{}, commandError(argv[0], result)
 	}
@@ -171,17 +214,18 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		if afterDoc != nil {
 			if err := validateHealthPreservation(beforeDoc, afterDoc); err != nil {
 				appendPlannerLedger(ledgerPath, LedgerEvent{
-					TS:          now.UTC().Format(time.RFC3339),
-					RunID:       runID,
-					Trigger:     "scheduled",
-					Backend:     cfg.Backend,
-					Mode:        cfg.Mode,
-					Status:      "validation_rejected",
-					Detail:      err.Error(),
-					BeforeStats: computeStats(beforeDoc),
-					AfterStats:  computeStats(afterDoc),
-					RowsChanged: diffRows(beforeDoc, afterDoc),
-					Keywords:    opts.Keywords,
+					TS:            now.UTC().Format(time.RFC3339),
+					RunID:         runID,
+					Trigger:       trigger,
+					TriggerEvents: triggerEventIDs,
+					Backend:       cfg.Backend,
+					Mode:          cfg.Mode,
+					Status:        "validation_rejected",
+					Detail:        err.Error(),
+					BeforeStats:   computeStats(beforeDoc),
+					AfterStats:    computeStats(afterDoc),
+					RowsChanged:   diffRows(beforeDoc, afterDoc),
+					Keywords:      opts.Keywords,
 				})
 				return RunSummary{}, fmt.Errorf("planner: regeneration rejected: %w", err)
 			}
@@ -217,16 +261,17 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		runStatus = "no_changes"
 	}
 	appendPlannerLedger(ledgerPath, LedgerEvent{
-		TS:          now.UTC().Format(time.RFC3339),
-		RunID:       runID,
-		Trigger:     "scheduled",
-		Backend:     cfg.Backend,
-		Mode:        cfg.Mode,
-		Status:      runStatus,
-		BeforeStats: computeStats(beforeDoc),
-		AfterStats:  computeStats(afterDoc),
-		RowsChanged: diffRows(beforeDoc, afterDoc),
-		Keywords:    opts.Keywords,
+		TS:            now.UTC().Format(time.RFC3339),
+		RunID:         runID,
+		Trigger:       trigger,
+		TriggerEvents: triggerEventIDs,
+		Backend:       cfg.Backend,
+		Mode:          cfg.Mode,
+		Status:        runStatus,
+		BeforeStats:   computeStats(beforeDoc),
+		AfterStats:    computeStats(afterDoc),
+		RowsChanged:   diffRows(beforeDoc, afterDoc),
+		Keywords:      opts.Keywords,
 	})
 
 	return summary, nil

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/autoloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 )
 
 func TestRunDryRunCollectsContextWithoutBackend(t *testing.T) {
@@ -135,6 +136,103 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 		if !strings.Contains(string(contextData), want) {
 			t.Fatalf("context.json missing %q:\n%s", want, contextData)
 		}
+	}
+}
+
+func TestRunOnceConsumesPlannerTriggersAndRecordsEventLedger(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	trigger := plannertriggers.TriggerEvent{
+		ID:            "trigger-1",
+		TS:            "2026-04-25T07:00:00Z",
+		Source:        "autoloop",
+		Kind:          "quarantine_added",
+		PhaseID:       "5",
+		SubphaseID:    "5.Q",
+		ItemName:      "Responses API store",
+		Reason:        "auto quarantine",
+		AutoloopRunID: "run-1",
+	}
+	if err := plannertriggers.AppendTriggerEvent(cfg.PlannerTriggersPath, trigger); err != nil {
+		t.Fatalf("AppendTriggerEvent() error = %v", err)
+	}
+	runner := &autoloop.FakeRunner{
+		Results: []autoloop.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	summary, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	promptRaw, err := os.ReadFile(summary.PromptPath)
+	if err != nil {
+		t.Fatalf("ReadFile(prompt) error = %v", err)
+	}
+	prompt := string(promptRaw)
+	for _, want := range []string{
+		"Recent Autoloop Signals",
+		"5/5.Q/Responses API store",
+		"quarantine_added",
+		"auto quarantine",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing %q:\n%s", want, prompt)
+		}
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1: %#v", len(events), events)
+	}
+	if events[0].Trigger != "event" {
+		t.Fatalf("Trigger = %q, want event", events[0].Trigger)
+	}
+	if got := events[0].TriggerEvents; len(got) != 1 || got[0] != "trigger-1" {
+		t.Fatalf("TriggerEvents = %#v, want [trigger-1]", got)
+	}
+
+	cursor, err := plannertriggers.LoadCursor(cfg.TriggersCursorPath)
+	if err != nil {
+		t.Fatalf("LoadCursor() error = %v", err)
+	}
+	if cursor.LastConsumedID != "trigger-1" {
+		t.Fatalf("LastConsumedID = %q, want trigger-1", cursor.LastConsumedID)
+	}
+}
+
+func TestRunDryRunDoesNotAdvanceTriggerCursor(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	if err := plannertriggers.AppendTriggerEvent(cfg.PlannerTriggersPath, plannertriggers.TriggerEvent{
+		ID:       "trigger-1",
+		Kind:     "quarantine_added",
+		PhaseID:  "5",
+		ItemName: "dry run row",
+	}); err != nil {
+		t.Fatalf("AppendTriggerEvent() error = %v", err)
+	}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: cfg,
+		Runner: &autoloop.FakeRunner{},
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	if _, err := os.Stat(cfg.TriggersCursorPath); !os.IsNotExist(err) {
+		t.Fatalf("trigger cursor stat error = %v, want missing cursor after dry-run", err)
 	}
 }
 
@@ -507,6 +605,233 @@ func writePlannerFixture(t *testing.T) string {
 		writeFile(t, path, "# fixture\n")
 	}
 	return root
+}
+
+func TestRunOnce_TriggerEventsThreadIntoPrompt(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+
+	// Seed two trigger events at the path the planner reads.
+	if err := plannertriggers.AppendTriggerEvent(cfg.PlannerTriggersPath, plannertriggers.TriggerEvent{
+		Kind:       "quarantine_added",
+		PhaseID:    "2",
+		SubphaseID: "2.A",
+		ItemName:   "Gateway task",
+		Reason:     "3rd failure in worker_error",
+	}); err != nil {
+		t.Fatalf("AppendTriggerEvent error = %v", err)
+	}
+	if err := plannertriggers.AppendTriggerEvent(cfg.PlannerTriggersPath, plannertriggers.TriggerEvent{
+		Kind:       "quarantine_stale_cleared",
+		PhaseID:    "2",
+		SubphaseID: "2.A",
+		ItemName:   "Goncho task",
+		Reason:     "spec hash changed",
+	}); err != nil {
+		t.Fatalf("AppendTriggerEvent error = %v", err)
+	}
+
+	runner := &autoloop.FakeRunner{
+		Results: []autoloop.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	summary, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	promptBody, err := os.ReadFile(filepath.Join(summary.RunRoot, "latest_prompt.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile(latest_prompt.txt) error = %v", err)
+	}
+	wants := []string{
+		"## Recent Autoloop Signals (Since Last Planner Run)",
+		"2/2.A/Gateway task — quarantine_added — 3rd failure in worker_error",
+		"2/2.A/Goncho task — quarantine_stale_cleared — spec hash changed",
+	}
+	for _, want := range wants {
+		if !strings.Contains(string(promptBody), want) {
+			t.Fatalf("prompt missing %q:\n%s", want, promptBody)
+		}
+	}
+
+	// Trigger=event in the ledger; trigger_events lists both IDs in
+	// append order.
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1: %#v", len(events), events)
+	}
+	if events[0].Trigger != "event" {
+		t.Fatalf("Trigger = %q, want event", events[0].Trigger)
+	}
+	if len(events[0].TriggerEvents) != 2 {
+		t.Fatalf("TriggerEvents length = %d, want 2: %#v", len(events[0].TriggerEvents), events[0].TriggerEvents)
+	}
+
+	// Cursor advances to the last event ID after a successful run.
+	cursor, err := plannertriggers.LoadCursor(cfg.TriggersCursorPath)
+	if err != nil {
+		t.Fatalf("LoadCursor error = %v", err)
+	}
+	if cursor.LastConsumedID != events[0].TriggerEvents[1] {
+		t.Fatalf("cursor.LastConsumedID = %q, want last event ID %q",
+			cursor.LastConsumedID, events[0].TriggerEvents[1])
+	}
+}
+
+func TestRunOnce_NoTriggerEventsKeepsScheduledTrigger(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+
+	runner := &autoloop.FakeRunner{
+		Results: []autoloop.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	if _, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1", len(events))
+	}
+	if events[0].Trigger != "scheduled" {
+		t.Fatalf("Trigger = %q, want scheduled", events[0].Trigger)
+	}
+	if len(events[0].TriggerEvents) != 0 {
+		t.Fatalf("TriggerEvents = %#v, want empty", events[0].TriggerEvents)
+	}
+
+	// No events queued -> no cursor file written either.
+	if _, err := os.Stat(cfg.TriggersCursorPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no cursor file when no events; stat err = %v", err)
+	}
+}
+
+func TestRunOnce_CursorAdvancesEvenOnValidationReject(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	progressPath := cfg.ProgressJSON
+
+	// Seed a Health block so the planner regen has something to drop.
+	writeFile(t, progressPath, `{
+  "phases": {
+    "2": {
+      "name": "Gateway",
+      "subphases": {
+        "2.A": {
+          "items": [
+            {"name": "Gateway task", "status": "planned", "health": {"attempt_count": 3, "consecutive_failures": 1}},
+            {"name": "Goncho task", "status": "in_progress"}
+          ]
+        }
+      }
+    }
+  }
+}`)
+
+	// Seed one trigger event so the cursor has something to advance to.
+	if err := plannertriggers.AppendTriggerEvent(cfg.PlannerTriggersPath, plannertriggers.TriggerEvent{
+		Kind:       "quarantine_added",
+		PhaseID:    "2",
+		SubphaseID: "2.A",
+		ItemName:   "Gateway task",
+		Reason:     "validation seed",
+	}); err != nil {
+		t.Fatalf("AppendTriggerEvent error = %v", err)
+	}
+	seeded, err := plannertriggers.ReadTriggersSinceCursor(cfg.PlannerTriggersPath, plannertriggers.TriggerCursor{})
+	if err != nil {
+		t.Fatalf("ReadTriggersSinceCursor error = %v", err)
+	}
+	if len(seeded) != 1 {
+		t.Fatalf("expected 1 seeded trigger event, got %d", len(seeded))
+	}
+	wantCursorID := seeded[0].ID
+
+	// Mutator drops the Health block on Gateway task, forcing the planner
+	// to reject the regeneration.
+	runner := &mutatingRunner{
+		t: t,
+		inner: &autoloop.FakeRunner{
+			Results: []autoloop.Result{
+				{Stdout: "Already up to date.\n"},
+				{Stdout: "Already up to date.\n"},
+				{Stdout: "Already up to date.\n"},
+				{Stdout: "planner ran ok\n"},
+			},
+		},
+		mutate: func(t *testing.T) {
+			writeFile(t, progressPath, `{
+  "phases": {
+    "2": {
+      "name": "Gateway",
+      "subphases": {
+        "2.A": {
+          "items": [
+            {"name": "Gateway task", "status": "planned"},
+            {"name": "Goncho task", "status": "in_progress"}
+          ]
+        }
+      }
+    }
+  }
+}`)
+		},
+	}
+
+	if _, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	}); err == nil {
+		t.Fatal("RunOnce() error = nil, want validation rejection")
+	}
+
+	// Even though the run failed, the deferred cursor save must have
+	// fired — the trigger events represent state transitions, not work
+	// to retry.
+	cursor, err := plannertriggers.LoadCursor(cfg.TriggersCursorPath)
+	if err != nil {
+		t.Fatalf("LoadCursor error = %v", err)
+	}
+	if cursor.LastConsumedID != wantCursorID {
+		t.Fatalf("cursor.LastConsumedID = %q, want %q (cursor must advance on validation reject)",
+			cursor.LastConsumedID, wantCursorID)
+	}
+
+	// Ledger entry records trigger=event with the consumed event ID.
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1", len(events))
+	}
+	if events[0].Status != "validation_rejected" {
+		t.Fatalf("Status = %q, want validation_rejected", events[0].Status)
+	}
+	if events[0].Trigger != "event" {
+		t.Fatalf("Trigger = %q, want event", events[0].Trigger)
+	}
+	if len(events[0].TriggerEvents) != 1 || events[0].TriggerEvents[0] != wantCursorID {
+		t.Fatalf("TriggerEvents = %#v, want [%s]", events[0].TriggerEvents, wantCursorID)
+	}
 }
 
 func writeFile(t *testing.T, path, content string) {

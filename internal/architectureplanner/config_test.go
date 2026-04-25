@@ -81,3 +81,37 @@ func TestConfigFromEnvRejectsEmptyRepoRoot(t *testing.T) {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
+
+func TestConfigFromEnv_PlannerTriggersPathDefaultAndOverride(t *testing.T) {
+	root := filepath.Join("tmp", "repo")
+
+	// Default: PlannerTriggersPath under repoRoot/.codex/architecture-planner.
+	cfg, err := ConfigFromEnv(root, map[string]string{})
+	if err != nil {
+		t.Fatalf("ConfigFromEnv() error = %v", err)
+	}
+	wantDefault := filepath.Join(root, ".codex", "architecture-planner", "triggers.jsonl")
+	if cfg.PlannerTriggersPath != wantDefault {
+		t.Fatalf("PlannerTriggersPath default = %q, want %q", cfg.PlannerTriggersPath, wantDefault)
+	}
+	wantCursor := filepath.Join(cfg.RunRoot, "state", "triggers_cursor.json")
+	if cfg.TriggersCursorPath != wantCursor {
+		t.Fatalf("TriggersCursorPath default = %q, want %q", cfg.TriggersCursorPath, wantCursor)
+	}
+
+	// Env override: PLANNER_TRIGGERS_PATH replaces the default; the cursor
+	// path is NOT env-overridable (it follows RunRoot).
+	cfg, err = ConfigFromEnv(root, map[string]string{
+		"PLANNER_TRIGGERS_PATH": "/srv/triggers.jsonl",
+		"RUN_ROOT":              "/srv/planner",
+	})
+	if err != nil {
+		t.Fatalf("ConfigFromEnv() override error = %v", err)
+	}
+	if cfg.PlannerTriggersPath != "/srv/triggers.jsonl" {
+		t.Fatalf("PlannerTriggersPath override = %q, want /srv/triggers.jsonl", cfg.PlannerTriggersPath)
+	}
+	if cfg.TriggersCursorPath != filepath.Join("/srv/planner", "state", "triggers_cursor.json") {
+		t.Fatalf("TriggersCursorPath = %q, should follow RunRoot override", cfg.TriggersCursorPath)
+	}
+}

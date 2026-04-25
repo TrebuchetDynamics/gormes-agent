@@ -27,6 +27,19 @@ type Config struct {
 	// runtime setting added in Task 4 — kept in sync but as a separate field
 	// because the planner's Config is independent of autoloop's).
 	PlannerQuarantineLimit int
+	// PlannerTriggersPath is the JSONL ledger autoloop appends to whenever
+	// a row's quarantine state transition warrants a planner re-run. The
+	// planner reads this file at the start of each run, advances a cursor
+	// past the consumed events, and surfaces them in the prompt so the
+	// next run can react. Defaults to <repoRoot>/.codex/architecture-planner/
+	// triggers.jsonl; env-overridable via PLANNER_TRIGGERS_PATH so the
+	// autoloop and planner sides can be steered to the same file.
+	PlannerTriggersPath string
+	// TriggersCursorPath is where the planner persists its bookmark in
+	// PlannerTriggersPath. NOT env-overridable — it lives next to the
+	// other planner state files under RunRoot/state so a single RUN_ROOT
+	// override moves the cursor along with everything else.
+	TriggersCursorPath string
 }
 
 func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
@@ -51,6 +64,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		Validate:               true,
 		SyncRepos:              true,
 		PlannerQuarantineLimit: 5,
+		PlannerTriggersPath:    filepath.Join(repoRoot, ".codex", "architecture-planner", "triggers.jsonl"),
 	}
 
 	if value := env["PROGRESS_JSON"]; value != "" {
@@ -102,6 +116,14 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.PlannerQuarantineLimit = n
 	}
+	if value := env["PLANNER_TRIGGERS_PATH"]; value != "" {
+		cfg.PlannerTriggersPath = value
+	}
+
+	// TriggersCursorPath derives from the (possibly env-overridden) RunRoot
+	// so a single RUN_ROOT override moves the cursor with the rest of the
+	// planner's on-disk state.
+	cfg.TriggersCursorPath = filepath.Join(cfg.RunRoot, "state", "triggers_cursor.json")
 
 	return cfg, nil
 }

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 )
 
 // healthPreservationClause is appended to every planner prompt as a HARD
@@ -102,6 +104,7 @@ func BuildPrompt(bundle ContextBundle, keywords []string) string {
 	hugoDocs := formatInventorySurface(bundle.ImplementationInventory.HugoDocs)
 	auditBlock := formatAutoloopAudit(bundle.AutoloopAudit)
 	quarantineBlock := formatQuarantinedRows(bundle.QuarantinedRows)
+	triggerBlock := formatTriggerEvents(bundle.TriggerEvents)
 	topicalBlock := ""
 	if len(keywords) > 0 {
 		topicalBlock = formatTopicalClause(keywords)
@@ -173,8 +176,25 @@ Required final report sections:
 6. Recommended next autoloop tasks
 7. Autoloop handoff completeness
 8. Risks and ambiguities
-%s%s%s%s
-`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, quarantinePriorityClause, quarantineBlock, topicalBlock)
+%s%s%s%s%s
+`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, quarantinePriorityClause, quarantineBlock, triggerBlock, topicalBlock)
+}
+
+// formatTriggerEvents renders the autoloop signals consumed by this run as
+// a bullet section. Returns "" when there are no events so the section is
+// omitted entirely on scheduled (no-event) runs. Each bullet names the
+// row's coordinates plus the kind/reason so the planner can scan and
+// route attention without re-reading the trigger ledger.
+func formatTriggerEvents(events []plannertriggers.TriggerEvent) string {
+	if len(events) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## Recent Autoloop Signals (Since Last Planner Run)\n\nThese rows changed state in autoloop and may need attention this run:\n\n")
+	for _, ev := range events {
+		fmt.Fprintf(&b, "- %s/%s/%s — %s — %s\n", ev.PhaseID, ev.SubphaseID, ev.ItemName, ev.Kind, ev.Reason)
+	}
+	return b.String()
 }
 
 // formatQuarantinedRows renders the planner's call-to-action list for

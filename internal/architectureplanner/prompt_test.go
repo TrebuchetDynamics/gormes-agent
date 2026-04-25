@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
@@ -62,5 +63,47 @@ func TestBuildPrompt_NoTopicalClauseWithoutKeywords(t *testing.T) {
 	prompt := BuildPrompt(bundle, nil)
 	if strings.Contains(prompt, "TOPICAL FOCUS") {
 		t.Fatal("topical clause should be omitted when no keywords")
+	}
+}
+
+func TestBuildPrompt_RecentAutoloopSignalsSectionRendered(t *testing.T) {
+	bundle := ContextBundle{
+		TriggerEvents: []plannertriggers.TriggerEvent{
+			{
+				ID:         "evt-1",
+				Kind:       "quarantine_added",
+				PhaseID:    "2",
+				SubphaseID: "2.B",
+				ItemName:   "row-x",
+				Reason:     "3rd consecutive failure",
+			},
+			{
+				ID:         "evt-2",
+				Kind:       "quarantine_stale_cleared",
+				PhaseID:    "3",
+				SubphaseID: "3.A",
+				ItemName:   "row-y",
+				Reason:     "spec hash changed",
+			},
+		},
+	}
+	prompt := BuildPrompt(bundle, nil)
+	wants := []string{
+		"## Recent Autoloop Signals (Since Last Planner Run)",
+		"2/2.B/row-x — quarantine_added — 3rd consecutive failure",
+		"3/3.A/row-y — quarantine_stale_cleared — spec hash changed",
+	}
+	for _, want := range wants {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("BuildPrompt missing %q\nprompt:\n%s", want, prompt)
+		}
+	}
+}
+
+func TestBuildPrompt_RecentAutoloopSignalsOmittedWhenEmpty(t *testing.T) {
+	bundle := ContextBundle{}
+	prompt := BuildPrompt(bundle, nil)
+	if strings.Contains(prompt, "Recent Autoloop Signals") {
+		t.Fatal("Recent Autoloop Signals section should be omitted when no events")
 	}
 }
