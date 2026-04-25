@@ -1,68 +1,15 @@
 package builderloop
 
-import (
-	"bytes"
-	"context"
-	"errors"
-	"fmt"
-	"os"
-	"os/exec"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 
-type Command struct {
-	Name string
-	Args []string
-	Dir  string
-	Env  []string
-}
+// The runner plumbing now lives in internal/cmdrunner so plannerloop does not
+// have to import builderloop purely for it. These aliases keep existing
+// builderloop call sites compiling against the unqualified names.
 
-type Result struct {
-	Stdout string
-	Stderr string
-	Err    error
-}
+type Command = cmdrunner.Command
+type Result = cmdrunner.Result
+type Runner = cmdrunner.Runner
+type ExecRunner = cmdrunner.ExecRunner
+type FakeRunner = cmdrunner.FakeRunner
 
-type Runner interface {
-	Run(context.Context, Command) Result
-}
-
-var ErrUnexpectedCommand = errors.New("unexpected fake runner command")
-
-type ExecRunner struct{}
-
-func (ExecRunner) Run(ctx context.Context, command Command) Result {
-	cmd := exec.CommandContext(ctx, command.Name, command.Args...)
-	cmd.Dir = command.Dir
-	if len(command.Env) > 0 {
-		cmd.Env = append(os.Environ(), command.Env...)
-	}
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-
-	return Result{
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		Err:    err,
-	}
-}
-
-type FakeRunner struct {
-	Commands []Command
-	Results  []Result
-}
-
-func (runner *FakeRunner) Run(_ context.Context, command Command) Result {
-	runner.Commands = append(runner.Commands, command)
-	if len(runner.Results) == 0 {
-		return Result{Err: fmt.Errorf("%w: %s", ErrUnexpectedCommand, command.Name)}
-	}
-
-	result := runner.Results[0]
-	runner.Results = runner.Results[1:]
-	return result
-}
+var ErrUnexpectedCommand = cmdrunner.ErrUnexpectedCommand

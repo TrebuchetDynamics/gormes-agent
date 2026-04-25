@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
 type RunOptions struct {
 	Config         Config
-	Runner         builderloop.Runner
+	Runner         cmdrunner.Runner
 	DryRun         bool
 	SkipValidation bool
 	Now            time.Time
@@ -64,7 +65,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	runID := now.UTC().Format("20060102T150405Z")
 	runner := opts.Runner
 	if runner == nil {
-		runner = builderloop.ExecRunner{}
+		runner = cmdrunner.ExecRunner{}
 	}
 
 	if err := os.MkdirAll(cfg.RunRoot, 0o755); err != nil {
@@ -216,7 +217,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	attempts := make([]retryAttempt, 0, maxRetries+1)
 	var (
 		afterDoc   *progress.Progress
-		lastResult builderloop.Result
+		lastResult cmdrunner.Result
 	)
 	for i := 0; i <= maxRetries; i++ {
 		attempt := retryAttempt{Index: i}
@@ -225,7 +226,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		if cfg.BackendTimeout > 0 {
 			backendCtx, cancelBackend = context.WithTimeout(ctx, cfg.BackendTimeout)
 		}
-		result := runner.Run(backendCtx, builderloop.Command{
+		result := runner.Run(backendCtx, cmdrunner.Command{
 			Name: argv[0],
 			Args: append(append([]string(nil), argv[1:]...), currentPrompt),
 			Dir:  cfg.RepoRoot,
@@ -426,8 +427,8 @@ func plannerBackendCommand(backend, mode, rawReportPath string) ([]string, error
 	return append(argv, "--output-last-message", rawReportPath), nil
 }
 
-func runValidation(ctx context.Context, runner builderloop.Runner, repoRoot, logPath string) error {
-	commands := []builderloop.Command{
+func runValidation(ctx context.Context, runner cmdrunner.Runner, repoRoot, logPath string) error {
+	commands := []cmdrunner.Command{
 		{Name: "go", Args: []string{"run", "./cmd/builder-loop", "progress", "write"}, Dir: repoRoot},
 		{Name: "go", Args: []string{"run", "./cmd/builder-loop", "progress", "validate"}, Dir: repoRoot},
 		{Name: "go", Args: []string{"test", "./internal/progress", "-count=1"}, Dir: repoRoot},
@@ -449,7 +450,7 @@ func runValidation(ctx context.Context, runner builderloop.Runner, repoRoot, log
 	return os.WriteFile(logPath, []byte(log.String()), 0o644)
 }
 
-func writeReport(path, rawPath string, result builderloop.Result, bundle ContextBundle, now time.Time) error {
+func writeReport(path, rawPath string, result cmdrunner.Result, bundle ContextBundle, now time.Time) error {
 	raw := strings.TrimSpace(result.Stdout)
 	if data, err := os.ReadFile(rawPath); err == nil && strings.TrimSpace(string(data)) != "" {
 		raw = strings.TrimSpace(string(data))
@@ -478,7 +479,7 @@ func writeState(path string, state stateFile) error {
 	return os.WriteFile(path, append(data, '\n'), 0o644)
 }
 
-func commandError(name string, result builderloop.Result) error {
+func commandError(name string, result cmdrunner.Result) error {
 	output := plannerFailureDetail(result)
 	if output == "" {
 		return fmt.Errorf("%s failed: %w", name, result.Err)
@@ -486,7 +487,7 @@ func commandError(name string, result builderloop.Result) error {
 	return fmt.Errorf("%s failed: %w: %s", name, result.Err, output)
 }
 
-func plannerFailureDetail(result builderloop.Result) string {
+func plannerFailureDetail(result cmdrunner.Result) string {
 	if output := strings.TrimSpace(result.Stderr); output != "" {
 		return output
 	}

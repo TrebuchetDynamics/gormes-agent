@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 )
 
 func TestConfigFromEnvDefaultsExternalRepoURLs(t *testing.T) {
@@ -68,7 +68,7 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 			t.Fatalf("MkdirAll(%s/.git) error = %v", dir, err)
 		}
 	}
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{
 		{Stdout: "Already up to date.\n"},
 		{Stdout: "Cloning into 'gbrain'...\n"},
 		{Stdout: "Updating abc123..def456\n"},
@@ -79,7 +79,7 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 		t.Fatalf("SyncExternalRepos() error = %v", err)
 	}
 
-	want := []builderloop.Command{
+	want := []cmdrunner.Command{
 		{Name: "git", Args: []string{"-C", cfg.HermesDir, "pull", "--ff-only"}, Dir: cfg.RepoRoot},
 		{Name: "git", Args: []string{"clone", "https://example.test/gbrain.git", cfg.GBrainDir}, Dir: cfg.RepoRoot},
 		{Name: "git", Args: []string{"-C", cfg.HonchoDir, "pull", "--ff-only"}, Dir: cfg.RepoRoot},
@@ -110,7 +110,7 @@ func TestSyncExternalReposRejectsNonGitExistingDirectory(t *testing.T) {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 
-	_, err = SyncExternalRepos(context.Background(), cfg, &builderloop.FakeRunner{})
+	_, err = SyncExternalRepos(context.Background(), cfg, &cmdrunner.FakeRunner{})
 	if err == nil {
 		t.Fatal("SyncExternalRepos() error = nil, want error")
 	}

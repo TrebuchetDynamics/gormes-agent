@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 )
 
 var commandStdout io.Writer = os.Stdout
-var serviceRunner builderloop.Runner = builderloop.ExecRunner{}
+var serviceRunner cmdrunner.Runner = cmdrunner.ExecRunner{}
 
 const usage = "usage: builder-loop run [--dry-run] | progress validate | progress write | repo benchmark record | repo readme update | audit | digest | service install | service install-audit | service disable legacy-timers"
 

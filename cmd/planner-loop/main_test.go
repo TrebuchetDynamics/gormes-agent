@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 )
 
 func TestRunDryRunPrintsPlannerSummary(t *testing.T) {
@@ -45,7 +45,7 @@ func TestRunBackendFlagUsesClaudeu(t *testing.T) {
 	repoRoot := writeCommandFixture(t)
 	t.Setenv("RUN_ROOT", filepath.Join(repoRoot, ".codex", "planner"))
 	t.Setenv("PLANNER_VALIDATE", "0")
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}, {}, {}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}, {}}}
 	oldRunner := commandRunner
 	commandRunner = runner
 	t.Cleanup(func() {
@@ -73,7 +73,7 @@ func TestRunStatusAndShowReportUseConfiguredRunRoot(t *testing.T) {
 	t.Setenv("PLANNER_VALIDATE", "0")
 	withWorkingDir(t, repoRoot)
 
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}, {}, {}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}, {}}}
 	oldRunner := commandRunner
 	commandRunner = runner
 	t.Cleanup(func() {
@@ -114,7 +114,7 @@ func TestServiceInstallWritesUnits(t *testing.T) {
 	t.Setenv("PLANNER_INTERVAL", "6h")
 	withWorkingDir(t, repoRoot)
 
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
 	oldRunner := commandRunner
 	commandRunner = runner
 	t.Cleanup(func() { commandRunner = oldRunner })

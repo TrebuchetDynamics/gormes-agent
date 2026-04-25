@@ -22,20 +22,26 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	text := string(indexBody)
 	wants := []string{
 		"One Go Binary. No Python. No Drift.",
+		`<span class="hero-prompt" aria-hidden="true">$</span>`,
 		"Gormes is a Go-native runtime for AI agents.",
 		"Built to solve the operations problem",
 		"One static binary. No virtualenvs. No dependency hell.",
-		"Early-stage, reliability-first runtime.",
-		"Built for developers who care about reliability over polish.",
-		`<a href="#install">Install</a>`,
+		"Early-stage.",
+		"Reliability-first runtime for developers who ship agents, not demos.",
+		`class="hero-note-stamp"`,
+		`class="hero-note-body"`,
+		// v19 dropped duplicate "Install" nav link.
 		`<a href="#roadmap">Roadmap</a>`,
 		`<a href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>`,
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"irm https://gormes.ai/install.ps1 | iex",
 		"Source-backed for now",
 		"Read the installer source →",
-		// Features: pain frame before technical fix cards.
-		"Why Hermes breaks in production — and how Gormes fixes it.",
+		// Features: pain frame before technical fix cards. v19 split
+		// the combined headline into pain + fix-subhead.
+		"Why Hermes breaks in production",
+		"How Gormes fixes it",
+		`class="why-fix-subhead"`,
 		"Hermes breaks in production because:",
 		"environments drift",
 		"installs fail",
@@ -51,6 +57,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"View full phase-by-phase checklist",
 		`<details class="roadmap-details">`,
 		`<nav class="footer-nav" aria-label="Secondary">`,
+		`<span class="footer-nav-sep" aria-hidden="true">·</span>`,
 		`<a href="https://docs.gormes.ai/">Docs</a>`,
 		`<a href="https://trebuchetdynamics.com/">Company</a>`,
 		// Favicons + social-card meta tags rendered in <head>.
@@ -137,7 +144,6 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		".hero-title {\n  font-family: var(--font-display);",
 		".section-title {\n  font-family: var(--font-body);",
 		".feature-card h3 {\n  font-family: var(--font-body);",
-		".feature-card h3::after {",
 		".install-step {\n  background: var(--bg-1);",
 		".roadmap-title {\n  font-family: var(--font-body);",
 		".cmd {\n  background: var(--bg-1);",
@@ -145,6 +151,13 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		if !strings.Contains(cssText, want) {
 			t.Fatalf("site.css missing typography/layout contract %q", want)
 		}
+	}
+	// v6 dropped the .feature-card h3::after divider per the
+	// "one accent per card" constraint — title:body distinction
+	// now comes from typography weight + color, not a decorative
+	// rule. Assert it's gone so the simplification can't regress.
+	if strings.Contains(cssText, ".feature-card h3::after {") {
+		t.Fatalf("feature-card h3::after divider should be removed (one-accent constraint)")
 	}
 	if strings.Contains(cssText, ".section-title {\n  font-family: var(--font-display);") {
 		t.Fatalf("section titles should not use display serif")

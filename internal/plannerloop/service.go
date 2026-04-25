@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 )
 
 const (
@@ -141,7 +141,7 @@ func RenderPlannerImplPathUnit(opts PlannerImplPathUnitOptions) string {
 // PlannerServiceInstallOptions describe how to write planner systemd units to
 // the user unit directory.
 type PlannerServiceInstallOptions struct {
-	Runner    builderloop.Runner
+	Runner    cmdrunner.Runner
 	UnitDir   string
 	UnitName  string
 	TimerName string
@@ -183,7 +183,7 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 
 	runner := opts.Runner
 	if runner == nil {
-		runner = builderloop.ExecRunner{}
+		runner = cmdrunner.ExecRunner{}
 	}
 
 	if err := os.MkdirAll(opts.UnitDir, 0o755); err != nil {
@@ -235,18 +235,18 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 		}
 	}
 
-	if result := runner.Run(ctx, builderloop.Command{Name: "systemctl", Args: []string{"--user", "daemon-reload"}}); result.Err != nil {
+	if result := runner.Run(ctx, cmdrunner.Command{Name: "systemctl", Args: []string{"--user", "daemon-reload"}}); result.Err != nil {
 		return result.Err
 	}
 	if opts.AutoStart {
-		result := runner.Run(ctx, builderloop.Command{
+		result := runner.Run(ctx, cmdrunner.Command{
 			Name: "systemctl",
 			Args: []string{"--user", "enable", "--now", opts.TimerName},
 		})
 		if result.Err != nil {
 			return result.Err
 		}
-		result = runner.Run(ctx, builderloop.Command{
+		result = runner.Run(ctx, cmdrunner.Command{
 			Name: "systemctl",
 			Args: []string{"--user", "enable", "--now", pathName},
 		})
@@ -254,7 +254,7 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 			return result.Err
 		}
 		if implPathConfigured {
-			result = runner.Run(ctx, builderloop.Command{
+			result = runner.Run(ctx, cmdrunner.Command{
 				Name: "systemctl",
 				Args: []string{"--user", "enable", "--now", opts.ImplPathName},
 			})

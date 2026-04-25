@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 )
 
 func TestRenderPlannerServiceUnitQuotesPaths(t *testing.T) {
@@ -46,7 +46,7 @@ func TestRenderPlannerTimerUnitDefaultsInterval(t *testing.T) {
 
 func TestInstallPlannerServiceWritesUnitsAndEnablesTimer(t *testing.T) {
 	unitDir := t.TempDir()
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}, {}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}}}
 
 	err := InstallPlannerService(context.Background(), PlannerServiceInstallOptions{
 		Runner:      runner,
@@ -108,7 +108,7 @@ func TestRenderPlannerPathUnit_ContainsExpectedDirectives(t *testing.T) {
 
 func TestInstallPlannerService_WritesAllThreeUnits(t *testing.T) {
 	dir := t.TempDir()
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
 	opts := PlannerServiceInstallOptions{
 		Runner:      runner,
 		UnitDir:     dir,
@@ -156,7 +156,7 @@ func TestRenderPlannerImplPathUnit_HasLongerRateLimit(t *testing.T) {
 func TestInstallPlannerService_WritesAllFourUnits(t *testing.T) {
 	dir := t.TempDir()
 	opts := PlannerServiceInstallOptions{
-		Runner:           &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}, {}, {}}},
+		Runner:           &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}, {}}},
 		UnitDir:          dir,
 		UnitName:         "gormes-architecture-planner.service",
 		TimerName:        "gormes-architecture-planner.timer",

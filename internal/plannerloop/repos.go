@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 )
 
 type ExternalRepo struct {
@@ -24,9 +24,9 @@ type RepoSyncResult struct {
 	Output   string `json:"output,omitempty"`
 }
 
-func SyncExternalRepos(ctx context.Context, cfg Config, runner builderloop.Runner) ([]RepoSyncResult, error) {
+func SyncExternalRepos(ctx context.Context, cfg Config, runner cmdrunner.Runner) ([]RepoSyncResult, error) {
 	if runner == nil {
-		runner = builderloop.ExecRunner{}
+		runner = cmdrunner.ExecRunner{}
 	}
 
 	results := make([]RepoSyncResult, 0, len(cfg.ExternalRepos()))
@@ -40,7 +40,7 @@ func SyncExternalRepos(ctx context.Context, cfg Config, runner builderloop.Runne
 	return results, nil
 }
 
-func syncExternalRepo(ctx context.Context, cfg Config, runner builderloop.Runner, repo ExternalRepo) (RepoSyncResult, error) {
+func syncExternalRepo(ctx context.Context, cfg Config, runner cmdrunner.Runner, repo ExternalRepo) (RepoSyncResult, error) {
 	info, err := os.Stat(repo.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -50,7 +50,7 @@ func syncExternalRepo(ctx context.Context, cfg Config, runner builderloop.Runner
 			if err := os.MkdirAll(filepath.Dir(repo.Path), 0o755); err != nil {
 				return RepoSyncResult{}, err
 			}
-			result := runner.Run(ctx, builderloop.Command{
+			result := runner.Run(ctx, cmdrunner.Command{
 				Name: "git",
 				Args: []string{"clone", repo.CloneURL, repo.Path},
 				Dir:  cfg.RepoRoot,
@@ -75,7 +75,7 @@ func syncExternalRepo(ctx context.Context, cfg Config, runner builderloop.Runner
 		return RepoSyncResult{}, fmt.Errorf("%s exists but is not a git repository: %s", repo.Name, repo.Path)
 	}
 
-	result := runner.Run(ctx, builderloop.Command{
+	result := runner.Run(ctx, cmdrunner.Command{
 		Name: "git",
 		Args: []string{"-C", repo.Path, "pull", "--ff-only"},
 		Dir:  cfg.RepoRoot,
@@ -99,7 +99,7 @@ func isGitRepoPath(path string) bool {
 	return false
 }
 
-func commandOutput(result builderloop.Result) string {
+func commandOutput(result cmdrunner.Result) string {
 	if result.Stdout != "" {
 		return strings.TrimSpace(result.Stdout)
 	}

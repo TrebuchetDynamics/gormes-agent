@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 )
 
 func TestRunDryRunCollectsContextWithoutBackend(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
-	runner := &builderloop.FakeRunner{}
+	runner := &cmdrunner.FakeRunner{}
 
 	summary, err := RunOnce(context.Background(), RunOptions{
 		Config: mustConfig(t, repoRoot),
@@ -50,8 +50,8 @@ func TestRunDryRunCollectsContextWithoutBackend(t *testing.T) {
 
 func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Updating abc123..def456\n"},
 			{Stdout: "Already up to date.\n"},
@@ -148,8 +148,8 @@ func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	}
 	cfg := mustConfig(t, repoRoot)
 	cfg.MergeOpenPullRequests = true
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
 			{Stdout: "git@github.com:TrebuchetDynamics/gormes-agent.git\n"},
 			{Stdout: `[{"number": 11, "title": "planner fix", "isDraft": false, "mergeStateStatus": "CLEAN", "headRefName": "planner/fix"}]`},
 			{},
@@ -171,7 +171,7 @@ func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
 
-	wantPrefix := []builderloop.Command{
+	wantPrefix := []cmdrunner.Command{
 		{Name: "git", Args: []string{"remote", "get-url", "origin"}, Dir: repoRoot},
 		{Name: "gh", Args: []string{"pr", "list", "--repo", "TrebuchetDynamics/gormes-agent", "--state", "open", "--limit", "100", "--json", "number,title,isDraft,mergeStateStatus,headRefName,url"}, Dir: repoRoot},
 		{Name: "gh", Args: []string{"pr", "merge", "11", "--repo", "TrebuchetDynamics/gormes-agent", "--merge", "--delete-branch", "--admin"}, Dir: repoRoot},
@@ -200,8 +200,8 @@ func TestRunOnceConsumesPlannerTriggersAndRecordsEventLedger(t *testing.T) {
 	if err := plannertriggers.AppendTriggerEvent(cfg.PlannerTriggersPath, trigger); err != nil {
 		t.Fatalf("AppendTriggerEvent() error = %v", err)
 	}
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
@@ -268,7 +268,7 @@ func TestRunDryRunDoesNotAdvanceTriggerCursor(t *testing.T) {
 
 	_, err := RunOnce(context.Background(), RunOptions{
 		Config: cfg,
-		Runner: &builderloop.FakeRunner{},
+		Runner: &cmdrunner.FakeRunner{},
 		DryRun: true,
 	})
 	if err != nil {
@@ -283,8 +283,8 @@ func TestRunDryRunDoesNotAdvanceTriggerCursor(t *testing.T) {
 func TestRunOnceReturnsBackendErrorWithOutput(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	wantErr := os.ErrPermission
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{{}, {}, {}, {Err: wantErr, Stderr: "backend denied\n"}},
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{{}, {}, {}, {Err: wantErr, Stderr: "backend denied\n"}},
 	}
 
 	_, err := RunOnce(context.Background(), RunOptions{
@@ -342,8 +342,8 @@ func TestRunOnceAppliesBackendTimeoutAndRecordsErrDetail(t *testing.T) {
 
 func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{{}, {}, {}, {}, {}, {}, {}, {}, {}},
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{{}, {}, {}, {}, {}, {}, {}, {}, {}},
 	}
 
 	_, err := RunOnce(context.Background(), RunOptions{
@@ -386,13 +386,13 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 // invocation; later backend calls (e.g. retries in future tasks) fall
 // through to the wrapped FakeRunner unchanged.
 type mutatingRunner struct {
-	inner   *builderloop.FakeRunner
+	inner   *cmdrunner.FakeRunner
 	mutate  func(t *testing.T) // performed before returning the backend result
 	t       *testing.T
 	mutated bool
 }
 
-func (r *mutatingRunner) Run(ctx context.Context, command builderloop.Command) builderloop.Result {
+func (r *mutatingRunner) Run(ctx context.Context, command cmdrunner.Command) cmdrunner.Result {
 	res := r.inner.Run(ctx, command)
 	if !r.mutated && (command.Name == "codexu" || command.Name == "claudeu") {
 		r.mutated = true
@@ -410,8 +410,8 @@ func TestRunOnce_AppendsLedgerEventOnSuccess(t *testing.T) {
 
 	runner := &mutatingRunner{
 		t: t,
-		inner: &builderloop.FakeRunner{
-			Results: []builderloop.Result{
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
@@ -514,8 +514,8 @@ func TestRunOnce_AppendsLedgerEventOnValidationReject(t *testing.T) {
 
 	runner := &mutatingRunner{
 		t: t,
-		inner: &builderloop.FakeRunner{
-			Results: []builderloop.Result{
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
@@ -585,8 +585,8 @@ func TestRunOnce_LedgerWriteFailureIsSoftFail(t *testing.T) {
 		t.Fatalf("WriteFile(state) error = %v", err)
 	}
 
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
@@ -717,8 +717,8 @@ func TestRunOnce_TriggerEventsThreadIntoPrompt(t *testing.T) {
 		t.Fatalf("AppendTriggerEvent error = %v", err)
 	}
 
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
@@ -782,8 +782,8 @@ func TestRunOnce_TriggerImplChangeFromEnv(t *testing.T) {
 	// event > impl_change > scheduled.
 	cfg.TriggerReason = "impl_change"
 
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
@@ -815,8 +815,8 @@ func TestRunOnce_NoTriggerEventsKeepsScheduledTrigger(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
 
-	runner := &builderloop.FakeRunner{
-		Results: []builderloop.Result{
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
@@ -895,8 +895,8 @@ func TestRunOnce_CursorAdvancesEvenOnValidationReject(t *testing.T) {
 	// to reject the regeneration.
 	runner := &mutatingRunner{
 		t: t,
-		inner: &builderloop.FakeRunner{
-			Results: []builderloop.Result{
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
@@ -977,7 +977,7 @@ func writeFile(t *testing.T, path, content string) {
 // assert the retry feedback is appended on subsequent calls. Non-backend
 // commands fall through to the wrapped FakeRunner unchanged.
 type perAttemptRunner struct {
-	inner            *builderloop.FakeRunner
+	inner            *cmdrunner.FakeRunner
 	attemptMutators  []func(t *testing.T)
 	t                *testing.T
 	backendCallCount int
@@ -985,23 +985,23 @@ type perAttemptRunner struct {
 }
 
 type deadlineCapturingRunner struct {
-	commands           []builderloop.Command
+	commands           []cmdrunner.Command
 	backendHadDeadline bool
 	backendDeadline    time.Time
 }
 
-func (r *deadlineCapturingRunner) Run(ctx context.Context, command builderloop.Command) builderloop.Result {
+func (r *deadlineCapturingRunner) Run(ctx context.Context, command cmdrunner.Command) cmdrunner.Result {
 	r.commands = append(r.commands, command)
 	if command.Name != "codexu" && command.Name != "claudeu" {
-		return builderloop.Result{}
+		return cmdrunner.Result{}
 	}
 	deadline, ok := ctx.Deadline()
 	r.backendHadDeadline = ok
 	r.backendDeadline = deadline
-	return builderloop.Result{Err: context.DeadlineExceeded}
+	return cmdrunner.Result{Err: context.DeadlineExceeded}
 }
 
-func (r *perAttemptRunner) Run(ctx context.Context, command builderloop.Command) builderloop.Result {
+func (r *perAttemptRunner) Run(ctx context.Context, command cmdrunner.Command) cmdrunner.Result {
 	res := r.inner.Run(ctx, command)
 	if command.Name == "codexu" || command.Name == "claudeu" {
 		// Capture the prompt (last arg) so tests can verify the retry
@@ -1063,8 +1063,8 @@ func TestRunOnce_RetryRecoversAfterFirstAttemptDropsHealth(t *testing.T) {
 	// (acceptance). Expect status="ok" and 2 attempts in the ledger.
 	runner := &perAttemptRunner{
 		t: t,
-		inner: &builderloop.FakeRunner{
-			Results: []builderloop.Result{
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
@@ -1169,8 +1169,8 @@ func TestRunOnce_RetryExhaustionStillRejectsWithFullForensics(t *testing.T) {
 	// emulate by re-seeding before the next attempt's mutator drops it.
 	runner := &perAttemptRunner{
 		t: t,
-		inner: &builderloop.FakeRunner{
-			Results: []builderloop.Result{
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
@@ -1229,8 +1229,8 @@ func TestRunOnce_BackendFailureDoesNotRetry(t *testing.T) {
 	wantErr := os.ErrPermission
 	runner := &perAttemptRunner{
 		t: t,
-		inner: &builderloop.FakeRunner{
-			Results: []builderloop.Result{
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
@@ -1290,8 +1290,8 @@ func TestRunOnce_MaxRetriesZeroSkipsRetryLoop(t *testing.T) {
 
 	runner := &perAttemptRunner{
 		t: t,
-		inner: &builderloop.FakeRunner{
-			Results: []builderloop.Result{
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},

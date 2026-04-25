@@ -19,14 +19,23 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"OPEN SOURCE · MIT LICENSE",
 		"UNDER CONSTRUCTION",
 		"One Go Binary. No Python. No Drift.",
+		// Terminal-prompt signature: mono "$" in accent color before
+		// the serif headline. aria-hidden so screen readers don't
+		// announce "dollar sign".
+		`<span class="hero-prompt" aria-hidden="true">$</span>`,
 		"Gormes is a Go-native runtime for AI agents.",
 		"Built to solve the operations problem",
 		"One static binary. No virtualenvs. No dependency hell.",
-		"Early-stage, reliability-first runtime.",
-		"Built for developers who care about reliability over polish.",
+		// v6 hero filter splits the stamp from the body — "Early-stage."
+		// reads as positioning identity in mono caps, the body line
+		// below carries the caveat in muted body color.
 		`class="hero-note"`,
-		// Trimmed primary nav.
-		`<a href="#install">Install</a>`,
+		`class="hero-note-stamp"`,
+		`class="hero-note-body"`,
+		"Early-stage.",
+		"Reliability-first runtime for developers who ship agents, not demos.",
+		// v19 trimmed nav further: "Install" removed (duplicated the
+		// INSTALL CTA button below). Roadmap + GitHub only.
 		`<a href="#roadmap">Roadmap</a>`,
 		`<a href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>`,
 		// Install — clearer structure and promoted source-backed note.
@@ -42,9 +51,12 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		// Copy button (clipboard JS is allowed for this widget only)
 		`class="copy-btn"`,
 		"navigator.clipboard.writeText",
-		// Features — pain frame before technical cards.
+		// Features — pain frame before technical cards. v19 split
+		// the combined headline into pain + fix-subhead.
 		"WHY GORMES",
-		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"Why Hermes breaks in production",
+		`class="why-fix-subhead"`,
+		"How Gormes fixes it",
 		"Hermes breaks in production because:",
 		"environments drift",
 		"installs fail",
@@ -83,6 +95,10 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		// Footer — brand text + company anchor + license
 		`Gormes v0.1.0 · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
 		`<nav class="footer-nav" aria-label="Secondary">`,
+		// v6: · separator now lives in the actual HTML (not just CSS
+		// pseudo-elements) so screen readers / text-extraction views
+		// see it. aria-hidden so SR users don't read "middle dot".
+		`<span class="footer-nav-sep" aria-hidden="true">·</span>`,
 		`<a href="https://docs.gormes.ai/">Docs</a>`,
 		`<a href="https://trebuchetdynamics.com/">Company</a>`,
 		"MIT License · 2026",

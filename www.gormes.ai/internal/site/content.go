@@ -74,7 +74,11 @@ type LandingPage struct {
 	HeroKicker          string
 	HeroHeadline        string
 	HeroLines           []string
-	HeroFilterLine      string
+	// HeroFilterStamp + HeroFilterLine: the stamp ("Early-stage.") reads
+	// as identity in accent-colored mono caps; the body line below
+	// carries the filter caveat in muted body color.
+	HeroFilterStamp string
+	HeroFilterLine  string
 	PrimaryCTA          Link
 	SecondaryCTA        Link
 	InstallSteps        []InstallStep
@@ -89,7 +93,13 @@ type LandingPage struct {
 	WhyLabel        string
 	WhyPainHeadline string
 	WhyPainBullets  []string
-	FeatureCards    []FeatureCard
+	// WhyFixSubhead introduces the fix cards as a distinct sub-block
+	// within the Why-Gormes section. v19 split the previous combined
+	// "Why Hermes breaks in production — and how Gormes fixes it."
+	// into two scannable headers: pain block has its own headline,
+	// fix cards have this subhead.
+	WhyFixSubhead string
+	FeatureCards  []FeatureCard
 
 	// Roadmap section: summary block (current focus + next milestone)
 	// up top, then the full phase-by-phase checklist behind a <details>
@@ -117,7 +127,6 @@ func DefaultPage() LandingPage {
 		Title:       "Gormes — One Go Binary. No Python. No Drift.",
 		Description: "A Go-native runtime for AI agents — one static binary, no Python, no virtualenvs. Built for developers who care about reliability over polish. Under construction.",
 		Nav: []NavLink{
-			{Label: "Install", Href: "#install"},
 			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		},
@@ -128,7 +137,8 @@ func DefaultPage() LandingPage {
 			"Built to solve the operations problem — not the AI problem.",
 			"One static binary. No virtualenvs. No dependency hell.",
 		},
-		HeroFilterLine: "Early-stage, reliability-first runtime. Built for developers who care about reliability over polish.",
+		HeroFilterStamp: "Early-stage.",
+		HeroFilterLine:  "Reliability-first runtime for developers who ship agents, not demos.",
 		PrimaryCTA:     Link{Label: "Install", Href: "#install"},
 		SecondaryCTA:   Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		InstallSteps: []InstallStep{
@@ -142,7 +152,8 @@ func DefaultPage() LandingPage {
 		DocsLinkLabel:       "docs.gormes.ai →",
 		DocsLinkHref:        "https://docs.gormes.ai/",
 		WhyLabel:            "§ 02 · WHY GORMES",
-		WhyPainHeadline:     "Why Hermes breaks in production — and how Gormes fixes it.",
+		WhyPainHeadline:     "Why Hermes breaks in production",
+		WhyFixSubhead:       "How Gormes fixes it",
 		WhyPainBullets: []string{
 			"environments drift",
 			"installs fail",

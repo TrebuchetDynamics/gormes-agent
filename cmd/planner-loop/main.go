@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannerloop"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
 )
 
 var commandStdout io.Writer = os.Stdout
-var commandRunner builderloop.Runner = builderloop.ExecRunner{}
+var commandRunner cmdrunner.Runner = cmdrunner.ExecRunner{}
 
 const usage = "usage: planner-loop run [--dry-run] [--codexu|--claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | service install [--force]"
 

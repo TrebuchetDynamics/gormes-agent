@@ -87,16 +87,19 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .topbar-inner {
-  padding: 18px var(--pad);
+  /* Slightly tighter vertical padding (16px from 18) so the
+     top-bar reads as a thin frame instead of a band. */
+  padding: 16px var(--pad);
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 18px;
 }
 .brand {
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: 20px;
+  font-size: 19px;
+  letter-spacing: -0.01em;
   color: var(--text);
   border: none;
 }
@@ -108,12 +111,15 @@ a:focus-visible,
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 18px;
-  align-items: center;
+  /* Tighter inter-item spacing so the three nav anchors read as
+     a single grouped sequence instead of floating apart. */
+  gap: 14px;
+  align-items: baseline;
 }
 .topnav a {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
   border: none;
@@ -133,21 +139,62 @@ a:focus-visible,
   text-transform: uppercase;
 }
 
+/* Section titles sit a clear step below the hero (Fraunces 60+) so
+   they don't compete. DM Sans 19px / weight 600 / --muted-strong
+   color — section headers introduce, they don't shout. Hero is
+   king. */
 .section-title {
   font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 26px;
-  line-height: 1.12;
-  margin: 0 0 24px;
-  color: var(--text);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  margin: 0 0 22px;
+  color: var(--muted-strong);
   overflow-wrap: break-word;
 }
 
 .hero {
   border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+/* Right-side grid overlay — reads as the "system layer" the
+   terminal-prompt signature lives on. Bumped to 0.05 alpha so the
+   structure is visible enough to feel intentional (a grid you
+   chose) rather than accidental film grain. Mask runs from full
+   transparent at 50% width to fully visible at 100%, which keeps
+   the left text region untouched and lets the right gutter carry
+   the identity texture. 32px squares give a slightly bigger
+   architectural feel than the previous 24px. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, rgba(238, 236, 229, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(238, 236, 229, 0.12) 1px, transparent 1px);
+  background-size: 32px 32px;
+  /* Soft falloff: fully hidden until 65%, fades through 75%, fully
+     visible at 100%. Confines the grid to the right ~35% of the
+     hero so it stops bleeding into the CTA zone, and the soft
+     mid-gradient prevents the cutoff from looking clipped. */
+  -webkit-mask-image: linear-gradient(to right, transparent 65%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,1) 100%);
+          mask-image: linear-gradient(to right, transparent 65%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,1) 100%);
 }
 .hero-inner {
-  padding: 76px var(--pad) 58px;
+  position: relative;
+  z-index: 1;
+}
+/* Spacing rhythm: hero is the largest beat (96px top, 72px bottom);
+   subsequent sections breathe at 72px (between-section register);
+   footer at 32 (closing register). Inside-block gaps stay tight
+   (12-24px). The variation gives the page pacing instead of one
+   uniform medium beat. */
+.hero-inner {
+  padding: 96px var(--pad) 72px;
 }
 .hero-content {
   max-width: 680px;
@@ -156,38 +203,110 @@ a:focus-visible,
 .hero-title {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(38px, 8vw, 66px);
-  line-height: 0.98;
+  font-size: clamp(28px, 7vw, 64px);
+  /* Hierarchy fix: title locks the eye. Pure white (#ffffff)
+     instead of off-white --text, sharper SOFT axis (0 instead of
+     18), tighter line-height + letter-spacing so the headline
+     reads dense and decisive next to the dimmed supporting
+     copy. The whole point: title sits one tier brighter than
+     anything else on the page. */
+  line-height: 0.94;
+  letter-spacing: -0.02em;
   margin: 0 0 24px;
   overflow-wrap: break-word;
-  font-variation-settings: "opsz" 144, "SOFT" 18;
-  color: var(--text);
+  font-variation-settings: "opsz" 144, "SOFT" 0;
+  color: #ffffff;
+}
+/* Terminal-prompt signature: mono "$" in accent color before the
+   serif headline. Sized at 0.62em so it reads as a deliberate
+   prefix token (not a peer character, not a tiny dot lost against
+   the headline weight). 0.5em right margin + an explicit space
+   character in the HTML between </span> and the headline give a
+   wide visible gutter so "$ One" reads as two distinct things,
+   never "$One". Vertical-align lifts the prompt to sit roughly at
+   the headline's x-height instead of its baseline. */
+.hero-prompt {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.5em;
+  color: var(--accent);
+  margin-right: 0.5em;
+  letter-spacing: 0;
+  vertical-align: 0.16em;
 }
 .hero-subhead {
-  margin: 0 0 16px;
+  /* Larger gap below subhead (28px) gives the early-stage block
+     air. Asymmetric rhythm: tight inside the subhead (4px between
+     lines 2&3), wider before the early-stage stamp. */
+  margin: 0 0 28px;
   max-width: 560px;
 }
+/* Subhead is supporting copy, not parallel content. Each line
+   sits one tier dimmer than the previous, AND the whole stack
+   sits one tier dimmer than v19 so the headline above is
+   unambiguously the dominant element. Tighter line-height (1.4)
+   and tighter inter-line margin (6/4/0) make the stack feel
+   like one block of supporting prose, not three peer paragraphs. */
 .hero-subhead p {
   font-size: 17px;
-  color: var(--muted-strong);
-  margin: 0 0 8px;
-  line-height: 1.48;
+  margin: 0 0 6px;
+  line-height: 1.4;
   overflow-wrap: break-word;
 }
-.hero-note {
-  font-size: 13px;
+.hero-subhead p:nth-child(2) { margin-bottom: 4px; }
+.hero-subhead p:nth-child(3) { margin-bottom: 0; }
+.hero-subhead p:nth-child(1) {
   color: var(--muted-strong);
-  margin: 22px 0 30px;
-  max-width: 520px;
-  line-height: 1.5;
-  border-left: 2px solid var(--accent);
-  background: var(--bg-1);
-  padding: 12px 14px;
+  font-weight: 500;
+}
+.hero-subhead p:nth-child(2) { color: var(--muted); }
+.hero-subhead p:nth-child(3) { color: var(--label); }
+/* "Early-stage." reads as a margin note, not a section.
+   Background dropped, padding tightened, font dimmed — the
+   block no longer interrupts the hero composition; it sits
+   between subhead and CTA as light annotation. Left border-rule
+   at low saturation is the only retained signal of identity
+   on the block. */
+.hero-note {
+  margin: 0 0 28px;
+  max-width: 560px;
+  border-left: 2px solid rgba(240, 200, 75, 0.55);
+  background: transparent;
+  padding: 4px 0 4px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Stamp and body are <p> elements (block-level) so text-extraction
+   tools and screen readers always see the line break between
+   "Early-stage." and the body line. Spans are inline by default
+   and would concatenate to "Early-stage.Reliability-first..." in
+   selection/extraction even though flex made them visually
+   stacked. Margin reset to 0 since flex+gap owns the spacing. */
+.hero-note-stamp {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hero-note-body {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
 }
 .hero-ctas {
+  /* Small top margin to clearly separate the action from the
+     supporting text above. Reads as the natural endpoint of the
+     hero, not just another block in the rhythm. */
+  margin: 8px 0 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -206,33 +325,50 @@ a:focus-visible,
   transform: translateY(-1px);
   border-bottom: 1px solid transparent;
 }
+/* CTA hierarchy: INSTALL is the dominant button — bigger padding,
+   larger font, full accent fill. VIEW SOURCE is intentionally
+   muted (--label color, no border) so it reads as a secondary
+   text link, not a peer button. */
 .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
   font-size: 13px;
-  padding: 14px 24px;
+  letter-spacing: 0.10em;
+  padding: 12px 24px;
+  /* 1px inner highlight + 1px inner shadow gives the button a
+     subtle embossed depth without the SaaS-y drop shadow. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
 }
 .btn-primary:hover {
   background: var(--accent-hover);
   color: var(--accent-ink);
 }
+/* VIEW SOURCE: secondary, not invisible. Keeps mute color but
+   stays clearly readable next to the dominant INSTALL button.
+   Subtle bottom-border so it reads as a link affordance even at
+   rest, then strengthens to accent on hover. */
 .btn-secondary {
   background: transparent;
-  color: var(--muted-strong);
-  border-color: var(--border-strong);
-  font-size: 12px;
-  padding: 10px 16px;
+  color: var(--muted);
+  border-color: transparent;
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  padding: 10px 2px;
+  font-weight: 600;
 }
 .btn-secondary:hover {
-  border-color: var(--accent);
   color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .install {
   border-bottom: 1px solid var(--border);
 }
 .install-inner {
-  padding: 50px var(--pad);
+  padding: 72px var(--pad);
 }
 .install-header {
   max-width: 560px;
@@ -260,7 +396,10 @@ a:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 8px 8px 14px;
+  /* Left padding matches .cmd so the platform label and the command
+     line up at the same column. Right padding tighter to give the
+     copy button room to breathe against the edge. */
+  padding: 8px 10px 8px 16px;
   background: var(--bg-2);
   border-bottom: 1px solid var(--border);
 }
@@ -345,41 +484,69 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .why-inner {
-  padding: 58px var(--pad);
+  padding: 72px var(--pad);
 }
+/* Pain block: hard-stop moment. Bigger top margin so the block
+   reads as a deliberate visual punch, deeper red-tint bg wash,
+   tighter bullet gap and heavier weight so the four pain points
+   land as one rapid sequence rather than separate notes. The
+   pain block → fix cards transition uses a smaller bottom margin
+   (32px) so the cards read as the answer to this block, not as
+   a separate section. */
 .pain-block {
   border: 1px solid var(--border);
-  border-left: 3px solid var(--danger);
-  background: var(--bg-1);
-  border-radius: 2px;
-  padding: 18px 20px;
-  margin: 0 0 20px;
+  border-left: 6px solid var(--danger);
+  background: rgba(221, 119, 119, 0.14);
+  border-radius: 0;
+  padding: 22px 22px 24px;
+  margin: 56px 0 32px;
+  /* Inset shadow on the left edge so the red bar reads as a depth
+     stripe, not a flat outline. The 6px stripe + tinted bg + this
+     shadow together turn the block from "spaced text" into "the
+     problem zone." */
+  box-shadow: inset 12px 0 24px -12px rgba(221, 119, 119, 0.35);
 }
 .pain-block p {
   font-weight: 700;
   color: var(--text);
-  margin: 0 0 10px;
+  margin: 0 0 14px;
+  font-size: 14.5px;
 }
 .why-pain-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 .why-pain-list li {
-  font-size: 14px;
-  color: var(--muted-strong);
-  line-height: 1.5;
-  padding-left: 18px;
+  font-size: 14.5px;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.45;
+  padding-left: 22px;
   position: relative;
 }
 .why-pain-list li::before {
-  content: '-';
+  content: '✗';
   color: var(--danger);
   position: absolute;
   left: 0;
   font-weight: 700;
+}
+
+/* "How Gormes fixes it" — eyebrow above the fix cards. Mono caps
+   in accent color so it reads as a section transition between the
+   pain block and the solution row, not a third section title.
+   Tighter than .section-title; sits flush against the cards. */
+.why-fix-subhead {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 16px;
 }
 
 .features-grid {
@@ -387,11 +554,10 @@ a:focus-visible,
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
-/* Cards: brutal/technical, not soft-marketing. Transparent bg so they
-   sit *on* the page rather than floating above it. Sharp 2px accent
-   top-edge + 1px outer rule = structural. No hover lift. Internal
-   1px divider under the title splits the card into header/body so
-   the title:body hierarchy reads at a glance. */
+/* Cards: one strong accent (the 2px top edge) carries the card's
+   identity. Title:body distinction comes from typography weight +
+   color contrast, not additional decorative rules. Transparent bg
+   so cards sit *on* the page, sharp corners, no hover lift. */
 .feature-card {
   background: transparent;
   border: 1px solid var(--border);
@@ -403,30 +569,21 @@ a:focus-visible,
 }
 .feature-card h3 {
   font-family: var(--font-body);
-  margin: 0 0 10px;
-  font-size: 15.5px;
+  margin: 0 0 12px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.012em;
   overflow-wrap: break-word;
   color: var(--text);
 }
-/* Internal divider — splits the card into header/body so the
-   title:body hierarchy reads at a glance. Pseudo-element keeps
-   the rule independent of the h3 box (locked by site.css contract
-   in static_export_test). */
-.feature-card h3::after {
-  content: '';
-  display: block;
-  width: 100%;
-  height: 1px;
-  margin-top: 10px;
-  background: var(--border);
-}
 .feature-card p {
+  /* 13px is the floor — anything smaller becomes hard to read on
+     mobile. Density comes from line-height (1.5) and color
+     (var(--muted)) instead. */
   margin: 0;
   font-size: 13px;
-  color: var(--muted-strong);
-  line-height: 1.55;
+  color: var(--muted);
+  line-height: 1.5;
   overflow-wrap: break-word;
 }
 
@@ -434,7 +591,7 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .roadmap-inner {
-  padding: 58px var(--pad);
+  padding: 72px var(--pad);
 }
 .roadmap-summary {
   display: grid;
@@ -485,39 +642,44 @@ a:focus-visible,
 .roadmap-details {
   margin: 0 0 18px;
 }
+/* "View full phase-by-phase checklist" reads as the page's only
+   "explore deeper" CTA — bigger padding, slightly larger font,
+   wider letter-spacing, accent border, fills with accent on hover.
+   This is the action-bar at the bottom of the visible roadmap. */
 .roadmap-details-summary {
-  font-family: var(--font-body);
-  font-size: 15px;
+  font-family: var(--font-mono);
+  font-size: 13px;
   font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--accent);
   cursor: pointer;
-  padding: 14px 16px;
-  background: var(--bg-1);
-  border: 1px solid rgba(240, 200, 75, 0.45);
-  border-radius: 2px;
+  padding: 18px 26px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 0;
   list-style: none;
   user-select: none;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  text-align: center;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .roadmap-details-summary::-webkit-details-marker {
   display: none;
 }
 .roadmap-details-summary::before {
-  content: '+';
+  content: '▸ ';
   display: inline-block;
-  width: 16px;
-  color: var(--muted);
+  margin-right: 8px;
 }
 .roadmap-details[open] .roadmap-details-summary::before {
-  content: '-';
+  content: '▾ ';
 }
 .roadmap-details-summary:hover {
-  border-color: var(--border-strong);
-  color: var(--accent-hover);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 .roadmap-details[open] .roadmap-details-summary {
-  margin-bottom: 14px;
-  border-color: var(--border-strong);
+  margin-bottom: 18px;
 }
 
 .roadmap-phases {
@@ -638,16 +800,19 @@ a:focus-visible,
   border-bottom: 1px solid transparent;
 }
 .footer-inner {
-  padding: 26px var(--pad);
+  padding: 32px var(--pad);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 20px;
 }
+/* Footer-nav · separator now lives in the actual HTML
+   (<span class="footer-nav-sep" aria-hidden="true">·</span>) so
+   text-extraction views, screen readers, and any context that
+   skips CSS pseudo-elements all see the dot. */
 .footer-nav {
   display: flex;
   align-items: center;
-  gap: 16px;
   flex-wrap: wrap;
 }
 .footer-nav a {
@@ -655,6 +820,14 @@ a:focus-visible,
   font-weight: 700;
   color: var(--muted-strong);
   border-bottom-color: rgba(240, 200, 75, 0.35);
+  padding: 4px 0;
+}
+.footer-nav-sep {
+  color: var(--label);
+  font-weight: 400;
+  font-size: 12px;
+  margin: 0 14px;
+  user-select: none;
 }
 .footer-meta {
   display: flex;
@@ -670,27 +843,69 @@ a:focus-visible,
 }
 
 @media (max-width: 640px) {
+  /* Topbar collapses to a single row on mobile: brand on the left,
+     three nav anchors on the right. With only 3 short uppercase
+     mono items (Install / Roadmap / GitHub), they fit comfortably
+     next to "Gormes" even at 320px viewport. Removes ~30px of
+     vertical space the previous wrap row consumed. */
   .topbar-inner {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    padding: 14px var(--pad);
-  }
-  .topnav {
-    width: 100%;
-    justify-content: flex-start;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    padding: 6px var(--pad);
     gap: 14px;
   }
+  .topnav {
+    width: auto;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .topnav a {
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+  }
+  .brand {
+    font-size: 17px;
+  }
+  /* Mobile hero — tightened so headline + subhead + early-stage
+     stamp + CTAs all fit above the fold on 360x800 phones. The
+     desktop clamp(30, 7.5vw, 60) already handles fluid sizing
+     correctly down to mobile, so no separate font-size override
+     here (the previous clamp(34, 13vw, 46) was actually pushing
+     the headline larger on mobile than the desktop cap, which
+     was the root cause of the v10 fold regression). */
   .hero-inner {
-    padding: 54px var(--pad) 42px;
+    padding: 12px var(--pad) 28px;
+  }
+  .kicker {
+    /* Smaller font + tighter margin so the kicker reads as a tag
+       attached directly to the topbar/headline cluster, not a
+       separate label. */
+    font-size: 10px;
+    margin-bottom: 4px;
+    letter-spacing: 0.18em;
   }
   .hero-title {
-    font-size: clamp(34px, 13vw, 46px);
+    margin-bottom: 14px;
+  }
+  .hero-subhead {
+    margin-bottom: 18px;
   }
   .hero-subhead p {
     font-size: 16px;
   }
-  .hero-ctas .btn-primary {
-    flex: 1 1 100%;
+  .hero-note {
+    /* Mobile gap below qualifier — 24px so the stamp doesn't
+       visually merge with the CTA pair below it on small screens.
+     */
+    margin-bottom: 24px;
+  }
+  /* Right-side hero grid hidden on mobile — there's no right
+     gutter at narrow widths for it to live in, so it would just
+     overlap the CTA buttons and add visual noise. The grid stays
+     on desktop where it has actual empty space to occupy. */
+  .hero::after {
+    display: none;
   }
   .install-inner,
   .why-inner,
@@ -720,6 +935,61 @@ a:focus-visible,
   }
   .copy-btn {
     padding: 6px 8px;
+  }
+}
+
+/* Desktop pass — composing for desktop intentionally, not just
+   scaling up mobile. Three breakpoints: 768 (3-up install grid),
+   1024 (hero composition + section rhythm), 1280 (page width). */
+
+@media (min-width: 768px) {
+  /* Install steps as a 3-up grid on desktop — UNIX / WINDOWS /
+     RUN side by side instead of stacked. Biggest single visual
+     upgrade for the desktop view: turns the install section
+     from "list" into "system overview". */
+  .install-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Hero composition: text column anchored away from the page
+     edge so the right-side empty/grid space gets proportional
+     visual weight. clamp keeps the inset breathing-room
+     reasonable across 1024-1600 viewports without hardcoding a
+     value that feels too inset at 1024 or too loose at 1600. */
+  .hero-inner {
+    padding-left: clamp(40px, 8vw, 120px);
+    padding-top: 96px;
+    padding-bottom: 96px;
+  }
+  /* Subhead larger on desktop for readability — width stays
+     constrained by hero-subhead max-width 560 so line-length
+     stays in the ~65-75ch zone. */
+  .hero-subhead p {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  /* Section rhythm tier-up: 72→96 between sections so desktop
+     feels deliberate, not cramped. Internal block gaps stay at
+     the existing 24-32 range so sections don't get floaty. */
+  .install-inner,
+  .why-inner,
+  .audience-inner,
+  .roadmap-inner {
+    padding: 96px var(--pad);
+  }
+}
+
+@media (min-width: 1280px) {
+  /* Bump the page max-width on very wide screens so the
+     install-grid columns have room to breathe. Hero-content's
+     own 680px max-width keeps the headline measure unchanged;
+     this only affects the grid sections that benefit from extra
+     horizontal real estate. */
+  :root {
+    --max-width: 1120px;
   }
 }
 

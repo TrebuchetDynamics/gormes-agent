@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 )
 
 func TestRunRejectsUnknownCommand(t *testing.T) {
@@ -502,7 +503,7 @@ func TestServiceInstallWritesUnitUnderXDGConfigHome(t *testing.T) {
 	xdgConfigHome := filepath.Join(repoRoot, "xdg")
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
 	t.Setenv("FORCE", "")
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}}}
 	oldRunner := serviceRunner
 	serviceRunner = runner
 	t.Cleanup(func() {
@@ -542,7 +543,7 @@ func TestServiceInstallWritesUnitUnderXDGConfigHome(t *testing.T) {
 		t.Fatalf("unit = %q, want no temporary go-build path and no extra run arg", unit)
 	}
 
-	wantCommands := []builderloop.Command{
+	wantCommands := []cmdrunner.Command{
 		{Name: "systemctl", Args: []string{"--user", "daemon-reload"}},
 		{Name: "systemctl", Args: []string{"--user", "enable", "--now", "gormes-orchestrator.service"}},
 	}
@@ -555,7 +556,7 @@ func TestServiceInstallAuditUsesAuditUnitName(t *testing.T) {
 	repoRoot := t.TempDir()
 	xdgConfigHome := filepath.Join(repoRoot, "xdg")
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}}}
 	oldRunner := serviceRunner
 	serviceRunner = runner
 	t.Cleanup(func() {
@@ -596,7 +597,7 @@ func TestServiceInstallAuditUsesAuditUnitName(t *testing.T) {
 	if strings.Contains(string(raw), "go-build") || strings.Contains(string(raw), " run") {
 		t.Fatalf("service unit = %q, want no temporary go-build path and no run arg", raw)
 	}
-	wantEnable := builderloop.Command{Name: "systemctl", Args: []string{"--user", "enable", "--now", "gormes-orchestrator-audit.timer"}}
+	wantEnable := cmdrunner.Command{Name: "systemctl", Args: []string{"--user", "enable", "--now", "gormes-orchestrator-audit.timer"}}
 	if got := runner.Commands[len(runner.Commands)-1]; !reflect.DeepEqual(got, wantEnable) {
 		t.Fatalf("last command = %#v, want %#v", got, wantEnable)
 	}
@@ -607,7 +608,7 @@ func TestServiceInstallHonorsAutoStartZero(t *testing.T) {
 	xdgConfigHome := filepath.Join(repoRoot, "xdg")
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
 	t.Setenv("AUTO_START", "0")
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
 	oldRunner := serviceRunner
 	serviceRunner = runner
 	t.Cleanup(func() {
@@ -631,7 +632,7 @@ func TestServiceInstallHonorsAutoStartZero(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 
-	wantCommands := []builderloop.Command{
+	wantCommands := []cmdrunner.Command{
 		{Name: "systemctl", Args: []string{"--user", "daemon-reload"}},
 	}
 	if !reflect.DeepEqual(runner.Commands, wantCommands) {
@@ -644,7 +645,7 @@ func TestServiceInstallAuditHonorsAutoStartZero(t *testing.T) {
 	xdgConfigHome := filepath.Join(repoRoot, "xdg")
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
 	t.Setenv("AUTO_START", "0")
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
 	oldRunner := serviceRunner
 	serviceRunner = runner
 	t.Cleanup(func() {
@@ -668,7 +669,7 @@ func TestServiceInstallAuditHonorsAutoStartZero(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 
-	wantCommands := []builderloop.Command{
+	wantCommands := []cmdrunner.Command{
 		{Name: "systemctl", Args: []string{"--user", "daemon-reload"}},
 	}
 	if !reflect.DeepEqual(runner.Commands, wantCommands) {
@@ -677,7 +678,7 @@ func TestServiceInstallAuditHonorsAutoStartZero(t *testing.T) {
 }
 
 func TestServiceDisableLegacyTimersUsesRunner(t *testing.T) {
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}, {}, {}, {}, {}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}, {}, {}, {}}}
 	oldRunner := serviceRunner
 	serviceRunner = runner
 	t.Cleanup(func() {
@@ -688,7 +689,7 @@ func TestServiceDisableLegacyTimersUsesRunner(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 
-	wantCommands := []builderloop.Command{
+	wantCommands := []cmdrunner.Command{
 		{Name: "systemctl", Args: []string{"--user", "disable", "--now", "gormes-architecture-planner-tasks-manager.timer"}},
 		{Name: "systemctl", Args: []string{"--user", "disable", "--now", "gormes-architectureplanneragent.timer"}},
 		{Name: "systemctl", Args: []string{"--user", "disable", "--now", "gormes-architecture-planner.timer"}},
@@ -709,7 +710,7 @@ func TestServiceInstallUsesHomeWhenXDGConfigHomeEmpty(t *testing.T) {
 	home := filepath.Join(repoRoot, "home")
 	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("HOME", home)
-	runner := &builderloop.FakeRunner{Results: []builderloop.Result{{}, {}}}
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}}}
 	oldRunner := serviceRunner
 	serviceRunner = runner
 	t.Cleanup(func() {
@@ -814,14 +815,14 @@ func writeMinimalProgressRepo(t *testing.T, root string) {
 
 	markers := map[string]string{
 		"README.md": "readme-rollup",
-		"docs/content/building-gormes/architecture_plan/_index.md":  "docs-full-checklist",
-		"docs/content/building-gormes/contract-readiness.md":        "contract-readiness",
+		"docs/content/building-gormes/architecture_plan/_index.md":          "docs-full-checklist",
+		"docs/content/building-gormes/contract-readiness.md":                "contract-readiness",
 		"docs/content/building-gormes/builder-loop/builder-loop-handoff.md": "builder-loop-handoff",
-		"docs/content/building-gormes/builder-loop/agent-queue.md":      "agent-queue",
-		"docs/content/building-gormes/builder-loop/next-slices.md":      "next-slices",
-		"docs/content/building-gormes/builder-loop/blocked-slices.md":   "blocked-slices",
-		"docs/content/building-gormes/builder-loop/umbrella-cleanup.md": "umbrella-cleanup",
-		"docs/content/building-gormes/builder-loop/progress-schema.md":  "progress-schema",
+		"docs/content/building-gormes/builder-loop/agent-queue.md":          "agent-queue",
+		"docs/content/building-gormes/builder-loop/next-slices.md":          "next-slices",
+		"docs/content/building-gormes/builder-loop/blocked-slices.md":       "blocked-slices",
+		"docs/content/building-gormes/builder-loop/umbrella-cleanup.md":     "umbrella-cleanup",
+		"docs/content/building-gormes/builder-loop/progress-schema.md":      "progress-schema",
 	}
 	for rel, kind := range markers {
 		path := filepath.Join(root, rel)
