@@ -20,7 +20,7 @@ leverage.
 | 6 | `planner-loop doctor` actually diagnoses drift                       | done         |
 | 7 | Show keywords in planner run summary                                 | done         |
 | 8 | `planner-loop trigger <reason>` verb                                 | done         |
-| 9 | Move `progress` and `repo` subcommands out of `builder-loop`         | open         |
+| 9 | Move `progress` and `repo` subcommands out of `builder-loop`         | done         |
 | 10 | Collapse `progress write` to a table-driven loop                    | done         |
 | 11 | Replace package-level test-seam globals with a `cliDeps` struct     | done         |
 | 12 | Structured exit codes                                                | partial      |
@@ -138,6 +138,15 @@ loop changes.
 **Fix.** Promote to `cmd/progress` and `cmd/repoctl`, or fold all verbs
 under a single `cmd/gormes <verb>` parent. Update Makefile,
 documentation, and any wrapper scripts.
+
+**Status (2026-04-25).** New `cmd/progress` and `cmd/repoctl` binaries
+exist as standalone entry points. The shared progress logic moved to a
+new `internal/progressctl` package; `internal/repoctl` already existed
+so `cmd/repoctl` is a direct wrapper. The `builder-loop progress …` and
+`builder-loop repo …` subcommands keep working — they now delegate to
+the same internal packages — so existing automation does not break.
+Future cleanup: drop the builder-loop subcommands once operators have
+migrated, and update Makefile + READMEs.
 
 ### 10. Collapse `progress write` to a table-driven loop
 
