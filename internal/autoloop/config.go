@@ -24,6 +24,7 @@ type Config struct {
 	IncludeQuarantined      bool     // GORMES_INCLUDE_QUARANTINED, default false
 	ReportRepairEnabled     bool     // GORMES_REPORT_REPAIR, default true (Task 6)
 	PlannerQuarantineLimit  int      // GORMES_PLANNER_QUARANTINE_LIMIT, default 5 (Task 7)
+	MergeOpenPullRequests   bool     // MERGE_OPEN_PULL_REQUESTS, default true
 
 	PostPromotionVerifyCommands []string // POST_PROMOTION_VERIFY_COMMANDS, default full-suite gate
 	PostPromotionRepairEnabled  bool     // POST_PROMOTION_REPAIR, default true
@@ -59,6 +60,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		IncludeQuarantined:      false,
 		ReportRepairEnabled:     true,
 		PlannerQuarantineLimit:  5,
+		MergeOpenPullRequests:   true,
 
 		PostPromotionVerifyCommands: defaultPostPromotionVerifyCommands(),
 		PostPromotionRepairEnabled:  true,
@@ -150,6 +152,13 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 			return Config{}, fmt.Errorf("GORMES_PLANNER_QUARANTINE_LIMIT must be non-negative")
 		}
 		cfg.PlannerQuarantineLimit = n
+	}
+	if value := env["MERGE_OPEN_PULL_REQUESTS"]; value != "" {
+		b, err := parseBoolEnv(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("MERGE_OPEN_PULL_REQUESTS: %w", err)
+		}
+		cfg.MergeOpenPullRequests = b
 	}
 	if value := env["POST_PROMOTION_VERIFY_COMMANDS"]; value != "" {
 		commands := splitCommandList(value)

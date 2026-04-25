@@ -41,6 +41,40 @@ type workerRun struct {
 }
 
 func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
+	now := opts.Now
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	runID := runIDFromTime(now)
+	runner := opts.Runner
+	if runner == nil {
+		runner = ExecRunner{}
+	}
+
+	if !opts.DryRun {
+		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "run_started",
+			Status: "started",
+		}); err != nil {
+			return RunSummary{}, err
+		}
+		if err := preflightCleanWorktree(opts.Config, runID); err != nil {
+			return RunSummary{}, err
+		}
+		if opts.Config.MergeOpenPullRequests {
+			if _, err := MergeOpenPullRequests(ctx, PullRequestIntakeOptions{
+				Runner:   runner,
+				RepoRoot: opts.Config.RepoRoot,
+				RunRoot:  opts.Config.RunRoot,
+				RunID:    runID,
+			}); err != nil {
+				return RunSummary{}, err
+			}
+		}
+	}
+
 	candidates, err := NormalizeCandidates(opts.Config.ProgressJSON, CandidateOptions{
 		ActiveFirst:        true,
 		PriorityBoost:      opts.Config.PriorityBoost,
@@ -52,11 +86,6 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	selected := selectAcrossSubphases(candidates, opts.Config.MaxAgents)
-	now := opts.Now
-	if now.IsZero() {
-		now = time.Now().UTC()
-	}
-	runID := runIDFromTime(now)
 
 	summary := RunSummary{
 		Candidates: len(candidates),
@@ -66,26 +95,11 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	if opts.DryRun {
 		return summary, nil
 	}
-	if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
-		TS:     time.Now().UTC(),
-		RunID:  runID,
-		Event:  "run_started",
-		Status: "started",
-	}); err != nil {
-		return RunSummary{}, err
-	}
-	if err := preflightCleanWorktree(opts.Config, runID); err != nil {
-		return RunSummary{}, err
-	}
 
 	// Reactive autoloop wiring (Tasks 3-4): the per-run accumulator captures
 	// success / failure outcomes for each candidate; Flush at the end of the
 	// run mutates progress.json in one batched write.
 	acc := newHealthAccumulator(runID, time.Now, opts.Config.QuarantineThreshold)
-	runner := opts.Runner
-	if runner == nil {
-		runner = ExecRunner{}
-	}
 	chain := opts.Config.BackendFallback
 	if len(chain) == 0 {
 		chain = []string{opts.Config.Backend}

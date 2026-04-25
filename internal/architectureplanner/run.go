@@ -61,6 +61,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
+	runID := now.UTC().Format("20060102T150405Z")
 	runner := opts.Runner
 	if runner == nil {
 		runner = autoloop.ExecRunner{}
@@ -68,6 +69,15 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 
 	if err := os.MkdirAll(cfg.RunRoot, 0o755); err != nil {
 		return RunSummary{}, err
+	}
+	if cfg.MergeOpenPullRequests && !opts.DryRun {
+		if _, err := autoloop.MergeOpenPullRequests(ctx, autoloop.PullRequestIntakeOptions{
+			Runner:   runner,
+			RepoRoot: cfg.RepoRoot,
+			RunID:    runID,
+		}); err != nil {
+			return RunSummary{}, err
+		}
 	}
 
 	var syncResults []RepoSyncResult
@@ -144,7 +154,6 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		return RunSummary{}, err
 	}
 
-	runID := now.UTC().Format("20060102T150405Z")
 	ledgerPath := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
 
 	summary := RunSummary{

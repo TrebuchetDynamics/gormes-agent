@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -48,6 +49,9 @@ type Config struct {
 	// PLANNER_MAX_RETRIES; default DefaultMaxRetries (2). Set to 0 to
 	// disable retries (pre-L3 single-attempt behavior).
 	MaxRetries int
+	// MergeOpenPullRequests controls whether planner cycles merge all
+	// non-draft open pull requests before collecting context.
+	MergeOpenPullRequests bool
 }
 
 func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
@@ -74,6 +78,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		PlannerQuarantineLimit: 5,
 		PlannerTriggersPath:    filepath.Join(repoRoot, ".codex", "architecture-planner", "triggers.jsonl"),
 		MaxRetries:             DefaultMaxRetries,
+		MergeOpenPullRequests:  true,
 	}
 
 	if value := env["PROGRESS_JSON"]; value != "" {
@@ -138,6 +143,13 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.MaxRetries = n
 	}
+	if value := env["MERGE_OPEN_PULL_REQUESTS"]; value != "" {
+		b, err := parseBoolEnv(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("MERGE_OPEN_PULL_REQUESTS: %w", err)
+		}
+		cfg.MergeOpenPullRequests = b
+	}
 
 	// TriggersCursorPath derives from the (possibly env-overridden) RunRoot
 	// so a single RUN_ROOT override moves the cursor with the rest of the
@@ -145,6 +157,16 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 	cfg.TriggersCursorPath = filepath.Join(cfg.RunRoot, "state", "triggers_cursor.json")
 
 	return cfg, nil
+}
+
+func parseBoolEnv(value string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true, nil
+	case "0", "false", "no", "off":
+		return false, nil
+	}
+	return false, fmt.Errorf("invalid boolean %q (want 1/0/true/false/yes/no/on/off)", value)
 }
 
 func (cfg Config) ExternalRepos() []ExternalRepo {

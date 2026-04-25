@@ -156,6 +156,9 @@ func plannerEnv(opts runOptions) map[string]string {
 		"HONCHO_REPO_URL",
 		"PLANNER_VALIDATE",
 		"PLANNER_SYNC_REPOS",
+		"PLANNER_TRIGGERS_PATH",
+		"PLANNER_MAX_RETRIES",
+		"MERGE_OPEN_PULL_REQUESTS",
 	} {
 		env[key] = os.Getenv(key)
 	}

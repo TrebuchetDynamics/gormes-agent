@@ -159,6 +159,9 @@ func TestConfigFromEnvReactiveDefaults(t *testing.T) {
 	if cfg.PlannerQuarantineLimit != 5 {
 		t.Fatalf("PlannerQuarantineLimit = %d, want 5", cfg.PlannerQuarantineLimit)
 	}
+	if cfg.MergeOpenPullRequests != true {
+		t.Fatalf("MergeOpenPullRequests = %v, want true", cfg.MergeOpenPullRequests)
+	}
 	wantVerify := defaultPostPromotionVerifyCommands()
 	if !reflect.DeepEqual(cfg.PostPromotionVerifyCommands, wantVerify) {
 		t.Fatalf("PostPromotionVerifyCommands = %#v, want %#v", cfg.PostPromotionVerifyCommands, wantVerify)
@@ -179,6 +182,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 		"GORMES_INCLUDE_QUARANTINED":      "true",
 		"GORMES_REPORT_REPAIR":            "0",
 		"GORMES_PLANNER_QUARANTINE_LIMIT": "9",
+		"MERGE_OPEN_PULL_REQUESTS":        "0",
 		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/autoloop -count=1;;go run ./cmd/autoloop progress validate",
 		"POST_PROMOTION_REPAIR":           "off",
 		"POST_PROMOTION_REPAIR_ATTEMPTS":  "2",
@@ -204,6 +208,9 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 	}
 	if cfg.PlannerQuarantineLimit != 9 {
 		t.Fatalf("PlannerQuarantineLimit = %d, want 9", cfg.PlannerQuarantineLimit)
+	}
+	if cfg.MergeOpenPullRequests != false {
+		t.Fatalf("MergeOpenPullRequests = %v, want false", cfg.MergeOpenPullRequests)
 	}
 	verifyWant := []string{"go test ./internal/autoloop -count=1", "go run ./cmd/autoloop progress validate"}
 	if !reflect.DeepEqual(cfg.PostPromotionVerifyCommands, verifyWant) {

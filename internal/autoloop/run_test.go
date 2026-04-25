@@ -58,6 +58,48 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 	}
 }
 
+func TestRunOnceMergesOpenPullRequestsBeforeSelectingWork(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	runRoot := t.TempDir()
+	runner := &FakeRunner{Results: []Result{
+		{Stdout: `[{"number": 7, "title": "land worker", "isDraft": false, "mergeStateStatus": "CLEAN", "headRefName": "autoloop/run"}]`},
+		{},
+		{},
+		{},
+	}}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:              repoRoot,
+			ProgressJSON:          progressPath,
+			RunRoot:               runRoot,
+			Backend:               "opencode",
+			Mode:                  "safe",
+			MaxAgents:             1,
+			MergeOpenPullRequests: true,
+		},
+		Runner: runner,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	if got, want := runner.Commands[0], (Command{Name: "gh", Args: []string{"pr", "list", "--state", "open", "--limit", "100", "--json", "number,title,isDraft,mergeStateStatus,headRefName,url"}, Dir: repoRoot}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("first command = %#v, want PR list command %#v", got, want)
+	}
+	if got, want := runner.Commands[1], (Command{Name: "gh", Args: []string{"pr", "merge", "7", "--merge", "--delete-branch"}, Dir: repoRoot}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("second command = %#v, want PR merge command %#v", got, want)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	if got := events[1].Event + ":" + events[1].Status; got != "pr_intake_started:started" {
+		t.Fatalf("second ledger event = %q, want pr_intake_started:started", got)
+	}
+}
+
 func TestRunOnceUsesNanosecondSuffixForRapidRunIDs(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{"phases": {}}`)
 	config := Config{

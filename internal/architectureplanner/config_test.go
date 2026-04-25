@@ -31,20 +31,24 @@ func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 	if cfg.Mode != "safe" {
 		t.Fatalf("Mode = %q, want safe", cfg.Mode)
 	}
+	if cfg.MergeOpenPullRequests != true {
+		t.Fatalf("MergeOpenPullRequests = %v, want true", cfg.MergeOpenPullRequests)
+	}
 }
 
 func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
 	cfg, err := ConfigFromEnv(root, map[string]string{
-		"PROGRESS_JSON":     "/tmp/progress.json",
-		"RUN_ROOT":          "/tmp/planner",
-		"AUTOLOOP_RUN_ROOT": "/tmp/autoloop",
-		"BACKEND":           "claudeu",
-		"MODE":              "full",
-		"HERMES_DIR":        "/tmp/hermes",
-		"GBRAIN_DIR":        "/tmp/gbrain",
-		"HONCHO_DIR":        "/tmp/honcho",
+		"PROGRESS_JSON":            "/tmp/progress.json",
+		"RUN_ROOT":                 "/tmp/planner",
+		"AUTOLOOP_RUN_ROOT":        "/tmp/autoloop",
+		"BACKEND":                  "claudeu",
+		"MODE":                     "full",
+		"HERMES_DIR":               "/tmp/hermes",
+		"GBRAIN_DIR":               "/tmp/gbrain",
+		"HONCHO_DIR":               "/tmp/honcho",
+		"MERGE_OPEN_PULL_REQUESTS": "0",
 	})
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
@@ -73,6 +77,9 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	}
 	if cfg.HonchoDir != "/tmp/honcho" {
 		t.Fatalf("HonchoDir = %q", cfg.HonchoDir)
+	}
+	if cfg.MergeOpenPullRequests != false {
+		t.Fatalf("MergeOpenPullRequests = %v, want false", cfg.MergeOpenPullRequests)
 	}
 }
 

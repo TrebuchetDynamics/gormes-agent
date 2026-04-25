@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -136,6 +137,43 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 		if !strings.Contains(string(contextData), want) {
 			t.Fatalf("context.json missing %q:\n%s", want, contextData)
 		}
+	}
+}
+
+func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(.git) error = %v", err)
+	}
+	cfg := mustConfig(t, repoRoot)
+	cfg.MergeOpenPullRequests = true
+	runner := &autoloop.FakeRunner{
+		Results: []autoloop.Result{
+			{Stdout: `[{"number": 11, "title": "planner fix", "isDraft": false, "mergeStateStatus": "CLEAN", "headRefName": "planner/fix"}]`},
+			{},
+			{},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	if _, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	wantPrefix := []autoloop.Command{
+		{Name: "gh", Args: []string{"pr", "list", "--state", "open", "--limit", "100", "--json", "number,title,isDraft,mergeStateStatus,headRefName,url"}, Dir: repoRoot},
+		{Name: "gh", Args: []string{"pr", "merge", "11", "--merge", "--delete-branch"}, Dir: repoRoot},
+		{Name: "git", Args: []string{"pull", "--ff-only"}, Dir: repoRoot},
+	}
+	if got := runner.Commands[:3]; !reflect.DeepEqual(got, wantPrefix) {
+		t.Fatalf("command prefix = %#v, want %#v", got, wantPrefix)
 	}
 }
 
@@ -559,7 +597,8 @@ func mustConfig(t *testing.T, repoRoot string) Config {
 	t.Helper()
 
 	cfg, err := ConfigFromEnv(repoRoot, map[string]string{
-		"RUN_ROOT": filepath.Join(repoRoot, ".codex", "architecture-planner-test"),
+		"RUN_ROOT":                 filepath.Join(repoRoot, ".codex", "architecture-planner-test"),
+		"MERGE_OPEN_PULL_REQUESTS": "0",
 	})
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
