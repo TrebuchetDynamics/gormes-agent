@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -38,17 +39,49 @@ const (
 
 // RuntimeStatus is the shared gateway status read model.
 type RuntimeStatus struct {
-	Kind          string                           `json:"kind"`
-	PID           int                              `json:"pid"`
-	GatewayState  GatewayState                     `json:"gateway_state"`
-	ExitReason    string                           `json:"exit_reason"`
-	ActiveAgents  int                              `json:"active_agents"`
-	Platforms     map[string]PlatformRuntimeStatus `json:"platforms"`
-	Proxy         ProxyRuntimeStatus               `json:"proxy"`
-	DrainTimeouts []RuntimeDrainTimeoutEvidence    `json:"drain_timeouts,omitempty"`
-	ResumePending []RuntimeResumePendingEvidence   `json:"resume_pending,omitempty"`
-	NonResumable  []RuntimeNonResumableEvidence    `json:"non_resumable,omitempty"`
-	UpdatedAt     string                           `json:"updated_at"`
+	Kind              string                           `json:"kind"`
+	PID               int                              `json:"pid"`
+	StartTime         int64                            `json:"start_time,omitempty"`
+	Generation        uint64                           `json:"generation"`
+	Command           string                           `json:"command,omitempty"`
+	Argv              []string                         `json:"argv,omitempty"`
+	ProcessValidation RuntimeProcessValidation         `json:"process_validation,omitempty"`
+	GatewayState      GatewayState                     `json:"gateway_state"`
+	ExitReason        string                           `json:"exit_reason"`
+	ActiveAgents      int                              `json:"active_agents"`
+	Platforms         map[string]PlatformRuntimeStatus `json:"platforms"`
+	Proxy             ProxyRuntimeStatus               `json:"proxy"`
+	DrainTimeouts     []RuntimeDrainTimeoutEvidence    `json:"drain_timeouts,omitempty"`
+	ResumePending     []RuntimeResumePendingEvidence   `json:"resume_pending,omitempty"`
+	NonResumable      []RuntimeNonResumableEvidence    `json:"non_resumable,omitempty"`
+	UpdatedAt         string                           `json:"updated_at"`
+}
+
+// RuntimeProcessValidationStatus classifies how much trust callers can place
+// in the PID identity stored next to gateway_state.json.
+type RuntimeProcessValidationStatus string
+
+const (
+	RuntimeProcessValidationMissingState     RuntimeProcessValidationStatus = "missing_state"
+	RuntimeProcessValidationMissingPIDFile   RuntimeProcessValidationStatus = "missing_pid_file"
+	RuntimeProcessValidationStalePID         RuntimeProcessValidationStatus = "stale_pid"
+	RuntimeProcessValidationPIDReused        RuntimeProcessValidationStatus = "pid_reused"
+	RuntimeProcessValidationStopped          RuntimeProcessValidationStatus = "stopped_process"
+	RuntimeProcessValidationPermissionDenied RuntimeProcessValidationStatus = "permission_denied"
+	RuntimeProcessValidationLive             RuntimeProcessValidationStatus = "live"
+)
+
+// RuntimeProcessValidation is read-only evidence produced when a runtime
+// status snapshot is checked against process identity evidence.
+type RuntimeProcessValidation struct {
+	Status            RuntimeProcessValidationStatus `json:"status,omitempty"`
+	Live              bool                           `json:"live"`
+	Message           string                         `json:"message,omitempty"`
+	PID               int                            `json:"pid,omitempty"`
+	ExpectedStartTime int64                          `json:"expected_start_time,omitempty"`
+	ActualStartTime   int64                          `json:"actual_start_time,omitempty"`
+	Command           string                         `json:"command,omitempty"`
+	CheckedAt         string                         `json:"checked_at,omitempty"`
 }
 
 // PlatformRuntimeStatus is one platform/channel's status entry inside the
@@ -122,8 +155,9 @@ type RuntimeStatusUpdate struct {
 // synthesizes startup defaults for manager writers; status commands need to
 // distinguish that from "no runtime evidence has been written yet".
 type RuntimeStatusSnapshot struct {
-	Status  RuntimeStatus
-	Missing bool
+	Status     RuntimeStatus
+	Missing    bool
+	Validation RuntimeProcessValidation
 }
 
 // RuntimeStatusWriter is the manager-facing seam for lifecycle status writes.
@@ -133,18 +167,26 @@ type RuntimeStatusWriter interface {
 
 // RuntimeStatusStore persists the gateway runtime status as atomic JSON.
 type RuntimeStatusStore struct {
-	path string
-	now  func() time.Time
-	pid  func() int
-	mu   sync.Mutex
+	path      string
+	pidPath   string
+	now       func() time.Time
+	pid       func() int
+	startTime func(int) (int64, bool)
+	argv      func() []string
+	processes runtimeProcessTable
+	mu        sync.Mutex
 }
 
 // NewRuntimeStatusStore returns a JSON-backed runtime status store.
 func NewRuntimeStatusStore(path string) *RuntimeStatusStore {
 	return &RuntimeStatusStore{
-		path: path,
-		now:  func() time.Time { return time.Now().UTC() },
-		pid:  os.Getpid,
+		path:      path,
+		pidPath:   filepath.Join(filepath.Dir(path), "gateway.pid"),
+		now:       func() time.Time { return time.Now().UTC() },
+		pid:       os.Getpid,
+		startTime: procProcessStartTime,
+		argv:      func() []string { return append([]string(nil), os.Args...) },
+		processes: procRuntimeProcessTable{},
 	}
 }
 
@@ -217,9 +259,165 @@ func (s *RuntimeStatusStore) ReadRuntimeStatusSnapshot(ctx context.Context) (Run
 	return RuntimeStatusSnapshot{Status: status}, nil
 }
 
+// ReadValidatedRuntimeStatusSnapshot reads runtime status and annotates it with
+// PID/start-time validation evidence. When validation proves the persisted
+// state is stale, the returned status is cleaned in memory so callers do not
+// treat old running channels as live.
+func (s *RuntimeStatusStore) ReadValidatedRuntimeStatusSnapshot(ctx context.Context) (RuntimeStatusSnapshot, error) {
+	snapshot, err := s.ReadRuntimeStatusSnapshot(ctx)
+	if err != nil {
+		return RuntimeStatusSnapshot{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return RuntimeStatusSnapshot{}, err
+	}
+
+	validation := s.validateRuntimeProcess(snapshot)
+	snapshot.Validation = validation
+	snapshot.Status = applyRuntimeProcessValidation(snapshot.Status, validation, snapshot.Missing)
+	return snapshot, nil
+}
+
+func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapshot) RuntimeProcessValidation {
+	checkedAt := ""
+	if s != nil && s.now != nil {
+		checkedAt = s.now().Format(time.RFC3339Nano)
+	}
+	if snapshot.Missing {
+		return RuntimeProcessValidation{
+			Status:    RuntimeProcessValidationMissingState,
+			Live:      false,
+			Message:   "runtime status is missing",
+			CheckedAt: checkedAt,
+		}
+	}
+
+	pidRecord, err := readRuntimeStatusRecord(s.pidPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return RuntimeProcessValidation{
+				Status:    RuntimeProcessValidationMissingPIDFile,
+				Live:      false,
+				PID:       snapshot.Status.PID,
+				Message:   "runtime PID file is missing",
+				CheckedAt: checkedAt,
+			}
+		}
+		return RuntimeProcessValidation{
+			Status:    RuntimeProcessValidationMissingPIDFile,
+			Live:      false,
+			PID:       snapshot.Status.PID,
+			Message:   err.Error(),
+			CheckedAt: checkedAt,
+		}
+	}
+	if mismatch := runtimePIDRecordMismatch(snapshot.Status, pidRecord); mismatch != "" {
+		return RuntimeProcessValidation{
+			Status:            RuntimeProcessValidationStalePID,
+			Live:              false,
+			PID:               snapshot.Status.PID,
+			ExpectedStartTime: snapshot.Status.StartTime,
+			Command:           snapshot.Status.Command,
+			Message:           mismatch,
+			CheckedAt:         checkedAt,
+		}
+	}
+
+	pid := pidRecord.PID
+	if pid <= 0 {
+		pid = snapshot.Status.PID
+	}
+	expectedStartTime := pidRecord.StartTime
+	if expectedStartTime == 0 {
+		expectedStartTime = snapshot.Status.StartTime
+	}
+	command := pidRecord.Command
+	if command == "" {
+		command = snapshot.Status.Command
+	}
+	validation := RuntimeProcessValidation{
+		PID:               pid,
+		ExpectedStartTime: expectedStartTime,
+		Command:           command,
+		CheckedAt:         checkedAt,
+	}
+	if pid <= 0 {
+		validation.Status = RuntimeProcessValidationStalePID
+		validation.Message = "runtime PID is missing or invalid"
+		return validation
+	}
+
+	processes := s.processes
+	if processes == nil {
+		processes = procRuntimeProcessTable{}
+	}
+	process, err := processes.LookupRuntimeProcess(pid)
+	if err != nil {
+		validation.Live = false
+		switch {
+		case errors.Is(err, errRuntimeProcessPermissionDenied):
+			validation.Status = RuntimeProcessValidationPermissionDenied
+			validation.Message = "process lookup was denied"
+		case errors.Is(err, errRuntimeProcessNotFound):
+			validation.Status = RuntimeProcessValidationStalePID
+			validation.Message = "process is not running"
+		default:
+			validation.Status = RuntimeProcessValidationStalePID
+			validation.Message = err.Error()
+		}
+		return validation
+	}
+
+	validation.ActualStartTime = process.StartTime
+	if expectedStartTime != 0 && process.StartTime != 0 && process.StartTime != expectedStartTime {
+		validation.Status = RuntimeProcessValidationPIDReused
+		validation.Message = "process start time does not match runtime status"
+		return validation
+	}
+	if process.Stopped {
+		validation.Status = RuntimeProcessValidationStopped
+		validation.Message = "process is stopped"
+		return validation
+	}
+
+	validation.Status = RuntimeProcessValidationLive
+	validation.Live = true
+	if validation.Command == "" {
+		validation.Command = process.Command
+	}
+	return validation
+}
+
+func runtimePIDRecordMismatch(status RuntimeStatus, pidRecord RuntimeStatus) string {
+	if status.Kind != "" && pidRecord.Kind != "" && status.Kind != pidRecord.Kind {
+		return "runtime PID record kind does not match status"
+	}
+	if status.PID > 0 && pidRecord.PID > 0 && status.PID != pidRecord.PID {
+		return "runtime PID record pid does not match status"
+	}
+	if status.StartTime > 0 && pidRecord.StartTime > 0 && status.StartTime != pidRecord.StartTime {
+		return "runtime PID record start time does not match status"
+	}
+	if status.Generation > 0 && pidRecord.Generation > 0 && status.Generation != pidRecord.Generation {
+		return "runtime PID record generation does not match status"
+	}
+	if status.Command != "" && pidRecord.Command != "" && status.Command != pidRecord.Command {
+		return "runtime PID record command does not match status"
+	}
+	return ""
+}
+
 func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUpdate) {
 	status.Kind = runtimeStatusKind
 	status.PID = s.pid()
+	if startTime, ok := s.startTime(status.PID); ok {
+		status.StartTime = startTime
+	} else {
+		status.StartTime = 0
+	}
+	status.Generation++
+	status.Argv = append([]string(nil), s.argv()...)
+	status.Command = strings.Join(status.Argv, " ")
 	if status.Platforms == nil {
 		status.Platforms = map[string]PlatformRuntimeStatus{}
 	}
@@ -276,12 +474,39 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 	status.Platforms[update.Platform] = platform
 }
 
+func applyRuntimeProcessValidation(status RuntimeStatus, validation RuntimeProcessValidation, missing bool) RuntimeStatus {
+	status.ProcessValidation = validation
+	if missing || validation.Live {
+		return status
+	}
+	status.GatewayState = GatewayStateStopped
+	status.ActiveAgents = 0
+	for name, platform := range status.Platforms {
+		switch platform.State {
+		case PlatformStateStarting, PlatformStateRunning:
+			platform.State = PlatformStateStopped
+			status.Platforms[name] = platform
+		}
+	}
+	switch strings.TrimSpace(strings.ToLower(status.Proxy.State)) {
+	case "starting", "running", "draining":
+		status.Proxy.State = "stopped"
+	}
+	return status
+}
+
 func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 	raw, err := os.ReadFile(s.path)
 	if errors.Is(err, os.ErrNotExist) {
+		pid := s.pid()
+		startTime, _ := s.startTime(pid)
+		argv := append([]string(nil), s.argv()...)
 		return RuntimeStatus{
 			Kind:         runtimeStatusKind,
-			PID:          s.pid(),
+			PID:          pid,
+			StartTime:    startTime,
+			Command:      strings.Join(argv, " "),
+			Argv:         argv,
 			GatewayState: GatewayStateStarting,
 			Platforms:    map[string]PlatformRuntimeStatus{},
 			UpdatedAt:    s.now().Format(time.RFC3339Nano),
@@ -291,9 +516,15 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 		return RuntimeStatus{}, fmt.Errorf("read runtime status: %w", err)
 	}
 	if len(raw) == 0 {
+		pid := s.pid()
+		startTime, _ := s.startTime(pid)
+		argv := append([]string(nil), s.argv()...)
 		return RuntimeStatus{
 			Kind:      runtimeStatusKind,
-			PID:       s.pid(),
+			PID:       pid,
+			StartTime: startTime,
+			Command:   strings.Join(argv, " "),
+			Argv:      argv,
 			Platforms: map[string]PlatformRuntimeStatus{},
 			UpdatedAt: s.now().Format(time.RFC3339Nano),
 		}, nil
@@ -313,17 +544,38 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := writeRuntimeStatusJSONAtomic(s.path, status); err != nil {
+		return err
+	}
+	if s.pidPath == "" {
+		return nil
+	}
+	pidRecord := RuntimeStatus{
+		Kind:       status.Kind,
+		PID:        status.PID,
+		StartTime:  status.StartTime,
+		Generation: status.Generation,
+		Command:    status.Command,
+		Argv:       append([]string(nil), status.Argv...),
+		UpdatedAt:  status.UpdatedAt,
+	}
+	if err := writeRuntimeStatusJSONAtomic(s.pidPath, pidRecord); err != nil {
+		return fmt.Errorf("write runtime pid record: %w", err)
+	}
+	return nil
+}
+
+func writeRuntimeStatusJSONAtomic(path string, status RuntimeStatus) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create runtime status dir: %w", err)
 	}
-
 	raw, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode runtime status: %w", err)
 	}
 	raw = append(raw, '\n')
 
-	tmp, err := os.CreateTemp(filepath.Dir(s.path), ".gateway_state-*.tmp")
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".gateway_state-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create runtime status temp file: %w", err)
 	}
@@ -339,8 +591,124 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close runtime status temp file: %w", err)
 	}
-	if err := os.Rename(tmpPath, s.path); err != nil {
+	if err := os.Rename(tmpPath, path); err != nil {
 		return fmt.Errorf("replace runtime status: %w", err)
 	}
 	return nil
+}
+
+func readRuntimeStatusRecord(path string) (RuntimeStatus, error) {
+	if path == "" {
+		return RuntimeStatus{}, os.ErrNotExist
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return RuntimeStatus{}, err
+	}
+	if len(raw) == 0 {
+		return RuntimeStatus{}, os.ErrNotExist
+	}
+	var status RuntimeStatus
+	if err := json.Unmarshal(raw, &status); err != nil {
+		return RuntimeStatus{}, fmt.Errorf("decode runtime PID record: %w", err)
+	}
+	return status, nil
+}
+
+var (
+	errRuntimeProcessNotFound         = errors.New("runtime process not found")
+	errRuntimeProcessPermissionDenied = errors.New("runtime process permission denied")
+)
+
+type runtimeProcessTable interface {
+	LookupRuntimeProcess(pid int) (runtimeProcessInfo, error)
+}
+
+type runtimeProcessInfo struct {
+	PID       int
+	StartTime int64
+	Command   string
+	Stopped   bool
+}
+
+type procRuntimeProcessTable struct{}
+
+func (procRuntimeProcessTable) LookupRuntimeProcess(pid int) (runtimeProcessInfo, error) {
+	if pid <= 0 {
+		return runtimeProcessInfo{}, errRuntimeProcessNotFound
+	}
+	statPath := filepath.Join("/proc", fmt.Sprint(pid), "stat")
+	raw, err := os.ReadFile(statPath)
+	if err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			return runtimeProcessInfo{}, errRuntimeProcessPermissionDenied
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			return runtimeProcessInfo{}, errRuntimeProcessNotFound
+		}
+		return runtimeProcessInfo{}, err
+	}
+	startTime, state, ok := parseProcStatIdentity(string(raw))
+	if !ok {
+		return runtimeProcessInfo{}, errRuntimeProcessNotFound
+	}
+	info := runtimeProcessInfo{
+		PID:       pid,
+		StartTime: startTime,
+		Stopped:   state == "T" || state == "t",
+	}
+	if cmdline, ok := readProcCmdline(pid); ok {
+		info.Command = cmdline
+	}
+	return info, nil
+}
+
+func readProcCmdline(pid int) (string, bool) {
+	raw, err := os.ReadFile(filepath.Join("/proc", fmt.Sprint(pid), "cmdline"))
+	if err != nil || len(raw) == 0 {
+		return "", false
+	}
+	parts := strings.Split(string(raw), "\x00")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	if len(out) == 0 {
+		return "", false
+	}
+	return strings.Join(out, " "), true
+}
+
+func procProcessStartTime(pid int) (int64, bool) {
+	if pid <= 0 {
+		return 0, false
+	}
+	raw, err := os.ReadFile(filepath.Join("/proc", fmt.Sprint(pid), "stat"))
+	if err != nil {
+		return 0, false
+	}
+	return parseProcStatStartTime(string(raw))
+}
+
+func parseProcStatStartTime(stat string) (int64, bool) {
+	startTime, _, ok := parseProcStatIdentity(stat)
+	return startTime, ok
+}
+
+func parseProcStatIdentity(stat string) (int64, string, bool) {
+	commEnd := strings.LastIndex(stat, ")")
+	if commEnd < 0 || commEnd+2 >= len(stat) {
+		return 0, "", false
+	}
+	fields := strings.Fields(stat[commEnd+2:])
+	if len(fields) <= 19 {
+		return 0, "", false
+	}
+	var start int64
+	if _, err := fmt.Sscan(fields[19], &start); err != nil {
+		return 0, "", false
+	}
+	return start, fields[0], true
 }

@@ -110,6 +110,44 @@ allowed_channel_id = "D123"
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
 }
 
+func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				StartTime:    100,
+				Generation:   3,
+				Command:      "gormes gateway",
+				GatewayState: gateway.GatewayStateStopped,
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status:            gateway.RuntimeProcessValidationStalePID,
+				Live:              false,
+				PID:               4242,
+				ExpectedStartTime: 100,
+				Message:           "process is not running",
+			},
+		},
+	})
+	defer restoreRuntimeStore()
+
+	stdout, stderr, err := executeGatewayStatusCommand(t)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	for _, want := range []string{
+		"runtime: stopped (pid=4242 active_agents=0)",
+		"runtime_validation: stale_pid live=false pid=4242 expected_start_time=100 message=\"process is not running\"",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q\n%s", want, stdout)
+		}
+	}
+	assertGatewayStatusDidNotOpenRuntimeStores(t)
+}
+
 func setupGatewayStatusTestEnv(t *testing.T) {
 	t.Helper()
 	root := t.TempDir()
@@ -150,5 +188,25 @@ func assertGatewayStatusDidNotOpenRuntimeStores(t *testing.T) {
 		} else if !os.IsNotExist(err) {
 			t.Fatalf("stat runtime store %s: %v", path, err)
 		}
+	}
+}
+
+type fakeGatewayStatusRuntimeStore struct {
+	snapshot gateway.RuntimeStatusSnapshot
+	err      error
+}
+
+func (s fakeGatewayStatusRuntimeStore) ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error) {
+	return s.snapshot, s.err
+}
+
+func gatewayStatusRuntimeStoreForTest(t *testing.T, store fakeGatewayStatusRuntimeStore) func() {
+	t.Helper()
+	previous := newGatewayStatusRuntimeStore
+	newGatewayStatusRuntimeStore = func(string) gatewayStatusRuntimeStore {
+		return store
+	}
+	return func() {
+		newGatewayStatusRuntimeStore = previous
 	}
 }
