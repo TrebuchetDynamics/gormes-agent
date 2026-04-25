@@ -306,6 +306,10 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Goncho summary context budget
 - [ ] Goncho dialectic chat contract
 - [ ] Goncho file upload import ingestion
+- [ ] Goncho topology design fixtures
+- [ ] Goncho operator diagnostics contract
+- [ ] Goncho streaming chat persistence contract
+- [ ] Goncho configuration namespace
 
 ## Phase 4 — The Brain Transplant 🔨
 

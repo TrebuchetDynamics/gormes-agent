@@ -1960,6 +1960,248 @@
               "done_signal": [
                 "File import fixtures prove supported formats become ordinary messages, unsupported formats fail before writes, and original files are not persisted."
               ]
+            },
+            {
+              "name": "Goncho topology design fixtures",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Goncho workspace, peer, session, and observation defaults are fixture-locked before more memory behavior is added",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown external participant identity falls back to a deterministic source-prefixed peer ID and records the fallback in evidence.",
+              "fixture": "internal/goncho/topology_design_test.go",
+              "source_refs": [
+                "../honcho/docs/v3/documentation/core-concepts/design-patterns.mdx",
+                "../honcho/docs/v3/documentation/features/storing-data.mdx",
+                "../honcho/docs/v3/guides/integrations/openclaw.mdx",
+                "../honcho/docs/v3/guides/integrations/claude-code.mdx",
+                "../honcho/docs/v3/guides/integrations/paperclip.mdx",
+                "../honcho/docs/v3/guides/integrations/sillytavern.mdx",
+                "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+                "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+                "internal/session/directory.go",
+                "internal/goncho/types.go",
+                "internal/goncho/service.go",
+                "internal/tools/honcho_tools.go"
+              ],
+              "blocked_by": [],
+              "ready_when": [
+                "The current session directory, Goncho service types, and Honcho tool schemas are readable in the repo."
+              ],
+              "not_ready_when": [
+                "The slice changes persistence behavior or reasoning behavior before topology rules are proven."
+              ],
+              "unblocks": [
+                "Goncho context representation options",
+                "Directional peer cards and representation scopes",
+                "Goncho operator diagnostics contract"
+              ],
+              "acceptance": [
+                "Default workspace is gormes unless explicit hard isolation is requested.",
+                "Workspace-per-user is rejected in fixtures.",
+                "Peer ID selection prefers internal/session.Metadata.UserID and falls back to source-prefixed external IDs.",
+                "Deterministic assistants, transport bots, and import helpers default to observe_me=false.",
+                "Conversation sessions follow real context boundaries such as thread, channel, repo, import batch, or delegated child run.",
+                "Cross-peer observation is opt-in and cannot become a default side effect."
+              ],
+              "note": "Honcho design-pattern docs show that most memory mistakes start with topology mistakes. This row makes the topology contract executable before adding more context, card, summary, or import behavior.",
+              "write_scope": [
+                "internal/goncho/",
+                "internal/session/",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho ./internal/session ./internal/tools -count=1"
+              ],
+              "done_signal": [
+                "Topology fixtures prove the default workspace, peer ID derivation, observation defaults, and session boundary choices expected by the operator playbook."
+              ]
+            },
+            {
+              "name": "Goncho operator diagnostics contract",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Gormes exposes a Honcho-inspired Goncho doctor path that checks memory topology, queues, config, and degraded modes without requiring operators to inspect raw tables",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing optional model/provider features are reported as degraded capability rows, not startup failures, unless a requested command needs them.",
+              "fixture": "cmd/gormes/goncho_doctor_test.go",
+              "source_refs": [
+                "../honcho/docs/v3/documentation/reference/cli.mdx",
+                "../honcho/docs/v3/contributing/self-hosting.mdx",
+                "../honcho/docs/v3/contributing/configuration.mdx",
+                "../honcho/docs/v3/contributing/troubleshooting.mdx",
+                "../honcho/docs/v3/documentation/features/advanced/queue-status.mdx",
+                "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+                "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/memory.go",
+                "internal/memory/status.go",
+                "internal/goncho/service.go",
+                "internal/config/config.go"
+              ],
+              "blocked_by": [
+                "Goncho topology design fixtures"
+              ],
+              "ready_when": [
+                "Topology rules define the expected workspace, peer, session, and observation defaults."
+              ],
+              "not_ready_when": [
+                "The slice reaches out to upstream Honcho, external network services, or hosted LLMs by default."
+              ],
+              "unblocks": [
+                "Long-running architecture-planner-loop health reporting",
+                "Goncho queue status read model"
+              ],
+              "acceptance": [
+                "A human-readable command reports config, schema, session catalog, tool registration, context dry-run, queue status, conclusion availability, summary availability, provider readiness, and degraded modes.",
+                "A JSON output mode is available for autoloop and planner consumption.",
+                "Exit code 0 means healthy or explicitly degraded, 1 means client/config issue, 2 means runtime/storage issue, and 3 means auth/provider issue.",
+                "Zero-state databases report no data without failing.",
+                "The command reuses existing memory status where possible instead of adding a second status model."
+              ],
+              "note": "Honcho CLI docs emphasize fast diagnosis for peers that are not learning, wrong context, and dialectic issues. Goncho needs the same operator ladder so long-running agents can repair the right layer without guessing.",
+              "write_scope": [
+                "cmd/gormes/",
+                "internal/goncho/",
+                "internal/memory/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/goncho ./internal/memory ./internal/config -count=1"
+              ],
+              "done_signal": [
+                "Doctor fixtures prove text and JSON output, exit-code mapping, zero-state behavior, and visible degraded capability reporting."
+              ]
+            },
+            {
+              "name": "Goncho streaming chat persistence contract",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Goncho streaming chat stores the final assistant response once and never turns partial stream chunks into memory",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Until streaming transport exists, stream=true returns explicit unsupported evidence while non-streaming chat keeps the Honcho-compatible response contract.",
+              "fixture": "internal/goncho/streaming_chat_persistence_test.go",
+              "source_refs": [
+                "../honcho/docs/v3/documentation/features/advanced/streaming-response.mdx",
+                "../honcho/docs/v3/documentation/features/chat.mdx",
+                "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+                "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+                "internal/goncho/types.go",
+                "internal/goncho/service.go",
+                "internal/tools/honcho_tools.go",
+                "internal/memory/schema.go"
+              ],
+              "blocked_by": [
+                "Goncho dialectic chat contract"
+              ],
+              "ready_when": [
+                "honcho_chat or equivalent dialectic chat params and response shape are fixture-locked."
+              ],
+              "not_ready_when": [
+                "The slice stores stream chunks as messages, creates synthetic assistant turns before completion, or changes honcho_context behavior."
+              ],
+              "unblocks": [
+                "Internal agent chat transport",
+                "Hugo docs examples for streaming memory behavior"
+              ],
+              "acceptance": [
+                "Streaming response handlers accumulate chunks into a final response before persistence.",
+                "Partial chunks are never written as memory messages.",
+                "Interrupted streams record interruption evidence and do not flush incomplete assistant content.",
+                "Successful streamed assistant responses are stored exactly once with the same session and assistant peer as non-streaming chat.",
+                "Token/counting metadata can be attached after completion without affecting the stored text."
+              ],
+              "note": "Honcho docs make streaming a chat-response transport detail. Goncho should preserve memory quality by treating only completed assistant messages as durable facts.",
+              "write_scope": [
+                "internal/goncho/",
+                "internal/tools/",
+                "internal/memory/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho ./internal/tools ./internal/memory -count=1"
+              ],
+              "done_signal": [
+                "Streaming fixtures prove completed responses are persisted once and interrupted or partial chunks cannot pollute memory."
+              ]
+            },
+            {
+              "name": "Goncho configuration namespace",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Gormes owns a Go-native [goncho] configuration namespace that maps Honcho runtime limits and feature gates into existing config loading",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unset Goncho config uses documented defaults and reports feature-disabled evidence instead of requiring Honcho-style Python service variables.",
+              "fixture": "internal/config/goncho_config_test.go",
+              "source_refs": [
+                "../honcho/docs/v3/contributing/configuration.mdx",
+                "../honcho/docs/v3/contributing/self-hosting.mdx",
+                "../honcho/docs/v3/contributing/troubleshooting.mdx",
+                "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+                "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+                "internal/config/config.go",
+                "internal/goncho/types.go",
+                "cmd/gormes/doctor.go"
+              ],
+              "blocked_by": [
+                "Goncho topology design fixtures"
+              ],
+              "ready_when": [
+                "The existing Gormes config loader and doctor output can be extended without changing unrelated agent settings."
+              ],
+              "not_ready_when": [
+                "The slice copies Honcho Python environment variables directly or requires provider credentials before Goncho can run in zero-state mode."
+              ],
+              "unblocks": [
+                "Goncho operator diagnostics contract",
+                "Goncho file upload import ingestion",
+                "Goncho summary context budget"
+              ],
+              "acceptance": [
+                "Config supports enabled, workspace, observer_peer, recent_messages, max_message_size, max_file_size, get_context_max_tokens, reasoning_enabled, peer_card_enabled, summary_enabled, dream_enabled, deriver_workers, representation_batch_max_tokens, and dialectic_default_level.",
+                "Environment variables use the GORMES_GONCHO_ prefix.",
+                "Defaults mirror Honcho docs where applicable: max_message_size=25000, max_file_size=5242880, get_context_max_tokens=100000, deriver_workers=1, representation_batch_max_tokens=1024, and dream_enabled=false until fixtures exist.",
+                "Invalid reasoning levels and negative limits fail config validation.",
+                "Doctor output includes the effective Goncho config with secrets redacted."
+              ],
+              "note": "Honcho configuration docs are Python-service oriented. Gormes should map only the durable runtime semantics into its existing Go config path so operators do not run a shadow Honcho service to use Goncho.",
+              "write_scope": [
+                "internal/config/",
+                "internal/goncho/",
+                "cmd/gormes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config ./internal/goncho ./cmd/gormes -count=1"
+              ],
+              "done_signal": [
+                "Config fixtures prove defaults, GORMES_GONCHO_* overrides, validation failures, and doctor visibility for effective Goncho settings."
+              ]
             }
           ]
         }
