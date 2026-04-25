@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
@@ -54,7 +56,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	runID := now.UTC().Format("20060102T150405Z")
+	runID := runIDFromTime(now)
 
 	summary := RunSummary{
 		Candidates: len(candidates),
@@ -126,7 +128,8 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			return ""
 		}
 
-		if err := acc.Flush(opts.Config.ProgressJSON, hashOf); err != nil {
+		triggerEvents, err := acc.FlushWithTriggers(opts.Config.ProgressJSON, hashOf)
+		if err != nil {
 			_ = appendRunLedgerEvent(opts.Config, LedgerEvent{
 				TS:     time.Now().UTC(),
 				RunID:  runID,
@@ -152,6 +155,11 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			Event:  "health_updated",
 			Status: "ok",
 		})
+
+		// Emit planner trigger events. Soft-fail: a missing or unwritable
+		// triggers ledger must not break a successful autoloop run; the
+		// planner will still pick up state changes on its periodic timer.
+		emitPlannerTriggers(opts.Config.PlannerTriggersPath, triggerEvents)
 		return nil
 	}
 
@@ -305,6 +313,15 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	return summary, nil
+}
+
+func runIDFromTime(t time.Time) string {
+	t = t.UTC()
+	runID := t.Format("20060102T150405Z")
+	if t.Nanosecond() == 0 {
+		return runID
+	}
+	return fmt.Sprintf("%s-%09d", runID, t.Nanosecond())
 }
 
 func runPostPromotionGate(ctx context.Context, cfg Config, runner Runner, runID string, promotedWork bool) error {
@@ -807,6 +824,32 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		Commit: commitSha,
 		Status: "success",
 	})
+}
+
+// emitPlannerTriggers writes one plannertriggers ledger entry per
+// FlushedTriggerEvent. An empty path or empty event slice is a no-op.
+// Each append is independent: if one entry fails to land, the rest still
+// get a chance, and failures are logged rather than returned because the
+// trigger ledger is a best-effort signal channel — the planner's own
+// timer is the durable fallback.
+func emitPlannerTriggers(path string, events []FlushedTriggerEvent) {
+	if path == "" || len(events) == 0 {
+		return
+	}
+	for _, ev := range events {
+		entry := plannertriggers.TriggerEvent{
+			Source:        "autoloop",
+			Kind:          ev.Kind,
+			PhaseID:       ev.PhaseID,
+			SubphaseID:    ev.SubphaseID,
+			ItemName:      ev.ItemName,
+			Reason:        ev.Reason,
+			AutoloopRunID: ev.AutoloopRunID,
+		}
+		if err := plannertriggers.AppendTriggerEvent(path, entry); err != nil {
+			log.Printf("autoloop: append planner trigger failed: %v", err)
+		}
+	}
 }
 
 func appendRunLedgerEvent(cfg Config, event LedgerEvent) error {

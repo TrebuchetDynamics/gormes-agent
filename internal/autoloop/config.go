@@ -28,6 +28,14 @@ type Config struct {
 	PostPromotionVerifyCommands []string // POST_PROMOTION_VERIFY_COMMANDS, default full-suite gate
 	PostPromotionRepairEnabled  bool     // POST_PROMOTION_REPAIR, default true
 	PostPromotionRepairAttempts int      // POST_PROMOTION_REPAIR_ATTEMPTS, default 1
+
+	// PlannerTriggersPath is the JSONL ledger autoloop appends to when a
+	// row's quarantine state changes in a way the planner needs to react
+	// to. The planner watches this file (via systemd .path unit) and
+	// consumes events on its next run via plannertriggers.LoadCursor /
+	// ReadTriggersSinceCursor. Default lives under .codex so it is
+	// co-located with the planner's other on-disk state.
+	PlannerTriggersPath string // PLANNER_TRIGGERS_PATH
 }
 
 func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
@@ -55,6 +63,8 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		PostPromotionVerifyCommands: defaultPostPromotionVerifyCommands(),
 		PostPromotionRepairEnabled:  true,
 		PostPromotionRepairAttempts: 1,
+
+		PlannerTriggersPath: filepath.Join(repoRoot, ".codex", "architecture-planner", "triggers.jsonl"),
 	}
 
 	if value := env["PROGRESS_JSON"]; value != "" {
@@ -164,6 +174,9 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 			return Config{}, fmt.Errorf("POST_PROMOTION_REPAIR_ATTEMPTS must be non-negative")
 		}
 		cfg.PostPromotionRepairAttempts = n
+	}
+	if value := env["PLANNER_TRIGGERS_PATH"]; value != "" {
+		cfg.PlannerTriggersPath = value
 	}
 
 	return cfg, nil
