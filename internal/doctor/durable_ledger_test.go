@@ -177,6 +177,98 @@ func TestCheckDurableLedgerReportsRestartIntentAuditEvidence(t *testing.T) {
 	}
 }
 
+func TestCheckDurableLedgerReportsLifecycleControlEvidence(t *testing.T) {
+	ctx := context.Background()
+	ms, err := memory.OpenSqlite(filepath.Join(t.TempDir(), "ledger.db"), 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer ms.Close(ctx)
+	ledger, err := subagent.NewDurableLedger(ms.DB())
+	if err != nil {
+		t.Fatalf("NewDurableLedger: %v", err)
+	}
+	now := time.Now().UTC()
+	if err := ledger.RecordSupervisorStatus(ctx, subagent.DurableSupervisorReport{
+		Available:  true,
+		ReportedAt: now,
+	}); err != nil {
+		t.Fatalf("RecordSupervisorStatus: %v", err)
+	}
+	if err := ledger.RecordWorkerHeartbeat(ctx, subagent.DurableWorkerHeartbeat{
+		WorkerID:    "worker-a",
+		HeartbeatAt: now,
+	}); err != nil {
+		t.Fatalf("RecordWorkerHeartbeat: %v", err)
+	}
+	if _, err := ledger.Submit(ctx, subagent.DurableJobSubmission{ID: "pause-me", Kind: subagent.WorkKindCronJob}); err != nil {
+		t.Fatalf("Submit pause-me: %v", err)
+	}
+	if _, ok, err := ledger.Pause(ctx, "pause-me", subagent.DurableLifecycleIntent{
+		Trust:       subagent.TrustOperator,
+		Actor:       "operator:ada",
+		Reason:      "maintenance",
+		RequestedAt: now.Add(time.Second),
+	}); err != nil || !ok {
+		t.Fatalf("Pause ok=%v err=%v, want true nil", ok, err)
+	}
+	if _, err := ledger.Submit(ctx, subagent.DurableJobSubmission{ID: "resume-me", Kind: subagent.WorkKindCronJob}); err != nil {
+		t.Fatalf("Submit resume-me: %v", err)
+	}
+	if _, ok, err := ledger.Pause(ctx, "resume-me", subagent.DurableLifecycleIntent{
+		Trust:       subagent.TrustOperator,
+		Actor:       "operator:ada",
+		Reason:      "maintenance",
+		RequestedAt: now.Add(2 * time.Second),
+	}); err != nil || !ok {
+		t.Fatalf("Pause resume-me ok=%v err=%v, want true nil", ok, err)
+	}
+	if _, ok, err := ledger.Resume(ctx, "resume-me", subagent.DurableLifecycleIntent{
+		Trust:       subagent.TrustSystem,
+		Actor:       "supervisor-a",
+		Reason:      "resume requested",
+		RequestedAt: now.Add(3 * time.Second),
+	}); err != nil || !ok {
+		t.Fatalf("Resume ok=%v err=%v, want true nil", ok, err)
+	}
+	if _, ok, err := ledger.Pause(ctx, "resume-me", subagent.DurableLifecycleIntent{
+		Trust:  subagent.TrustChildAgent,
+		Actor:  "child-agent:7",
+		Reason: "unsupported",
+	}); !errors.Is(err, subagent.ErrDurableLifecycleDenied) || ok {
+		t.Fatalf("child-agent Pause ok=%v err=%v, want ErrDurableLifecycleDenied and false", ok, err)
+	}
+
+	result := CheckDurableLedger(ctx, ledger, "")
+
+	if result.Status != StatusWarn {
+		t.Fatalf("Status = %v, want WARN for lifecycle evidence: %+v", result.Status, result)
+	}
+	for _, want := range []string{"1 paused", "1 resume-pending", "1 lifecycle-unsupported"} {
+		if !strings.Contains(result.Summary, want) {
+			t.Fatalf("Summary = %q, want %q", result.Summary, want)
+		}
+	}
+	var lifecycle ItemInfo
+	for _, item := range result.Items {
+		if item.Name == "lifecycle_control" {
+			lifecycle = item
+			break
+		}
+	}
+	if lifecycle.Name == "" {
+		t.Fatalf("Items = %+v, want lifecycle_control item", result.Items)
+	}
+	if lifecycle.Status != StatusWarn {
+		t.Fatalf("lifecycle status = %v, want WARN", lifecycle.Status)
+	}
+	for _, want := range []string{"paused=1", "resume_pending=1", "unsupported=1"} {
+		if !strings.Contains(lifecycle.Note, want) {
+			t.Fatalf("lifecycle note = %q, want %q", lifecycle.Note, want)
+		}
+	}
+}
+
 func TestCheckDurableLedgerReportsQueueHealthDegraded(t *testing.T) {
 	ms, err := memory.OpenSqlite(filepath.Join(t.TempDir(), "ledger.db"), 0, nil)
 	if err != nil {

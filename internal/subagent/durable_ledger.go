@@ -12,6 +12,7 @@ import (
 
 var ErrDurableJobNotFound = errors.New("subagent: durable job not found")
 var ErrDurableBackpressure = errors.New("subagent: durable queue backpressure")
+var ErrDurableLifecycleDenied = errors.New("subagent: durable lifecycle control denied")
 
 const durableStaleWaitingAfter = time.Hour
 
@@ -21,6 +22,7 @@ const (
 	DurableJobWaiting         DurableJobStatus = "waiting"
 	DurableJobActive          DurableJobStatus = "active"
 	DurableJobWaitingChildren DurableJobStatus = "waiting-children"
+	DurableJobPaused          DurableJobStatus = "paused"
 	DurableJobCompleted       DurableJobStatus = "completed"
 	DurableJobFailed          DurableJobStatus = "failed"
 	DurableJobCancelled       DurableJobStatus = "cancelled"
@@ -87,23 +89,29 @@ func (e DurableBackpressureError) Is(target error) bool {
 }
 
 type DurableJob struct {
-	ID              string
-	Kind            WorkKind
-	Status          DurableJobStatus
-	ParentID        string
-	Depth           int
-	Progress        json.RawMessage
-	Result          json.RawMessage
-	ErrorText       string
-	CancelRequested bool
-	CancelReason    string
-	LockOwner       string
-	LockUntil       time.Time
-	TimeoutAt       time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	StartedAt       time.Time
-	FinishedAt      time.Time
+	ID                string
+	Kind              WorkKind
+	Status            DurableJobStatus
+	ParentID          string
+	Depth             int
+	Progress          json.RawMessage
+	Result            json.RawMessage
+	ErrorText         string
+	CancelRequested   bool
+	CancelReason      string
+	PauseActor        string
+	PauseReason       string
+	PausedAt          time.Time
+	ResumeActor       string
+	ResumeReason      string
+	ResumeRequestedAt time.Time
+	LockOwner         string
+	LockUntil         time.Time
+	TimeoutAt         time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	StartedAt         time.Time
+	FinishedAt        time.Time
 }
 
 type DurableChildEvent struct {
@@ -135,6 +143,13 @@ type DurableWorkerRestartIntent struct {
 	RequestedAt  time.Time
 }
 
+type DurableLifecycleIntent struct {
+	Trust       TrustClass
+	Actor       string
+	Reason      string
+	RequestedAt time.Time
+}
+
 type DurableWorkerRestartStatus struct {
 	Requested    bool
 	WorkerID     string
@@ -157,20 +172,23 @@ type DurableWorkerStatus struct {
 }
 
 type DurableLedgerStatus struct {
-	ReplayAvailable    bool
-	Total              int
-	Waiting            int
-	Active             int
-	Claimed            int
-	Stalled            int
-	TimeoutScheduled   int
-	TimedOut           int
-	StaleWaiting       int
-	BackpressureDenied int
-	QueueFull          bool
-	MaxWaiting         int
-	CancelRequested    int
-	Worker             DurableWorkerStatus
+	ReplayAvailable             bool
+	Total                       int
+	Waiting                     int
+	Active                      int
+	Claimed                     int
+	Stalled                     int
+	TimeoutScheduled            int
+	TimedOut                    int
+	StaleWaiting                int
+	BackpressureDenied          int
+	Paused                      int
+	ResumePending               int
+	LifecycleControlUnsupported int
+	QueueFull                   bool
+	MaxWaiting                  int
+	CancelRequested             int
+	Worker                      DurableWorkerStatus
 }
 
 type DurableLedger struct {
@@ -440,6 +458,131 @@ func (l *DurableLedger) Cancel(ctx context.Context, id, reason string) (DurableJ
 	return job, true, nil
 }
 
+func (l *DurableLedger) Pause(ctx context.Context, id string, intent DurableLifecycleIntent) (DurableJob, bool, error) {
+	if l == nil || l.db == nil {
+		return DurableJob{}, false, errors.New("subagent: durable ledger is nil")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DurableJob{}, false, errors.New("subagent: durable job id is empty")
+	}
+	now := durableNow()
+	requestedAt := durableLifecycleRequestedAt(intent, now)
+	actor := durableLifecycleActor(intent)
+	reason := strings.TrimSpace(intent.Reason)
+
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	defer tx.Rollback()
+
+	job, err := durableGet(ctx, tx, id)
+	if errors.Is(err, ErrDurableJobNotFound) {
+		return DurableJob{}, false, nil
+	}
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	if !durableLifecycleTrustAllowed(intent.Trust) {
+		if err := durableInsertLifecycleEvent(ctx, tx, job, "lifecycle_control_unsupported", "pause", actor, reason, intent.Trust, requestedAt); err != nil {
+			return DurableJob{}, false, err
+		}
+		if err := tx.Commit(); err != nil {
+			return DurableJob{}, false, err
+		}
+		return DurableJob{}, false, ErrDurableLifecycleDenied
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		UPDATE durable_jobs
+		SET status = ?, pause_actor = ?, pause_reason = ?, paused_at = ?,
+		    resume_actor = '', resume_reason = '', resume_requested_at = NULL,
+		    updated_at = ?
+		WHERE id = ? AND cancel_requested = 0 AND status IN (?, ?)`,
+		DurableJobPaused, actor, reason, requestedAt, now, id, DurableJobWaiting, DurableJobActive)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	ok, err := durableRowsAffected(res)
+	if err != nil || !ok {
+		return DurableJob{}, ok, err
+	}
+	if err := durableInsertLifecycleEvent(ctx, tx, job, "pause_intent", "pause", actor, reason, intent.Trust, requestedAt); err != nil {
+		return DurableJob{}, false, err
+	}
+	paused, err := durableGet(ctx, tx, id)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return DurableJob{}, false, err
+	}
+	return paused, true, nil
+}
+
+func (l *DurableLedger) Resume(ctx context.Context, id string, intent DurableLifecycleIntent) (DurableJob, bool, error) {
+	if l == nil || l.db == nil {
+		return DurableJob{}, false, errors.New("subagent: durable ledger is nil")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DurableJob{}, false, errors.New("subagent: durable job id is empty")
+	}
+	now := durableNow()
+	requestedAt := durableLifecycleRequestedAt(intent, now)
+	actor := durableLifecycleActor(intent)
+	reason := strings.TrimSpace(intent.Reason)
+
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	defer tx.Rollback()
+
+	job, err := durableGet(ctx, tx, id)
+	if errors.Is(err, ErrDurableJobNotFound) {
+		return DurableJob{}, false, nil
+	}
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	if !durableLifecycleTrustAllowed(intent.Trust) {
+		if err := durableInsertLifecycleEvent(ctx, tx, job, "lifecycle_control_unsupported", "resume", actor, reason, intent.Trust, requestedAt); err != nil {
+			return DurableJob{}, false, err
+		}
+		if err := tx.Commit(); err != nil {
+			return DurableJob{}, false, err
+		}
+		return DurableJob{}, false, ErrDurableLifecycleDenied
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		UPDATE durable_jobs
+		SET status = ?, resume_actor = ?, resume_reason = ?, resume_requested_at = ?,
+		    updated_at = ?
+		WHERE id = ? AND cancel_requested = 0 AND status = ?`,
+		DurableJobWaiting, actor, reason, requestedAt, now, id, DurableJobPaused)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	ok, err := durableRowsAffected(res)
+	if err != nil || !ok {
+		return DurableJob{}, ok, err
+	}
+	if err := durableInsertLifecycleEvent(ctx, tx, job, "resume_intent", "resume", actor, reason, intent.Trust, requestedAt); err != nil {
+		return DurableJob{}, false, err
+	}
+	resumed, err := durableGet(ctx, tx, id)
+	if err != nil {
+		return DurableJob{}, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return DurableJob{}, false, err
+	}
+	return resumed, true, nil
+}
+
 func (l *DurableLedger) Get(ctx context.Context, id string) (DurableJob, error) {
 	if l == nil || l.db == nil {
 		return DurableJob{}, errors.New("subagent: durable ledger is nil")
@@ -592,6 +735,8 @@ func (l *DurableLedger) Status(ctx context.Context) (DurableLedgerStatus, error)
 		case DurableJobActive:
 			st.Active = n
 			st.Claimed = n
+		case DurableJobPaused:
+			st.Paused = n
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -619,6 +764,13 @@ func (l *DurableLedger) Status(ctx context.Context) (DurableLedgerStatus, error)
 	_ = l.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM durable_jobs
 		WHERE cancel_requested = 1`).Scan(&st.CancelRequested)
+	_ = l.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM durable_jobs
+		WHERE status = ? AND resume_requested_at IS NOT NULL`,
+		DurableJobWaiting).Scan(&st.ResumePending)
+	_ = l.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM durable_job_events
+		WHERE type = 'lifecycle_control_unsupported'`).Scan(&st.LifecycleControlUnsupported)
 	st.QueueFull = st.MaxWaiting > 0 && st.Waiting >= st.MaxWaiting
 	if err := l.populateDurableWorkerStatus(ctx, &st); err != nil {
 		return st, err
@@ -767,10 +919,12 @@ func durableGet(ctx context.Context, q durableQuerier, id string) (DurableJob, e
 	var progress, result string
 	var cancelRequested int
 	var created, updated int64
-	var started, finished, lockUntil, timeoutAt sql.NullInt64
+	var started, finished, lockUntil, timeoutAt, pausedAt, resumeRequestedAt sql.NullInt64
 	err := q.QueryRowContext(ctx, durableJobSelectSQL+` WHERE id = ?`, id).Scan(
 		&j.ID, &j.Kind, &j.Status, &j.ParentID, &j.Depth, &progress, &result,
-		&j.ErrorText, &cancelRequested, &j.CancelReason, &j.LockOwner,
+		&j.ErrorText, &cancelRequested, &j.CancelReason,
+		&j.PauseActor, &j.PauseReason, &pausedAt,
+		&j.ResumeActor, &j.ResumeReason, &resumeRequestedAt, &j.LockOwner,
 		&lockUntil, &timeoutAt, &created, &updated, &started, &finished,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -784,6 +938,8 @@ func durableGet(ctx context.Context, q durableQuerier, id string) (DurableJob, e
 	j.CancelRequested = cancelRequested != 0
 	j.CreatedAt = durableTime(created)
 	j.UpdatedAt = durableTime(updated)
+	j.PausedAt = durableNullTime(pausedAt)
+	j.ResumeRequestedAt = durableNullTime(resumeRequestedAt)
 	j.LockUntil = durableNullTime(lockUntil)
 	j.TimeoutAt = durableNullTime(timeoutAt)
 	j.StartedAt = durableNullTime(started)
@@ -801,6 +957,7 @@ func durableClaimJob(ctx context.Context, tx *sql.Tx, id string, claim DurableCl
 	res, err := tx.ExecContext(ctx, `
 		UPDATE durable_jobs
 		SET status = ?, lock_owner = ?, lock_until = ?, timeout_at = ?,
+		    resume_actor = '', resume_reason = '', resume_requested_at = NULL,
 		    started_at = COALESCE(started_at, ?), updated_at = ?
 		WHERE id = ? AND cancel_requested = 0 AND (
 			status = ? OR (status = ? AND lock_until IS NOT NULL AND lock_until < ?)
@@ -867,6 +1024,29 @@ func durableInsertBackpressureEvent(ctx context.Context, tx *sql.Tx, id string, 
 			(job_id, type, job_kind, payload_json, created_at)
 		VALUES (?, 'backpressure_denied', ?, ?, ?)`,
 		id, kind, string(raw), durableNow())
+	return err
+}
+
+func durableInsertLifecycleEvent(ctx context.Context, tx *sql.Tx, job DurableJob, eventType, action, actor, reason string, trust TrustClass, requestedAt int64) error {
+	payload := map[string]any{
+		"type":         eventType,
+		"action":       action,
+		"job_id":       job.ID,
+		"job_kind":     string(job.Kind),
+		"actor":        actor,
+		"trust":        string(trust),
+		"reason":       reason,
+		"requested_at": durableTime(requestedAt).Format(time.RFC3339Nano),
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO durable_job_events
+			(job_id, type, job_kind, payload_json, created_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		job.ID, eventType, job.Kind, string(raw), requestedAt)
 	return err
 }
 
@@ -960,6 +1140,25 @@ func durableNullTime(ns sql.NullInt64) time.Time {
 	return durableTime(ns.Int64)
 }
 
+func durableLifecycleRequestedAt(intent DurableLifecycleIntent, fallback int64) int64 {
+	if !intent.RequestedAt.IsZero() {
+		return intent.RequestedAt.UTC().UnixNano()
+	}
+	return fallback
+}
+
+func durableLifecycleActor(intent DurableLifecycleIntent) string {
+	actor := strings.TrimSpace(intent.Actor)
+	if actor != "" {
+		return actor
+	}
+	return string(intent.Trust)
+}
+
+func durableLifecycleTrustAllowed(trust TrustClass) bool {
+	return trust == TrustOperator || trust == TrustSystem
+}
+
 func validDurableKind(kind WorkKind) bool {
 	switch kind {
 	case WorkKindShellCommand, WorkKindCronJob, WorkKindLLMSubagent:
@@ -971,7 +1170,8 @@ func validDurableKind(kind WorkKind) bool {
 
 const durableJobSelectSQL = `
 	SELECT id, kind, status, parent_id, depth, progress_json, result_json,
-	       error_text, cancel_requested, cancel_reason, lock_owner, lock_until, timeout_at,
+	       error_text, cancel_requested, cancel_reason, pause_actor, pause_reason, paused_at,
+	       resume_actor, resume_reason, resume_requested_at, lock_owner, lock_until, timeout_at,
 	       created_at, updated_at, started_at, finished_at
 	FROM durable_jobs`
 
@@ -979,7 +1179,7 @@ const durableLedgerSchema = `
 CREATE TABLE IF NOT EXISTS durable_jobs (
 	id               TEXT PRIMARY KEY,
 	kind             TEXT    NOT NULL CHECK(kind IN ('shell_command','cron_job','llm_subagent')),
-	status           TEXT    NOT NULL CHECK(status IN ('waiting','active','waiting-children','completed','failed','cancelled')),
+	status           TEXT    NOT NULL CHECK(status IN ('waiting','active','waiting-children','paused','completed','failed','cancelled')),
 	parent_id        TEXT    NOT NULL DEFAULT '',
 	depth            INTEGER NOT NULL DEFAULT 0 CHECK(depth >= 0),
 	progress_json    TEXT    NOT NULL DEFAULT '{}',
@@ -987,6 +1187,12 @@ CREATE TABLE IF NOT EXISTS durable_jobs (
 	error_text       TEXT    NOT NULL DEFAULT '',
 	cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)),
 	cancel_reason    TEXT    NOT NULL DEFAULT '',
+	pause_actor      TEXT    NOT NULL DEFAULT '',
+	pause_reason     TEXT    NOT NULL DEFAULT '',
+	paused_at        INTEGER,
+	resume_actor     TEXT    NOT NULL DEFAULT '',
+	resume_reason    TEXT    NOT NULL DEFAULT '',
+	resume_requested_at INTEGER,
 	lock_owner       TEXT    NOT NULL DEFAULT '',
 	lock_until       INTEGER,
 	timeout_at       INTEGER,
@@ -1039,9 +1245,44 @@ CREATE TABLE IF NOT EXISTS durable_worker_events (
 );
 `
 
+const durableJobsLifecycleMigrationSchema = `
+DROP TABLE IF EXISTS durable_jobs_lifecycle_migration;
+CREATE TABLE durable_jobs_lifecycle_migration (
+	id               TEXT PRIMARY KEY,
+	kind             TEXT    NOT NULL CHECK(kind IN ('shell_command','cron_job','llm_subagent')),
+	status           TEXT    NOT NULL CHECK(status IN ('waiting','active','waiting-children','paused','completed','failed','cancelled')),
+	parent_id        TEXT    NOT NULL DEFAULT '',
+	depth            INTEGER NOT NULL DEFAULT 0 CHECK(depth >= 0),
+	progress_json    TEXT    NOT NULL DEFAULT '{}',
+	result_json      TEXT    NOT NULL DEFAULT '{}',
+	error_text       TEXT    NOT NULL DEFAULT '',
+	cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)),
+	cancel_reason    TEXT    NOT NULL DEFAULT '',
+	pause_actor      TEXT    NOT NULL DEFAULT '',
+	pause_reason     TEXT    NOT NULL DEFAULT '',
+	paused_at        INTEGER,
+	resume_actor     TEXT    NOT NULL DEFAULT '',
+	resume_reason    TEXT    NOT NULL DEFAULT '',
+	resume_requested_at INTEGER,
+	lock_owner       TEXT    NOT NULL DEFAULT '',
+	lock_until       INTEGER,
+	timeout_at       INTEGER,
+	created_at       INTEGER NOT NULL,
+	updated_at       INTEGER NOT NULL,
+	started_at       INTEGER,
+	finished_at      INTEGER
+);
+`
+
 const durableLedgerPostMigrationSchema = `
+CREATE INDEX IF NOT EXISTS idx_durable_jobs_claim
+	ON durable_jobs(status, kind, created_at);
+CREATE INDEX IF NOT EXISTS idx_durable_jobs_parent
+	ON durable_jobs(parent_id);
 CREATE INDEX IF NOT EXISTS idx_durable_jobs_timeout
 	ON durable_jobs(status, timeout_at);
+CREATE INDEX IF NOT EXISTS idx_durable_jobs_lifecycle
+	ON durable_jobs(status, resume_requested_at);
 CREATE INDEX IF NOT EXISTS idx_durable_job_events_type
 	ON durable_job_events(type, created_at);
 CREATE INDEX IF NOT EXISTS idx_durable_worker_heartbeats_seen
@@ -1051,7 +1292,71 @@ CREATE INDEX IF NOT EXISTS idx_durable_worker_events_type
 `
 
 func durableLedgerMigrate(db *sql.DB) error {
-	return durableEnsureColumn(db, "durable_jobs", "timeout_at", "INTEGER")
+	if err := durableEnsureColumn(db, "durable_jobs", "timeout_at", "INTEGER"); err != nil {
+		return err
+	}
+	for _, col := range []struct {
+		name string
+		spec string
+	}{
+		{name: "pause_actor", spec: "TEXT NOT NULL DEFAULT ''"},
+		{name: "pause_reason", spec: "TEXT NOT NULL DEFAULT ''"},
+		{name: "paused_at", spec: "INTEGER"},
+		{name: "resume_actor", spec: "TEXT NOT NULL DEFAULT ''"},
+		{name: "resume_reason", spec: "TEXT NOT NULL DEFAULT ''"},
+		{name: "resume_requested_at", spec: "INTEGER"},
+	} {
+		if err := durableEnsureColumn(db, "durable_jobs", col.name, col.spec); err != nil {
+			return err
+		}
+	}
+	return durableEnsurePausedStatus(db)
+}
+
+func durableEnsurePausedStatus(db *sql.DB) error {
+	var sqlText string
+	err := db.QueryRow(`
+		SELECT sql
+		FROM sqlite_master
+		WHERE type = 'table' AND name = 'durable_jobs'`).Scan(&sqlText)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if strings.Contains(sqlText, "'paused'") {
+		return nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(durableJobsLifecycleMigrationSchema); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`
+		INSERT INTO durable_jobs_lifecycle_migration
+			(id, kind, status, parent_id, depth, progress_json, result_json,
+			 error_text, cancel_requested, cancel_reason, pause_actor,
+			 pause_reason, paused_at, resume_actor, resume_reason, resume_requested_at,
+			 lock_owner, lock_until, timeout_at, created_at, updated_at, started_at, finished_at)
+		SELECT id, kind, status, parent_id, depth, progress_json, result_json,
+		       error_text, cancel_requested, cancel_reason, pause_actor,
+		       pause_reason, paused_at, resume_actor, resume_reason, resume_requested_at,
+		       lock_owner, lock_until, timeout_at, created_at, updated_at, started_at, finished_at
+		FROM durable_jobs`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DROP TABLE durable_jobs`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`ALTER TABLE durable_jobs_lifecycle_migration RENAME TO durable_jobs`); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func durableEnsureColumn(db *sql.DB, table, column, spec string) error {
