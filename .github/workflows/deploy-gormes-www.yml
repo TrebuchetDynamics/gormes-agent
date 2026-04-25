@@ -1,0 +1,113 @@
+name: Deploy gormes.ai
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'www.gormes.ai/**'
+      - 'benchmarks.json'
+      - 'docs/content/building-gormes/architecture_plan/progress.json'
+      - 'scripts/install.sh'
+      - 'scripts/install.ps1'
+      - 'scripts/install.cmd'
+      - '.github/workflows/deploy-gormes-www.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gormes-www-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'TrebuchetDynamics/gormes-agent'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+          cache-dependency-path: www.gormes.ai/go.sum
+
+      - name: Refresh embedded data from canonical sources
+        # Force-copy benchmarks.json + progress.json into the embed
+        # directory. The Makefile does the same, but its mtime-based
+        # rule no-ops on fresh CI checkouts where both files share
+        # the same timestamp — so we copy unconditionally here.
+        working-directory: www.gormes.ai
+        run: |
+          mkdir -p internal/site/data
+          cp ../benchmarks.json internal/site/data/benchmarks.json
+          cp ../docs/content/building-gormes/architecture_plan/progress.json internal/site/data/progress.json
+
+      - name: Build www-gormes binary
+        working-directory: www.gormes.ai
+        run: make build
+
+      - name: Export static site
+        working-directory: www.gormes.ai
+        run: ./bin/www-gormes export --out dist
+
+      - name: Verify build artifacts
+        working-directory: www.gormes.ai
+        run: |
+          test -f dist/index.html
+          test -f dist/install.sh
+          test -f dist/install.ps1
+          test -f dist/install.cmd
+          test -f dist/static/site.css
+          test -f dist/static/favicon.ico
+          test -f dist/static/social-card.png
+
+      - name: Verify homepage content
+        working-directory: www.gormes.ai
+        run: |
+          grep -F "One Go Binary. No Python. No Drift." dist/index.html >/dev/null
+          grep -F 'href="/static/favicon.ico"' dist/index.html >/dev/null
+          grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
+          ! grep -F "Same Hermes Brain" dist/index.html >/dev/null
+          ! grep -F "Why a Go layer matters" dist/index.html >/dev/null
+
+      - name: Ensure Pages project exists
+        # Pages project is expected to already exist (bound to gormes.ai).
+        # This step is idempotent — wrangler returns 409 if the project
+        # is already there; continue-on-error keeps the workflow healthy.
+        uses: cloudflare/wrangler-action@v3
+        continue-on-error: true
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create gormes-www --production-branch=main
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy www.gormes.ai/dist --project-name=gormes-www --branch=main --commit-dirty=true
+
+      - name: Attach gormes.ai
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -u
+          for domain in gormes.ai www.gormes.ai; do
+            echo "attaching ${domain}"
+            response=$(curl -sS -o /tmp/cf-resp.json -w "%{http_code}" -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/gormes-www/domains" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"${domain}\"}")
+            case "$response" in
+              200|201) echo "attached" ;;
+              409|400) echo "already attached (status $response); skipping" ;;
+              *) echo "unexpected status $response"; cat /tmp/cf-resp.json ;;
+            esac
+          done
