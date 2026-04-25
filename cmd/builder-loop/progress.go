@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,24 +11,40 @@ import (
 )
 
 func runProgress(deps cliDeps, root string, args []string) error {
-	if len(args) != 1 {
+	if len(args) == 0 {
 		return fmt.Errorf("%w\n%s", errParse, subUsage["progress"])
 	}
 
 	switch args[0] {
 	case "validate":
-		return validateProgress(deps, root)
+		format, err := parseFormat(args[1:], "progress validate")
+		if err != nil {
+			return err
+		}
+		return validateProgress(deps, root, format)
 	case "write":
+		if len(args) != 1 {
+			return fmt.Errorf("%w\n%s", errParse, subUsage["progress"])
+		}
 		return writeProgress(deps, root)
 	default:
 		return fmt.Errorf("%w\n%s", errParse, subUsage["progress"])
 	}
 }
 
-func validateProgress(deps cliDeps, root string) error {
+func validateProgress(deps cliDeps, root string, format string) error {
 	p, err := loadValidProgress(root)
 	if err != nil {
 		return err
+	}
+	if format == "json" {
+		// Stable, scriptable shape for CI: just enough to gate a deploy
+		// on without parsing prose. phases is the post-validate count;
+		// ok is true because Validate() already returned nil above.
+		return json.NewEncoder(deps.stdout).Encode(struct {
+			OK     bool `json:"ok"`
+			Phases int  `json:"phases"`
+		}{OK: true, Phases: len(p.Phases)})
 	}
 	_, err = fmt.Fprintf(deps.stdout, "progress: validated %d phases\n", len(p.Phases))
 	return err

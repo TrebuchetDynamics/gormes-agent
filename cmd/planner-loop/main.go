@@ -147,11 +147,15 @@ func run(ctx context.Context, deps cliDeps, args []string) error {
 		if wantsHelp(args[1:]) {
 			return printHelp(deps, "doctor")
 		}
+		format, err := parseFormat(args[1:], "doctor")
+		if err != nil {
+			return err
+		}
 		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
-		return doctor(deps, cfg)
+		return doctor(deps, cfg, format)
 	case "trigger":
 		if wantsHelp(args[1:]) {
 			return printHelp(deps, "trigger")
@@ -435,7 +439,7 @@ func plannerWrapperPath(root string) string {
 	return filepath.Join(root, "scripts", "planner-loop.sh")
 }
 
-func doctor(deps cliDeps, cfg plannerloop.Config) error {
+func doctor(deps cliDeps, cfg plannerloop.Config, format string) error {
 	for _, path := range []string{cfg.RepoRoot, filepath.Dir(cfg.ProgressJSON), cfg.HermesDir, cfg.GBrainDir, cfg.HonchoDir} {
 		info, err := os.Stat(path)
 		if err != nil {
@@ -448,8 +452,6 @@ func doctor(deps cliDeps, cfg plannerloop.Config) error {
 	if _, err := os.Stat(cfg.ProgressJSON); err != nil {
 		return err
 	}
-	// progress.json must actually parse + validate, not just exist —
-	// silent corruption was a pre-existing operator footgun.
 	if p, err := progress.Load(cfg.ProgressJSON); err != nil {
 		return fmt.Errorf("progress.json: %w", err)
 	} else if err := progress.Validate(p); err != nil {
@@ -461,21 +463,52 @@ func doctor(deps cliDeps, cfg plannerloop.Config) error {
 	if err := triggerPathWritable(cfg.PlannerTriggersPath); err != nil {
 		return fmt.Errorf("planner triggers path: %w", err)
 	}
-	// Drift check: warn (do not fail) if the last planner health_updated
-	// event is older than 2× the configured interval. Doctor's job here is
-	// to surface "the loop runs but is not progressing" — historically the
-	// most-missed failure mode.
+	var warnings []string
 	plannerLedger := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
 	threshold := plannerDriftThreshold()
 	if msg := driftWarning("planner", plannerLedger, "health_updated", threshold); msg != "" {
-		fmt.Fprintln(deps.stdout, msg)
+		warnings = append(warnings, msg)
 	}
 	builderLedger := filepath.Join(cfg.AutoloopRunRoot, "state", "runs.jsonl")
 	if msg := driftWarning("builder-loop", builderLedger, "health_updated", time.Hour); msg != "" {
-		fmt.Fprintln(deps.stdout, msg)
+		warnings = append(warnings, msg)
+	}
+	if format == "json" {
+		return json.NewEncoder(deps.stdout).Encode(struct {
+			OK       bool     `json:"ok"`
+			Warnings []string `json:"warnings"`
+		}{OK: true, Warnings: warnings})
+	}
+	for _, w := range warnings {
+		fmt.Fprintln(deps.stdout, w)
 	}
 	_, err := fmt.Fprintln(deps.stdout, "doctor: ok")
 	return err
+}
+
+// parseFormat consumes a "--format text|json" pair from args (in any
+// position). Used by read-only subcommands so external tooling can consume
+// JSON without parsing prose.
+func parseFormat(args []string, subcommand string) (string, error) {
+	format := "text"
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--format" {
+			if i+1 >= len(args) {
+				return "", fmt.Errorf("%w: --format requires a value\n%s", errParse, subUsage[subcommand])
+			}
+			switch args[i+1] {
+			case "text", "json":
+				format = args[i+1]
+			default:
+				return "", fmt.Errorf("%w: --format must be text or json (got %q)\n%s",
+					errParse, args[i+1], subUsage[subcommand])
+			}
+			i++
+			continue
+		}
+		return "", fmt.Errorf("%w: unexpected argument %q\n%s", errParse, args[i], subUsage[subcommand])
+	}
+	return format, nil
 }
 
 // plannerDriftThreshold returns 2× the planner timer interval, defaulting to

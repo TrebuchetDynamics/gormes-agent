@@ -43,14 +43,14 @@ const usage = "usage: builder-loop [--repo-root <path>] run [--dry-run] [--backe
 var subUsage = map[string]string{
 	"run":                           "usage: builder-loop run [--dry-run] [--backend codexu|claudeu|opencode]",
 	"progress":                      "usage: builder-loop progress {validate|write}",
-	"progress validate":             "usage: builder-loop progress validate",
 	"progress write":                "usage: builder-loop progress write",
 	"repo":                          "usage: builder-loop repo {benchmark record|readme update}",
 	"repo benchmark":                "usage: builder-loop repo benchmark record",
 	"repo readme":                   "usage: builder-loop repo readme update",
 	"audit":                         "usage: builder-loop audit",
 	"digest":                        "usage: builder-loop digest [--output <path>] [--force]",
-	"doctor":                        "usage: builder-loop doctor",
+	"doctor":                        "usage: builder-loop doctor [--format text|json]",
+	"progress validate":             "usage: builder-loop progress validate [--format text|json]",
 	"service":                       "usage: builder-loop service {install|install-audit|disable legacy-timers} [--force]",
 	"service install":               "usage: builder-loop service install [--force]",
 	"service install-audit":         "usage: builder-loop service install-audit [--force]",
@@ -191,14 +191,15 @@ func run(ctx context.Context, deps cliDeps, args []string) error {
 		if wantsHelp(args[1:]) {
 			return printHelp(deps, "doctor")
 		}
-		if len(args) != 1 {
-			return fmt.Errorf("%w\n%s", errParse, subUsage["doctor"])
+		format, err := parseFormat(args[1:], "doctor")
+		if err != nil {
+			return err
 		}
 		cfg, err := builderloop.ConfigFromEnv(root, os.LookupEnv)
 		if err != nil {
 			return err
 		}
-		return doctor(deps, cfg)
+		return doctor(deps, cfg, format)
 	case args[0] == "service":
 		return runService(ctx, deps, root, args[1:])
 	default:
@@ -493,7 +494,7 @@ func dashIfEmpty(value string) string {
 // Each warning is advisory; the command exits 0 unless a hard precondition
 // fails. systemd timer status is intentionally not probed: the binary itself
 // running implies the unit fired.
-func doctor(deps cliDeps, cfg builderloop.Config) error {
+func doctor(deps cliDeps, cfg builderloop.Config, format string) error {
 	if _, err := os.Stat(cfg.ProgressJSON); err != nil {
 		return err
 	}
@@ -505,9 +506,19 @@ func doctor(deps cliDeps, cfg builderloop.Config) error {
 	if err := triggerPathWritable(cfg.PlannerTriggersPath); err != nil {
 		return fmt.Errorf("planner triggers path: %w", err)
 	}
+	var warnings []string
 	ledgerPath := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
 	if msg := driftWarning("builder-loop", ledgerPath, "health_updated", time.Hour); msg != "" {
-		fmt.Fprintln(deps.stdout, msg)
+		warnings = append(warnings, msg)
+	}
+	if format == "json" {
+		return json.NewEncoder(deps.stdout).Encode(struct {
+			OK       bool     `json:"ok"`
+			Warnings []string `json:"warnings"`
+		}{OK: true, Warnings: warnings})
+	}
+	for _, w := range warnings {
+		fmt.Fprintln(deps.stdout, w)
 	}
 	_, err := fmt.Fprintln(deps.stdout, "doctor: ok")
 	return err
@@ -583,6 +594,32 @@ func latestLedgerEventTime(path, eventName string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return latest, nil
+}
+
+// parseFormat consumes a "--format text|json" pair from args (in any
+// position) and returns the chosen format. Defaults to "text" when the flag
+// is absent. Used by read-only subcommands so external tooling can
+// consume their output as JSON without parsing prose.
+func parseFormat(args []string, subcommand string) (string, error) {
+	format := "text"
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--format" {
+			if i+1 >= len(args) {
+				return "", fmt.Errorf("%w: --format requires a value\n%s", errParse, subUsage[subcommand])
+			}
+			switch args[i+1] {
+			case "text", "json":
+				format = args[i+1]
+			default:
+				return "", fmt.Errorf("%w: --format must be text or json (got %q)\n%s",
+					errParse, args[i+1], subUsage[subcommand])
+			}
+			i++
+			continue
+		}
+		return "", fmt.Errorf("%w: unexpected argument %q\n%s", errParse, args[i], subUsage[subcommand])
+	}
+	return format, nil
 }
 
 // overlayEnv returns an EnvLookup that returns override for key (when

@@ -96,6 +96,35 @@ func TestWriteDigestOutputRefusesClobber(t *testing.T) {
 	}
 }
 
+func TestParseFormatDefaultsToText(t *testing.T) {
+	got, err := parseFormat(nil, "doctor")
+	if err != nil {
+		t.Fatalf("parseFormat(nil) error = %v", err)
+	}
+	if got != "text" {
+		t.Fatalf("parseFormat(nil) = %q, want text", got)
+	}
+}
+
+func TestParseFormatRejectsInvalid(t *testing.T) {
+	if _, err := parseFormat([]string{"--format", "yaml"}, "doctor"); !errors.Is(err, errParse) {
+		t.Fatalf("err = %v, want errParse for yaml", err)
+	}
+	if _, err := parseFormat([]string{"--format"}, "doctor"); !errors.Is(err, errParse) {
+		t.Fatalf("err = %v, want errParse for missing value", err)
+	}
+}
+
+func TestParseFormatAcceptsJSON(t *testing.T) {
+	got, err := parseFormat([]string{"--format", "json"}, "doctor")
+	if err != nil {
+		t.Fatalf("parseFormat(json) error = %v", err)
+	}
+	if got != "json" {
+		t.Fatalf("got = %q, want json", got)
+	}
+}
+
 func TestLatestLedgerEventTimeFindsLatest(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "runs.jsonl")

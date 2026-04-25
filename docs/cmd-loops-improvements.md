@@ -24,7 +24,7 @@ leverage.
 | 10 | Collapse `progress write` to a table-driven loop                    | done         |
 | 11 | Replace package-level test-seam globals with a `cliDeps` struct     | done         |
 | 12 | Structured exit codes                                                | partial      |
-| 13 | `--format json` for read-only commands                               | open         |
+| 13 | `--format json` for read-only commands                               | partial      |
 | 14 | `--repo-root` / `REPO_ROOT` flag                                     | done         |
 | 15 | `digest --output` should refuse to clobber unless `--force`          | done         |
 
@@ -181,6 +181,14 @@ prose. External tooling that wants this state currently parses
 
 **Fix.** Each command grows a `--format text|json` flag (default text).
 JSON output is documented and stable enough to script against.
+
+**Status (2026-04-25).** `progress validate`, `builder-loop doctor`, and
+`planner-loop doctor` now accept `--format json`. The remaining commands
+(`digest`, `audit`, `status`) still emit only prose because their
+underlying internal helpers return strings, not structured data. Wiring
+them requires either refactoring the internal helpers to return data
+structs (and the cmd serializes) or adding `*JSON` variants. Deferred
+until an external consumer actually needs them.
 
 ### 14. `--repo-root` / `REPO_ROOT` flag
 
