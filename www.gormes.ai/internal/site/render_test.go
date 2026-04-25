@@ -15,17 +15,23 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 
 	text := string(body)
 	wants := []string{
-		// Hero — leads with what Gormes is *for* (AI-agent runtime),
-		// not its lineage. Subtle filter line below the subhead aimed
-		// at production-minded developers.
-		"OPEN SOURCE · MIT LICENSE",
+		// Hero — multi-line subhead (3 punchy lines), filter line for
+		// audience self-selection, status line tucked below CTAs as
+		// tertiary, no hero illustration.
+		"OPEN SOURCE · MIT",
 		"UNDER CONSTRUCTION",
 		"One Go Binary. No Python. No Drift.",
-		"Go-native runtime for AI agents",
-		"Hermes is no longer required",
-		"still under active construction",
-		"Early-stage. Built for developers who care about reliability over polish.",
+		`class="hero-subhead-line"`,
+		"Gormes is a Go-native runtime for AI agents.",
+		"Built to solve the operations problem — not the AI problem.",
+		"One static binary. No virtualenvs. No dependency hell.",
 		`class="hero-filter"`,
+		"Early-stage. Built for developers who care about reliability over polish.",
+		`class="hero-status"`,
+		"Hermes is no longer required. The full Go runtime is still under active construction.",
+		// CTA hierarchy — primary dominant, ghost secondary.
+		`class="btn btn-primary"`,
+		`class="btn btn-ghost"`,
 		// Install — footnote rewritten for clarity (prebuilt binary,
 		// source-backed installer is temporary).
 		"1. UNIX / MACOS / TERMUX",
@@ -86,13 +92,15 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"roadmap-item-shipped",
 		// Structural class anchors
 		"roadmap-phase",
-		// Footer — brand text + company anchor + license
+		// Footer — brand text + license. Footer-nav now carries the
+		// secondary links (Why Gormes, Who it's for, Docs, Company) so
+		// the topnav can stay minimal (Install / Roadmap / GitHub).
 		`Gormes v0.1.0 · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
 		"MIT License · 2026",
-		// Nav now includes Company link at the trebuchetdynamics.com URL
+		`class="footer-nav"`,
 		`<a href="https://trebuchetdynamics.com/">Company</a>`,
-		// Nav link + in-page note pointing at the Hugo docs site
 		`<a href="https://docs.gormes.ai/">Docs</a>`,
+		// In-page note pointing at the Hugo docs site
 		"Deeper reference material lives at",
 		`<a href="https://docs.gormes.ai/">docs.gormes.ai →</a>`,
 		// CSS link
@@ -141,6 +149,15 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Rerun the installer to update the managed Gormes checkout.",
 		"Source-backed for now →",
 		"not production-ready yet",
+		// v2 single-paragraph subhead replaced by 3-line stack.
+		"Gormes is a Go-native runtime for AI agents — built to fix the reliability and deployment problems",
+		// Hero illustration removed in v3 — assert the gopher PNG and
+		// the .hero-image / .hero-content flex wrappers no longer ship.
+		`alt="Gormes Gopher"`,
+		"go-gopher-bear-lowpoly.png",
+		`class="hero-image"`,
+		`class="hero-content"`,
+		`class="btn-secondary"`,
 		// Obsolete single-row ledger copy replaced by grouped roadmap
 		"Phase 3 — SQLite + FTS5 transcript memory.",
 		"Phase 3.A–C — SQLite + FTS5 lattice, ontological graph, neural recall.",

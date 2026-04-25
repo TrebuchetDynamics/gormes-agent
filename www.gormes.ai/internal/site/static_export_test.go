@@ -22,8 +22,14 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	text := string(indexBody)
 	wants := []string{
 		"One Go Binary. No Python. No Drift.",
-		"Go-native runtime for AI agents",
+		"Gormes is a Go-native runtime for AI agents.",
+		"Built to solve the operations problem — not the AI problem.",
+		"One static binary. No virtualenvs. No dependency hell.",
 		"Early-stage. Built for developers who care about reliability over polish.",
+		"Hermes is no longer required. The full Go runtime is still under active construction.",
+		`class="btn btn-primary"`,
+		`class="btn btn-ghost"`,
+		`class="footer-nav"`,
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"irm https://gormes.ai/install.ps1 | iex",
 		"Installs a prebuilt static binary",
@@ -86,6 +92,13 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Why Hermes breaks in production — and how Gormes fixes it.",
 		"Rerun the installer to update the managed Gormes checkout.",
 		"Source-backed for now →",
+		// v2 single-paragraph subhead replaced by 3-line stack.
+		"Gormes is a Go-native runtime for AI agents — built to fix the reliability and deployment problems",
+		// Hero illustration removed in v3.
+		`alt="Gormes Gopher"`,
+		`class="hero-image"`,
+		`class="hero-content"`,
+		`class="btn-secondary"`,
 	}
 	for _, want := range wants {
 		if !strings.Contains(text, want) {

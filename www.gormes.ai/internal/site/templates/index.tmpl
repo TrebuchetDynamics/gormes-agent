@@ -1,19 +1,17 @@
 {{define "index"}}
 <section id="top" class="hero">
   <div class="hero-inner">
-    <div class="hero-content">
-      <p class="kicker">{{.HeroKicker}}</p>
-      <h1 class="hero-title">{{.HeroHeadline}}</h1>
-      <p class="hero-subhead">{{.HeroSubhead}}</p>
-      <p class="hero-filter">{{.HeroFilterLine}}</p>
-      <div class="hero-ctas">
-        <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
-        <a class="btn btn-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
-      </div>
+    <p class="kicker">{{.HeroKicker}}</p>
+    <h1 class="hero-title">{{.HeroHeadline}}</h1>
+    <div class="hero-subhead">
+      {{range .HeroSubheadLines}}<p class="hero-subhead-line">{{.}}</p>{{end}}
     </div>
-    <div class="hero-image">
-      <img src="{{.HeroImage}}" alt="Gormes Gopher" width="300">
+    <p class="hero-filter">{{.HeroFilterLine}}</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
+      <a class="btn btn-ghost" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
     </div>
+    <p class="hero-status">{{.HeroStatusLine}}</p>
   </div>
 </section>
 
@@ -38,10 +36,12 @@
       </ul>
     </div>
 
-    <h2 class="section-title why-pain-headline">{{.WhyPainHeadline}}</h2>
-    <ul class="why-pain-list">
-      {{range .WhyPainBullets}}<li>{{.}}</li>{{end}}
-    </ul>
+    <div class="why-pain">
+      <h2 class="section-title why-pain-headline">{{.WhyPainHeadline}}</h2>
+      <ul class="why-pain-list">
+        {{range .WhyPainBullets}}<li>{{.}}</li>{{end}}
+      </ul>
+    </div>
 
     <h3 class="why-fix-subhead">{{.WhyFixSubhead}}</h3>
     <div class="features-grid">

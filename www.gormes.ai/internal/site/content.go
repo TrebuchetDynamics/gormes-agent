@@ -96,13 +96,17 @@ type LandingPage struct {
 	Title               string
 	Description         string
 	Nav                 []NavLink
+	FooterNav           []NavLink
 	HeroKicker          string
 	HeroHeadline        string
-	HeroSubhead         string
-	HeroFilterLine      string
-	HeroImage           string
-	PrimaryCTA          Link
-	SecondaryCTA        Link
+	// HeroSubheadLines is rendered as a stack of short paragraphs —
+	// three tight lines instead of one dense block, so the operations
+	// pitch reads as a punch on mobile rather than a wall of prose.
+	HeroSubheadLines []string
+	HeroFilterLine   string
+	HeroStatusLine   string
+	PrimaryCTA       Link
+	SecondaryCTA     Link
 	InstallSteps        []InstallStep
 	InstallFootnote     string
 	InstallFootnoteLink string
@@ -154,18 +158,24 @@ func DefaultPage() LandingPage {
 		Description: "A Go-native runtime for AI agents — one static binary, no Python, no virtualenvs. Built for developers who care about reliability over polish. Under construction.",
 		Nav: []NavLink{
 			{Label: "Install", Href: "#install"},
+			{Label: "Roadmap", Href: "#roadmap"},
+			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
+		},
+		FooterNav: []NavLink{
 			{Label: "Why Gormes", Href: "#why"},
 			{Label: "Who it's for", Href: "#audience"},
-			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "Docs", Href: "https://docs.gormes.ai/"},
-			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 			{Label: "Company", Href: "https://trebuchetdynamics.com/"},
 		},
-		HeroKicker:     "§ 01 · OPEN SOURCE · MIT LICENSE · UNDER CONSTRUCTION",
-		HeroHeadline:   "One Go Binary. No Python. No Drift.",
-		HeroSubhead:    "Gormes is a Go-native runtime for AI agents — built to fix the reliability and deployment problems that break Python-stack agents in production. Hermes is no longer required; the full Go runtime is still under active construction.",
+		HeroKicker:   "§ 01 · OPEN SOURCE · MIT · UNDER CONSTRUCTION",
+		HeroHeadline: "One Go Binary. No Python. No Drift.",
+		HeroSubheadLines: []string{
+			"Gormes is a Go-native runtime for AI agents.",
+			"Built to solve the operations problem — not the AI problem.",
+			"One static binary. No virtualenvs. No dependency hell.",
+		},
 		HeroFilterLine: "Early-stage. Built for developers who care about reliability over polish.",
-		HeroImage:      "/static/go-gopher-bear-lowpoly.png",
+		HeroStatusLine: "Hermes is no longer required. The full Go runtime is still under active construction.",
 		PrimaryCTA:     Link{Label: "Install", Href: "#install"},
 		SecondaryCTA:   Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		InstallSteps: []InstallStep{
