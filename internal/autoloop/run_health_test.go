@@ -329,3 +329,59 @@ func ledgerContainsEvent(events []LedgerEvent, name string) bool {
 	}
 	return false
 }
+
+// TestRunOnce_HealthUpdateFailedEventOnFlushError verifies the spec contract
+// that RunOnce must (a) emit a "health_update_failed" ledger event AND
+// (b) propagate the flush error back to the caller when the run-end Flush
+// fails. The failure is induced by chmod'ing the progress.json parent
+// directory to read-only after the runner completes its worker invocation,
+// so atomicWrite (CreateTemp + Rename) inside SaveProgress fails.
+func TestRunOnce_HealthUpdateFailedEventOnFlushError(t *testing.T) {
+	progressPath := writeNamedProgressJSON(t, baseNamedProgress)
+	progressDir := filepath.Dir(progressPath)
+	runRoot := t.TempDir()
+
+	// Restore writability so t.TempDir's RemoveAll cleanup can succeed.
+	t.Cleanup(func() {
+		_ = os.Chmod(progressDir, 0o755)
+	})
+
+	// chmodRunner records a successful worker invocation, then locks the
+	// progress.json parent directory before returning so the run-end Flush
+	// fails on the next atomicWrite. The initial NormalizeCandidates load
+	// has already happened by the time Run is called.
+	runner := runnerFunc(func(_ context.Context, _ Command) Result {
+		if err := os.Chmod(progressDir, 0o555); err != nil {
+			t.Fatalf("chmod progress dir read-only: %v", err)
+		}
+		return Result{}
+	})
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:                t.TempDir(),
+			ProgressJSON:            progressPath,
+			RunRoot:                 runRoot,
+			Backend:                 "opencode",
+			Mode:                    "safe",
+			MaxAgents:               1,
+			QuarantineThreshold:     3,
+			BackendDegradeThreshold: 3,
+		},
+		Runner: runner,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want flush error")
+	}
+	if !strings.Contains(err.Error(), "flush health") {
+		t.Fatalf("RunOnce() error = %q, want wrapped flush health error", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	if !ledgerContainsEvent(events, "health_update_failed") {
+		t.Fatalf("ledger missing health_update_failed; got=%v", ledgerEventNames(events))
+	}
+	if ledgerContainsEvent(events, "health_updated") {
+		t.Fatalf("ledger should NOT contain health_updated when flush failed; got=%v", ledgerEventNames(events))
+	}
+}
