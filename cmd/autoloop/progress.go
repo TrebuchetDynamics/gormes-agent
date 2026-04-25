@@ -121,17 +121,18 @@ type progressPathSet struct {
 
 func progressPaths(root string) progressPathSet {
 	buildingGormes := filepath.Join(root, "docs", "content", "building-gormes")
+	autoloopDir := filepath.Join(buildingGormes, "autoloop")
 	return progressPathSet{
 		progressJSON:      filepath.Join(buildingGormes, "architecture_plan", "progress.json"),
 		readme:            filepath.Join(root, "README.md"),
 		docsIndex:         filepath.Join(buildingGormes, "architecture_plan", "_index.md"),
 		contractReadiness: filepath.Join(buildingGormes, "contract-readiness.md"),
-		autoloopHandoff:   filepath.Join(buildingGormes, "autoloop-handoff.md"),
-		agentQueue:        filepath.Join(buildingGormes, "agent-queue.md"),
-		nextSlices:        filepath.Join(buildingGormes, "next-slices.md"),
-		blockedSlices:     filepath.Join(buildingGormes, "blocked-slices.md"),
-		umbrellaCleanup:   filepath.Join(buildingGormes, "umbrella-cleanup.md"),
-		progressSchema:    filepath.Join(buildingGormes, "progress-schema.md"),
+		autoloopHandoff:   filepath.Join(autoloopDir, "autoloop-handoff.md"),
+		agentQueue:        filepath.Join(autoloopDir, "agent-queue.md"),
+		nextSlices:        filepath.Join(autoloopDir, "next-slices.md"),
+		blockedSlices:     filepath.Join(autoloopDir, "blocked-slices.md"),
+		umbrellaCleanup:   filepath.Join(autoloopDir, "umbrella-cleanup.md"),
+		progressSchema:    filepath.Join(autoloopDir, "progress-schema.md"),
 		siteProgress:      filepath.Join(root, "www.gormes.ai", "internal", "site", "data", "progress.json"),
 	}
 }

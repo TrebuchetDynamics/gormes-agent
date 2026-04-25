@@ -1,6 +1,8 @@
 ---
 title: "Blocked Slices"
-weight: 36
+weight: 40
+aliases:
+  - /building-gormes/blocked-slices/
 ---
 
 # Blocked Slices

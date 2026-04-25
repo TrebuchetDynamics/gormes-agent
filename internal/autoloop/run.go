@@ -3,6 +3,8 @@ package autoloop
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -91,6 +93,18 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			}
 			return RunSummary{}, backendRunError(argv[0], result)
 		}
+		if err := ensureNoMergeConflicts(opts.Config.RepoRoot); err != nil {
+			if ledgerErr := appendRunLedgerEvent(opts.Config, LedgerEvent{
+				TS:     time.Now().UTC(),
+				Event:  "worker_failed",
+				Worker: workerID,
+				Task:   task,
+				Status: "worktree_unmerged",
+			}); ledgerErr != nil {
+				return RunSummary{}, ledgerErr
+			}
+			return RunSummary{}, err
+		}
 		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
 			TS:     time.Now().UTC(),
 			Event:  "worker_success",
@@ -119,79 +133,114 @@ func appendRunLedgerEvent(cfg Config, event LedgerEvent) error {
 	return AppendLedgerEvent(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"), event)
 }
 
+func ensureNoMergeConflicts(repoRoot string) error {
+	if repoRoot == "" {
+		return nil
+	}
+	if _, err := os.Stat(filepath.Join(repoRoot, ".git")); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("check git repository: %w", err)
+	}
+
+	cmd := exec.Command("git", "-C", repoRoot, "diff", "--name-only", "--diff-filter=U")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("check git merge conflicts: %w", err)
+	}
+	if conflicts := strings.TrimSpace(string(output)); conflicts != "" {
+		return fmt.Errorf("repository has unresolved merge conflicts:\n%s", conflicts)
+	}
+
+	return nil
+}
+
 func candidateTaskName(candidate Candidate) string {
 	return candidate.PhaseID + "/" + candidate.SubphaseID + "/" + candidate.ItemName
 }
 
 func BuildWorkerPrompt(candidate Candidate) string {
-	var b strings.Builder
-	fmt.Fprintln(&b, "Mission:")
-	fmt.Fprintln(&b, "Complete the selected Gormes progress task with strict Test-Driven Development (TDD).")
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Selected task:")
-	fmt.Fprintf(&b, "- Phase/Subphase/Item: %s / %s / %s\n", candidate.PhaseID, candidate.SubphaseID, candidate.ItemName)
-	fmt.Fprintf(&b, "- Current status: %s\n", valueOrDash(candidate.Status))
-	fmt.Fprintf(&b, "- Priority: %s\n", valueOrDash(candidate.Priority))
-	fmt.Fprintf(&b, "- Execution owner: %s\n", valueOrDash(candidate.ExecutionOwner))
-	fmt.Fprintf(&b, "- Slice size: %s\n", valueOrDash(candidate.SliceSize))
-	fmt.Fprintf(&b, "- Selection reason: %s\n", candidate.SelectionReason())
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Execution contract:")
-	fmt.Fprintf(&b, "- Contract: %s\n", valueOrDash(candidate.Contract))
-	fmt.Fprintf(&b, "- Contract status: %s\n", valueOrDash(candidate.ContractStatus))
-	fmt.Fprintf(&b, "- Fixture: %s\n", valueOrDash(candidate.Fixture))
-	fmt.Fprintf(&b, "- Degraded mode: %s\n", valueOrDash(candidate.DegradedMode))
-	fmt.Fprintln(&b, "- Trust class:")
-	writePromptList(&b, candidate.TrustClass)
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Readiness:")
-	fmt.Fprintln(&b, "- Ready when:")
-	writePromptList(&b, candidate.ReadyWhen)
-	fmt.Fprintln(&b, "- Not ready when:")
-	writePromptList(&b, candidate.NotReadyWhen)
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Worker boundaries:")
-	fmt.Fprintln(&b, "- Allowed write scope:")
-	writePromptList(&b, candidate.WriteScope)
-	fmt.Fprintln(&b, "- Required test commands:")
-	writePromptList(&b, candidate.TestCommands)
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Completion evidence:")
-	fmt.Fprintln(&b, "- Done signal:")
-	writePromptList(&b, candidate.DoneSignal)
-	fmt.Fprintln(&b, "- Acceptance:")
-	writePromptList(&b, candidate.Acceptance)
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Source references:")
-	writePromptList(&b, candidate.SourceRefs)
-	if candidate.Note != "" {
-		fmt.Fprintf(&b, "\nNote: %s\n", candidate.Note)
-	}
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Requirements:")
-	fmt.Fprintln(&b, "- Read the repository context before editing.")
-	fmt.Fprintln(&b, "- Keep changes scoped to the selected task and its allowed write scope.")
-	fmt.Fprintln(&b, "- Run the required test commands before reporting completion.")
-	fmt.Fprintln(&b, "- Report against the done signal and acceptance criteria.")
-	return b.String()
+	var prompt strings.Builder
+
+	prompt.WriteString("Mission:\n")
+	prompt.WriteString("Complete the selected Gormes progress task with strict Test-Driven Development (TDD).\n\n")
+
+	prompt.WriteString("Selected task:\n")
+	fmt.Fprintf(&prompt, "- Phase/Subphase/Item: %s / %s / %s\n", candidate.PhaseID, candidate.SubphaseID, candidate.ItemName)
+	fmt.Fprintf(&prompt, "- Current status: %s\n", valueOrDash(candidate.Status))
+	fmt.Fprintf(&prompt, "- Priority: %s\n", valueOrDash(candidate.Priority))
+	fmt.Fprintf(&prompt, "- Execution owner: %s\n", valueOrDash(candidate.ExecutionOwner))
+	fmt.Fprintf(&prompt, "- Slice size: %s\n", valueOrDash(candidate.SliceSize))
+	fmt.Fprintf(&prompt, "- Selection reason: %s\n\n", valueOrDash(candidate.SelectionReason()))
+
+	prompt.WriteString("Execution contract:\n")
+	fmt.Fprintf(&prompt, "- Contract: %s\n", valueOrDash(candidate.Contract))
+	fmt.Fprintf(&prompt, "- Contract status: %s\n", valueOrDash(candidate.ContractStatus))
+	fmt.Fprintf(&prompt, "- Fixture: %s\n", valueOrDash(candidate.Fixture))
+	fmt.Fprintf(&prompt, "- Degraded mode: %s\n", valueOrDash(candidate.DegradedMode))
+	prompt.WriteString("- Trust class:\n")
+	writePromptList(&prompt, candidate.TrustClass)
+	prompt.WriteString("\n")
+
+	prompt.WriteString("Readiness:\n")
+	prompt.WriteString("- Ready when:\n")
+	writePromptList(&prompt, candidate.ReadyWhen)
+	prompt.WriteString("- Not ready when:\n")
+	writePromptList(&prompt, candidate.NotReadyWhen)
+	prompt.WriteString("- Blocked by:\n")
+	writePromptList(&prompt, candidate.BlockedBy)
+	prompt.WriteString("- Unblocks:\n")
+	writePromptList(&prompt, candidate.Unblocks)
+	prompt.WriteString("\n")
+
+	prompt.WriteString("Worker boundaries:\n")
+	prompt.WriteString("- Allowed write scope:\n")
+	writePromptList(&prompt, candidate.WriteScope)
+	prompt.WriteString("- Required test commands:\n")
+	writePromptList(&prompt, candidate.TestCommands)
+	prompt.WriteString("\n")
+
+	prompt.WriteString("Completion evidence:\n")
+	prompt.WriteString("- Done signal:\n")
+	writePromptList(&prompt, candidate.DoneSignal)
+	prompt.WriteString("- Acceptance:\n")
+	writePromptList(&prompt, candidate.Acceptance)
+	prompt.WriteString("\n")
+
+	prompt.WriteString("Source references:\n")
+	writePromptList(&prompt, candidate.SourceRefs)
+	prompt.WriteString("\n")
+
+	fmt.Fprintf(&prompt, "Note: %s\n\n", valueOrDash(candidate.Note))
+
+	prompt.WriteString("Requirements:\n")
+	prompt.WriteString("- Read the repository context before editing.\n")
+	prompt.WriteString("- Keep changes scoped to the selected task and its allowed write scope.\n")
+	prompt.WriteString("- Run the required test commands before reporting completion.\n")
+	prompt.WriteString("- Report against the done signal and acceptance criteria.\n")
+
+	return prompt.String()
 }
 
-func writePromptList(b *strings.Builder, values []string) {
+func writePromptList(prompt *strings.Builder, values []string) {
 	if len(values) == 0 {
-		fmt.Fprintln(b, "- (none declared)")
+		prompt.WriteString("- (none declared)\n")
 		return
 	}
+
 	for _, value := range values {
-		fmt.Fprintf(b, "- %s\n", value)
+		fmt.Fprintf(prompt, "- %s\n", value)
 	}
 }
 
 func valueOrDash(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return "-"
 	}
-	return trimmed
+
+	return value
 }
 
 func backendRunError(name string, result Result) error {

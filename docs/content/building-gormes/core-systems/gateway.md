@@ -23,7 +23,7 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 
 ## Planned
 
-- **Remaining priority connector runtime work** — Slack still needs CommandRegistry parser wiring, a `gateway.Channel` shim, and shared `cmd/gormes gateway` registration; WhatsApp still needs pairing/reconnect/send lifecycle on top of the landed runtime-selection seam; WeChat still needs WeCom/WeiXin transport/bootstrap code; Discord Forum Channels still need thread lifecycle plus media/outbound polish. See [§7 Subsystem Inventory](../architecture_plan/subsystem-inventory/).
+- **Remaining priority connector runtime work** — Slack still needs CommandRegistry parser wiring, a `gateway.Channel` shim, and shared `cmd/gormes gateway` registration; WhatsApp still needs pairing/reconnect/send lifecycle on top of the landed runtime-selection seam; WeChat still needs WeCom/WeiXin transport/bootstrap code; Discord Forum Channels still need thread lifecycle plus media/outbound polish. See [§7 Subsystem Inventory](../../architecture_plan/subsystem-inventory/).
 - **Paused Phase 7 connector backlog** — Signal, Email/SMS, Matrix/Mattermost, Webhook, BlueBubbles/HomeAssistant, Feishu, DingTalk, and QQ remain tracked but are no longer Phase 2 execution priorities.
 - **Phase 2.F.3–2.F.4** — adapter startup cleanup, active-turn follow-up/late-arrival drain policy, drain-timeout resume recovery, pairing persistence, approval/rate-limit semantics, status JSON/PID validation, token-scoped credential locks, `/restart` takeover/dedup markers, channel lifecycle writers, home-channel routing, channel/contact directory refresh, mirror surfaces, and sticker-cache equivalents.
 - **Native API server replacement** — Phase 1 still consumes Python's `api_server`; Phase 5.Q must port the OpenAI-compatible chat-completions, Responses API, run-event SSE, detailed health, and cron-admin HTTP surfaces over the Go runtime before Python leaves the gateway path.
@@ -32,5 +32,5 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 
 Agents that only live in a terminal are academic. Agents that live where the operator lives — on their phone, in their team chat — are infrastructure. Gormes's split-binary-then-unified design lets each adapter ship independently without dragging the TUI's deps.
 
-See [Phase 2](../architecture_plan/phase-2-gateway/) for the Gateway ledger.
-For donor-code reconnaissance against PicoClaw's Go adapters, see [Gateway Donor Map](../gateway-donor-map/).
+See [Phase 2](../../architecture_plan/phase-2-gateway/) for the Gateway ledger.
+For donor-code reconnaissance against PicoClaw's Go adapters, see [Gateway Donor Map](../../gateway-donor-map/).

@@ -53,7 +53,7 @@ setup() {
               "write_scope": ["internal/gateway/"],
               "test_commands": ["go test ./internal/gateway -count=1"],
               "done_signal": ["gateway fixtures pass"],
-              "source_refs": ["docs/content/building-gormes/agent-queue.md"]
+              "source_refs": ["docs/content/building-gormes/autoloop/agent-queue.md"]
             },
             {
               "name": "Blocked slice",

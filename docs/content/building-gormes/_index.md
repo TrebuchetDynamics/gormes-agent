@@ -31,8 +31,8 @@ or TypeScript database gravity.
 | Need | Start with | Then use |
 |---|---|---|
 | Understand the runtime shape | [Core Systems](./core-systems/) | [Architecture Plan](./architecture_plan/), [Why Go](./architecture_plan/why-go/) |
-| Choose implementation work | [Agent Queue](./agent-queue/) | [Next Slices](./next-slices/), [Blocked Slices](./blocked-slices/), [Umbrella Cleanup](./umbrella-cleanup/) |
-| Prepare an autonomous-worker handoff | [Contract Readiness](./contract-readiness/) | [Progress Schema](./progress-schema/), [Autoloop Handoff](./autoloop-handoff/) |
+| Choose implementation work | [Agent Queue](./autoloop/agent-queue/) | [Next Slices](./autoloop/next-slices/), [Blocked Slices](./autoloop/blocked-slices/), [Umbrella Cleanup](./autoloop/umbrella-cleanup/) |
+| Prepare an autonomous-worker handoff | [Contract Readiness](./contract-readiness/) | [Progress Schema](./autoloop/progress-schema/), [Autoloop Handoff](./autoloop/autoloop-handoff/) |
 | Port an upstream subsystem | [Porting a Subsystem](./porting-a-subsystem/) | [Upstream Lessons](./upstream-lessons/), [Testing](./testing/) |
 | Reuse gateway adapter ideas | [Gateway Donor Map](./gateway-donor-map/) | [Shared Adapter Patterns](./gateway-donor-map/shared-adapter-patterns/), then the channel dossier |
 | Continue Goncho/Honcho memory work | [Goncho Honcho Memory](./goncho_honcho_memory/) | [Prompts](./goncho_honcho_memory/01-prompts/), [Tool Schemas](./goncho_honcho_memory/02-tool-schemas/) |
@@ -72,20 +72,20 @@ Use the planning docs in this order:
 
 1. Read [Upstream Lessons](./upstream-lessons/) to understand which contracts
    Gormes absorbs from Hermes and GBrain.
-2. Check [Autoloop Handoff](./autoloop-handoff/) for the unattended-loop
+2. Check [Autoloop Handoff](./autoloop/autoloop-handoff/) for the unattended-loop
    entrypoint, orchestrator plan, candidate source, generated docs, tests, and
    candidate policy.
-3. Pick work from [Agent Queue](./agent-queue/) for an autonomous-worker-ready
-   handoff, then use [Next Slices](./next-slices/) for the shorter ranking.
+3. Pick work from [Agent Queue](./autoloop/agent-queue/) for an autonomous-worker-ready
+   handoff, then use [Next Slices](./autoloop/next-slices/) for the shorter ranking.
 4. Run through `scripts/gormes-auto-codexu-orchestrator.sh` when using the
    unattended loop; it consumes the same canonical progress rows and injects
    row-specific handoff fields into worker prompts.
 5. Check [Contract Readiness](./contract-readiness/) before implementation; an
    active or P0 row must name its contract, trust class, degraded mode, fixture,
    source references, and acceptance checks.
-6. Check [Blocked Slices](./blocked-slices/) and
-   [Umbrella Cleanup](./umbrella-cleanup/) before assigning a row.
-7. Use [Progress Schema](./progress-schema/) when editing canonical progress.
+6. Check [Blocked Slices](./autoloop/blocked-slices/) and
+   [Umbrella Cleanup](./autoloop/umbrella-cleanup/) before assigning a row.
+7. Use [Progress Schema](./autoloop/progress-schema/) when editing canonical progress.
 8. Write the spec/plan from [Porting a Subsystem](./porting-a-subsystem/),
    then implement with the fixture classes in [Testing](./testing/).
 
@@ -93,6 +93,6 @@ Use the planning docs in this order:
 
 **Architecture:** [Architecture Plan](./architecture_plan/), [Core Systems](./core-systems/), [What Hermes Gets Wrong](./what-hermes-gets-wrong/), [Upstream Lessons](./upstream-lessons/).
 
-**Execution queue:** [Contract Readiness](./contract-readiness/), [Autoloop Handoff](./autoloop-handoff/), [Agent Queue](./agent-queue/), [Next Slices](./next-slices/), [Blocked Slices](./blocked-slices/), [Umbrella Cleanup](./umbrella-cleanup/), [Progress Schema](./progress-schema/).
+**Execution queue:** [Contract Readiness](./contract-readiness/), [Autoloop Handoff](./autoloop/autoloop-handoff/), [Agent Queue](./autoloop/agent-queue/), [Next Slices](./autoloop/next-slices/), [Blocked Slices](./autoloop/blocked-slices/), [Umbrella Cleanup](./autoloop/umbrella-cleanup/), [Progress Schema](./autoloop/progress-schema/).
 
 **Implementation help:** [Porting a Subsystem](./porting-a-subsystem/), [Testing](./testing/), [Gateway Donor Map](./gateway-donor-map/), [Goncho Honcho Memory](./goncho_honcho_memory/).

@@ -250,7 +250,7 @@ func runAutoloop(cfg autoloop.Config, dryRun bool) error {
 			candidate.Status,
 			dashIfEmpty(candidate.ExecutionOwner),
 			dashIfEmpty(candidate.SliceSize),
-			candidate.SelectionReason(),
+			dashIfEmpty(candidate.SelectionReason()),
 		)
 	}
 
@@ -258,11 +258,12 @@ func runAutoloop(cfg autoloop.Config, dryRun bool) error {
 }
 
 func dashIfEmpty(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return "-"
 	}
-	return trimmed
+
+	return value
 }
 
 func autoloopEnv() map[string]string {

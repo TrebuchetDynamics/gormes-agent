@@ -25,24 +25,24 @@ machine-readable queue for developing the full `gormes-agent`.
 - The generated checklist below is rebuilt from `progress.json`; do not hand-edit
   content between `PROGRESS` markers.
 - Use the phase pages for design intent and boundaries, then use
-  [Contract Readiness](../contract-readiness/) and [Agent Queue](../agent-queue/)
+  [Contract Readiness](../contract-readiness/) and [Agent Queue](../autoloop/agent-queue/)
   for assignable work.
 - When a row is too broad for one agent, split it in `progress.json` first and
-  let [Umbrella Cleanup](../umbrella-cleanup/) show the remaining inventory.
+  let [Umbrella Cleanup](../autoloop/umbrella-cleanup/) show the remaining inventory.
 - When a row is blocked, keep the unblock condition explicit so
-  [Blocked Slices](../blocked-slices/) stays useful to operators and autoloop.
+  [Blocked Slices](../autoloop/blocked-slices/) stays useful to operators and autoloop.
 
 ---
 
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 29/72 subphases shipped · 10 in progress · 33 planned
+**Overall:** 30/72 subphases shipped · 11 in progress · 31 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 3/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 12/19 subphases |
+| Phase 2 — The Gateway | 🔨 | 13/19 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
@@ -171,7 +171,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Graceful restart drain + managed shutdown
 - [x] Adapter startup failure cleanup contract
-- [ ] Active-turn follow-up queue + late-arrival drain policy
+- [x] Active-turn follow-up queue + late-arrival drain policy
 - [ ] Drain-timeout resume_pending recovery
 - [ ] Pairing read-model schema + atomic persistence
 - [ ] Pairing approval + rate-limit semantics
@@ -179,7 +179,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Runtime status JSON + PID/process validation
 - [ ] Token-scoped gateway locks
 - [ ] Gateway /restart command + takeover markers
-- [ ] Channel lifecycle writers into status model
+- [x] Channel lifecycle writers into status model
 
 ### 2.F.4 — Home Channel + Operator Surfaces ⏳
 

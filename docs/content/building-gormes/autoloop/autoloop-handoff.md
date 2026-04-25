@@ -1,6 +1,8 @@
 ---
 title: "Autoloop Handoff"
-weight: 33
+weight: 10
+aliases:
+  - /building-gormes/autoloop-handoff/
 ---
 
 # Autoloop Handoff
@@ -11,7 +13,7 @@ This page is generated from `meta.autoloop` in the canonical progress file:
 It keeps shared unattended-loop facts in one place so autonomous workers do not
 guess the entrypoint, plan, candidate source, generated docs, or selection
 policy from scattered prose. Row-specific execution facts stay in
-[Agent Queue](./agent-queue/) and canonical progress rows.
+[Agent Queue](../agent-queue/) and canonical progress rows.
 
 `autoloop` is intended to execute the building-gormes architecture plan. It
 selects work from `progress.json`, uses the generated building-gormes pages as
@@ -25,8 +27,8 @@ at a time. Do not maintain a parallel queue outside this docs tree.
 - Entrypoint: `scripts/gormes-auto-codexu-orchestrator.sh`
 - Plan: `docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md`
 - Candidate source: `docs/content/building-gormes/architecture_plan/progress.json`
-- Agent queue: `docs/content/building-gormes/agent-queue.md`
-- Progress schema: `docs/content/building-gormes/progress-schema.md`
+- Agent queue: `docs/content/building-gormes/autoloop/agent-queue.md`
+- Progress schema: `docs/content/building-gormes/autoloop/progress-schema.md`
 - Unit tests: `scripts/orchestrator/tests/run.sh unit`
 
 ## Candidate Policy

@@ -80,12 +80,13 @@ var nativeHugoPages = map[string]struct{}{
 	"why-gormes.md":                                                  {},
 	"building-gormes/_index.md":                                      {},
 	"building-gormes/contract-readiness.md":                          {},
-	"building-gormes/autoloop-handoff.md":                            {},
-	"building-gormes/agent-queue.md":                                 {},
-	"building-gormes/next-slices.md":                                 {},
-	"building-gormes/blocked-slices.md":                              {},
-	"building-gormes/umbrella-cleanup.md":                            {},
-	"building-gormes/progress-schema.md":                             {},
+	"building-gormes/autoloop/_index.md":                             {},
+	"building-gormes/autoloop/autoloop-handoff.md":                   {},
+	"building-gormes/autoloop/agent-queue.md":                        {},
+	"building-gormes/autoloop/next-slices.md":                        {},
+	"building-gormes/autoloop/blocked-slices.md":                     {},
+	"building-gormes/autoloop/umbrella-cleanup.md":                   {},
+	"building-gormes/autoloop/progress-schema.md":                    {},
 	"building-gormes/upstream-lessons.md":                            {},
 	"building-gormes/gateway-donor-map/_index.md":                    {},
 	"building-gormes/gateway-donor-map/shared-adapter-patterns.md":   {},
@@ -471,14 +472,31 @@ func isExternalLink(link string) bool {
 	}
 }
 
+func TestResolveContentLinkUsesRenderedLeafURLBase(t *testing.T) {
+	sourceRel := "building-gormes/autoloop/autoloop-handoff.md"
+
+	if err := resolveContentLink(sourceRel, "./agent-queue/"); !os.IsNotExist(err) {
+		t.Fatalf("leaf-relative sibling link resolved from source directory; got %v", err)
+	}
+	if err := resolveContentLink(sourceRel, "../agent-queue/"); err != nil {
+		t.Fatalf("rendered leaf-relative sibling link should resolve: %v", err)
+	}
+}
+
 func resolveContentLink(sourceRel, link string) error {
-	sourceDir := filepath.Dir(filepath.Join(hugoContentRoot, sourceRel))
 	target := link
 	if idx := strings.IndexAny(target, "?#"); idx >= 0 {
 		target = target[:idx]
 	}
-	candidate := filepath.Clean(filepath.Join(sourceDir, target))
 
+	sourceDir := filepath.Dir(sourceRel)
+	renderedDir := sourceDir
+	if base := filepath.Base(sourceRel); base != "_index.md" && filepath.Ext(base) == ".md" {
+		renderedDir = filepath.Join(sourceDir, strings.TrimSuffix(base, ".md"))
+	}
+
+	candidateRel := filepath.Clean(filepath.Join(renderedDir, target))
+	candidate := filepath.Join(hugoContentRoot, candidateRel)
 	checks := []string{
 		candidate + ".md",
 		filepath.Join(candidate, "_index.md"),

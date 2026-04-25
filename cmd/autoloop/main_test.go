@@ -179,13 +179,14 @@ func TestRunCommandDryRunPrintsSummary(t *testing.T) {
 					"12.A": {
 						"items": [
 							{
-								"name": "planned CLI candidate",
+								"item_name": "planned CLI candidate",
 								"status": "planned",
 								"priority": "P0",
 								"contract": "CLI execution contract",
 								"contract_status": "draft",
 								"slice_size": "small",
 								"execution_owner": "orchestrator",
+								"ready_when": ["dry-run fixture exists"],
 								"write_scope": ["cmd/autoloop/"],
 								"test_commands": ["go test ./cmd/autoloop -count=1"],
 								"done_signal": ["dry-run output names metadata"]
@@ -253,7 +254,7 @@ func TestRunCommandBackendFlagSetsBackend(t *testing.T) {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"item_name": "backend flag candidate", "status": "planned"}
+							{"item_name": "backend flag candidate", "status": "planned", "contract": "backend flag contract", "contract_status": "draft"}
 						]
 					}
 				}
@@ -800,14 +801,14 @@ func writeMinimalProgressRepo(t *testing.T, root string) {
 
 	markers := map[string]string{
 		"README.md": "readme-rollup",
-		"docs/content/building-gormes/architecture_plan/_index.md": "docs-full-checklist",
-		"docs/content/building-gormes/contract-readiness.md":       "contract-readiness",
-		"docs/content/building-gormes/autoloop-handoff.md":         "autoloop-handoff",
-		"docs/content/building-gormes/agent-queue.md":              "agent-queue",
-		"docs/content/building-gormes/next-slices.md":              "next-slices",
-		"docs/content/building-gormes/blocked-slices.md":           "blocked-slices",
-		"docs/content/building-gormes/umbrella-cleanup.md":         "umbrella-cleanup",
-		"docs/content/building-gormes/progress-schema.md":          "progress-schema",
+		"docs/content/building-gormes/architecture_plan/_index.md":  "docs-full-checklist",
+		"docs/content/building-gormes/contract-readiness.md":        "contract-readiness",
+		"docs/content/building-gormes/autoloop/autoloop-handoff.md": "autoloop-handoff",
+		"docs/content/building-gormes/autoloop/agent-queue.md":      "agent-queue",
+		"docs/content/building-gormes/autoloop/next-slices.md":      "next-slices",
+		"docs/content/building-gormes/autoloop/blocked-slices.md":   "blocked-slices",
+		"docs/content/building-gormes/autoloop/umbrella-cleanup.md": "umbrella-cleanup",
+		"docs/content/building-gormes/autoloop/progress-schema.md":  "progress-schema",
 	}
 	for rel, kind := range markers {
 		path := filepath.Join(root, rel)

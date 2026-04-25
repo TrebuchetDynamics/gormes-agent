@@ -9,9 +9,9 @@ Autoloop uses the building-gormes docs tree as its development control plane:
 
 - Canonical queue: `docs/content/building-gormes/architecture_plan/progress.json`
 - Human handoff: `docs/content/building-gormes/`
-- Autoloop handoff: `docs/content/building-gormes/autoloop-handoff.md`
-- Worker-ready rows: `docs/content/building-gormes/agent-queue.md`
-- Schema contract: `docs/content/building-gormes/progress-schema.md`
+- Autoloop handoff: `docs/content/building-gormes/autoloop/autoloop-handoff.md`
+- Worker-ready rows: `docs/content/building-gormes/autoloop/agent-queue.md`
+- Schema contract: `docs/content/building-gormes/autoloop/progress-schema.md`
 
 `progress.json` is the machine-readable source of truth. Generated
 building-gormes pages are the operator-facing explanation of the same rows.
@@ -54,8 +54,8 @@ Useful environment variables:
 - `BACKEND`: select `codexu`, `claudeu`, or `opencode`.
 - `MODE`: select `safe`, `unattended`, or `full`.
 - `MAX_AGENTS`: cap selected rows for one run.
-- `MAX_PHASE`: cap eligible roadmap phases. Defaults to `3`, so Phase 4+
-  rows are held until the operator raises the ceiling.
+- `MAX_PHASE`: cap eligible roadmap phases. Defaults to `0` for no phase cap;
+  set a positive value when the operator wants to hold later phases.
 - `PRIORITY_BOOST`: comma-separated subphase IDs to pull ahead of equally ready
   work. Defaults to the active priority channels: `2.B.3,2.B.4,2.B.10,2.B.11`.
 

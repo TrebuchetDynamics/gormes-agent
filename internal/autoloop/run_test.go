@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -15,13 +16,13 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{
 		"phases": {
 			"12": {
-				"subphases": {
+					"subphases": {
 					"12.A": {
-						"items": [
-							{"item_name": "planned run candidate", "status": "planned"}
-						]
+							"items": [
+								{"item_name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft"}
+							]
+						}
 					}
-				}
 			}
 		}
 	}`)
@@ -43,7 +44,7 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 	}
 
 	wantSelected := []Candidate{
-		{PhaseID: "12", SubphaseID: "12.A", ItemName: "planned run candidate", Status: "planned"},
+		{PhaseID: "12", SubphaseID: "12.A", ItemName: "planned run candidate", Status: "planned", Contract: "run contract", ContractStatus: "draft"},
 	}
 	if summary.Candidates != 1 {
 		t.Fatalf("Candidates = %d, want 1", summary.Candidates)
@@ -60,22 +61,22 @@ func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{
 		"phases": {
 			"3": {
-				"subphases": {
+					"subphases": {
 					"3.E": {
-						"items": [
-							{"item_name": "phase 3 candidate", "status": "planned"}
-						]
+							"items": [
+								{"item_name": "phase 3 candidate", "status": "planned", "contract": "phase 3 contract", "contract_status": "draft"}
+							]
+						}
 					}
-				}
 			},
 			"4": {
-				"subphases": {
+					"subphases": {
 					"4.A": {
-						"items": [
-							{"item_name": "phase 4 active candidate", "status": "in_progress"}
-						]
+							"items": [
+								{"item_name": "phase 4 active candidate", "status": "in_progress", "contract": "phase 4 contract"}
+							]
+						}
 					}
-				}
 			}
 		}
 	}`)
@@ -96,7 +97,7 @@ func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
 	}
 
 	wantSelected := []Candidate{
-		{PhaseID: "3", SubphaseID: "3.E", ItemName: "phase 3 candidate", Status: "planned"},
+		{PhaseID: "3", SubphaseID: "3.E", ItemName: "phase 3 candidate", Status: "planned", Contract: "phase 3 contract", ContractStatus: "draft"},
 	}
 	if summary.Candidates != 1 {
 		t.Fatalf("Candidates = %d, want 1", summary.Candidates)
@@ -112,12 +113,12 @@ func TestRunOnceExecutesOncePerSelectedCandidate(t *testing.T) {
 			"12": {
 				"subphases": {
 					"12.A": {
-						"items": [
-							{"item_name": "active candidate", "status": "in_progress"},
-							{"item_name": "planned candidate", "status": "planned"},
-							{"item_name": "deferred candidate", "status": "deferred"}
-						]
-					}
+							"items": [
+								{"item_name": "active candidate", "status": "in_progress", "contract": "active contract"},
+								{"item_name": "planned candidate", "status": "planned", "contract": "planned contract", "contract_status": "draft"},
+								{"item_name": "deferred candidate", "status": "deferred"}
+							]
+						}
 				}
 			}
 		}
@@ -141,8 +142,8 @@ func TestRunOnceExecutesOncePerSelectedCandidate(t *testing.T) {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
 
-	if summary.Candidates != 3 {
-		t.Fatalf("Candidates = %d, want 3", summary.Candidates)
+	if summary.Candidates != 2 {
+		t.Fatalf("Candidates = %d, want 2", summary.Candidates)
 	}
 	if got, want := len(summary.Selected), 2; got != want {
 		t.Fatalf("Selected length = %d, want %d", got, want)
@@ -156,16 +157,19 @@ func TestRunOnceExecutesOncePerSelectedCandidate(t *testing.T) {
 				SubphaseID: "12.A",
 				ItemName:   "active candidate",
 				Status:     "in_progress",
+				Contract:   "active contract",
 			})},
 			Dir: repoRoot,
 		},
 		{
 			Name: "opencode",
 			Args: []string{"run", "--no-interactive", BuildWorkerPrompt(Candidate{
-				PhaseID:    "12",
-				SubphaseID: "12.A",
-				ItemName:   "planned candidate",
-				Status:     "planned",
+				PhaseID:        "12",
+				SubphaseID:     "12.A",
+				ItemName:       "planned candidate",
+				Status:         "planned",
+				Contract:       "planned contract",
+				ContractStatus: "draft",
 			})},
 			Dir: repoRoot,
 		},
@@ -183,7 +187,7 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 					"12.A": {
 						"items": [
 							{
-								"name": "prompted candidate",
+								"item_name": "prompted candidate",
 								"status": "planned",
 								"priority": "P0",
 								"contract": "Provider-neutral transcript contract",
@@ -200,6 +204,7 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 								"write_scope": ["internal/hermes/"],
 								"test_commands": ["go test ./internal/hermes -count=1"],
 								"done_signal": ["provider transcript replay passes"],
+								"unblocks": ["Bedrock adapter"],
 								"note": "Use captured transcript fixtures."
 							}
 						]
@@ -242,23 +247,72 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 		"Priority: P0",
 		"Execution owner: provider",
 		"Slice size: medium",
+		"Selection reason: P0 handoff",
 		"Contract: Provider-neutral transcript contract",
+		"Contract status: fixture_ready",
+		"Fixture: internal/hermes/testdata/provider_transcripts",
 		"Trust class:",
 		"- system",
+		"Ready when:",
+		"- fixtures replay",
+		"Not ready when:",
+		"- live provider call required",
+		"Blocked by:",
+		"- (none declared)",
+		"Unblocks:",
+		"- Bedrock adapter",
 		"Allowed write scope:",
 		"- internal/hermes/",
 		"Required test commands:",
 		"- go test ./internal/hermes -count=1",
 		"Done signal:",
 		"- provider transcript replay passes",
+		"Acceptance:",
+		"- go test ./internal/hermes passes",
 		"Source references:",
 		"- docs/content/upstream-hermes/source-study.md",
 		"Degraded mode: provider status reports missing fixtures",
 		"Note: Use captured transcript fixtures.",
+		"Requirements:",
+		"- Keep changes scoped to the selected task and its allowed write scope.",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt = %q, want %q", prompt, want)
 		}
+	}
+}
+
+func TestBuildWorkerPromptRendersDependencyMetadata(t *testing.T) {
+	prompt := BuildWorkerPrompt(Candidate{
+		PhaseID:    "12",
+		SubphaseID: "12.A",
+		ItemName:   "blocked candidate",
+		Status:     "planned",
+		BlockedBy:  []string{"Hermes fixtures"},
+	})
+
+	for _, want := range []string{
+		"Blocked by:",
+		"- Hermes fixtures",
+		"Unblocks:",
+		"- (none declared)",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt = %q, want %q", prompt, want)
+		}
+	}
+}
+
+func TestBuildWorkerPromptRendersEmptyNote(t *testing.T) {
+	prompt := BuildWorkerPrompt(Candidate{
+		PhaseID:    "12",
+		SubphaseID: "12.A",
+		ItemName:   "empty note candidate",
+		Status:     "planned",
+	})
+
+	if !strings.Contains(prompt, "Note: -") {
+		t.Fatalf("prompt = %q, want empty note rendered as dash", prompt)
 	}
 }
 
@@ -268,11 +322,11 @@ func TestRunOnceReturnsBackendRunnerError(t *testing.T) {
 			"12": {
 				"subphases": {
 					"12.A": {
-						"items": [
-							{"item_name": "planned run candidate", "status": "planned"}
-						]
+							"items": [
+								{"item_name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft"}
+							]
+						}
 					}
-				}
 			}
 		}
 	}`)
@@ -302,11 +356,11 @@ func TestRunOnceIncludesBackendStderrInError(t *testing.T) {
 			"12": {
 				"subphases": {
 					"12.A": {
-						"items": [
-							{"item_name": "planned run candidate", "status": "planned"}
-						]
+							"items": [
+								{"item_name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft"}
+							]
+						}
 					}
-				}
 			}
 		}
 	}`)
@@ -340,7 +394,7 @@ func TestRunOnceWritesLedgerEvents(t *testing.T) {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"item_name": "ledger candidate", "status": "planned"}
+							{"item_name": "ledger candidate", "status": "planned", "contract": "ledger contract", "contract_status": "draft"}
 						]
 					}
 				}
@@ -386,7 +440,7 @@ func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *test
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"item_name": "failing ledger candidate", "status": "planned"}
+							{"item_name": "failing ledger candidate", "status": "planned", "contract": "failing ledger contract", "contract_status": "draft"}
 						]
 					}
 				}
@@ -420,6 +474,100 @@ func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *test
 	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:backend_failed"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+}
+
+func TestRunOnceFailsWhenWorkerLeavesMergeConflicts(t *testing.T) {
+	repoRoot := t.TempDir()
+	initConflictingRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"12": {
+				"subphases": {
+					"12.A": {
+						"items": [
+							{"item_name": "conflicting worker", "status": "planned", "contract": "conflict contract", "contract_status": "draft"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	runRoot := t.TempDir()
+	runner := runnerFunc(func(context.Context, Command) Result {
+		cmd := exec.Command("git", "-C", repoRoot, "merge", "worker-branch")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("git merge unexpectedly succeeded:\n%s", output)
+		}
+		return Result{}
+	})
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     repoRoot,
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "opencode",
+			Mode:         "safe",
+			MaxAgents:    1,
+		},
+		Runner: runner,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want unresolved merge error")
+	}
+	if !strings.Contains(err.Error(), "unresolved merge conflicts") {
+		t.Fatalf("RunOnce() error = %q, want unresolved merge conflict context", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	var got []string
+	for _, event := range events {
+		got = append(got, event.Event+":"+event.Status)
+	}
+	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:worktree_unmerged"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+}
+
+type runnerFunc func(context.Context, Command) Result
+
+func (fn runnerFunc) Run(ctx context.Context, command Command) Result {
+	return fn(ctx, command)
+}
+
+func initConflictingRepo(t *testing.T, repoRoot string) {
+	t.Helper()
+
+	runGitCommand(t, repoRoot, "init")
+	runGitCommand(t, repoRoot, "config", "user.email", "test@example.com")
+	runGitCommand(t, repoRoot, "config", "user.name", "Test User")
+	if err := os.WriteFile(filepath.Join(repoRoot, "conflict.txt"), []byte("base\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, repoRoot, "add", "conflict.txt")
+	runGitCommand(t, repoRoot, "commit", "-m", "base")
+	runGitCommand(t, repoRoot, "checkout", "-b", "worker-branch")
+	if err := os.WriteFile(filepath.Join(repoRoot, "conflict.txt"), []byte("worker\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, repoRoot, "commit", "-am", "worker")
+	runGitCommand(t, repoRoot, "checkout", "master")
+	if err := os.WriteFile(filepath.Join(repoRoot, "conflict.txt"), []byte("main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, repoRoot, "commit", "-am", "main")
+}
+
+func runGitCommand(t *testing.T, repoRoot string, args ...string) {
+	t.Helper()
+
+	cmdArgs := append([]string{"-C", repoRoot}, args...)
+	cmd := exec.Command("git", cmdArgs...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, output)
 	}
 }
 
