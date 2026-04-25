@@ -712,11 +712,16 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 pairing read model note = %q, want PairingStore/pairing.json/no-code-generation detail", lifecycleStore.Note)
 	}
 	approval := lifecycleItems["Pairing approval + rate-limit semantics"]
-	if approval.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.3 pairing approval status = %q, want planned", approval.Status)
+	if approval.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.3 pairing approval status = %q, want complete", approval.Status)
 	}
-	if !strings.Contains(approval.Note, "rate limiting") || !strings.Contains(approval.Note, "lockout") {
-		t.Fatalf("Phase 2.F.3 pairing approval note = %q, want rate-limit/lockout detail", approval.Note)
+	if approval.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 2.F.3 pairing approval contract status = %q, want validated", approval.ContractStatus)
+	}
+	if !strings.Contains(approval.Note, "PairingStore") ||
+		!strings.Contains(approval.Note, "ten-minute per-user request rate limits") ||
+		!strings.Contains(approval.Note, "five-failure one-hour platform lockout") {
+		t.Fatalf("Phase 2.F.3 pairing approval note = %q, want PairingStore/rate-limit/lockout detail", approval.Note)
 	}
 	statusReadout := lifecycleItems["`gormes gateway status` read-only command"]
 	if statusReadout.Status != StatusPlanned {

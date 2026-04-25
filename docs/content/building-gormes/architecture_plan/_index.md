@@ -132,7 +132,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 2.B.11 — Discord Forum Channels 🔨
 
 - [x] Discord forum channel ingress + thread lifecycle
-- [ ] Discord SessionSource guild/parent/message evidence
+- [x] Discord SessionSource guild/parent/message evidence
 - [ ] Discord forum media + polish parity
 
 ### 2.C — Thin Mapping Persistence ✅
@@ -192,7 +192,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Active-turn follow-up queue + late-arrival drain policy
 - [ ] Drain-timeout resume_pending recovery
 - [x] Pairing read-model schema + atomic persistence
-- [ ] Pairing approval + rate-limit semantics
+- [x] Pairing approval + rate-limit semantics
 - [ ] Unauthorized DM pairing response contract
 - [ ] `gormes gateway status` read-only command
 - [ ] Runtime status JSON + PID/process validation
@@ -397,7 +397,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Provider-side resilience
 - [x] Classified provider-error taxonomy
-- [ ] Unsupported temperature retry + Codex flush guard
+- [x] Unsupported temperature retry + Codex flush guard
 - [x] Jittered reconnect backoff schedule
 - [x] Retry-After header parsing + HTTPError hint
 - [x] Kernel retry honors Retry-After hint
@@ -412,7 +412,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [ ] 61-tool registry port
 - [x] Tool registry inventory + schema parity harness
-- [ ] Tool parity manifest refresh for Hermes b35d692f
+- [x] Tool parity manifest refresh for Hermes b35d692f
 - [ ] Discord tool split + platform-scoped toolsets
 - [ ] Pure core tools first
 - [ ] Stateful tool migration queue

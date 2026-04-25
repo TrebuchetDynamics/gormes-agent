@@ -790,9 +790,9 @@
             },
             {
               "name": "Discord SessionSource guild/parent/message evidence",
-              "status": "planned",
+              "status": "complete",
               "contract": "Discord ingress preserves guild, parent channel, and triggering message IDs in the gateway SessionSource without changing existing chat/thread routing",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -828,7 +828,7 @@
                 "Forum/thread messages preserve the parent channel/forum ID separately from the effective ChatID and canonical ThreadID.",
                 "DMs and platforms without these identifiers render no fabricated values and preserve existing chat/thread routing."
               ],
-              "note": "Hermes b35d692f added guild_id, parent_chat_id, and message_id to SessionSource so Discord tools can act on the current server/channel/message without asking the model to rediscover IDs. Gormes should port this as source metadata only before widening Discord admin/tool behavior.",
+              "note": "TDD landed: fixture-backed Discord ingress now preserves guild_id, parent_chat_id, and message_id as gateway SessionSource metadata, renders only available values in session context, and keeps existing forum ChatID/ThreadID routing unchanged.",
               "write_scope": [
                 "internal/gateway/session_context.go",
                 "internal/gateway/event.go",
@@ -1413,9 +1413,9 @@
             },
             {
               "name": "Pairing approval + rate-limit semantics",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pairing approval uses Hermes-compatible code generation, expiry, pending limits, failed-approval lockout, per-user rate limits, and Telegram DM from_user fallback without starting agent sessions",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1451,7 +1451,7 @@
                 "Per-user request rate limiting blocks repeat code requests for ten minutes and records visible rate-limit evidence.",
                 "Telegram private-chat events with from_user missing resolve user_id from chat.id; non-DM events with from_user missing do not synthesize a user_id; allowlist-denied users still hit the failed-attempt/lockout evidence path."
               ],
-              "note": "TDD-ready: freeze upstream PairingStore policy over the Go read model, including rate limiting and failed-approval lockout. Keep platform response copy and deny/pair/ignore behavior in the unauthorized-DM row so workers can land this as pure state/policy fixtures.",
+              "note": "TDD landed: internal/gateway.PairingStore now owns Hermes-compatible pairing approval policy over the Go read model: cryptographic 8-character unambiguous codes, one-hour expiry, max three pending codes per platform, ten-minute per-user request rate limits with status evidence, five-failure one-hour platform lockout, valid-code approval that removes pending records, Telegram private-chat missing-from_user fallback through InboundEvent.ChatType, and typed evidence for rate-limited, max-pending, expired, locked-out, allowlist-denied, and unresolved-user attempts without adapter sends or agent sessions.",
               "write_scope": [
                 "internal/gateway/pairing_store.go",
                 "internal/gateway/pairing_approval_test.go",
@@ -4285,9 +4285,9 @@
             {
               "name": "Unsupported temperature retry + Codex flush guard",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Provider calls that actually send temperature retry once without it on unsupported-parameter errors, while Codex Responses fallback never emits temperature",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -4326,7 +4326,7 @@
                 "Unrelated 400s and calls that did not send temperature do not trigger the temperature retry path.",
                 "Codex Responses request builders and memory-flush fallback fixtures prove no temperature field is emitted."
               ],
-              "note": "Gormes does not currently serialize temperature on the generic OpenAI-compatible client, but ChatRequest already carries it and Bedrock uses it. Freeze the reactive strip-and-retry behavior before OpenRouter/Codex/native auxiliary paths start forwarding optional sampling fields.",
+              "note": "Complete: TDD landed internal/hermes/unsupported_temperature_retry_test.go. OpenAI-compatible requests now serialize optional max_tokens and temperature when present, retry exactly once without temperature on upstream-matched unsupported-temperature provider errors, preserve the rest of the request body, and record temperature-stripped retry evidence in ProviderStatus. Unrelated 400s and requests that did not send temperature do not retry, while Codex Responses flush-shaped payload fixtures prove temperature is never emitted.",
               "write_scope": [
                 "internal/hermes/",
                 "internal/kernel/",
@@ -4454,9 +4454,9 @@
             {
               "name": "Tool parity manifest refresh for Hermes b35d692f",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Embedded upstream tool parity fixtures reflect Hermes b35d692f tool names, toolsets, schemas, and platform restrictions before handler rows rely on them",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -4495,7 +4495,7 @@
                 "Cronjob schema includes context_from with update-clear semantics in descriptor metadata.",
                 "Toolset rows capture Feishu document/drive additions and Discord-only platform restrictions without adding those tools to generic core toolsets."
               ],
-              "note": "Current Gormes manifest still reflects the older Discord server tool shape. Refresh the descriptor fixture first so handler and CLI rows can consume exact donor names without rediscovering Python.",
+              "note": "Complete: TDD refreshed the embedded tool parity manifest for Hermes b35d692f without porting handlers. The fixture now records Hermes donor metadata and generator inputs, replaces legacy discord_server with split discord / discord_admin rows plus dynamic-schema provenance, adds cronjob context_from schema and update-clear descriptor metadata, and updates Discord/Feishu platform toolsets while keeping platform-only tools out of generic core toolsets. The parity doctor can now report stale donor commits, missing required parity rows, missing schema properties, and toolset mismatches before runtime ports begin.",
               "write_scope": [
                 "internal/tools/testdata/upstream_tool_parity_manifest.json",
                 "internal/tools/",
@@ -4509,6 +4509,11 @@
               "done_signal": [
                 "Tool parity tests prove the embedded manifest reflects Hermes b35d692f Discord, cron, Feishu, and platform-toolset schema drift before handlers port."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T12:56:32Z",
+                "last_success": "2026-04-25T12:56:32Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b35d692f toolsets.py",
