@@ -5,6 +5,7 @@
       <p class="kicker">{{.HeroKicker}}</p>
       <h1 class="hero-title">{{.HeroHeadline}}</h1>
       <p class="hero-subhead">{{.HeroSubhead}}</p>
+      <p class="hero-filter">{{.HeroFilterLine}}</p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
         <a class="btn btn-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
@@ -26,12 +27,35 @@
   </div>
 </section>
 
-<section id="features" class="features">
-  <div class="features-inner">
-    <p class="kicker">{{.FeaturesLabel}}</p>
-    <h2 class="section-title">{{.FeaturesHeadline}}</h2>
+<section id="why" class="why">
+  <div class="why-inner">
+    <p class="kicker">{{.WhyLabel}}</p>
+
+    <div class="why-manifesto">
+      <p class="why-manifesto-line">{{.WhyManifestoLine}}</p>
+      <ul class="why-manifesto-list">
+        {{range .WhyManifestoBullets}}<li>{{.}}</li>{{end}}
+      </ul>
+    </div>
+
+    <h2 class="section-title why-pain-headline">{{.WhyPainHeadline}}</h2>
+    <ul class="why-pain-list">
+      {{range .WhyPainBullets}}<li>{{.}}</li>{{end}}
+    </ul>
+
+    <h3 class="why-fix-subhead">{{.WhyFixSubhead}}</h3>
     <div class="features-grid">
       {{range .FeatureCards}}{{template "feature_card" .}}{{end}}
+    </div>
+  </div>
+</section>
+
+<section id="audience" class="audience">
+  <div class="audience-inner">
+    <p class="kicker">{{.AudienceLabel}}</p>
+    <h2 class="section-title">{{.AudienceHeadline}}</h2>
+    <div class="audience-grid">
+      {{range .AudienceCards}}{{template "audience_card" .}}{{end}}
     </div>
   </div>
 </section>
@@ -40,9 +64,27 @@
   <div class="roadmap-inner">
     <p class="kicker">{{.RoadmapLabel}}</p>
     <h2 class="section-title">{{.RoadmapHeadline}}</h2>
-    <div class="roadmap-phases">
-      {{range .RoadmapPhases}}{{template "roadmap_phase" .}}{{end}}
+
+    <div class="roadmap-summary">
+      <div class="roadmap-summary-block">
+        <h4 class="roadmap-summary-heading">Current focus</h4>
+        <ul class="roadmap-summary-list">
+          {{range .RoadmapCurrentFocus}}<li>{{.}}</li>{{end}}
+        </ul>
+      </div>
+      <div class="roadmap-summary-block">
+        <h4 class="roadmap-summary-heading">Next milestone</h4>
+        <p class="roadmap-summary-milestone">{{.RoadmapNextMilestone}}</p>
+      </div>
     </div>
+
+    <details class="roadmap-details">
+      <summary class="roadmap-details-summary">{{.RoadmapDetailsSummary}}</summary>
+      <div class="roadmap-phases">
+        {{range .RoadmapPhases}}{{template "roadmap_phase" .}}{{end}}
+      </div>
+    </details>
+
     <p class="roadmap-footer">
       <a href="{{.ProgressTrackerURL}}">{{.ProgressTracker}} · Full progress tracker →</a>
     </p>

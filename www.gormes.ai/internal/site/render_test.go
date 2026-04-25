@@ -15,40 +15,63 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 
 	text := string(body)
 	wants := []string{
-		// Hero — operations-first reframe; Hermes is no longer a dependency
-		// and the Go-native runtime is still under construction.
+		// Hero — leads with what Gormes is *for* (AI-agent runtime),
+		// not its lineage. Subtle filter line below the subhead aimed
+		// at production-minded developers.
 		"OPEN SOURCE · MIT LICENSE",
 		"UNDER CONSTRUCTION",
 		"One Go Binary. No Python. No Drift.",
-		"Gormes is a Go-native rewrite of Hermes Agent",
+		"Go-native runtime for AI agents",
 		"Hermes is no longer required",
-		"not production-ready yet",
-		// Install
+		"still under active construction",
+		"Early-stage. Built for developers who care about reliability over polish.",
+		`class="hero-filter"`,
+		// Install — footnote rewritten for clarity (prebuilt binary,
+		// source-backed installer is temporary).
 		"1. UNIX / MACOS / TERMUX",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"2. WINDOWS POWERSHELL",
 		"irm https://gormes.ai/install.ps1 | iex",
 		"3. RUN",
-		"Rerun the installer to update the managed Gormes checkout.",
-		"Source-backed for now →",
+		"Installs a prebuilt static binary",
+		"Source-backed installer is temporary during early development →",
 		// Copy button (clipboard JS is allowed for this widget only)
 		`class="copy-btn"`,
 		"navigator.clipboard.writeText",
-		// Features — operations-first framing, problem→solution
+		// Why Gormes — manifesto + pain frame + fix cards under one section.
+		`id="why"`,
 		"WHY GORMES",
-		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"Gormes is not about smarter agents.",
+		"It&#39;s about agents that don&#39;t fail to install.",
+		"It&#39;s about agents that don&#39;t crash after six hours.",
+		"Why Hermes-stack agents break in production.",
+		"Python environments drift between dev, staging, and prod.",
+		"SSE streams drop on flaky networks and kill long-running agents.",
+		"How Gormes fixes it.",
 		"Single Static Binary",
 		"No Runtime Drift",
 		"Streams That Don&#39;t Drop",
 		"Local Validation",
 		"Route-B reconnect treats SSE drops",
 		"gormes doctor --offline",
-		// Roadmap section — structural checks only. The roadmap itself
-		// is now driven by progress.json; asserting exact counts or
-		// item names here would re-introduce the very drift we just
-		// eliminated. We check for tones and structure instead.
+		// Audience filter — "Who Gormes is for" personas.
+		`id="audience"`,
+		"WHO GORMES IS FOR",
+		"Operators of long-running agents",
+		"Developers tired of Python/Nix/npm breakage",
+		"Builders who want one binary that just runs",
+		// Roadmap section — summary block (current focus + next milestone)
+		// up top, full phase checklist behind a <details> disclosure.
 		"BUILD STATE",
 		"What works today, and what&#39;s still being wired up.",
+		"Current focus",
+		"Next milestone",
+		"Gateway stability",
+		"Memory system",
+		"Brain transplant",
+		"Fully independent Go-native brain",
+		`<details class="roadmap-details">`,
+		"View full phase-by-phase checklist",
 		// Fuzzy phase-title presence (each phase renders)
 		"Phase 1",
 		"Phase 2",
@@ -110,6 +133,14 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Boots Like a Tool",
 		"In-Process Tool Loop",
 		"Survives Dropped Streams",
+		// Operations-first rewrite that buried the "what is Gormes for"
+		// answer behind lineage detail. Replaced with "Go-native runtime
+		// for AI agents" framing.
+		"Gormes is a Go-native rewrite of Hermes Agent — built to solve the operations problem, not the AI problem.",
+		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"Rerun the installer to update the managed Gormes checkout.",
+		"Source-backed for now →",
+		"not production-ready yet",
 		// Obsolete single-row ledger copy replaced by grouped roadmap
 		"Phase 3 — SQLite + FTS5 transcript memory.",
 		"Phase 3.A–C — SQLite + FTS5 lattice, ontological graph, neural recall.",
@@ -150,6 +181,7 @@ func TestEmbeddedTemplates_ArePresentAndParse(t *testing.T) {
 		"templates/index.tmpl",
 		"templates/partials/install_step.tmpl",
 		"templates/partials/feature_card.tmpl",
+		"templates/partials/audience_card.tmpl",
 		"templates/partials/roadmap_phase.tmpl",
 	}
 
@@ -168,7 +200,7 @@ func TestEmbeddedTemplates_ArePresentAndParse(t *testing.T) {
 		t.Fatalf("parseTemplates: %v", err)
 	}
 
-	for _, want := range []string{"layout", "index", "install_step", "feature_card", "roadmap_phase"} {
+	for _, want := range []string{"layout", "index", "install_step", "feature_card", "audience_card", "roadmap_phase"} {
 		if templates.Lookup(want) == nil {
 			t.Fatalf("parsed templates missing %q", want)
 		}

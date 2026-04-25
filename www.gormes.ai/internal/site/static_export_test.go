@@ -22,11 +22,25 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	text := string(indexBody)
 	wants := []string{
 		"One Go Binary. No Python. No Drift.",
+		"Go-native runtime for AI agents",
+		"Early-stage. Built for developers who care about reliability over polish.",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"irm https://gormes.ai/install.ps1 | iex",
-		"Rerun the installer to update the managed Gormes checkout.",
-		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"Installs a prebuilt static binary",
+		// Why-Gormes section: manifesto + pain frame + fix cards.
+		"Gormes is not about smarter agents.",
+		"Why Hermes-stack agents break in production.",
+		"Python environments drift between dev, staging, and prod.",
+		"How Gormes fixes it.",
+		// Audience filter
+		"WHO GORMES IS FOR",
+		"Operators of long-running agents",
+		// Roadmap summary + collapse
 		"What works today, and what&#39;s still being wired up.",
+		"Current focus",
+		"Next milestone",
+		"View full phase-by-phase checklist",
+		`<details class="roadmap-details">`,
 		// Favicons + social-card meta tags rendered in <head>.
 		`href="/static/favicon.ico"`,
 		`href="/static/apple-touch-icon.png"`,
@@ -67,6 +81,11 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"A static Go binary that talks to your Hermes backend over HTTP.",
 		"Why a Go layer matters.",
 		"Boots Like a Tool",
+		// Operations-first v1 copy that buried "what is Gormes for" behind lineage
+		"Gormes is a Go-native rewrite of Hermes Agent — built to solve the operations problem, not the AI problem.",
+		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"Rerun the installer to update the managed Gormes checkout.",
+		"Source-backed for now →",
 	}
 	for _, want := range wants {
 		if !strings.Contains(text, want) {

@@ -3,8 +3,12 @@
 </p>
 
 <p align="center">
-  <strong>Agents that don't crash, drift, or fail to deploy.</strong><br>
-  A Go-native runtime — one binary, no Python, no virtualenvs.
+  <strong>A Go-native runtime for AI agents — one binary, no Python, no virtualenvs.</strong><br>
+  Built to fix the reliability and deployment problems that break Python-stack agents in production.
+</p>
+
+<p align="center">
+  <em>Early-stage. Built for developers who care about reliability over polish.</em>
 </p>
 
 <p align="center">
@@ -55,17 +59,41 @@ Hermes is no longer a runtime dependency. The Go-native pieces that replace it a
 
 ---
 
-## Why Hermes Breaks in Production — and How Gormes Fixes It
+## Why Gormes Exists
+
+> **Gormes is not about smarter agents.**
+>
+> It's about agents that:
+> - don't fail to install
+> - don't drift between environments
+> - don't crash after six hours
+> - don't lose work on dropped connections
+
+### Why Hermes-stack agents break in production
+
+- Python environments drift between dev, staging, and prod.
+- npm and Nix builds break silently on host package skew.
+- Multi-process Python orchestration crashes or hangs under load.
+- SSE streams drop on flaky networks and kill long-running agents.
+- Debugging a single failure spans Python, Node, and OS runtimes.
+
+### How Gormes fixes it
 
 | Problem | Gormes |
 |---|---|
-| **Broken installs** — Python env drift, npm/Nix breakage, host package skew | Single ~17.7 MB static binary |
-| **Runtime drift** — virtualenv inconsistencies between dev, staging, prod | Pure Go. No `pip`, no `npm`, no `activate` |
-| **Process crashes** — multi-process Python orchestration | One runtime, one process tree |
-| **Dropped SSE streams** — silent token loss on flaky networks | Route-B auto-reconnect, no lost responses |
-| **3am debugging** — schema drift caught only after a tool call burns tokens | `gormes doctor --offline` validates locally first |
+| **Broken installs** | Single ~17.7 MB static binary |
+| **Runtime drift** | Pure Go. No `pip`, no `npm`, no `activate` |
+| **Process crashes** | One runtime, one process tree |
+| **Dropped SSE streams** | Route-B auto-reconnect, no lost responses |
+| **3am debugging** | `gormes doctor --offline` validates locally first |
 
-> Gormes is not about smarter agents. It's about agents that don't crash, drift, or fail to deploy.
+---
+
+## Who Gormes Is For
+
+- **Operators of long-running agents** — you need agents that survive restarts, network blips, and host upgrades, not just impressive demos.
+- **Developers tired of Python/Nix/npm breakage** — you're tired of an agent that worked yesterday breaking today because a transitive dep ticked over.
+- **Builders who want one binary that just runs** — you'd rather `scp` one file to a Termux session or Alpine VPS than reproduce a virtualenv.
 
 ---
 
