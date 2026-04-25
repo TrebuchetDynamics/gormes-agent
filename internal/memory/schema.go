@@ -3,7 +3,7 @@ package memory
 // schemaVersion is the canonical target version for this binary. OpenSqlite
 // migrates any earlier supported version up to this value, and refuses to
 // open DBs with an unknown version (future schemas).
-const schemaVersion = "3g"
+const schemaVersion = "3h"
 
 // schemaV3a is the baseline schema installed on a fresh DB. It matches
 // exactly what Phase 3.A shipped — any change to this string is a schema
@@ -227,4 +227,25 @@ CREATE INDEX IF NOT EXISTS idx_turns_turn_key
 	ON turns(turn_key) WHERE turn_key IS NOT NULL;
 
 UPDATE schema_meta SET v = '3g' WHERE k = 'version' AND v = '3f';
+`
+
+// migration3gTo3h adds Honcho-compatible Goncho session summary slots:
+//   - one short and one long summary per workspace/session
+//   - message_id records the last covered turn
+//   - token_count makes context-budget decisions deterministic
+const migration3gTo3h = `
+CREATE TABLE IF NOT EXISTS goncho_session_summaries (
+	workspace_id TEXT    NOT NULL,
+	session_key  TEXT    NOT NULL,
+	summary_type TEXT    NOT NULL CHECK(summary_type IN ('short','long')),
+	content      TEXT    NOT NULL,
+	message_id   INTEGER NOT NULL,
+	created_at   INTEGER NOT NULL,
+	token_count  INTEGER NOT NULL CHECK(token_count >= 0),
+	PRIMARY KEY(workspace_id, session_key, summary_type)
+);
+CREATE INDEX IF NOT EXISTS idx_goncho_session_summaries_session
+	ON goncho_session_summaries(workspace_id, session_key);
+
+UPDATE schema_meta SET v = '3h' WHERE k = 'version' AND v = '3g';
 `

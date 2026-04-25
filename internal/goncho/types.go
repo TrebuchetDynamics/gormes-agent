@@ -75,7 +75,10 @@ type SearchResultSet struct {
 type ContextParams struct {
 	Peer                string   `json:"peer"`
 	Query               string   `json:"query,omitempty"`
+	SearchQuery         string   `json:"search_query,omitempty"`
 	MaxTokens           int      `json:"max_tokens,omitempty"`
+	Tokens              int      `json:"tokens,omitempty"`
+	Summary             *bool    `json:"summary,omitempty"`
 	SessionKey          string   `json:"session_key,omitempty"`
 	Scope               string   `json:"scope,omitempty"`
 	Sources             []string `json:"sources,omitempty"`
@@ -94,6 +97,16 @@ type MessageSlice struct {
 	Content string `json:"content"`
 }
 
+// SessionSummary is the summary component returned by session context when a
+// short or long summary slot fits inside the requested summary budget.
+type SessionSummary struct {
+	Content     string `json:"content"`
+	MessageID   int64  `json:"message_id"`
+	SummaryType string `json:"summary_type"`
+	CreatedAt   int64  `json:"created_at"`
+	TokenCount  int    `json:"token_count"`
+}
+
 // ContextUnavailableEvidence names a requested context capability that Goncho
 // accepted but cannot yet fulfill with the current local storage model.
 type ContextUnavailableEvidence struct {
@@ -109,7 +122,7 @@ type ContextResult struct {
 	SessionKey     string                       `json:"session_key,omitempty"`
 	PeerCard       []string                     `json:"peer_card"`
 	Representation string                       `json:"representation"`
-	Summary        string                       `json:"summary,omitempty"`
+	Summary        *SessionSummary              `json:"summary,omitempty"`
 	Conclusions    []string                     `json:"conclusions,omitempty"`
 	RecentMessages []MessageSlice               `json:"recent_messages,omitempty"`
 	Unavailable    []ContextUnavailableEvidence `json:"unavailable,omitempty"`

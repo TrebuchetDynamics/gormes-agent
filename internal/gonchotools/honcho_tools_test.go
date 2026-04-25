@@ -60,6 +60,16 @@ func TestHonchoContextTool_SchemaExposesOptionalRepresentationOptions(t *testing
 	})
 }
 
+func TestHonchoContextTool_SchemaExposesOptionalSummaryContextOptions(t *testing.T) {
+	tool := &HonchoContextTool{}
+
+	assertOptionalSchemaProperties(t, tool.Schema(), []string{"peer"}, map[string]string{
+		"tokens":       "integer",
+		"summary":      "boolean",
+		"search_query": "string",
+	})
+}
+
 func TestHonchoSearchTool_OmittedScopeSourcesPreservesSameChatDefault(t *testing.T) {
 	reg, svc, cleanup := newTestHonchoRegistry(t)
 	defer cleanup()

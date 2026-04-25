@@ -319,6 +319,43 @@ func TestMigrate_3fTo3g_AddsMemorySyncColumns(t *testing.T) {
 	}
 }
 
+func TestMigrate_3gTo3h_AddsGonchoSessionSummaries(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "memory.db")
+	s, err := OpenSqlite(path, 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer s.Close(context.Background())
+
+	for _, col := range []string{"workspace_id", "session_key", "summary_type", "content", "message_id", "created_at", "token_count"} {
+		var name string
+		row := s.db.QueryRow(
+			`SELECT name FROM pragma_table_info('goncho_session_summaries') WHERE name = ?`, col)
+		if err := row.Scan(&name); err != nil {
+			t.Errorf("column %q missing from goncho_session_summaries: %v", col, err)
+		}
+	}
+
+	for _, summaryType := range []string{"short", "long"} {
+		if _, err := s.db.Exec(
+			`INSERT INTO goncho_session_summaries(
+				workspace_id, session_key, summary_type, content, message_id, created_at, token_count
+			) VALUES('default', 'sess', ?, 'summary', 20, 1, 1)`,
+			summaryType,
+		); err != nil {
+			t.Fatalf("summary_type %q rejected: %v", summaryType, err)
+		}
+	}
+
+	_, err = s.db.Exec(
+		`INSERT INTO goncho_session_summaries(
+			workspace_id, session_key, summary_type, content, message_id, created_at, token_count
+		) VALUES('default', 'sess', 'medium', 'summary', 20, 1, 1)`)
+	if err == nil {
+		t.Fatal("summary_type='medium' should trip CHECK constraint")
+	}
+}
+
 func TestMigrate_3dTo3e_AddsCronColumnsToTurns(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "memory.db")
 	s, _ := OpenSqlite(path, 0, nil)
