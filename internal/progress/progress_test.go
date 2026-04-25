@@ -65,9 +65,10 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
 		t.Errorf("Phase 2 = %q, want in_progress", got)
 	}
-	// Phase 3 memory rows are shipped.
-	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 3 = %q, want complete", got)
+	// Phase 3 is open again because Honcho dreaming is tracked as a planned
+	// local Goncho scheduler/status row.
+	if got := p.Phases["3"].DerivedStatus(); got != StatusInProgress {
+		t.Errorf("Phase 3 = %q, want in_progress", got)
 	}
 	// Phase 4 has the Anthropic adapter landed while the rest stays planned.
 	if got := p.Phases["4"].DerivedStatus(); got != StatusInProgress {

@@ -22,45 +22,46 @@ tests, and candidate policy. Keep those control-plane facts in
 `meta.autoloop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Operator-auditable search evidence
+## 1. Pairing read-model schema + atomic persistence
 
-- Phase: 3 / 3.E.8
+- Phase: 2 / 2.F.3
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Contract: Gateway pairing state is persisted as a Go-native XDG read model with atomic writes, deterministic pending/approved ordering, and per-platform paired/unpaired status before approval UX
+- Trust class: gateway, operator
+- Ready when: The shared gateway package already owns RuntimeStatusStore and can add a pairing read model without live adapter startup., No approval-code generation or unauthorized-DM response behavior is needed for this first persistence slice.
+- Not ready when: The implementation wires Telegram/Discord/Slack pairing UX, generates codes, or starts channel transports instead of only freezing the persisted read model.
+- Degraded mode: Gateway status reports missing, corrupt, or permission-denied pairing state without starting transports or accepting unknown users.
+- Fixture: `internal/gateway/pairing_store_test.go`
+- Write scope: `internal/gateway/pairing_store.go`, `internal/gateway/pairing_store_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway -run TestPairingStore -count=1`, `go run ./cmd/autoloop progress validate`
+- Done signal: Pairing store fixtures prove atomic persistence, deterministic readout, corrupt-state degradation, and per-platform pending/approved separation without code generation or adapter UX.
+- Acceptance: Pairing store fixtures create pending and approved user records per platform under an XDG-controlled state root., Writes use temp-file plus atomic rename, preserve valid old state on failed writes, and apply owner-only file mode where the platform supports chmod., Corrupt JSON and missing files return structured degraded evidence and deterministic empty read models., List output is sorted by platform, user_id, and code age so docs/status tests do not depend on map iteration order.
+- Source refs: ../hermes-agent/gateway/pairing.py@5401a008, ../hermes-agent/tests/gateway/test_pairing.py@5401a008, internal/gateway/status.go, docs/content/building-gormes/architecture_plan/phase-2-gateway.md
+- Unblocks: Pairing approval + rate-limit semantics, `gormes gateway status` read-only command
+- Why now: Unblocks Pairing approval + rate-limit semantics, `gormes gateway status` read-only command.
+
+## 2. Goncho dreaming scheduler contract
+
+- Phase: 3 / 3.F
 - Owner: `memory`
 - Size: `small`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Goncho/Honcho-compatible search surfaces operator evidence for user scope, source filters, and session lineage on every widened cross-source search hit
+- Priority: `P3`
+- Contract: Goncho models Honcho dream scheduling as local auditable work intent with cooldown, idle, threshold, and dedupe gates before any LLM dream execution
 - Trust class: operator, system
-- Ready when: Lineage-aware source-filtered search hits are validated on main., GONCHO user-scope search/context parameters and Honcho-compatible scope/source tool schemas are validated on main., The slice can be tested from seeded SQLite/Bolt fixtures without provider calls or external Honcho services.
-- Not ready when: The slice changes search ranking, widens default same-chat recall, implements Honcho v3 HTTP/SDK parity, or adds new filters beyond reporting existing scope/source/lineage evidence.
-- Degraded mode: Search output reports missing session-directory evidence, same-chat fallback, unavailable lineage, orphaned lineage, and source allowlists instead of implying cross-source recall was safe by default.
-- Fixture: `cmd/gormes/goncho_search_evidence_test.go`
-- Write scope: `cmd/gormes/goncho.go`, `cmd/gormes/goncho_search_evidence_test.go`, `internal/goncho/types.go`, `internal/goncho/service.go`, `internal/goncho/service_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run TestGonchoDoctorSearchEvidence -count=1`, `go test ./internal/goncho -run TestServiceSearch -count=1`, `go test ./internal/memory -run TestSessionCatalog_SearchHitsIncludeLineageContext -count=1`
-- Done signal: Goncho doctor fixtures prove cross-source search evidence names source filters, user-scope decisions, and lineage status for widened hits without changing default recall fences.
-- Acceptance: `gormes goncho doctor --peer <user> --session <source:chat> --scope user --sources <source>` text output includes scope decision, source allowlist, sessions considered, widened session count, search hit source/origin_source/session_key, and lineage status for each hit., JSON output includes the same search evidence fields so autoloop and docs tests can assert them without parsing text., Search evidence reports orphan/unavailable lineage explicitly and does not widen recall when scope=user is denied or session directory evidence is missing.
-- Source refs: internal/memory/session_catalog.go, internal/memory/session_lineage_search_test.go, internal/goncho/service.go, cmd/gormes/goncho.go, docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md, ../honcho/docs/v3/documentation/features/advanced/search.mdx@e659b6b, ../honcho/docs/v3/documentation/features/advanced/using-filters.mdx@e659b6b
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Per-turn model selection
-
-- Phase: 4 / 4.D
-- Owner: `provider`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Kernel accepts a per-turn model override, sends it on exactly one hermes.ChatRequest, exposes the active model in RenderFrame during that turn, and falls back to the resident config model on the next turn
-- Trust class: operator, gateway, system
-- Ready when: Routing policy and fallback selector is validated on main., Kernel tests can use internal/hermes.MockClient to inspect ChatRequest.Model without live provider credentials., Current main has no PlatformEvent.Model field and still builds ChatRequest with k.cfg.Model, so the first test must be RED before implementation.
-- Not ready when: The slice reintroduces Config.ModelSelector, changes provider routing policy, makes provider network calls, mutates cfg.Model globally, or wires context compression history pruning.
-- Degraded mode: If no per-turn model is supplied or the override is blank, the kernel continues using cfg.Model and status frames make the resident model explicit.
-- Fixture: `internal/kernel/per_turn_model_test.go`
-- Write scope: `internal/kernel/frame.go`, `internal/kernel/kernel.go`, `internal/kernel/per_turn_model_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/kernel -run TestPerTurnModel -count=1`, `go test ./internal/kernel -count=1`
-- Done signal: internal/kernel/per_turn_model_test.go proves override, fallback, and frame-model behavior without mutating cfg.Model or provider routing.
-- Acceptance: A PlatformEventSubmit with Model="override-model" causes the outbound hermes.ChatRequest.Model to be override-model for that turn., A following PlatformEventSubmit with no Model uses the original cfg.Model, proving the override did not mutate resident kernel configuration., RenderFrame.Model reflects the active override while the turn is connecting/streaming and returns to cfg.Model after the turn settles., The test stays in internal/kernel with MockClient and does not add provider calls or routing selector changes.
-- Source refs: internal/kernel/frame.go, internal/kernel/kernel.go, internal/hermes/model_routing.go, docs/content/upstream-hermes/user-guide/features/provider-routing.md, ../hermes-agent/run_agent.py@5401a008
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+- Ready when: Goncho configuration namespace, queue status read model, and directional representation scope fixtures are validated on main., The first slice only records dream work intent and degraded evidence; it does not need a model provider, worker daemon, or surprisal tree.
+- Not ready when: The slice runs LLM deduction or induction, implements tree-based surprisal, starts background workers, or calls a hosted Honcho service.
+- Degraded mode: When dreaming is disabled or no scheduler table exists, Goncho context and doctor output report dream_disabled or dream_unavailable evidence rather than implying background reasoning is active.
+- Fixture: `internal/goncho/dream_scheduler_test.go`
+- Write scope: `internal/goncho/`, `internal/memory/`, `internal/config/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/goncho ./internal/memory ./internal/config ./cmd/gormes -run TestGonchoDream -count=1`, `go run ./cmd/autoloop progress validate`
+- Done signal: Dream scheduler fixtures prove threshold, cooldown, idle, dedupe, manual scheduling, cancellation, and doctor/status degraded evidence without LLM execution.
+- Acceptance: Scheduler fixtures create at most one pending or in-progress dream per workspace/observer/observed tuple., A dream is eligible only after at least 50 new conclusions since the last dream, an eight-hour cooldown, and the configured idle timeout., New activity cancels or marks stale a pending dream for the observed peer without deleting prior dream history., Manual schedule requests are deduped and report whether they created, reused, or rejected a dream intent., Doctor/status output exposes dream_disabled, dream_pending, dream_in_progress, and dream_cooldown evidence without waiting for queue emptiness.
+- Source refs: ../honcho/docs/v3/documentation/features/advanced/dreaming.mdx@e659b6b, ../honcho/docs/v3/documentation/core-concepts/reasoning.mdx@e659b6b, ../honcho/docs/v3/contributing/configuration.mdx@e659b6b, docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md, docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md, internal/goncho/service.go, internal/config/config.go
+- Unblocks: Goncho dream execution worker, Goncho dream status documentation
+- Why now: Unblocks Goncho dream execution worker, Goncho dream status documentation.
 
 ## 3. BlueBubbles iMessage bubble formatting parity
 

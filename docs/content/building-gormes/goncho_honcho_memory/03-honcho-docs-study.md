@@ -80,11 +80,14 @@ reasoning:
 5. **Representation** is the derived, queryable memory for a peer. It includes
    conclusions, summaries, and peer cards, not just stored text.
 
-Goncho already has parts of this contract: `internal/goncho.Service`,
-`honcho_*` tools, peer cards, manual conclusions, same-chat recall, and
-`scope=user` / `sources[]` plumbing. It does not yet have the full docs-visible
-contract for representation options, directional peer cards, filters, queue
-status, configuration inheritance, summaries, or dreaming.
+Goncho now has the main local parity slices for `internal/goncho.Service`,
+`honcho_*` tools, peer cards, manual conclusions, same-chat recall,
+`scope=user` / `sources[]` plumbing, representation options, directional peer
+cards, fail-closed filters, queue status, configuration inheritance, summaries,
+chat, streaming persistence, file imports, and operator diagnostics. The
+remaining local Honcho-docs gap is dreaming as scheduler/status evidence; full
+managed-Honcho HTTP/webhook parity remains intentionally outside the local
+Goncho baseline unless a future roadmap row opts into it.
 
 ## Docs-Driven Gaps
 
@@ -103,12 +106,10 @@ Honcho `session.context()` supports these public controls:
 - `include_most_frequent`;
 - `max_conclusions`.
 
-Goncho currently exposes `peer`, `query`, `max_tokens`, `session_key`,
-`scope`, and `sources` in `internal/goncho.ContextParams`, while
-`honcho_context` only advertises the first four in the tool schema. The next
-context slice should not jump straight to full SDK parity. It should first add
-typed fields for the Honcho v3 representation options and fixture-lock how
-unsupported options degrade.
+Goncho now exposes these fields through `internal/goncho.ContextParams` and the
+`honcho_context` schema. The important preserved rule is still narrow-first:
+unsupported representation options must return structured unavailable evidence
+instead of silently widening recall.
 
 Planned fixture shape:
 

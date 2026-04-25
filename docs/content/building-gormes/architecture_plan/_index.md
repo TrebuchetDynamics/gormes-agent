@@ -301,16 +301,16 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Cross-chat deny-path fixtures
 - [x] Cross-chat operator evidence
 
-### 3.E.8 — Session Lineage + Cross-Source Search 🔨
+### 3.E.8 — Session Lineage + Cross-Source Search ✅
 
 - [x] parent_session_id lineage for compression splits
 - [x] Gateway resume follows compression continuation
 - [x] Source-filtered session/message search core
 - [x] GONCHO user-scope search/context parameters
 - [x] Lineage-aware source-filtered search hits
-- [ ] Operator-auditable search evidence
+- [x] Operator-auditable search evidence
 
-### 3.F — Goncho Honcho Memory Parity ✅
+### 3.F — Goncho Honcho Memory Parity 🔨
 
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
@@ -323,6 +323,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Goncho operator diagnostics contract
 - [x] Goncho streaming chat persistence contract
 - [x] Goncho configuration namespace
+- [ ] Goncho dreaming scheduler contract
 
 ## Phase 4 — The Brain Transplant 🔨
 
@@ -372,7 +373,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Provider-enforced context-length resolver
 - [x] Model pricing/capability registry fixtures
 - [x] Routing policy and fallback selector
-- [ ] Per-turn model selection
+- [x] Per-turn model selection
 
 ### 4.E — Trajectory + Insights ⏳
 

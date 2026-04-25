@@ -879,6 +879,69 @@ Acceptance:
 - env/TOML/default precedence matches the rest of Gormes;
 - doctor output makes inactive features visible instead of ambiguous.
 
+## Packet 15 - Dreaming Scheduler Contract
+
+Progress row: `3.F / Goncho dreaming scheduler contract`.
+
+Purpose: model Honcho dreaming as local scheduler/status evidence before any
+LLM-backed dream execution. This keeps `dream_enabled=false` honest and gives
+operators a way to see why background reasoning is inactive.
+
+Source docs:
+
+- `../honcho/docs/v3/documentation/features/advanced/dreaming.mdx`
+- `../honcho/docs/v3/documentation/core-concepts/reasoning.mdx`
+- `../honcho/docs/v3/contributing/configuration.mdx`
+
+Current Gormes files:
+
+- `internal/goncho/service.go`
+- `internal/goncho/types.go`
+- `internal/config/config.go`
+- `cmd/gormes/goncho.go`
+
+Red tests:
+
+- `internal/goncho/dream_scheduler_test.go`
+  - creates at most one pending or in-progress dream per
+    `(workspace, observer, observed)` tuple;
+  - requires at least 50 new conclusions since the last dream;
+  - enforces an eight-hour cooldown and configured idle timeout;
+  - cancels or marks stale pending dreams when new activity arrives;
+  - dedupes manual schedule requests and returns created/reused/rejected
+    evidence.
+- `cmd/gormes/goncho_doctor_test.go`
+  - reports `dream_disabled`, `dream_pending`, `dream_in_progress`, and
+    `dream_cooldown` without waiting for queue emptiness.
+
+Implementation boundaries:
+
+- Add scheduler state and read-model evidence only.
+- Keep the internal package name `goncho`; public evidence may mention Honcho
+  compatibility where it names the behavior being mirrored.
+- Do not start background workers.
+
+Do not implement:
+
+- LLM deduction or induction execution;
+- tree-based surprisal sampling;
+- hosted Honcho API calls.
+
+Validation:
+
+- `go test ./internal/goncho ./internal/memory ./internal/config ./cmd/gormes -run TestGonchoDream -count=1`
+- `go run ./cmd/autoloop progress validate`
+
+Commit message:
+
+- `fix(goncho): add dream scheduler evidence`
+
+Acceptance:
+
+- scheduler gates match Honcho docs;
+- disabled/unavailable dream state is visible in doctor/status output;
+- no partial dream output enters memory.
+
 ## Execution Order
 
 1. Packet 1 - context options.
@@ -895,6 +958,7 @@ Acceptance:
 12. Packet 8 - manual conclusions API.
 13. Packet 9 - host integration matrix fixtures.
 14. Packet 10 - optional OpenAPI adapter audit.
+15. Packet 15 - dreaming scheduler evidence.
 
 The order is chosen to minimize rework: expose request shapes first, fix
 storage identity next, lock topology/config, then add runtime behavior and

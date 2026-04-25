@@ -1221,9 +1221,9 @@
             }
           ],
           "drift_state": {
-            "status": "porting",
-            "last_upstream_check": "2026-04-25T09:23:21Z",
-            "origin_decision": "GBrain v0.20.4 unified gbrain-jobs into minion-orchestrator. Gormes has Go-native routing, ledger, backpressure, and status slices, but pause/resume/replay/inbox lifecycle semantics still need explicit SQLite-first contracts."
+            "status": "converged",
+            "last_upstream_check": "2026-04-25T11:44:44Z",
+            "origin_decision": "GBrain 11abb24 unified the jobs lane into minion-orchestrator. Gormes now has Go-native durable routing, ledger, backpressure, supervisor status, pause/resume, replay, inbox, and protected-submit denial slices validated over SQLite; future GBrain drift should become new small rows instead of keeping this subphase porting."
           }
         },
         "2.F.1": {
@@ -1290,12 +1290,126 @@
             {
               "name": "Pairing read-model schema + atomic persistence",
               "status": "planned",
-              "note": "TDD: port the minimal read model from upstream `gateway/pairing.py` into an XDG-backed `pairing.json` with atomic writes, deterministic ordering, and per-platform paired/unpaired state before any approval UX."
+              "contract": "Gateway pairing state is persisted as a Go-native XDG read model with atomic writes, deterministic pending/approved ordering, and per-platform paired/unpaired status before approval UX",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Gateway status reports missing, corrupt, or permission-denied pairing state without starting transports or accepting unknown users.",
+              "fixture": "internal/gateway/pairing_store_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/pairing.py@5401a008",
+                "../hermes-agent/tests/gateway/test_pairing.py@5401a008",
+                "internal/gateway/status.go",
+                "docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
+              ],
+              "ready_when": [
+                "The shared gateway package already owns RuntimeStatusStore and can add a pairing read model without live adapter startup.",
+                "No approval-code generation or unauthorized-DM response behavior is needed for this first persistence slice."
+              ],
+              "not_ready_when": [
+                "The implementation wires Telegram/Discord/Slack pairing UX, generates codes, or starts channel transports instead of only freezing the persisted read model."
+              ],
+              "unblocks": [
+                "Pairing approval + rate-limit semantics",
+                "`gormes gateway status` read-only command"
+              ],
+              "acceptance": [
+                "Pairing store fixtures create pending and approved user records per platform under an XDG-controlled state root.",
+                "Writes use temp-file plus atomic rename, preserve valid old state on failed writes, and apply owner-only file mode where the platform supports chmod.",
+                "Corrupt JSON and missing files return structured degraded evidence and deterministic empty read models.",
+                "List output is sorted by platform, user_id, and code age so docs/status tests do not depend on map iteration order."
+              ],
+              "note": "TDD-ready: port only the storage/read-model part of upstream gateway/pairing.py first into a Go-owned pairing.json-compatible read model. Keep code generation, expiry, lockout, and unauthorized-DM behavior in the blocked sibling rows so workers do not mix persistence with policy.",
+              "write_scope": [
+                "internal/gateway/pairing_store.go",
+                "internal/gateway/pairing_store_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestPairingStore -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Pairing store fixtures prove atomic persistence, deterministic readout, corrupt-state degradation, and per-platform pending/approved separation without code generation or adapter UX."
+              ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-25T11:39:48Z"
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:5401a008 gateway/pairing.py",
+                "note": "Hermes defines the operator-visible pairing persistence contract; Gormes owns the Go/XDG read model and status evidence."
+              }
             },
             {
               "name": "Pairing approval + rate-limit semantics",
               "status": "planned",
-              "note": "TDD: freeze code generation, expiry, max-pending, failed-attempt lockout, and per-user request rate limiting from upstream PairingStore before adapters start issuing pairing codes. Must cover the upstream PR #1a9a2d7f trap: when Telegram `message.from_user` is None (forwarded messages, anonymous admin mode, certain client edge cases) the pairing flow must fall back to `chat.id` for DMs (Telegram guarantees `chat.id == user.id` for private chats) so the allowlist check and pairing-code key do not collapse to a literal 'null' and permanently lock the real user out. Fixture tests must pin (a) DM with from_user=None resolves user_id from chat.id, (b) non-DM (group/channel) with from_user=None must NOT synthesize a user_id, (c) allowlist-denied users still hit the existing failed-attempt lockout path."
+              "contract": "Pairing approval uses Hermes-compatible code generation, expiry, pending limits, failed-approval lockout, per-user rate limits, and Telegram DM from_user fallback without starting agent sessions",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Gateway status distinguishes rate-limited, max-pending, expired, locked-out, allowlist-denied, and unresolved-user pairing attempts.",
+              "fixture": "internal/gateway/pairing_approval_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/pairing.py@5401a008",
+                "../hermes-agent/tests/gateway/test_pairing.py@5401a008",
+                "../hermes-agent/gateway/run.py@5401a008",
+                "../hermes-agent/gateway/platforms/telegram.py@5401a008",
+                "internal/gateway/event.go"
+              ],
+              "ready_when": [
+                "Pairing read-model schema + atomic persistence is complete and exposes fake-clock-friendly pending/approved state.",
+                "Telegram DM events can be represented through gateway.InboundEvent or a tiny gateway-owned resolver fixture without importing python-telegram-bot."
+              ],
+              "not_ready_when": [
+                "The slice sends platform replies, implements unauthorized-DM mode selection, edits adapter code, or adds live Telegram SDK dependencies."
+              ],
+              "blocked_by": [
+                "Pairing read-model schema + atomic persistence"
+              ],
+              "unblocks": [
+                "Unauthorized DM pairing response contract",
+                "`gormes gateway status` read-only command"
+              ],
+              "acceptance": [
+                "Generated codes use an 8-character unambiguous alphabet, cryptographic randomness, one-hour expiry, and max three pending codes per platform.",
+                "Failed approval attempts lock a platform after five invalid codes for one hour while valid codes approve and remove the pending record.",
+                "Per-user request rate limiting blocks repeat code requests for ten minutes and records visible rate-limit evidence.",
+                "Telegram private-chat events with from_user missing resolve user_id from chat.id; non-DM events with from_user missing do not synthesize a user_id; allowlist-denied users still hit the failed-attempt/lockout evidence path."
+              ],
+              "note": "TDD-ready: freeze upstream PairingStore policy over the Go read model, including rate limiting and failed-approval lockout. Keep platform response copy and deny/pair/ignore behavior in the unauthorized-DM row so workers can land this as pure state/policy fixtures.",
+              "write_scope": [
+                "internal/gateway/pairing_store.go",
+                "internal/gateway/pairing_approval_test.go",
+                "internal/gateway/event.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestPairingApproval -count=1",
+                "go test ./internal/gateway -run TestPairingStore -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Pairing approval fixtures prove code entropy/expiry, pending limits, lockout, per-user rate limiting, and Telegram from_user fallback without adapter sends or agent sessions."
+              ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-25T11:39:48Z"
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:5401a008 gateway/pairing.py",
+                "note": "Hermes defines pairing security semantics; Gormes adapts them to gateway-owned Go fixtures and typed degraded evidence."
+              }
             },
             {
               "name": "Unauthorized DM pairing response contract",
@@ -1309,18 +1423,20 @@
                 "operator"
               ],
               "degraded_mode": "Gateway status and logs show denied or pending-pair users without starting agent sessions.",
-              "fixture": "internal/gateway unauthorized DM pairing fixtures",
+              "fixture": "internal/gateway/unauthorized_dm_test.go",
               "source_refs": [
-                "../hermes-agent/tests/gateway/test_unauthorized_dm_behavior.py",
-                "../hermes-agent/gateway/platforms/base.py",
-                "../hermes-agent/gateway/config.py",
+                "../hermes-agent/tests/gateway/test_unauthorized_dm_behavior.py@5401a008",
+                "../hermes-agent/gateway/platforms/base.py@5401a008",
+                "../hermes-agent/gateway/config.py@5401a008",
+                "../hermes-agent/gateway/run.py@5401a008",
+                "internal/gateway/pairing_store.go",
                 "docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
               ],
               "ready_when": [
-                "Pairing approval, rate limiting, and allowlist checks are fixture-locked."
+                "Pairing approval, rate limiting, allowlist checks, and Telegram missing-from_user fallback are fixture-locked in internal/gateway/pairing_approval_test.go."
               ],
               "not_ready_when": [
-                "Unknown DMs fall through to normal agent execution or share session state with authorized users."
+                "The slice changes code generation, reads live platform SDKs, or starts agent sessions for unknown direct-message users."
               ],
               "blocked_by": [
                 "Pairing approval + rate-limit semantics"
@@ -1328,19 +1444,33 @@
               "acceptance": [
                 "Configured deny mode sends a deterministic denial without creating a session.",
                 "Configured pair mode sends one bounded pairing prompt and records pending state.",
-                "Configured ignore mode produces no platform reply and no agent run."
+                "Configured ignore mode produces no platform reply and no agent run.",
+                "Group/channel unauthorized messages stay silent unless a future platform-specific row explicitly opts into group pairing."
               ],
-              "note": "Hermes gateway tests now pin unauthorized DM behavior. Keep this as a small policy slice after pairing semantics, before adapter-specific authorization UX is marked complete.",
+              "note": "TDD-ready after pairing approval lands: keep this as a shared gateway policy slice over fake channels and the Go pairing store. Do not edit adapter transports or widen pairing prompts into groups.",
               "write_scope": [
-                "internal/gateway/",
+                "internal/gateway/authorization.go",
+                "internal/gateway/unauthorized_dm_test.go",
+                "internal/gateway/pairing_store.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/gateway -count=1"
+                "go test ./internal/gateway -run TestUnauthorizedDM -count=1",
+                "go test ./internal/gateway -run TestPairingApproval -count=1",
+                "go run ./cmd/autoloop progress validate"
               ],
               "done_signal": [
                 "Unauthorized-DM fixtures prove deny, pair, and ignore modes never start an agent session for unknown users."
-              ]
+              ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-25T11:39:48Z"
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:5401a008 gateway/run.py",
+                "note": "Hermes defines the deny/pair/ignore public behavior; Gormes keeps it in shared gateway policy before adapter-specific UX."
+              }
             },
             {
               "name": "`gormes gateway status` read-only command",
@@ -2028,9 +2158,9 @@
             }
           ],
           "drift_state": {
-            "status": "porting",
-            "last_upstream_check": "2026-04-25T09:23:21Z",
-            "origin_decision": "Honcho and Hermes host integrations still define compatibility expectations, while Gormes owns the internal Goncho storage and cross-chat safety fences."
+            "status": "converged",
+            "last_upstream_check": "2026-04-25T11:44:44Z",
+            "origin_decision": "Honcho e659b6b added SillyTavern integration guidance, and Gormes already has validated host-integration, SillyTavern persona/group mapping, scope/source schema, deny-path, and operator-evidence fixtures. Internal implementation remains Goncho; external compatibility keeps honcho_* naming."
           }
         },
         "3.E.8": {
@@ -2193,9 +2323,9 @@
             {
               "name": "Operator-auditable search evidence",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho/Honcho-compatible search surfaces operator evidence for user scope, source filters, and session lineage on every widened cross-source search hit",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -2226,7 +2356,7 @@
                 "JSON output includes the same search evidence fields so autoloop and docs tests can assert them without parsing text.",
                 "Search evidence reports orphan/unavailable lineage explicitly and does not widen recall when scope=user is denied or session directory evidence is missing."
               ],
-              "note": "TDD: extend Goncho search result evidence rather than search behavior. Add a focused cmd/gormes/goncho_search_evidence_test.go seeded with current, child, orphan, and chat-only sessions; thread memory.SearchLineage from internal/memory.SearchMessages through goncho.SearchHit and the doctor report/formatter; preserve the existing honcho_search and honcho_context names while keeping the implementation under internal/goncho.",
+              "note": "Complete: TDD landed cmd/gormes/goncho_search_evidence_test.go with seeded current, child, orphan, and chat-only sessions. Goncho search results now thread memory.SearchLineage through goncho.SearchHit into doctor text/JSON evidence, including source allowlists, user-scope decisions, sessions considered, widened session counts, orphan/unavailable lineage statuses, and same-chat fallback evidence when the session directory is missing, without changing search ranking or default recall fences.",
               "write_scope": [
                 "cmd/gormes/goncho.go",
                 "cmd/gormes/goncho_search_evidence_test.go",
@@ -2243,9 +2373,15 @@
               "done_signal": [
                 "Goncho doctor fixtures prove cross-source search evidence names source filters, user-scope decisions, and lineage status for widened hits without changing default recall fences."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T11:25:01Z",
+                "last_success": "2026-04-25T11:25:01Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
-                "last_reshape": "2026-04-25T10:59:11Z"
+                "last_reshape": "2026-04-25T10:59:11Z",
+                "last_outcome": "unstuck"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -2880,8 +3016,75 @@
               "done_signal": [
                 "Config fixtures prove defaults, GORMES_GONCHO_* overrides, validation failures, and doctor visibility for effective Goncho settings."
               ]
+            },
+            {
+              "name": "Goncho dreaming scheduler contract",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Goncho models Honcho dream scheduling as local auditable work intent with cooldown, idle, threshold, and dedupe gates before any LLM dream execution",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "When dreaming is disabled or no scheduler table exists, Goncho context and doctor output report dream_disabled or dream_unavailable evidence rather than implying background reasoning is active.",
+              "fixture": "internal/goncho/dream_scheduler_test.go",
+              "source_refs": [
+                "../honcho/docs/v3/documentation/features/advanced/dreaming.mdx@e659b6b",
+                "../honcho/docs/v3/documentation/core-concepts/reasoning.mdx@e659b6b",
+                "../honcho/docs/v3/contributing/configuration.mdx@e659b6b",
+                "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+                "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+                "internal/goncho/service.go",
+                "internal/config/config.go"
+              ],
+              "ready_when": [
+                "Goncho configuration namespace, queue status read model, and directional representation scope fixtures are validated on main.",
+                "The first slice only records dream work intent and degraded evidence; it does not need a model provider, worker daemon, or surprisal tree."
+              ],
+              "not_ready_when": [
+                "The slice runs LLM deduction or induction, implements tree-based surprisal, starts background workers, or calls a hosted Honcho service."
+              ],
+              "unblocks": [
+                "Goncho dream execution worker",
+                "Goncho dream status documentation"
+              ],
+              "acceptance": [
+                "Scheduler fixtures create at most one pending or in-progress dream per workspace/observer/observed tuple.",
+                "A dream is eligible only after at least 50 new conclusions since the last dream, an eight-hour cooldown, and the configured idle timeout.",
+                "New activity cancels or marks stale a pending dream for the observed peer without deleting prior dream history.",
+                "Manual schedule requests are deduped and report whether they created, reused, or rejected a dream intent.",
+                "Doctor/status output exposes dream_disabled, dream_pending, dream_in_progress, and dream_cooldown evidence without waiting for queue emptiness."
+              ],
+              "note": "TDD-ready: add the Honcho dreaming scheduler contract as data and status evidence only. Keep deduction/induction execution, surprisal trees, and background workers for follow-up rows.",
+              "write_scope": [
+                "internal/goncho/",
+                "internal/memory/",
+                "internal/config/",
+                "cmd/gormes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho ./internal/memory ./internal/config ./cmd/gormes -run TestGonchoDream -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Dream scheduler fixtures prove threshold, cooldown, idle, dedupe, manual scheduling, cancellation, and doctor/status degraded evidence without LLM execution."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "honcho:e659b6b docs/v3/documentation/features/advanced/dreaming.mdx",
+                "note": "Honcho defines dream eligibility semantics; Gormes keeps the first slice as Go-native Goncho scheduler evidence before any hosted or LLM-backed dream execution."
+              }
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-25T11:44:44Z",
+            "origin_decision": "Core Goncho/Honcho parity rows are validated, but Honcho's dreaming scheduler semantics are now tracked as a remaining small Go-native Goncho row before this subphase can be converged."
+          }
         }
       }
     },
@@ -3746,9 +3949,9 @@
             {
               "name": "Per-turn model selection",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Kernel accepts a per-turn model override, sends it on exactly one hermes.ChatRequest, exposes the active model in RenderFrame during that turn, and falls back to the resident config model on the next turn",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -3779,7 +3982,7 @@
                 "RenderFrame.Model reflects the active override while the turn is connecting/streaming and returns to cfg.Model after the turn settles.",
                 "The test stays in internal/kernel with MockClient and does not add provider calls or routing selector changes."
               ],
-              "note": "Status remains planned after a fresh 2026-04-25 audit. Current main has no PlatformEvent.Model field in internal/kernel/frame.go, runTurn is called without a model override, ChatRequest.Model is still k.cfg.Model, and no internal/kernel/model_selection.go exists. This is a single TDD slice: add the event field and focused test first, thread the override through Run -> runTurn -> ChatRequest and emitFrame, and keep the resident cfg.Model unchanged for subsequent turns.",
+              "note": "Complete: TDD added internal/kernel/per_turn_model_test.go and threaded PlatformEvent.Model through Run -> runTurn -> hermes.ChatRequest plus RenderFrame.Model. Blank overrides fall back to Config.Model, the resident config model is not mutated, and the implementation leaves provider routing policy unchanged.",
               "write_scope": [
                 "internal/kernel/frame.go",
                 "internal/kernel/kernel.go",
@@ -3793,9 +3996,15 @@
               "done_signal": [
                 "internal/kernel/per_turn_model_test.go proves override, fallback, and frame-model behavior without mutating cfg.Model or provider routing."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T11:25:01Z",
+                "last_success": "2026-04-25T11:25:01Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
-                "last_reshape": "2026-04-25T10:59:11Z"
+                "last_reshape": "2026-04-25T10:59:11Z",
+                "last_outcome": "unstuck"
               },
               "provenance": {
                 "origin_type": "hybrid",
