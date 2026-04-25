@@ -112,6 +112,117 @@ func TestRunPostPromotionVerification_RunsAllCommandsAndCollectsFailures(t *test
 	}
 }
 
+// TestRunPrePromotionVerify_DisabledByDefaultIsNoop confirms that an empty
+// PrePromotionVerifyCommands does not run any commands and emits no ledger
+// events. This preserves the existing post-promotion-only behavior for
+// installs that have not opted in.
+func TestRunPrePromotionVerify_DisabledByDefaultIsNoop(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot: dir,
+		RunRoot:  filepath.Join(dir, "runroot"),
+	}
+	calls := 0
+	runner := runnerFunc(func(_ context.Context, _ Command) Result {
+		calls++
+		return Result{}
+	})
+	worker := workerRun{ID: 1, Task: "phase/sub/item", Branch: "autoloop/test/w1", RepoRoot: filepath.Join(dir, "worktree-1")}
+
+	if err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker); err != nil {
+		t.Fatalf("disabled gate should not error: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("disabled gate must not run commands; got %d calls", calls)
+	}
+	if got := readLedgerLines(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl")); len(got) != 0 {
+		t.Fatalf("disabled gate must not emit ledger events; got %d:\n%s", len(got), strings.Join(got, "\n"))
+	}
+}
+
+// TestRunPrePromotionVerify_RunsInWorkerWorktree checks that the verify
+// commands' Dir is set to worker.RepoRoot, NOT cfg.RepoRoot. This is the
+// load-bearing distinction that keeps main from being briefly broken.
+func TestRunPrePromotionVerify_RunsInWorkerWorktree(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                   filepath.Join(dir, "main"),
+		RunRoot:                    filepath.Join(dir, "runroot"),
+		PrePromotionVerifyCommands: []string{"echo ok"},
+	}
+	worktreePath := filepath.Join(dir, "worktree-1")
+	worker := workerRun{ID: 1, Task: "phase/sub/item", Branch: "autoloop/test/w1", RepoRoot: worktreePath}
+
+	var seenDir string
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		seenDir = cmd.Dir
+		return Result{}
+	})
+
+	if err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker); err != nil {
+		t.Fatalf("verify should pass: %v", err)
+	}
+	if seenDir != worktreePath {
+		t.Fatalf("Command.Dir = %q, want worker.RepoRoot %q (gate must run in worktree, not main)", seenDir, worktreePath)
+	}
+}
+
+// TestRunPrePromotionVerify_FailureEmitsWorkerFailedAndPreventsPromotion is
+// the headline behavior: a verify failure aborts the worker as a
+// pre_promotion_verify_failed worker_failed event AND runs every command so
+// the operator sees the full failure set in one ledger entry. The caller
+// (finishWorker) bails on the returned error before promoteWorkerCommit.
+func TestRunPrePromotionVerify_FailureEmitsWorkerFailedAndPreventsPromotion(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                   filepath.Join(dir, "main"),
+		RunRoot:                    filepath.Join(dir, "runroot"),
+		PrePromotionVerifyCommands: []string{"true", "false", "false"},
+	}
+	worker := workerRun{ID: 7, Task: "2/2.B/test-row", Branch: "autoloop/run-A/w7", RepoRoot: filepath.Join(dir, "worktree-7")}
+
+	calls := 0
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		calls++
+		if strings.Contains(strings.Join(cmd.Args, " "), "false") {
+			return Result{Err: errors.New("exit status 1"), Stderr: "boom"}
+		}
+		return Result{}
+	})
+
+	err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker)
+	if err == nil {
+		t.Fatal("verify failure must propagate as error")
+	}
+	if calls != 3 {
+		t.Fatalf("all commands must run regardless of order; got %d calls, want 3", calls)
+	}
+
+	body := readLedgerLines(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	var startedSeen, failedSeen bool
+	var failedDetail string
+	for _, line := range body {
+		if strings.Contains(line, `"event":"pre_promotion_verify_started"`) {
+			startedSeen = true
+		}
+		if strings.Contains(line, `"event":"worker_failed"`) && strings.Contains(line, `"status":"pre_promotion_verify_failed"`) {
+			failedSeen = true
+			failedDetail = line
+		}
+	}
+	if !startedSeen {
+		t.Errorf("pre_promotion_verify_started event missing")
+	}
+	if !failedSeen {
+		t.Fatalf("worker_failed/pre_promotion_verify_failed event missing:\n%s", strings.Join(body, "\n"))
+	}
+	for _, want := range []string{`"worker":7`, `"task":"2/2.B/test-row"`, "command=2/3", "command=3/3"} {
+		if !strings.Contains(failedDetail, want) {
+			t.Errorf("worker_failed event missing %q\n%s", want, failedDetail)
+		}
+	}
+}
+
 func TestRunPostPromotionVerification_AllCommandsPassEmitsSuccess(t *testing.T) {
 	dir := t.TempDir()
 	cfg := Config{

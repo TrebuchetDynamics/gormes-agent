@@ -395,6 +395,81 @@ func runPostPromotionGate(ctx context.Context, cfg Config, runner Runner, runID 
 	return lastErr
 }
 
+// runPrePromotionVerify runs cfg.PrePromotionVerifyCommands inside the
+// worker's worktree before the worker's commit is cherry-picked onto main.
+// Empty command list is a no-op (default — preserves the post-promotion-only
+// behavior). On failure, emits a worker_failed ledger event with status
+// pre_promotion_verify_failed and returns the error so finishWorker bails
+// before promoteWorkerCommit runs. Main is therefore never touched when a
+// worker's branch fails its own verify gate.
+//
+// All commands run regardless of which one fails first, mirroring the
+// post-promotion gate's behavior so the operator (and any future repair
+// hook) sees a complete failure picture in one ledger entry.
+func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun) error {
+	if len(cfg.PrePromotionVerifyCommands) == 0 {
+		return nil
+	}
+	if err := appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "pre_promotion_verify_started",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "started",
+		Detail: fmt.Sprintf("commands=%d", len(cfg.PrePromotionVerifyCommands)),
+	}); err != nil {
+		return err
+	}
+
+	var (
+		commandErrs    []error
+		failureDetails []string
+	)
+	for i, shellCommand := range cfg.PrePromotionVerifyCommands {
+		result := runner.Run(ctx, Command{
+			Name: "sh",
+			Args: []string{"-lc", shellCommand},
+			Dir:  worker.RepoRoot,
+			Env:  postPromotionCommandEnv(cfg),
+		})
+		if result.Err == nil {
+			continue
+		}
+		commandErrs = append(commandErrs, postPromotionCommandError("pre-promotion verification", shellCommand, result))
+		failureDetails = append(failureDetails,
+			fmt.Sprintf("command=%d/%d %q:\n%s", i+1, len(cfg.PrePromotionVerifyCommands), shellCommand, commandFailureDetail(result)),
+		)
+	}
+	if len(commandErrs) > 0 {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "worker_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Status: "pre_promotion_verify_failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("failed=%d/%d\n\n%s",
+				len(commandErrs), len(cfg.PrePromotionVerifyCommands),
+				strings.Join(failureDetails, "\n\n---\n\n"))),
+		})
+		return errors.Join(append(commandErrs, ledgerErr)...)
+	}
+
+	return appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "pre_promotion_verify_succeeded",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "ok",
+		Detail: fmt.Sprintf("commands=%d", len(cfg.PrePromotionVerifyCommands)),
+	})
+}
+
 func runPostPromotionVerification(ctx context.Context, cfg Config, runner Runner, runID string, attempt int) error {
 	if err := appendRunLedgerEvent(cfg, LedgerEvent{
 		TS:     time.Now().UTC(),
@@ -850,6 +925,15 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 				return err
 			}
 			if err := ensureCurrentBranch(cfg.RepoRoot, baseBranch); err != nil {
+				return err
+			}
+			// Pre-promotion verify gate: when enabled, run the configured
+			// verify commands inside the worker's worktree on the worker's
+			// branch BEFORE the commit is cherry-picked onto main. A
+			// failing verify aborts here as a worker_failed outcome, so
+			// main never enters a briefly-broken state. Empty
+			// PrePromotionVerifyCommands is a no-op (current behavior).
+			if err := runPrePromotionVerify(ctx, cfg, runner, runID, worker); err != nil {
 				return err
 			}
 			if err := promoteWorkerCommit(ctx, cfg, runner, runID, worker.ID, worker.Task, worker.Branch, commitSha); err != nil {

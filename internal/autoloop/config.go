@@ -33,6 +33,16 @@ type Config struct {
 	PostPromotionRepairEnabled  bool     // POST_PROMOTION_REPAIR, default true
 	PostPromotionRepairAttempts int      // POST_PROMOTION_REPAIR_ATTEMPTS, default 1
 
+	// PrePromotionVerifyCommands runs ON THE WORKER'S WORKTREE before the
+	// worker's commit is cherry-picked onto main. Empty = disabled (current
+	// post-promotion-only behavior preserved). When set (e.g. via env
+	// PRE_PROMOTION_VERIFY_COMMANDS=go test ./...), a failing verify aborts
+	// the worker_failed path BEFORE main is touched, so main never enters a
+	// briefly-broken state and any repair work happens in the worktree.
+	// Compose with PostPromotionVerifyCommands for defense-in-depth (pre
+	// catches per-worker breakage; post catches cross-worker integration).
+	PrePromotionVerifyCommands []string // PRE_PROMOTION_VERIFY_COMMANDS
+
 	// PlannerTriggersPath is the JSONL ledger autoloop appends to when a
 	// row's quarantine state changes in a way the planner needs to react
 	// to. The planner watches this file (via systemd .path unit) and
@@ -71,6 +81,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		PostPromotionVerifyCommands: defaultPostPromotionVerifyCommands(),
 		PostPromotionRepairEnabled:  true,
 		PostPromotionRepairAttempts: 1,
+		PrePromotionVerifyCommands:  nil,
 
 		PlannerTriggersPath: filepath.Join(repoRoot, ".codex", "architecture-planner", "triggers.jsonl"),
 	}
@@ -193,6 +204,13 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 			return Config{}, fmt.Errorf("POST_PROMOTION_VERIFY_COMMANDS must contain at least one command")
 		}
 		cfg.PostPromotionVerifyCommands = commands
+	}
+	if value := env["PRE_PROMOTION_VERIFY_COMMANDS"]; value != "" {
+		commands := splitCommandList(value)
+		if len(commands) == 0 {
+			return Config{}, fmt.Errorf("PRE_PROMOTION_VERIFY_COMMANDS must contain at least one command")
+		}
+		cfg.PrePromotionVerifyCommands = commands
 	}
 	if value := env["POST_PROMOTION_REPAIR"]; value != "" {
 		b, err := parseBoolEnv(value)
