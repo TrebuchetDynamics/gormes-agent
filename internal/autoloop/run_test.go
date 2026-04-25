@@ -58,6 +58,67 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 	}
 }
 
+func TestRunOnceUsesNanosecondSuffixForRapidRunIDs(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	config := Config{
+		RepoRoot:     t.TempDir(),
+		ProgressJSON: progressPath,
+		Backend:      "codexu",
+		Mode:         "safe",
+		MaxAgents:    8,
+	}
+
+	first, err := RunOnce(context.Background(), RunOptions{
+		Config: config,
+		DryRun: true,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 123, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() first error = %v", err)
+	}
+	second, err := RunOnce(context.Background(), RunOptions{
+		Config: config,
+		DryRun: true,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 456, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() second error = %v", err)
+	}
+
+	if got, want := first.RunID, "20260425T070802Z-000000123"; got != want {
+		t.Fatalf("first RunID = %q, want %q", got, want)
+	}
+	if got, want := second.RunID, "20260425T070802Z-000000456"; got != want {
+		t.Fatalf("second RunID = %q, want %q", got, want)
+	}
+	if first.RunID == second.RunID {
+		t.Fatalf("RunID collision = %q, want distinct IDs for rapid runs", first.RunID)
+	}
+}
+
+func TestRunOncePreservesSecondPrecisionRunIDWhenClockHasNoNanoseconds(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+
+	summary, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     t.TempDir(),
+			ProgressJSON: progressPath,
+			Backend:      "codexu",
+			Mode:         "safe",
+			MaxAgents:    8,
+		},
+		DryRun: true,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	if got, want := summary.RunID, "20260425T070802Z"; got != want {
+		t.Fatalf("RunID = %q, want %q", got, want)
+	}
+}
+
 func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{
 		"phases": {
