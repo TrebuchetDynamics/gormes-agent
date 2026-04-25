@@ -24,6 +24,7 @@ Read these local docs before editing this page:
 - `v3/documentation/core-concepts/reasoning.mdx`
 - `v3/documentation/features/storing-data.mdx`
 - `v3/documentation/features/get-context.mdx`
+- `v3/documentation/features/chat.mdx`
 - `v3/documentation/features/advanced/search.mdx`
 - `v3/documentation/features/advanced/using-filters.mdx`
 - `v3/documentation/features/advanced/representation-scopes.mdx`
@@ -32,7 +33,22 @@ Read these local docs before editing this page:
 - `v3/documentation/features/advanced/dreaming.mdx`
 - `v3/documentation/features/advanced/summarizer.mdx`
 - `v3/documentation/features/advanced/peer-card.mdx`
+- `v3/documentation/features/advanced/file-uploads.mdx`
+- `v3/documentation/reference/sdk.mdx`
+- `v3/documentation/reference/platform.mdx`
+- `v3/documentation/reference/storage.mdx` (empty as of this study)
+- `v3/guides/integrations/hermes.mdx`
+- `v3/guides/integrations/opencode.mdx`
+- `v3/guides/integrations/claude-code.mdx`
+- `v3/guides/integrations/openclaw.mdx`
+- `v3/guides/integrations/mcp.mdx`
+- `v3/openapi.json`
 - `docs/changelog/compatibility-guide.mdx`
+
+The work-packet version of this study lives in
+[Agent Work Packets](../04-agent-work-packets/). Use that page when assigning an
+implementation slice; use this page to understand the reasoning behind the
+slice boundaries.
 
 ## Memory Contract Learned From The Docs
 
@@ -225,6 +241,92 @@ Goncho should not port surprisal sampling first. The first dream slice should
 implement the scheduler contract and the deduction/induction sequencing with
 fixtures, then add tree-based surprisal later.
 
+### 9. Dialectic Chat Endpoint
+
+The chat docs and OpenAPI contract define `peer.chat()` as query-specific
+reasoning over a peer representation. The request accepts:
+
+- `query` (required, 1 to 10000 chars);
+- `session_id`;
+- `target`;
+- `stream`;
+- `reasoning_level` (`minimal`, `low`, `medium`, `high`, `max`, default
+  `low`).
+
+The non-streaming response shape is `{content: string|null}`. Streaming returns
+`text/event-stream`.
+
+Goncho currently exposes `honcho_reasoning`, but the Honcho host docs for
+OpenCode, Claude Code, and MCP use `honcho_chat` or `chat` naming. The next
+chat slice should add a host-compatible `honcho_chat` alias while preserving
+`honcho_reasoning`. The first implementation can reuse deterministic synthesis,
+but it must keep this path separate from `honcho_context` and must report
+`stream=true` as unsupported until streaming exists.
+
+### 10. File Uploads And Legacy Memory Imports
+
+Honcho's upload path converts files into ordinary session messages and queues
+the same background reasoning used by normal messages. Docs advertise PDF,
+text, and JSON support. Source and OpenAPI show the runtime request is multipart
+form data with required `file` and `peer_id`, optional JSON-ish `metadata`,
+optional `configuration`, and optional `created_at`.
+
+Important source-level correction: the file-upload prose mentions chunks around
+49,500 characters, but `src/config.py` sets `MAX_MESSAGE_SIZE=25000`, and
+`process_file_uploads_for_messages()` receives that value as its runtime
+`max_chars` default. Goncho should use the source runtime limit unless Honcho
+changes its config.
+
+The first Gormes slice should support text, Markdown, and JSON imports before
+PDF. It should never persist original file bytes. It should persist file
+metadata on generated messages:
+
+- `file_id`;
+- `filename`;
+- `chunk_index`;
+- `total_chunks`;
+- `original_file_size`;
+- `content_type`;
+- `chunk_character_range`.
+
+This is also the non-destructive migration path for legacy `USER.md`,
+`MEMORY.md`, `IDENTITY.md`, `SOUL.md`, workspace `memory/`, and similar files.
+
+### 11. Host Integration Contract
+
+The integration docs are planning inputs, not packages to vendor. Gormes should
+not install the Node/Bun plugins, but it must preserve the memory concepts they
+depend on:
+
+- shared config roots such as `~/.honcho/config.json`;
+- host-scoped workspace and AI peer names;
+- session strategies like `per-directory`, `per-repo`, `git-branch`,
+  `per-session`, `chat-instance`, and `global`;
+- recall modes `hybrid`, `context`, and `tools`;
+- directional observation mode;
+- status/config tools that explain degraded behavior;
+- MCP headers for user, assistant, and workspace identity.
+
+OpenClaw's integration adds two Gormes-relevant details: legacy memory files are
+uploaded instead of moved or deleted, and parent agents can observe subagent
+sessions through `observeOthers` while staying silent with `observeMe=false`.
+
+### 12. OpenAPI As The Optional HTTP Contract
+
+The MDX API reference pages mostly point at `v3/openapi.json`. Use that JSON as
+the exact route/schema source when the optional HTTP adapter becomes active.
+Endpoint groups are:
+
+- workspaces: create/list/update/delete/search, queue status, schedule dream;
+- peers: create/list/update/sessions/chat/representation/card/context/search;
+- sessions: create/list/update/delete/clone/peers/config/context/summaries/search;
+- messages: batch create, upload, list, get, update;
+- conclusions: create, list, query, delete;
+- webhooks and keys: managed-platform features, not local Goncho MVP features.
+
+The HTTP adapter must stay a thin adapter over `goncho.Service`. It must not add
+a sidecar, a second store, or a loopback dependency.
+
 ## Progress Measurement
 
 For memory planning, progress is measured in `progress.json`, not by prose
@@ -270,8 +372,11 @@ under `3.F - Goncho Honcho Memory Parity`:
 - `Goncho search filter grammar`;
 - `Directional peer cards and representation scopes`;
 - `Goncho queue status read model`;
-- `Goncho summary context budget`.
+- `Goncho summary context budget`;
+- `Goncho dialectic chat contract`;
+- `Goncho file upload import ingestion`.
 
 Those rows are intentionally smaller than "port Honcho." Each one gives the
 autoloop source refs, write scope, fixtures, and done signals so it can build
-the memory system without rereading every upstream doc.
+the memory system without rereading every upstream doc. The exact worker packet
+for each row is in [Agent Work Packets](../04-agent-work-packets/).
