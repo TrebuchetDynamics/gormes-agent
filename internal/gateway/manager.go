@@ -77,6 +77,11 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 
 	msgID, err := h.base.SendPlaceholder(ctx, chatID)
 	if err != nil {
+		h.manager.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+			Platform:      h.platform,
+			PlatformState: PlatformStateFailed,
+			ErrorMessage:  err.Error(),
+		})
 		h.manager.fireHook(ctx, HookEvent{
 			Point:    HookOnError,
 			Platform: h.platform,
@@ -87,6 +92,10 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 		return "", err
 	}
 
+	h.manager.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		Platform:      h.platform,
+		PlatformState: PlatformStateRunning,
+	})
 	h.manager.fireHook(ctx, HookEvent{
 		Point:    HookAfterSend,
 		Platform: h.platform,
@@ -517,6 +526,11 @@ func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text st
 
 	msgID, err := ch.Send(ctx, chatID, text)
 	if err != nil {
+		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+			Platform:      ch.Name(),
+			PlatformState: PlatformStateFailed,
+			ErrorMessage:  err.Error(),
+		})
 		m.fireHook(ctx, HookEvent{
 			Point:    HookOnError,
 			Platform: ch.Name(),
@@ -527,6 +541,10 @@ func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text st
 		return "", err
 	}
 
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		Platform:      ch.Name(),
+		PlatformState: PlatformStateRunning,
+	})
 	m.fireHook(ctx, HookEvent{
 		Point:    HookAfterSend,
 		Platform: ch.Name(),
