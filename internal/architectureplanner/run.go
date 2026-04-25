@@ -107,9 +107,16 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	// ledger never blocks the run.
 	cursor, _ := plannertriggers.LoadCursor(cfg.TriggersCursorPath)
 	triggerEvents, _ := plannertriggers.ReadTriggersSinceCursor(cfg.PlannerTriggersPath, cursor)
+	// Phase D priority: event (quarantine triggers from autoloop) wins over
+	// impl_change (impl-tree path unit, Phase D Task 4) which wins over
+	// scheduled (timer). cfg.TriggerReason is set from PLANNER_TRIGGER_REASON
+	// so the impl-path unit can stamp the run via env without dragging an
+	// extra arg through the wrapper script.
 	trigger := "scheduled"
 	if len(triggerEvents) > 0 {
 		trigger = "event"
+	} else if cfg.TriggerReason == "impl_change" {
+		trigger = "impl_change"
 	}
 	bundle.TriggerEvents = triggerEvents
 	defer func() {

@@ -157,6 +157,7 @@ func plannerEnv(opts runOptions) map[string]string {
 		"PLANNER_SYNC_REPOS",
 		"PLANNER_TRIGGERS_PATH",
 		"PLANNER_MAX_RETRIES",
+		"PLANNER_TRIGGER_REASON",
 		"MERGE_OPEN_PULL_REQUESTS",
 	} {
 		env[key] = os.Getenv(key)
@@ -238,19 +239,56 @@ func installPlannerService(root string, force bool, pathToWatch string) error {
 	interval := os.Getenv("PLANNER_INTERVAL")
 	autoStart := os.Getenv("AUTO_START") != "0"
 
+	// Phase D Task 4: install the impl-tree .path unit by default, watching
+	// cmd/ and internal/. PLANNER_IMPL_PATHS overrides as a CSV of absolute
+	// directories; setting it to a single empty value disables the impl
+	// .path unit so existing 3-unit installs can opt out.
+	implPaths := defaultImplPathsToWatch(root)
+	if value := os.Getenv("PLANNER_IMPL_PATHS"); value != "" {
+		implPaths = splitAndTrim(value)
+	}
+	implPathName := "gormes-architecture-planner-impl.path"
+	if len(implPaths) == 0 {
+		implPathName = ""
+	}
+
 	return architectureplanner.InstallPlannerService(context.Background(), architectureplanner.PlannerServiceInstallOptions{
-		Runner:      commandRunner,
-		UnitDir:     unitDir,
-		UnitName:    "gormes-architecture-planner.service",
-		TimerName:   "gormes-architecture-planner.timer",
-		PathName:    "gormes-architecture-planner.path",
-		PathToWatch: pathToWatch,
-		PlannerPath: plannerWrapperPath(root),
-		WorkDir:     root,
-		Interval:    interval,
-		AutoStart:   autoStart,
-		Force:       force,
+		Runner:           commandRunner,
+		UnitDir:          unitDir,
+		UnitName:         "gormes-architecture-planner.service",
+		TimerName:        "gormes-architecture-planner.timer",
+		PathName:         "gormes-architecture-planner.path",
+		PathToWatch:      pathToWatch,
+		ImplPathName:     implPathName,
+		ImplPathsToWatch: implPaths,
+		PlannerPath:      plannerWrapperPath(root),
+		WorkDir:          root,
+		Interval:         interval,
+		AutoStart:        autoStart,
+		Force:            force,
 	})
+}
+
+// defaultImplPathsToWatch returns the impl-tree directories the impl .path
+// unit watches by default: <root>/cmd and <root>/internal. Override via
+// PLANNER_IMPL_PATHS (CSV of absolute paths).
+func defaultImplPathsToWatch(root string) []string {
+	return []string{
+		filepath.Join(root, "cmd"),
+		filepath.Join(root, "internal"),
+	}
+}
+
+func splitAndTrim(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func plannerUnitDir() (string, error) {

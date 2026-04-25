@@ -733,6 +733,43 @@ func TestRunOnce_TriggerEventsThreadIntoPrompt(t *testing.T) {
 	}
 }
 
+func TestRunOnce_TriggerImplChangeFromEnv(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	// No plannertriggers events queued — the impl-change reason wins
+	// over the default "scheduled" label per the Phase D priority order:
+	// event > impl_change > scheduled.
+	cfg.TriggerReason = "impl_change"
+
+	runner := &autoloop.FakeRunner{
+		Results: []autoloop.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	if _, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1", len(events))
+	}
+	if events[0].Trigger != "impl_change" {
+		t.Fatalf("Trigger = %q, want impl_change", events[0].Trigger)
+	}
+	if len(events[0].TriggerEvents) != 0 {
+		t.Fatalf("TriggerEvents = %#v, want empty (impl_change comes from env, not the trigger ledger)", events[0].TriggerEvents)
+	}
+}
+
 func TestRunOnce_NoTriggerEventsKeepsScheduledTrigger(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)

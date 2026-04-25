@@ -97,6 +97,47 @@ WantedBy=default.target
 `, opts.Description, opts.PathToWatch, opts.ServiceUnit)
 }
 
+// PlannerImplPathUnitOptions render the systemd .path unit that watches
+// the impl tree (cmd/, internal/, etc.) so the planner re-runs whenever
+// developer activity changes the implementation surface. Distinct from
+// the trigger-ledger .path unit (60s rate limit) because dev activity
+// is far burstier; we cap to once per 30 minutes so a refactor session
+// does not flood the planner with regen requests.
+type PlannerImplPathUnitOptions struct {
+	Description   string
+	PathsToWatch  []string
+	ServiceUnit   string
+	TriggerReason string
+}
+
+const plannerImplPathUnitTemplate = `[Unit]
+Description=%s
+
+[Path]
+%s
+TriggerLimitIntervalSec=1800
+TriggerLimitBurst=1
+Unit=%s
+
+[Install]
+WantedBy=default.target
+`
+
+// RenderPlannerImplPathUnit returns a systemd .path unit body that fans
+// one PathChanged= line per watched directory. TriggerReason is currently
+// informational — it is consumed by the planner via the
+// PLANNER_TRIGGER_REASON env var threaded through the service unit (or a
+// drop-in), not by the .path unit itself; the field exists so future
+// drop-ins can reference the same string the renderer was configured
+// with.
+func RenderPlannerImplPathUnit(opts PlannerImplPathUnitOptions) string {
+	lines := make([]string, 0, len(opts.PathsToWatch))
+	for _, p := range opts.PathsToWatch {
+		lines = append(lines, "PathChanged="+p)
+	}
+	return fmt.Sprintf(plannerImplPathUnitTemplate, opts.Description, strings.Join(lines, "\n"), opts.ServiceUnit)
+}
+
 // PlannerServiceInstallOptions describe how to write planner systemd units to
 // the user unit directory.
 type PlannerServiceInstallOptions struct {
@@ -113,11 +154,20 @@ type PlannerServiceInstallOptions struct {
 	// caller so the planner Config and systemd unit agree on which
 	// file represents the trigger source-of-truth.
 	PathToWatch string
-	PlannerPath string
-	WorkDir     string
-	Interval    string
-	AutoStart   bool
-	Force       bool
+	// ImplPathName is the filename of the impl-tree .path unit that
+	// reactively fires the planner service on impl-tree changes
+	// (e.g. cmd/, internal/). Empty disables impl-tree watching;
+	// existing 3-unit installs are unaffected.
+	ImplPathName string
+	// ImplPathsToWatch is the list of absolute directories the impl
+	// .path unit watches (e.g. cmd/, internal/). Empty disables
+	// impl-tree watching even if ImplPathName is set.
+	ImplPathsToWatch []string
+	PlannerPath      string
+	WorkDir          string
+	Interval         string
+	AutoStart        bool
+	Force            bool
 }
 
 func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOptions) error {
@@ -169,6 +219,22 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 		return err
 	}
 
+	// Phase D Task 4: optional impl-tree .path unit. Skipped when either
+	// the unit name or watched-paths list is empty so existing 3-unit
+	// installs keep their original behavior.
+	implPathConfigured := opts.ImplPathName != "" && len(opts.ImplPathsToWatch) > 0
+	if implPathConfigured {
+		implPathUnitPath := filepath.Join(opts.UnitDir, opts.ImplPathName)
+		if err := writePlannerUnit(implPathUnitPath, opts.Force, RenderPlannerImplPathUnit(PlannerImplPathUnitOptions{
+			Description:   "Trigger Gormes architecture planner on impl tree change",
+			PathsToWatch:  opts.ImplPathsToWatch,
+			ServiceUnit:   opts.UnitName,
+			TriggerReason: "impl_change",
+		})); err != nil {
+			return err
+		}
+	}
+
 	if result := runner.Run(ctx, autoloop.Command{Name: "systemctl", Args: []string{"--user", "daemon-reload"}}); result.Err != nil {
 		return result.Err
 	}
@@ -186,6 +252,15 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 		})
 		if result.Err != nil {
 			return result.Err
+		}
+		if implPathConfigured {
+			result = runner.Run(ctx, autoloop.Command{
+				Name: "systemctl",
+				Args: []string{"--user", "enable", "--now", opts.ImplPathName},
+			})
+			if result.Err != nil {
+				return result.Err
+			}
 		}
 	}
 

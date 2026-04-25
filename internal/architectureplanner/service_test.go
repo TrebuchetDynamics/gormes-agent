@@ -132,3 +132,52 @@ func TestInstallPlannerService_WritesAllThreeUnits(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderPlannerImplPathUnit_HasLongerRateLimit(t *testing.T) {
+	rendered := RenderPlannerImplPathUnit(PlannerImplPathUnitOptions{
+		Description:   "Trigger Gormes architecture planner on impl tree change",
+		PathsToWatch:  []string{"/repo/cmd", "/repo/internal"},
+		ServiceUnit:   "gormes-architecture-planner.service",
+		TriggerReason: "impl_change",
+	})
+	for _, w := range []string{
+		"PathChanged=/repo/cmd",
+		"PathChanged=/repo/internal",
+		"TriggerLimitIntervalSec=1800",
+		"TriggerLimitBurst=1",
+		"Unit=gormes-architecture-planner.service",
+	} {
+		if !strings.Contains(rendered, w) {
+			t.Errorf("rendered impl-path unit missing %q\n%s", w, rendered)
+		}
+	}
+}
+
+func TestInstallPlannerService_WritesAllFourUnits(t *testing.T) {
+	dir := t.TempDir()
+	opts := PlannerServiceInstallOptions{
+		Runner:           &autoloop.FakeRunner{Results: []autoloop.Result{{}, {}, {}, {}}},
+		UnitDir:          dir,
+		UnitName:         "gormes-architecture-planner.service",
+		TimerName:        "gormes-architecture-planner.timer",
+		PathName:         "gormes-architecture-planner.path",
+		ImplPathName:     "gormes-architecture-planner-impl.path",
+		PlannerPath:      "/usr/local/bin/planner.sh",
+		WorkDir:          "/repo",
+		PathToWatch:      "/repo/.codex/architecture-planner/triggers.jsonl",
+		ImplPathsToWatch: []string{"/repo/cmd", "/repo/internal"},
+	}
+	if err := InstallPlannerService(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{
+		"gormes-architecture-planner.service",
+		"gormes-architecture-planner.timer",
+		"gormes-architecture-planner.path",
+		"gormes-architecture-planner-impl.path",
+	} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("unit %s not written: %v", name, err)
+		}
+	}
+}
