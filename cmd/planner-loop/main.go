@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannerloop"
@@ -16,17 +19,30 @@ import (
 var commandStdout io.Writer = os.Stdout
 var commandRunner cmdrunner.Runner = cmdrunner.ExecRunner{}
 
-const usage = "usage: planner-loop run [--dry-run] [--codexu|--claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | service install [--force]"
+const usage = "usage: planner-loop [--repo-root <path>] run [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | service install [--force]"
+
+// supportedPlannerBackends lists the backends the run subcommand accepts via
+// --backend. opencode is intentionally absent: planner runs need the richer
+// reasoning surface that codexu/claudeu provide.
+var supportedPlannerBackends = []string{"codexu", "claudeu"}
+
+// errParse marks parser-level failures so main() can map them to exit code 2.
+var errParse = errors.New("parse error")
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		if errors.Is(err, errParse) {
+			os.Exit(2)
+		}
 		os.Exit(1)
 	}
 }
 
-func run(args []string) error {
-	root, err := os.Getwd()
+func run(ctx context.Context, args []string) error {
+	args, root, err := resolveRepoRoot(args)
 	if err != nil {
 		return err
 	}
@@ -44,11 +60,11 @@ func run(args []string) error {
 			_, err := fmt.Fprintln(commandStdout, usage)
 			return err
 		}
-		cfg, err := plannerloop.ConfigFromEnv(root, plannerEnv(opts))
+		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(opts))
 		if err != nil {
 			return err
 		}
-		summary, err := plannerloop.RunOnce(context.Background(), plannerloop.RunOptions{
+		summary, err := plannerloop.RunOnce(ctx, plannerloop.RunOptions{
 			Config:   cfg,
 			Runner:   commandRunner,
 			DryRun:   opts.dryRun,
@@ -57,21 +73,21 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
-		return printRunSummary(summary, opts.dryRun)
+		return printRunSummary(summary, opts.dryRun, opts.keywords)
 	case "status":
-		cfg, err := plannerloop.ConfigFromEnv(root, plannerEnv(runOptions{}))
+		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
 		return printStatus(cfg)
 	case "show-report":
-		cfg, err := plannerloop.ConfigFromEnv(root, plannerEnv(runOptions{}))
+		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
 		return printFile(filepath.Join(cfg.RunRoot, "latest_planner_report.md"))
 	case "doctor":
-		cfg, err := plannerloop.ConfigFromEnv(root, plannerEnv(runOptions{}))
+		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
@@ -82,18 +98,18 @@ func run(args []string) error {
 			if err != nil {
 				return err
 			}
-			cfg, err := plannerloop.ConfigFromEnv(root, plannerEnv(runOptions{}))
+			cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 			if err != nil {
 				return err
 			}
-			return installPlannerService(root, force, cfg.PlannerTriggersPath)
+			return installPlannerService(ctx, root, force, cfg.PlannerTriggersPath)
 		}
-		return fmt.Errorf(usage)
+		return fmt.Errorf("%w\n%s", errParse, usage)
 	case "--help", "-h", "help":
 		_, err := fmt.Fprintln(commandStdout, usage)
 		return err
 	default:
-		return fmt.Errorf(usage)
+		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
 }
 
@@ -112,13 +128,19 @@ func parseRunOptions(args []string) (runOptions, error) {
 		switch arg {
 		case "--dry-run":
 			opts.dryRun = true
-		case "--codexu":
-			opts.backend = "codexu"
-		case "--claudeu":
-			opts.backend = "claudeu"
+		case "--backend":
+			if i+1 >= len(args) {
+				return runOptions{}, fmt.Errorf("%w: --backend requires a value\n%s", errParse, usage)
+			}
+			i++
+			if !plannerContains(supportedPlannerBackends, args[i]) {
+				return runOptions{}, fmt.Errorf("%w: unsupported backend %q (want one of %s)\n%s",
+					errParse, args[i], strings.Join(supportedPlannerBackends, ", "), usage)
+			}
+			opts.backend = args[i]
 		case "--mode":
 			if i+1 >= len(args) {
-				return runOptions{}, fmt.Errorf(usage)
+				return runOptions{}, fmt.Errorf("%w: --mode requires a value\n%s", errParse, usage)
 			}
 			i++
 			opts.mode = args[i]
@@ -130,7 +152,7 @@ func parseRunOptions(args []string) (runOptions, error) {
 			// whitespace so a single quoted shell arg yields multiple
 			// keywords. Reject obvious typos for unknown flags.
 			if strings.HasPrefix(arg, "-") {
-				return runOptions{}, fmt.Errorf(usage)
+				return runOptions{}, fmt.Errorf("%w\n%s", errParse, usage)
 			}
 			for _, kw := range strings.Fields(arg) {
 				opts.keywords = append(opts.keywords, kw)
@@ -140,40 +162,38 @@ func parseRunOptions(args []string) (runOptions, error) {
 	return opts, nil
 }
 
-func plannerEnv(opts runOptions) map[string]string {
-	env := map[string]string{}
-	for _, key := range []string{
-		"PROGRESS_JSON",
-		"RUN_ROOT",
-		"BACKEND",
-		"MODE",
-		"HERMES_DIR",
-		"GBRAIN_DIR",
-		"HONCHO_DIR",
-		"HERMES_REPO_URL",
-		"GBRAIN_REPO_URL",
-		"HONCHO_REPO_URL",
-		"PLANNER_VALIDATE",
-		"PLANNER_SYNC_REPOS",
-		"PLANNER_TRIGGERS_PATH",
-		"PLANNER_MAX_RETRIES",
-		"PLANNER_BACKEND_TIMEOUT",
-		"PLANNER_TRIGGER_REASON",
-		"MERGE_OPEN_PULL_REQUESTS",
-		"PR_INTAKE_CONFLICT_ACTION",
-	} {
-		env[key] = os.Getenv(key)
+func plannerContains(haystack []string, needle string) bool {
+	for _, candidate := range haystack {
+		if candidate == needle {
+			return true
+		}
 	}
-	if opts.backend != "" {
-		env["BACKEND"] = opts.backend
-	}
-	if opts.mode != "" {
-		env["MODE"] = opts.mode
-	}
-	return env
+	return false
 }
 
-func printRunSummary(summary plannerloop.RunSummary, dryRun bool) error {
+// plannerLookup returns an EnvLookup that delegates to os.LookupEnv but
+// overlays --backend / --mode CLI flags so they win over the matching
+// env vars without forcing callers to enumerate every supported key.
+func plannerLookup(opts runOptions) plannerloop.EnvLookup {
+	overrides := map[string]string{}
+	if opts.backend != "" {
+		overrides["BACKEND"] = opts.backend
+	}
+	if opts.mode != "" {
+		overrides["MODE"] = opts.mode
+	}
+	if len(overrides) == 0 {
+		return os.LookupEnv
+	}
+	return func(key string) (string, bool) {
+		if v, ok := overrides[key]; ok {
+			return v, true
+		}
+		return os.LookupEnv(key)
+	}
+}
+
+func printRunSummary(summary plannerloop.RunSummary, dryRun bool, keywords []string) error {
 	label := "architecture planner run"
 	if dryRun {
 		label = "architecture planner dry-run"
@@ -181,6 +201,12 @@ func printRunSummary(summary plannerloop.RunSummary, dryRun bool) error {
 	fmt.Fprintf(commandStdout, "%s\n", label)
 	fmt.Fprintf(commandStdout, "backend: %s\n", summary.Backend)
 	fmt.Fprintf(commandStdout, "mode: %s\n", summary.Mode)
+	if len(keywords) > 0 {
+		// Echoing keywords back to the operator confirms topical-focus
+		// mode actually engaged when the planner was invoked with
+		// positional args (e.g. `planner-loop run hermes-issues`).
+		fmt.Fprintf(commandStdout, "keywords: %s\n", strings.Join(keywords, " "))
+	}
 	fmt.Fprintf(commandStdout, "progress: %s\n", summary.ProgressJSON)
 	fmt.Fprintf(commandStdout, "progress items: %d\n", summary.ProgressItems)
 	fmt.Fprintf(commandStdout, "run root: %s\n", summary.RunRoot)
@@ -226,14 +252,41 @@ func plannerServiceForce(args []string) (bool, error) {
 	force := os.Getenv("FORCE") == "1"
 	for _, arg := range args {
 		if arg != "--force" {
-			return false, fmt.Errorf(usage)
+			return false, fmt.Errorf("%w\n%s", errParse, usage)
 		}
 		force = true
 	}
 	return force, nil
 }
 
-func installPlannerService(root string, force bool, pathToWatch string) error {
+// resolveRepoRoot consumes a --repo-root flag (if present) from anywhere in
+// args and returns the cleaned arg list plus the resolved root. Falls back
+// to REPO_ROOT then os.Getwd. Mirrors the builder-loop helper.
+func resolveRepoRoot(args []string) ([]string, string, error) {
+	out := make([]string, 0, len(args))
+	root := os.Getenv("REPO_ROOT")
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--repo-root" {
+			if i+1 >= len(args) {
+				return nil, "", fmt.Errorf("%w: --repo-root requires a value\n%s", errParse, usage)
+			}
+			root = args[i+1]
+			i++
+			continue
+		}
+		out = append(out, args[i])
+	}
+	if root == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, "", err
+		}
+		root = cwd
+	}
+	return out, root, nil
+}
+
+func installPlannerService(ctx context.Context, root string, force bool, pathToWatch string) error {
 	unitDir, err := plannerUnitDir()
 	if err != nil {
 		return err
@@ -254,7 +307,7 @@ func installPlannerService(root string, force bool, pathToWatch string) error {
 		implPathName = ""
 	}
 
-	return plannerloop.InstallPlannerService(context.Background(), plannerloop.PlannerServiceInstallOptions{
+	return plannerloop.InstallPlannerService(ctx, plannerloop.PlannerServiceInstallOptions{
 		Runner:           commandRunner,
 		UnitDir:          unitDir,
 		UnitName:         "gormes-planner-loop.service",

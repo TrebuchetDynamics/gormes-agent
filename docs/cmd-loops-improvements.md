@@ -15,18 +15,18 @@ leverage.
 | 1 | Break the planner→builder import (extract runner plumbing)           | done         |
 | 2 | Replace mutually-exclusive backend flags with `--backend <name>`     | done         |
 | 3 | Push env reads into `*.ConfigFromEnv` (kill cmd/-side allowlists)    | done         |
-| 4 | Graceful shutdown via `signal.NotifyContext`                         | open         |
+| 4 | Graceful shutdown via `signal.NotifyContext`                         | done         |
 | 5 | Per-subcommand `--help`                                              | open         |
 | 6 | `planner-loop doctor` actually diagnoses drift                       | open         |
-| 7 | Show keywords in planner run summary                                 | open         |
+| 7 | Show keywords in planner run summary                                 | done         |
 | 8 | `planner-loop trigger <reason>` verb                                 | open         |
 | 9 | Move `progress` and `repo` subcommands out of `builder-loop`         | open         |
 | 10 | Collapse `progress write` to a table-driven loop                    | open         |
 | 11 | Replace package-level test-seam globals with a `cliDeps` struct     | open         |
-| 12 | Structured exit codes                                                | open         |
+| 12 | Structured exit codes                                                | partial      |
 | 13 | `--format json` for read-only commands                               | open         |
-| 14 | `--repo-root` / `REPO_ROOT` flag                                     | open         |
-| 15 | `digest --output` should refuse to clobber unless `--force`          | open         |
+| 14 | `--repo-root` / `REPO_ROOT` flag                                     | done         |
+| 15 | `digest --output` should refuse to clobber unless `--force`          | done         |
 
 ## Highest leverage
 

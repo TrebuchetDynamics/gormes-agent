@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,9 +18,12 @@ import (
 )
 
 func TestRunRejectsUnknownCommand(t *testing.T) {
-	err := run([]string{"unknown"})
+	err := run(context.Background(), []string{"unknown"})
 	if err == nil {
 		t.Fatal("run() error = nil, want error")
+	}
+	if !errors.Is(err, errParse) {
+		t.Fatalf("run() error = %v, want errors.Is(errParse) = true", err)
 	}
 	for _, want := range []string{
 		"usage: builder-loop",
@@ -37,6 +42,73 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestResolveRepoRootPrefersFlag(t *testing.T) {
+	dir := t.TempDir()
+	args, root, err := resolveRepoRoot([]string{"run", "--repo-root", dir, "--dry-run"})
+	if err != nil {
+		t.Fatalf("resolveRepoRoot() error = %v", err)
+	}
+	if root != dir {
+		t.Fatalf("root = %q, want %q", root, dir)
+	}
+	if got, want := args, []string{"run", "--dry-run"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("args = %v, want %v", got, want)
+	}
+}
+
+func TestResolveRepoRootFallsBackToEnv(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("REPO_ROOT", dir)
+	args, root, err := resolveRepoRoot([]string{"run"})
+	if err != nil {
+		t.Fatalf("resolveRepoRoot() error = %v", err)
+	}
+	if root != dir {
+		t.Fatalf("root = %q, want %q", root, dir)
+	}
+	if got, want := args, []string{"run"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("args = %v, want %v", got, want)
+	}
+}
+
+func TestResolveRepoRootMissingValue(t *testing.T) {
+	if _, _, err := resolveRepoRoot([]string{"--repo-root"}); !errors.Is(err, errParse) {
+		t.Fatalf("err = %v, want errParse", err)
+	}
+}
+
+func TestWriteDigestOutputRefusesClobber(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "digest.txt")
+	if err := os.WriteFile(path, []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeDigestOutput(path, "new", false); err == nil {
+		t.Fatal("writeDigestOutput() error = nil, want clobber refusal")
+	} else if !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("err = %v, want 'already exists'", err)
+	}
+	got, _ := os.ReadFile(path)
+	if string(got) != "existing" {
+		t.Fatalf("file overwritten unexpectedly: %q", got)
+	}
+}
+
+func TestWriteDigestOutputForceOverwrites(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "digest.txt")
+	if err := os.WriteFile(path, []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeDigestOutput(path, "new", true); err != nil {
+		t.Fatalf("writeDigestOutput(force=true) error = %v", err)
+	}
+	got, _ := os.ReadFile(path)
+	if string(got) != "new" {
+		t.Fatalf("file = %q, want %q", got, "new")
+	}
+}
+
 func TestProgressValidateValidatesCanonicalProgress(t *testing.T) {
 	repoRoot := t.TempDir()
 	writeMinimalProgressRepo(t, repoRoot)
@@ -49,7 +121,7 @@ func TestProgressValidateValidatesCanonicalProgress(t *testing.T) {
 		commandStdout = oldStdout
 	})
 
-	if err := run([]string{"progress", "validate"}); err != nil {
+	if err := run(context.Background(), []string{"progress", "validate"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -70,7 +142,7 @@ func TestProgressWriteRegeneratesDocsAndSiteProgress(t *testing.T) {
 		commandStdout = oldStdout
 	})
 
-	if err := run([]string{"progress", "write"}); err != nil {
+	if err := run(context.Background(), []string{"progress", "write"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -119,7 +191,7 @@ func TestRepoBenchmarkRecordUpdatesBenchmarks(t *testing.T) {
 	}
 	withTempCwd(t, repoRoot)
 
-	if err := run([]string{"repo", "benchmark", "record"}); err != nil {
+	if err := run(context.Background(), []string{"repo", "benchmark", "record"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -158,7 +230,7 @@ func TestRepoReadmeUpdateUpdatesReadme(t *testing.T) {
 	}
 	withTempCwd(t, repoRoot)
 
-	if err := run([]string{"repo", "readme", "update"}); err != nil {
+	if err := run(context.Background(), []string{"repo", "readme", "update"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 	raw, err := os.ReadFile(readme)
@@ -227,7 +299,7 @@ func TestRunCommandDryRunPrintsSummary(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"run", "--dry-run"}); err != nil {
+	if err := run(context.Background(), []string{"run", "--dry-run"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -291,12 +363,46 @@ func TestRunCommandBackendFlagSetsBackend(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"run", "--dry-run", "--opencode"}); err != nil {
+	if err := run(context.Background(), []string{"run", "--dry-run", "--backend", "opencode"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
 	if !strings.Contains(stdout.String(), "backend flag candidate") {
 		t.Fatalf("stdout = %q, want dry-run summary with backend flag accepted", stdout.String())
+	}
+}
+
+func TestParseRunOptions_BackendFlag(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "codexu", args: []string{"--backend", "codexu"}, want: "codexu"},
+		{name: "claudeu", args: []string{"--backend", "claudeu"}, want: "claudeu"},
+		{name: "opencode", args: []string{"--backend", "opencode"}, want: "opencode"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			opts, err := parseRunOptions(tc.args)
+			if err != nil {
+				t.Fatalf("parseRunOptions(%v) error = %v", tc.args, err)
+			}
+			if opts.backend != tc.want {
+				t.Fatalf("backend = %q, want %q", opts.backend, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseRunOptions_BackendFlagRequiresValue(t *testing.T) {
+	if _, err := parseRunOptions([]string{"--backend"}); err == nil {
+		t.Fatal("parseRunOptions(--backend with no value) error = nil, want error")
+	}
+}
+
+func TestParseRunOptions_BackendFlagRejectsUnsupported(t *testing.T) {
+	if _, err := parseRunOptions([]string{"--backend", "ollama"}); err == nil {
+		t.Fatal("parseRunOptions(--backend ollama) error = nil, want error")
 	}
 }
 
@@ -308,7 +414,7 @@ func TestRunCommandHelpPrintsUsage(t *testing.T) {
 		commandStdout = oldStdout
 	})
 
-	if err := run([]string{"run", "--help"}); err != nil {
+	if err := run(context.Background(), []string{"run", "--help"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -317,13 +423,17 @@ func TestRunCommandHelpPrintsUsage(t *testing.T) {
 	}
 }
 
-func TestAutoloopEnvIncludesPlannerTriggersPath(t *testing.T) {
-	t.Setenv("PLANNER_TRIGGERS_PATH", filepath.Join(t.TempDir(), "triggers.jsonl"))
+func TestConfigFromEnvFlowsThroughOSLookup(t *testing.T) {
+	want := filepath.Join(t.TempDir(), "triggers.jsonl")
+	t.Setenv("PLANNER_TRIGGERS_PATH", want)
 
-	env := autoloopEnv()
+	cfg, err := builderloop.ConfigFromEnv(t.TempDir(), os.LookupEnv)
+	if err != nil {
+		t.Fatalf("ConfigFromEnv() error = %v", err)
+	}
 
-	if got, want := env["PLANNER_TRIGGERS_PATH"], os.Getenv("PLANNER_TRIGGERS_PATH"); got != want {
-		t.Fatalf("PLANNER_TRIGGERS_PATH = %q, want %q", got, want)
+	if cfg.PlannerTriggersPath != want {
+		t.Fatalf("PlannerTriggersPath = %q, want %q", cfg.PlannerTriggersPath, want)
 	}
 }
 
@@ -360,7 +470,7 @@ func TestDigestUsesConfiguredRunRoot(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"digest"}); err != nil {
+	if err := run(context.Background(), []string{"digest"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -395,7 +505,7 @@ func TestDigestOutputWritesFile(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"digest", "--output", outputPath}); err != nil {
+	if err := run(context.Background(), []string{"digest", "--output", outputPath}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -441,7 +551,7 @@ func TestAuditUsesConfiguredRunRoot(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"audit"}); err != nil {
+	if err := run(context.Background(), []string{"audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -484,7 +594,7 @@ func TestAuditCreatesReportArtifacts(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"audit"}); err != nil {
+	if err := run(context.Background(), []string{"audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -523,7 +633,7 @@ func TestServiceInstallWritesUnitUnderXDGConfigHome(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"service", "install"}); err != nil {
+	if err := run(context.Background(), []string{"service", "install"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -576,7 +686,7 @@ func TestServiceInstallAuditUsesAuditUnitName(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"service", "install-audit"}); err != nil {
+	if err := run(context.Background(), []string{"service", "install-audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -628,7 +738,7 @@ func TestServiceInstallHonorsAutoStartZero(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"service", "install"}); err != nil {
+	if err := run(context.Background(), []string{"service", "install"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -665,7 +775,7 @@ func TestServiceInstallAuditHonorsAutoStartZero(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"service", "install-audit"}); err != nil {
+	if err := run(context.Background(), []string{"service", "install-audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -685,7 +795,7 @@ func TestServiceDisableLegacyTimersUsesRunner(t *testing.T) {
 		serviceRunner = oldRunner
 	})
 
-	if err := run([]string{"service", "disable", "legacy-timers"}); err != nil {
+	if err := run(context.Background(), []string{"service", "disable", "legacy-timers"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -730,7 +840,7 @@ func TestServiceInstallUsesHomeWhenXDGConfigHomeEmpty(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"service", "install"}); err != nil {
+	if err := run(context.Background(), []string{"service", "install"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -772,7 +882,7 @@ func TestDigestIgnoresRunOnlyEnvValidation(t *testing.T) {
 		}
 	})
 
-	if err := run([]string{"digest"}); err != nil {
+	if err := run(context.Background(), []string{"digest"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
