@@ -3,6 +3,7 @@ package autoloop
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
@@ -202,5 +203,65 @@ func TestFailurePenalty_TableDriven(t *testing.T) {
 		if got != c.want {
 			t.Errorf("failurePenalty(%d) = %d, want %d", c.consecutive, got, c.want)
 		}
+	}
+}
+
+func TestNormalizeCandidates_PenaltyDemotesAndAnnotates(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "progress.json")
+	writeHealthProgress(t, path, `{
+  "version": "1",
+  "phases": {
+    "1": {
+      "name": "P",
+      "subphases": {
+        "1.A": {
+          "name": "S",
+          "items": [
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft"},
+            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft"}
+          ]
+        }
+      }
+    }
+  }
+}
+`)
+
+	// Seed row-a with 2 consecutive failures and 1 backend tried.
+	// Penalty math: failurePenalty(2) + 2*len([]) = 20 + 2 = 22 (with 1 backend).
+	if err := progress.ApplyHealthUpdates(path, []progress.HealthUpdate{{
+		PhaseID: "1", SubphaseID: "1.A", ItemName: "row-a",
+		Mutate: func(h *progress.RowHealth) {
+			h.ConsecutiveFailures = 2
+			h.BackendsTried = []string{"codexu"}
+		},
+	}}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 candidates, got %d", len(got))
+	}
+
+	// row-b (no penalty) should sort BEFORE row-a (penalized).
+	if got[0].ItemName != "row-b" {
+		t.Fatalf("unpenalized row should sort first; got order [%s, %s]", got[0].ItemName, got[1].ItemName)
+	}
+
+	// row-a's PenaltyApplied must be populated: failurePenalty(2)=20 + 2*1=2 → 22.
+	const wantPenalty = 22
+	if got[1].PenaltyApplied != wantPenalty {
+		t.Fatalf("row-a PenaltyApplied = %d, want %d", got[1].PenaltyApplied, wantPenalty)
+	}
+
+	// SelectionReason must surface the penalty annotation.
+	reason := got[1].SelectionReason()
+	if !strings.Contains(reason, "penalty=22") {
+		t.Fatalf("row-a SelectionReason missing penalty=22; got: %s", reason)
 	}
 }
