@@ -1595,9 +1595,9 @@
             {
               "name": "Goncho context representation options",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "honcho_context exposes the Honcho v3 session.context representation controls while preserving current same-chat defaults",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1613,9 +1613,6 @@
                 "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
                 "internal/goncho/types.go",
                 "internal/tools/honcho_tools.go"
-              ],
-              "blocked_by": [
-                "Honcho-compatible scope/source tool schema"
               ],
               "ready_when": [
                 "honcho_context already accepts peer, query, max_tokens, session_key, scope, and sources through the Goncho service."
@@ -1633,7 +1630,7 @@
                 "limit_to_session=true cannot widen recall through scope=user.",
                 "Fields that need the future observation table report explicit unsupported evidence."
               ],
-              "note": "Docs study landed from Honcho v3 get-context and representation-scopes docs. This is the smallest public-edge slice before full SDK context parity: add typed option fields and schema visibility, but do not claim that summary, observation, or dialectic-backed representation retrieval is complete.",
+              "note": "TDD landed: ContextParams and the honcho_context schema expose optional peer_target, peer_perspective, limit_to_session, search_top_k, search_max_distance, include_most_frequent, and max_conclusions. Omitted fields preserve same-chat context defaults; limit_to_session=true fails closed without session_key and cannot widen through scope=user; unsupported directional and semantic representation options return structured unavailable evidence. Summaries, observations, and dialectic-backed retrieval remain separate slices.",
               "write_scope": [
                 "internal/goncho/",
                 "internal/tools/",

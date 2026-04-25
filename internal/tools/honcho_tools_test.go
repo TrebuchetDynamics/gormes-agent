@@ -45,6 +45,20 @@ func TestHonchoContextTool_SchemaExposesOptionalScopeAndSources(t *testing.T) {
 	assertScopeAndSourcesSchema(t, tool.Schema(), []string{"peer"})
 }
 
+func TestHonchoContextTool_SchemaExposesOptionalRepresentationOptions(t *testing.T) {
+	tool := &HonchoContextTool{}
+
+	assertOptionalSchemaProperties(t, tool.Schema(), []string{"peer"}, map[string]string{
+		"peer_target":           "string",
+		"peer_perspective":      "string",
+		"limit_to_session":      "boolean",
+		"search_top_k":          "integer",
+		"search_max_distance":   "number",
+		"include_most_frequent": "boolean",
+		"max_conclusions":       "integer",
+	})
+}
+
 func TestHonchoSearchTool_OmittedScopeSourcesPreservesSameChatDefault(t *testing.T) {
 	reg, svc, cleanup := newTestHonchoRegistry(t)
 	defer cleanup()
@@ -207,6 +221,46 @@ func assertScopeAndSourcesSchema(t *testing.T, raw json.RawMessage, wantRequired
 	for _, name := range wantRequired {
 		if !required[name] {
 			t.Fatalf("required = %v, missing %s", schema.Required, name)
+		}
+	}
+}
+
+func assertOptionalSchemaProperties(t *testing.T, raw json.RawMessage, wantRequired []string, wantTypes map[string]string) {
+	t.Helper()
+
+	var schema struct {
+		Properties map[string]struct {
+			Type string `json:"type"`
+		} `json:"properties"`
+		Required []string `json:"required"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatalf("schema unmarshal: %v", err)
+	}
+
+	required := make(map[string]bool, len(schema.Required))
+	for _, name := range schema.Required {
+		required[name] = true
+	}
+	if len(schema.Required) != len(wantRequired) {
+		t.Fatalf("required = %v, want %v", schema.Required, wantRequired)
+	}
+	for _, name := range wantRequired {
+		if !required[name] {
+			t.Fatalf("required = %v, missing %s", schema.Required, name)
+		}
+	}
+
+	for name, wantType := range wantTypes {
+		prop, ok := schema.Properties[name]
+		if !ok {
+			t.Fatalf("schema properties missing %s: %s", name, raw)
+		}
+		if prop.Type != wantType {
+			t.Fatalf("%s type = %q, want %q", name, prop.Type, wantType)
+		}
+		if required[name] {
+			t.Fatalf("%s is required in schema: %s", name, raw)
 		}
 	}
 }
