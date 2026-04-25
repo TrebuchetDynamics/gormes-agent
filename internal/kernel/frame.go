@@ -48,6 +48,9 @@ type RenderFrame struct {
 	Model      string
 	LastError  string
 	SoulEvents []SoulEntry
+	// ContextStatus snapshots the active ContextEngine status, when one is
+	// configured. Nil means no context engine has been wired for this kernel.
+	ContextStatus *hermes.ContextStatus
 }
 
 type SoulEntry struct {

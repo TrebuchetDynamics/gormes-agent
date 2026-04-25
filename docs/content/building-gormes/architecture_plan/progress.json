@@ -2711,9 +2711,9 @@
             },
             {
               "name": "ContextEngine interface + status tool contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Stable context engine status and compression boundary",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -2721,7 +2721,7 @@
                 "system"
               ],
               "degraded_mode": "Context status reports disabled compression, cooldowns, unknown tools, token-budget pressure, and replay gaps.",
-              "fixture": "internal/contextengine status and compression replay fixtures",
+              "fixture": "internal/hermes/testdata/context_status and internal/kernel context-engine replay fixtures",
               "source_refs": [
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
@@ -2732,9 +2732,6 @@
               "not_ready_when": [
                 "Compression is wired into the kernel before the context engine boundary and status contract are stable."
               ],
-              "blocked_by": [
-                "Provider interface + stream fixture harness"
-              ],
               "unblocks": [
                 "Compression token-budget trigger + summary sizing",
                 "Tool-result pruning + protected head/tail summary"
@@ -2744,7 +2741,7 @@
                 "Compression remains an explicit engine boundary, not a hidden kernel side effect.",
                 "Fixtures replay context status without live provider calls."
               ],
-              "note": "TDD: port the `agent/context_engine.py` interface, `get_status` payload, update_model_context behavior, and unknown tool error shape before any compressor implementation is wired into the agent loop.",
+              "note": "Complete: TDD landed a provider-owned Go ContextEngine contract in internal/hermes, a disabled engine with context_status payload fixtures for window, budget pressure, compression disabled/cooldown state, replay gaps, and structured unknown-context-tool errors. The kernel now snapshots context status, updates usage from provider EventDone, advertises context-engine tools, and dispatches them through the explicit engine boundary without calling Compress as a hidden side effect.",
               "write_scope": [
                 "internal/kernel/",
                 "internal/hermes/",
