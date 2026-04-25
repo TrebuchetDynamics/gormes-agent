@@ -122,6 +122,7 @@ func BuildPrompt(bundle ContextBundle, keywords []string) string {
 	hugoDocs := formatInventorySurface(bundle.ImplementationInventory.HugoDocs)
 	auditBlock := formatAutoloopAudit(bundle.AutoloopAudit)
 	quarantineBlock := formatQuarantinedRows(bundle.QuarantinedRows)
+	reshapeBlock := formatPreviousReshapes(bundle.PreviousReshapes)
 	triggerBlock := formatTriggerEvents(bundle.TriggerEvents)
 	topicalBlock := ""
 	if len(keywords) > 0 {
@@ -211,6 +212,53 @@ func formatTriggerEvents(events []plannertriggers.TriggerEvent) string {
 	b.WriteString("\n## Recent Autoloop Signals (Since Last Planner Run)\n\nThese rows changed state in autoloop and may need attention this run:\n\n")
 	for _, ev := range events {
 		fmt.Fprintf(&b, "- %s/%s/%s — %s — %s\n", ev.PhaseID, ev.SubphaseID, ev.ItemName, ev.Kind, ev.Reason)
+	}
+	return b.String()
+}
+
+// formatPreviousReshapes renders the L4 self-evaluation surface as a
+// bucketed list (UNSTUCK / STILL FAILING / NO ATTEMPTS YET). Returns the
+// empty string when there are no outcomes so the section is omitted
+// entirely on first runs and on runs where the planner reshaped nothing.
+// The SELF-EVALUATION (SOFT RULE) clause still ships unconditionally so
+// the LLM knows what the section means even when it is absent.
+func formatPreviousReshapes(outcomes []ReshapeOutcome) string {
+	if len(outcomes) == 0 {
+		return ""
+	}
+	var unstuck, still, none []ReshapeOutcome
+	for _, o := range outcomes {
+		switch o.Outcome {
+		case "unstuck":
+			unstuck = append(unstuck, o)
+		case "still_failing":
+			still = append(still, o)
+		default:
+			none = append(none, o)
+		}
+	}
+	var b strings.Builder
+	b.WriteString("\n## Previous Reshape Outcomes (Last 7 Days)\n\n")
+	if len(unstuck) > 0 {
+		fmt.Fprintf(&b, "UNSTUCK (%d):\n", len(unstuck))
+		for _, o := range unstuck {
+			fmt.Fprintf(&b, "- %s/%s/%s — reshaped %s by %s; autoloop promoted %s\n",
+				o.PhaseID, o.SubphaseID, o.ItemName, o.ReshapedAt, o.ReshapedBy, o.LastSuccess)
+		}
+	}
+	if len(still) > 0 {
+		fmt.Fprintf(&b, "\nSTILL FAILING (%d):\n", len(still))
+		for _, o := range still {
+			fmt.Fprintf(&b, "- %s/%s/%s — reshaped %s by %s; autoloop attempted %d times, last category: %s\n",
+				o.PhaseID, o.SubphaseID, o.ItemName, o.ReshapedAt, o.ReshapedBy, o.AutoloopRuns, o.LastFailure)
+		}
+	}
+	if len(none) > 0 {
+		fmt.Fprintf(&b, "\nNO ATTEMPTS YET (%d):\n", len(none))
+		for _, o := range none {
+			fmt.Fprintf(&b, "- %s/%s/%s — reshaped %s by %s; autoloop has not selected this row since\n",
+				o.PhaseID, o.SubphaseID, o.ItemName, o.ReshapedAt, o.ReshapedBy)
+		}
 	}
 	return b.String()
 }
