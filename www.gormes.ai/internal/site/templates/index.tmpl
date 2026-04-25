@@ -6,7 +6,10 @@
     <div class="hero-subhead">
       {{range .HeroSubheadLines}}<p class="hero-subhead-line">{{.}}</p>{{end}}
     </div>
-    <p class="hero-filter">{{.HeroFilterLine}}</p>
+    <p class="hero-filter">
+      <span class="hero-filter-stamp">{{.HeroFilterStamp}}</span>
+      <span class="hero-filter-body">{{.HeroFilterLine}}</span>
+    </p>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
       <a class="btn btn-ghost" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
@@ -31,12 +34,14 @@
 
     <div class="why-manifesto">
       <p class="why-manifesto-line">{{.WhyManifestoLine}}</p>
+      <p class="why-manifesto-intro">{{.WhyManifestoIntro}}</p>
       <ul class="why-manifesto-list">
         {{range .WhyManifestoBullets}}<li>{{.}}</li>{{end}}
       </ul>
     </div>
 
     <div class="why-pain">
+      <p class="why-pain-kicker">{{.WhyPainKicker}}</p>
       <h2 class="section-title why-pain-headline">{{.WhyPainHeadline}}</h2>
       <ul class="why-pain-list">
         {{range .WhyPainBullets}}<li>{{.}}</li>{{end}}

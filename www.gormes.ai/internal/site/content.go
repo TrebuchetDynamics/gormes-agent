@@ -103,6 +103,10 @@ type LandingPage struct {
 	// three tight lines instead of one dense block, so the operations
 	// pitch reads as a punch on mobile rather than a wall of prose.
 	HeroSubheadLines []string
+	// HeroFilterStamp renders as an accent-colored stamp (e.g. "Early-stage.")
+	// above the longer filter caveat, so the line reads as positioning
+	// rather than a disclaimer.
+	HeroFilterStamp  string
 	HeroFilterLine   string
 	HeroStatusLine   string
 	PrimaryCTA       Link
@@ -118,9 +122,14 @@ type LandingPage struct {
 	// "Why Gormes" section: manifesto + pain frame + fix cards.
 	// All three sub-blocks render under a single #why section so the
 	// reader gets identity → problem → solution in one visual unit.
+	// Manifesto bullets dropped the repetitive "It's about agents that "
+	// stem in v4 — the WhyManifestoIntro line ("It's about agents that:")
+	// carries it once so the bullets read as a clean enumeration.
 	WhyLabel            string
 	WhyManifestoLine    string
+	WhyManifestoIntro   string
 	WhyManifestoBullets []string
+	WhyPainKicker       string
 	WhyPainHeadline     string
 	WhyPainBullets      []string
 	WhyFixSubhead       string
@@ -174,7 +183,8 @@ func DefaultPage() LandingPage {
 			"Built to solve the operations problem — not the AI problem.",
 			"One static binary. No virtualenvs. No dependency hell.",
 		},
-		HeroFilterLine: "Early-stage. Built for developers who care about reliability over polish.",
+		HeroFilterStamp: "Early-stage.",
+		HeroFilterLine:  "Built for developers who care about reliability over polish.",
 		HeroStatusLine: "Hermes is no longer required. The full Go runtime is still under active construction.",
 		PrimaryCTA:     Link{Label: "Install", Href: "#install"},
 		SecondaryCTA:   Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
@@ -189,14 +199,16 @@ func DefaultPage() LandingPage {
 		DocsNote:            "Deeper reference material lives at",
 		DocsLinkLabel:       "docs.gormes.ai →",
 		DocsLinkHref:        "https://docs.gormes.ai/",
-		WhyLabel:            "§ 02 · WHY GORMES",
-		WhyManifestoLine:    "Gormes is not about smarter agents.",
+		WhyLabel:          "§ 02 · WHY GORMES",
+		WhyManifestoLine:  "Gormes is not about smarter agents.",
+		WhyManifestoIntro: "It's about agents that:",
 		WhyManifestoBullets: []string{
-			"It's about agents that don't fail to install.",
-			"It's about agents that don't drift between environments.",
-			"It's about agents that don't crash after six hours.",
-			"It's about agents that don't lose work on dropped connections.",
+			"don't fail to install.",
+			"don't drift between environments.",
+			"don't crash after six hours.",
+			"don't lose work on dropped connections.",
 		},
+		WhyPainKicker:   "⚠ THE PROBLEM",
 		WhyPainHeadline: "Why Hermes-stack agents break in production.",
 		WhyPainBullets: []string{
 			"Python environments drift between dev, staging, and prod.",

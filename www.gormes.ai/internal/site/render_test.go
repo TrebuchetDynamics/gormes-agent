@@ -26,7 +26,9 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Built to solve the operations problem — not the AI problem.",
 		"One static binary. No virtualenvs. No dependency hell.",
 		`class="hero-filter"`,
-		"Early-stage. Built for developers who care about reliability over polish.",
+		`class="hero-filter-stamp"`,
+		"Early-stage.",
+		"Built for developers who care about reliability over polish.",
 		`class="hero-status"`,
 		"Hermes is no longer required. The full Go runtime is still under active construction.",
 		// CTA hierarchy — primary dominant, ghost secondary.
@@ -48,8 +50,12 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		`id="why"`,
 		"WHY GORMES",
 		"Gormes is not about smarter agents.",
-		"It&#39;s about agents that don&#39;t fail to install.",
-		"It&#39;s about agents that don&#39;t crash after six hours.",
+		"It&#39;s about agents that:",
+		`class="why-manifesto-intro"`,
+		"don&#39;t fail to install.",
+		"don&#39;t crash after six hours.",
+		`class="why-pain-kicker"`,
+		"⚠ THE PROBLEM",
 		"Why Hermes-stack agents break in production.",
 		"Python environments drift between dev, staging, and prod.",
 		"SSE streams drop on flaky networks and kill long-running agents.",
@@ -158,6 +164,16 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		`class="hero-image"`,
 		`class="hero-content"`,
 		`class="btn-secondary"`,
+		// v3 manifesto bullets had a repetitive "It's about agents that"
+		// stem on every line. v4 collapses to one intro line + clean bullets.
+		"It&#39;s about agents that don&#39;t fail to install.",
+		"It&#39;s about agents that don&#39;t drift between environments.",
+		"It&#39;s about agents that don&#39;t crash after six hours.",
+		"It&#39;s about agents that don&#39;t lose work on dropped connections.",
+		// v3 "Early-stage. Built for developers..." was one line; v4
+		// splits it into a stamp + body so "Early-stage" lands as
+		// positioning rather than disclaimer.
+		"Early-stage. Built for developers who care about reliability over polish.",
 		// Obsolete single-row ledger copy replaced by grouped roadmap
 		"Phase 3 — SQLite + FTS5 transcript memory.",
 		"Phase 3.A–C — SQLite + FTS5 lattice, ontological graph, neural recall.",

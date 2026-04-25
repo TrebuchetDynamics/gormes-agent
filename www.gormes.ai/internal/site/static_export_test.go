@@ -25,7 +25,9 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Gormes is a Go-native runtime for AI agents.",
 		"Built to solve the operations problem — not the AI problem.",
 		"One static binary. No virtualenvs. No dependency hell.",
-		"Early-stage. Built for developers who care about reliability over polish.",
+		`class="hero-filter-stamp"`,
+		"Early-stage.",
+		"Built for developers who care about reliability over polish.",
 		"Hermes is no longer required. The full Go runtime is still under active construction.",
 		`class="btn btn-primary"`,
 		`class="btn btn-ghost"`,
@@ -35,6 +37,8 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Installs a prebuilt static binary",
 		// Why-Gormes section: manifesto + pain frame + fix cards.
 		"Gormes is not about smarter agents.",
+		"It&#39;s about agents that:",
+		"⚠ THE PROBLEM",
 		"Why Hermes-stack agents break in production.",
 		"Python environments drift between dev, staging, and prod.",
 		"How Gormes fixes it.",
@@ -99,6 +103,13 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		`class="hero-image"`,
 		`class="hero-content"`,
 		`class="btn-secondary"`,
+		// v3 manifesto bullets had repetitive "It's about agents that" stem.
+		"It&#39;s about agents that don&#39;t fail to install.",
+		"It&#39;s about agents that don&#39;t drift between environments.",
+		"It&#39;s about agents that don&#39;t crash after six hours.",
+		"It&#39;s about agents that don&#39;t lose work on dropped connections.",
+		// v3 single-line filter "Early-stage. Built for developers..." → split.
+		"Early-stage. Built for developers who care about reliability over polish.",
 	}
 	for _, want := range wants {
 		if !strings.Contains(text, want) {
