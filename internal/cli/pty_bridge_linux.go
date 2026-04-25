@@ -61,7 +61,7 @@ func spawnPtySession(ctx context.Context, req PtySpawnRequest) (PtySession, erro
 	session := &linuxPtySession{
 		master:   master,
 		cmd:      cmd,
-		waitDone: make(chan struct{}),
+		waitDone: make(chan struct{}, 1),
 	}
 	go func() {
 		_ = cmd.Wait()

@@ -179,6 +179,109 @@ func TestHealthAccumulator_SuccessAfterFailuresClearsQuarantine(t *testing.T) {
 	}
 }
 
+func TestFlush_NewQuarantineEmitsTrigger(t *testing.T) {
+	dir := t.TempDir()
+	progressPath := filepath.Join(dir, "progress.json")
+	writeBaseProgress(t, progressPath)
+
+	// Pre-load row at CF=2; one more failure trips quarantine.
+	if err := progress.ApplyHealthUpdates(progressPath, []progress.HealthUpdate{{
+		PhaseID:    "2",
+		SubphaseID: "2.B",
+		ItemName:   "row-1",
+		Mutate: func(h *progress.RowHealth) {
+			h.AttemptCount = 2
+			h.ConsecutiveFailures = 2
+		},
+	}}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	acc := newHealthAccumulator("R1", fixedNow(), 3)
+	acc.RecordFailure(candidateOf("2", "2.B", "row-1", "do x"), progress.FailureWorkerError, "codexu", "boom")
+	events, err := acc.FlushWithTriggers(progressPath, nil)
+	if err != nil {
+		t.Fatalf("FlushWithTriggers: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 trigger event, got %d", len(events))
+	}
+	if events[0].Kind != "quarantine_added" {
+		t.Fatalf("event kind = %q, want quarantine_added", events[0].Kind)
+	}
+	if events[0].ItemName != "row-1" {
+		t.Fatalf("event.ItemName = %q", events[0].ItemName)
+	}
+	if events[0].PhaseID != "2" || events[0].SubphaseID != "2.B" {
+		t.Fatalf("event coords = %s/%s, want 2/2.B", events[0].PhaseID, events[0].SubphaseID)
+	}
+	if events[0].AutoloopRunID != "R1" {
+		t.Fatalf("event.AutoloopRunID = %q, want R1", events[0].AutoloopRunID)
+	}
+	if events[0].Reason == "" {
+		t.Fatalf("expected non-empty Reason from quarantine, got empty")
+	}
+}
+
+func TestFlush_PureFailureBelowThresholdEmitsNoTrigger(t *testing.T) {
+	dir := t.TempDir()
+	progressPath := filepath.Join(dir, "progress.json")
+	writeBaseProgress(t, progressPath)
+
+	acc := newHealthAccumulator("R1", fixedNow(), 3)
+	acc.RecordFailure(candidateOf("2", "2.B", "row-1", "do x"), progress.FailureWorkerError, "codexu", "boom")
+	events, err := acc.FlushWithTriggers(progressPath, nil)
+	if err != nil {
+		t.Fatalf("FlushWithTriggers: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("expected no trigger events for sub-threshold failure, got %d", len(events))
+	}
+}
+
+func TestFlush_StaleClearEmitsTrigger(t *testing.T) {
+	dir := t.TempDir()
+	progressPath := filepath.Join(dir, "progress.json")
+	writeBaseProgress(t, progressPath)
+
+	if err := progress.ApplyHealthUpdates(progressPath, []progress.HealthUpdate{{
+		PhaseID:    "2",
+		SubphaseID: "2.B",
+		ItemName:   "row-1",
+		Mutate: func(h *progress.RowHealth) {
+			h.ConsecutiveFailures = 5
+			h.Quarantine = &progress.Quarantine{Reason: "auto", Threshold: 3, SpecHash: "stale"}
+		},
+	}}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	acc := newHealthAccumulator("R1", fixedNow(), 3)
+	acc.MarkStaleQuarantine(candidateOf("2", "2.B", "row-1", "do x"))
+	events, err := acc.FlushWithTriggers(progressPath, nil)
+	if err != nil {
+		t.Fatalf("FlushWithTriggers: %v", err)
+	}
+	if len(events) != 1 || events[0].Kind != "quarantine_stale_cleared" {
+		t.Fatalf("expected 1 quarantine_stale_cleared event, got %+v", events)
+	}
+}
+
+func TestFlush_NoTriggersWhenNoRows(t *testing.T) {
+	dir := t.TempDir()
+	progressPath := filepath.Join(dir, "progress.json")
+	writeBaseProgress(t, progressPath)
+
+	acc := newHealthAccumulator("R1", fixedNow(), 3)
+	events, err := acc.FlushWithTriggers(progressPath, nil)
+	if err != nil {
+		t.Fatalf("FlushWithTriggers: %v", err)
+	}
+	if events != nil {
+		t.Fatalf("expected nil events with empty accumulator, got %d", len(events))
+	}
+}
+
 func TestHealthAccumulator_StaleQuarantineClearsAndResetsCounter(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "progress.json")

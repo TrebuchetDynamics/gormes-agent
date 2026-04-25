@@ -43,13 +43,16 @@ type RenderFrame struct {
 	DraftText      string
 	History        []hermes.Message
 	Telemetry      telemetry.Snapshot
-	ProviderStatus hermes.ProviderStatus
-	RetryStatus    RetryStatus
 	StatusText     string
 	SessionID      string
 	Model          string
+	ProviderStatus hermes.ProviderStatus
+	RetryStatus    RetryStatus
 	LastError      string
 	SoulEvents     []SoulEntry
+	// ContextStatus snapshots the active ContextEngine status, when one is
+	// configured. Nil means no context engine has been wired for this kernel.
+	ContextStatus *hermes.ContextStatus
 }
 
 type SoulEntry struct {

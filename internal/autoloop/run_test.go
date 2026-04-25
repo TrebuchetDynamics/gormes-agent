@@ -58,6 +58,109 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 	}
 }
 
+func TestRunOnceMergesOpenPullRequestsBeforeSelectingWork(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	runRoot := t.TempDir()
+	runner := &FakeRunner{Results: []Result{
+		{Stdout: `[{"number": 7, "title": "land worker", "isDraft": false, "mergeStateStatus": "CLEAN", "headRefName": "autoloop/run"}]`},
+		{},
+		{},
+		{},
+	}}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:              repoRoot,
+			ProgressJSON:          progressPath,
+			RunRoot:               runRoot,
+			Backend:               "opencode",
+			Mode:                  "safe",
+			MaxAgents:             1,
+			MergeOpenPullRequests: true,
+		},
+		Runner: runner,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	if got, want := runner.Commands[0], (Command{Name: "gh", Args: []string{"pr", "list", "--state", "open", "--limit", "100", "--json", "number,title,isDraft,mergeStateStatus,headRefName,url"}, Dir: repoRoot}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("first command = %#v, want PR list command %#v", got, want)
+	}
+	if got, want := runner.Commands[1], (Command{Name: "gh", Args: []string{"pr", "merge", "7", "--merge", "--delete-branch", "--admin"}, Dir: repoRoot}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("second command = %#v, want PR merge command %#v", got, want)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	if got := events[1].Event + ":" + events[1].Status; got != "pr_intake_started:started" {
+		t.Fatalf("second ledger event = %q, want pr_intake_started:started", got)
+	}
+}
+
+func TestRunOnceUsesNanosecondSuffixForRapidRunIDs(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	config := Config{
+		RepoRoot:     t.TempDir(),
+		ProgressJSON: progressPath,
+		Backend:      "codexu",
+		Mode:         "safe",
+		MaxAgents:    8,
+	}
+
+	first, err := RunOnce(context.Background(), RunOptions{
+		Config: config,
+		DryRun: true,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 123, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() first error = %v", err)
+	}
+	second, err := RunOnce(context.Background(), RunOptions{
+		Config: config,
+		DryRun: true,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 456, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() second error = %v", err)
+	}
+
+	if got, want := first.RunID, "20260425T070802Z-000000123"; got != want {
+		t.Fatalf("first RunID = %q, want %q", got, want)
+	}
+	if got, want := second.RunID, "20260425T070802Z-000000456"; got != want {
+		t.Fatalf("second RunID = %q, want %q", got, want)
+	}
+	if first.RunID == second.RunID {
+		t.Fatalf("RunID collision = %q, want distinct IDs for rapid runs", first.RunID)
+	}
+}
+
+func TestRunOncePreservesSecondPrecisionRunIDWhenClockHasNoNanoseconds(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+
+	summary, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     t.TempDir(),
+			ProgressJSON: progressPath,
+			Backend:      "codexu",
+			Mode:         "safe",
+			MaxAgents:    8,
+		},
+		DryRun: true,
+		Now:    time.Date(2026, 4, 25, 7, 8, 2, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	if got, want := summary.RunID, "20260425T070802Z"; got != want {
+		t.Fatalf("RunID = %q, want %q", got, want)
+	}
+}
+
 func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{
 		"phases": {

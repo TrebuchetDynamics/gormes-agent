@@ -70,6 +70,12 @@ Worker execution is isolated: `cmd/autoloop` creates a git worktree under
 `RUN_ROOT/worktrees` for each selected row, runs the backend there, and rejects
 committed paths outside that row's `write_scope` before promotion.
 
+Final run health is gated after promotion. Once worker commits are integrated,
+`cmd/autoloop` runs the mandatory full-suite post-promotion verification before
+it emits `run_completed` or `health_updated`. If the suite fails, autoloop runs
+one backend repair attempt by default, requires the checkout to be clean, reruns
+the suite, and records final health only after the repaired integration passes.
+
 ## Contributor path
 
 Use the planning docs in this order:

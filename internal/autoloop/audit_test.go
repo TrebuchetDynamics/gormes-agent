@@ -62,6 +62,26 @@ func TestDigestLedgerMissingLedgerReturnsZeroCounts(t *testing.T) {
 	}
 }
 
+func TestDigestLedgerToleratesLegacyObjectDetail(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ledger.jsonl")
+	body := strings.Join([]string{
+		`{"ts":"1970-01-01T00:00:01Z","run_id":"legacy","event":"startup_env","detail":{"MODE":"safe","MAX_AGENTS":"8"},"status":"emitted"}`,
+		`{"ts":"1970-01-01T00:00:02Z","run_id":"current","event":"run_started","detail":"plain detail","status":"started"}`,
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	digest, err := DigestLedger(path)
+	if err != nil {
+		t.Fatalf("DigestLedger() error = %v", err)
+	}
+	if !strings.Contains(digest, "runs: 1") {
+		t.Fatalf("DigestLedger() = %q, want run_started count", digest)
+	}
+}
+
 func TestAuditReportCreatesCursorReportCSVAndSummary(t *testing.T) {
 	tmp := t.TempDir()
 	ledgerPath := filepath.Join(tmp, "runs", "state", "runs.jsonl")

@@ -3,7 +3,10 @@ package architectureplanner
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 )
 
 // healthPreservationClause is appended to every planner prompt as a HARD
@@ -45,7 +48,57 @@ Rows in quarantined_rows[] are top priority for repair. For each one:
   quarantine will not auto-clear and autoloop will keep skipping the row.
 `
 
-func BuildPrompt(bundle ContextBundle) string {
+// selfEvaluationClause is appended to every planner prompt as a SOFT rule.
+// It tells the planner how to read the "Previous Reshape Outcomes" data
+// section that follows: UNSTUCK rows confirm a working approach, STILL
+// FAILING rows have resisted reshape and likely need a different
+// decomposition or escalation, NO ATTEMPTS YET rows are inconclusive.
+// The clause is unconditional (matches the HARD/SOFT clause pattern); the
+// data section appears only when bundle.PreviousReshapes is non-empty.
+const selfEvaluationClause = `
+SELF-EVALUATION (SOFT RULE)
+
+The "Previous Reshape Outcomes" section reports what autoloop did with rows
+you reshaped in past runs. Use this signal:
+  - UNSTUCK rows confirm your previous approach worked
+  - STILL FAILING rows have resisted reshape — try a different decomposition,
+    escalate to "needs_human" via PlannerVerdict (L5), or tighten ready_when
+  - NO ATTEMPTS YET rows may be legitimately blocked
+`
+
+// topicalClauseTemplate is appended to the planner prompt when the run was
+// invoked with positional keyword arguments (L6 topical focus mode). The
+// upstream context (Quarantined Rows, Previous Reshapes, Implementation
+// Inventory) has already been narrowed by FilterContextByKeywords; this
+// clause merely tells the LLM what just happened and what scope to honor.
+const topicalClauseTemplate = `
+TOPICAL FOCUS
+
+This run was invoked with keyword arguments: %s. The context above
+(Quarantined Rows, Previous Reshapes, Implementation Inventory) has been
+narrowed to only rows that mechanically match these keywords.
+
+Focus your refinement work on these areas. You may still adjust adjacent
+rows if a topical row's blocked_by/unblocks dependencies require it, but
+do NOT widen the scope to unrelated phases. If you believe a topical
+keyword needs structural rework that crosses phase boundaries, set
+contract_status="draft" on the affected rows and add a degraded_mode note
+explaining the cross-phase dependency rather than reshaping the whole
+graph.
+`
+
+// formatTopicalClause renders the topical clause with each keyword
+// surrounded by Go-quoted double quotes (so "skills" appears as `"skills"`
+// in the prompt — easier to scan than raw words).
+func formatTopicalClause(keywords []string) string {
+	quoted := make([]string, len(keywords))
+	for i, kw := range keywords {
+		quoted[i] = strconv.Quote(kw)
+	}
+	return fmt.Sprintf(topicalClauseTemplate, "["+strings.Join(quoted, ", ")+"]")
+}
+
+func BuildPrompt(bundle ContextBundle, keywords []string) string {
 	var roots []string
 	for _, root := range bundle.SourceRoots {
 		status := "missing"
@@ -69,6 +122,12 @@ func BuildPrompt(bundle ContextBundle) string {
 	hugoDocs := formatInventorySurface(bundle.ImplementationInventory.HugoDocs)
 	auditBlock := formatAutoloopAudit(bundle.AutoloopAudit)
 	quarantineBlock := formatQuarantinedRows(bundle.QuarantinedRows)
+	reshapeBlock := formatPreviousReshapes(bundle.PreviousReshapes)
+	triggerBlock := formatTriggerEvents(bundle.TriggerEvents)
+	topicalBlock := ""
+	if len(keywords) > 0 {
+		topicalBlock = formatTopicalClause(keywords)
+	}
 
 	return fmt.Sprintf(`You are the Gormes Architecture Planner Loop.
 
@@ -136,8 +195,72 @@ Required final report sections:
 6. Recommended next autoloop tasks
 7. Autoloop handoff completeness
 8. Risks and ambiguities
-%s%s%s
-`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, quarantinePriorityClause, quarantineBlock)
+%s%s%s%s%s%s%s
+`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, quarantinePriorityClause, quarantineBlock, selfEvaluationClause, reshapeBlock, triggerBlock, topicalBlock)
+}
+
+// formatTriggerEvents renders the autoloop signals consumed by this run as
+// a bullet section. Returns "" when there are no events so the section is
+// omitted entirely on scheduled (no-event) runs. Each bullet names the
+// row's coordinates plus the kind/reason so the planner can scan and
+// route attention without re-reading the trigger ledger.
+func formatTriggerEvents(events []plannertriggers.TriggerEvent) string {
+	if len(events) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## Recent Autoloop Signals (Since Last Planner Run)\n\nThese rows changed state in autoloop and may need attention this run:\n\n")
+	for _, ev := range events {
+		fmt.Fprintf(&b, "- %s/%s/%s — %s — %s\n", ev.PhaseID, ev.SubphaseID, ev.ItemName, ev.Kind, ev.Reason)
+	}
+	return b.String()
+}
+
+// formatPreviousReshapes renders the L4 self-evaluation surface as a
+// bucketed list (UNSTUCK / STILL FAILING / NO ATTEMPTS YET). Returns the
+// empty string when there are no outcomes so the section is omitted
+// entirely on first runs and on runs where the planner reshaped nothing.
+// The SELF-EVALUATION (SOFT RULE) clause still ships unconditionally so
+// the LLM knows what the section means even when it is absent.
+func formatPreviousReshapes(outcomes []ReshapeOutcome) string {
+	if len(outcomes) == 0 {
+		return ""
+	}
+	var unstuck, still, none []ReshapeOutcome
+	for _, o := range outcomes {
+		switch o.Outcome {
+		case "unstuck":
+			unstuck = append(unstuck, o)
+		case "still_failing":
+			still = append(still, o)
+		default:
+			none = append(none, o)
+		}
+	}
+	var b strings.Builder
+	b.WriteString("\n## Previous Reshape Outcomes (Last 7 Days)\n\n")
+	if len(unstuck) > 0 {
+		fmt.Fprintf(&b, "UNSTUCK (%d):\n", len(unstuck))
+		for _, o := range unstuck {
+			fmt.Fprintf(&b, "- %s/%s/%s — reshaped %s by %s; autoloop promoted %s\n",
+				o.PhaseID, o.SubphaseID, o.ItemName, o.ReshapedAt, o.ReshapedBy, o.LastSuccess)
+		}
+	}
+	if len(still) > 0 {
+		fmt.Fprintf(&b, "\nSTILL FAILING (%d):\n", len(still))
+		for _, o := range still {
+			fmt.Fprintf(&b, "- %s/%s/%s — reshaped %s by %s; autoloop attempted %d times, last category: %s\n",
+				o.PhaseID, o.SubphaseID, o.ItemName, o.ReshapedAt, o.ReshapedBy, o.AutoloopRuns, o.LastFailure)
+		}
+	}
+	if len(none) > 0 {
+		fmt.Fprintf(&b, "\nNO ATTEMPTS YET (%d):\n", len(none))
+		for _, o := range none {
+			fmt.Fprintf(&b, "- %s/%s/%s — reshaped %s by %s; autoloop has not selected this row since\n",
+				o.PhaseID, o.SubphaseID, o.ItemName, o.ReshapedAt, o.ReshapedBy)
+		}
+	}
+	return b.String()
 }
 
 // formatQuarantinedRows renders the planner's call-to-action list for

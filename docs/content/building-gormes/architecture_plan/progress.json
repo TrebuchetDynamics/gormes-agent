@@ -22,6 +22,8 @@
         "MAX_AGENTS is a safety cap: if fewer metadata-ready rows are available, run fewer workers instead of selecting filler or random work.",
         "Each worker runs in an isolated git worktree under RUN_ROOT/worktrees and promotion rejects committed paths outside the selected row's write_scope.",
         "When git worktrees are available and MAX_AGENTS is greater than 1, cmd/autoloop launches selected workers concurrently, then validates and promotes each branch through the same ledgered safety gates.",
+        "After all promotions, cmd/autoloop runs the mandatory post-promotion full-suite gate before emitting run_completed or health_updated.",
+        "On post-promotion gate failure, cmd/autoloop starts one backend repair attempt by default, requires the checkout to be clean, reruns the suite, and records final health only if the gate passes.",
         "Prefer contract rows with write_scope, test_commands, and done_signal.",
         "Inject selected progress metadata into the worker prompt instead of asking workers to rescan the whole roadmap."
       ]
@@ -2314,9 +2316,9 @@
             },
             {
               "name": "DeepSeek/Kimi reasoning_content echo for tool-call replay",
-              "status": "planned",
+              "status": "complete",
               "contract": "Thinking-mode providers that require reasoning_content on assistant tool-call turns receive an echoed value during persistence and API replay",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2346,7 +2348,7 @@
                 "Kimi/Moonshot detection keeps the existing reasoning_content padding behavior.",
                 "Explicit reasoning_content or reasoning fields are preserved, while non-tool assistant turns and non-thinking providers are left untouched."
               ],
-              "note": "Upstream Hermes commit d58b305a added DeepSeek V4 thinking-mode regression coverage and extracted Kimi/DeepSeek detection helpers so both creation and replay paths inject reasoning_content on assistant tool-call turns. Port this as a provider-boundary fixture over Gormes' shared Message/Event contract before more reasoning-model adapters land.",
+              "note": "Complete: TDD landed `internal/hermes/reasoning_content_echo_test.go` with provider-boundary fixtures proving DeepSeek and Kimi/Moonshot OpenAI-compatible replays inject `reasoning_content=\"\"` on assistant tool-call messages when no reasoning exists. Detection covers DeepSeek provider name, model substring, and `api.deepseek.com` host plus Kimi/Moonshot provider/host signals. Explicit `reasoning_content` and normalized `reasoning` echoes are preserved on thinking-provider tool-call turns, non-tool assistant turns and generic providers are left unpadded, ordinary assistant content is unchanged, and provider status exposes the reasoning_content padding/repair degraded mode.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -2356,7 +2358,12 @@
               ],
               "done_signal": [
                 "Reasoning echo fixtures prove DeepSeek and Kimi tool-call replays include provider-required reasoning_content without mutating ordinary assistant content."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T06:55:51Z",
+                "last_success": "2026-04-25T06:55:51Z"
+              }
             },
             {
               "name": "Anthropic",
@@ -2410,7 +2417,12 @@
               ],
               "done_signal": [
                 "Bedrock request-body golden fixtures prove Converse mapping without AWS credentials or SDK clients."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Bedrock stream event decoding (SSE fixtures)",
@@ -2497,9 +2509,9 @@
             },
             {
               "name": "Codex Responses pure conversion harness",
-              "status": "planned",
+              "status": "complete",
               "contract": "OpenAI Responses request/response conversion for Codex-compatible providers without live OAuth",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2528,7 +2540,7 @@
                 "Function tools convert to Responses function-tool schemas with deterministic call IDs.",
                 "Responses output items normalize back to shared provider events, messages, usage, and tool calls."
               ],
-              "note": "Upstream extracted `agent/codex_responses_adapter.py` as pure conversion logic. Port that shape first so Codex-compatible Responses behavior is fixture-backed before OAuth, model fallback, or live chatgpt.com backend calls are introduced.",
+              "note": "Complete: TDD added `internal/hermes/codex_responses_adapter.go` and `internal/hermes/codex_responses_adapter_test.go` as a pure Responses conversion harness. The fixture converts shared chat messages, system instructions, multimodal input_text/input_image content parts, function tool schemas, deterministic fallback call IDs, and function_call_output continuations into Responses payloads. It normalizes Responses output items back into shared assistant messages, reasoning/token/done events, usage, and tool calls. No OAuth/device login, ~/.codex import, or live Responses request is introduced; Codex status remains unavailable until auth wiring lands.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -2538,7 +2550,12 @@
               ],
               "done_signal": [
                 "Codex Responses fixtures convert chat input, tool schemas, output items, usage, and tool calls without live credentials."
-              ]
+              ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T06:55:51Z",
+                "last_success": "2026-04-25T06:55:51Z"
+              }
             },
             {
               "name": "Codex OAuth state + stale-token relogin",
@@ -2589,9 +2606,9 @@
             },
             {
               "name": "Codex stream repair + tool-call leak sanitizer",
-              "status": "planned",
+              "status": "complete",
               "contract": "Codex Responses streams repair empty output and reject leaked function-call text before parent history is updated",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2619,7 +2636,7 @@
                 "Leaked to=functions.* text is rejected or repaired before it reaches parent history.",
                 "Tool-call arguments are sanitized to valid JSON without inventing missing required values."
               ],
-              "note": "Upstream Codex Responses support now includes repair paths for empty output, streaming tool-call argument issues, and tool-call text leakage. Keep these as a fixture-only provider slice after pure conversion, before live Codex routing.",
+              "note": "Complete: TDD added `internal/hermes/codex_stream_repair_test.go` and tightened the pure Codex Responses normalizer. Fixtures prove empty `response.output` with streamed `output_text` backfills final assistant content with repair diagnostics, leaked `to=functions.*` text is stripped and marked incomplete before parent history/event tokens are updated, descriptor-backed Codex function-call arguments are repaired to valid JSON, missing required arguments are rejected without invented values, and unsupported Responses output items fail loudly instead of being hidden by repair.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -2629,7 +2646,12 @@
               ],
               "done_signal": [
                 "Codex stream repair fixtures prove empty output, leaked tool-call text, and malformed arguments do not corrupt history."
-              ]
+              ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T07:08:01Z",
+                "last_success": "2026-04-25T07:08:01Z"
+              }
             },
             {
               "name": "Cross-provider reasoning-tag sanitization",
@@ -2638,9 +2660,9 @@
             },
             {
               "name": "Tool-call argument repair + schema sanitizer",
-              "status": "planned",
+              "status": "complete",
               "contract": "Provider tool-call arguments are repaired or rejected against available tool schemas before execution",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2671,7 +2693,7 @@
                 "Impossible repairs return a provider/tool-call error before execution.",
                 "Repair decisions use the current advertised tool schema so disabled or unavailable tools cannot be hallucinated into execution."
               ],
-              "note": "Hermes added focused regression tests for tool-call argument repair and schema sanitization. Port this as a shared provider boundary so Codex, OpenRouter, Bedrock, and child-agent trust classes do not each implement their own repair rules.",
+              "note": "Complete: TDD added `internal/hermes/tool_call_argument_repair_test.go` and a shared provider-boundary repair/sanitizer. OpenAI-compatible and Anthropic streams now repair deterministic malformed JSON arguments against the advertised descriptor schema, reject impossible repairs, missing required fields, and unadvertised tools before EventDone reaches execution, and provider request mappers sanitize hostile schema shapes while preserving already-safe schemas. Verified with `go test ./internal/hermes ./internal/tools -count=1`.",
               "write_scope": [
                 "internal/hermes/",
                 "internal/tools/",
@@ -2682,7 +2704,12 @@
               ],
               "done_signal": [
                 "Tool-call repair fixtures prove malformed arguments are repaired or rejected before execution using the advertised schema."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T06:55:51Z",
+                "last_success": "2026-04-25T06:55:51Z"
+              }
             }
           ]
         },
@@ -2711,9 +2738,9 @@
             },
             {
               "name": "ContextEngine interface + status tool contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Stable context engine status and compression boundary",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -2721,7 +2748,7 @@
                 "system"
               ],
               "degraded_mode": "Context status reports disabled compression, cooldowns, unknown tools, token-budget pressure, and replay gaps.",
-              "fixture": "internal/contextengine status and compression replay fixtures",
+              "fixture": "internal/hermes/testdata/context_status and internal/kernel context-engine replay fixtures",
               "source_refs": [
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
@@ -2732,9 +2759,6 @@
               "not_ready_when": [
                 "Compression is wired into the kernel before the context engine boundary and status contract are stable."
               ],
-              "blocked_by": [
-                "Provider interface + stream fixture harness"
-              ],
               "unblocks": [
                 "Compression token-budget trigger + summary sizing",
                 "Tool-result pruning + protected head/tail summary"
@@ -2744,7 +2768,7 @@
                 "Compression remains an explicit engine boundary, not a hidden kernel side effect.",
                 "Fixtures replay context status without live provider calls."
               ],
-              "note": "TDD: port the `agent/context_engine.py` interface, `get_status` payload, update_model_context behavior, and unknown tool error shape before any compressor implementation is wired into the agent loop.",
+              "note": "Complete: TDD landed a provider-owned Go ContextEngine contract in internal/hermes, a disabled engine with context_status payload fixtures for window, budget pressure, compression disabled/cooldown state, replay gaps, and structured unknown-context-tool errors. The kernel now snapshots context status, updates usage from provider EventDone, advertises context-engine tools, and dispatches them through the explicit engine boundary without calling Compress as a hidden side effect.",
               "write_scope": [
                 "internal/kernel/",
                 "internal/hermes/",
@@ -2755,7 +2779,12 @@
               ],
               "done_signal": [
                 "Context status fixtures expose budget, compression state, and unknown-tool errors without live provider calls."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Compression token-budget trigger + summary sizing",
@@ -2826,7 +2855,7 @@
               "name": "Provider-enforced context-length resolver",
               "status": "complete",
               "contract": "Displayed and budgeted context windows prefer provider-enforced limits over raw models.dev metadata",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2867,13 +2896,18 @@
               ],
               "done_signal": [
                 "Context resolver fixtures prove provider caps, models.dev fallback, and unknown-model reporting are deterministic without network calls."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Model pricing/capability registry fixtures",
-              "status": "planned",
+              "status": "complete",
               "contract": "Read-only model metadata exposes deterministic pricing, capability flags, provider family, and raw context facts before routing consumes them",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2894,9 +2928,6 @@
               "not_ready_when": [
                 "The slice implements smart routing decisions or provider calls instead of read-only metadata fixtures."
               ],
-              "blocked_by": [
-                "Provider-enforced context-length resolver"
-              ],
               "unblocks": [
                 "Routing policy and fallback selector"
               ],
@@ -2905,7 +2936,7 @@
                 "Missing pricing and missing capability values remain explicit unknowns.",
                 "Registry fixtures are embedded or local-testdata only and never require live models.dev access."
               ],
-              "note": "Split out from the former broad metadata row so autoloop workers can first land read-only model facts before any routing selector consumes them.",
+              "note": "TDD landed: internal/hermes/model_registry_test.go covers default embedded fixture lookup for provider/model family, raw context window, max output, pricing fields, and capability flags; explicit unknown pricing/capability states for sparse entries; and stale embedded snapshot status. The registry is static in internal/hermes/model_registry.go and performs no live models.dev access or routing decisions.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -2915,13 +2946,18 @@
               ],
               "done_signal": [
                 "Model registry fixtures expose pricing, capability, provider-family, and raw context metadata with explicit unknown states."
-              ]
+              ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T06:55:51Z",
+                "last_success": "2026-04-25T06:55:51Z"
+              }
             },
             {
               "name": "Routing policy and fallback selector",
-              "status": "planned",
+              "status": "complete",
               "contract": "Smart model routing is a pure selector over explicit overrides, provider availability, fallback policy, and model metadata before any provider call switches models",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2951,7 +2987,7 @@
                 "Fallback choices are deterministic from fixture provider availability and model metadata.",
                 "Selector output includes a reason code suitable for telemetry and operator status."
               ],
-              "note": "TDD: port `agent/smart_model_routing.py` as a pure selector over task signals, explicit overrides, provider availability, and fallback_model behavior before any provider call can switch models.",
+              "note": "Complete: TDD added `internal/hermes/model_routing.go` plus `internal/hermes/model_routing_test.go` as a pure selector over turn/config overrides, provider availability, automatic simple-turn routing, fallback policy, and fixture model metadata. Tests prove explicit overrides win unless metadata is invalid, fallback selection is deterministic from availability and metadata, disabled fallback/provider gaps are reported as status codes, and selector output carries telemetry-ready reason codes without provider calls or kernel mutation.",
               "write_scope": [
                 "internal/hermes/",
                 "internal/kernel/",
@@ -2962,7 +2998,12 @@
               ],
               "done_signal": [
                 "Routing selector fixtures prove deterministic model choices and reason codes without provider calls or kernel mutation."
-              ]
+              ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T07:08:01Z",
+                "last_success": "2026-04-25T07:08:01Z"
+              }
             },
             {
               "name": "Per-turn model selection",
@@ -3116,7 +3157,12 @@
               ],
               "done_signal": [
                 "Retry, cache, rate, budget, and provider-hint behavior is fixture-covered and visible in provider/kernel status."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Classified provider-error taxonomy",
@@ -3221,7 +3267,7 @@
               "name": "Tool registry inventory + schema parity harness",
               "status": "complete",
               "contract": "Operation and tool descriptor parity before handler ports",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -3262,7 +3308,12 @@
               ],
               "done_signal": [
                 "Tool descriptor parity fixtures capture names, schemas, trust classes, dependencies, and degraded status before handler ports."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Pure core tools first",
@@ -3388,7 +3439,7 @@
               "name": "Skill preprocessing + dynamic slash commands",
               "status": "complete",
               "contract": "Skill content preprocessing and skill-backed slash commands are deterministic, disabled-skill aware, and prompt-safe",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -3431,7 +3482,12 @@
               ],
               "done_signal": [
                 "Skill preprocessing and slash-command fixtures prove disabled/incompatible skills do not enter prompt or command surfaces."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             }
           ]
         },
@@ -3694,7 +3750,12 @@
               ],
               "done_signal": [
                 "PTY bridge fixtures prove read/write/resize/close/unavailable behavior without network or live dashboard dependencies."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "CLI command registry parity + active-turn busy policy",
@@ -3809,7 +3870,7 @@
               "name": "OpenAI-compatible chat-completions API server",
               "status": "complete",
               "contract": "OpenAI-compatible chat.completions HTTP surface over the native Gormes turn loop",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3852,13 +3913,18 @@
               ],
               "done_signal": [
                 "Chat-completions HTTP fixtures prove auth, body limits, content normalization, streaming envelopes, and session continuity over native Gormes state."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Responses API store + run event stream",
-              "status": "planned",
+              "status": "complete",
               "contract": "Stateful OpenAI Responses and runs APIs over the same native session chain as chat completions",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3890,7 +3956,7 @@
                 "previous_response_id and conversation IDs reconstruct full history including tool calls/results.",
                 "/v1/runs and /v1/runs/{id}/events stream lifecycle events and sweep orphaned runs."
               ],
-              "note": "TDD: port ResponseStore as a bounded persistent read model, previous_response_id chaining, GET/DELETE /v1/responses, POST /v1/runs, GET /v1/runs/{run_id}/events SSE, and orphaned-run cleanup as fixtures before external OpenAI-compatible clients depend on stateful runs.",
+              "note": "Complete: TDD landed a bounded bbolt-backed ResponseStore with LRU eviction, GET/DELETE /v1/responses, previous_response_id and conversation-name chaining over native session IDs including tool calls/results, /v1/runs lifecycle SSE, orphaned-run sweep, and API health counters for store state, LRU evictions, orphan sweeps, and previous_response_id misses.",
               "write_scope": [
                 "internal/apiserver/",
                 "internal/session/",
@@ -3902,13 +3968,18 @@
               ],
               "done_signal": [
                 "Responses/runs fixtures prove bounded response storage, previous_response_id chaining, event streaming, and orphan cleanup over native session state."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T06:55:51Z",
+                "last_success": "2026-04-25T06:55:51Z"
+              }
             },
             {
               "name": "API server disconnect snapshot persistence",
-              "status": "planned",
+              "status": "complete",
               "contract": "Streaming disconnects and server cancellations persist incomplete Responses snapshots when store=true",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3936,7 +4007,7 @@
                 "async cancellation stores the same incomplete snapshot before returning cancellation.",
                 "previous_response_id can continue from the incomplete snapshot without losing emitted text."
               ],
-              "note": "Upstream Hermes now persists incomplete Responses snapshots on client disconnect and asyncio cancellation. Keep this as a separate resilience slice after the stateful Responses store exists.",
+              "note": "Complete: TDD landed Responses stream snapshot persistence for response.created/in_progress, incomplete snapshots on client disconnect or request cancellation, failed/completed status separation, previous_response_id continuation from partial assistant text, and KernelTurnLoop cancellation propagation.",
               "write_scope": [
                 "internal/apiserver/",
                 "internal/kernel/",
@@ -3947,13 +4018,18 @@
               ],
               "done_signal": [
                 "Disconnect/cancellation fixtures prove store=true responses retain incomplete snapshots and interrupt running turns."
-              ]
+              ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T07:08:01Z",
+                "last_success": "2026-04-25T07:08:01Z"
+              }
             },
             {
               "name": "Gateway proxy mode forwarding contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway adapters can forward turns to a remote OpenAI-compatible Gormes API server while preserving session IDs and safe history filtering",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3981,7 +4057,7 @@
                 "Forwarded requests preserve X-Hermes-Session-Id and filter unsafe empty/tool-only history entries.",
                 "Stale generation or remote errors return visible degraded output without starting a duplicate local run."
               ],
-              "note": "Hermes proxy mode now lets thin gateway deployments forward to a remote API server. Gormes should port the behavior only after its native API surface exists, so proxy mode consumes the same session and stream contracts rather than becoming a second gateway stack.",
+              "note": "Complete: TDD landed internal/gateway/proxy_mode_test.go and internal/config proxy fixtures. ProxySubmitter reuses the OpenAI-compatible HTTP/SSE client, preserves X-Hermes-Session-Id, filters unsafe empty/tool-only history, invalidates stale generations, and reports proxy unreachable/missing-credential degradation through gateway runtime status.",
               "write_scope": [
                 "internal/gateway/",
                 "internal/config/",
@@ -3992,13 +4068,18 @@
               ],
               "done_signal": [
                 "Proxy-mode fixtures prove URL resolution, session header propagation, safe history filtering, stale-generation handling, and remote-error degradation."
-              ]
+              ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T06:55:51Z",
+                "last_success": "2026-04-25T06:55:51Z"
+              }
             },
             {
               "name": "Dashboard API client contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Dashboard-facing API helpers consume native chat, Responses, model, provider, OAuth, session, and tool-progress endpoints without importing the upstream React app",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -4028,7 +4109,7 @@
                 "Missing optional providers or plugins render disabled/degraded states.",
                 "The Go runtime remains independent of upstream React/Vite assets."
               ],
-              "note": "Hermes' React dashboard grew substantially in this upstream sync. Gormes should treat it as API-contract inventory, not a Node runtime dependency: freeze dashboard-facing endpoints and degraded states before deciding on any Go-native dashboard UI.",
+              "note": "Complete: TDD landed native dashboard contract fixtures and Go-only API helpers for chat send/stream, Responses-backed session list/delete, model picker options, OAuth status, run-event tool progress, and disabled/degraded panel status without importing upstream React/Vite assets.",
               "write_scope": [
                 "internal/apiserver/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -4038,7 +4119,12 @@
               ],
               "done_signal": [
                 "Dashboard contract fixtures prove native API helpers cover chat, sessions, models, OAuth, and tool progress without upstream React runtime dependencies."
-              ]
+              ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T07:08:01Z",
+                "last_success": "2026-04-25T07:08:01Z"
+              }
             },
             {
               "name": "Dashboard PTY chat sidecar contract",
