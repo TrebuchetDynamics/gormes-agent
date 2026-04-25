@@ -131,6 +131,7 @@ func runtimeStatusMissing(runtime RuntimeStatus) bool {
 		runtime.ActiveAgents == 0 &&
 		len(runtime.Platforms) == 0 &&
 		len(runtime.TokenLocks) == 0 &&
+		len(runtime.ExpiryFinalized) == 0 &&
 		len(runtime.TakeoverMarkers) == 0 &&
 		len(runtime.DuplicateRestarts) == 0 &&
 		len(runtime.ServiceManagerUnavailable) == 0 &&

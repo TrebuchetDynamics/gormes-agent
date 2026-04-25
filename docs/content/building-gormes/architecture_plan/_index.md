@@ -197,8 +197,8 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] `gormes gateway status` read-only command
 - [x] Runtime status JSON + PID/process validation
 - [x] Token-scoped gateway locks
-- [ ] Gateway /restart command + takeover markers
-- [ ] Session expiry finalized-flag migration
+- [x] Gateway /restart command + takeover markers
+- [x] Session expiry finalized-flag migration
 - [ ] Session expiry hook cleanup retry evidence
 - [x] Channel lifecycle writers into status model
 
@@ -348,7 +348,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Google Code Assist
 - [ ] Codex
 - [x] Codex Responses pure conversion harness
-- [ ] Codex Responses assistant content role types
+- [x] Codex Responses assistant content role types
 - [ ] Codex OAuth state + stale-token relogin
 - [x] Codex stream repair + tool-call leak sanitizer
 - [ ] Cross-provider reasoning-tag sanitization
@@ -409,7 +409,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Jittered reconnect backoff schedule
 - [x] Retry-After header parsing + HTTPError hint
 - [x] Kernel retry honors Retry-After hint
-- [ ] Streaming interrupt retry suppression
+- [x] Streaming interrupt retry suppression
 - [ ] Prompt-cache capability guard
 - [ ] Provider rate guard + budget telemetry
 
@@ -519,12 +519,12 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
 - [x] Top-level oneshot flag and model/provider resolver
-- [ ] Oneshot final-output writer boundary
+- [x] Oneshot final-output writer boundary
 - [ ] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
 - [x] Effective toolset picker dedupes bundled plugin keys
 - [ ] Gateway, platform, webhook, and cron management CLI
-- [ ] Service RestartSec parser helper
+- [x] Service RestartSec parser helper
 - [ ] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
 

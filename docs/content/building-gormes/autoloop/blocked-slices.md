@@ -16,7 +16,6 @@ Use it to avoid assigning work before the dependency chain is ready.
 | Phase | Slice | Blocked by | Ready when | Unblocks |
 |---|---|---|---|---|
 | 2 / 2.B.5 | BlueBubbles iMessage session-context prompt guidance | BlueBubbles iMessage bubble formatting parity | BlueBubbles outbound formatting splits blank-line paragraphs into separate iMessage sends, so prompt guidance has a matching delivery contract. | - |
-| 2 / 2.F.3 | Gateway /restart command + takeover markers | Drain-timeout resume_pending recovery, Runtime status JSON + PID/process validation, Token-scoped gateway locks | Drain-timeout resume_pending recovery, Runtime status JSON + PID/process validation, and Token-scoped gateway locks are validated on main. | - |
 | 2 / 2.F.3 | Session expiry hook cleanup retry evidence | Session expiry finalized-flag migration | Session expiry finalized-flag migration is validated on main., A fake expiry scanner and fake cleanup hooks can run against temp session metadata without live channel transports. | - |
 | 2 / 2.F.5 | Steer slash command registry + queue fallback | 2.E.2 | 2.E.2 is complete and the shared CommandDef registry is stable for gateway commands. | Mid-run steer injection between tool calls, Gateway-handled slash commands bypass active-session guard |
 | 4 / 4.A | Bedrock stale-client eviction + retry classification | Bedrock SigV4 + credential seam | A Bedrock client/cache seam exists behind the provider adapter and can be exercised without live AWS credentials. | - |

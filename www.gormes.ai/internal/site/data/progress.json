@@ -1990,9 +1990,9 @@
             {
               "name": "Gateway /restart command + takeover markers",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway /restart uses registry-owned active-turn policy, deduped takeover markers, and service-manager exit semantics without looping redelivered platform updates",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2026,7 +2026,7 @@
                 "Redelivered platform events with the same marker are suppressed once and report duplicate_restart_suppressed instead of starting a loop.",
                 "--replace/takeover startup consumes the marker, sends at most one restart notification, and clears or expires the marker under fake-clock tests."
               ],
-              "note": "TDD: keep /restart after resume, PID validation, and token locks so restart can report exact takeover status without widening service-manager update logic.",
+              "note": "TDD landed: restart-command fixtures lock /restart registry policy, takeover marker write/read/expiry, once-only duplicate redelivery suppression, restart_timeout resume_pending recovery, service-manager unavailable evidence, and EX_TEMPFAIL service-manager exit semantics without live service control.",
               "write_scope": [
                 "internal/gateway/",
                 "cmd/gormes/",
@@ -2043,7 +2043,7 @@
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T15:16:17Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "unstuck"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -2054,9 +2054,9 @@
             {
               "name": "Session expiry finalized-flag migration",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway session metadata migrates legacy memory_flushed state into expiry_finalized evidence without adding new hidden memory-flush writes",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2087,7 +2087,7 @@
                 "New session metadata writes use expiry_finalized and never emit a memory_flushed field.",
                 "Resume/switch-session fixtures prove no memory-flush task is queued or called while reading or rewriting migrated session metadata."
               ],
-              "note": "Split from the failed expiry-finalization row so a worker can land only the data-shape migration first. Hermes removed flush_memories; Gormes should keep Goncho memory extraction explicit and independent from gateway expiry metadata.",
+              "note": "Complete: TDD landed the session metadata data-shape migration only. Legacy raw metadata with memory_flushed=true decodes as expiry_finalized=true with migrated_memory_flushed evidence, rewrites drop the legacy memory_flushed key, new finalized metadata writes only expiry_finalized, and gateway submit/status fixtures report migrated evidence without queuing memory work. Hermes removed flush_memories; Gormes keeps Goncho memory extraction explicit and independent from gateway expiry metadata.",
               "write_scope": [
                 "internal/session/",
                 "internal/gateway/",
@@ -4113,9 +4113,9 @@
             {
               "name": "Codex Responses assistant content role types",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Codex Responses payload conversion emits role-correct text content parts: input_text for user messages and output_text for assistant replay messages",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -4145,7 +4145,7 @@
                 "A user -> assistant -> user round-trip fixture proves the preflight/payload builder preserves role-correct content part types before tool-call replay.",
                 "Existing temperature, stream-repair, and tool-call conversion fixtures remain green without live Codex credentials."
               ],
-              "note": "Hermes 648b8991 fixed a Responses API rejection where assistant message list content was replayed with input_text. Gormes has the pure converter but still emits input_text for every text part, so add a narrow fixture before auth/live Codex work.",
+              "note": "Complete: TDD added `internal/hermes/codex_responses_role_content_test.go` and made Codex Responses content-part conversion role-aware. User text/text-like parts normalize to input_text with image parts preserved as input_image; assistant text, input_text, and output_text parts normalize to output_text, including a user -> assistant tool-call replay -> user payload-builder fixture. No Codex OAuth, live Responses requests, stream repair, tool-call argument repair, or generic chat-completions mapping changed.",
               "write_scope": [
                 "internal/hermes/codex_responses_adapter.go",
                 "internal/hermes/codex_responses_adapter_test.go",
@@ -5372,9 +5372,9 @@
             {
               "name": "Streaming interrupt retry suppression",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Kernel stream cancellation and /stop-style events abort retry loops before any fresh provider stream is opened",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -5403,7 +5403,7 @@
                 "A no-cancel control fixture still retries normally after a transient stream error so the fix does not disable Route-B recovery.",
                 "Interrupted turns continue to skip memory sync instead of persisting partial assistant content."
               ],
-              "note": "Hermes 7c17accb fixed a bug where /stop closed the current stream but the retry loop opened a fresh connection. Gormes already routes retry through context cancellation, but needs a narrow regression fixture so future kernel changes cannot reintroduce a post-cancel reconnect.",
+              "note": "Complete: TDD landed `internal/kernel/stream_interrupt_retry_test.go` so retryable stream setup failures cannot open a fresh provider stream after PlatformEventCancel is queued, parent context cancellation during reconnect backoff suppresses retry, and the no-cancel control still recovers through Route-B retry. The kernel retry wait now drains platform control events before/during reconnect backoff and interrupted turns continue to call SkipMemorySync without finalizing partial assistant content.",
               "write_scope": [
                 "internal/kernel/stream_interrupt_retry_test.go",
                 "internal/kernel/kernel.go",
@@ -6584,9 +6584,9 @@
             {
               "name": "Oneshot final-output writer boundary",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "One-shot mode runs one native Gormes kernel turn over a fake provider and writes only final assistant content plus one trailing newline to stdout",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -6618,7 +6618,7 @@
                 "Provider/client setup failures return nonzero exit status with operator-readable stderr and empty stdout.",
                 "The command starts no TUI, gateway transport, api_server bridge, or live provider request in the focused fixture."
               ],
-              "note": "Split from the failed broad oneshot row so the first worker owns only output capture and one fake kernel turn. Safety/clarify behavior follows in the dependent row.",
+              "note": "Complete: TDD landed cmd/gormes/oneshot_output_test.go and the native one-shot runner boundary. Fixtures inject a fake hermes.Client, prove one kernel ChatRequest for `gormes -z 'hi' --model fixture-model`, exact stdout final content plus one newline, setup failures on stderr with exit 1, and no TUI/gateway/api_server startup or stdout leakage of render/status/session/tool/log text. Safety/clarify behavior follows in the dependent row.",
               "write_scope": [
                 "cmd/gormes/main.go",
                 "cmd/gormes/oneshot_output_test.go",
@@ -6837,9 +6837,9 @@
             {
               "name": "Service RestartSec parser helper",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Service-management helpers parse systemd RestartUSec/RestartSec evidence into a bounded restart delay without invoking live service managers",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -6869,7 +6869,7 @@
                 "Parser fixtures preserve operator-readable evidence for defaulted, malformed, missing, unsupported, and infinite restart-delay cases.",
                 "Tests run without live systemd, Windows service control, root privileges, or network access."
               ],
-              "note": "Split from the still-failing active-polling row. Land the RestartSec parser first so active polling does not mix duration parsing with fake service-runner state machines.",
+              "note": "Complete: TDD added a pure internal/cli RestartUSec/RestartSec parser with fake command-output fixtures for 30s, 100ms, 1min 30s, zero, bounded delays, blank/missing/malformed/infinite values, unsupported managers, and service-manager-unavailable evidence. No live systemctl/sc.exe calls, installer layout policy, gateway restart command semantics, or active polling were changed; the source-backed installer update path remains documented as Gormes' current public path.",
               "write_scope": [
                 "internal/cli/service_restart.go",
                 "internal/cli/service_restart_parse_test.go",

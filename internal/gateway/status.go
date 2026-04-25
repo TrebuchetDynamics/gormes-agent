@@ -56,6 +56,7 @@ type RuntimeStatus struct {
 	DrainTimeouts             []RuntimeDrainTimeoutEvidence              `json:"drain_timeouts,omitempty"`
 	ResumePending             []RuntimeResumePendingEvidence             `json:"resume_pending,omitempty"`
 	NonResumable              []RuntimeNonResumableEvidence              `json:"non_resumable,omitempty"`
+	ExpiryFinalized           []RuntimeExpiryFinalizedEvidence           `json:"expiry_finalized,omitempty"`
 	TakeoverMarkers           []RuntimeRestartTakeoverEvidence           `json:"takeover_marker_seen,omitempty"`
 	DuplicateRestarts         []RuntimeRestartDuplicateEvidence          `json:"duplicate_restart_suppressed,omitempty"`
 	ServiceManagerUnavailable []RuntimeServiceManagerUnavailableEvidence `json:"service_manager_unavailable,omitempty"`
@@ -136,6 +137,15 @@ type RuntimeNonResumableEvidence struct {
 	At         string `json:"at,omitempty"`
 }
 
+type RuntimeExpiryFinalizedEvidence struct {
+	SessionID             string `json:"session_id,omitempty"`
+	Source                string `json:"source,omitempty"`
+	ChatID                string `json:"chat_id,omitempty"`
+	UserID                string `json:"user_id,omitempty"`
+	ExpiryFinalized       bool   `json:"expiry_finalized"`
+	MigratedMemoryFlushed bool   `json:"migrated_memory_flushed,omitempty"`
+}
+
 type RestartTakeoverMarkerStatus string
 
 const (
@@ -198,6 +208,7 @@ type RuntimeStatusUpdate struct {
 	DrainTimeoutEvidence              *RuntimeDrainTimeoutEvidence
 	ResumePendingEvidence             *RuntimeResumePendingEvidence
 	NonResumableEvidence              *RuntimeNonResumableEvidence
+	ExpiryFinalizedEvidence           *RuntimeExpiryFinalizedEvidence
 	TokenLockEvidence                 *TokenLockEvidence
 	TakeoverMarkerEvidence            *RuntimeRestartTakeoverEvidence
 	DuplicateRestartEvidence          *RuntimeRestartDuplicateEvidence

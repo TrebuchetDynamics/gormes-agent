@@ -774,15 +774,20 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 token-scoped locks contract/source_refs/note = %q / %v / %q, want credential-hash upstream status detail", tokenLocks.Contract, tokenLocks.SourceRefs, tokenLocks.Note)
 	}
 	restartMarkers := lifecycleItems["Gateway /restart command + takeover markers"]
-	if restartMarkers.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.3 restart markers status = %q, want planned", restartMarkers.Status)
+	if restartMarkers.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.3 restart markers status = %q, want complete", restartMarkers.Status)
 	}
-	if restartMarkers.ContractStatus != ContractStatusDraft {
-		t.Fatalf("Phase 2.F.3 restart markers contract status = %q, want draft", restartMarkers.ContractStatus)
+	if restartMarkers.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 2.F.3 restart markers contract status = %q, want validated", restartMarkers.ContractStatus)
 	}
 	if !strings.Contains(restartMarkers.Contract, "/restart") ||
-		!strings.Contains(strings.Join(restartMarkers.Acceptance, "\n"), "takeover marker") {
-		t.Fatalf("Phase 2.F.3 restart markers contract/acceptance = %q / %v, want restart/takeover-marker detail", restartMarkers.Contract, restartMarkers.Acceptance)
+		!strings.Contains(strings.Join(restartMarkers.Acceptance, "\n"), "takeover marker") ||
+		!strings.Contains(restartMarkers.Note, "restart-command fixtures") ||
+		!strings.Contains(restartMarkers.Note, "EX_TEMPFAIL") {
+		t.Fatalf("Phase 2.F.3 restart markers contract/acceptance/note = %q / %v / %q, want validated restart/takeover-marker detail", restartMarkers.Contract, restartMarkers.Acceptance, restartMarkers.Note)
+	}
+	if restartMarkers.Health != nil && restartMarkers.Health.LastSuccess != "" {
+		t.Fatalf("Phase 2.F.3 restart markers health.LastSuccess = %q, want empty until full-suite gate passes", restartMarkers.Health.LastSuccess)
 	}
 	lifecycleWriters := lifecycleItems["Channel lifecycle writers into status model"]
 	if lifecycleWriters.Status != StatusComplete {
