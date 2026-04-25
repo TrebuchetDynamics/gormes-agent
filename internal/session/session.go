@@ -31,6 +31,15 @@ type Map interface {
 	Close() error
 }
 
+const (
+	ResumeReasonRestartTimeout  = "restart_timeout"
+	ResumeReasonShutdownTimeout = "shutdown_timeout"
+
+	NonResumableSuspended = "suspended"
+	NonResumableCancelled = "cancelled"
+	NonResumableStuckLoop = "stuck_loop"
+)
+
 // LineageResolver is implemented by session maps that can resolve a stored
 // resume target to its newest live lineage descendant.
 type LineageResolver interface {

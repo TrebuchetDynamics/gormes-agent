@@ -25,13 +25,18 @@ var ErrUserBindingConflict = errors.New("session: chat already bound to differen
 // SessionID remains the resume handle; Source+ChatID identify the transport
 // chat; UserID is the canonical participant identity that can span chats.
 type Metadata struct {
-	SessionID       string `json:"session_id"`
-	Source          string `json:"source,omitempty"`
-	ChatID          string `json:"chat_id,omitempty"`
-	UserID          string `json:"user_id,omitempty"`
-	ParentSessionID string `json:"parent_session_id,omitempty"`
-	LineageKind     string `json:"lineage_kind"`
-	UpdatedAt       int64  `json:"updated_at"`
+	SessionID          string `json:"session_id"`
+	Source             string `json:"source,omitempty"`
+	ChatID             string `json:"chat_id,omitempty"`
+	UserID             string `json:"user_id,omitempty"`
+	ParentSessionID    string `json:"parent_session_id,omitempty"`
+	LineageKind        string `json:"lineage_kind"`
+	UpdatedAt          int64  `json:"updated_at"`
+	ResumePending      bool   `json:"resume_pending,omitempty"`
+	ResumeReason       string `json:"resume_reason,omitempty"`
+	ResumeMarkedAt     int64  `json:"resume_marked_at,omitempty"`
+	NonResumableReason string `json:"non_resumable_reason,omitempty"`
+	NonResumableAt     int64  `json:"non_resumable_at,omitempty"`
 }
 
 func normalizeMetadata(meta Metadata) Metadata {
@@ -41,6 +46,8 @@ func normalizeMetadata(meta Metadata) Metadata {
 	meta.UserID = strings.TrimSpace(meta.UserID)
 	meta.ParentSessionID = strings.TrimSpace(meta.ParentSessionID)
 	meta.LineageKind = strings.ToLower(strings.TrimSpace(meta.LineageKind))
+	meta.ResumeReason = strings.ToLower(strings.TrimSpace(meta.ResumeReason))
+	meta.NonResumableReason = strings.ToLower(strings.TrimSpace(meta.NonResumableReason))
 	return meta
 }
 
@@ -70,6 +77,21 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	}
 	if incoming.UpdatedAt != 0 {
 		out.UpdatedAt = incoming.UpdatedAt
+	}
+	if incoming.ResumePending {
+		out.ResumePending = true
+	}
+	if incoming.ResumeReason != "" {
+		out.ResumeReason = incoming.ResumeReason
+	}
+	if incoming.ResumeMarkedAt != 0 {
+		out.ResumeMarkedAt = incoming.ResumeMarkedAt
+	}
+	if incoming.NonResumableReason != "" {
+		out.NonResumableReason = incoming.NonResumableReason
+	}
+	if incoming.NonResumableAt != 0 {
+		out.NonResumableAt = incoming.NonResumableAt
 	}
 	return finalizeMetadata(out), nil
 }
@@ -215,6 +237,58 @@ func (m *BoltMap) GetMetadata(ctx context.Context, sessionID string) (Metadata, 
 		return Metadata{}, false, err
 	}
 	return meta, ok, nil
+}
+
+func (m *BoltMap) ClearResumePending(ctx context.Context, sessionID string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	m.closeMu.Lock()
+	db := m.db
+	m.closeMu.Unlock()
+	if db == nil {
+		return false, errors.New("session: BoltMap is closed")
+	}
+
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return false, nil
+	}
+
+	var cleared bool
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(metadataBucketName))
+		if b == nil {
+			return errors.New("session: metadata bucket missing")
+		}
+		raw := b.Get([]byte(sessionID))
+		if raw == nil {
+			return nil
+		}
+		meta, err := decodeMetadata(raw)
+		if err != nil {
+			return fmt.Errorf("session: decode metadata for %q: %w", sessionID, err)
+		}
+		if !meta.ResumePending && meta.ResumeReason == "" && meta.ResumeMarkedAt == 0 {
+			return nil
+		}
+		meta.ResumePending = false
+		meta.ResumeReason = ""
+		meta.ResumeMarkedAt = 0
+		encoded, err := json.Marshal(meta)
+		if err != nil {
+			return fmt.Errorf("session: encode metadata for %q: %w", sessionID, err)
+		}
+		if err := b.Put([]byte(sessionID), encoded); err != nil {
+			return err
+		}
+		cleared = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return cleared, nil
 }
 
 func (m *BoltMap) ResolveUserID(ctx context.Context, source, chatID string) (string, bool, error) {
@@ -397,6 +471,30 @@ func (m *MemMap) GetMetadata(ctx context.Context, sessionID string) (Metadata, b
 	defer m.mu.Unlock()
 	meta, ok := m.meta[sessionID]
 	return meta, ok, nil
+}
+
+func (m *MemMap) ClearResumePending(ctx context.Context, sessionID string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return false, nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	meta, ok := m.meta[sessionID]
+	if !ok {
+		return false, nil
+	}
+	if !meta.ResumePending && meta.ResumeReason == "" && meta.ResumeMarkedAt == 0 {
+		return false, nil
+	}
+	meta.ResumePending = false
+	meta.ResumeReason = ""
+	meta.ResumeMarkedAt = 0
+	m.meta[sessionID] = meta
+	return true, nil
 }
 
 func (m *MemMap) ResolveUserID(ctx context.Context, source, chatID string) (string, bool, error) {

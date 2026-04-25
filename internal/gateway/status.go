@@ -38,14 +38,17 @@ const (
 
 // RuntimeStatus is the shared gateway status read model.
 type RuntimeStatus struct {
-	Kind         string                           `json:"kind"`
-	PID          int                              `json:"pid"`
-	GatewayState GatewayState                     `json:"gateway_state"`
-	ExitReason   string                           `json:"exit_reason"`
-	ActiveAgents int                              `json:"active_agents"`
-	Platforms    map[string]PlatformRuntimeStatus `json:"platforms"`
-	Proxy        ProxyRuntimeStatus               `json:"proxy"`
-	UpdatedAt    string                           `json:"updated_at"`
+	Kind          string                           `json:"kind"`
+	PID           int                              `json:"pid"`
+	GatewayState  GatewayState                     `json:"gateway_state"`
+	ExitReason    string                           `json:"exit_reason"`
+	ActiveAgents  int                              `json:"active_agents"`
+	Platforms     map[string]PlatformRuntimeStatus `json:"platforms"`
+	Proxy         ProxyRuntimeStatus               `json:"proxy"`
+	DrainTimeouts []RuntimeDrainTimeoutEvidence    `json:"drain_timeouts,omitempty"`
+	ResumePending []RuntimeResumePendingEvidence   `json:"resume_pending,omitempty"`
+	NonResumable  []RuntimeNonResumableEvidence    `json:"non_resumable,omitempty"`
+	UpdatedAt     string                           `json:"updated_at"`
 }
 
 // PlatformRuntimeStatus is one platform/channel's status entry inside the
@@ -64,6 +67,37 @@ type ProxyRuntimeStatus struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
+type RuntimeResumePendingEvidence struct {
+	SessionKey string `json:"session_key,omitempty"`
+	SessionID  string `json:"session_id,omitempty"`
+	Source     string `json:"source,omitempty"`
+	ChatID     string `json:"chat_id,omitempty"`
+	UserID     string `json:"user_id,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	MarkedAt   string `json:"marked_at,omitempty"`
+}
+
+type RuntimeDrainTimeoutEvidence struct {
+	SessionKey   string `json:"session_key,omitempty"`
+	SessionID    string `json:"session_id,omitempty"`
+	Source       string `json:"source,omitempty"`
+	ChatID       string `json:"chat_id,omitempty"`
+	UserID       string `json:"user_id,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	TimeoutAt    string `json:"timeout_at,omitempty"`
+	ActiveAgents int    `json:"active_agents,omitempty"`
+}
+
+type RuntimeNonResumableEvidence struct {
+	SessionKey string `json:"session_key,omitempty"`
+	SessionID  string `json:"session_id,omitempty"`
+	Source     string `json:"source,omitempty"`
+	ChatID     string `json:"chat_id,omitempty"`
+	UserID     string `json:"user_id,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	At         string `json:"at,omitempty"`
+}
+
 // RuntimeStatusUpdate carries a partial update to the shared runtime status.
 type RuntimeStatusUpdate struct {
 	GatewayState GatewayState
@@ -77,6 +111,10 @@ type RuntimeStatusUpdate struct {
 	ProxyState        string
 	ProxyURL          string
 	ProxyErrorMessage string
+
+	DrainTimeoutEvidence  *RuntimeDrainTimeoutEvidence
+	ResumePendingEvidence *RuntimeResumePendingEvidence
+	NonResumableEvidence  *RuntimeNonResumableEvidence
 }
 
 // RuntimeStatusWriter is the manager-facing seam for lifecycle status writes.
@@ -169,6 +207,18 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 		}
 		status.Proxy.ErrorMessage = update.ProxyErrorMessage
 		status.Proxy.UpdatedAt = status.UpdatedAt
+	}
+	if update.DrainTimeoutEvidence != nil {
+		evidence := *update.DrainTimeoutEvidence
+		status.DrainTimeouts = append(status.DrainTimeouts, evidence)
+	}
+	if update.ResumePendingEvidence != nil {
+		evidence := *update.ResumePendingEvidence
+		status.ResumePending = append(status.ResumePending, evidence)
+	}
+	if update.NonResumableEvidence != nil {
+		evidence := *update.NonResumableEvidence
+		status.NonResumable = append(status.NonResumable, evidence)
 	}
 	if update.Platform == "" {
 		return

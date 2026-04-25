@@ -29,20 +29,24 @@ type SessionSource struct {
 // injects so the agent knows where the turn came from and which delivery
 // targets are available.
 type SessionContext struct {
-	Source             SessionSource
-	SessionKey         string
-	SessionID          string
-	RequestedSessionID string
-	ResumePath         []string
-	ResumeStatus       string
-	ConnectedPlatforms []string
+	Source                SessionSource
+	SessionKey            string
+	SessionID             string
+	RequestedSessionID    string
+	ResumePath            []string
+	ResumeStatus          string
+	NonResumableSessionID string
+	NonResumableReason    string
+	ConnectedPlatforms    []string
 }
 
 type resolvedSession struct {
-	SessionID          string
-	RequestedSessionID string
-	ResumePath         []string
-	ResumeStatus       string
+	SessionID             string
+	RequestedSessionID    string
+	ResumePath            []string
+	ResumeStatus          string
+	NonResumableSessionID string
+	NonResumableReason    string
 }
 
 func sessionSourceFromInbound(ev InboundEvent) SessionSource {
@@ -191,6 +195,12 @@ func BuildSessionContextPrompt(ctx SessionContext) string {
 	}
 	if status := strings.TrimSpace(ctx.ResumeStatus); status != "" && status != session.LineageStatusOK {
 		lines = append(lines, "**Resume Continuation Status:** `"+status+"`")
+	}
+	if blockedSessionID := strings.TrimSpace(ctx.NonResumableSessionID); blockedSessionID != "" {
+		lines = append(lines, "**Non-Resumable Session ID:** `"+blockedSessionID+"`")
+	}
+	if blockedReason := strings.TrimSpace(ctx.NonResumableReason); blockedReason != "" {
+		lines = append(lines, "**Non-Resumable Reason:** `"+blockedReason+"`")
 	}
 
 	targets := []string{"`origin`", "`local`"}
