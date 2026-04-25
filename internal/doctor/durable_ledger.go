@@ -43,8 +43,9 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 	workerDegraded := status.Worker.Liveness != subagent.DurableWorkerHealthy
 	supervisorDegraded := status.Worker.Supervisor != subagent.DurableSupervisorAvailable
 	restartIntent := status.Worker.RestartIntent.Requested
+	lifecycleDegraded := status.Paused > 0 || status.ResumePending > 0 || status.LifecycleControlUnsupported > 0
 	if status.QueueFull || status.TimedOut > 0 || status.StaleWaiting > 0 ||
-		workerDegraded || supervisorDegraded || restartIntent {
+		workerDegraded || supervisorDegraded || restartIntent || lifecycleDegraded {
 		result.Status = StatusWarn
 		if status.QueueFull {
 			prefix = "queue full; restart/replay available"
@@ -52,6 +53,8 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 			prefix = "durable worker degraded; restart/replay available"
 		} else if restartIntent {
 			prefix = "restart intent recorded; restart/replay available"
+		} else if lifecycleDegraded {
+			prefix = "durable lifecycle control pending; restart/replay available"
 		}
 	}
 	supervisorNote := string(status.Worker.Supervisor)
@@ -63,9 +66,10 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 		restartReason = "none"
 	}
 	result.Summary = fmt.Sprintf(
-		"%s (%d total, %d waiting, %d claimed, %d stalled, %d timeout-at, %d timed-out, %d stale waiting, %d backpressure-denied, worker=%s, supervisor=%s, restart_intent=%d reason=%s)",
+		"%s (%d total, %d waiting, %d claimed, %d stalled, %d timeout-at, %d timed-out, %d stale waiting, %d backpressure-denied, %d paused, %d resume-pending, %d lifecycle-unsupported, worker=%s, supervisor=%s, restart_intent=%d reason=%s)",
 		prefix, status.Total, status.Waiting, status.Claimed, status.Stalled,
 		status.TimeoutScheduled, status.TimedOut, status.StaleWaiting, status.BackpressureDenied,
+		status.Paused, status.ResumePending, status.LifecycleControlUnsupported,
 		status.Worker.Liveness, supervisorNote, status.Worker.RestartIntent.AuditEvents, restartReason,
 	)
 	queueStatus := StatusPass
@@ -88,6 +92,10 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 	if restartIntent {
 		restartStatus = StatusWarn
 	}
+	lifecycleStatus := StatusPass
+	if lifecycleDegraded {
+		lifecycleStatus = StatusWarn
+	}
 	result.Items = []ItemInfo{
 		{Name: "ledger", Status: StatusPass, Note: "SQLite durable job ledger configured"},
 		{Name: "queue_health", Status: queueStatus, Note: fmt.Sprintf(
@@ -97,6 +105,10 @@ func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, run
 		)},
 		{Name: "backpressure", Status: backpressureStatus, Note: fmt.Sprintf("%d denied", status.BackpressureDenied)},
 		{Name: "cancel_intent", Status: StatusPass, Note: fmt.Sprintf("%d requested", status.CancelRequested)},
+		{Name: "lifecycle_control", Status: lifecycleStatus, Note: fmt.Sprintf(
+			"paused=%d resume_pending=%d unsupported=%d",
+			status.Paused, status.ResumePending, status.LifecycleControlUnsupported,
+		)},
 		{Name: "durable_worker", Status: workerStatus, Note: fmt.Sprintf(
 			"liveness=%s worker_id=%s last_heartbeat=%s stale_after=%s",
 			status.Worker.Liveness, status.Worker.WorkerID,
