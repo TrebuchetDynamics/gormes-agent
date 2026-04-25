@@ -114,3 +114,18 @@ type ContextResult struct {
 	RecentMessages []MessageSlice               `json:"recent_messages,omitempty"`
 	Unavailable    []ContextUnavailableEvidence `json:"unavailable,omitempty"`
 }
+
+// ChatParams mirrors Honcho's DialecticOptions request body for peer.chat().
+// The peer itself is path/tool context, so it is passed separately to Service.Chat.
+type ChatParams struct {
+	SessionID      string `json:"session_id,omitempty"`
+	Target         string `json:"target,omitempty"`
+	Query          string `json:"query"`
+	Stream         bool   `json:"stream,omitempty"`
+	ReasoningLevel string `json:"reasoning_level,omitempty"`
+}
+
+// ChatResult is Honcho's non-streaming dialectic response shape.
+type ChatResult struct {
+	Content string `json:"content"`
+}
