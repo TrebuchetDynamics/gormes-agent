@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -671,6 +672,85 @@ func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *test
 	}
 }
 
+func TestRunOnceAppliesBackendTimeoutAndRecordsDeadlineDetail(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"12": {
+				"subphases": {
+					"12.A": {
+						"items": [
+							{"name": "timeout candidate", "status": "planned", "contract": "timeout contract", "contract_status": "draft"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	runRoot := t.TempDir()
+	runner := &deadlineCaptureRunner{}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:       t.TempDir(),
+			ProgressJSON:   progressPath,
+			RunRoot:        runRoot,
+			Backend:        "opencode",
+			Mode:           "safe",
+			MaxAgents:      1,
+			BackendTimeout: time.Minute,
+		},
+		Runner: runner,
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("RunOnce() error = %v, want wrapped deadline exceeded", err)
+	}
+	deadlines := runner.deadlines()
+	if len(deadlines) != 1 {
+		t.Fatalf("backend deadlines = %d, want 1", len(deadlines))
+	}
+	remaining := time.Until(deadlines[0])
+	if remaining <= 0 || remaining > time.Minute {
+		t.Fatalf("backend deadline remaining = %s, want within 1m", remaining)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	if len(events) < 3 {
+		t.Fatalf("ledger events = %#v, want worker_failed event", events)
+	}
+	if events[2].Event != "worker_failed" || events[2].Status != "backend_failed" {
+		t.Fatalf("worker failure event = %#v, want backend_failed", events[2])
+	}
+	if !strings.Contains(events[2].Detail, context.DeadlineExceeded.Error()) {
+		t.Fatalf("worker failure detail = %q, want deadline detail", events[2].Detail)
+	}
+}
+
+func TestRunBackendWorkersAppliesBackendTimeout(t *testing.T) {
+	runner := &deadlineCaptureRunner{}
+	workers := []workerRun{
+		{ID: 1, RepoRoot: t.TempDir(), Candidate: Candidate{ItemName: "worker one"}},
+		{ID: 2, RepoRoot: t.TempDir(), Candidate: Candidate{ItemName: "worker two"}},
+	}
+
+	runBackendWorkers(context.Background(), Config{BackendTimeout: time.Minute}, runner, []string{"opencode", "run"}, workers)
+
+	deadlines := runner.deadlines()
+	if len(deadlines) != 2 {
+		t.Fatalf("backend deadlines = %d, want 2", len(deadlines))
+	}
+	for i, deadline := range deadlines {
+		remaining := time.Until(deadline)
+		if remaining <= 0 || remaining > time.Minute {
+			t.Fatalf("deadline %d remaining = %s, want within 1m", i, remaining)
+		}
+	}
+	for i, worker := range workers {
+		if !errors.Is(worker.Result.Err, context.DeadlineExceeded) {
+			t.Fatalf("worker %d result error = %v, want deadline exceeded", i, worker.Result.Err)
+		}
+	}
+}
+
 func TestRunOnceRefusesDirtyRepositoryBeforeWorkerLaunch(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
@@ -1103,6 +1183,29 @@ type runnerFunc func(context.Context, Command) Result
 
 func (fn runnerFunc) Run(ctx context.Context, command Command) Result {
 	return fn(ctx, command)
+}
+
+type deadlineCaptureRunner struct {
+	mu       sync.Mutex
+	seen     []time.Time
+	commands []Command
+}
+
+func (runner *deadlineCaptureRunner) Run(ctx context.Context, command Command) Result {
+	deadline, ok := ctx.Deadline()
+	runner.mu.Lock()
+	runner.commands = append(runner.commands, command)
+	if ok {
+		runner.seen = append(runner.seen, deadline)
+	}
+	runner.mu.Unlock()
+	return Result{Err: context.DeadlineExceeded}
+}
+
+func (runner *deadlineCaptureRunner) deadlines() []time.Time {
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	return append([]time.Time(nil), runner.seen...)
 }
 
 func initConflictingRepo(t *testing.T, repoRoot string) {

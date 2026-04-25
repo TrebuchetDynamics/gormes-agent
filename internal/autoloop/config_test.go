@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestConfigFromEnvDefaultsToRepoRootPaths(t *testing.T) {
@@ -48,18 +49,22 @@ func TestConfigFromEnvDefaultsToRepoRootPaths(t *testing.T) {
 	if !reflect.DeepEqual(cfg.PriorityBoost, wantPriorityBoost) {
 		t.Fatalf("PriorityBoost = %#v, want %#v", cfg.PriorityBoost, wantPriorityBoost)
 	}
+	if cfg.BackendTimeout != 30*time.Minute {
+		t.Fatalf("BackendTimeout = %s, want 30m", cfg.BackendTimeout)
+	}
 }
 
 func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
 	cfg, err := ConfigFromEnv(root, map[string]string{
-		"RUN_ROOT":       "/tmp/run",
-		"BACKEND":        "claudeu",
-		"MODE":           "full",
-		"MAX_AGENTS":     "7",
-		"MAX_PHASE":      "5",
-		"PRIORITY_BOOST": "3.E.7, 4.A ",
+		"RUN_ROOT":                 "/tmp/run",
+		"BACKEND":                  "claudeu",
+		"MODE":                     "full",
+		"MAX_AGENTS":               "7",
+		"MAX_PHASE":                "5",
+		"PRIORITY_BOOST":           "3.E.7, 4.A ",
+		"AUTOLOOP_BACKEND_TIMEOUT": "9m",
 	})
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
@@ -88,6 +93,9 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	if want := []string{"3.E.7", "4.A"}; !reflect.DeepEqual(cfg.PriorityBoost, want) {
 		t.Fatalf("PriorityBoost = %#v, want %#v", cfg.PriorityBoost, want)
 	}
+	if cfg.BackendTimeout != 9*time.Minute {
+		t.Fatalf("BackendTimeout = %s, want 9m", cfg.BackendTimeout)
+	}
 }
 
 func TestConfigFromEnvRejectsEmptyRepoRoot(t *testing.T) {
@@ -111,6 +119,18 @@ func TestConfigFromEnvRejectsZeroMaxAgents(t *testing.T) {
 func TestConfigFromEnvRejectsInvalidMaxPhase(t *testing.T) {
 	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_PHASE": "many"}); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
+	}
+}
+
+func TestConfigFromEnvRejectsInvalidBackendTimeout(t *testing.T) {
+	if _, err := ConfigFromEnv("repo", map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "soon"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want invalid timeout error")
+	}
+	if _, err := ConfigFromEnv("repo", map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "0"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want non-positive timeout error")
+	}
+	if _, err := ConfigFromEnv("repo", map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "-1s"}); err == nil {
+		t.Fatal("ConfigFromEnv() error = nil, want negative timeout error")
 	}
 }
 

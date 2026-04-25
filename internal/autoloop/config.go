@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -16,6 +17,12 @@ type Config struct {
 	MaxAgents     int
 	MaxPhase      int
 	PriorityBoost []string
+	// BackendTimeout bounds each LLM backend invocation launched by
+	// autoloop workers or repair agents. A stuck codexu/claudeu/opencode
+	// child must not park the infinite loop forever. Sourced from
+	// AUTOLOOP_BACKEND_TIMEOUT (Go time.ParseDuration syntax, e.g. "30m");
+	// default 30 minutes.
+	BackendTimeout time.Duration
 
 	// Reactive autoloop knobs (Tasks 4-7).
 	QuarantineThreshold     int      // QUARANTINE_THRESHOLD, default 3
@@ -66,14 +73,15 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 	}
 
 	cfg := Config{
-		RepoRoot:      repoRoot,
-		ProgressJSON:  filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
-		RunRoot:       filepath.Join(repoRoot, ".codex", "orchestrator"),
-		Backend:       "codexu",
-		Mode:          "safe",
-		MaxAgents:     4,
-		MaxPhase:      3,
-		PriorityBoost: []string{"2.B.3", "2.B.4", "2.B.10", "2.B.11"},
+		RepoRoot:       repoRoot,
+		ProgressJSON:   filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		RunRoot:        filepath.Join(repoRoot, ".codex", "orchestrator"),
+		Backend:        "codexu",
+		Mode:           "safe",
+		MaxAgents:      4,
+		MaxPhase:       3,
+		PriorityBoost:  []string{"2.B.3", "2.B.4", "2.B.10", "2.B.11"},
+		BackendTimeout: 30 * time.Minute,
 
 		QuarantineThreshold:     3,
 		BackendDegradeThreshold: 3,
@@ -130,6 +138,16 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 	}
 	if value := env["PRIORITY_BOOST"]; value != "" {
 		cfg.PriorityBoost = splitCSV(value)
+	}
+	if value := env["AUTOLOOP_BACKEND_TIMEOUT"]; value != "" {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("AUTOLOOP_BACKEND_TIMEOUT must be a Go duration (e.g. \"30m\"): %w", err)
+		}
+		if d <= 0 {
+			return Config{}, fmt.Errorf("AUTOLOOP_BACKEND_TIMEOUT must be positive")
+		}
+		cfg.BackendTimeout = d
 	}
 
 	if value := env["QUARANTINE_THRESHOLD"]; value != "" {

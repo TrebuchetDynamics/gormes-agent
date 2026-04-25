@@ -53,6 +53,8 @@ Useful environment variables:
 - `RUN_ROOT`: override the autoloop runtime state/log root.
 - `BACKEND`: select `codexu`, `claudeu`, or `opencode`.
 - `MODE`: select `safe`, `unattended`, or `full`.
+- `AUTOLOOP_BACKEND_TIMEOUT`: cap each worker or repair backend invocation so
+  a stuck agent cannot park the infinite loop forever. Defaults to `30m`.
 - `MAX_AGENTS`: cap selected rows for one run. If fewer rows are metadata-ready,
   autoloop runs fewer workers instead of choosing filler or random work. In a
   git checkout, selected workers run concurrently when this is greater than
@@ -104,7 +106,7 @@ clean-worktree preflight. The flow per worker is:
 2. Create a fresh worker branch in an isolated worktree and record its base
    commit.
 3. Run the backend with the worker prompt (which tells the agent the branch
-   name and allowed write scope).
+   name and allowed write scope) under `AUTOLOOP_BACKEND_TIMEOUT`.
 4. Verify no merge conflicts, require the worker worktree to stay on its
    assigned branch, and require it to be clean. Dirty output emits
    `worker_failed:worktree_dirty` and the run stops for inspection without

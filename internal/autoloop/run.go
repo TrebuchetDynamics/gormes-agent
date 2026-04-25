@@ -239,7 +239,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		for _, sk := range skipped {
 			acc.RecordFailure(sk.Candidate, progress.FailureProgressSummary, degrader.Current(), sk.Reason)
 		}
-		runBackendWorkers(ctx, runner, argv, workers)
+		runBackendWorkers(ctx, opts.Config, runner, argv, workers)
 		for _, worker := range workers {
 			finishErr := finishWorker(ctx, opts.Config, runner, argv[0], runID, baseBranch, hasGit, worker)
 			recordWorkerOutcome(acc, observeOutcome, degrader.Current(), worker, finishErr)
@@ -317,7 +317,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 
 		args := append([]string(nil), argv[1:]...)
 		args = append(args, BuildWorkerPromptWithBranch(candidate, worker.Branch))
-		worker.Result = runner.Run(ctx, Command{
+		worker.Result = runBackendCommand(ctx, opts.Config, runner, Command{
 			Name: argv[0],
 			Args: args,
 			Dir:  worker.RepoRoot,
@@ -471,7 +471,7 @@ func runPrePromotionRepair(ctx context.Context, cfg Config, runner Runner, runID
 
 	args := append([]string(nil), argv[1:]...)
 	args = append(args, BuildPrePromotionRepairPrompt(cfg.PrePromotionVerifyCommands, worker, cause))
-	result := runner.Run(ctx, Command{
+	result := runBackendCommand(ctx, cfg, runner, Command{
 		Name: argv[0],
 		Args: args,
 		Dir:  worker.RepoRoot,
@@ -707,7 +707,7 @@ func runPostPromotionRepair(ctx context.Context, cfg Config, runner Runner, runI
 
 	args := append([]string(nil), argv[1:]...)
 	args = append(args, BuildPostPromotionRepairPrompt(cfg.PostPromotionVerifyCommands, cause))
-	result := runner.Run(ctx, Command{
+	result := runBackendCommand(ctx, cfg, runner, Command{
 		Name: argv[0],
 		Args: args,
 		Dir:  cfg.RepoRoot,
@@ -954,7 +954,7 @@ type skippedCandidate struct {
 	Reason    string
 }
 
-func runBackendWorkers(ctx context.Context, runner Runner, argv []string, workers []workerRun) {
+func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, argv []string, workers []workerRun) {
 	var wg sync.WaitGroup
 	for i := range workers {
 		worker := &workers[i]
@@ -963,7 +963,7 @@ func runBackendWorkers(ctx context.Context, runner Runner, argv []string, worker
 			defer wg.Done()
 			args := append([]string(nil), argv[1:]...)
 			args = append(args, BuildWorkerPromptWithBranch(worker.Candidate, worker.Branch))
-			worker.Result = runner.Run(ctx, Command{
+			worker.Result = runBackendCommand(ctx, cfg, runner, Command{
 				Name: argv[0],
 				Args: args,
 				Dir:  worker.RepoRoot,
@@ -971,6 +971,17 @@ func runBackendWorkers(ctx context.Context, runner Runner, argv []string, worker
 		}()
 	}
 	wg.Wait()
+}
+
+func runBackendCommand(ctx context.Context, cfg Config, runner Runner, command Command) Result {
+	backendCtx := ctx
+	cancel := func() {}
+	if cfg.BackendTimeout > 0 {
+		backendCtx, cancel = context.WithTimeout(ctx, cfg.BackendTimeout)
+	}
+	result := runner.Run(backendCtx, command)
+	cancel()
+	return result
 }
 
 func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName string, runID string, baseBranch string, hasGit bool, worker workerRun) error {
