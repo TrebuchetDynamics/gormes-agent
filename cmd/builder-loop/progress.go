@@ -33,6 +33,18 @@ func validateProgress(root string) error {
 	return err
 }
 
+// progressMarker describes one place where `progress write` regenerates a
+// generated section of a tracked file. New markers are added by appending
+// to the table in writeProgress; the loop that drives this is intentionally
+// dumb so order, error handling, and the operator-facing log line for each
+// marker stay consistent.
+type progressMarker struct {
+	pathOf func(progressPathSet) string
+	kind   string
+	label  string
+	render func(*progress.Progress) string
+}
+
 func writeProgress(root string) error {
 	p, err := loadValidProgress(root)
 	if err != nil {
@@ -40,52 +52,75 @@ func writeProgress(root string) error {
 	}
 
 	paths := progressPaths(root)
+
+	markers := []progressMarker{
+		{
+			pathOf: func(s progressPathSet) string { return s.docsIndex },
+			kind:   "docs-full-checklist",
+			label:  "_index.md regenerated",
+			render: progress.RenderDocsChecklist,
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.readme },
+			kind:   "readme-rollup",
+			label:  "README.md regenerated",
+			render: progress.RenderReadmeRollup,
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.contractReadiness },
+			kind:   "contract-readiness",
+			label:  "contract readiness regenerated",
+			render: progress.RenderContractReadiness,
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.builderLoopHandoff },
+			kind:   "builder-loop-handoff",
+			label:  "builder-loop handoff regenerated",
+			render: progress.RenderBuilderLoopHandoff,
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.agentQueue },
+			kind:   "agent-queue",
+			label:  "agent queue regenerated",
+			render: func(p *progress.Progress) string { return progress.RenderAgentQueue(p, 10) },
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.nextSlices },
+			kind:   "next-slices",
+			label:  "next slices regenerated",
+			render: func(p *progress.Progress) string { return progress.RenderNextSlices(p, 10) },
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.blockedSlices },
+			kind:   "blocked-slices",
+			label:  "blocked slices regenerated",
+			render: progress.RenderBlockedSlices,
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.umbrellaCleanup },
+			kind:   "umbrella-cleanup",
+			label:  "umbrella cleanup regenerated",
+			render: progress.RenderUmbrellaCleanup,
+		},
+		{
+			pathOf: func(s progressPathSet) string { return s.progressSchema },
+			kind:   "progress-schema",
+			label:  "progress schema regenerated",
+			render: func(*progress.Progress) string { return progress.RenderProgressSchema() },
+		},
+	}
+
 	var errs []error
-	if err := rewriteProgressMarker(paths.docsIndex, "docs-full-checklist", progress.RenderDocsChecklist(p)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: _index.md regenerated")
+	for _, m := range markers {
+		if err := rewriteProgressMarker(m.pathOf(paths), m.kind, m.render(p)); err != nil {
+			errs = append(errs, err)
+		} else {
+			fmt.Fprintln(commandStdout, "progress:", m.label)
+		}
 	}
-	if err := rewriteProgressMarker(paths.readme, "readme-rollup", progress.RenderReadmeRollup(p)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: README.md regenerated")
-	}
-	if err := rewriteProgressMarker(paths.contractReadiness, "contract-readiness", progress.RenderContractReadiness(p)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: contract readiness regenerated")
-	}
-	if err := rewriteProgressMarker(paths.builderLoopHandoff, "builder-loop-handoff", progress.RenderBuilderLoopHandoff(p)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: builder-loop handoff regenerated")
-	}
-	if err := rewriteProgressMarker(paths.agentQueue, "agent-queue", progress.RenderAgentQueue(p, 10)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: agent queue regenerated")
-	}
-	if err := rewriteProgressMarker(paths.nextSlices, "next-slices", progress.RenderNextSlices(p, 10)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: next slices regenerated")
-	}
-	if err := rewriteProgressMarker(paths.blockedSlices, "blocked-slices", progress.RenderBlockedSlices(p)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: blocked slices regenerated")
-	}
-	if err := rewriteProgressMarker(paths.umbrellaCleanup, "umbrella-cleanup", progress.RenderUmbrellaCleanup(p)); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: umbrella cleanup regenerated")
-	}
-	if err := rewriteProgressMarker(paths.progressSchema, "progress-schema", progress.RenderProgressSchema()); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(commandStdout, "progress: progress schema regenerated")
-	}
+
+	// Site progress is a raw file mirror, not a markered rewrite; kept
+	// out of the marker table on purpose.
 	if err := syncProgressFile(paths.progressJSON, paths.siteProgress); err != nil {
 		errs = append(errs, err)
 	} else {
