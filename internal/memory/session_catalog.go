@@ -18,6 +18,18 @@ type SearchFilter struct {
 	Query   string
 }
 
+// SearchLineageStatusUnavailable means the hit matched through a chat key but
+// there was no session-specific metadata row to prove a lineage chain.
+const SearchLineageStatusUnavailable = "unavailable"
+
+// SearchLineage is the lineage evidence attached to one matched session.
+type SearchLineage struct {
+	ParentSessionID string
+	LineageKind     string
+	ChildSessionIDs []string
+	Status          string
+}
+
 // MessageSearchHit is one turn-level result from the session catalog.
 type MessageSearchHit struct {
 	SessionID string
@@ -26,6 +38,7 @@ type MessageSearchHit struct {
 	Role      string
 	Content   string
 	TSUnix    int64
+	Lineage   SearchLineage
 }
 
 // SessionSearchHit is one session-level result ordered by latest matching turn.
@@ -34,6 +47,7 @@ type SessionSearchHit struct {
 	ChatID         string
 	Source         string
 	LatestTurnUnix int64
+	Lineage        SearchLineage
 }
 
 // SearchMessages returns matching turns across the canonical sessions bound to
@@ -45,6 +59,7 @@ func SearchMessages(ctx context.Context, db *sql.DB, metas []session.Metadata, f
 	}
 
 	sessionIDs, chatKeys, metaBySession, metaByChat := metadataIndexes(selected)
+	lineage := buildSearchLineageIndex(selected)
 	query, args := buildTurnSearchQuery(filter.Query, sessionIDs, chatKeys, limit, false)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -63,6 +78,7 @@ func SearchMessages(ctx context.Context, db *sql.DB, metas []session.Metadata, f
 		} else if meta, ok := metaByChat[hit.ChatID]; ok {
 			hit.Source = meta.Source
 		}
+		hit.Lineage = lineage.contextFor(hit.SessionID)
 		hits = append(hits, hit)
 	}
 	if err := rows.Err(); err != nil {
@@ -79,6 +95,7 @@ func SearchSessions(ctx context.Context, db *sql.DB, metas []session.Metadata, f
 	}
 
 	sessionIDs, chatKeys, metaBySession, metaByChat := metadataIndexes(selected)
+	lineage := buildSearchLineageIndex(selected)
 	query, args := buildTurnSearchQuery(filter.Query, sessionIDs, chatKeys, limit, true)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -97,6 +114,7 @@ func SearchSessions(ctx context.Context, db *sql.DB, metas []session.Metadata, f
 		} else if meta, ok := metaByChat[hit.ChatID]; ok {
 			hit.Source = meta.Source
 		}
+		hit.Lineage = lineage.contextFor(hit.SessionID)
 		hits = append(hits, hit)
 	}
 	if err := rows.Err(); err != nil {
@@ -164,6 +182,88 @@ func canonicalChatKey(meta session.Metadata) string {
 		return ""
 	}
 	return source + ":" + chatID
+}
+
+type searchLineageIndex struct {
+	bySession map[string]session.Metadata
+	children  map[string][]string
+}
+
+func buildSearchLineageIndex(metas []session.Metadata) searchLineageIndex {
+	idx := searchLineageIndex{
+		bySession: make(map[string]session.Metadata, len(metas)),
+		children:  make(map[string][]string, len(metas)),
+	}
+	for _, meta := range metas {
+		meta = normalizeSearchLineageMetadata(meta)
+		if meta.SessionID == "" {
+			continue
+		}
+		idx.bySession[meta.SessionID] = meta
+	}
+	for _, meta := range idx.bySession {
+		if meta.ParentSessionID == "" {
+			continue
+		}
+		childIDs := idx.children[meta.ParentSessionID]
+		if !slices.Contains(childIDs, meta.SessionID) {
+			idx.children[meta.ParentSessionID] = append(childIDs, meta.SessionID)
+		}
+	}
+	for parentID := range idx.children {
+		slices.Sort(idx.children[parentID])
+	}
+	return idx
+}
+
+func normalizeSearchLineageMetadata(meta session.Metadata) session.Metadata {
+	meta.SessionID = strings.TrimSpace(meta.SessionID)
+	meta.ParentSessionID = strings.TrimSpace(meta.ParentSessionID)
+	meta.LineageKind = strings.ToLower(strings.TrimSpace(meta.LineageKind))
+	return meta
+}
+
+func (idx searchLineageIndex) contextFor(sessionID string) SearchLineage {
+	sessionID = strings.TrimSpace(sessionID)
+	meta, ok := idx.bySession[sessionID]
+	if !ok {
+		return SearchLineage{Status: SearchLineageStatusUnavailable}
+	}
+	children := append([]string(nil), idx.children[sessionID]...)
+	return SearchLineage{
+		ParentSessionID: meta.ParentSessionID,
+		LineageKind:     searchLineageKind(meta),
+		ChildSessionIDs: children,
+		Status:          idx.statusFor(sessionID),
+	}
+}
+
+func searchLineageKind(meta session.Metadata) string {
+	if meta.LineageKind == "" {
+		return session.LineageKindPrimary
+	}
+	return meta.LineageKind
+}
+
+func (idx searchLineageIndex) statusFor(sessionID string) string {
+	meta, ok := idx.bySession[sessionID]
+	if !ok {
+		return SearchLineageStatusUnavailable
+	}
+	seen := map[string]struct{}{sessionID: {}}
+	for current := meta.ParentSessionID; current != ""; {
+		if _, ok := seen[current]; ok {
+			return session.LineageStatusLoop
+		}
+		seen[current] = struct{}{}
+
+		parent, ok := idx.bySession[current]
+		if !ok {
+			return session.LineageStatusOrphan
+		}
+		current = parent.ParentSessionID
+	}
+	return session.LineageStatusOK
 }
 
 func buildTurnSearchQuery(rawQuery string, sessionIDs, chatKeys []string, limit int, sessionsOnly bool) (string, []any) {
