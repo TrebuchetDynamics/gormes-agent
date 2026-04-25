@@ -1,17 +1,20 @@
-# Autoloop Command
+# Builder Loop Command
 
-`cmd/autoloop` is the Go command for executing the building-gormes roadmap. It
-is not a generic task runner and it should not maintain a private backlog.
+`cmd/builder-loop` is the executor side of the Planner-Builder Loop (see
+`AGENTS.md` at the repo root). It executes the building-gormes roadmap.
+It is not a generic task runner and it should not maintain a private
+backlog.
 
 ## Control Plane
 
-Autoloop uses the building-gormes docs tree as its development control plane:
+The builder loop uses the building-gormes docs tree as its development
+control plane:
 
 - Canonical queue: `docs/content/building-gormes/architecture_plan/progress.json`
 - Human handoff: `docs/content/building-gormes/`
-- Autoloop handoff: `docs/content/building-gormes/autoloop/autoloop-handoff.md`
-- Worker-ready rows: `docs/content/building-gormes/autoloop/agent-queue.md`
-- Schema contract: `docs/content/building-gormes/autoloop/progress-schema.md`
+- Builder-loop handoff: `docs/content/building-gormes/builder-loop/builder-loop-handoff.md`
+- Worker-ready rows: `docs/content/building-gormes/builder-loop/agent-queue.md`
+- Schema contract: `docs/content/building-gormes/builder-loop/progress-schema.md`
 
 `progress.json` is the machine-readable source of truth. Generated
 building-gormes pages are the operator-facing explanation of the same rows.
@@ -50,13 +53,14 @@ go run ./cmd/builder-loop repo readme update
 Useful environment variables:
 
 - `PROGRESS_JSON`: override the canonical progress file path.
-- `RUN_ROOT`: override the autoloop runtime state/log root.
+- `RUN_ROOT`: override the builder-loop runtime state/log root.
 - `BACKEND`: select `codexu`, `claudeu`, or `opencode`.
 - `MODE`: select `safe`, `unattended`, or `full`.
-- `AUTOLOOP_BACKEND_TIMEOUT`: cap each worker or repair backend invocation so
-  a stuck agent cannot park the infinite loop forever. Defaults to `30m`.
+- `BUILDER_LOOP_BACKEND_TIMEOUT`: cap each worker or repair backend invocation
+  so a stuck agent cannot park the infinite loop forever. Defaults to `30m`.
+  The legacy `AUTOLOOP_BACKEND_TIMEOUT` is read as a fallback for back-compat.
 - `MAX_AGENTS`: cap selected rows for one run. If fewer rows are metadata-ready,
-  autoloop runs fewer workers instead of choosing filler or random work. In a
+  the builder loop runs fewer workers instead of choosing filler or random work. In a
   git checkout, selected workers run concurrently when this is greater than
   one.
 - `MAX_PHASE`: cap eligible roadmap phases. Defaults to `3` so current
@@ -67,7 +71,7 @@ Useful environment variables:
 - `POST_PROMOTION_VERIFY_COMMANDS`: override the mandatory post-promotion
   full-suite gate. Separate shell commands with `;;` or newlines. Defaults to
   `go test ./... -count=1`, `www.gormes.ai` Go tests, progress validation,
-  autoloop dry-run, and the site Playwright e2e suite.
+  builder-loop dry-run, and the site Playwright e2e suite.
 - `PRE_PROMOTION_VERIFY_COMMANDS`: optional worker-branch gate that runs inside
   the worker worktree before the worker commit is cherry-picked to the control
   checkout. Separate commands with `;;` or newlines. A failing gate keeps main
@@ -82,23 +86,23 @@ Useful environment variables:
 - `POST_PROMOTION_REPAIR_ATTEMPTS`: number of repair attempts before the run is
   recorded as failed. Defaults to `1`.
 - `AUTO_COMMIT_DIRTY_WORKTREE`: checkpoint dirty control-checkout changes
-  before preflight. Defaults to enabled for CLI cycles. Autoloop stages all
+  before preflight. Defaults to enabled for CLI cycles. the builder loop stages all
   unignored changes with `git add -A` and commits them as
-  `autoloop: checkpoint dirty worktree <run-id>` so the next cycle can keep
+  `builder-loop: checkpoint dirty worktree <run-id>` so the next cycle can keep
   moving. Set to `0` only when you want strict manual dirty-worktree refusal.
 
 ## Worker isolation and promotion
 
 Each selected worker runs in its own git worktree under
 `$RUN_ROOT/worktrees/<run-id>/w<worker>` on a branch named
-`autoloop/<run-id>/w<worker>/<slug>` cut from the autoloop base branch. The
+`builder-loop/<run-id>/w<worker>/<slug>` cut from the builder-loop base branch. The
 backend command runs with that worktree as its working directory, so worker
-edits cannot dirty the control checkout while autoloop is monitoring them.
-When more than one worker is selected, autoloop prepares all worker worktrees,
+edits cannot dirty the control checkout while the builder loop is monitoring them.
+When more than one worker is selected, the builder loop prepares all worker worktrees,
 launches their backend commands concurrently, then validates and promotes the
-finished branches in worker order. Before candidate selection, autoloop
-checkpoints any dirty control-checkout changes by default, then runs the
-clean-worktree preflight. The flow per worker is:
+finished branches in worker order. Before candidate selection, the builder
+loop checkpoints any dirty control-checkout changes by default, then runs
+the clean-worktree preflight. The flow per worker is:
 
 1. Pre-flight: refuse to launch if the repo has unmerged paths or, after the
    checkpoint attempt, still has uncommitted changes (emits
@@ -106,7 +110,7 @@ clean-worktree preflight. The flow per worker is:
 2. Create a fresh worker branch in an isolated worktree and record its base
    commit.
 3. Run the backend with the worker prompt (which tells the agent the branch
-   name and allowed write scope) under `AUTOLOOP_BACKEND_TIMEOUT`.
+   name and allowed write scope) under `BUILDER_LOOP_BACKEND_TIMEOUT`.
 4. Verify no merge conflicts, require the worker worktree to stay on its
    assigned branch, and require it to be clean. Dirty output emits
    `worker_failed:worktree_dirty` and the run stops for inspection without
@@ -122,7 +126,7 @@ clean-worktree preflight. The flow per worker is:
 7. From the clean control checkout, call `PromoteWorker`: `git push origin
    <branch>`, create a review PR with `gh pr create --fill --head <branch>`,
    then land the worker commit locally with `git cherry-pick -Xtheirs
-   <commit>`. If push or `gh` fails, autoloop still attempts the same local
+   <commit>`. If push or `gh` fails, the builder loop still attempts the same local
    cherry-pick fallback. Clean successful/no-change worktrees are removed;
    failed worktrees stay in `$RUN_ROOT/worktrees/` for inspection.
 8. After all worker promotions land, run the mandatory post-promotion full-suite
@@ -142,7 +146,7 @@ so eight workers don't all collide on the same subphase's hot files.
 
 ## Documentation Contract
 
-If autoloop chooses the wrong work, lacks enough worker context, or cannot tell
+If the builder loop chooses the wrong work, lacks enough worker context, or cannot tell
 whether a row is ready, update the building-gormes source documents instead of
 adding side-channel instructions. The expected fix path is:
 

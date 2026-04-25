@@ -80,13 +80,13 @@ var nativeHugoPages = map[string]struct{}{
 	"why-gormes.md":                                                  {},
 	"building-gormes/_index.md":                                      {},
 	"building-gormes/contract-readiness.md":                          {},
-	"building-gormes/autoloop/_index.md":                             {},
-	"building-gormes/autoloop/autoloop-handoff.md":                   {},
-	"building-gormes/autoloop/agent-queue.md":                        {},
-	"building-gormes/autoloop/next-slices.md":                        {},
-	"building-gormes/autoloop/blocked-slices.md":                     {},
-	"building-gormes/autoloop/umbrella-cleanup.md":                   {},
-	"building-gormes/autoloop/progress-schema.md":                    {},
+	"building-gormes/builder-loop/_index.md":                             {},
+	"building-gormes/builder-loop/builder-loop-handoff.md":                   {},
+	"building-gormes/builder-loop/agent-queue.md":                        {},
+	"building-gormes/builder-loop/next-slices.md":                        {},
+	"building-gormes/builder-loop/blocked-slices.md":                     {},
+	"building-gormes/builder-loop/umbrella-cleanup.md":                   {},
+	"building-gormes/builder-loop/progress-schema.md":                    {},
 	"building-gormes/upstream-lessons.md":                            {},
 	"building-gormes/gateway-donor-map/_index.md":                    {},
 	"building-gormes/gateway-donor-map/shared-adapter-patterns.md":   {},
@@ -473,7 +473,7 @@ func isExternalLink(link string) bool {
 }
 
 func TestResolveContentLinkUsesRenderedLeafURLBase(t *testing.T) {
-	sourceRel := "building-gormes/autoloop/autoloop-handoff.md"
+	sourceRel := "building-gormes/builder-loop/builder-loop-handoff.md"
 
 	if err := resolveContentLink(sourceRel, "./agent-queue/"); !os.IsNotExist(err) {
 		t.Fatalf("leaf-relative sibling link resolved from source directory; got %v", err)

@@ -23,5 +23,5 @@ Miss any one of these and you don't have "Hermes in Go" — you have a chatbot w
 
 Every core-system change should name the upstream or Gormes-native contract, the
 caller trust class, the degraded-mode surface, and the fixture that proves it.
-Those fields belong in [Progress Schema](../autoloop/progress-schema/) before a row is
-assigned through [Agent Queue](../autoloop/agent-queue/).
+Those fields belong in [Progress Schema](../builder-loop/progress-schema/) before a row is
+assigned through [Agent Queue](../builder-loop/agent-queue/).

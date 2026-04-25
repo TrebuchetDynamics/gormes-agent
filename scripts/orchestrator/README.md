@@ -1,9 +1,9 @@
-# Autoloop Internals
+# Builder Loop Internals
 
 The orchestrator wrapper and CLI implementation now live in Go under
-`cmd/builder-loop` and `internal/builderloop`. This directory contains transitional
-wrappers, systemd templates, and historical notes for the old shell entrypoints.
-Full runtime parity remains staged follow-up work.
+`cmd/builder-loop` and `internal/builderloop`. This directory contains
+transitional wrappers, systemd templates, and historical notes for the old
+shell entrypoints. Full runtime parity remains staged follow-up work.
 
 ## Layout
 

@@ -16,10 +16,10 @@ slice size, contract, trust class, degraded-mode requirement, fixture target,
 write scope, test commands, done signal, acceptance checks, and source
 references.
 
-Shared unattended-loop facts live in [Autoloop Handoff](../autoloop-handoff/):
+Shared unattended-loop facts live in [Builder Loop Handoff](../builder-loop-handoff/):
 the main entrypoint, orchestrator plan, candidate source, generated docs,
 tests, and candidate policy. Keep those control-plane facts in
-`meta.autoloop`, and keep row-specific execution facts in `progress.json`.
+`meta.builder_loop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
 ## 1. Native TUI bundle independence check
@@ -36,7 +36,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Degraded mode: TUI and doctor/status output report native Go TUI availability instead of asking operators to run npm install/build or repair packages/hermes-ink/dist/ink-bundle.js.
 - Fixture: `cmd/gormes/tui_bundle_independence_test.go`
 - Write scope: `cmd/gormes/`, `internal/tui/`, `internal/cli/`, `docs/content/building-gormes/architecture_plan/progress.json`, `docs/content/building-gormes/architecture_plan/phase-5-final-purge.md`, `www.gormes.ai/internal/site/content.go`
-- Test commands: `go test ./cmd/gormes ./internal/tui ./internal/cli -run 'Test.*TUI.*Bundle\|Test.*Native.*TUI\|Test.*Doctor.*TUI' -count=1`, `go test ./cmd/gormes ./internal/tui ./internal/cli -count=1`, `go run ./cmd/autoloop progress validate`
+- Test commands: `go test ./cmd/gormes ./internal/tui ./internal/cli -run 'Test.*TUI.*Bundle\|Test.*Native.*TUI\|Test.*Doctor.*TUI' -count=1`, `go test ./cmd/gormes ./internal/tui ./internal/cli -count=1`, `go run ./cmd/builder-loop progress validate`
 - Done signal: Focused fixtures prove Gormes TUI startup/status remains independent from Hermes Node/Ink bundle rebuild checks and public install copy still promises no runtime npm dependency.
 - Acceptance: A focused fixture runs the Gormes TUI startup/build-preflight path from a temp working directory that contains Hermes-style `ui-tui/dist/entry.js` and `node_modules/ink` but lacks `packages/hermes-ink/dist/ink-bundle.js`, and proves no npm/node/package-manager command is invoked., Offline doctor or startup status describes the TUI as native Go/Bubble Tea and does not require `HERMES_TUI_DIR`, `package-lock.json`, `node_modules`, or `ink-bundle.js`., Landing/docs install messaging continues to state no runtime npm/Node dependency and does not inherit Hermes first-launch TUI rebuild instructions.
 - Source refs: ../hermes-agent/hermes_cli/main.py@ee0728c6, ../hermes-agent/tests/hermes_cli/test_tui_npm_install.py@ee0728c6, cmd/gormes/main.go, internal/tui/, www.gormes.ai/internal/site/content.go

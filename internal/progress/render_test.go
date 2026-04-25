@@ -321,25 +321,25 @@ func TestRenderUmbrellaCleanup(t *testing.T) {
 	}
 }
 
-func TestRenderAutoloopHandoff(t *testing.T) {
+func TestRenderBuilderLoopHandoff(t *testing.T) {
 	p := &Progress{Meta: Meta{BuilderLoop: BuilderLoopMeta{
 		Entrypoint:      "scripts/gormes-auto-codexu-orchestrator.sh",
 		Plan:            "docs/superpowers/plans/plan.md",
-		AgentQueue:      "docs/content/building-gormes/autoloop/agent-queue.md",
-		ProgressSchema:  "docs/content/building-gormes/autoloop/progress-schema.md",
+		AgentQueue:      "docs/content/building-gormes/builder-loop/agent-queue.md",
+		ProgressSchema:  "docs/content/building-gormes/builder-loop/progress-schema.md",
 		CandidateSource: "docs/content/building-gormes/architecture_plan/progress.json",
 		UnitTest:        "go test ./internal/builderloop ./cmd/builder-loop -count=1",
 		CandidatePolicy: []string{"Skip blocked rows.", "Skip umbrella rows."},
 	}}}
 
-	got := RenderAutoloopHandoff(p)
+	got := RenderBuilderLoopHandoff(p)
 	for _, want := range []string{
 		"## Control Plane",
 		"- Entrypoint: `scripts/gormes-auto-codexu-orchestrator.sh`",
 		"- Plan: `docs/superpowers/plans/plan.md`",
 		"- Candidate source: `docs/content/building-gormes/architecture_plan/progress.json`",
-		"- Agent queue: `docs/content/building-gormes/autoloop/agent-queue.md`",
-		"- Progress schema: `docs/content/building-gormes/autoloop/progress-schema.md`",
+		"- Agent queue: `docs/content/building-gormes/builder-loop/agent-queue.md`",
+		"- Progress schema: `docs/content/building-gormes/builder-loop/progress-schema.md`",
 		"- Unit tests: `go test ./internal/builderloop ./cmd/builder-loop -count=1`",
 		"## Candidate Policy",
 		"- Skip blocked rows.",
@@ -354,8 +354,8 @@ func TestRenderAutoloopHandoff(t *testing.T) {
 func TestRenderProgressSchema(t *testing.T) {
 	got := RenderProgressSchema()
 	for _, want := range []string{
-		"`meta.autoloop.entrypoint`",
-		"`meta.autoloop.candidate_policy`",
+		"`meta.builder_loop.entrypoint`",
+		"`meta.builder_loop.candidate_policy`",
 		"`slice_size`",
 		"`execution_owner`",
 		"`ready_when`",
@@ -367,10 +367,10 @@ func TestRenderProgressSchema(t *testing.T) {
 		"Future work is measured from contract-bearing rows",
 		"assignable-work view",
 		"`in_progress` rows cannot use `slice_size: umbrella`",
-		"`docs/content/building-gormes/autoloop/autoloop-handoff.md`",
-		"`docs/content/building-gormes/autoloop/agent-queue.md`",
-		"`docs/content/building-gormes/autoloop/blocked-slices.md`",
-		"`docs/content/building-gormes/autoloop/umbrella-cleanup.md`",
+		"`docs/content/building-gormes/builder-loop/builder-loop-handoff.md`",
+		"`docs/content/building-gormes/builder-loop/agent-queue.md`",
+		"`docs/content/building-gormes/builder-loop/blocked-slices.md`",
+		"`docs/content/building-gormes/builder-loop/umbrella-cleanup.md`",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("progress schema missing %q:\n%s", want, got)

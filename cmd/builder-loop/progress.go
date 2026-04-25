@@ -56,10 +56,10 @@ func writeProgress(root string) error {
 	} else {
 		fmt.Fprintln(commandStdout, "progress: contract readiness regenerated")
 	}
-	if err := rewriteProgressMarker(paths.autoloopHandoff, "autoloop-handoff", progress.RenderAutoloopHandoff(p)); err != nil {
+	if err := rewriteProgressMarker(paths.builderLoopHandoff, "builder-loop-handoff", progress.RenderBuilderLoopHandoff(p)); err != nil {
 		errs = append(errs, err)
 	} else {
-		fmt.Fprintln(commandStdout, "progress: autoloop handoff regenerated")
+		fmt.Fprintln(commandStdout, "progress: builder-loop handoff regenerated")
 	}
 	if err := rewriteProgressMarker(paths.agentQueue, "agent-queue", progress.RenderAgentQueue(p, 10)); err != nil {
 		errs = append(errs, err)
@@ -106,34 +106,34 @@ func loadValidProgress(root string) (*progress.Progress, error) {
 }
 
 type progressPathSet struct {
-	progressJSON      string
-	readme            string
-	docsIndex         string
-	contractReadiness string
-	autoloopHandoff   string
-	agentQueue        string
-	nextSlices        string
-	blockedSlices     string
-	umbrellaCleanup   string
-	progressSchema    string
-	siteProgress      string
+	progressJSON       string
+	readme             string
+	docsIndex          string
+	contractReadiness  string
+	builderLoopHandoff string
+	agentQueue         string
+	nextSlices         string
+	blockedSlices      string
+	umbrellaCleanup    string
+	progressSchema     string
+	siteProgress       string
 }
 
 func progressPaths(root string) progressPathSet {
 	buildingGormes := filepath.Join(root, "docs", "content", "building-gormes")
-	autoloopDir := filepath.Join(buildingGormes, "autoloop")
+	builderLoopDir := filepath.Join(buildingGormes, "builder-loop")
 	return progressPathSet{
-		progressJSON:      filepath.Join(buildingGormes, "architecture_plan", "progress.json"),
-		readme:            filepath.Join(root, "README.md"),
-		docsIndex:         filepath.Join(buildingGormes, "architecture_plan", "_index.md"),
-		contractReadiness: filepath.Join(buildingGormes, "contract-readiness.md"),
-		autoloopHandoff:   filepath.Join(autoloopDir, "autoloop-handoff.md"),
-		agentQueue:        filepath.Join(autoloopDir, "agent-queue.md"),
-		nextSlices:        filepath.Join(autoloopDir, "next-slices.md"),
-		blockedSlices:     filepath.Join(autoloopDir, "blocked-slices.md"),
-		umbrellaCleanup:   filepath.Join(autoloopDir, "umbrella-cleanup.md"),
-		progressSchema:    filepath.Join(autoloopDir, "progress-schema.md"),
-		siteProgress:      filepath.Join(root, "www.gormes.ai", "internal", "site", "data", "progress.json"),
+		progressJSON:       filepath.Join(buildingGormes, "architecture_plan", "progress.json"),
+		readme:             filepath.Join(root, "README.md"),
+		docsIndex:          filepath.Join(buildingGormes, "architecture_plan", "_index.md"),
+		contractReadiness:  filepath.Join(buildingGormes, "contract-readiness.md"),
+		builderLoopHandoff: filepath.Join(builderLoopDir, "builder-loop-handoff.md"),
+		agentQueue:         filepath.Join(builderLoopDir, "agent-queue.md"),
+		nextSlices:         filepath.Join(builderLoopDir, "next-slices.md"),
+		blockedSlices:      filepath.Join(builderLoopDir, "blocked-slices.md"),
+		umbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
+		progressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
+		siteProgress:       filepath.Join(root, "www.gormes.ai", "internal", "site", "data", "progress.json"),
 	}
 }
 

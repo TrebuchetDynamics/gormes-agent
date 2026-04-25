@@ -31,7 +31,7 @@ To run the main app UI without starting the backend:
 go run ./cmd/gormes --offline
 ```
 
-To preview what the autoloop would select without starting worker agents:
+To preview what the builder loop would select without starting worker agents:
 
 ```sh
 go run ./cmd/builder-loop run --dry-run
@@ -85,8 +85,8 @@ go build -o bin/planner-loop ./cmd/planner-loop
 | Command | Role | Typical invocation |
 |---|---|---|
 | `gormes` | User-facing runtime and TUI. Use `--offline` when you only want to see the UI without a running API server. | `go run ./cmd/gormes --offline` |
-| `autoloop` | Self-development and repo control-plane CLI. It executes roadmap phase work, audits/digests runs, validates/regenerates progress docs, and records repo benchmark/readme metadata. | `go run ./cmd/builder-loop run --dry-run` |
-| `architecture-planner-loop` | Planning improvement CLI. It studies local Hermes/GBrain/Honcho sources plus upstream and building-gormes docs, then asks `codexu` or `claudeu` to refine the architecture plan and progress rows. Dry-run mode only writes planner context and prompt artifacts. | `go run ./cmd/planner-loop run --dry-run` |
+| `builder-loop` | Executor side of the Planner-Builder Loop. Runs roadmap phase work in isolated worktrees, audits/digests runs, validates/regenerates progress docs, and records repo benchmark/readme metadata. | `go run ./cmd/builder-loop run --dry-run` |
+| `planner-loop` | Planner side of the Planner-Builder Loop. Studies local Hermes/GBrain/Honcho sources plus upstream and building-gormes docs, then asks `codexu` or `claudeu` to refine the architecture plan and progress rows. Dry-run mode only writes planner context and prompt artifacts. | `go run ./cmd/planner-loop run --dry-run` |
 
 ## Common Recipes
 
@@ -115,7 +115,7 @@ Update README benchmark text from `benchmarks.json`:
 go run ./cmd/builder-loop repo readme update
 ```
 
-Preview what autoloop would select:
+Preview what the builder loop would select:
 
 ```sh
 go run ./cmd/builder-loop run --dry-run
@@ -133,24 +133,25 @@ go run ./cmd/planner-loop run --dry-run
 the self-development loop; they should not add behavior to the user-facing
 runtime unless that behavior belongs in the shipped Gormes binary.
 
-`autoloop` is the executor for the building-gormes roadmap. It uses
+`builder-loop` is the executor side of the Planner-Builder Loop (see
+`AGENTS.md` at the repo root). It uses
 `docs/content/building-gormes/architecture_plan/progress.json` as the canonical
 candidate queue and the generated `docs/content/building-gormes/` pages as the
 operator-facing handoff for developing the full `gormes-agent`. See
-[`cmd/autoloop/README.md`](./autoloop/README.md) for the command-specific
+[`cmd/builder-loop/README.md`](./builder-loop/README.md) for the command-specific
 contract. It also owns progress validation/regeneration and repo-maintenance
-helpers so the root `cmd/` surface stays small: `autoloop progress validate`,
-`autoloop progress write`, `autoloop repo benchmark record`, and
-`autoloop repo readme update`.
+helpers so the root `cmd/` surface stays small: `builder-loop progress validate`,
+`builder-loop progress write`, `builder-loop repo benchmark record`, and
+`builder-loop repo readme update`.
 
-`architecture-planner-loop` is the planner-improvement loop. It does not execute
-roadmap implementation rows. Instead it builds a context bundle from
+`planner-loop` is the planner side of the Planner-Builder Loop. It does not
+execute roadmap implementation rows. Instead it builds a context bundle from
 `hermes-agent`, `gbrain`, `honcho`, `docs/content/upstream-hermes`,
 `docs/content/upstream-gbrain`, and `docs/content/building-gormes`, then asks a
-planner backend to refine the architecture plan and progress rows that autoloop
-will later execute. See
-[`cmd/architecture-planner-loop/README.md`](./architecture-planner-loop/README.md)
-for the command-specific contract.
+planner backend to refine the architecture plan and progress rows that the
+builder loop will later execute. See
+[`cmd/planner-loop/README.md`](./planner-loop/README.md) for the
+command-specific contract.
 
 ## Build Integration
 
@@ -163,6 +164,6 @@ make build              # build gormes, record repo metrics, refresh generated d
 ```
 
 Compatibility wrapper scripts under `scripts/` and `scripts/orchestrator/` exec
-`autoloop` during the transition. New repo-maintenance or orchestrator behavior
-should be implemented in Go here first, with shell kept as a thin wrapper only
-when an existing entrypoint must be preserved.
+`builder-loop` during the transition. New repo-maintenance or orchestrator
+behavior should be implemented in Go here first, with shell kept as a thin
+wrapper only when an existing entrypoint must be preserved.

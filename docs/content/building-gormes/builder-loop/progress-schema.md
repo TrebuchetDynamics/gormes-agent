@@ -38,18 +38,18 @@ This page is generated from the Go progress model and validation rules.
 
 | Field | Required when | Meaning |
 |---|---|---|
-| `meta.autoloop.entrypoint` | autoloop metadata is declared | Main unattended-loop script. |
-| `meta.autoloop.plan` | autoloop metadata is declared | Canonical implementation plan for improving the orchestrator. |
-| `meta.autoloop.agent_queue` | autoloop metadata is declared | Generated queue page for assignable rows. |
-| `meta.autoloop.progress_schema` | autoloop metadata is declared | This schema reference. |
-| `meta.autoloop.candidate_source` | autoloop metadata is declared | Canonical progress file consumed by the loop. |
-| `meta.autoloop.unit_test` | autoloop metadata is declared | Fast verification command for orchestrator prompt/candidate behavior. |
-| `meta.autoloop.candidate_policy` | autoloop metadata is declared | Shared selection rules injected into worker prompts. |
+| `meta.builder_loop.entrypoint` | builder-loop metadata is declared | Main unattended-loop script. |
+| `meta.builder_loop.plan` | builder-loop metadata is declared | Canonical implementation plan for improving the orchestrator. |
+| `meta.builder_loop.agent_queue` | builder-loop metadata is declared | Generated queue page for assignable rows. |
+| `meta.builder_loop.progress_schema` | builder-loop metadata is declared | This schema reference. |
+| `meta.builder_loop.candidate_source` | builder-loop metadata is declared | Canonical progress file consumed by the loop. |
+| `meta.builder_loop.unit_test` | builder-loop metadata is declared | Fast verification command for orchestrator prompt/candidate behavior. |
+| `meta.builder_loop.candidate_policy` | builder-loop metadata is declared | Shared selection rules injected into worker prompts. |
 
 ## Validation Rules
 
 - `docs/data/progress.json` must not exist.
-- if `meta.autoloop` is declared, entrypoint, plan, candidate source, generated docs, unit test, and candidate policy must all be present.
+- if `meta.builder_loop` is declared, entrypoint, plan, candidate source, generated docs, unit test, and candidate policy must all be present.
 - `in_progress` rows cannot use `slice_size: umbrella`.
 - item-level `P0` and `in_progress` rows must include full contract metadata.
 - contract rows must declare `slice_size`, `execution_owner`, `ready_when`, `write_scope`, `test_commands`, and `done_signal`.
@@ -75,17 +75,17 @@ when it is not `complete`, has no `blocked_by` dependency, is not
 assignable-work view; `blocked-slices.md` is the deferred-work view; and
 `umbrella-cleanup.md` is the work that must be split before assignment.
 
-Planner quality is measured by reducing ambiguity for autoloop: exact upstream
-refs, local file paths, fixture names, validation commands, dependency edges,
-and degraded-mode behavior count as useful planning; generic notes without
-bounded tests or write scope do not.
+Planner quality is measured by reducing ambiguity for the builder loop:
+exact upstream refs, local file paths, fixture names, validation commands,
+dependency edges, and degraded-mode behavior count as useful planning;
+generic notes without bounded tests or write scope do not.
 
 ## Generated Agent Surfaces
 
-- `docs/content/building-gormes/autoloop/autoloop-handoff.md` lists shared unattended-loop entrypoint, plan, candidate source, generated docs, test command, and candidate policy.
-- `docs/content/building-gormes/autoloop/agent-queue.md` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands, done signal, acceptance, and source references.
-- `docs/content/building-gormes/autoloop/blocked-slices.md` keeps blocked rows out of the execution queue while preserving their unblock condition.
-- `docs/content/building-gormes/autoloop/umbrella-cleanup.md` lists broad inventory rows that must be split before assignment.
+- `docs/content/building-gormes/builder-loop/builder-loop-handoff.md` lists shared unattended-loop entrypoint, plan, candidate source, generated docs, test command, and candidate policy.
+- `docs/content/building-gormes/builder-loop/agent-queue.md` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands, done signal, acceptance, and source references.
+- `docs/content/building-gormes/builder-loop/blocked-slices.md` keeps blocked rows out of the execution queue while preserving their unblock condition.
+- `docs/content/building-gormes/builder-loop/umbrella-cleanup.md` lists broad inventory rows that must be split before assignment.
 
 ## Good Row
 

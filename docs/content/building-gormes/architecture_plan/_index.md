@@ -15,7 +15,7 @@ weight: 20
 - [docs.gormes.ai](https://docs.gormes.ai/building-gormes/architecture_plan/) — This page
 - [Source code](https://github.com/TrebuchetDynamics/gormes-agent) — Implementation
 
-**Execution control plane:** `cmd/autoloop` consumes this `progress.json` and
+**Execution control plane:** `cmd/builder-loop` consumes this `progress.json` and
 the generated `docs/content/building-gormes/` pages to select and execute
 eligible phase work. The roadmap is not only status reporting; it is the
 machine-readable queue for developing the full `gormes-agent`.
@@ -25,12 +25,12 @@ machine-readable queue for developing the full `gormes-agent`.
 - The generated checklist below is rebuilt from `progress.json`; do not hand-edit
   content between `PROGRESS` markers.
 - Use the phase pages for design intent and boundaries, then use
-  [Contract Readiness](../contract-readiness/) and [Agent Queue](../autoloop/agent-queue/)
+  [Contract Readiness](../contract-readiness/) and [Agent Queue](../builder-loop/agent-queue/)
   for assignable work.
 - When a row is too broad for one agent, split it in `progress.json` first and
-  let [Umbrella Cleanup](../autoloop/umbrella-cleanup/) show the remaining inventory.
+  let [Umbrella Cleanup](../builder-loop/umbrella-cleanup/) show the remaining inventory.
 - When a row is blocked, keep the unblock condition explicit so
-  [Blocked Slices](../autoloop/blocked-slices/) stays useful to operators and autoloop.
+  [Blocked Slices](../builder-loop/blocked-slices/) stays useful to operators and autoloop.
 
 ---
 
