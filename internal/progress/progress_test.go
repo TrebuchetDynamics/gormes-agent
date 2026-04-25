@@ -226,7 +226,7 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		"Runner-enforced tool allowlists + blocked-tool policy": StatusComplete,
 		"Tool-call audit in typed child results":                StatusComplete,
 		"Real child Hermes stream loop":                         StatusComplete,
-		"GBrain minion-orchestrator routing policy":             StatusPlanned,
+		"GBrain minion-orchestrator routing policy":             StatusComplete,
 		"Durable subagent/job ledger":                           StatusPlanned,
 	} {
 		if got := runtimeNextItems[name]; got != want {
@@ -329,11 +329,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.E.1 child runner note = %q, want HermesRunner implementation detail", child.Note)
 	}
 	minionPolicy := e1Items["GBrain minion-orchestrator routing policy"]
-	if minionPolicy.Status != StatusPlanned {
-		t.Fatalf("Phase 2.E.1 minion policy status = %q, want planned", minionPolicy.Status)
+	if minionPolicy.Status != StatusComplete {
+		t.Fatalf("Phase 2.E.1 minion policy status = %q, want complete", minionPolicy.Status)
 	}
-	if minionPolicy.ContractStatus != ContractStatusFixtureReady || minionPolicy.SliceSize != SliceSizeSmall || minionPolicy.ExecutionOwner != ExecutionOwnerOrchestrator {
-		t.Fatalf("Phase 2.E.1 minion policy metadata = status %q size %q owner %q, want fixture_ready/small/orchestrator", minionPolicy.ContractStatus, minionPolicy.SliceSize, minionPolicy.ExecutionOwner)
+	if minionPolicy.ContractStatus != ContractStatusValidated || minionPolicy.SliceSize != SliceSizeSmall || minionPolicy.ExecutionOwner != ExecutionOwnerOrchestrator {
+		t.Fatalf("Phase 2.E.1 minion policy metadata = status %q size %q owner %q, want validated/small/orchestrator", minionPolicy.ContractStatus, minionPolicy.SliceSize, minionPolicy.ExecutionOwner)
 	}
 	if !containsString(minionPolicy.SourceRefs, "../gbrain/skills/minion-orchestrator/SKILL.md") || !containsString(minionPolicy.Unblocks, "Durable subagent/job ledger") {
 		t.Fatalf("Phase 2.E.1 minion policy refs/unblocks = refs %v unblocks %v, want GBrain skill ref and durable ledger unblock", minionPolicy.SourceRefs, minionPolicy.Unblocks)
@@ -464,11 +464,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.B.5 BlueBubbles prompt guidance metadata = contract_status %q blocked_by %v, want fixture_ready blocked by formatter", bluePrompt.ContractStatus, bluePrompt.BlockedBy)
 	}
 	nonEditableFallback := routingItems["Non-editable gateway progress/commentary send fallback"]
-	if nonEditableFallback.Status != StatusPlanned {
-		t.Fatalf("Phase 2.B.5 non-editable fallback status = %q, want planned", nonEditableFallback.Status)
+	if nonEditableFallback.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.5 non-editable fallback status = %q, want complete", nonEditableFallback.Status)
 	}
-	if nonEditableFallback.ContractStatus != ContractStatusFixtureReady || !containsString(nonEditableFallback.Unblocks, "BlueBubbles iMessage session-context prompt guidance") {
-		t.Fatalf("Phase 2.B.5 non-editable fallback metadata = contract_status %q unblocks %v, want fixture_ready unblocking BlueBubbles prompt guidance", nonEditableFallback.ContractStatus, nonEditableFallback.Unblocks)
+	if nonEditableFallback.ContractStatus != ContractStatusValidated || !containsString(nonEditableFallback.Unblocks, "BlueBubbles iMessage session-context prompt guidance") {
+		t.Fatalf("Phase 2.B.5 non-editable fallback metadata = contract_status %q unblocks %v, want validated unblocking BlueBubbles prompt guidance", nonEditableFallback.ContractStatus, nonEditableFallback.Unblocks)
 	}
 
 	hooks := p.Phases["2"].Subphases["2.F.1"]
@@ -806,8 +806,8 @@ func TestLoad_RealFile_Phase3Ledger(t *testing.T) {
 	}
 	e8Items := itemsByName(sessionSearch.Items)
 	lineage := e8Items["parent_session_id lineage for compression splits"]
-	if lineage.Status != StatusPlanned {
-		t.Fatalf("Phase 3.E.8 lineage status = %q, want planned", lineage.Status)
+	if lineage.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.8 lineage status = %q, want complete", lineage.Status)
 	}
 	search := e8Items["Source-filtered session/message search core"]
 	if search.Status != StatusComplete {
@@ -975,8 +975,8 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 3.E.7 user-scope recall note = %q, want user_id/source/same-chat detail", userScopeRecall.Note)
 	}
 	toolSchema := crossChatItems["Honcho-compatible scope/source tool schema"]
-	if toolSchema.Status != StatusPlanned {
-		t.Fatalf("Phase 3.E.7 tool schema status = %q, want planned", toolSchema.Status)
+	if toolSchema.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.7 tool schema status = %q, want complete", toolSchema.Status)
 	}
 	denyFixtures := crossChatItems["Cross-chat deny-path fixtures"]
 	if denyFixtures.Status != StatusPlanned {

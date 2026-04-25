@@ -1277,7 +1277,7 @@
               "priority": "P2",
               "status": "complete",
               "contract": "Honcho-compatible tool schemas expose GONCHO scope and source allowlist controls without renaming public tools",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [

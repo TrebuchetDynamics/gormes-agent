@@ -21,21 +21,6 @@ import (
 // block — enough to force the full IO cycle without otherwise changing
 // any field on the targeted row.
 func TestApplyHealthUpdates_RoundTripPreservesCheckedInProgressJSON(t *testing.T) {
-	t.Skip(`Schema-level ordering gap: SaveProgress reformats progress.json on
-real round-trip because Go marshals map[string]X keys alphabetically while
-the checked-in file uses numeric ordering (e.g. 2.B.10 sorts before 2.B.2)
-and Item fields are emitted in struct-definition order rather than the
-historical on-disk order (e.g. "note" appears immediately after the
-acceptance/blocked_by cluster on disk, but the Go struct definition places
-Note after WriteScope/TestCommands/DoneSignal/PR/Owner/ETA so the
-round-tripped file reorders those fields). Fixing requires either
-converting Phases/Subphases from map → ordered slice or adding custom
-MarshalJSON on Progress/Phase, plus reordering the Item struct fields to
-match the on-disk historical layout. This test must be re-enabled (and
-the Skip removed) once the schema fix lands. Tracking: see
-docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md L1
-invariants and report back to the human controller for scope decision.`)
-
 	src := filepath.Join("..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	original, err := os.ReadFile(src)
 	if err != nil {

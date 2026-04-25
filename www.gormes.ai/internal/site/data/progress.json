@@ -320,9 +320,9 @@
             },
             {
               "name": "WhatsApp identity resolution + self-chat guard",
-              "status": "planned",
+              "status": "complete",
               "contract": "WhatsApp bot identity, self-chat suppression, and peer mapping stay deterministic across bridge and native runtimes",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -330,7 +330,7 @@
                 "operator"
               ],
               "degraded_mode": "Gateway status reports unresolved WhatsApp bot identity instead of accepting self-chat loops or ambiguous peer mappings.",
-              "fixture": "internal/channels/whatsapp identity fixtures",
+              "fixture": "internal/channels/whatsapp/testdata/identity_contract.json",
               "source_refs": [
                 "../hermes-agent/gateway/whatsapp_identity.py",
                 "../hermes-agent/gateway/platforms/whatsapp.py",
@@ -351,7 +351,7 @@
                 "Messages from the bot's own identity are ignored or surfaced as self-chat suppression, not routed back into the kernel.",
                 "Group and DM peers preserve raw platform IDs needed for outbound delivery."
               ],
-              "note": "Hermes now has `gateway/whatsapp_identity.py`; Gormes should freeze identity resolution as its own WhatsApp slice before pairing/reconnect/send broadens the adapter.",
+              "note": "TDD landed: internal/channels/whatsapp now exposes the runtime-owned bot identity source, fixture-tested bridge/native peer canonicalization, raw WhatsApp reply peers for outbound delivery, self-chat suppression decisions, and unresolved bot identity degraded status before pairing/reconnect/send wiring.",
               "write_scope": [
                 "internal/channels/whatsapp/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -454,10 +454,10 @@
             },
             {
               "name": "Non-editable gateway progress/commentary send fallback",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "Channels without placeholder/edit capabilities receive progress-safe interim or final assistant messages through the plain Send path without EditMessage calls",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -486,7 +486,7 @@
                 "The same fixture proves no SendPlaceholder or EditMessage method is required for non-editable channels.",
                 "Editable channel streaming/coalescing tests keep their existing placeholder/edit behavior."
               ],
-              "note": "TDD: port the upstream f731c2c2 BlueBubbles quick-reply guard as a Go capability fixture: non-editable adapters should never be forced through the edit-message coalescer just to surface safe interim/commentary text.",
+              "note": "TDD landed: manager outbound tests now exercise a Channel-only fake from an originating inbound event, proving interim/commentary and terminal assistant output use the plain Send path with the original chat target while editable channels keep placeholder/edit coalescing.",
               "write_scope": [
                 "internal/gateway/manager.go",
                 "internal/gateway/manager_test.go",
@@ -607,10 +607,10 @@
             },
             {
               "name": "GBrain minion-orchestrator routing policy",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Durable-job routing separates deterministic restart-survivable work from live LLM subagents, following GBrain's unified minion-orchestrator skill while keeping Gormes Go-native subagent APIs",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -641,7 +641,7 @@
                 "Child-agent trust cannot submit privileged deterministic shell jobs through the durable-job route.",
                 "Existing delegate_task and subagent manager APIs remain Go-native and are not renamed to Minions."
               ],
-              "note": "GBrain v0.20.4 merged the older `gbrain-jobs` intent into the unified `minion-orchestrator` skill. Gormes should borrow the routing policy first: deterministic durable work and LLM subagents share an operator-visible control plane, but shell-like work stays privileged and no Postgres queue is imported in this slice.",
+              "note": "Complete: TDD landed a pure Gormes routing policy fixture in internal/subagent/minion_policy_test.go. Deterministic shell/cron-like work routes to a privileged durable-job lane for operator/system trust, judgment-heavy LLM work stays on the live Go-native delegate_task subagent lane, child-agent trust is denied for deterministic durable submits, and no GBrain queue/executor/supervisor runtime was imported.",
               "write_scope": [
                 "internal/subagent/",
                 "internal/cron/",
@@ -1228,9 +1228,9 @@
             {
               "name": "Interrupted-turn memory sync suppression",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Interrupted or cancelled turns cannot flush partial observations into GONCHO or external Honcho-compatible memory",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1258,7 +1258,7 @@
                 "Completed turns still sync/extract normally.",
                 "Operator status can distinguish skipped interrupted sync from extractor failures."
               ],
-              "note": "TDD: mirror upstream Hermes commit 00c3d848 by proving cancelled or interrupted turns do not flush partial memory observations. Keep this as a finalization gate over the existing GONCHO/SQLite path; do not add an external Honcho provider in this slice.",
+              "note": "TDD landed: interrupted turns are marked as skipped with reason=interrupted, stay out of extractor and Honcho-compatible turn reads, and create no goncho_conclusions; completed turns still mark ready and extract normally. Fixtures cover internal/memory/interrupted_sync_test.go plus skipped-row guards in the memory session catalog and GONCHO service. Verified with go test ./internal/kernel ./internal/memory ./internal/goncho -count=1.",
               "write_scope": [
                 "internal/kernel/",
                 "internal/memory/",
@@ -1275,9 +1275,9 @@
             {
               "name": "Honcho-compatible scope/source tool schema",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Honcho-compatible tool schemas expose GONCHO scope and source allowlist controls without renaming public tools",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1306,7 +1306,7 @@
                 "scope and sources are not required and omitted calls preserve same-chat default behavior.",
                 "The internal implementation package and tables remain named goncho while external tool names remain honcho_*."
               ],
-              "note": "TDD (small, dependency-isolated slice): the Go plumbing is already landed — `internal/goncho/types.go` (SearchParams:48-55 and ContextParams:74-81) advertises `Scope` and `Sources` JSON fields and `internal/goncho/service.go` (Search/Context at :129,:162, fallback at :251) already routes `scope=user` and `sources[]` through the session catalog. The remaining closeout is purely at the tool-registry JSON Schema boundary: the `Schema()` literals returned by `HonchoSearchTool` (`internal/tools/honcho_tools.go:72-74`) and `HonchoContextTool` (`internal/tools/honcho_tools.go:96-98`) still hardcode only `peer`/`query`/`max_tokens`/`session_key` and must add optional `scope` (string, omitempty) and `sources` (array of strings, omitempty). Preserve the external `honcho_search`/`honcho_context` tool names so Honcho compatibility holds. Red→green: extend `internal/tools/honcho_tools_test.go` with a schema-introspection test per tool that asserts (a) `scope` and `sources` appear in `properties`, (b) neither is added to `required`, (c) omitting both still routes same-chat (round-trip through a fake service). Do not touch `internal/goncho/*` — the Go params already accept these fields. Do not advance 3.E.7 past this slice: deny-path fixtures and operator evidence remain separate slices below.",
+              "note": "TDD landed: `honcho_search` and `honcho_context` keep their public Honcho-compatible names while their JSON Schemas now advertise optional `scope` and `sources` controls backed by the existing internal GONCHO params. Schema tests assert both fields are discoverable and not required, and executor round-trips without either field preserve same-chat default behavior. Deny-path fixtures and operator evidence remain separate 3.E.7 slices.",
               "write_scope": [
                 "internal/tools/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -1427,9 +1427,9 @@
           "items": [
             {
               "name": "parent_session_id lineage for compression splits",
-              "status": "planned",
+              "status": "complete",
               "contract": "Session metadata records compression/fork lineage and can resolve the live descendant without rewriting ancestor history",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1460,7 +1460,7 @@
                 "Self-parent and trivial parent loops are rejected in BoltMap and MemMap tests.",
                 "SessionIndexMirror or an equivalent read model exposes parent/child/orphan lineage for operator audit."
               ],
-              "note": "Execution plan frozen and refined after upstream Hermes commit 19a3e2ce: add parent_session_id + lineage_kind to session.Metadata, keep roots null/primary by default, reject trivial loops, and surface orphan chains in mirrors/status instead of failing silently. This is only lineage storage and resolution scaffolding; compression, gateway resume routing, and lineage-aware search are separate dependent rows.",
+              "note": "Complete: internal/session.Metadata now persists parent_session_id plus lineage_kind, roots default to primary without a parent, BoltMap and MemMap reject self-parent and parent-chain loops, ResolveLineageTip walks append-only compression descendants without rewriting ancestor metadata, and SessionIndexMirror renders child/orphan lineage status for operator audit. Compression execution, gateway resume routing, and lineage-aware search remain separate dependent rows.",
               "write_scope": [
                 "internal/session/",
                 "docs/content/building-gormes/architecture_plan/progress.json"

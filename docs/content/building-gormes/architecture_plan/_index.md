@@ -106,7 +106,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 2.B.4 — WhatsApp Adapter 🔨
 
 - [x] Bridge-vs-native runtime decision
-- [ ] WhatsApp identity resolution + self-chat guard
+- [x] WhatsApp identity resolution + self-chat guard
 - [x] Inbound normalization + command passthrough
 - [ ] Pairing, reconnect, and send contract
 
@@ -117,7 +117,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] BlueBubbles iMessage session-context prompt guidance
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
-- [ ] Non-editable gateway progress/commentary send fallback
+- [x] Non-editable gateway progress/commentary send fallback
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -154,7 +154,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Runner-enforced tool allowlists + blocked-tool policy
 - [x] Tool-call audit in typed child results
 - [x] Real child Hermes stream loop
-- [ ] GBrain minion-orchestrator routing policy
+- [x] GBrain minion-orchestrator routing policy
 - [ ] Durable subagent/job ledger
 
 ### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ✅
@@ -282,15 +282,15 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] user_id concept above chat_id
 - [x] Same-chat default recall fence
 - [x] Opt-in user-scope recall + source filters
-- [ ] Interrupted-turn memory sync suppression
-- [ ] Honcho-compatible scope/source tool schema
+- [x] Interrupted-turn memory sync suppression
+- [x] Honcho-compatible scope/source tool schema
 - [ ] Honcho host integration compatibility fixtures
 - [ ] Cross-chat deny-path fixtures
 - [ ] Cross-chat operator evidence
 
 ### 3.E.8 — Session Lineage + Cross-Source Search 🔨
 
-- [ ] parent_session_id lineage for compression splits
+- [x] parent_session_id lineage for compression splits
 - [ ] Gateway resume follows compression continuation
 - [x] Source-filtered session/message search core
 - [x] GONCHO user-scope search/context parameters
