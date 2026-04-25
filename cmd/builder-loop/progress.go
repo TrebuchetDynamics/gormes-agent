@@ -9,27 +9,27 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
-func runProgress(root string, args []string) error {
+func runProgress(deps cliDeps, root string, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf(usage)
+		return fmt.Errorf("%w\n%s", errParse, subUsage["progress"])
 	}
 
 	switch args[0] {
 	case "validate":
-		return validateProgress(root)
+		return validateProgress(deps, root)
 	case "write":
-		return writeProgress(root)
+		return writeProgress(deps, root)
 	default:
-		return fmt.Errorf(usage)
+		return fmt.Errorf("%w\n%s", errParse, subUsage["progress"])
 	}
 }
 
-func validateProgress(root string) error {
+func validateProgress(deps cliDeps, root string) error {
 	p, err := loadValidProgress(root)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(commandStdout, "progress: validated %d phases\n", len(p.Phases))
+	_, err = fmt.Fprintf(deps.stdout, "progress: validated %d phases\n", len(p.Phases))
 	return err
 }
 
@@ -45,7 +45,7 @@ type progressMarker struct {
 	render func(*progress.Progress) string
 }
 
-func writeProgress(root string) error {
+func writeProgress(deps cliDeps, root string) error {
 	p, err := loadValidProgress(root)
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func writeProgress(root string) error {
 		if err := rewriteProgressMarker(m.pathOf(paths), m.kind, m.render(p)); err != nil {
 			errs = append(errs, err)
 		} else {
-			fmt.Fprintln(commandStdout, "progress:", m.label)
+			fmt.Fprintln(deps.stdout, "progress:", m.label)
 		}
 	}
 
@@ -124,9 +124,9 @@ func writeProgress(root string) error {
 	if err := syncProgressFile(paths.progressJSON, paths.siteProgress); err != nil {
 		errs = append(errs, err)
 	} else {
-		fmt.Fprintln(commandStdout, "progress: site progress data refreshed")
+		fmt.Fprintln(deps.stdout, "progress: site progress data refreshed")
 	}
-	return joinProgressErrors(errs)
+	return joinProgressErrors(deps, errs)
 }
 
 func loadValidProgress(root string) (*progress.Progress, error) {
@@ -201,12 +201,12 @@ func syncProgressFile(src, dst string) error {
 	return nil
 }
 
-func joinProgressErrors(errs []error) error {
+func joinProgressErrors(deps cliDeps, errs []error) error {
 	if len(errs) == 0 {
 		return nil
 	}
 	for _, err := range errs {
-		fmt.Fprintln(commandStdout, "progress:", err)
+		fmt.Fprintln(deps.stdout, "progress:", err)
 	}
 	return errors.Join(errs...)
 }

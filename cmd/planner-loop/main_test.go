@@ -19,15 +19,12 @@ func TestRunDryRunPrintsPlannerSummary(t *testing.T) {
 	t.Setenv("RUN_ROOT", filepath.Join(repoRoot, ".codex", "planner"))
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
 	withWorkingDir(t, repoRoot)
 
-	if err := run(context.Background(), []string{"run", "--dry-run"}); err != nil {
+	if err := run(context.Background(), deps, []string{"run", "--dry-run"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -49,15 +46,12 @@ func TestRunBackendFlagUsesClaudeu(t *testing.T) {
 	t.Setenv("RUN_ROOT", filepath.Join(repoRoot, ".codex", "planner"))
 	t.Setenv("PLANNER_VALIDATE", "0")
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}, {}}}
-	oldRunner := commandRunner
-	commandRunner = runner
-	t.Cleanup(func() {
-		commandRunner = oldRunner
-	})
+	deps := defaultDeps()
+	deps.runner = runner
 
 	withWorkingDir(t, repoRoot)
 
-	if err := run(context.Background(), []string{"run", "--backend", "claudeu"}); err != nil {
+	if err := run(context.Background(), deps, []string{"run", "--backend", "claudeu"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -77,23 +71,16 @@ func TestRunStatusAndShowReportUseConfiguredRunRoot(t *testing.T) {
 	withWorkingDir(t, repoRoot)
 
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}, {}}}
-	oldRunner := commandRunner
-	commandRunner = runner
-	t.Cleanup(func() {
-		commandRunner = oldRunner
-	})
-	if err := run(context.Background(), []string{"run"}); err != nil {
+	deps := defaultDeps()
+	deps.runner = runner
+	if err := run(context.Background(), deps, []string{"run"}); err != nil {
 		t.Fatalf("run() setup error = %v", err)
 	}
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps.stdout = &stdout
 
-	if err := run(context.Background(), []string{"status"}); err != nil {
+	if err := run(context.Background(), deps, []string{"status"}); err != nil {
 		t.Fatalf("status error = %v", err)
 	}
 	if !strings.Contains(stdout.String(), "Last run UTC:") {
@@ -101,7 +88,7 @@ func TestRunStatusAndShowReportUseConfiguredRunRoot(t *testing.T) {
 	}
 
 	stdout.Reset()
-	if err := run(context.Background(), []string{"show-report"}); err != nil {
+	if err := run(context.Background(), deps, []string{"show-report"}); err != nil {
 		t.Fatalf("show-report error = %v", err)
 	}
 	if !strings.Contains(stdout.String(), "# Architecture Planner Loop Run") {
@@ -118,11 +105,10 @@ func TestServiceInstallWritesUnits(t *testing.T) {
 	withWorkingDir(t, repoRoot)
 
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
-	oldRunner := commandRunner
-	commandRunner = runner
-	t.Cleanup(func() { commandRunner = oldRunner })
+	deps := defaultDeps()
+	deps.runner = runner
 
-	if err := run(context.Background(), []string{"service", "install"}); err != nil {
+	if err := run(context.Background(), deps, []string{"service", "install"}); err != nil {
 		t.Fatalf("service install error = %v", err)
 	}
 
@@ -188,7 +174,8 @@ func TestParseRunOptions_QuotedMultiwordKeywordsSplitOnWhitespace(t *testing.T) 
 }
 
 func TestRunRejectsUnknownCommand(t *testing.T) {
-	err := run(context.Background(), []string{"unknown"})
+	deps := defaultDeps()
+	err := run(context.Background(), deps, []string{"unknown"})
 	if err == nil {
 		t.Fatal("run() error = nil, want error")
 	}
@@ -202,11 +189,10 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 
 func TestPrintRunSummaryEchoesKeywords(t *testing.T) {
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() { commandStdout = oldStdout })
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
-	if err := printRunSummary(plannerloop.RunSummary{Backend: "codexu", Mode: "safe"}, true, []string{"hermes-issues", "memory"}); err != nil {
+	if err := printRunSummary(deps, plannerloop.RunSummary{Backend: "codexu", Mode: "safe"}, true, []string{"hermes-issues", "memory"}); err != nil {
 		t.Fatalf("printRunSummary error = %v", err)
 	}
 
@@ -217,11 +203,10 @@ func TestPrintRunSummaryEchoesKeywords(t *testing.T) {
 
 func TestPrintRunSummaryOmitsKeywordsWhenEmpty(t *testing.T) {
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() { commandStdout = oldStdout })
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
-	if err := printRunSummary(plannerloop.RunSummary{Backend: "codexu", Mode: "safe"}, true, nil); err != nil {
+	if err := printRunSummary(deps, plannerloop.RunSummary{Backend: "codexu", Mode: "safe"}, true, nil); err != nil {
 		t.Fatalf("printRunSummary error = %v", err)
 	}
 
@@ -258,12 +243,11 @@ func TestSubcommandHelpPrintsScopedUsage(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout bytes.Buffer
-			oldStdout := commandStdout
-			commandStdout = &stdout
-			t.Cleanup(func() { commandStdout = oldStdout })
+			deps := defaultDeps()
+			deps.stdout = &stdout
 			withWorkingDir(t, t.TempDir())
 
-			if err := run(context.Background(), tc.args); err != nil {
+			if err := run(context.Background(), deps, tc.args); err != nil {
 				t.Fatalf("run() error = %v", err)
 			}
 			if !strings.Contains(stdout.String(), tc.want) {
@@ -280,11 +264,10 @@ func TestTriggerAppendsManualEvent(t *testing.T) {
 	withWorkingDir(t, repoRoot)
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() { commandStdout = oldStdout })
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
-	if err := run(context.Background(), []string{"trigger", "operator-asked-for-refresh"}); err != nil {
+	if err := run(context.Background(), deps, []string{"trigger", "operator-asked-for-refresh"}); err != nil {
 		t.Fatalf("run(trigger) error = %v", err)
 	}
 
@@ -306,7 +289,8 @@ func TestTriggerAppendsManualEvent(t *testing.T) {
 func TestTriggerRequiresReason(t *testing.T) {
 	repoRoot := writeCommandFixture(t)
 	withWorkingDir(t, repoRoot)
-	if err := run(context.Background(), []string{"trigger"}); !errors.Is(err, errParse) {
+	deps := defaultDeps()
+	if err := run(context.Background(), deps, []string{"trigger"}); !errors.Is(err, errParse) {
 		t.Fatalf("err = %v, want errParse", err)
 	}
 }

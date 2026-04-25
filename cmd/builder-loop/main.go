@@ -19,8 +19,20 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
-var commandStdout io.Writer = os.Stdout
-var serviceRunner cmdrunner.Runner = cmdrunner.ExecRunner{}
+// cliDeps carries the writers and process runner that callers can swap
+// in tests. Production main() builds defaultDeps() from os.Stdout/Stderr
+// and the real cmdrunner.ExecRunner. Tests construct their own deps and
+// pass them to run() — no mutable package-level globals to coordinate
+// across t.Parallel cases.
+type cliDeps struct {
+	stdout io.Writer
+	stderr io.Writer
+	runner cmdrunner.Runner
+}
+
+func defaultDeps() cliDeps {
+	return cliDeps{stdout: os.Stdout, stderr: os.Stderr, runner: cmdrunner.ExecRunner{}}
+}
 
 const usage = "usage: builder-loop [--repo-root <path>] run [--dry-run] [--backend codexu|claudeu|opencode] | progress validate | progress write | repo benchmark record | repo readme update | audit | digest [--output <path>] [--force] | doctor | service install | service install-audit | service disable legacy-timers"
 
@@ -29,21 +41,21 @@ const usage = "usage: builder-loop [--repo-root <path>] run [--dry-run] [--backe
 // so an operator typing `builder-loop digest --help` sees just the digest
 // flags rather than the full builder-loop surface.
 var subUsage = map[string]string{
-	"run":                            "usage: builder-loop run [--dry-run] [--backend codexu|claudeu|opencode]",
-	"progress":                       "usage: builder-loop progress {validate|write}",
-	"progress validate":              "usage: builder-loop progress validate",
-	"progress write":                 "usage: builder-loop progress write",
-	"repo":                           "usage: builder-loop repo {benchmark record|readme update}",
-	"repo benchmark":                 "usage: builder-loop repo benchmark record",
-	"repo readme":                    "usage: builder-loop repo readme update",
-	"audit":                          "usage: builder-loop audit",
-	"digest":                         "usage: builder-loop digest [--output <path>] [--force]",
-	"doctor":                         "usage: builder-loop doctor",
-	"service":                        "usage: builder-loop service {install|install-audit|disable legacy-timers} [--force]",
-	"service install":                "usage: builder-loop service install [--force]",
-	"service install-audit":          "usage: builder-loop service install-audit [--force]",
-	"service disable":                "usage: builder-loop service disable legacy-timers",
-	"service disable legacy-timers":  "usage: builder-loop service disable legacy-timers",
+	"run":                           "usage: builder-loop run [--dry-run] [--backend codexu|claudeu|opencode]",
+	"progress":                      "usage: builder-loop progress {validate|write}",
+	"progress validate":             "usage: builder-loop progress validate",
+	"progress write":                "usage: builder-loop progress write",
+	"repo":                          "usage: builder-loop repo {benchmark record|readme update}",
+	"repo benchmark":                "usage: builder-loop repo benchmark record",
+	"repo readme":                   "usage: builder-loop repo readme update",
+	"audit":                         "usage: builder-loop audit",
+	"digest":                        "usage: builder-loop digest [--output <path>] [--force]",
+	"doctor":                        "usage: builder-loop doctor",
+	"service":                       "usage: builder-loop service {install|install-audit|disable legacy-timers} [--force]",
+	"service install":               "usage: builder-loop service install [--force]",
+	"service install-audit":         "usage: builder-loop service install-audit [--force]",
+	"service disable":               "usage: builder-loop service disable legacy-timers",
+	"service disable legacy-timers": "usage: builder-loop service disable legacy-timers",
 }
 
 // supportedBuilderBackends lists the backends the run subcommand accepts via
@@ -66,22 +78,23 @@ func wantsHelp(args []string) bool {
 }
 
 // printHelp writes the help text for key (or the global usage if key is
-// missing from subUsage) to stdout. Help is intentionally exit-0 output, so
-// callers return nil after invoking this.
-func printHelp(key string) error {
+// missing from subUsage) to deps.stdout. Help is intentionally exit-0
+// output, so callers return nil after invoking this.
+func printHelp(deps cliDeps, key string) error {
 	help, ok := subUsage[key]
 	if !ok {
 		help = usage
 	}
-	_, err := fmt.Fprintln(commandStdout, help)
+	_, err := fmt.Fprintln(deps.stdout, help)
 	return err
 }
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	deps := defaultDeps()
+	if err := run(ctx, deps, os.Args[1:]); err != nil {
+		fmt.Fprintln(deps.stderr, err)
 		if errors.Is(err, errParse) {
 			os.Exit(2)
 		}
@@ -89,7 +102,7 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, args []string) error {
+func run(ctx context.Context, deps cliDeps, args []string) error {
 	args, root, err := resolveRepoRoot(args)
 	if err != nil {
 		return err
@@ -99,13 +112,13 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		return printHelp("")
+		return printHelp(deps, "")
 	}
 
 	switch {
 	case args[0] == "run":
 		if wantsHelp(args[1:]) {
-			return printHelp("run")
+			return printHelp(deps, "run")
 		}
 		runOpts, err := parseRunOptions(args[1:])
 		if err != nil {
@@ -118,28 +131,28 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		return runAutoloop(ctx, cfg, runOpts.dryRun)
+		return runAutoloop(ctx, deps, cfg, runOpts.dryRun)
 	case args[0] == "progress":
 		if wantsHelp(args[1:]) {
 			key := "progress"
 			if len(args) >= 2 && !strings.HasPrefix(args[1], "-") {
 				key = "progress " + args[1]
 			}
-			return printHelp(key)
+			return printHelp(deps, key)
 		}
-		return runProgress(root, args[1:])
+		return runProgress(deps, root, args[1:])
 	case args[0] == "repo":
 		if wantsHelp(args[1:]) {
 			key := "repo"
 			if len(args) >= 2 && !strings.HasPrefix(args[1], "-") {
 				key = "repo " + args[1]
 			}
-			return printHelp(key)
+			return printHelp(deps, key)
 		}
 		return runRepo(root, args[1:])
 	case args[0] == "digest":
 		if wantsHelp(args[1:]) {
-			return printHelp("digest")
+			return printHelp(deps, "digest")
 		}
 		opts, err := parseDigestOptions(args[1:])
 		if err != nil {
@@ -152,11 +165,11 @@ func run(ctx context.Context, args []string) error {
 		if opts.outputPath != "" {
 			return writeDigestOutput(opts.outputPath, digest, opts.force)
 		}
-		_, err = fmt.Fprint(commandStdout, digest)
+		_, err = fmt.Fprint(deps.stdout, digest)
 		return err
 	case args[0] == "audit":
 		if wantsHelp(args[1:]) {
-			return printHelp("audit")
+			return printHelp(deps, "audit")
 		}
 		if len(args) != 1 {
 			return fmt.Errorf("%w\n%s", errParse, subUsage["audit"])
@@ -172,11 +185,11 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprint(commandStdout, summary)
+		_, err = fmt.Fprint(deps.stdout, summary)
 		return err
 	case args[0] == "doctor":
 		if wantsHelp(args[1:]) {
-			return printHelp("doctor")
+			return printHelp(deps, "doctor")
 		}
 		if len(args) != 1 {
 			return fmt.Errorf("%w\n%s", errParse, subUsage["doctor"])
@@ -185,17 +198,16 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		return doctor(cfg)
+		return doctor(deps, cfg)
 	case args[0] == "service":
-		return runService(ctx, root, args[1:])
+		return runService(ctx, deps, root, args[1:])
 	default:
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
 }
 
 // runService dispatches the `service` subcommand family with --help routing.
-// Splitting it out keeps run() readable now that each verb has its own help.
-func runService(ctx context.Context, root string, args []string) error {
+func runService(ctx context.Context, deps cliDeps, root string, args []string) error {
 	if wantsHelp(args) {
 		key := "service"
 		switch {
@@ -209,7 +221,7 @@ func runService(ctx context.Context, root string, args []string) error {
 		case len(args) >= 1 && args[0] == "install-audit":
 			key = "service install-audit"
 		}
-		return printHelp(key)
+		return printHelp(deps, key)
 	}
 
 	switch {
@@ -218,15 +230,15 @@ func runService(ctx context.Context, root string, args []string) error {
 		if err != nil {
 			return err
 		}
-		return installService(ctx, root, force)
+		return installService(ctx, deps, root, force)
 	case len(args) >= 1 && args[0] == "install-audit":
 		force, err := serviceForce(args[1:])
 		if err != nil {
 			return err
 		}
-		return installAuditService(ctx, root, force)
+		return installAuditService(ctx, deps, root, force)
 	case len(args) == 2 && args[0] == "disable" && args[1] == "legacy-timers":
-		return builderloop.DisableLegacyTimers(ctx, serviceRunner)
+		return builderloop.DisableLegacyTimers(ctx, deps.runner)
 	default:
 		return fmt.Errorf("%w\n%s", errParse, subUsage["service"])
 	}
@@ -355,14 +367,14 @@ func serviceForce(args []string) (bool, error) {
 	return force, nil
 }
 
-func installService(ctx context.Context, root string, force bool) error {
+func installService(ctx context.Context, deps cliDeps, root string, force bool) error {
 	unitDir, err := systemdUserUnitDir()
 	if err != nil {
 		return err
 	}
 
 	return builderloop.InstallService(ctx, builderloop.ServiceInstallOptions{
-		Runner:       serviceRunner,
+		Runner:       deps.runner,
 		UnitDir:      unitDir,
 		UnitName:     "gormes-orchestrator.service",
 		AutoloopPath: orchestratorWrapperPath(root),
@@ -373,14 +385,14 @@ func installService(ctx context.Context, root string, force bool) error {
 	})
 }
 
-func installAuditService(ctx context.Context, root string, force bool) error {
+func installAuditService(ctx context.Context, deps cliDeps, root string, force bool) error {
 	unitDir, err := systemdUserUnitDir()
 	if err != nil {
 		return err
 	}
 
 	return builderloop.InstallAuditService(ctx, builderloop.AuditServiceInstallOptions{
-		Runner:    serviceRunner,
+		Runner:    deps.runner,
 		UnitDir:   unitDir,
 		UnitName:  "gormes-orchestrator-audit.service",
 		TimerName: "gormes-orchestrator-audit.timer",
@@ -438,7 +450,7 @@ func digestRunRoot(root string) string {
 	return filepath.Join(root, ".codex", "orchestrator")
 }
 
-func runAutoloop(ctx context.Context, cfg builderloop.Config, dryRun bool) error {
+func runAutoloop(ctx context.Context, deps cliDeps, cfg builderloop.Config, dryRun bool) error {
 	summary, err := builderloop.RunOnce(ctx, builderloop.RunOptions{
 		Config: cfg,
 		DryRun: dryRun,
@@ -447,9 +459,9 @@ func runAutoloop(ctx context.Context, cfg builderloop.Config, dryRun bool) error
 		return err
 	}
 
-	fmt.Fprintf(commandStdout, "candidates: %d\nselected: %d\n", summary.Candidates, len(summary.Selected))
+	fmt.Fprintf(deps.stdout, "candidates: %d\nselected: %d\n", summary.Candidates, len(summary.Selected))
 	for _, candidate := range summary.Selected {
-		fmt.Fprintf(commandStdout, "- %s/%s %s [%s] owner=%s size=%s reason=%s\n",
+		fmt.Fprintf(deps.stdout, "- %s/%s %s [%s] owner=%s size=%s reason=%s\n",
 			candidate.PhaseID,
 			candidate.SubphaseID,
 			candidate.ItemName,
@@ -472,7 +484,7 @@ func dashIfEmpty(value string) string {
 	return value
 }
 
-// doctor runs operator-facing health checks for the builder loop:
+// doctor runs operator-facing health checks for the builder loop.
 //   - progress.json exists, parses, and validates
 //   - the planner triggers path is writable (so the builder can append to it)
 //   - the latest health_updated event in the builder ledger is fresher than
@@ -481,7 +493,7 @@ func dashIfEmpty(value string) string {
 // Each warning is advisory; the command exits 0 unless a hard precondition
 // fails. systemd timer status is intentionally not probed: the binary itself
 // running implies the unit fired.
-func doctor(cfg builderloop.Config) error {
+func doctor(deps cliDeps, cfg builderloop.Config) error {
 	if _, err := os.Stat(cfg.ProgressJSON); err != nil {
 		return err
 	}
@@ -495,9 +507,9 @@ func doctor(cfg builderloop.Config) error {
 	}
 	ledgerPath := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
 	if msg := driftWarning("builder-loop", ledgerPath, "health_updated", time.Hour); msg != "" {
-		fmt.Fprintln(commandStdout, msg)
+		fmt.Fprintln(deps.stdout, msg)
 	}
-	_, err := fmt.Fprintln(commandStdout, "doctor: ok")
+	_, err := fmt.Fprintln(deps.stdout, "doctor: ok")
 	return err
 }
 

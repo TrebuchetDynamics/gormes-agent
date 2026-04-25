@@ -21,8 +21,20 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
-var commandStdout io.Writer = os.Stdout
-var commandRunner cmdrunner.Runner = cmdrunner.ExecRunner{}
+// cliDeps carries the writers and process runner that callers can swap
+// in tests. Production main() builds defaultDeps() from os.Stdout/Stderr
+// and the real cmdrunner.ExecRunner. Tests construct their own deps and
+// pass them to run() — no mutable package-level globals to coordinate
+// across t.Parallel cases.
+type cliDeps struct {
+	stdout io.Writer
+	stderr io.Writer
+	runner cmdrunner.Runner
+}
+
+func defaultDeps() cliDeps {
+	return cliDeps{stdout: os.Stdout, stderr: os.Stderr, runner: cmdrunner.ExecRunner{}}
+}
 
 const usage = "usage: planner-loop [--repo-root <path>] run [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | trigger <reason> | service install [--force]"
 
@@ -57,22 +69,23 @@ func wantsHelp(args []string) bool {
 }
 
 // printHelp writes the help text for key (or the global usage if key is
-// missing from subUsage) to stdout. Help is intentionally exit-0 output, so
-// callers return nil after invoking this.
-func printHelp(key string) error {
+// missing from subUsage) to deps.stdout. Help is intentionally exit-0
+// output, so callers return nil after invoking this.
+func printHelp(deps cliDeps, key string) error {
 	help, ok := subUsage[key]
 	if !ok {
 		help = usage
 	}
-	_, err := fmt.Fprintln(commandStdout, help)
+	_, err := fmt.Fprintln(deps.stdout, help)
 	return err
 }
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	deps := defaultDeps()
+	if err := run(ctx, deps, os.Args[1:]); err != nil {
+		fmt.Fprintln(deps.stderr, err)
 		if errors.Is(err, errParse) {
 			os.Exit(2)
 		}
@@ -80,7 +93,7 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, args []string) error {
+func run(ctx context.Context, deps cliDeps, args []string) error {
 	args, root, err := resolveRepoRoot(args)
 	if err != nil {
 		return err
@@ -92,7 +105,7 @@ func run(ctx context.Context, args []string) error {
 	switch args[0] {
 	case "run":
 		if wantsHelp(args[1:]) {
-			return printHelp("run")
+			return printHelp(deps, "run")
 		}
 		opts, err := parseRunOptions(args[1:])
 		if err != nil {
@@ -104,57 +117,57 @@ func run(ctx context.Context, args []string) error {
 		}
 		summary, err := plannerloop.RunOnce(ctx, plannerloop.RunOptions{
 			Config:   cfg,
-			Runner:   commandRunner,
+			Runner:   deps.runner,
 			DryRun:   opts.dryRun,
 			Keywords: opts.keywords,
 		})
 		if err != nil {
 			return err
 		}
-		return printRunSummary(summary, opts.dryRun, opts.keywords)
+		return printRunSummary(deps, summary, opts.dryRun, opts.keywords)
 	case "status":
 		if wantsHelp(args[1:]) {
-			return printHelp("status")
+			return printHelp(deps, "status")
 		}
 		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
-		return printStatus(cfg)
+		return printStatus(deps, cfg)
 	case "show-report":
 		if wantsHelp(args[1:]) {
-			return printHelp("show-report")
+			return printHelp(deps, "show-report")
 		}
 		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
-		return printFile(filepath.Join(cfg.RunRoot, "latest_planner_report.md"))
+		return printFile(deps, filepath.Join(cfg.RunRoot, "latest_planner_report.md"))
 	case "doctor":
 		if wantsHelp(args[1:]) {
-			return printHelp("doctor")
+			return printHelp(deps, "doctor")
 		}
 		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
-		return doctor(cfg)
+		return doctor(deps, cfg)
 	case "trigger":
 		if wantsHelp(args[1:]) {
-			return printHelp("trigger")
+			return printHelp(deps, "trigger")
 		}
 		cfg, err := plannerloop.ConfigFromEnv(root, plannerLookup(runOptions{}))
 		if err != nil {
 			return err
 		}
-		return runTrigger(cfg, args[1:])
+		return runTrigger(deps, cfg, args[1:])
 	case "service":
 		if wantsHelp(args[1:]) {
 			key := "service"
 			if len(args) >= 2 && args[1] == "install" {
 				key = "service install"
 			}
-			return printHelp(key)
+			return printHelp(deps, key)
 		}
 		if len(args) >= 2 && args[1] == "install" {
 			force, err := plannerServiceForce(args[2:])
@@ -165,11 +178,11 @@ func run(ctx context.Context, args []string) error {
 			if err != nil {
 				return err
 			}
-			return installPlannerService(ctx, root, force, cfg.PlannerTriggersPath)
+			return installPlannerService(ctx, deps, root, force, cfg.PlannerTriggersPath)
 		}
 		return fmt.Errorf("%w\n%s", errParse, subUsage["service"])
 	case "--help", "-h", "help":
-		return printHelp("")
+		return printHelp(deps, "")
 	default:
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
@@ -252,38 +265,38 @@ func plannerLookup(opts runOptions) plannerloop.EnvLookup {
 	}
 }
 
-func printRunSummary(summary plannerloop.RunSummary, dryRun bool, keywords []string) error {
+func printRunSummary(deps cliDeps, summary plannerloop.RunSummary, dryRun bool, keywords []string) error {
 	label := "architecture planner run"
 	if dryRun {
 		label = "architecture planner dry-run"
 	}
-	fmt.Fprintf(commandStdout, "%s\n", label)
-	fmt.Fprintf(commandStdout, "backend: %s\n", summary.Backend)
-	fmt.Fprintf(commandStdout, "mode: %s\n", summary.Mode)
+	fmt.Fprintf(deps.stdout, "%s\n", label)
+	fmt.Fprintf(deps.stdout, "backend: %s\n", summary.Backend)
+	fmt.Fprintf(deps.stdout, "mode: %s\n", summary.Mode)
 	if len(keywords) > 0 {
 		// Echoing keywords back to the operator confirms topical-focus
 		// mode actually engaged when the planner was invoked with
 		// positional args (e.g. `planner-loop run hermes-issues`).
-		fmt.Fprintf(commandStdout, "keywords: %s\n", strings.Join(keywords, " "))
+		fmt.Fprintf(deps.stdout, "keywords: %s\n", strings.Join(keywords, " "))
 	}
-	fmt.Fprintf(commandStdout, "progress: %s\n", summary.ProgressJSON)
-	fmt.Fprintf(commandStdout, "progress items: %d\n", summary.ProgressItems)
-	fmt.Fprintf(commandStdout, "run root: %s\n", summary.RunRoot)
+	fmt.Fprintf(deps.stdout, "progress: %s\n", summary.ProgressJSON)
+	fmt.Fprintf(deps.stdout, "progress items: %d\n", summary.ProgressItems)
+	fmt.Fprintf(deps.stdout, "run root: %s\n", summary.RunRoot)
 	for _, root := range summary.SourceRoots {
 		status := "missing"
 		if root.Exists {
 			status = "present"
 		}
-		fmt.Fprintf(commandStdout, "- %s: %s (%s, files=%d)\n", root.Name, root.Path, status, root.FileCount)
+		fmt.Fprintf(deps.stdout, "- %s: %s (%s, files=%d)\n", root.Name, root.Path, status, root.FileCount)
 	}
 	if !dryRun {
-		fmt.Fprintf(commandStdout, "report: %s\n", summary.ReportPath)
-		fmt.Fprintf(commandStdout, "state: %s\n", summary.StatePath)
+		fmt.Fprintf(deps.stdout, "report: %s\n", summary.ReportPath)
+		fmt.Fprintf(deps.stdout, "state: %s\n", summary.StatePath)
 	}
 	return nil
 }
 
-func printStatus(cfg plannerloop.Config) error {
+func printStatus(deps cliDeps, cfg plannerloop.Config) error {
 	out, err := plannerloop.RenderStatus(plannerloop.RenderStatusOptions{
 		StatePath:          filepath.Join(cfg.RunRoot, "planner_state.json"),
 		PlannerLedgerPath:  filepath.Join(cfg.RunRoot, "state", "runs.jsonl"),
@@ -294,16 +307,16 @@ func printStatus(cfg plannerloop.Config) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.WriteString(commandStdout, out)
+	_, err = io.WriteString(deps.stdout, out)
 	return err
 }
 
-func printFile(path string) error {
+func printFile(deps cliDeps, path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	_, err = commandStdout.Write(data)
+	_, err = deps.stdout.Write(data)
 	return err
 }
 
@@ -345,7 +358,7 @@ func resolveRepoRoot(args []string) ([]string, string, error) {
 	return out, root, nil
 }
 
-func installPlannerService(ctx context.Context, root string, force bool, pathToWatch string) error {
+func installPlannerService(ctx context.Context, deps cliDeps, root string, force bool, pathToWatch string) error {
 	unitDir, err := plannerUnitDir()
 	if err != nil {
 		return err
@@ -367,7 +380,7 @@ func installPlannerService(ctx context.Context, root string, force bool, pathToW
 	}
 
 	return plannerloop.InstallPlannerService(ctx, plannerloop.PlannerServiceInstallOptions{
-		Runner:           commandRunner,
+		Runner:           deps.runner,
 		UnitDir:          unitDir,
 		UnitName:         "gormes-planner-loop.service",
 		TimerName:        "gormes-planner-loop.timer",
@@ -422,7 +435,7 @@ func plannerWrapperPath(root string) string {
 	return filepath.Join(root, "scripts", "planner-loop.sh")
 }
 
-func doctor(cfg plannerloop.Config) error {
+func doctor(deps cliDeps, cfg plannerloop.Config) error {
 	for _, path := range []string{cfg.RepoRoot, filepath.Dir(cfg.ProgressJSON), cfg.HermesDir, cfg.GBrainDir, cfg.HonchoDir} {
 		info, err := os.Stat(path)
 		if err != nil {
@@ -455,13 +468,13 @@ func doctor(cfg plannerloop.Config) error {
 	plannerLedger := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
 	threshold := plannerDriftThreshold()
 	if msg := driftWarning("planner", plannerLedger, "health_updated", threshold); msg != "" {
-		fmt.Fprintln(commandStdout, msg)
+		fmt.Fprintln(deps.stdout, msg)
 	}
 	builderLedger := filepath.Join(cfg.AutoloopRunRoot, "state", "runs.jsonl")
 	if msg := driftWarning("builder-loop", builderLedger, "health_updated", time.Hour); msg != "" {
-		fmt.Fprintln(commandStdout, msg)
+		fmt.Fprintln(deps.stdout, msg)
 	}
-	_, err := fmt.Fprintln(commandStdout, "doctor: ok")
+	_, err := fmt.Fprintln(deps.stdout, "doctor: ok")
 	return err
 }
 
@@ -560,7 +573,7 @@ func latestLedgerEventTime(path, eventName string) (time.Time, error) {
 // shortly after. Reason is surfaced in the planner prompt as the trigger
 // label so the next run can react to "operator-asked" vs scheduled vs
 // impl_change inputs.
-func runTrigger(cfg plannerloop.Config, args []string) error {
+func runTrigger(deps cliDeps, cfg plannerloop.Config, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%w: trigger requires a <reason>\n%s", errParse, subUsage["trigger"])
 	}
@@ -577,6 +590,6 @@ func runTrigger(cfg plannerloop.Config, args []string) error {
 		return fmt.Errorf("append trigger: %w", err)
 	}
 
-	_, err := fmt.Fprintf(commandStdout, "trigger: appended manual event reason=%q to %s\n", reason, cfg.PlannerTriggersPath)
+	_, err := fmt.Fprintf(deps.stdout, "trigger: appended manual event reason=%q to %s\n", reason, cfg.PlannerTriggersPath)
 	return err
 }

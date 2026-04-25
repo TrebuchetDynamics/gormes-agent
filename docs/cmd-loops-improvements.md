@@ -22,7 +22,7 @@ leverage.
 | 8 | `planner-loop trigger <reason>` verb                                 | done         |
 | 9 | Move `progress` and `repo` subcommands out of `builder-loop`         | open         |
 | 10 | Collapse `progress write` to a table-driven loop                    | done         |
-| 11 | Replace package-level test-seam globals with a `cliDeps` struct     | open         |
+| 11 | Replace package-level test-seam globals with a `cliDeps` struct     | done         |
 | 12 | Structured exit codes                                                | partial      |
 | 13 | `--format json` for read-only commands                               | open         |
 | 14 | `--repo-root` / `REPO_ROOT` flag                                     | done         |

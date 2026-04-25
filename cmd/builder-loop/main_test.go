@@ -19,7 +19,8 @@ import (
 )
 
 func TestRunRejectsUnknownCommand(t *testing.T) {
-	err := run(context.Background(), []string{"unknown"})
+	deps := defaultDeps()
+	err := run(context.Background(), deps, []string{"unknown"})
 	if err == nil {
 		t.Fatal("run() error = nil, want error")
 	}
@@ -179,13 +180,10 @@ func TestProgressValidateValidatesCanonicalProgress(t *testing.T) {
 	withTempCwd(t, repoRoot)
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
-	if err := run(context.Background(), []string{"progress", "validate"}); err != nil {
+	if err := run(context.Background(), deps, []string{"progress", "validate"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -200,13 +198,10 @@ func TestProgressWriteRegeneratesDocsAndSiteProgress(t *testing.T) {
 	withTempCwd(t, repoRoot)
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
-	if err := run(context.Background(), []string{"progress", "write"}); err != nil {
+	if err := run(context.Background(), deps, []string{"progress", "write"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -255,7 +250,8 @@ func TestRepoBenchmarkRecordUpdatesBenchmarks(t *testing.T) {
 	}
 	withTempCwd(t, repoRoot)
 
-	if err := run(context.Background(), []string{"repo", "benchmark", "record"}); err != nil {
+	deps := defaultDeps()
+	if err := run(context.Background(), deps, []string{"repo", "benchmark", "record"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -294,7 +290,8 @@ func TestRepoReadmeUpdateUpdatesReadme(t *testing.T) {
 	}
 	withTempCwd(t, repoRoot)
 
-	if err := run(context.Background(), []string{"repo", "readme", "update"}); err != nil {
+	deps := defaultDeps()
+	if err := run(context.Background(), deps, []string{"repo", "readme", "update"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 	raw, err := os.ReadFile(readme)
@@ -344,11 +341,8 @@ func TestRunCommandDryRunPrintsSummary(t *testing.T) {
 	t.Setenv("MAX_PHASE", "12")
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -363,7 +357,7 @@ func TestRunCommandDryRunPrintsSummary(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"run", "--dry-run"}); err != nil {
+	if err := run(context.Background(), deps, []string{"run", "--dry-run"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -408,11 +402,8 @@ func TestRunCommandBackendFlagSetsBackend(t *testing.T) {
 	t.Setenv("MAX_PHASE", "12")
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -427,7 +418,7 @@ func TestRunCommandBackendFlagSetsBackend(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"run", "--dry-run", "--backend", "opencode"}); err != nil {
+	if err := run(context.Background(), deps, []string{"run", "--dry-run", "--backend", "opencode"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -472,13 +463,10 @@ func TestParseRunOptions_BackendFlagRejectsUnsupported(t *testing.T) {
 
 func TestRunCommandHelpPrintsUsage(t *testing.T) {
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
-	if err := run(context.Background(), []string{"run", "--help"}); err != nil {
+	if err := run(context.Background(), deps, []string{"run", "--help"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -506,12 +494,11 @@ func TestSubcommandHelpPrintsScopedUsage(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout bytes.Buffer
-			oldStdout := commandStdout
-			commandStdout = &stdout
-			t.Cleanup(func() { commandStdout = oldStdout })
+			deps := defaultDeps()
+			deps.stdout = &stdout
 			withTempCwd(t, t.TempDir())
 
-			if err := run(context.Background(), tc.args); err != nil {
+			if err := run(context.Background(), deps, tc.args); err != nil {
 				t.Fatalf("run() error = %v", err)
 			}
 			if !strings.Contains(stdout.String(), tc.want) {
@@ -549,11 +536,8 @@ func TestDigestUsesConfiguredRunRoot(t *testing.T) {
 	t.Setenv("AUDIT_DIR", filepath.Join(repoRoot, "audit"))
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -568,7 +552,7 @@ func TestDigestUsesConfiguredRunRoot(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"digest"}); err != nil {
+	if err := run(context.Background(), deps, []string{"digest"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -603,7 +587,8 @@ func TestDigestOutputWritesFile(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"digest", "--output", outputPath}); err != nil {
+	deps := defaultDeps()
+	if err := run(context.Background(), deps, []string{"digest", "--output", outputPath}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -630,11 +615,8 @@ func TestAuditUsesConfiguredRunRoot(t *testing.T) {
 	t.Setenv("AUDIT_DIR", filepath.Join(repoRoot, "audit"))
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -649,7 +631,7 @@ func TestAuditUsesConfiguredRunRoot(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"audit"}); err != nil {
+	if err := run(context.Background(), deps, []string{"audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -673,11 +655,8 @@ func TestAuditCreatesReportArtifacts(t *testing.T) {
 	t.Setenv("AUDIT_DIR", auditDir)
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -692,7 +671,7 @@ func TestAuditCreatesReportArtifacts(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"audit"}); err != nil {
+	if err := run(context.Background(), deps, []string{"audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -712,11 +691,8 @@ func TestServiceInstallWritesUnitUnderXDGConfigHome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
 	t.Setenv("FORCE", "")
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}}}
-	oldRunner := serviceRunner
-	serviceRunner = runner
-	t.Cleanup(func() {
-		serviceRunner = oldRunner
-	})
+	deps := defaultDeps()
+	deps.runner = runner
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -731,7 +707,7 @@ func TestServiceInstallWritesUnitUnderXDGConfigHome(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"service", "install"}); err != nil {
+	if err := run(context.Background(), deps, []string{"service", "install"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -765,11 +741,8 @@ func TestServiceInstallAuditUsesAuditUnitName(t *testing.T) {
 	xdgConfigHome := filepath.Join(repoRoot, "xdg")
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}}}
-	oldRunner := serviceRunner
-	serviceRunner = runner
-	t.Cleanup(func() {
-		serviceRunner = oldRunner
-	})
+	deps := defaultDeps()
+	deps.runner = runner
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -784,7 +757,7 @@ func TestServiceInstallAuditUsesAuditUnitName(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"service", "install-audit"}); err != nil {
+	if err := run(context.Background(), deps, []string{"service", "install-audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -817,11 +790,8 @@ func TestServiceInstallHonorsAutoStartZero(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
 	t.Setenv("AUTO_START", "0")
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
-	oldRunner := serviceRunner
-	serviceRunner = runner
-	t.Cleanup(func() {
-		serviceRunner = oldRunner
-	})
+	deps := defaultDeps()
+	deps.runner = runner
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -836,7 +806,7 @@ func TestServiceInstallHonorsAutoStartZero(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"service", "install"}); err != nil {
+	if err := run(context.Background(), deps, []string{"service", "install"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -854,11 +824,8 @@ func TestServiceInstallAuditHonorsAutoStartZero(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", xdgConfigHome)
 	t.Setenv("AUTO_START", "0")
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
-	oldRunner := serviceRunner
-	serviceRunner = runner
-	t.Cleanup(func() {
-		serviceRunner = oldRunner
-	})
+	deps := defaultDeps()
+	deps.runner = runner
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -873,7 +840,7 @@ func TestServiceInstallAuditHonorsAutoStartZero(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"service", "install-audit"}); err != nil {
+	if err := run(context.Background(), deps, []string{"service", "install-audit"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -887,13 +854,10 @@ func TestServiceInstallAuditHonorsAutoStartZero(t *testing.T) {
 
 func TestServiceDisableLegacyTimersUsesRunner(t *testing.T) {
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}, {}, {}, {}, {}}}
-	oldRunner := serviceRunner
-	serviceRunner = runner
-	t.Cleanup(func() {
-		serviceRunner = oldRunner
-	})
+	deps := defaultDeps()
+	deps.runner = runner
 
-	if err := run(context.Background(), []string{"service", "disable", "legacy-timers"}); err != nil {
+	if err := run(context.Background(), deps, []string{"service", "disable", "legacy-timers"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -919,11 +883,8 @@ func TestServiceInstallUsesHomeWhenXDGConfigHomeEmpty(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("HOME", home)
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}}}
-	oldRunner := serviceRunner
-	serviceRunner = runner
-	t.Cleanup(func() {
-		serviceRunner = oldRunner
-	})
+	deps := defaultDeps()
+	deps.runner = runner
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -938,7 +899,7 @@ func TestServiceInstallUsesHomeWhenXDGConfigHomeEmpty(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"service", "install"}); err != nil {
+	if err := run(context.Background(), deps, []string{"service", "install"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
@@ -961,11 +922,8 @@ func TestDigestIgnoresRunOnlyEnvValidation(t *testing.T) {
 	t.Setenv("MAX_AGENTS", "bad")
 
 	var stdout bytes.Buffer
-	oldStdout := commandStdout
-	commandStdout = &stdout
-	t.Cleanup(func() {
-		commandStdout = oldStdout
-	})
+	deps := defaultDeps()
+	deps.stdout = &stdout
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -980,7 +938,7 @@ func TestDigestIgnoresRunOnlyEnvValidation(t *testing.T) {
 		}
 	})
 
-	if err := run(context.Background(), []string{"digest"}); err != nil {
+	if err := run(context.Background(), deps, []string{"digest"}); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
 
