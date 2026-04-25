@@ -165,3 +165,26 @@ func TestBuildPrompt_PreviousReshapesSectionRendersAllBuckets(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildPrompt_ImplInventorySectionRendersDivergenceHints(t *testing.T) {
+	bundle := ContextBundle{
+		ImplInventory: ImplInventory{
+			GormesOriginalPaths: []string{"cmd/autoloop/main.go", "internal/architectureplanner/run.go"},
+			RecentlyChanged:     []string{"internal/architectureplanner/run.go"},
+			OwnedSubphases:      []string{"5.O"},
+		},
+	}
+
+	prompt := BuildPrompt(bundle, nil)
+	wants := []string{
+		"Implementation drift inventory:",
+		"Gormes-original paths: cmd/autoloop/main.go, internal/architectureplanner/run.go",
+		"Recently changed Gormes-original paths: internal/architectureplanner/run.go",
+		"Owned subphase candidates: 5.O",
+	}
+	for _, want := range wants {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("BuildPrompt missing %q\nprompt:\n%s", want, prompt)
+		}
+	}
+}

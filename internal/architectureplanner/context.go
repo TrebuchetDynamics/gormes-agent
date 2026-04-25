@@ -49,6 +49,14 @@ type ContextBundle struct {
 	// prompt's "Previous Reshape Outcomes" section. Empty when no rows
 	// matching that window were reshaped or when both ledgers are empty.
 	PreviousReshapes []ReshapeOutcome `json:"previous_reshapes,omitempty"`
+	// ImplInventory is the divergence-aware impl-tree scan output: which
+	// paths under cmd/+internal/ are Gormes-original (no upstream analog),
+	// the subset modified within Config.ImplLookback, and the subphase IDs
+	// whose every WriteScope is entirely under those Gormes-original
+	// prefixes. Populated by ScanImplementation in RunOnce; rendered into
+	// the prompt's "Implementation Inventory" section so the LLM stops
+	// chasing upstream research for paths it can't possibly find.
+	ImplInventory ImplInventory `json:"impl_inventory,omitempty"`
 }
 
 // QuarantinedRowContext is the planner-side view of one autoloop-quarantined
@@ -115,6 +123,12 @@ func CollectContext(cfg Config, now time.Time) (ContextBundle, error) {
 		return ContextBundle{}, err
 	}
 
+	implInventory, err := ScanImplementation(cfg.RepoRoot, cfg.GormesOriginalPaths, cfg.ImplLookback, now)
+	if err != nil {
+		return ContextBundle{}, err
+	}
+	implInventory.OwnedSubphases = computeOwnedSubphases(prog, cfg.GormesOriginalPaths)
+
 	return ContextBundle{
 		GeneratedUTC:            now.UTC().Format(time.RFC3339),
 		RepoRoot:                cfg.RepoRoot,
@@ -124,6 +138,7 @@ func CollectContext(cfg Config, now time.Time) (ContextBundle, error) {
 		ImplementationInventory: inventory,
 		AutoloopAudit:           audit,
 		QuarantinedRows:         collectQuarantinedRows(prog, audit, cfg.PlannerQuarantineLimit),
+		ImplInventory:           implInventory,
 	}, nil
 }
 

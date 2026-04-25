@@ -2,7 +2,9 @@ package architectureplanner
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
+	"time"
 )
 
 func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
@@ -40,15 +42,18 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
 	cfg, err := ConfigFromEnv(root, map[string]string{
-		"PROGRESS_JSON":            "/tmp/progress.json",
-		"RUN_ROOT":                 "/tmp/planner",
-		"AUTOLOOP_RUN_ROOT":        "/tmp/autoloop",
-		"BACKEND":                  "claudeu",
-		"MODE":                     "full",
-		"HERMES_DIR":               "/tmp/hermes",
-		"GBRAIN_DIR":               "/tmp/gbrain",
-		"HONCHO_DIR":               "/tmp/honcho",
-		"MERGE_OPEN_PULL_REQUESTS": "0",
+		"PROGRESS_JSON":                 "/tmp/progress.json",
+		"RUN_ROOT":                      "/tmp/planner",
+		"AUTOLOOP_RUN_ROOT":             "/tmp/autoloop",
+		"BACKEND":                       "claudeu",
+		"MODE":                          "full",
+		"HERMES_DIR":                    "/tmp/hermes",
+		"GBRAIN_DIR":                    "/tmp/gbrain",
+		"HONCHO_DIR":                    "/tmp/honcho",
+		"MERGE_OPEN_PULL_REQUESTS":      "0",
+		"PLANNER_GORMES_ORIGINAL_PATHS": "cmd/autoloop/,internal/progress/",
+		"PLANNER_IMPL_LOOKBACK":         "48h",
+		"PLANNER_TRIGGER_REASON":        "impl_change",
 	})
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
@@ -80,6 +85,15 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	}
 	if cfg.MergeOpenPullRequests != false {
 		t.Fatalf("MergeOpenPullRequests = %v, want false", cfg.MergeOpenPullRequests)
+	}
+	if !reflect.DeepEqual(cfg.GormesOriginalPaths, []string{"cmd/autoloop/", "internal/progress/"}) {
+		t.Fatalf("GormesOriginalPaths = %#v", cfg.GormesOriginalPaths)
+	}
+	if cfg.ImplLookback != 48*time.Hour {
+		t.Fatalf("ImplLookback = %s, want 48h", cfg.ImplLookback)
+	}
+	if cfg.TriggerReason != "impl_change" {
+		t.Fatalf("TriggerReason = %q, want impl_change", cfg.TriggerReason)
 	}
 }
 
@@ -157,5 +171,30 @@ func TestConfigFromEnv_PlannerTriggersPathDefaultAndOverride(t *testing.T) {
 	}
 	if cfg.TriggersCursorPath != filepath.Join("/srv/planner", "state", "triggers_cursor.json") {
 		t.Fatalf("TriggersCursorPath = %q, should follow RunRoot override", cfg.TriggersCursorPath)
+	}
+}
+
+func TestConfigFromEnv_ImplInventoryDefaultsAndValidation(t *testing.T) {
+	root := filepath.Join("tmp", "repo")
+
+	cfg, err := ConfigFromEnv(root, map[string]string{})
+	if err != nil {
+		t.Fatalf("ConfigFromEnv() error = %v", err)
+	}
+	if cfg.GormesOriginalPaths != nil {
+		t.Fatalf("GormesOriginalPaths default = %#v, want nil fallback", cfg.GormesOriginalPaths)
+	}
+	if cfg.ImplLookback != 24*time.Hour {
+		t.Fatalf("ImplLookback default = %s, want 24h", cfg.ImplLookback)
+	}
+	if cfg.TriggerReason != "" {
+		t.Fatalf("TriggerReason default = %q, want empty", cfg.TriggerReason)
+	}
+
+	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_IMPL_LOOKBACK": "soon"}); err == nil {
+		t.Fatal("expected error for invalid PLANNER_IMPL_LOOKBACK")
+	}
+	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_IMPL_LOOKBACK": "0"}); err == nil {
+		t.Fatal("expected error for non-positive PLANNER_IMPL_LOOKBACK")
 	}
 }

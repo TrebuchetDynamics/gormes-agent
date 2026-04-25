@@ -66,6 +66,24 @@ type Config struct {
 	// Sourced from PLANNER_ESCALATION_THRESHOLD; default
 	// DefaultEscalationThreshold (3). Must be positive.
 	EscalationThreshold int
+	// GormesOriginalPaths is the deny-list of impl-tree path prefixes
+	// considered Gormes-original (no upstream Hermes/GBrain/Honcho analog).
+	// Sourced from PLANNER_GORMES_ORIGINAL_PATHS (CSV). When nil/empty,
+	// ScanImplementation falls back to DefaultGormesOriginalPaths so the
+	// env var override completely replaces the seed list rather than
+	// augmenting it.
+	GormesOriginalPaths []string
+	// ImplLookback bounds how far back ScanImplementation looks when
+	// computing ImplInventory.RecentlyChanged. Sourced from
+	// PLANNER_IMPL_LOOKBACK (Go time.ParseDuration syntax, e.g. "24h");
+	// default 24*time.Hour.
+	ImplLookback time.Duration
+	// TriggerReason is the planner's per-run trigger label. Sourced from
+	// PLANNER_TRIGGER_REASON; default "". Set by the impl-tree path unit
+	// (Phase D Task 4) to "impl_change" so the L4 priority order
+	// event > impl_change > scheduled can resolve correctly. Empty means
+	// the run is scheduled or reactive via the trigger ledger.
+	TriggerReason string
 }
 
 func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
@@ -95,6 +113,9 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		MergeOpenPullRequests:  true,
 		EvaluationWindow:       DefaultEvaluationWindow,
 		EscalationThreshold:    DefaultEscalationThreshold,
+		GormesOriginalPaths:    nil, // ScanImplementation falls back to DefaultGormesOriginalPaths
+		ImplLookback:           24 * time.Hour,
+		TriggerReason:          "",
 	}
 
 	if value := env["PROGRESS_JSON"]; value != "" {
@@ -186,6 +207,22 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.EscalationThreshold = n
 	}
+	if value := env["PLANNER_GORMES_ORIGINAL_PATHS"]; value != "" {
+		cfg.GormesOriginalPaths = splitCSV(value)
+	}
+	if value := env["PLANNER_IMPL_LOOKBACK"]; value != "" {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PLANNER_IMPL_LOOKBACK must be a Go duration (e.g. \"24h\"): %w", err)
+		}
+		if d <= 0 {
+			return Config{}, fmt.Errorf("PLANNER_IMPL_LOOKBACK must be positive")
+		}
+		cfg.ImplLookback = d
+	}
+	if value := env["PLANNER_TRIGGER_REASON"]; value != "" {
+		cfg.TriggerReason = value
+	}
 
 	// TriggersCursorPath derives from the (possibly env-overridden) RunRoot
 	// so a single RUN_ROOT override moves the cursor with the rest of the
@@ -193,6 +230,21 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 	cfg.TriggersCursorPath = filepath.Join(cfg.RunRoot, "state", "triggers_cursor.json")
 
 	return cfg, nil
+}
+
+// splitCSV parses a comma-separated env value into a slice of trimmed,
+// non-empty entries. Mirrors the helper of the same name in the autoloop
+// package; kept local so the planner config doesn't import the autoloop
+// runtime just for a string utility.
+func splitCSV(value string) []string {
+	var out []string
+	for _, part := range strings.Split(value, ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func parseBoolEnv(value string) (bool, error) {

@@ -124,6 +124,7 @@ func BuildPrompt(bundle ContextBundle, keywords []string) string {
 	quarantineBlock := formatQuarantinedRows(bundle.QuarantinedRows)
 	reshapeBlock := formatPreviousReshapes(bundle.PreviousReshapes)
 	triggerBlock := formatTriggerEvents(bundle.TriggerEvents)
+	implInventoryBlock := formatImplInventory(bundle.ImplInventory)
 	topicalBlock := ""
 	if len(keywords) > 0 {
 		topicalBlock = formatTopicalClause(keywords)
@@ -156,6 +157,9 @@ Current Gormes implementation inventory:
 - building-gormes docs: %s
 - landing page: %s
 - Hugo docs: %s
+
+Implementation drift inventory:
+%s
 
 Autoloop audit (last 7 days):
 %s
@@ -196,7 +200,7 @@ Required final report sections:
 7. Autoloop handoff completeness
 8. Risks and ambiguities
 %s%s%s%s%s%s%s
-`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, quarantinePriorityClause, quarantineBlock, selfEvaluationClause, reshapeBlock, triggerBlock, topicalBlock)
+`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, implInventoryBlock, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, quarantinePriorityClause, quarantineBlock, selfEvaluationClause, reshapeBlock, triggerBlock, topicalBlock)
 }
 
 // formatTriggerEvents renders the autoloop signals consumed by this run as
@@ -261,6 +265,31 @@ func formatPreviousReshapes(outcomes []ReshapeOutcome) string {
 		}
 	}
 	return b.String()
+}
+
+func formatImplInventory(inv ImplInventory) string {
+	lines := []string{
+		"- Gormes-original paths: none",
+		"- Recently changed Gormes-original paths: none",
+		"- Owned subphase candidates: none",
+	}
+	if len(inv.GormesOriginalPaths) > 0 {
+		lines[0] = "- Gormes-original paths: " + formatLimitedList(inv.GormesOriginalPaths, 40)
+	}
+	if len(inv.RecentlyChanged) > 0 {
+		lines[1] = "- Recently changed Gormes-original paths: " + formatLimitedList(inv.RecentlyChanged, 40)
+	}
+	if len(inv.OwnedSubphases) > 0 {
+		lines[2] = "- Owned subphase candidates: " + formatLimitedList(inv.OwnedSubphases, 40)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func formatLimitedList(values []string, limit int) string {
+	if limit <= 0 || len(values) <= limit {
+		return strings.Join(values, ", ")
+	}
+	return strings.Join(values[:limit], ", ") + fmt.Sprintf(", ... (%d more; see context.json)", len(values)-limit)
 }
 
 // formatQuarantinedRows renders the planner's call-to-action list for
