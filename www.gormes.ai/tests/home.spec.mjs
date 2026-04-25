@@ -8,11 +8,14 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Why a Go layer matters.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: "What ships now, what doesn't." })).toBeVisible();
   await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toBeVisible();
-  await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toBeVisible();
+  await expect(page.getByText('irm https://gormes.ai/install.ps1 | iex')).toBeVisible();
+  await expect(page.getByText('Rerun the installer to update the managed Gormes checkout.')).toBeVisible();
+  await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toHaveCount(0);
   await expect(page.getByText('Run Hermes Through a Go Operator Console.')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(1);
   // Copy buttons require a tiny inline clipboard script — bounded to install steps.
-  await expect(page.locator('button.copy-btn')).toHaveCount(2);
+  // Three steps now: Unix install, Windows install, run.
+  await expect(page.locator('button.copy-btn')).toHaveCount(3);
 });
 
 // Long-term bulletproof: the page must stay readable as content
@@ -56,9 +59,10 @@ for (const vp of MOBILE_VIEWPORTS) {
     expect(pageOverflow, `page body overflows at ${vp.width}px`).toBeFalsy();
 
     // Copy buttons stay visible + tappable on every supported viewport.
+    // Three install steps: Unix, Windows, run.
     const copyButtons = page.locator('button.copy-btn');
-    await expect(copyButtons).toHaveCount(2);
-    for (let i = 0; i < 2; i++) {
+    await expect(copyButtons).toHaveCount(3);
+    for (let i = 0; i < 3; i++) {
       const btn = copyButtons.nth(i);
       await expect(btn).toBeVisible();
       const box = await btn.boundingBox();

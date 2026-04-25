@@ -20,11 +20,13 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"One Go Binary. Same Hermes Brain.",
 		"A static Go binary that talks to your Hermes backend over HTTP.",
 		// Install
-		"1. INSTALL",
+		"1. UNIX / MACOS / TERMUX",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
-		"2. RUN",
-		"Requires Hermes backend at localhost:8642.",
-		"Install Hermes →",
+		"2. WINDOWS POWERSHELL",
+		"irm https://gormes.ai/install.ps1 | iex",
+		"3. RUN",
+		"Rerun the installer to update the managed Gormes checkout.",
+		"Source-backed for now →",
 		// Copy button (clipboard JS is allowed for this widget only)
 		`class="copy-btn"`,
 		"navigator.clipboard.writeText",
@@ -71,6 +73,8 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 	rejects := []string{
 		"Run Hermes Through a Go Operator Console.",
 		"Hermes, In a Single Static Binary.",
+		"Requires Hermes backend at localhost:8642.",
+		"Install Hermes →",
 		"No Python runtime on the host",
 		"Boot Sequence",
 		"Proof Rail",

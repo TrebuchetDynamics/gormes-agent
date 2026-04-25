@@ -14,7 +14,22 @@ The site is built in Go and serves the public homepage at `/` plus embedded stat
 - `internal/site/server.go` - route wiring and template execution.
 - `internal/site/templates/*.tmpl` - HTML templates.
 - `internal/site/static/*` - embedded CSS and other static assets.
+- `internal/site/installers/install.{sh,ps1,cmd}` - embedded installer assets served at `/install.sh`, `/install.ps1`, `/install.cmd`. Kept byte-equal to the canonical scripts under `../scripts/` (parity is enforced by `install_unix_test.go` and `install_pwsh_test.go`).
 - `tests/home.spec.mjs` - Playwright smoke test for the homepage.
+
+## Installer Surface
+
+The site serves three installer assets, one per supported user shell:
+
+| Path | Source | Audience |
+|------|--------|----------|
+| `/install.sh` | `installers/install.sh` (mirror of `../scripts/install.sh`) | Linux, macOS, Termux, WSL |
+| `/install.ps1` | `installers/install.ps1` (mirror of `../scripts/install.ps1`) | Windows PowerShell 5.1+ / pwsh 7+ |
+| `/install.cmd` | `installers/install.cmd` (mirror of `../scripts/install.cmd`) | CMD wrapper that launches the PowerShell installer |
+
+All three behave the same way: managed checkout under a Hermes-analogy install
+home, rerun-as-update with autostash, source-backed build, and a stable global
+`gormes` command published into a user-scoped bin directory.
 
 ## Local Development
 

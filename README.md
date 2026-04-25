@@ -16,15 +16,25 @@
 
 ## Quick Start
 
-```bash
-# Install the single static binary (Linux/macOS/Windows)
-curl -fsSL https://gormes.ai/install.sh | sh
+**Linux / macOS / Termux:**
 
-# Start chatting
+```bash
+curl -fsSL https://gormes.ai/install.sh | sh
 gormes
 ```
 
-That's it. No Python, no virtualenv, no dependency drift.
+**Windows (PowerShell):**
+
+```powershell
+irm https://gormes.ai/install.ps1 | iex
+gormes
+```
+
+The installer auto-installs `git` and Go 1.25+ when missing (apt/dnf/pacman/brew/pkg
+on Unix, winget/choco on Windows, with a managed go.dev fallback on either) and
+keeps a managed checkout under `~/.gormes` (or `%LOCALAPPDATA%\gormes`). Rerun
+the same command to update — local edits in the managed checkout are autostashed
+and reapplied. No Python, no virtualenv, no dependency drift.
 
 ---
 

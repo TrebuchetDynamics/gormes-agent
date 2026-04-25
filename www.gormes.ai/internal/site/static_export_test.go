@@ -23,6 +23,8 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	wants := []string{
 		"One Go Binary. Same Hermes Brain.",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
+		"irm https://gormes.ai/install.ps1 | iex",
+		"Rerun the installer to update the managed Gormes checkout.",
 		"Why a Go layer matters.",
 		"What ships now, what doesn&#39;t.",
 		// Structural roadmap checks — no exact counts or item names,
@@ -42,6 +44,8 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	rejects := []string{
 		"Run Hermes Through a Go Operator Console.",
 		"Hermes, In a Single Static Binary.",
+		"Requires Hermes backend at localhost:8642.",
+		"Install Hermes →",
 		"No Python runtime on the host",
 		"~8 MB",
 		"~12 MB",
