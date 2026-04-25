@@ -9,11 +9,22 @@ import (
 // CommandDef is the canonical slash-command definition shared by gateway
 // parsing, help text, and per-platform command exposure helpers.
 type CommandDef struct {
-	Name        string
-	Description string
-	Kind        EventKind
-	Aliases     []string
+	Name             string
+	Description      string
+	Kind             EventKind
+	Aliases          []string
+	ActiveTurnPolicy CommandActiveTurnPolicy
 }
+
+// CommandActiveTurnPolicy documents how a command behaves while a gateway turn
+// is already active.
+type CommandActiveTurnPolicy string
+
+const (
+	CommandActiveTurnPolicyImmediate CommandActiveTurnPolicy = "immediate"
+	CommandActiveTurnPolicyReject    CommandActiveTurnPolicy = "reject"
+	CommandActiveTurnPolicyDrain     CommandActiveTurnPolicy = "drain"
+)
 
 // PlatformCommand is the platform-facing command/menu shape used for channel
 // exposure helpers such as Telegram bot menus.
@@ -25,20 +36,29 @@ type PlatformCommand struct {
 // CommandRegistry is the single source of truth for gateway slash commands.
 var CommandRegistry = []CommandDef{
 	{
-		Name:        "help",
-		Description: "Show available commands",
-		Kind:        EventStart,
-		Aliases:     []string{"start"},
+		Name:             "help",
+		Description:      "Show available commands",
+		Kind:             EventStart,
+		Aliases:          []string{"start"},
+		ActiveTurnPolicy: CommandActiveTurnPolicyImmediate,
 	},
 	{
-		Name:        "new",
-		Description: "Start a fresh session",
-		Kind:        EventReset,
+		Name:             "new",
+		Description:      "Start a fresh session",
+		Kind:             EventReset,
+		ActiveTurnPolicy: CommandActiveTurnPolicyReject,
 	},
 	{
-		Name:        "stop",
-		Description: "Cancel the active turn",
-		Kind:        EventCancel,
+		Name:             "stop",
+		Description:      "Cancel the active turn",
+		Kind:             EventCancel,
+		ActiveTurnPolicy: CommandActiveTurnPolicyImmediate,
+	},
+	{
+		Name:             "restart",
+		Description:      "Gracefully restart the gateway",
+		Kind:             EventRestart,
+		ActiveTurnPolicy: CommandActiveTurnPolicyDrain,
 	},
 }
 
