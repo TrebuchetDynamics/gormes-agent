@@ -174,8 +174,8 @@ a:focus-visible,
   pointer-events: none;
   z-index: 0;
   background-image:
-    linear-gradient(to right, rgba(238, 236, 229, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(238, 236, 229, 0.07) 1px, transparent 1px);
+    linear-gradient(to right, rgba(238, 236, 229, 0.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(238, 236, 229, 0.10) 1px, transparent 1px);
   background-size: 32px 32px;
   -webkit-mask-image: linear-gradient(to right, transparent 50%, black 100%);
           mask-image: linear-gradient(to right, transparent 50%, black 100%);
@@ -203,7 +203,7 @@ a:focus-visible,
      headline + subhead + hero-note + CTAs all fit in the first
      viewport at 360x800 (the v10 mobile regression). Cap stays
      at 60px on desktop where vertical space isn't constrained. */
-  font-size: clamp(30px, 7.5vw, 60px);
+  font-size: clamp(28px, 7vw, 56px);
   line-height: 0.98;
   margin: 0 0 24px;
   overflow-wrap: break-word;
@@ -222,7 +222,7 @@ a:focus-visible,
   display: inline-block;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 0.58em;
+  font-size: 0.5em;
   color: var(--accent);
   margin-right: 0.5em;
   letter-spacing: 0;
@@ -256,11 +256,12 @@ a:focus-visible,
 /* "Early-stage." stamp reads as positioning identity (mono caps,
    accent color); the caveat body underneath stays muted. Two-line
    stack so the stamp lands as a label, not a sentence opener.
-   Tight bottom margin (16px) groups the stamp with the CTA row
-   directly below — they read as one composed unit, not two
-   stacked sections. */
+   v12 moved the stamp BELOW the CTA row in the DOM, so the mobile
+   first-screen target (headline → subhead → CTAs) is a complete
+   unit. The stamp scrolls in below — never half-visible. Margin
+   moved from bottom to top accordingly. */
 .hero-note {
-  margin: 0 0 16px;
+  margin: 28px 0 0;
   max-width: 560px;
   border-left: 2px solid var(--accent);
   background: var(--bg-1);
@@ -283,8 +284,9 @@ a:focus-visible,
   color: var(--muted-strong);
 }
 .hero-ctas {
-  /* No top margin — the early-stage note above sits 16px from us.
-     Together they read as one grouped composition: stamp ↓ CTAs. */
+  /* CTAs sit directly below the subhead — primary fold close.
+     The early-stage stamp (.hero-note) follows below with its
+     own top margin so the buttons aren't visually attached to it. */
   margin: 0;
   display: flex;
   align-items: center;
@@ -829,19 +831,23 @@ a:focus-visible,
      the headline larger on mobile than the desktop cap, which
      was the root cause of the v10 fold regression). */
   .hero-inner {
-    padding: 48px var(--pad) 32px;
+    padding: 44px var(--pad) 32px;
   }
   .hero-title {
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
   .hero-subhead {
-    margin-bottom: 22px;
+    margin-bottom: 18px;
   }
   .hero-subhead p {
     font-size: 16px;
   }
   .hero-note {
-    margin-bottom: 12px;
+    /* v12 places .hero-note BELOW .hero-ctas in the DOM. Mobile
+       margin-top is enough to push it cleanly below the fold so
+       it never gets clipped — the user always sees either none of
+       the stamp or all of it on first paint. */
+    margin-top: 22px;
   }
   .hero-ctas .btn-primary {
     flex: 1 1 100%;
