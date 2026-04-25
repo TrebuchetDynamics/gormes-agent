@@ -73,8 +73,8 @@ type Links struct {
 
 type Item struct {
 	Name     string `json:"name"`
-	Status   Status `json:"status"`
 	Priority string `json:"priority,omitempty"`
+	Status   Status `json:"status"`
 	// Optional contract metadata turns roadmap rows into executable architecture
 	// requirements without forcing every historical item to be rewritten at once.
 	Contract       string         `json:"contract,omitempty"`
@@ -90,6 +90,7 @@ type Item struct {
 	ReadyWhen      []string       `json:"ready_when,omitempty"`
 	NotReadyWhen   []string       `json:"not_ready_when,omitempty"`
 	Acceptance     []string       `json:"acceptance,omitempty"`
+	Note           string         `json:"note,omitempty"`
 	WriteScope     []string       `json:"write_scope,omitempty"`
 	TestCommands   []string       `json:"test_commands,omitempty"`
 	DoneSignal     []string       `json:"done_signal,omitempty"`
@@ -97,7 +98,6 @@ type Item struct {
 	PR    string `json:"pr,omitempty"`
 	Owner string `json:"owner,omitempty"`
 	ETA   string `json:"eta,omitempty"`
-	Note  string `json:"note,omitempty"`
 	// Health is execution-history metadata owned by autoloop. The planner
 	// must preserve this block verbatim across regenerations (see
 	// docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md).
