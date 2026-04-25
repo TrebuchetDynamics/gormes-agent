@@ -319,9 +319,9 @@
             },
             {
               "name": "WhatsApp identity resolution + self-chat guard",
-              "status": "planned",
+              "status": "complete",
               "contract": "WhatsApp bot identity, self-chat suppression, and peer mapping stay deterministic across bridge and native runtimes",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -329,7 +329,7 @@
                 "operator"
               ],
               "degraded_mode": "Gateway status reports unresolved WhatsApp bot identity instead of accepting self-chat loops or ambiguous peer mappings.",
-              "fixture": "internal/channels/whatsapp identity fixtures",
+              "fixture": "internal/channels/whatsapp/testdata/identity_contract.json",
               "source_refs": [
                 "../hermes-agent/gateway/whatsapp_identity.py",
                 "../hermes-agent/gateway/platforms/whatsapp.py",
@@ -350,7 +350,7 @@
                 "Messages from the bot's own identity are ignored or surfaced as self-chat suppression, not routed back into the kernel.",
                 "Group and DM peers preserve raw platform IDs needed for outbound delivery."
               ],
-              "note": "Hermes now has `gateway/whatsapp_identity.py`; Gormes should freeze identity resolution as its own WhatsApp slice before pairing/reconnect/send broadens the adapter.",
+              "note": "TDD landed: internal/channels/whatsapp now exposes the runtime-owned bot identity source, fixture-tested bridge/native peer canonicalization, raw WhatsApp reply peers for outbound delivery, self-chat suppression decisions, and unresolved bot identity degraded status before pairing/reconnect/send wiring.",
               "write_scope": [
                 "internal/channels/whatsapp/",
                 "docs/content/building-gormes/architecture_plan/progress.json"

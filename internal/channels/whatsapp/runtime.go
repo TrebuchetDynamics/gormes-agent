@@ -71,6 +71,7 @@ type RuntimePlan struct {
 	Bridge  BridgePlan
 	Native  NativePlan
 	Account AccountPlan
+	Identity IdentityPlan
 }
 
 // StartupPlan freezes the selected runtime and the candidate order.
@@ -117,6 +118,21 @@ type AccountPlan struct {
 	DropsOwnMessages        bool
 }
 
+// IdentitySource identifies where the selected runtime reports the bot/self
+// peer identity used for self-message filtering.
+type IdentitySource string
+
+const (
+	IdentitySourceBridgeMessage IdentitySource = "bridge_message"
+	IdentitySourceNativeSession IdentitySource = "native_session"
+)
+
+// IdentityPlan freezes which runtime-specific identity source owns bot/self
+// peer resolution before transport send/reconnect code is wired.
+type IdentityPlan struct {
+	BotIdentitySource IdentitySource
+}
+
 // DecideRuntime selects the WhatsApp runtime and freezes its session/account
 // policy without checking the filesystem, spawning Node, or importing a native
 // WhatsApp client.
@@ -152,6 +168,9 @@ func DecideRuntime(cfg RuntimeConfig) (RuntimePlan, error) {
 			ContainsCredentials: true,
 		},
 		Account: account,
+		Identity: IdentityPlan{
+			BotIdentitySource: identitySourceForRuntime(selected),
+		},
 	}
 	if selected == RuntimeKindBridge {
 		plan.Bridge = decideBridge(cfg.Bridge, sessionPath, account.Mode)
@@ -160,6 +179,13 @@ func DecideRuntime(cfg RuntimeConfig) (RuntimePlan, error) {
 		plan.Native = NativePlan{StorePath: sessionPath}
 	}
 	return plan, nil
+}
+
+func identitySourceForRuntime(runtime RuntimeKind) IdentitySource {
+	if runtime == RuntimeKindNative {
+		return IdentitySourceNativeSession
+	}
+	return IdentitySourceBridgeMessage
 }
 
 func normalizeRuntimePreference(preference RuntimePreference) (RuntimePreference, error) {

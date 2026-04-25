@@ -8,8 +8,6 @@ import (
 
 const platformName = "whatsapp"
 
-var peerIDSuffixes = []string{"@s.whatsapp.net", "@c.us", "@g.us"}
-
 // ChatKind distinguishes direct chats from group chats without committing to a
 // particular transport implementation.
 type ChatKind string
@@ -30,6 +28,8 @@ type InboundMessage struct {
 	MessageID string
 	Text      string
 	Mentioned bool
+	FromMe    bool
+	BotIDs    []string
 }
 
 // NormalizeInbound maps a WhatsApp transport event onto the shared gateway
@@ -37,29 +37,74 @@ type InboundMessage struct {
 // gateway.ParseInboundText so the adapter never consumes generic commands
 // locally.
 func NormalizeInbound(msg InboundMessage) (gateway.InboundEvent, bool) {
-	userID := normalizePeerID(msg.UserID)
-	if userID == "" {
+	result := NormalizeInboundWithIdentity(msg, IdentityContext{})
+	if !result.Routed() {
 		return gateway.InboundEvent{}, false
+	}
+	return result.Event, true
+}
+
+// NormalizeInboundWithIdentity maps a WhatsApp transport event onto the shared
+// gateway contract while preserving the identity and raw reply peer metadata
+// future send code needs.
+func NormalizeInboundWithIdentity(msg InboundMessage, identity IdentityContext) InboundResult {
+	status := resolveBotIdentity(identity, msg)
+
+	rawUserID := strings.TrimSpace(msg.UserID)
+	userID := canonicalWhatsAppUserID(rawUserID, identity.AliasMappings)
+	if userID == "" {
+		return InboundResult{Decision: InboundDecisionDrop, Status: status}
 	}
 
 	text := strings.TrimSpace(msg.Text)
 	if text == "" {
-		return gateway.InboundEvent{}, false
+		return InboundResult{Decision: InboundDecisionDrop, Status: status}
 	}
 	if msg.Mentioned {
 		text = stripLeadingMentions(text)
 		if text == "" {
-			return gateway.InboundEvent{}, false
+			return InboundResult{Decision: InboundDecisionDrop, Status: status}
 		}
 	}
 
-	chatID := normalizePeerID(msg.ChatID)
+	rawChatID := strings.TrimSpace(msg.ChatID)
+	if rawChatID == "" {
+		rawChatID = rawUserID
+	}
+	chatKind := normalizedChatKind(msg.ChatKind, rawChatID)
+	chatID := canonicalWhatsAppChatID(rawChatID, chatKind, identity.AliasMappings)
 	if chatID == "" {
 		chatID = userID
 	}
 
+	result := InboundResult{
+		Identity: SessionIdentity{
+			ChatKind:          chatKind,
+			ChatID:            chatID,
+			UserID:            userID,
+			RawChatID:         rawChatID,
+			RawUserID:         rawUserID,
+			BotID:             status.BotID,
+			RawBotID:          status.RawBotID,
+			BotIdentitySource: status.Source,
+		},
+		Reply: ReplyTarget{
+			ChatID:   rawChatID,
+			ChatKind: chatKind,
+		},
+		Status: status,
+	}
+	if suppression, ok := selfChatSuppression(msg, text, identity, result.Identity, status); ok {
+		result.Decision = InboundDecisionSuppressSelfChat
+		if suppression.Reason == SelfChatSuppressionBotIdentityUnresolved {
+			result.Decision = InboundDecisionUnresolvedIdentity
+		}
+		result.Suppression = suppression
+		return result
+	}
+
 	kind, body := gateway.ParseInboundText(text)
-	return gateway.InboundEvent{
+	result.Event = gateway.InboundEvent{
 		Platform: platformName,
 		ChatID:   chatID,
 		ChatName: strings.TrimSpace(msg.ChatName),
@@ -68,21 +113,41 @@ func NormalizeInbound(msg InboundMessage) (gateway.InboundEvent, bool) {
 		MsgID:    strings.TrimSpace(msg.MessageID),
 		Kind:     kind,
 		Text:     body,
-	}, true
+	}
+	result.Decision = InboundDecisionRoute
+	return result
 }
 
-func normalizePeerID(id string) string {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return ""
+func selfChatSuppression(msg InboundMessage, text string, ctx IdentityContext, identity SessionIdentity, status IdentityStatus) (SelfChatSuppression, bool) {
+	if !msg.FromMe && (status.BotID == "" || identity.UserID != status.BotID) {
+		return SelfChatSuppression{}, false
 	}
-	lower := strings.ToLower(id)
-	for _, suffix := range peerIDSuffixes {
-		if strings.HasSuffix(lower, suffix) {
-			return id[:len(id)-len(suffix)]
+
+	suppression := SelfChatSuppression{
+		ChatID:    identity.ChatID,
+		UserID:    identity.UserID,
+		MessageID: strings.TrimSpace(msg.MessageID),
+	}
+	if msg.FromMe && !status.Resolved {
+		suppression.Reason = SelfChatSuppressionBotIdentityUnresolved
+		return suppression, true
+	}
+
+	switch normalizedAccountMode(ctx.AccountMode) {
+	case AccountModeBot:
+		if msg.FromMe || (status.BotID != "" && identity.UserID == status.BotID) {
+			suppression.Reason = SelfChatSuppressionBotOwnMessage
+			return suppression, true
+		}
+	case AccountModeSelfChat:
+		recent := recentMessageIDSet(ctx.RecentSentMessageIDs)
+		replyPrefix := ctx.ReplyPrefix
+		if msg.FromMe && ((replyPrefix != "" && strings.HasPrefix(text, replyPrefix)) || recent[suppression.MessageID]) {
+			suppression.Reason = SelfChatSuppressionAgentEcho
+			return suppression, true
 		}
 	}
-	return id
+	return SelfChatSuppression{}, false
 }
 
 func stripLeadingMentions(text string) string {
