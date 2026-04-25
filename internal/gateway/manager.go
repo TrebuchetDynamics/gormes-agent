@@ -19,6 +19,35 @@ const shutdownNotice = "Gateway is shutting down — send /stop to cancel the ac
 const followUpQueueFullNotice = "Busy — follow-up queue is full; try again after the current turn."
 const followUpQueueCap = kernel.PlatformEventMailboxCap
 
+type DrainTimeoutReason string
+
+const (
+	DrainReasonRestartTimeout  DrainTimeoutReason = session.ResumeReasonRestartTimeout
+	DrainReasonShutdownTimeout DrainTimeoutReason = session.ResumeReasonShutdownTimeout
+)
+
+type sessionMetadataReader interface {
+	GetMetadata(context.Context, string) (session.Metadata, bool, error)
+}
+
+type sessionMetadataWriter interface {
+	PutMetadata(context.Context, session.Metadata) error
+}
+
+type sessionResumeClearer interface {
+	ClearResumePending(context.Context, string) (bool, error)
+}
+
+type activeTurnSnapshot struct {
+	Platform   string
+	ChatID     string
+	MsgID      string
+	SessionKey string
+	SessionID  string
+	Source     SessionSource
+	Cancelled  bool
+}
+
 // ManagerConfig drives the shared gateway manager.
 type ManagerConfig struct {
 	AllowedChats   map[string]string
@@ -27,6 +56,7 @@ type ManagerConfig struct {
 	SessionMap     session.Map
 	Hooks          *Hooks
 	RuntimeStatus  RuntimeStatusWriter
+	Now            func() time.Time
 }
 
 type kernelSubmitter interface {
@@ -44,12 +74,16 @@ type Manager struct {
 	mu       sync.Mutex
 	channels map[string]Channel
 
-	turnMu       sync.Mutex
-	turnPlatform string
-	turnChatID   string
-	turnMsgID    string
-	shuttingDown bool
-	followUps    []InboundEvent
+	turnMu         sync.Mutex
+	turnPlatform   string
+	turnChatID     string
+	turnMsgID      string
+	turnSessionKey string
+	turnSessionID  string
+	turnSource     SessionSource
+	turnCancelled  bool
+	shuttingDown   bool
+	followUps      []InboundEvent
 
 	renderChan <-chan kernel.RenderFrame
 }
@@ -145,6 +179,13 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 }
 
+func (m *Manager) now() time.Time {
+	if m.cfg.Now != nil {
+		return m.cfg.Now().UTC()
+	}
+	return time.Now().UTC()
+}
+
 // Register adds a channel to the manager. It must be called before Run.
 func (m *Manager) Register(ch Channel) error {
 	name := ch.Name()
@@ -171,6 +212,13 @@ func (m *Manager) ChannelCount() int {
 // Shutdown prevents new work from starting and waits for the currently active
 // turn, if any, to drain before returning or timing out.
 func (m *Manager) Shutdown(ctx context.Context) error {
+	return m.ShutdownWithDrainReason(ctx, DrainReasonShutdownTimeout)
+}
+
+func (m *Manager) ShutdownWithDrainReason(ctx context.Context, reason DrainTimeoutReason) error {
+	if reason == "" {
+		reason = DrainReasonShutdownTimeout
+	}
 	m.turnMu.Lock()
 	m.shuttingDown = true
 	m.turnMu.Unlock()
@@ -190,6 +238,9 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 		}
 		select {
 		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				m.markDrainTimeoutResumePending(context.Background(), reason)
+			}
 			return ctx.Err()
 		case <-ticker.C:
 		}
@@ -386,6 +437,7 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
 		}
 	case EventCancel:
+		m.markTurnCancelled()
 		if m.kernel != nil {
 			_ = m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 		}
@@ -584,6 +636,10 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnPlatform = platform
 	m.turnChatID = chatID
 	m.turnMsgID = msgID
+	m.turnSessionKey = ""
+	m.turnSessionID = ""
+	m.turnSource = SessionSource{}
+	m.turnCancelled = false
 }
 
 func (m *Manager) clearTurn() {
@@ -592,6 +648,10 @@ func (m *Manager) clearTurn() {
 	m.turnPlatform = ""
 	m.turnChatID = ""
 	m.turnMsgID = ""
+	m.turnSessionKey = ""
+	m.turnSessionID = ""
+	m.turnSource = SessionSource{}
+	m.turnCancelled = false
 }
 
 func (m *Manager) hasActiveTurn() bool {
@@ -613,6 +673,37 @@ func (m *Manager) activeAgentCount() int {
 		return 0
 	}
 	return 1
+}
+
+func (m *Manager) setPinnedTurnSession(sessionKey, sessionID string, source SessionSource) {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	m.turnSessionKey = sessionKey
+	m.turnSessionID = sessionID
+	m.turnSource = source
+}
+
+func (m *Manager) markTurnCancelled() {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	m.turnCancelled = true
+}
+
+func (m *Manager) activeTurnSnapshot() (activeTurnSnapshot, bool) {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	if m.turnPlatform == "" || m.turnChatID == "" {
+		return activeTurnSnapshot{}, false
+	}
+	return activeTurnSnapshot{
+		Platform:   m.turnPlatform,
+		ChatID:     m.turnChatID,
+		MsgID:      m.turnMsgID,
+		SessionKey: m.turnSessionKey,
+		SessionID:  m.turnSessionID,
+		Source:     m.turnSource,
+		Cancelled:  m.turnCancelled,
+	}, true
 }
 
 func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
@@ -704,7 +795,161 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 	m.turnPlatform = next.Platform
 	m.turnChatID = next.ChatID
 	m.turnMsgID = next.MsgID
+	m.turnSessionKey = ""
+	m.turnSessionID = ""
+	m.turnSource = SessionSource{}
+	m.turnCancelled = false
 	return next, true
+}
+
+func (m *Manager) markDrainTimeoutResumePending(ctx context.Context, reason DrainTimeoutReason) {
+	state, ok := m.activeTurnSnapshot()
+	if !ok {
+		return
+	}
+	now := m.now()
+	if state.Source.Platform == "" {
+		state.Source.Platform = state.Platform
+	}
+	if state.Source.ChatID == "" {
+		state.Source.ChatID = state.ChatID
+	}
+	if state.SessionKey == "" {
+		state.SessionKey = state.Platform + ":" + state.ChatID
+	}
+	if state.SessionID == "" {
+		resolved, err := resolveSession(ctx, m.cfg.SessionMap, state.SessionKey)
+		if err != nil {
+			m.log.Warn("resolve active session for drain timeout", "key", state.SessionKey, "err", err)
+		}
+		state.SessionID = resolved.SessionID
+	}
+	if state.SessionID == "" {
+		return
+	}
+
+	timeoutEvidence := RuntimeDrainTimeoutEvidence{
+		SessionKey:   state.SessionKey,
+		SessionID:    state.SessionID,
+		Source:       state.Source.Platform,
+		ChatID:       state.Source.ChatID,
+		UserID:       state.Source.UserID,
+		Reason:       string(reason),
+		TimeoutAt:    now.Format(time.RFC3339Nano),
+		ActiveAgents: m.activeAgentCount(),
+	}
+	m.writeRuntimeStatus(ctx, RuntimeStatusUpdate{DrainTimeoutEvidence: &timeoutEvidence})
+
+	if state.Cancelled {
+		m.markNonResumable(ctx, state, session.NonResumableCancelled, now)
+		return
+	}
+	if meta, ok := m.getSessionMetadata(ctx, state.SessionID); ok && meta.NonResumableReason != "" {
+		m.writeNonResumableEvidence(ctx, RuntimeNonResumableEvidence{
+			SessionKey: state.SessionKey,
+			SessionID:  state.SessionID,
+			Source:     state.Source.Platform,
+			ChatID:     state.Source.ChatID,
+			UserID:     state.Source.UserID,
+			Reason:     meta.NonResumableReason,
+			At:         now.Format(time.RFC3339Nano),
+		})
+		return
+	}
+
+	writer, ok := m.cfg.SessionMap.(sessionMetadataWriter)
+	if !ok {
+		return
+	}
+	meta := session.Metadata{
+		SessionID:      state.SessionID,
+		Source:         state.Source.Platform,
+		ChatID:         state.Source.ChatID,
+		UserID:         state.Source.UserID,
+		ResumePending:  true,
+		ResumeReason:   string(reason),
+		ResumeMarkedAt: now.Unix(),
+		UpdatedAt:      now.Unix(),
+	}
+	if err := writer.PutMetadata(ctx, meta); err != nil {
+		m.log.Warn("mark resume pending", "session_id", state.SessionID, "err", err)
+		return
+	}
+	evidence := RuntimeResumePendingEvidence{
+		SessionKey: state.SessionKey,
+		SessionID:  state.SessionID,
+		Source:     state.Source.Platform,
+		ChatID:     state.Source.ChatID,
+		UserID:     state.Source.UserID,
+		Reason:     string(reason),
+		MarkedAt:   now.Format(time.RFC3339Nano),
+	}
+	m.writeRuntimeStatus(ctx, RuntimeStatusUpdate{ResumePendingEvidence: &evidence})
+}
+
+func (m *Manager) markNonResumable(ctx context.Context, state activeTurnSnapshot, reason string, at time.Time) {
+	if writer, ok := m.cfg.SessionMap.(sessionMetadataWriter); ok && state.SessionID != "" {
+		if err := writer.PutMetadata(ctx, session.Metadata{
+			SessionID:          state.SessionID,
+			Source:             state.Source.Platform,
+			ChatID:             state.Source.ChatID,
+			UserID:             state.Source.UserID,
+			NonResumableReason: reason,
+			NonResumableAt:     at.Unix(),
+			UpdatedAt:          at.Unix(),
+		}); err != nil {
+			m.log.Warn("mark non-resumable session", "session_id", state.SessionID, "err", err)
+		}
+	}
+	m.writeNonResumableEvidence(ctx, RuntimeNonResumableEvidence{
+		SessionKey: state.SessionKey,
+		SessionID:  state.SessionID,
+		Source:     state.Source.Platform,
+		ChatID:     state.Source.ChatID,
+		UserID:     state.Source.UserID,
+		Reason:     reason,
+		At:         at.Format(time.RFC3339Nano),
+	})
+}
+
+func (m *Manager) getSessionMetadata(ctx context.Context, sessionID string) (session.Metadata, bool) {
+	reader, ok := m.cfg.SessionMap.(sessionMetadataReader)
+	if !ok || sessionID == "" {
+		return session.Metadata{}, false
+	}
+	meta, ok, err := reader.GetMetadata(ctx, sessionID)
+	if err != nil {
+		m.log.Warn("read session metadata", "session_id", sessionID, "err", err)
+		return session.Metadata{}, false
+	}
+	return meta, ok
+}
+
+func (m *Manager) clearResumePending(ctx context.Context, sessionID string) {
+	clearer, ok := m.cfg.SessionMap.(sessionResumeClearer)
+	if !ok || sessionID == "" {
+		return
+	}
+	if _, err := clearer.ClearResumePending(ctx, sessionID); err != nil {
+		m.log.Warn("clear resume pending", "session_id", sessionID, "err", err)
+	}
+}
+
+func (m *Manager) writeNonResumableEvidence(ctx context.Context, evidence RuntimeNonResumableEvidence) {
+	m.writeRuntimeStatus(ctx, RuntimeStatusUpdate{NonResumableEvidence: &evidence})
+}
+
+func resumePendingNote(reason string) string {
+	reasonPhrase := "a gateway interruption"
+	switch reason {
+	case session.ResumeReasonRestartTimeout:
+		reasonPhrase = "a gateway restart"
+	case session.ResumeReasonShutdownTimeout:
+		reasonPhrase = "a gateway shutdown"
+	}
+	return "[System note: Your previous turn in this session was interrupted by " +
+		reasonPhrase +
+		". The conversation history below is intact. If it contains unfinished tool result(s), process them first and summarize what was accomplished, then address the user's new message below.]"
 }
 
 func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent) bool {
@@ -712,24 +957,63 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	if err != nil {
 		m.log.Warn("load session mapping", "key", ev.ChatKey(), "err", err)
 	}
+	source := sessionSourceFromInbound(ev)
+	submitText := ev.SubmitText()
+	var clearPendingSessionID string
+	var clearBlockedMapping bool
+	if meta, ok := m.getSessionMetadata(ctx, resolved.SessionID); ok {
+		if meta.NonResumableReason != "" {
+			resolved.NonResumableSessionID = resolved.SessionID
+			resolved.NonResumableReason = meta.NonResumableReason
+			resolved.SessionID = ev.ChatKey()
+			clearBlockedMapping = true
+			m.writeNonResumableEvidence(ctx, RuntimeNonResumableEvidence{
+				SessionKey: ev.ChatKey(),
+				SessionID:  resolved.NonResumableSessionID,
+				Source:     source.Platform,
+				ChatID:     source.ChatID,
+				UserID:     source.UserID,
+				Reason:     meta.NonResumableReason,
+				At:         m.now().Format(time.RFC3339Nano),
+			})
+		} else if meta.ResumePending {
+			reason := meta.ResumeReason
+			if reason == "" {
+				reason = session.ResumeReasonRestartTimeout
+			}
+			submitText = resumePendingNote(reason) + "\n\n" + submitText
+			clearPendingSessionID = resolved.SessionID
+		}
+	}
+	m.setPinnedTurnSession(ev.ChatKey(), resolved.SessionID, source)
 	sessionContext := BuildSessionContextPrompt(SessionContext{
-		Source:             sessionSourceFromInbound(ev),
-		SessionKey:         ev.ChatKey(),
-		SessionID:          resolved.SessionID,
-		RequestedSessionID: resolved.RequestedSessionID,
-		ResumePath:         resolved.ResumePath,
-		ResumeStatus:       resolved.ResumeStatus,
-		ConnectedPlatforms: m.connectedPlatforms(),
+		Source:                source,
+		SessionKey:            ev.ChatKey(),
+		SessionID:             resolved.SessionID,
+		RequestedSessionID:    resolved.RequestedSessionID,
+		ResumePath:            resolved.ResumePath,
+		ResumeStatus:          resolved.ResumeStatus,
+		NonResumableSessionID: resolved.NonResumableSessionID,
+		NonResumableReason:    resolved.NonResumableReason,
+		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
-		Text:           ev.SubmitText(),
+		Text:           submitText,
 		SessionID:      resolved.SessionID,
 		SessionContext: sessionContext,
 	}); err != nil {
 		m.clearTurn()
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Busy — try again in a second.")
 		return false
+	}
+	if clearPendingSessionID != "" {
+		m.clearResumePending(ctx, clearPendingSessionID)
+	}
+	if clearBlockedMapping && m.cfg.SessionMap != nil {
+		if err := m.cfg.SessionMap.Put(ctx, ev.ChatKey(), ""); err != nil {
+			m.log.Warn("clear non-resumable session mapping", "key", ev.ChatKey(), "err", err)
+		}
 	}
 	return true
 }

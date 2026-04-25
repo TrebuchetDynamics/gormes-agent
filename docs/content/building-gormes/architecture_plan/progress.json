@@ -1500,9 +1500,9 @@
             {
               "name": "Drain-timeout resume_pending recovery",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway restart/shutdown drain timeouts preserve resumable session identity and inject a reason-aware resume note on the next turn without overriding hard-stuck or suspended state",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1535,7 +1535,7 @@
                 "Hard suspended, cancelled, or stuck-loop state takes precedence over resume_pending and emits explicit non-resumable evidence.",
                 "Late-arrival queued follow-ups keep FIFO ordering and do not create a second resume note."
               ],
-              "note": "TDD: add the smallest gateway/session read-model fixture for drain-timeout resume_pending. Keep restart service control, PID validation, token locks, and status command output out of this slice.",
+              "note": "TDD landed: drain-timeout resume_pending fixtures preserve the running session identity with source/reason/timestamp evidence, inject exactly one restart/shutdown-aware resume note on the next accepted turn, clear the marker after handoff, preserve queued follow-up FIFO order, and let suspended/cancelled/stuck-loop non-resumable evidence override resume recovery without touching restart service control, PID validation, token locks, or status CLI rendering.",
               "write_scope": [
                 "internal/gateway/",
                 "internal/session/",
