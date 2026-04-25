@@ -32,6 +32,12 @@ type LedgerEvent struct {
 	// pre-L3 single-attempt code paths kept for backward compatibility).
 	Attempts []retryAttempt `json:"attempts,omitempty"`
 	Keywords []string       `json:"keywords,omitempty"` // L6 topical focus
+	// DriftPromotions records subphase DriftState forward transitions (Phase D
+	// Task 5). Only forward edges are recorded — porting→converged,
+	// porting→owned, converged→owned. Backward transitions are logged but not
+	// emitted here (humans demote via direct edit; planner runtime never
+	// demotes). Empty when no subphase DriftState changed in the run.
+	DriftPromotions []DriftPromotion `json:"drift_promotions,omitempty"`
 }
 
 // RowChange records one mutation to a progress.json row in a planner run.
@@ -41,6 +47,19 @@ type RowChange struct {
 	ItemName   string `json:"item_name"`
 	Kind       string `json:"kind"` // "added" | "deleted" | "spec_changed" | "verdict_set"
 	Detail     string `json:"detail,omitempty"`
+}
+
+// DriftPromotion records one forward transition of a subphase's DriftState
+// status in a planner run. Forward edges only: porting→converged,
+// porting→owned, converged→owned. Used by the L5 status surface to show
+// "Recent drift promotions" and by ledger forensics for the convergence
+// lifecycle audit. From and To are the DriftState.Status values; SubphaseID
+// is "phaseID.subphaseID" (e.g. "2.B").
+type DriftPromotion struct {
+	SubphaseID string `json:"subphase_id"`
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Reason     string `json:"reason,omitempty"`
 }
 
 // ProgressStats is a snapshot of progress.json composition at a point in time.

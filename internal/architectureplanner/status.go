@@ -61,6 +61,8 @@ func RenderStatus(opts RenderStatusOptions) (string, error) {
 	state, _ := loadStateFile(opts.StatePath)
 	outcomes, _ := Evaluate(opts.PlannerLedgerPath, opts.AutoloopLedgerPath, window, now)
 	needsHuman, _ := loadNeedsHumanRows(opts.ProgressJSONPath)
+	prog, _ := loadProgressForStatus(opts.ProgressJSONPath)
+	plannerEvents, _ := LoadLedgerWindow(opts.PlannerLedgerPath, window, now)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "Last run UTC: %s\n", stateFieldOrUnknown(state, "last_run_utc"))
@@ -97,7 +99,88 @@ func RenderStatus(opts RenderStatusOptions) (string, error) {
 		fmt.Fprintf(&b, "                 → suggested action: %s\n", SuggestedActionForCategory(category))
 	}
 
+	// Phase D Task 5: drift state buckets + recent promotions. Both sections
+	// soft-fail to empty when their inputs are missing (no progress.json,
+	// empty ledger) so the status surface stays useful on a fresh checkout.
+	b.WriteString(renderDriftStateBuckets(prog))
+	b.WriteString(renderRecentDriftPromotions(plannerEvents, windowDays))
+
 	return b.String(), nil
+}
+
+// renderDriftStateBuckets walks the loaded progress doc and partitions
+// every subphase into one of three buckets by DriftState.Status. Subphases
+// without a DriftState block default to the "porting" bucket (matches the
+// L3 PROVENANCE / DRIFT STATE prompt clause's default semantics). Returns
+// the empty string when prog is nil so the section disappears entirely on
+// a fresh checkout where progress.json has not been seeded yet.
+//
+// Subphase IDs are emitted as "phaseID.subphaseID" to keep them unambiguous
+// across phases (e.g. "2.B" vs "5.B").
+func renderDriftStateBuckets(prog *progress.Progress) string {
+	if prog == nil {
+		return ""
+	}
+	var porting, converged, owned []string
+	for phaseID, phase := range prog.Phases {
+		for subID, sub := range phase.Subphases {
+			id := phaseID + "." + subID
+			switch driftStatusOrPorting(sub) {
+			case "converged":
+				converged = append(converged, id)
+			case "owned":
+				owned = append(owned, id)
+			default:
+				porting = append(porting, id)
+			}
+		}
+	}
+	sort.Strings(porting)
+	sort.Strings(converged)
+	sort.Strings(owned)
+
+	var b strings.Builder
+	b.WriteString("\nDrift state by subphase:\n")
+	fmt.Fprintf(&b, "  PORTING (%d): %s\n", len(porting), strings.Join(porting, ", "))
+	fmt.Fprintf(&b, "  CONVERGED (%d): %s\n", len(converged), strings.Join(converged, ", "))
+	fmt.Fprintf(&b, "  OWNED (%d): %s\n", len(owned), strings.Join(owned, ", "))
+	return b.String()
+}
+
+// renderRecentDriftPromotions extracts every DriftPromotion across the
+// supplied ledger window and renders one line per promotion. Returns the
+// empty string (no header) when there are no promotions, so the section
+// disappears entirely on quiet weeks. Window days is plumbed in for the
+// header text only — the caller is responsible for windowing the events.
+func renderRecentDriftPromotions(events []LedgerEvent, windowDays int) string {
+	var lines []string
+	for _, ev := range events {
+		for _, p := range ev.DriftPromotions {
+			lines = append(lines, fmt.Sprintf("  - %s: %s → %s (%s, run %s)",
+				p.SubphaseID, p.From, p.To, ev.TS, ev.RunID))
+		}
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\nRecent drift promotions (last %dd):\n%s\n", windowDays, strings.Join(lines, "\n"))
+}
+
+// loadProgressForStatus is a thin wrapper around progress.Load that returns
+// (nil, nil) for missing files so the drift bucket section soft-fails to
+// empty on a fresh checkout, matching every other section in this file.
+func loadProgressForStatus(path string) (*progress.Progress, error) {
+	if path == "" {
+		return nil, nil
+	}
+	prog, err := progress.Load(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return prog, nil
 }
 
 // SuggestedActionForCategory maps an autoloop FailureCategory string to the
