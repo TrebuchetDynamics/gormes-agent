@@ -1,5 +1,7 @@
 package plugins
 
+import "encoding/json"
+
 // Source identifies where a plugin manifest was discovered.
 type Source string
 
@@ -101,6 +103,27 @@ type CapabilityStatus struct {
 	Evidence []Evidence     `json:"evidence,omitempty"`
 }
 
+// ToolResultEnvelope captures the JSON-string result contract declared by a
+// plugin tool package without invoking the handler.
+type ToolResultEnvelope struct {
+	Encoding      string   `json:"encoding"`
+	SuccessFields []string `json:"success_fields,omitempty"`
+	ErrorFields   []string `json:"error_fields,omitempty"`
+}
+
+// ToolMetadata is the inert descriptor extracted from a plugin tool package.
+// Handler and Check name Python symbols only; they are not imported or called.
+type ToolMetadata struct {
+	Name           string             `json:"name"`
+	Toolset        string             `json:"toolset,omitempty"`
+	Description    string             `json:"description,omitempty"`
+	Schema         json.RawMessage    `json:"schema,omitempty"`
+	Handler        string             `json:"handler,omitempty"`
+	Check          string             `json:"check,omitempty"`
+	SourceFile     string             `json:"source_file,omitempty"`
+	ResultEnvelope ToolResultEnvelope `json:"result_envelope,omitempty"`
+}
+
 // PluginStatus is a metadata-only plugin status row. RuntimeCodeExecuted is
 // intentionally part of the contract so tests can prove this slice stays inert.
 type PluginStatus struct {
@@ -113,6 +136,7 @@ type PluginStatus struct {
 	Manifest            Manifest           `json:"manifest,omitempty"`
 	Dashboard           *DashboardManifest `json:"dashboard,omitempty"`
 	Capabilities        []CapabilityStatus `json:"capabilities,omitempty"`
+	Tools               []ToolMetadata     `json:"tools,omitempty"`
 	Evidence            []Evidence         `json:"evidence,omitempty"`
 	RuntimeCodeExecuted bool               `json:"runtime_code_executed"`
 }

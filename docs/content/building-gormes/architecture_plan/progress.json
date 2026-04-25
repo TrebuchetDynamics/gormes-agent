@@ -4101,9 +4101,9 @@
             },
             {
               "name": "First-party Spotify plugin fixture",
-              "status": "planned",
+              "status": "complete",
               "contract": "First-party plugin manifests and tool packages load through the plugin SDK without reverting to built-in tool registration",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -4133,7 +4133,7 @@
                 "Missing credentials keep Spotify disabled with visible status.",
                 "Tool schemas and result envelopes match the upstream plugin fixture without live Spotify calls."
               ],
-              "note": "Upstream moved Spotify from `tools/spotify_tool.py` into `plugins/spotify/`. Track it as the first first-party plugin fixture so Gormes validates the plugin boundary with a real donor before third-party extension execution.",
+              "note": "Complete: TDD added the first-party Spotify plugin fixture in internal/plugins/spotify_plugin_test.go. The Plugin SDK now extracts inert Python package tool metadata from __init__.py/tools.py, infers the providers.spotify auth requirement from the availability check, records seven disabled Spotify tool capabilities with visible missing-auth/runtime evidence, and preserves upstream-style schema/result-envelope metadata without importing handlers or registering built-in Go tools.",
               "write_scope": [
                 "internal/tools/",
                 "internal/plugins/",
