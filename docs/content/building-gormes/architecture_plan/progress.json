@@ -2410,7 +2410,12 @@
               ],
               "done_signal": [
                 "Bedrock request-body golden fixtures prove Converse mapping without AWS credentials or SDK clients."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Bedrock stream event decoding (SSE fixtures)",
@@ -2752,7 +2757,12 @@
               ],
               "done_signal": [
                 "Context status fixtures expose budget, compression state, and unknown-tool errors without live provider calls."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Compression token-budget trigger + summary sizing",
@@ -2864,7 +2874,12 @@
               ],
               "done_signal": [
                 "Context resolver fixtures prove provider caps, models.dev fallback, and unknown-model reporting are deterministic without network calls."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Model pricing/capability registry fixtures",
@@ -3113,7 +3128,12 @@
               ],
               "done_signal": [
                 "Retry, cache, rate, budget, and provider-hint behavior is fixture-covered and visible in provider/kernel status."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Classified provider-error taxonomy",
@@ -3259,7 +3279,12 @@
               ],
               "done_signal": [
                 "Tool descriptor parity fixtures capture names, schemas, trust classes, dependencies, and degraded status before handler ports."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Pure core tools first",
@@ -3428,7 +3453,12 @@
               ],
               "done_signal": [
                 "Skill preprocessing and slash-command fixtures prove disabled/incompatible skills do not enter prompt or command surfaces."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             }
           ]
         },
@@ -3691,7 +3721,12 @@
               ],
               "done_signal": [
                 "PTY bridge fixtures prove read/write/resize/close/unavailable behavior without network or live dashboard dependencies."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "CLI command registry parity + active-turn busy policy",
@@ -3849,7 +3884,12 @@
               ],
               "done_signal": [
                 "Chat-completions HTTP fixtures prove auth, body limits, content normalization, streaming envelopes, and session continuity over native Gormes state."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Responses API store + run event stream",
