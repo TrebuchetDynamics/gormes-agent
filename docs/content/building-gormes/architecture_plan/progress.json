@@ -1474,7 +1474,7 @@
             },
             {
               "name": "Gateway resume follows compression continuation",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway and CLI resume resolve a titled or root session to the newest live compression descendant before loading transcript history",
               "contract_status": "draft",
               "slice_size": "small",
@@ -1509,7 +1509,7 @@
                 "Already-current session checks compare against the resolved descendant, not the stale root.",
                 "Transcript loading and session switching use the resolved descendant while operator output still names the requested session."
               ],
-              "note": "Upstream Hermes now calls resolve_resume_session_id after resolving a gateway /resume title so compressed roots reopen their live continuation. Gormes should keep this as a gateway/session read-model slice after parent_session_id exists, not as part of compression implementation.",
+              "note": "Complete: TDD added internal/gateway/resume_continuation_test.go proving stored resume roots follow compression lineage to the newest live descendant before gateway submit, fork children are ignored, unresolved continuation chains fall back to the requested root with visible resume status, and the session context still names the requested stale root while using the resolved descendant as the live SessionID.",
               "write_scope": [
                 "internal/gateway/",
                 "internal/session/",

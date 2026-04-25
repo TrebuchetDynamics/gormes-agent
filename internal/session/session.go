@@ -31,6 +31,12 @@ type Map interface {
 	Close() error
 }
 
+// LineageResolver is implemented by session maps that can resolve a stored
+// resume target to its newest live lineage descendant.
+type LineageResolver interface {
+	ResolveLineageTip(ctx context.Context, sessionID string) (LineageResolution, error)
+}
+
 // ErrDBLocked is returned by OpenBolt when another process holds the bbolt
 // file lock. Caller should exit 1 with a clear message — retrying is
 // pointless because dual-instance is a config bug.
