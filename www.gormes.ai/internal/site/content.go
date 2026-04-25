@@ -74,7 +74,11 @@ type LandingPage struct {
 	HeroKicker          string
 	HeroHeadline        string
 	HeroLines           []string
-	HeroFilterLine      string
+	// HeroFilterStamp + HeroFilterLine: the stamp ("Early-stage.") reads
+	// as identity in accent-colored mono caps; the body line below
+	// carries the filter caveat in muted body color.
+	HeroFilterStamp string
+	HeroFilterLine  string
 	PrimaryCTA          Link
 	SecondaryCTA        Link
 	InstallSteps        []InstallStep
@@ -128,7 +132,8 @@ func DefaultPage() LandingPage {
 			"Built to solve the operations problem — not the AI problem.",
 			"One static binary. No virtualenvs. No dependency hell.",
 		},
-		HeroFilterLine: "Early-stage, reliability-first runtime. Built for developers who care about reliability over polish.",
+		HeroFilterStamp: "Early-stage.",
+		HeroFilterLine:  "Reliability-first runtime for developers who ship agents, not demos.",
 		PrimaryCTA:     Link{Label: "Install", Href: "#install"},
 		SecondaryCTA:   Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		InstallSteps: []InstallStep{

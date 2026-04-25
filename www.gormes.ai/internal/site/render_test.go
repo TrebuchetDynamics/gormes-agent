@@ -22,9 +22,14 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Gormes is a Go-native runtime for AI agents.",
 		"Built to solve the operations problem",
 		"One static binary. No virtualenvs. No dependency hell.",
-		"Early-stage, reliability-first runtime.",
-		"Built for developers who care about reliability over polish.",
+		// v6 hero filter splits the stamp from the body — "Early-stage."
+		// reads as positioning identity in mono caps, the body line
+		// below carries the caveat in muted body color.
 		`class="hero-note"`,
+		`class="hero-note-stamp"`,
+		`class="hero-note-body"`,
+		"Early-stage.",
+		"Reliability-first runtime for developers who ship agents, not demos.",
 		// Trimmed primary nav.
 		`<a href="#install">Install</a>`,
 		`<a href="#roadmap">Roadmap</a>`,
@@ -83,6 +88,10 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		// Footer — brand text + company anchor + license
 		`Gormes v0.1.0 · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
 		`<nav class="footer-nav" aria-label="Secondary">`,
+		// v6: · separator now lives in the actual HTML (not just CSS
+		// pseudo-elements) so screen readers / text-extraction views
+		// see it. aria-hidden so SR users don't read "middle dot".
+		`<span class="footer-nav-sep" aria-hidden="true">·</span>`,
 		`<a href="https://docs.gormes.ai/">Docs</a>`,
 		`<a href="https://trebuchetdynamics.com/">Company</a>`,
 		"MIT License · 2026",

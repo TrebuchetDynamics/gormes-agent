@@ -146,8 +146,12 @@ a:focus-visible,
 .hero {
   border-bottom: 1px solid var(--border);
 }
+/* Spacing rhythm: hero is the largest beat (96px top, 72px bottom);
+   subsequent sections breathe at 64px; footer at 32. Inside-block
+   gaps stay tight (12-24px). The variation gives the page pacing
+   instead of one uniform medium beat. */
 .hero-inner {
-  padding: 76px var(--pad) 58px;
+  padding: 96px var(--pad) 72px;
 }
 .hero-content {
   max-width: 680px;
@@ -174,15 +178,31 @@ a:focus-visible,
   line-height: 1.48;
   overflow-wrap: break-word;
 }
+/* "Early-stage." stamp reads as positioning identity (mono caps,
+   accent color); the caveat body underneath stays muted. Two-line
+   stack so the stamp lands as a label, not a sentence opener. */
 .hero-note {
-  font-size: 13px;
-  color: var(--muted-strong);
-  margin: 22px 0 30px;
-  max-width: 520px;
-  line-height: 1.5;
+  margin: 24px 0 32px;
+  max-width: 560px;
   border-left: 2px solid var(--accent);
   background: var(--bg-1);
-  padding: 12px 14px;
+  padding: 10px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hero-note-stamp {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hero-note-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-strong);
 }
 .hero-ctas {
   display: flex;
@@ -232,7 +252,7 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .install-inner {
-  padding: 50px var(--pad);
+  padding: 64px var(--pad);
 }
 .install-header {
   max-width: 560px;
@@ -260,7 +280,10 @@ a:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 8px 8px 14px;
+  /* Left padding matches .cmd so the platform label and the command
+     line up at the same column. Right padding tighter to give the
+     copy button room to breathe against the edge. */
+  padding: 8px 10px 8px 16px;
   background: var(--bg-2);
   border-bottom: 1px solid var(--border);
 }
@@ -345,20 +368,26 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .why-inner {
-  padding: 58px var(--pad);
+  padding: 64px var(--pad);
 }
+/* Pain block: "the problem zone." Stronger left accent (4px),
+   subtle red-tinted bg wash, generous outer margin so the block
+   reads as a moment of contrast against neutral neighbors. Bullets
+   inside are tight (6px gap) and high-contrast text-color so they
+   land like a punch, not whispered notes. */
 .pain-block {
   border: 1px solid var(--border);
-  border-left: 3px solid var(--danger);
-  background: var(--bg-1);
-  border-radius: 2px;
-  padding: 18px 20px;
-  margin: 0 0 20px;
+  border-left: 4px solid var(--danger);
+  background: rgba(221, 119, 119, 0.05);
+  border-radius: 0;
+  padding: 20px 22px 22px;
+  margin: 32px 0 40px;
 }
 .pain-block p {
   font-weight: 700;
   color: var(--text);
-  margin: 0 0 10px;
+  margin: 0 0 14px;
+  font-size: 14.5px;
 }
 .why-pain-list {
   list-style: none;
@@ -368,14 +397,15 @@ a:focus-visible,
   gap: 6px;
 }
 .why-pain-list li {
-  font-size: 14px;
-  color: var(--muted-strong);
-  line-height: 1.5;
-  padding-left: 18px;
+  font-size: 14.5px;
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.45;
+  padding-left: 22px;
   position: relative;
 }
 .why-pain-list li::before {
-  content: '-';
+  content: '✗';
   color: var(--danger);
   position: absolute;
   left: 0;
@@ -387,11 +417,10 @@ a:focus-visible,
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
-/* Cards: brutal/technical, not soft-marketing. Transparent bg so they
-   sit *on* the page rather than floating above it. Sharp 2px accent
-   top-edge + 1px outer rule = structural. No hover lift. Internal
-   1px divider under the title splits the card into header/body so
-   the title:body hierarchy reads at a glance. */
+/* Cards: one strong accent (the 2px top edge) carries the card's
+   identity. Title:body distinction comes from typography weight +
+   color contrast, not additional decorative rules. Transparent bg
+   so cards sit *on* the page, sharp corners, no hover lift. */
 .feature-card {
   background: transparent;
   border: 1px solid var(--border);
@@ -403,29 +432,17 @@ a:focus-visible,
 }
 .feature-card h3 {
   font-family: var(--font-body);
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-size: 15.5px;
   font-weight: 700;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
   overflow-wrap: break-word;
   color: var(--text);
-}
-/* Internal divider — splits the card into header/body so the
-   title:body hierarchy reads at a glance. Pseudo-element keeps
-   the rule independent of the h3 box (locked by site.css contract
-   in static_export_test). */
-.feature-card h3::after {
-  content: '';
-  display: block;
-  width: 100%;
-  height: 1px;
-  margin-top: 10px;
-  background: var(--border);
 }
 .feature-card p {
   margin: 0;
   font-size: 13px;
-  color: var(--muted-strong);
+  color: var(--muted);
   line-height: 1.55;
   overflow-wrap: break-word;
 }
@@ -434,7 +451,7 @@ a:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 .roadmap-inner {
-  padding: 58px var(--pad);
+  padding: 64px var(--pad);
 }
 .roadmap-summary {
   display: grid;
@@ -485,39 +502,43 @@ a:focus-visible,
 .roadmap-details {
   margin: 0 0 18px;
 }
+/* "View full phase-by-phase checklist" reads as a real CTA, not a
+   soft caption: full-width centered button, accent border, fills
+   with accent on hover. */
 .roadmap-details-summary {
-  font-family: var(--font-body);
-  font-size: 15px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--accent);
   cursor: pointer;
-  padding: 14px 16px;
-  background: var(--bg-1);
-  border: 1px solid rgba(240, 200, 75, 0.45);
-  border-radius: 2px;
+  padding: 16px 20px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 0;
   list-style: none;
   user-select: none;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  text-align: center;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .roadmap-details-summary::-webkit-details-marker {
   display: none;
 }
 .roadmap-details-summary::before {
-  content: '+';
+  content: '▸ ';
   display: inline-block;
-  width: 16px;
-  color: var(--muted);
+  margin-right: 8px;
 }
 .roadmap-details[open] .roadmap-details-summary::before {
-  content: '-';
+  content: '▾ ';
 }
 .roadmap-details-summary:hover {
-  border-color: var(--border-strong);
-  color: var(--accent-hover);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 .roadmap-details[open] .roadmap-details-summary {
-  margin-bottom: 14px;
-  border-color: var(--border-strong);
+  margin-bottom: 18px;
 }
 
 .roadmap-phases {
@@ -638,40 +659,34 @@ a:focus-visible,
   border-bottom: 1px solid transparent;
 }
 .footer-inner {
-  padding: 26px var(--pad);
+  padding: 32px var(--pad);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 20px;
 }
+/* Footer-nav · separator now lives in the actual HTML
+   (<span class="footer-nav-sep" aria-hidden="true">·</span>) so
+   text-extraction views, screen readers, and any context that
+   skips CSS pseudo-elements all see the dot. */
 .footer-nav {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  /* Belt and suspenders: gap separates flex items, but explicit
-     ::before middle-dots on adjacent siblings keep the items
-     visually separated even if flex-gap rendering misbehaves. */
 }
 .footer-nav a {
   font-size: 12px;
   font-weight: 700;
   color: var(--muted-strong);
   border-bottom-color: rgba(240, 200, 75, 0.35);
-  padding: 4px 16px 4px 0;
-  margin-right: 16px;
-  position: relative;
+  padding: 4px 0;
 }
-.footer-nav a:last-child {
-  margin-right: 0;
-  padding-right: 0;
-}
-.footer-nav a + a::before {
-  content: '·';
-  position: absolute;
-  left: -18px;
+.footer-nav-sep {
   color: var(--label);
   font-weight: 400;
-  pointer-events: none;
+  font-size: 12px;
+  margin: 0 14px;
+  user-select: none;
 }
 .footer-meta {
   display: flex;

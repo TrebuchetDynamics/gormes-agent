@@ -46,7 +46,7 @@
     <footer class="footer">
       <div class="footer-inner">
         <nav class="footer-nav" aria-label="Secondary">
-          {{range .FooterNav}}<a href="{{.Href}}">{{.Label}}</a>{{end}}
+          {{range $i, $link := .FooterNav}}{{if gt $i 0}}<span class="footer-nav-sep" aria-hidden="true">·</span>{{end}}<a href="{{$link.Href}}">{{$link.Label}}</a>{{end}}
         </nav>
         <div class="footer-meta">
           <p class="footer-left">{{.FooterLeft}}</p>
