@@ -481,6 +481,9 @@ toolLoop:
 		if finalDelta.TokensIn > 0 {
 			k.tm.SetTokensIn(finalDelta.TokensIn)
 		}
+		if finalDelta.TokensOut > 0 {
+			k.tm.Tick(finalDelta.TokensOut)
+		}
 	}
 
 	if latestSessionID != "" {
