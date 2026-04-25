@@ -79,15 +79,15 @@
                 "scripts/orchestrator/lib/worktree.sh",
                 "scripts/gormes-auto-codexu-orchestrator.sh"
               ],
-              "unblocks": [
-                "Soft-success-nonzero bats coverage",
-                "Planner wrapper/test consistency closeout"
-              ],
               "ready_when": [
                 "Failure taxonomy and soft-success recovery behavior are covered by direct orchestrator unit fixtures."
               ],
               "not_ready_when": [
                 "The row is treated as complete before direct try_soft_success_nonzero coverage lands."
+              ],
+              "unblocks": [
+                "Soft-success-nonzero bats coverage",
+                "Planner wrapper/test consistency closeout"
               ],
               "acceptance": [
                 "Failure rows emit a granular reason instead of contract_or_test_failure.",
@@ -288,22 +288,22 @@
             {
               "name": "Slack gateway.Channel adapter shim",
               "status": "planned",
-              "blocked_by": [
-                "Slack CommandRegistry parser wiring"
-              ],
               "ready_when": [
                 "Slack ingress uses gateway.ParseInboundText and shared CommandRegistry fixtures are green"
+              ],
+              "blocked_by": [
+                "Slack CommandRegistry parser wiring"
               ],
               "note": "TDD: adapt internal/slack onto the gateway.Channel interface and Manager lifecycle without rewriting the existing Socket Mode client or coalesced reply tests."
             },
             {
               "name": "Slack config + cmd/gormes gateway registration",
               "status": "planned",
-              "blocked_by": [
-                "Slack gateway.Channel adapter shim"
-              ],
               "ready_when": [
                 "Slack gateway.Channel adapter shim runs through the shared Manager lifecycle in tests"
+              ],
+              "blocked_by": [
+                "Slack gateway.Channel adapter shim"
               ],
               "note": "TDD: add Slack config loading, doctor coverage, and cmd/gormes gateway registration only after the Channel shim is green; current evidence shows only Telegram and Discord are registered there."
             }
@@ -337,14 +337,14 @@
                 "../hermes-agent/tests/gateway/test_session.py",
                 "docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
               ],
-              "blocked_by": [
-                "Bridge-vs-native runtime decision"
-              ],
               "ready_when": [
                 "The bridge-vs-native runtime decision identifies which identity source owns the bot/self peer for a session."
               ],
               "not_ready_when": [
                 "Identity rules are hidden inside send/reconnect code instead of fixture-tested before transport wiring."
+              ],
+              "blocked_by": [
+                "Bridge-vs-native runtime decision"
               ],
               "acceptance": [
                 "Bridge and native identity inputs produce stable gateway peer IDs.",
@@ -371,11 +371,11 @@
             {
               "name": "Pairing, reconnect, and send contract",
               "status": "planned",
-              "blocked_by": [
-                "Bridge-vs-native runtime decision"
-              ],
               "ready_when": [
                 "WhatsApp runtime-selection contract freezes bridge-first versus native-first startup behavior"
+              ],
+              "blocked_by": [
+                "Bridge-vs-native runtime decision"
               ],
               "note": "TDD: add a transport-neutral outbound lifecycle contract that gates sends on pairing state, retries reconnects with bounded backoff, and maps normalized gateway chat IDs back to raw WhatsApp DM/group peers with reply metadata preservation."
             }
@@ -397,8 +397,8 @@
             },
             {
               "name": "BlueBubbles iMessage session-context prompt guidance",
-              "status": "planned",
               "priority": "P3",
+              "status": "planned",
               "contract": "Gateway session-context prompts tell the agent when the origin is BlueBubbles/iMessage and ask for short, blank-line-separated message bubbles",
               "contract_status": "fixture_ready",
               "slice_size": "small",
@@ -415,14 +415,14 @@
                 "internal/gateway/session_context.go",
                 "internal/channels/bluebubbles/bot.go"
               ],
-              "blocked_by": [
-                "BlueBubbles iMessage bubble formatting parity"
-              ],
               "ready_when": [
                 "BlueBubbles outbound formatting splits blank-line paragraphs into separate iMessage sends, so prompt guidance has a matching delivery contract."
               ],
               "not_ready_when": [
                 "The slice changes general session-context ordering or adds provider/runtime behavior instead of only adding the platform-specific BlueBubbles note."
+              ],
+              "blocked_by": [
+                "BlueBubbles iMessage bubble formatting parity"
               ],
               "acceptance": [
                 "BuildSessionContextPrompt includes an iMessage/BlueBubbles platform note for source platform `bluebubbles`.",
@@ -454,8 +454,8 @@
             },
             {
               "name": "Non-editable gateway progress/commentary send fallback",
-              "status": "complete",
               "priority": "P3",
+              "status": "complete",
               "contract": "Channels without placeholder/edit capabilities receive progress-safe interim or final assistant messages through the plain Send path without EditMessage calls",
               "contract_status": "validated",
               "slice_size": "small",
@@ -503,6 +503,22 @@
             }
           ]
         },
+        "2.B.10": {
+          "name": "WeChat Adapter",
+          "priority": "P1",
+          "items": [
+            {
+              "name": "WeCom + WeiXin shared-chassis bot seam",
+              "status": "complete",
+              "note": "TDD landed: internal/channels/wecom and internal/channels/weixin now pin policy-gated ingress, request/reply routing, and per-platform reply-path contracts before any SDK wiring."
+            },
+            {
+              "name": "WeCom + WeiXin transport/bootstrap layer",
+              "status": "complete",
+              "note": "TDD landed: internal/channels/wecom/runtime.go and internal/channels/weixin/runtime.go now freeze WeCom WebSocket/callback bootstrap, credential validation, WeCom reply-vs-active-push decisions, and Weixin long-poll/context-token lifecycle seams before any real transport binding."
+            }
+          ]
+        },
         "2.B.11": {
           "name": "Discord Forum Channels",
           "priority": "P3",
@@ -515,11 +531,11 @@
             {
               "name": "Discord forum media + polish parity",
               "status": "planned",
-              "blocked_by": [
-                "Discord forum channel ingress + thread lifecycle"
-              ],
               "ready_when": [
                 "Discord forum ingress and thread lifecycle fixtures are green on top of the shipped Discord adapter"
+              ],
+              "blocked_by": [
+                "Discord forum channel ingress + thread lifecycle"
               ],
               "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green — attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress."
             }
@@ -607,8 +623,8 @@
             },
             {
               "name": "GBrain minion-orchestrator routing policy",
-              "status": "complete",
               "priority": "P2",
+              "status": "complete",
               "contract": "Durable-job routing separates deterministic restart-survivable work from live LLM subagents, following GBrain's unified minion-orchestrator skill while keeping Gormes Go-native subagent APIs",
               "contract_status": "validated",
               "slice_size": "small",
@@ -657,8 +673,8 @@
             },
             {
               "name": "Durable subagent/job ledger",
-              "status": "complete",
               "priority": "P2",
+              "status": "complete",
               "contract": "SQLite-first job ledger records restartable subagent and deterministic work state with claim, progress, result, error, parent-child, and cancellation fields",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -678,14 +694,14 @@
                 "internal/subagent/runlog.go",
                 "internal/cron/executor.go"
               ],
-              "blocked_by": [
-                "GBrain minion-orchestrator routing policy"
-              ],
               "ready_when": [
                 "Routing policy fixtures define which work may enter durable orchestration and which callers are allowed to submit or observe each lane."
               ],
               "not_ready_when": [
                 "The slice tries to implement every GBrain Minions status, Postgres/PGLite compatibility, supervisor process management, or arbitrary shell-job submission."
+              ],
+              "blocked_by": [
+                "GBrain minion-orchestrator routing policy"
               ],
               "acceptance": [
                 "A SQLite-backed ledger records job id, job kind, status, parent id, depth, progress JSON, result JSON, error text, timestamps, and cancellation intent.",
@@ -810,14 +826,14 @@
                 "../hermes-agent/gateway/config.py",
                 "docs/content/building-gormes/architecture_plan/phase-2-gateway.md"
               ],
-              "blocked_by": [
-                "Pairing approval + rate-limit semantics"
-              ],
               "ready_when": [
                 "Pairing approval, rate limiting, and allowlist checks are fixture-locked."
               ],
               "not_ready_when": [
                 "Unknown DMs fall through to normal agent execution or share session state with authorized users."
+              ],
+              "blocked_by": [
+                "Pairing approval + rate-limit semantics"
               ],
               "acceptance": [
                 "Configured deny mode sends a deterministic denial without creating a session.",
@@ -920,14 +936,14 @@
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/upstream-lessons.md"
               ],
-              "blocked_by": [
-                "2.E.2"
-              ],
               "ready_when": [
                 "2.E.2 is complete and the shared CommandDef registry is stable for gateway commands."
               ],
               "not_ready_when": [
                 "The implementation tries to inject mid-run prompts instead of only registering /steer and queue fallback behavior."
+              ],
+              "blocked_by": [
+                "2.E.2"
               ],
               "unblocks": [
                 "Mid-run steer injection between tool calls",
@@ -986,22 +1002,6 @@
             {
               "name": "Explicit promotion flow",
               "status": "complete"
-            }
-          ]
-        },
-        "2.B.10": {
-          "name": "WeChat Adapter",
-          "priority": "P1",
-          "items": [
-            {
-              "name": "WeCom + WeiXin shared-chassis bot seam",
-              "status": "complete",
-              "note": "TDD landed: internal/channels/wecom and internal/channels/weixin now pin policy-gated ingress, request/reply routing, and per-platform reply-path contracts before any SDK wiring."
-            },
-            {
-              "name": "WeCom + WeiXin transport/bootstrap layer",
-              "status": "complete",
-              "note": "TDD landed: internal/channels/wecom/runtime.go and internal/channels/weixin/runtime.go now freeze WeCom WebSocket/callback bootstrap, credential validation, WeCom reply-vs-active-push decisions, and Weixin long-poll/context-token lifecycle seams before any real transport binding."
             }
           ]
         }
@@ -1379,14 +1379,14 @@
                 "docs/content/upstream-gbrain/architecture.md",
                 "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
               ],
-              "blocked_by": [
-                "Honcho-compatible scope/source tool schema"
-              ],
               "ready_when": [
                 "Honcho-compatible scope/source tool schema is complete and exposes source allowlist semantics."
               ],
               "not_ready_when": [
                 "Deny-path fixtures are mixed with operator evidence rendering in the same slice."
+              ],
+              "blocked_by": [
+                "Honcho-compatible scope/source tool schema"
               ],
               "unblocks": [
                 "Cross-chat operator evidence",
@@ -1488,14 +1488,14 @@
                 "../hermes-agent/tests/gateway/test_resume_command.py",
                 "../hermes-agent/docs/user-guide/sessions.md"
               ],
-              "blocked_by": [
-                "parent_session_id lineage for compression splits"
-              ],
               "ready_when": [
                 "Session lineage metadata can resolve root -> child chains and distinguish ended compression roots from live descendants."
               ],
               "not_ready_when": [
                 "The slice changes context compression behavior or loads transcripts from a separate store instead of reusing the native session read model."
+              ],
+              "blocked_by": [
+                "parent_session_id lineage for compression splits"
               ],
               "unblocks": [
                 "Context compression"
@@ -1658,14 +1658,14 @@
                 "internal/memory/session_catalog.go",
                 "internal/goncho/types.go"
               ],
-              "blocked_by": [
-                "Cross-chat deny-path fixtures"
-              ],
               "ready_when": [
                 "Same-chat and user-scope deny paths are fixture-locked so filter failures cannot accidentally widen recall."
               ],
               "not_ready_when": [
                 "The slice adds an HTTP surface or full SDK compatibility before the internal filter AST is tested."
+              ],
+              "blocked_by": [
+                "Cross-chat deny-path fixtures"
               ],
               "acceptance": [
                 "Filter AST fixtures cover AND, OR, NOT, gt, gte, lt, lte, ne, in, contains, icontains, metadata, and wildcard parsing.",
@@ -1707,14 +1707,14 @@
                 "internal/memory/schema.go",
                 "internal/goncho/sql.go"
               ],
-              "blocked_by": [
-                "Goncho context representation options"
-              ],
               "ready_when": [
                 "Context options expose observer/target fields and current peer-card replacement behavior is fixture-locked."
               ],
               "not_ready_when": [
                 "The slice tries to port observe_others scheduling before the storage key and card semantics are stable."
+              ],
+              "blocked_by": [
+                "Goncho context representation options"
               ],
               "acceptance": [
                 "Peer cards enforce Honcho's max-40-facts cap.",
@@ -1757,14 +1757,14 @@
                 "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
                 "internal/memory/status.go"
               ],
-              "blocked_by": [
-                "Directional peer cards and representation scopes"
-              ],
               "ready_when": [
                 "At least one Goncho-owned task type or a zero-state read model is available to report deterministically."
               ],
               "not_ready_when": [
                 "The slice waits for the queue to drain or treats queue empty as an application synchronization condition."
+              ],
+              "blocked_by": [
+                "Directional peer cards and representation scopes"
               ],
               "acceptance": [
                 "Status fields include completed_work_units, in_progress_work_units, pending_work_units, total_work_units, and optional per-session details.",
@@ -1783,7 +1783,12 @@
               ],
               "done_signal": [
                 "Queue status fixtures prove Honcho-style counts and document that queue empty is not a synchronization contract."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T04:56:45Z",
+                "last_success": "2026-04-25T04:56:45Z"
+              }
             },
             {
               "name": "Goncho summary context budget",
@@ -1807,14 +1812,14 @@
                 "internal/goncho/service.go",
                 "internal/memory/schema.go"
               ],
-              "blocked_by": [
-                "Goncho context representation options"
-              ],
               "ready_when": [
                 "Context options are schema-visible and the memory store can add a session_summaries table via migration."
               ],
               "not_ready_when": [
                 "The slice rewrites RecallProvider.GetContext or merges summaries into the existing memory-context fence instead of adding a separate Goncho context component."
+              ],
+              "blocked_by": [
+                "Goncho context representation options"
               ],
               "acceptance": [
                 "Schema stores one short and one long summary slot per session with last-covered message and token count.",
@@ -1865,14 +1870,14 @@
                 "internal/gonchotools/honcho_tools.go",
                 "internal/goncho/service.go"
               ],
-              "blocked_by": [
-                "Goncho context representation options"
-              ],
               "ready_when": [
                 "Context options are schema-visible and manual conclusions can be queried through the existing Goncho service."
               ],
               "not_ready_when": [
                 "The slice replaces honcho_context or removes honcho_reasoning instead of adding the host-compatible honcho_chat contract."
+              ],
+              "blocked_by": [
+                "Goncho context representation options"
               ],
               "acceptance": [
                 "Chat params accept query, session_id, target, reasoning_level, and stream.",
@@ -1921,14 +1926,14 @@
                 "internal/goncho/service.go",
                 "internal/memory/schema.go"
               ],
-              "blocked_by": [
-                "Goncho queue status read model"
-              ],
               "ready_when": [
                 "Goncho has a deterministic session-message write path or a documented queue-unavailable degraded path for imported messages."
               ],
               "not_ready_when": [
                 "The slice stores original uploaded file bytes, silently accepts unsupported content types, or attempts PDF/OCR extraction before text and JSON imports are fixture-locked."
+              ],
+              "blocked_by": [
+                "Goncho queue status read model"
               ],
               "acceptance": [
                 "Text, Markdown, and JSON imports create normal session messages with required peer_id.",
@@ -1979,7 +1984,6 @@
                 "internal/goncho/service.go",
                 "internal/gonchotools/honcho_tools.go"
               ],
-              "blocked_by": [],
               "ready_when": [
                 "The current session directory, Goncho service types, and Honcho tool schemas are readable in the repo."
               ],
@@ -2041,14 +2045,14 @@
                 "internal/goncho/service.go",
                 "internal/config/config.go"
               ],
-              "blocked_by": [
-                "Goncho topology design fixtures"
-              ],
               "ready_when": [
                 "Topology rules define the expected workspace, peer, session, and observation defaults."
               ],
               "not_ready_when": [
                 "The slice reaches out to upstream Honcho, external network services, or hosted LLMs by default."
+              ],
+              "blocked_by": [
+                "Goncho topology design fixtures"
               ],
               "unblocks": [
                 "Long-running architecture-planner-loop health reporting",
@@ -2100,14 +2104,14 @@
                 "internal/gonchotools/honcho_tools.go",
                 "internal/memory/schema.go"
               ],
-              "blocked_by": [
-                "Goncho dialectic chat contract"
-              ],
               "ready_when": [
                 "honcho_chat or equivalent dialectic chat params and response shape are fixture-locked."
               ],
               "not_ready_when": [
                 "The slice stores stream chunks as messages, creates synthetic assistant turns before completion, or changes honcho_context behavior."
+              ],
+              "blocked_by": [
+                "Goncho dialectic chat contract"
               ],
               "unblocks": [
                 "Internal agent chat transport",
@@ -2132,7 +2136,12 @@
               ],
               "done_signal": [
                 "Streaming fixtures prove completed responses are persisted once and interrupted or partial chunks cannot pollute memory."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T04:56:45Z",
+                "last_success": "2026-04-25T04:56:45Z"
+              }
             },
             {
               "name": "Goncho configuration namespace",
@@ -2158,14 +2167,14 @@
                 "internal/goncho/types.go",
                 "cmd/gormes/doctor.go"
               ],
-              "blocked_by": [
-                "Goncho topology design fixtures"
-              ],
               "ready_when": [
                 "The existing Gormes config loader and doctor output can be extended without changing unrelated agent settings."
               ],
               "not_ready_when": [
                 "The slice copies Honcho Python environment variables directly or requires provider credentials before Goncho can run in zero-state mode."
+              ],
+              "blocked_by": [
+                "Goncho topology design fixtures"
               ],
               "unblocks": [
                 "Goncho operator diagnostics contract",
@@ -2221,17 +2230,17 @@
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
-              "unblocks": [
-                "Bedrock Converse payload mapping (no AWS SDK)",
-                "Gemini",
-                "OpenRouter",
-                "Codex"
-              ],
               "ready_when": [
                 "Anthropic transcript fixtures replay request, stream, finish reason, and usage data without live credentials."
               ],
               "not_ready_when": [
                 "A provider-specific adapter lands before shared transcript fixtures prove the contract."
+              ],
+              "unblocks": [
+                "Bedrock Converse payload mapping (no AWS SDK)",
+                "Gemini",
+                "OpenRouter",
+                "Codex"
               ],
               "acceptance": [
                 "Provider transcripts replay request, stream, finish reason, and usage data without live credentials.",
@@ -2266,14 +2275,14 @@
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
-              "blocked_by": [
-                "Provider interface + stream fixture harness"
-              ],
               "ready_when": [
                 "Provider interface + stream fixture harness is available for cross-provider tool continuation fixtures."
               ],
               "not_ready_when": [
                 "Continuation mapping is implemented inside one provider adapter instead of the shared event model."
+              ],
+              "blocked_by": [
+                "Provider interface + stream fixture harness"
               ],
               "unblocks": [
                 "DeepSeek/Kimi reasoning_content echo for tool-call replay",
@@ -2425,14 +2434,14 @@
                 "../hermes-agent/tests/agent/test_bedrock_adapter.py",
                 "../hermes-agent/tests/agent/test_bedrock_integration.py"
               ],
-              "blocked_by": [
-                "Bedrock SigV4 + credential seam"
-              ],
               "ready_when": [
                 "A Bedrock client/cache seam exists behind the provider adapter and can be exercised without live AWS credentials."
               ],
               "not_ready_when": [
                 "Non-stale validation/auth failures are retried or evicted as if they were transport-pool corruption."
+              ],
+              "blocked_by": [
+                "Bedrock SigV4 + credential seam"
               ],
               "acceptance": [
                 "ConnectionClosed/ProtocolError-style failures evict only the affected region client.",
@@ -2544,16 +2553,16 @@
                 "../hermes-agent/tests/hermes_cli/test_anthropic_model_flow_stale_oauth.py",
                 "../hermes-agent/tests/run_agent/test_run_agent_codex_responses.py"
               ],
-              "blocked_by": [
-                "Token vault",
-                "Multi-account auth",
-                "Codex Responses pure conversion harness"
-              ],
               "ready_when": [
                 "Gormes has an XDG-scoped token vault and account-selection seam for provider credentials."
               ],
               "not_ready_when": [
                 "The slice reads or writes ~/.codex/auth.json as the primary state store."
+              ],
+              "blocked_by": [
+                "Token vault",
+                "Multi-account auth",
+                "Codex Responses pure conversion harness"
               ],
               "acceptance": [
                 "Codex tokens persist under Gormes home with provider/account metadata.",
@@ -2591,14 +2600,14 @@
                 "../hermes-agent/tests/run_agent/test_repair_tool_call_arguments.py",
                 "../hermes-agent/tests/run_agent/test_tool_call_args_sanitizer.py"
               ],
-              "blocked_by": [
-                "Codex Responses pure conversion harness"
-              ],
               "ready_when": [
                 "Codex Responses conversion fixtures can replay streamed and non-streamed output without live credentials."
               ],
               "not_ready_when": [
                 "Malformed tool calls are stored in assistant history as ordinary text or a repair path hides unsupported API features."
+              ],
+              "blocked_by": [
+                "Codex Responses pure conversion harness"
               ],
               "acceptance": [
                 "Empty response.output with streamed output_text backfills final assistant content.",
@@ -2712,14 +2721,14 @@
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
-              "blocked_by": [
-                "Provider interface + stream fixture harness"
-              ],
               "ready_when": [
                 "Provider interface + stream fixture harness can replay context status without live provider calls."
               ],
               "not_ready_when": [
                 "Compression is wired into the kernel before the context engine boundary and status contract are stable."
+              ],
+              "blocked_by": [
+                "Provider interface + stream fixture harness"
               ],
               "unblocks": [
                 "Compression token-budget trigger + summary sizing",
@@ -2874,14 +2883,14 @@
                 "../hermes-agent/agent/usage_pricing.py",
                 "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
               ],
-              "blocked_by": [
-                "Provider-enforced context-length resolver"
-              ],
               "ready_when": [
                 "Provider-enforced context resolver fixtures establish the metadata package shape and fallback semantics."
               ],
               "not_ready_when": [
                 "The slice implements smart routing decisions or provider calls instead of read-only metadata fixtures."
+              ],
+              "blocked_by": [
+                "Provider-enforced context-length resolver"
               ],
               "unblocks": [
                 "Routing policy and fallback selector"
@@ -2922,15 +2931,15 @@
                 "../hermes-agent/hermes_cli/runtime_provider.py",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
-              "blocked_by": [
-                "Provider-enforced context-length resolver",
-                "Model pricing/capability registry fixtures"
-              ],
               "ready_when": [
                 "Context limits, pricing, capabilities, and provider-family metadata are fixture-backed."
               ],
               "not_ready_when": [
                 "The selector mutates kernel turn state, opens provider network calls, or hides operator-specified model overrides."
+              ],
+              "blocked_by": [
+                "Provider-enforced context-length resolver",
+                "Model pricing/capability registry fixtures"
               ],
               "acceptance": [
                 "Explicit per-turn or config overrides win over automatic routing unless invalid.",
@@ -3014,14 +3023,14 @@
                 "../hermes-agent/hermes_cli/auth.py",
                 "../hermes-agent/tests/hermes_cli/test_anthropic_model_flow_stale_oauth.py"
               ],
-              "blocked_by": [
-                "Token vault"
-              ],
               "ready_when": [
                 "Token vault owns XDG-scoped credential files and can expose provider auth status without live credentials."
               ],
               "not_ready_when": [
                 "The slice silently resets corrupt auth state or reads platform keychains during ordinary unit tests."
+              ],
+              "blocked_by": [
+                "Token vault"
               ],
               "acceptance": [
                 "Fake keychain entries take precedence over JSON auth files when valid.",
@@ -3072,14 +3081,14 @@
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
-              "blocked_by": [
-                "Provider interface + stream fixture harness"
-              ],
               "ready_when": [
                 "Provider interface + stream fixture harness is available for resilience fixture coverage."
               ],
               "not_ready_when": [
                 "The row is used to port every retry, cache, rate, and budget behavior as one monolithic implementation."
+              ],
+              "blocked_by": [
+                "Provider interface + stream fixture harness"
               ],
               "unblocks": [
                 "Retry-After header parsing + HTTPError hint",
@@ -3120,14 +3129,14 @@
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
-              "blocked_by": [
-                "Provider-side resilience"
-              ],
               "ready_when": [
                 "Provider-side resilience remains active and error taxonomy fixtures can be split from retry-policy changes."
               ],
               "not_ready_when": [
                 "The slice changes kernel retry timing instead of only defining structured error classes and fixtures."
+              ],
+              "blocked_by": [
+                "Provider-side resilience"
               ],
               "unblocks": [
                 "Retry-After header parsing + HTTPError hint",
@@ -3484,14 +3493,14 @@
                 "../hermes-agent/tests/tools/test_spotify_client.py",
                 "../hermes-agent/website/docs/user-guide/skills/bundled/media/media-spotify.md"
               ],
-              "blocked_by": [
-                "Plugin SDK"
-              ],
               "ready_when": [
                 "Plugin manifest loading and capability registration are fixture-locked by the Plugin SDK slice."
               ],
               "not_ready_when": [
                 "Spotify is ported as a built-in core tool instead of a plugin-backed capability."
+              ],
+              "blocked_by": [
+                "Plugin SDK"
               ],
               "acceptance": [
                 "The Spotify manifest declares required env/auth and tool capabilities before handlers load.",
@@ -3583,8 +3592,8 @@
             },
             {
               "name": "Clarify",
-              "note": "TDD: port `tools/clarify_tool.py` as an interruptible prompt contract that preserves gateway/TUI response routing and times out safely in non-interactive cron turns.",
-              "status": "planned"
+              "status": "planned",
+              "note": "TDD: port `tools/clarify_tool.py` as an interruptible prompt contract that preserves gateway/TUI response routing and times out safely in non-interactive cron turns."
             },
             {
               "name": "Session search",
@@ -3704,14 +3713,14 @@
                 "../hermes-agent/tests/cli/test_busy_input_mode_command.py",
                 "../hermes-agent/hermes_cli/commands.py"
               ],
-              "blocked_by": [
-                "CLI command registry parity + active-turn busy policy"
-              ],
               "ready_when": [
                 "The CLI command registry has a shared active-turn/busy policy surface."
               ],
               "not_ready_when": [
                 "Busy state is implemented only for /compress or only in the visual TUI without a command-layer invariant."
+              ],
+              "blocked_by": [
+                "CLI command registry parity + active-turn busy policy"
               ],
               "acceptance": [
                 "/compress and other long-running command handlers set and clear busy state even on error.",
@@ -3858,14 +3867,14 @@
                 "../hermes-agent/tests/gateway/test_api_server.py",
                 "docs/content/upstream-hermes/user-guide/features/api-server.md"
               ],
-              "blocked_by": [
-                "OpenAI-compatible chat-completions API server"
-              ],
               "ready_when": [
                 "Chat-completions HTTP surface is native and response storage can reuse its auth, session, and error-envelope contracts."
               ],
               "not_ready_when": [
                 "Responses history chains use a separate session model from gateway/TUI sessions."
+              ],
+              "blocked_by": [
+                "OpenAI-compatible chat-completions API server"
               ],
               "unblocks": [
                 "API server disconnect snapshot persistence",
@@ -3908,14 +3917,14 @@
                 "../hermes-agent/tests/gateway/test_api_server.py",
                 "docs/content/upstream-hermes/user-guide/features/api-server.md"
               ],
-              "blocked_by": [
-                "Responses API store + run event stream"
-              ],
               "ready_when": [
                 "Responses store and run event stream can persist terminal and non-terminal snapshots."
               ],
               "not_ready_when": [
                 "Client disconnects lose response IDs or previous_response_id chains."
+              ],
+              "blocked_by": [
+                "Responses API store + run event stream"
               ],
               "acceptance": [
                 "Connection reset during stream interrupts the agent and stores an incomplete response snapshot when store=true.",
@@ -3953,14 +3962,14 @@
                 "../hermes-agent/gateway/platforms/base.py",
                 "docs/content/upstream-hermes/user-guide/features/api-server.md"
               ],
-              "blocked_by": [
-                "OpenAI-compatible chat-completions API server"
-              ],
               "ready_when": [
                 "Native chat-completions API server accepts X-Hermes-Session-Id and streaming SSE fixtures."
               ],
               "not_ready_when": [
                 "Proxy mode forwards tool-result messages with empty content or accepts stale run generations as current output."
+              ],
+              "blocked_by": [
+                "OpenAI-compatible chat-completions API server"
               ],
               "acceptance": [
                 "GATEWAY_PROXY_URL and config proxy_url resolve with env precedence and trailing-slash normalization.",
@@ -3999,15 +4008,15 @@
                 "../hermes-agent/web/src/components/ModelPickerDialog.tsx",
                 "../hermes-agent/hermes_cli/web_server.py"
               ],
-              "blocked_by": [
-                "OpenAI-compatible chat-completions API server",
-                "Responses API store + run event stream"
-              ],
               "ready_when": [
                 "Native API server exposes stable chat/Responses/session endpoints that dashboard contracts can call."
               ],
               "not_ready_when": [
                 "The slice ports the upstream React app wholesale or adds Node/TypeScript to the Gormes runtime."
+              ],
+              "blocked_by": [
+                "OpenAI-compatible chat-completions API server",
+                "Responses API store + run event stream"
               ],
               "acceptance": [
                 "Contract fixtures cover chat send/stream, session list/delete, model picker data, OAuth status, and tool-progress events.",
@@ -4044,15 +4053,15 @@
                 "../hermes-agent/tui_gateway/event_publisher.py",
                 "../hermes-agent/tui_gateway/ws.py"
               ],
-              "blocked_by": [
-                "PTY bridge protocol adapter",
-                "SSE streaming to Bubble Tea TUI"
-              ],
               "ready_when": [
                 "PTY bridge behavior and TUI gateway event streaming are each fixture-locked."
               ],
               "not_ready_when": [
                 "PTY bytes become the source of truth for sessions or tool events instead of a sidecar view."
+              ],
+              "blocked_by": [
+                "PTY bridge protocol adapter",
+                "SSE streaming to Bubble Tea TUI"
               ],
               "acceptance": [
                 "PTY read/write/resize messages stay separate from structured tool/event publication.",
@@ -4150,14 +4159,14 @@
                 "docs/content/upstream-gbrain/gormes-takeaways.md",
                 "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
               ],
-              "blocked_by": [
-                "Phase 2.G skills runtime"
-              ],
               "ready_when": [
                 "Phase 2.G skills runtime is complete and the parser/store seam is stable enough for versioned metadata."
               ],
               "not_ready_when": [
                 "Generated drafts are allowed into prompt injection without explicit review metadata."
+              ],
+              "blocked_by": [
+                "Phase 2.G skills runtime"
               ],
               "unblocks": [
                 "LLM-assisted pattern distillation",
@@ -4314,8 +4323,8 @@
             },
             {
               "name": "BlueBubbles iMessage bubble formatting parity",
-              "status": "planned",
               "priority": "P3",
+              "status": "planned",
               "contract": "BlueBubbles outbound iMessage sends are non-editable, markdown-stripped, paragraph-split bubbles without pagination suffixes",
               "contract_status": "fixture_ready",
               "slice_size": "small",

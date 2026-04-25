@@ -302,13 +302,13 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
 - [x] Directional peer cards and representation scopes
-- [ ] Goncho queue status read model
+- [x] Goncho queue status read model
 - [x] Goncho summary context budget
 - [x] Goncho dialectic chat contract
 - [ ] Goncho file upload import ingestion
 - [x] Goncho topology design fixtures
 - [x] Goncho operator diagnostics contract
-- [ ] Goncho streaming chat persistence contract
+- [x] Goncho streaming chat persistence contract
 - [x] Goncho configuration namespace
 
 ## Phase 4 — The Brain Transplant 🔨
