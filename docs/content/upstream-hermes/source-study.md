@@ -13,9 +13,9 @@ Hermes hard to shrink.
 ## Study Snapshot
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
-- Upstream commit: `5401a008`
+- Upstream commit: `b35d692f`
 - Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
-- Gormes commit: `f7b083ca`
+- Gormes commit: `d26a7a85`
 - Date: 2026-04-25
 
 ## High-Level Shape
@@ -53,13 +53,13 @@ packages owned by the kernel, gateway, tools, memory, and provider layers.
 Core upstream evidence files at study time:
 
 - `run_agent.py` - `AIAgent`, provider routing, prompt use, tool loop,
-  fallback, interrupts, memory hooks, and persistence; 12,441 lines.
-- `cli.py` - legacy interactive terminal experience; 11,078 lines.
+  fallback, interrupts, memory hooks, and persistence; 12,883 lines.
+- `cli.py` - legacy interactive terminal experience; 11,126 lines.
 - `gateway/run.py` - `GatewayRunner`, session routing, slash commands,
   platform adapters, cached agents, progress delivery, active-turn control;
-  11,308 lines.
+  11,290 lines.
 - `hermes_cli/main.py` - top-level `hermes` command implementation and setup
-  flows; 9,120 lines.
+  flows; 9,145 lines.
 - `hermes_cli/commands.py` - central slash command registry feeding CLI,
   gateway help, Telegram menus, Discord commands, and Slack mappings.
 - `hermes_cli/runtime_provider.py` and `hermes_cli/auth.py` - provider,
@@ -78,7 +78,7 @@ Core upstream evidence files at study time:
   child credentials, and timeout diagnostics.
 - `plugins/`, `skills/`, and `optional-skills/` - extension and procedural
   knowledge surfaces.
-- `tests/` - 731 `test*.py` files across agent, gateway, CLI, tools, cron,
+- `tests/` - 767 `test*.py` files across agent, gateway, CLI, tools, cron,
   plugins, memory, ACP, provider, and session storage behavior.
 
 Gormes already has smaller equivalents for several contracts:
@@ -195,7 +195,27 @@ conversational, blank-line-separated replies. Gormes should keep this as
 capability-based gateway behavior plus a BlueBubbles formatter fixture, not a
 special-case branch in the kernel.
 
-Latest context sync delta (2026-04-25): upstream commit `5401a008` changed
+Latest upstream sync delta (2026-04-25): upstream commit `b35d692f` adds five
+planner-relevant contracts:
+
+- auxiliary LLM calls retry once without `temperature` when a provider rejects
+  that parameter, while Codex Responses memory-flush fallback strips
+  temperature before sending;
+- cron jobs gained `context_from` so one scheduled job can inject bounded
+  output from previous jobs without blocking on same-tick runs;
+- Discord session sources now preserve `guild_id`, `parent_chat_id`, and
+  `message_id` for tool/action context;
+- Discord tools split into least-privilege `discord` and `discord_admin`
+  toolsets, and `hermes tools` persistence now hardens MCP names, numeric
+  keys, `no_mcp`, and platform-scoped toolsets;
+- root Linux `install.sh` behavior now has an FHS-style layout decision that
+  Gormes must either port or explicitly diverge from in tests and public docs.
+
+Gormes tracks these as small rows: 4.H unsupported-temperature retry, 5.N
+`context_from`, 2.B.11 Discord source metadata, 5.A/5.O toolset rows, and 5.P
+installer policy.
+
+Previous context sync delta (2026-04-25): upstream commit `5401a008` changed
 `agent/context_compressor.py` so `ContextCompressor.update_model()` recalculates
 threshold, tail, and max-summary token budgets when the active model window
 changes. Gormes has already mirrored the pure budget behavior in

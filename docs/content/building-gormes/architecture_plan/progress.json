@@ -789,6 +789,66 @@
               "note": "TDD landed: Discord forum channel type detection, parent-forum chat IDs with canonical thread IDs for forum post ingress, and open/closed/archived thread lifecycle normalization now emit fixture-backed gateway events without changing the shipped 2.B.2 send contract or shared chassis behavior."
             },
             {
+              "name": "Discord SessionSource guild/parent/message evidence",
+              "status": "planned",
+              "contract": "Discord ingress preserves guild, parent channel, and triggering message IDs in the gateway SessionSource without changing existing chat/thread routing",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Gateway session context omits unavailable Discord scope IDs explicitly rather than fabricating guild/thread/message metadata.",
+              "fixture": "internal/channels/discord/session_source_metadata_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/session.py@b35d692f",
+                "../hermes-agent/gateway/platforms/base.py@b35d692f",
+                "../hermes-agent/gateway/platforms/discord.py@b35d692f",
+                "internal/gateway/session_context.go",
+                "internal/gateway/event.go",
+                "internal/channels/discord/bot.go"
+              ],
+              "ready_when": [
+                "Discord forum ingress and thread lifecycle fixtures are green on top of the shared gateway InboundEvent envelope."
+              ],
+              "not_ready_when": [
+                "The slice changes Discord send behavior, tool schemas, or forum media handling instead of only preserving source metadata through fixtures."
+              ],
+              "blocked_by": [
+                "Discord forum channel ingress + thread lifecycle"
+              ],
+              "unblocks": [
+                "Discord forum media + polish parity",
+                "Manager remember-source hook",
+                "Discord tool split + platform-scoped toolsets"
+              ],
+              "acceptance": [
+                "Inbound Discord events can carry guild_id, parent_chat_id, and message_id through InboundEvent into SessionSource and SessionContext prompt rendering.",
+                "Forum/thread messages preserve the parent channel/forum ID separately from the effective ChatID and canonical ThreadID.",
+                "DMs and platforms without these identifiers render no fabricated values and preserve existing chat/thread routing."
+              ],
+              "note": "Hermes b35d692f added guild_id, parent_chat_id, and message_id to SessionSource so Discord tools can act on the current server/channel/message without asking the model to rediscover IDs. Gormes should port this as source metadata only before widening Discord admin/tool behavior.",
+              "write_scope": [
+                "internal/gateway/session_context.go",
+                "internal/gateway/event.go",
+                "internal/channels/discord/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/channels/discord -run TestDiscordSessionSourceMetadata -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Discord session-source metadata fixtures prove guild, parent-channel, and triggering-message IDs flow into session context without route regressions."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b35d692f gateway/session.py",
+                "note": "Hermes defines the new Discord source metadata contract; Gormes keeps the typed gateway envelope and shared session-context rendering."
+              }
+            },
+            {
               "name": "Discord forum media + polish parity",
               "status": "planned",
               "ready_when": [
@@ -4223,6 +4283,70 @@
               ]
             },
             {
+              "name": "Unsupported temperature retry + Codex flush guard",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Provider calls that actually send temperature retry once without it on unsupported-parameter errors, while Codex Responses fallback never emits temperature",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Provider status records temperature-stripped retry evidence instead of treating unsupported temperature as an opaque fatal 400.",
+              "fixture": "internal/hermes/unsupported_temperature_retry_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/auxiliary_client.py@b35d692f",
+                "../hermes-agent/tests/agent/test_unsupported_temperature_retry.py@b35d692f",
+                "../hermes-agent/run_agent.py@b35d692f",
+                "../hermes-agent/tests/run_agent/test_flush_memories_codex.py@b35d692f",
+                "internal/hermes/client.go",
+                "internal/hermes/http_client.go",
+                "internal/hermes/codex_responses_adapter.go"
+              ],
+              "ready_when": [
+                "Classified provider-error taxonomy and provider transcript fixtures are validated.",
+                "Gormes has ChatRequest.Temperature and can exercise fake HTTP providers without live credentials."
+              ],
+              "not_ready_when": [
+                "The slice adds provider/model allowlists, retries unrelated 400s, or sends temperature through Codex Responses payloads."
+              ],
+              "blocked_by": [
+                "Classified provider-error taxonomy",
+                "Provider interface + stream fixture harness"
+              ],
+              "unblocks": [
+                "OpenRouter",
+                "Codex OAuth state + stale-token relogin",
+                "Provider rate guard + budget telemetry"
+              ],
+              "acceptance": [
+                "Unsupported-temperature detector matches OpenAI/Codex, Copilot, OpenRouter, Anthropic-compatible, and gateway-style phrasings from the Hermes b35d692f tests.",
+                "When the first request includes temperature and fails with an unsupported-temperature error, exactly one retry removes only temperature and preserves model, max tokens, tools, messages, and timeout context.",
+                "Unrelated 400s and calls that did not send temperature do not trigger the temperature retry path.",
+                "Codex Responses request builders and memory-flush fallback fixtures prove no temperature field is emitted."
+              ],
+              "note": "Gormes does not currently serialize temperature on the generic OpenAI-compatible client, but ChatRequest already carries it and Bedrock uses it. Freeze the reactive strip-and-retry behavior before OpenRouter/Codex/native auxiliary paths start forwarding optional sampling fields.",
+              "write_scope": [
+                "internal/hermes/",
+                "internal/kernel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestUnsupportedTemperatureRetry -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Unsupported-temperature fixtures prove one stripped retry, no retry for unrelated errors, and no temperature in Codex Responses payloads."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b35d692f agent/auxiliary_client.py",
+                "note": "Hermes defines the reactive retry behavior; Gormes should encode it in the provider boundary before more adapters emit optional request parameters."
+              }
+            },
+            {
               "name": "Jittered reconnect backoff schedule",
               "status": "complete",
               "note": "TDD landed: `internal/kernel/retry.go` RetryBudget applies a 1s/2s/4s/8s/16s +/-20% schedule across five attempts with `retry_test.go` coverage, and the kernel reconnect path consumes it on every open-stream retry. Do not extend this slice; Retry-After plumbing lives in the sibling slices below."
@@ -4325,6 +4449,129 @@
                 "attempt_count": 1,
                 "last_attempt": "2026-04-25T05:56:06Z",
                 "last_success": "2026-04-25T05:56:06Z"
+              }
+            },
+            {
+              "name": "Tool parity manifest refresh for Hermes b35d692f",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Embedded upstream tool parity fixtures reflect Hermes b35d692f tool names, toolsets, schemas, and platform restrictions before handler rows rely on them",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Tool parity doctor reports stale donor commit, missing discord/discord_admin rows, stale cron context_from schema, or mismatched platform toolsets before runtime ports begin.",
+              "fixture": "internal/tools/parity_b35d692f_test.go",
+              "source_refs": [
+                "../hermes-agent/toolsets.py@b35d692f",
+                "../hermes-agent/model_tools.py@b35d692f",
+                "../hermes-agent/tools/discord_tool.py@b35d692f",
+                "../hermes-agent/tools/cronjob_tools.py@b35d692f",
+                "../hermes-agent/tests/tools/test_discord_tool.py@b35d692f",
+                "../hermes-agent/tests/hermes_cli/test_tools_config.py@b35d692f",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json"
+              ],
+              "ready_when": [
+                "Tool registry inventory + schema parity harness is validated and can load the embedded manifest without porting handlers."
+              ],
+              "not_ready_when": [
+                "The slice implements Discord or cron handlers, changes runtime tool execution, or treats stale manifest data as acceptable because the old 55-tool count still parses."
+              ],
+              "blocked_by": [
+                "Tool registry inventory + schema parity harness"
+              ],
+              "unblocks": [
+                "Discord tool split + platform-scoped toolsets",
+                "Cron context_from output chaining",
+                "Platform toolset config persistence + MCP sentinel"
+              ],
+              "acceptance": [
+                "Manifest source metadata records Hermes b35d692f and the generator input files used.",
+                "The manifest contains separate discord and discord_admin tool rows, omits legacy discord_server from active toolsets, and captures dynamic-schema provenance.",
+                "Cronjob schema includes context_from with update-clear semantics in descriptor metadata.",
+                "Toolset rows capture Feishu document/drive additions and Discord-only platform restrictions without adding those tools to generic core toolsets."
+              ],
+              "note": "Current Gormes manifest still reflects the older Discord server tool shape. Refresh the descriptor fixture first so handler and CLI rows can consume exact donor names without rediscovering Python.",
+              "write_scope": [
+                "internal/tools/testdata/upstream_tool_parity_manifest.json",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestToolParityManifestHermesB35D692F -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Tool parity tests prove the embedded manifest reflects Hermes b35d692f Discord, cron, Feishu, and platform-toolset schema drift before handlers port."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b35d692f toolsets.py",
+                "note": "This row is descriptor-only upstream drift; no Gormes runtime handler should change in the manifest refresh."
+              }
+            },
+            {
+              "name": "Discord tool split + platform-scoped toolsets",
+              "status": "planned",
+              "contract": "Gormes exposes Discord read/participate and Discord admin capabilities as separate descriptors/toolsets with platform-scoped availability",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Tool status drops Discord schemas when token, intents, allowlist, or platform scope make actions unavailable instead of advertising impossible admin calls.",
+              "fixture": "internal/tools/discord_toolset_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/discord_tool.py@b35d692f",
+                "../hermes-agent/toolsets.py@b35d692f",
+                "../hermes-agent/model_tools.py@b35d692f",
+                "../hermes-agent/hermes_cli/tools_config.py@b35d692f",
+                "../hermes-agent/tests/tools/test_discord_tool.py@b35d692f",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json",
+                "internal/channels/discord/"
+              ],
+              "ready_when": [
+                "Tool parity manifest refresh for Hermes b35d692f is complete.",
+                "Discord SessionSource guild/parent/message evidence is fixture-locked so current-message IDs can feed Discord actions later."
+              ],
+              "not_ready_when": [
+                "The slice ports REST handlers, assigns roles, pins messages, or widens Discord tools onto CLI/Telegram/Slack toolsets before descriptors and platform scope are frozen."
+              ],
+              "blocked_by": [
+                "Tool parity manifest refresh for Hermes b35d692f",
+                "Discord SessionSource guild/parent/message evidence"
+              ],
+              "acceptance": [
+                "Descriptor fixtures expose a core discord tool for fetch/search/thread actions and a separate discord_admin tool for server/channel/role/pin actions.",
+                "Discord and discord_admin are default-off and available only to the Discord platform/gateway toolset unless explicitly enabled for that platform.",
+                "Dynamic schema fixtures can drop actions based on missing token/intents/allowlist without leaving stale descriptions in the advertised schema.",
+                "Legacy discord_server remains unsupported or aliased only through explicit compatibility evidence, not as an active default tool."
+              ],
+              "note": "Hermes b35d692f split Discord server introspection/management into least-privilege toolsets. Port descriptor and toolset scoping before any REST handler logic so Gormes agents do not see admin actions in non-Discord contexts.",
+              "write_scope": [
+                "internal/tools/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools ./internal/config -run TestDiscordToolset -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Discord toolset fixtures prove split descriptors, platform scoping, default-off behavior, and dynamic schema dropping without live Discord API calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b35d692f tools/discord_tool.py",
+                "note": "Hermes defines the split and schema rules; Gormes should keep handlers typed and platform-scoped through its compiled tool registry."
               }
             },
             {
@@ -4861,6 +5108,64 @@
               "note": "TDD: port `tools/cronjob_tools.py` action/update/list surface plus `cron/jobs.py` once, interval, cron-expression, repeat-count, one-shot recovery, and stale recurring fast-forward behavior as fixtures over the Go cron store."
             },
             {
+              "name": "Cron context_from output chaining",
+              "status": "planned",
+              "contract": "Cron jobs can reference prior job outputs as bounded prompt context without waiting for same-tick jobs or reading outside the cron output store",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Cron execution skips missing, unreadable, invalid, or not-yet-run context sources with visible evidence while preserving the base prompt.",
+              "fixture": "internal/cron/context_from_test.go",
+              "source_refs": [
+                "../hermes-agent/cron/jobs.py@b35d692f",
+                "../hermes-agent/cron/scheduler.py@b35d692f",
+                "../hermes-agent/tools/cronjob_tools.py@b35d692f",
+                "../hermes-agent/tests/cron/test_cron_context_from.py@b35d692f",
+                "internal/cron/job.go",
+                "internal/cron/store.go",
+                "internal/cron/executor.go"
+              ],
+              "ready_when": [
+                "Cronjob tool API + schedule parser parity has a create/update/list surface over the Go cron store, or this slice owns the minimal ContextFrom field and prompt-builder fixture without exposing a public tool yet."
+              ],
+              "not_ready_when": [
+                "The slice waits for upstream referenced jobs to finish in the same scheduler tick, reads arbitrary file paths, or changes Phase 2.D cron run audit semantics."
+              ],
+              "blocked_by": [
+                "Cronjob tool API + schedule parser parity"
+              ],
+              "acceptance": [
+                "Create and update paths normalize context_from as a list of job IDs, preserve it on unrelated updates, and clear it with empty list/string input.",
+                "Unknown job IDs are rejected before persistence; tampered path-traversal IDs are ignored at prompt-build time.",
+                "Prompt assembly injects the most recent completed output from each referenced job before the job prompt, truncates each output at 8000 characters with a marker, and skips missing/deleted/unreadable outputs without failing the run.",
+                "The implementation reuses the Go cron store/run audit or a derived output read model instead of introducing Hermes' Markdown output directory as source of truth."
+              ],
+              "note": "Hermes b35d692f added cron job chaining through context_from. Gormes should preserve the behavior over its SQLite/bbolt cron substrate and CRON.md mirror, not by copying Hermes' ~/.hermes/cron/output directory layout.",
+              "write_scope": [
+                "internal/cron/",
+                "internal/tools/",
+                "cmd/gormes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run TestCronContextFrom -count=1",
+                "go test ./internal/cron ./internal/tools ./cmd/gormes -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Cron context_from fixtures prove validation, clearing, most-recent-output injection, truncation, and graceful skip behavior over the Go cron store."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b35d692f tests/cron/test_cron_context_from.py",
+                "note": "Hermes defines the chaining behavior; Gormes maps it onto the native cron store/run audit instead of adopting Hermes' file layout."
+              }
+            },
+            {
               "name": "Cron prompt/script safety + pre-run script contract",
               "status": "planned",
               "note": "TDD: port critical prompt threat scanning, invisible Unicode rejection, script-path confinement under the scripts directory, and configurable pre-run script timeout before exposing cron creation to tools."
@@ -5001,6 +5306,63 @@
               "note": "TDD: port hermes_cli config/profile/auth/setup/uninstall flows as separate command groups with XDG-safe state paths and no implicit writes outside the selected Gormes home."
             },
             {
+              "name": "Platform toolset config persistence + MCP sentinel",
+              "status": "planned",
+              "contract": "CLI setup/tools configuration persists per-platform toolset choices without preserving platform-default supersets, losing MCP server names, or leaking restricted Discord toolsets",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "CLI config status reports ignored default supersets, invalid numeric keys, no_mcp suppression, and restricted toolsets instead of silently enabling extra tools.",
+              "fixture": "internal/cli/toolset_config_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/tools_config.py@b35d692f",
+                "../hermes-agent/hermes_cli/config.py@b35d692f",
+                "../hermes-agent/tests/hermes_cli/test_tools_config.py@b35d692f",
+                "internal/cli/",
+                "internal/config/config.go",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json"
+              ],
+              "ready_when": [
+                "Tool parity manifest refresh for Hermes b35d692f captures current donor toolset names and platform restrictions.",
+                "Config, profile, auth, and setup command surfaces has established the config file read/write seam or this slice owns a pure helper under internal/cli without command wiring."
+              ],
+              "not_ready_when": [
+                "The slice launches interactive TUI setup, configures live API keys, or ports provider setup prompts in the same change."
+              ],
+              "blocked_by": [
+                "Tool parity manifest refresh for Hermes b35d692f"
+              ],
+              "acceptance": [
+                "Saving a platform selection strips platform-default supersets such as hermes-cli/hermes-telegram while preserving unknown MCP server names.",
+                "Numeric YAML keys and list entries are normalized to strings so sorting and persistence cannot panic.",
+                "A no_mcp sentinel suppresses MCP servers only for the configured platform and is not exposed as a runtime toolset.",
+                "Restricted toolsets such as discord and discord_admin cannot be saved for non-Discord platforms."
+              ],
+              "note": "Hermes b35d692f hardened hermes tools persistence around MCP names, platform defaults, numeric YAML keys, no_mcp, and Discord-only toolsets. Gormes should port these as pure config helpers before the interactive setup UI exists.",
+              "write_scope": [
+                "internal/cli/",
+                "internal/config/",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli ./internal/config ./internal/tools -run TestPlatformToolsetConfig -count=1",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Toolset config fixtures prove platform-default stripping, MCP preservation/no_mcp, numeric normalization, and Discord platform restrictions."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b35d692f hermes_cli/tools_config.py",
+                "note": "Hermes defines the persistence edge cases; Gormes should keep the first port as pure config logic before command UI wiring."
+              }
+            },
+            {
               "name": "Gateway, platform, webhook, and cron management CLI",
               "status": "planned",
               "note": "TDD: port operator management commands after the shared gateway read models land, so status/pairing/platform/cron commands consume the same stores as the runtime."
@@ -5029,6 +5391,64 @@
               "name": "Unix installer (install.sh) source-backed update flow",
               "status": "planned",
               "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into canonical `scripts/install.sh`, with the site embedding a synced `www.gormes.ai/internal/site/installers/install.sh` copy. The installer uses user-scoped PATH publication, a managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain — no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them."
+            },
+            {
+              "name": "Unix installer root/FHS layout policy",
+              "status": "planned",
+              "contract": "The Unix installer has an explicit tested policy for root Linux installs, legacy user installs, Termux, and explicit --dir/--bin-dir overrides",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Installer help and dry-run output explain when Gormes uses user-scoped layout, FHS root layout, or refuses a root-owned path instead of silently publishing an unreachable binary.",
+              "fixture": "www.gormes.ai/internal/site/install_unix_test.go",
+              "source_refs": [
+                "../hermes-agent/scripts/install.sh@b35d692f",
+                "scripts/install.sh",
+                "www.gormes.ai/internal/site/installers/install.sh",
+                "www.gormes.ai/README.md"
+              ],
+              "ready_when": [
+                "Unix installer (install.sh) source-backed update flow has canonical scripts under scripts/ and a byte-equal served site copy."
+              ],
+              "not_ready_when": [
+                "The slice changes Windows installer behavior, installs Python/Node, or requires root/sudo/network during tests."
+              ],
+              "blocked_by": [
+                "Unix installer (install.sh) source-backed update flow"
+              ],
+              "unblocks": [
+                "Installer site asset/route coverage"
+              ],
+              "acceptance": [
+                "Tests cover non-root user layout, Termux PREFIX layout, explicit --dir/--bin-dir overrides, and root Linux behavior.",
+                "If Gormes diverges from Hermes' /usr/local/lib + /usr/local/bin FHS root default, the help text and README state the divergence and offer explicit override flags.",
+                "If Gormes adopts the FHS root default, legacy installs under $GORMES_INSTALL_HOME/gormes-agent are preserved in place and site copy stays byte-equal to scripts/install.sh.",
+                "No test performs a live git clone, package-manager install, or root-owned write."
+              ],
+              "note": "Hermes b35d692f changed Unix install semantics for root Linux to an FHS layout. Gormes currently advertises user-scoped source-backed installs; freeze the intentional policy before public installer copy drifts.",
+              "write_scope": [
+                "scripts/install.sh",
+                "www.gormes.ai/internal/site/installers/install.sh",
+                "www.gormes.ai/internal/site/install_unix_test.go",
+                "www.gormes.ai/README.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "(cd www.gormes.ai && go test ./internal/site -run TestInstallUnix -count=1)",
+                "go run ./cmd/autoloop progress validate"
+              ],
+              "done_signal": [
+                "Unix installer tests and docs prove the root/FHS vs user-scoped policy and keep the served installer byte-equal to the canonical script."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b35d692f scripts/install.sh",
+                "note": "Hermes changed installer layout; Gormes must either port or explicitly document divergence because www.gormes.ai serves the installer."
+              }
             },
             {
               "name": "Windows installer (install.ps1 + install.cmd) parity",

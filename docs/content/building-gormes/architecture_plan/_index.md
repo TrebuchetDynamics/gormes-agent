@@ -37,13 +37,13 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 33/74 subphases shipped · 17 in progress · 24 planned
+**Overall:** 34/74 subphases shipped · 16 in progress · 24 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 3/3 subphases |
 | Phase 2 — The Gateway | 🔨 | 14/20 subphases |
-| Phase 3 — The Black Box (Memory) | 🔨 | 13/14 subphases |
+| Phase 3 — The Black Box (Memory) | ✅ | 14/14 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
@@ -132,6 +132,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 2.B.11 — Discord Forum Channels 🔨
 
 - [x] Discord forum channel ingress + thread lifecycle
+- [ ] Discord SessionSource guild/parent/message evidence
 - [ ] Discord forum media + polish parity
 
 ### 2.C — Thin Mapping Persistence ✅
@@ -190,7 +191,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Adapter startup failure cleanup contract
 - [x] Active-turn follow-up queue + late-arrival drain policy
 - [ ] Drain-timeout resume_pending recovery
-- [ ] Pairing read-model schema + atomic persistence
+- [x] Pairing read-model schema + atomic persistence
 - [ ] Pairing approval + rate-limit semantics
 - [ ] Unauthorized DM pairing response contract
 - [ ] `gormes gateway status` read-only command
@@ -222,7 +223,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
 
-## Phase 3 — The Black Box (Memory) 🔨
+## Phase 3 — The Black Box (Memory) ✅
 
 *SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries*
 
@@ -310,7 +311,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Lineage-aware source-filtered search hits
 - [x] Operator-auditable search evidence
 
-### 3.F — Goncho Honcho Memory Parity 🔨
+### 3.F — Goncho Honcho Memory Parity ✅
 
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
@@ -323,7 +324,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Goncho operator diagnostics contract
 - [x] Goncho streaming chat persistence contract
 - [x] Goncho configuration namespace
-- [ ] Goncho dreaming scheduler contract
+- [x] Goncho dreaming scheduler contract
 
 ## Phase 4 — The Brain Transplant 🔨
 
@@ -396,6 +397,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Provider-side resilience
 - [x] Classified provider-error taxonomy
+- [ ] Unsupported temperature retry + Codex flush guard
 - [x] Jittered reconnect backoff schedule
 - [x] Retry-After header parsing + HTTPError hint
 - [x] Kernel retry honors Retry-After hint
@@ -410,6 +412,8 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [ ] 61-tool registry port
 - [x] Tool registry inventory + schema parity harness
+- [ ] Tool parity manifest refresh for Hermes b35d692f
+- [ ] Discord tool split + platform-scoped toolsets
 - [ ] Pure core tools first
 - [ ] Stateful tool migration queue
 
@@ -491,6 +495,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Session search
 - [ ] Debug helpers
 - [ ] Cronjob tool API + schedule parser parity
+- [ ] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract
 - [ ] Cron multi-target delivery + media/live-adapter fallback
 
@@ -502,6 +507,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] CLI command registry parity + active-turn busy policy
 - [ ] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
+- [ ] Platform toolset config persistence + MCP sentinel
 - [ ] Gateway, platform, webhook, and cron management CLI
 - [ ] Diagnostics, backup, logs, and status CLI
 
@@ -510,6 +516,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] OCI image
 - [ ] Homebrew
 - [ ] Unix installer (install.sh) source-backed update flow
+- [ ] Unix installer root/FHS layout policy
 - [ ] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
 
