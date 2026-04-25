@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 const (
@@ -229,6 +230,7 @@ func (s *Service) Search(ctx context.Context, params SearchParams) (SearchResult
 	limit := normalizeSearchLimit(params.Limit)
 
 	var results []SearchHit
+	var scopeEvidence *memory.CrossChatRecallEvidence
 	if len(compiled.Sources) == 0 || filterHasWildcard(compiled.Sources) {
 		results, err = findConclusions(ctx, s.db, s.workspaceID, s.observer, peer, params.Query, params.SessionKey, compiled, limit)
 		if err != nil {
@@ -247,15 +249,17 @@ func (s *Service) Search(ctx context.Context, params SearchParams) (SearchResult
 		if err != nil {
 			return SearchResultSet{}, err
 		}
-		results = fallback
+		results = fallback.Results
+		scopeEvidence = fallback.ScopeEvidence
 	}
 	results = limitHitsByTokens(results, params.MaxTokens)
 
 	return SearchResultSet{
-		WorkspaceID: s.workspaceID,
-		Peer:        peer,
-		Query:       params.Query,
-		Results:     results,
+		WorkspaceID:   s.workspaceID,
+		Peer:          peer,
+		Query:         params.Query,
+		ScopeEvidence: scopeEvidence,
+		Results:       results,
 	}, nil
 }
 
@@ -360,6 +364,8 @@ func (s *Service) Context(ctx context.Context, params ContextParams) (ContextRes
 		Representation: buildRepresentation(peer, card, conclusions),
 		Summary:        summary,
 		Conclusions:    conclusions,
+		SearchResults:  searchResult.Results,
+		ScopeEvidence:  searchResult.ScopeEvidence,
 		RecentMessages: recentMessages,
 		Unavailable:    unavailable,
 	}, nil
@@ -689,26 +695,56 @@ func makeIdempotencyKey(workspaceID, observer, peer, sessionKey, conclusion stri
 	return hex.EncodeToString(sum[:])
 }
 
-func (s *Service) searchTurnFallback(ctx context.Context, params SearchParams, compiled compiledSearchFilter, limit int) ([]SearchHit, error) {
-	if strings.EqualFold(strings.TrimSpace(params.Scope), "user") && s.sessions != nil {
+type turnFallbackResult struct {
+	Results       []SearchHit
+	ScopeEvidence *memory.CrossChatRecallEvidence
+}
+
+func (s *Service) searchTurnFallback(ctx context.Context, params SearchParams, compiled compiledSearchFilter, limit int) (turnFallbackResult, error) {
+	if strings.EqualFold(strings.TrimSpace(params.Scope), "user") {
 		userID := strings.TrimSpace(params.Peer)
-		metas, err := s.sessions.ListMetadataByUserID(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		hits, err := memory.SearchMessages(ctx, s.db, metas, memory.SearchFilter{
+		filter := memory.SearchFilter{
 			UserID:           userID,
 			Sources:          compiled.Sources,
 			SessionIDs:       compiled.SessionIDs,
 			Query:            params.Query,
 			CurrentSessionID: params.SessionKey,
 			CurrentChatKey:   params.SessionKey,
-		}, limit)
+		}
+		if s.sessions == nil {
+			evidence := memory.DegradedCrossChatRecallEvidence(filter, "session directory unavailable; same-chat fallback scope used")
+			fallback, err := findTurns(ctx, s.db, params.Query, params.SessionKey, compiled, limit)
+			if err != nil {
+				return turnFallbackResult{}, err
+			}
+			return turnFallbackResult{Results: fallback, ScopeEvidence: &evidence}, nil
+		}
+		metas, err := s.sessions.ListMetadataByUserID(ctx, userID)
+		if err != nil {
+			return turnFallbackResult{}, err
+		}
+		evidenceMetas, err := s.crossChatEvidenceMetadata(ctx, userID, params.SessionKey, metas)
+		if err != nil {
+			return turnFallbackResult{}, err
+		}
+		evidence := memory.ExplainCrossChatRecall(evidenceMetas, filter)
+		if evidence.Decision != memory.CrossChatDecisionAllowed {
+			fallback, err := findTurns(ctx, s.db, params.Query, params.SessionKey, compiled, limit)
+			if err != nil {
+				return turnFallbackResult{}, err
+			}
+			return turnFallbackResult{Results: fallback, ScopeEvidence: &evidence}, nil
+		}
+		hits, err := memory.SearchMessages(ctx, s.db, metas, filter, limit)
 		if errors.Is(err, memory.ErrUserScopeDenied) {
-			return findTurns(ctx, s.db, params.Query, params.SessionKey, compiled, limit)
+			fallback, err := findTurns(ctx, s.db, params.Query, params.SessionKey, compiled, limit)
+			if err != nil {
+				return turnFallbackResult{}, err
+			}
+			return turnFallbackResult{Results: fallback, ScopeEvidence: &evidence}, nil
 		}
 		if err != nil {
-			return nil, err
+			return turnFallbackResult{}, err
 		}
 		out := make([]SearchHit, 0, len(hits))
 		for _, hit := range hits {
@@ -719,13 +755,54 @@ func (s *Service) searchTurnFallback(ctx context.Context, params SearchParams, c
 				SessionKey:   hit.SessionID,
 			})
 		}
-		return out, nil
+		return turnFallbackResult{Results: out, ScopeEvidence: &evidence}, nil
 	}
 
 	if strings.TrimSpace(params.SessionKey) == "" {
-		return nil, nil
+		return turnFallbackResult{}, nil
 	}
-	return findTurns(ctx, s.db, params.Query, params.SessionKey, compiled, limit)
+	results, err := findTurns(ctx, s.db, params.Query, params.SessionKey, compiled, limit)
+	if err != nil {
+		return turnFallbackResult{}, err
+	}
+	return turnFallbackResult{Results: results}, nil
+}
+
+type userBindingResolver interface {
+	ResolveUserID(ctx context.Context, source, chatID string) (string, bool, error)
+}
+
+func (s *Service) crossChatEvidenceMetadata(ctx context.Context, userID, currentKey string, metas []session.Metadata) ([]session.Metadata, error) {
+	out := append([]session.Metadata(nil), metas...)
+	resolver, ok := s.sessions.(userBindingResolver)
+	if !ok {
+		return out, nil
+	}
+	source, chatID, ok := splitChatKey(currentKey)
+	if !ok {
+		return out, nil
+	}
+	boundUserID, found, err := resolver.ResolveUserID(ctx, source, chatID)
+	if err != nil {
+		return nil, err
+	}
+	if !found || strings.TrimSpace(boundUserID) == "" || strings.TrimSpace(boundUserID) == userID {
+		return out, nil
+	}
+	out = append(out, session.Metadata{
+		SessionID: strings.TrimSpace(currentKey),
+		Source:    source,
+		ChatID:    chatID,
+		UserID:    boundUserID,
+	})
+	return out, nil
+}
+
+func splitChatKey(key string) (source, chatID string, ok bool) {
+	source, chatID, ok = strings.Cut(strings.TrimSpace(key), ":")
+	source = strings.TrimSpace(source)
+	chatID = strings.TrimSpace(chatID)
+	return source, chatID, ok && source != "" && chatID != ""
 }
 
 func limitHitsByTokens(hits []SearchHit, maxTokens int) []SearchHit {

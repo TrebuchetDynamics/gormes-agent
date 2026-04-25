@@ -288,7 +288,7 @@ func findTurns(ctx context.Context, db *sql.DB, query, sessionKey string, filter
 	}
 
 	base := `
-		SELECT content
+		SELECT content, COALESCE(chat_id, ''), COALESCE(session_id, '')
 		FROM turns
 		WHERE (chat_id = ? OR session_id = ?)
 		  AND memory_sync_status = 'ready'
@@ -315,20 +315,30 @@ func findTurns(ctx context.Context, db *sql.DB, query, sessionKey string, filter
 
 	var hits []SearchHit
 	for rows.Next() {
-		var content string
-		if err := rows.Scan(&content); err != nil {
+		var content, chatID, rowSessionID string
+		if err := rows.Scan(&content, &chatID, &rowSessionID); err != nil {
 			return nil, fmt.Errorf("goncho: scan turn: %w", err)
 		}
 		hits = append(hits, SearchHit{
-			Source:     "turn",
-			Content:    content,
-			SessionKey: sessionKey,
+			Source:       "turn",
+			OriginSource: originSourceFromChatKey(firstNonBlank(chatID, sessionKey)),
+			Content:      content,
+			SessionKey:   firstNonBlank(rowSessionID, sessionKey),
 		})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("goncho: iterate turns: %w", err)
 	}
 	return hits, nil
+}
+
+func originSourceFromChatKey(chatKey string) string {
+	chatKey = strings.TrimSpace(chatKey)
+	idx := strings.Index(chatKey, ":")
+	if idx <= 0 {
+		return ""
+	}
+	return chatKey[:idx]
 }
 
 func recentTurns(ctx context.Context, db *sql.DB, sessionKey string, limit int) ([]MessageSlice, error) {

@@ -40,6 +40,7 @@ func main() {
 }
 
 func newRootCommand() *cobra.Command {
+	resetGonchoDoctorFlags()
 	root := &cobra.Command{
 		Use:          "gormes",
 		Short:        "Go frontend for Hermes Agent",

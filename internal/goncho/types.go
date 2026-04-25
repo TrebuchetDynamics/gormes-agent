@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
@@ -148,10 +149,11 @@ type SearchHit struct {
 
 // SearchResultSet is the stable JSON shape for honcho_search.
 type SearchResultSet struct {
-	WorkspaceID string      `json:"workspace_id"`
-	Peer        string      `json:"peer"`
-	Query       string      `json:"query"`
-	Results     []SearchHit `json:"results"`
+	WorkspaceID   string                          `json:"workspace_id"`
+	Peer          string                          `json:"peer"`
+	Query         string                          `json:"query"`
+	ScopeEvidence *memory.CrossChatRecallEvidence `json:"scope_evidence,omitempty"`
+	Results       []SearchHit                     `json:"results"`
 }
 
 // ContextParams controls honcho_context reads.
@@ -200,17 +202,19 @@ type ContextUnavailableEvidence struct {
 
 // ContextResult is the stable JSON shape for honcho_context.
 type ContextResult struct {
-	WorkspaceID    string                       `json:"workspace_id"`
-	Peer           string                       `json:"peer"`
-	ObserverPeerID string                       `json:"observer_peer_id,omitempty"`
-	ObservedPeerID string                       `json:"observed_peer_id,omitempty"`
-	SessionKey     string                       `json:"session_key,omitempty"`
-	PeerCard       []string                     `json:"peer_card"`
-	Representation string                       `json:"representation"`
-	Summary        *SessionSummary              `json:"summary,omitempty"`
-	Conclusions    []string                     `json:"conclusions,omitempty"`
-	RecentMessages []MessageSlice               `json:"recent_messages,omitempty"`
-	Unavailable    []ContextUnavailableEvidence `json:"unavailable,omitempty"`
+	WorkspaceID    string                          `json:"workspace_id"`
+	Peer           string                          `json:"peer"`
+	ObserverPeerID string                          `json:"observer_peer_id,omitempty"`
+	ObservedPeerID string                          `json:"observed_peer_id,omitempty"`
+	SessionKey     string                          `json:"session_key,omitempty"`
+	PeerCard       []string                        `json:"peer_card"`
+	Representation string                          `json:"representation"`
+	Summary        *SessionSummary                 `json:"summary,omitempty"`
+	Conclusions    []string                        `json:"conclusions,omitempty"`
+	SearchResults  []SearchHit                     `json:"search_results,omitempty"`
+	ScopeEvidence  *memory.CrossChatRecallEvidence `json:"scope_evidence,omitempty"`
+	RecentMessages []MessageSlice                  `json:"recent_messages,omitempty"`
+	Unavailable    []ContextUnavailableEvidence    `json:"unavailable,omitempty"`
 }
 
 // ChatParams mirrors Honcho's DialecticOptions request body for peer.chat().
