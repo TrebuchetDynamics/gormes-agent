@@ -22,6 +22,7 @@ Read these local docs before editing this page:
 - `v3/documentation/core-concepts/architecture.mdx`
 - `v3/documentation/core-concepts/representation.mdx`
 - `v3/documentation/core-concepts/reasoning.mdx`
+- `v3/documentation/core-concepts/design-patterns.mdx`
 - `v3/documentation/features/storing-data.mdx`
 - `v3/documentation/features/get-context.mdx`
 - `v3/documentation/features/chat.mdx`
@@ -34,21 +35,35 @@ Read these local docs before editing this page:
 - `v3/documentation/features/advanced/summarizer.mdx`
 - `v3/documentation/features/advanced/peer-card.mdx`
 - `v3/documentation/features/advanced/file-uploads.mdx`
+- `v3/documentation/features/advanced/streaming-response.mdx`
+- `v3/documentation/reference/cli.mdx`
 - `v3/documentation/reference/sdk.mdx`
 - `v3/documentation/reference/platform.mdx`
 - `v3/documentation/reference/storage.mdx` (empty as of this study)
+- `v3/contributing/self-hosting.mdx`
+- `v3/contributing/configuration.mdx`
+- `v3/contributing/troubleshooting.mdx`
 - `v3/guides/integrations/hermes.mdx`
 - `v3/guides/integrations/opencode.mdx`
 - `v3/guides/integrations/claude-code.mdx`
 - `v3/guides/integrations/openclaw.mdx`
 - `v3/guides/integrations/mcp.mdx`
+- `v3/guides/integrations/crewai.mdx`
+- `v3/guides/integrations/langgraph.mdx`
+- `v3/guides/integrations/n8n.mdx`
+- `v3/guides/integrations/paperclip.mdx`
+- `v3/guides/integrations/sillytavern.mdx`
+- `v3/guides/integrations/zo-computer.mdx`
+- `v3/guides/migrations/mem0.mdx`
+- `v3/migrations/from-mem0.mdx`
 - `v3/openapi.json`
 - `docs/changelog/compatibility-guide.mdx`
 
 The work-packet version of this study lives in
 [Agent Work Packets](../04-agent-work-packets/). Use that page when assigning an
 implementation slice; use this page to understand the reasoning behind the
-slice boundaries.
+slice boundaries. Runtime and operator decisions live in
+[Operator Playbook](../05-operator-playbook/).
 
 ## Memory Contract Learned From The Docs
 
@@ -327,6 +342,27 @@ Endpoint groups are:
 The HTTP adapter must stay a thin adapter over `goncho.Service`. It must not add
 a sidecar, a second store, or a loopback dependency.
 
+### 13. Operational Lessons From Honcho Docs
+
+The design-pattern, CLI, self-hosting, configuration, troubleshooting,
+streaming, and integration docs add operational rules that source files alone do
+not make obvious:
+
+- Workspaces are application or hard-isolation boundaries, not user records.
+- Peers model durable participants. Assistants or bots with deterministic
+  behavior usually should not be observed.
+- Sessions must follow real context boundaries. Too many tiny sessions fragment
+  summaries and `session.context()`.
+- Message storage is the primary memory trigger. Manual conclusions are useful
+  for quick migrations, but they are not equivalent to raw message import.
+- `stream=true` belongs to dialectic chat. The caller accumulates the final
+  assistant response and stores it once; partial chunks must not enter memory.
+- Operator surfaces need a diagnostic ladder: config, database, migrations,
+  provider reachability for enabled model callers, queue backlog, peer cards,
+  conclusions, summaries, and context preview.
+- Goncho should add a `[goncho]` config namespace through the existing Gormes
+  config loader. Do not copy Honcho's Python `.env`/`config.toml` runtime.
+
 ## Progress Measurement
 
 For memory planning, progress is measured in `progress.json`, not by prose
@@ -374,7 +410,11 @@ under `3.F - Goncho Honcho Memory Parity`:
 - `Goncho queue status read model`;
 - `Goncho summary context budget`;
 - `Goncho dialectic chat contract`;
-- `Goncho file upload import ingestion`.
+- `Goncho file upload import ingestion`;
+- `Goncho topology design fixtures`;
+- `Goncho operator diagnostics contract`;
+- `Goncho streaming chat persistence contract`;
+- `Goncho configuration namespace`.
 
 Those rows are intentionally smaller than "port Honcho." Each one gives the
 autoloop source refs, write scope, fixtures, and done signals so it can build

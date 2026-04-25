@@ -625,21 +625,280 @@ Acceptance:
 - local-only limitations are visible to operators;
 - SDK compatibility does not mutate the in-binary service contract.
 
+## Packet 11 - Topology Design Fixtures
+
+Progress row: `3.F / Goncho topology design fixtures`.
+
+Purpose: fixture-lock how Gormes maps workspaces, peers, sessions, sources, and
+subagents before more host integrations depend on those assumptions.
+
+Source docs:
+
+- `../honcho/docs/v3/documentation/features/storing-data.mdx`
+- `../honcho/docs/v3/documentation/core-concepts/design-patterns.mdx`
+- `../honcho/docs/v3/guides/integrations/openclaw.mdx`
+- `../honcho/docs/v3/guides/integrations/paperclip.mdx`
+- `../honcho/docs/v3/guides/integrations/sillytavern.mdx`
+- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `internal/session/directory.go`
+- `internal/memory/session_catalog.go`
+
+Current Gormes files:
+
+- `internal/session/directory.go`
+- `internal/session/directory_test.go`
+- `internal/memory/session_catalog.go`
+- `internal/memory/session_catalog_test.go`
+- `internal/goncho/types.go`
+
+Red tests:
+
+- `internal/goncho/topology_contract_test.go`
+  - default workspace is `gormes`;
+  - human peer comes from canonical `user_id`;
+  - platform fallback peer uses `<source>:<chat_id>` only when `user_id` is
+    unavailable;
+  - assistant peer defaults to `gormes`;
+  - subagent peer IDs preserve parent lineage metadata when supplied.
+- `internal/session/directory_test.go`
+  - conflicting `source/chat_id -> user_id` bindings fail visibly;
+  - sessions are returned newest-first for a canonical user.
+
+Implementation boundaries:
+
+- Add pure mapping helpers before touching gateway runtime code.
+- Keep existing `user_id > chat_id > session_id` semantics.
+- Add degraded evidence for unknown peer/session topology instead of guessing.
+
+Do not implement:
+
+- new gateway adapters;
+- subagent runtime changes;
+- automatic workspace linking.
+
+Validation:
+
+- `go test ./internal/goncho ./internal/session ./internal/memory -count=1`
+- `go run ./cmd/autoloop progress validate`
+
+Commit message:
+
+- `fix(goncho): fixture memory topology mapping`
+
+Acceptance:
+
+- topology decisions are deterministic and tested;
+- workspace-per-user is rejected in docs/tests as a bad default;
+- source filters remain compatible with current session catalog behavior.
+
+## Packet 12 - Operator Diagnostics Contract
+
+Progress row: `3.F / Goncho operator diagnostics contract`.
+
+Purpose: make Goncho status and doctor output as useful as Honcho's CLI
+diagnostic ladder without copying the Python runtime.
+
+Source docs:
+
+- `../honcho/docs/v3/documentation/reference/cli.mdx`
+- `../honcho/docs/v3/contributing/self-hosting.mdx`
+- `../honcho/docs/v3/contributing/configuration.mdx`
+- `../honcho/docs/v3/contributing/troubleshooting.mdx`
+- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `cmd/gormes/doctor.go`
+- `cmd/gormes/memory.go`
+- `internal/memory/status.go`
+
+Current Gormes files:
+
+- `cmd/gormes/doctor.go`
+- `cmd/gormes/doctor_test.go`
+- `cmd/gormes/memory.go`
+- `cmd/gormes/memory_test.go`
+- `internal/goncho/service.go`
+- `internal/memory/status.go`
+
+Red tests:
+
+- `cmd/gormes/memory_test.go`
+  - `gormes memory status` includes Goncho queue zero-state when no Goncho
+    queue exists;
+  - output distinguishes extractor queue from representation, summary, and
+    dream work.
+- `cmd/gormes/doctor_test.go`
+  - doctor reports config path, memory DB path, Goncho table presence, tool
+    schema registration, and unavailable features;
+  - JSON output is machine-parseable when the command adds `--json`.
+
+Implementation boundaries:
+
+- Prefer extending existing `memory status` and `doctor` before adding a new
+  command namespace.
+- Provider reachability checks only run for enabled features that call models.
+- Exit codes follow the playbook: 0 usable, 1 bad input/missing files, 2 local
+  DB/schema/tool failure, 3 provider/auth failure.
+
+Do not implement:
+
+- model-calling health checks for inactive deriver/dreamer/dialectic workers;
+- a remote Honcho client;
+- a second standalone CLI binary.
+
+Validation:
+
+- `go test ./cmd/gormes ./internal/goncho ./internal/memory -count=1`
+- `go run ./cmd/autoloop progress validate`
+
+Commit message:
+
+- `fix(goncho): expose operator diagnostics`
+
+Acceptance:
+
+- operators can see why memory is not learning without reading logs first;
+- degraded Goncho features are named in output;
+- queue status remains observability, not synchronization.
+
+## Packet 13 - Streaming Chat Persistence
+
+Progress row: `3.F / Goncho streaming chat persistence contract`.
+
+Purpose: prevent partial streamed dialectic responses from entering memory and
+prepare for future `stream=true` support.
+
+Source docs:
+
+- `../honcho/docs/v3/documentation/features/advanced/streaming-response.mdx`
+- `../honcho/docs/v3/documentation/features/chat.mdx`
+- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `docs/content/building-gormes/architecture_plan/phase-3-memory.md`
+
+Current Gormes files:
+
+- `internal/goncho/types.go`
+- `internal/goncho/service.go`
+- `internal/tools/honcho_tools.go`
+- `internal/memory/`
+
+Red tests:
+
+- `internal/goncho/streaming_contract_test.go`
+  - `stream=true` is accepted by params;
+  - unsupported streaming returns explicit degraded evidence;
+  - interrupted streams do not write assistant messages;
+  - completed streams write exactly one final assistant message when storage
+    support exists.
+
+Implementation boundaries:
+
+- Start with contract and degraded mode only.
+- Reuse interrupted-turn memory sync suppression rules.
+- Store final accumulated response only after successful completion.
+
+Do not implement:
+
+- SSE transport;
+- websocket gateway changes;
+- partial chunk persistence.
+
+Validation:
+
+- `go test ./internal/goncho ./internal/memory ./internal/tools -count=1`
+- `go run ./cmd/autoloop progress validate`
+
+Commit message:
+
+- `fix(goncho): guard streaming chat persistence`
+
+Acceptance:
+
+- partial responses never become memory;
+- `stream=true` behavior is explicit at the tool edge;
+- future transport work has a storage contract to preserve.
+
+## Packet 14 - Configuration Namespace
+
+Progress row: `3.F / Goncho configuration namespace`.
+
+Purpose: add a Gormes-native `[goncho]` config namespace before deriver,
+dialectic, summary, dream, or import settings scatter into channel-specific
+blocks.
+
+Source docs:
+
+- `../honcho/docs/v3/contributing/configuration.mdx`
+- `../honcho/docs/v3/contributing/self-hosting.mdx`
+- `docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md`
+- `internal/config/config.go`
+- `internal/config/config_test.go`
+
+Current Gormes files:
+
+- `internal/config/config.go`
+- `internal/config/config_test.go`
+- `cmd/gormes/doctor.go`
+- `cmd/gormes/telegram.go`
+- `cmd/gormes/gateway.go`
+
+Red tests:
+
+- `internal/config/config_test.go`
+  - defaults include `[goncho]` workspace `gormes`, observer peer `gormes`,
+    max message size `25000`, max file size `5242880`, context max tokens
+    `100000`, dialectic default `low`, and dream disabled until fixtures;
+  - env vars like `GORMES_GONCHO_WORKSPACE` override TOML;
+  - invalid reasoning levels fail config validation once validation exists.
+- `cmd/gormes/doctor_test.go`
+  - effective Goncho config is visible in doctor output.
+
+Implementation boundaries:
+
+- Use the existing Gormes loader; do not add Honcho's `.env` parser.
+- Add config fields only when a planned packet needs them or the doctor must
+  report them.
+- Keep current `goncho.Config` constructor defaults backward-compatible.
+
+Do not implement:
+
+- provider model configs for inactive workers;
+- JWT auth config;
+- vector-store selection config.
+
+Validation:
+
+- `go test ./internal/config ./cmd/gormes ./internal/goncho -count=1`
+- `go run ./cmd/autoloop progress validate`
+
+Commit message:
+
+- `fix(config): add goncho namespace`
+
+Acceptance:
+
+- Goncho settings have one documented namespace;
+- env/TOML/default precedence matches the rest of Gormes;
+- doctor output makes inactive features visible instead of ambiguous.
+
 ## Execution Order
 
 1. Packet 1 - context options.
 2. Packet 3 - directional peer-card storage.
-3. Packet 6 - dialectic chat contract.
-4. Packet 2 - filter AST.
-5. Packet 4 - summary slots and budget.
-6. Packet 5 - queue status read model.
-7. Packet 7 - file upload import.
-8. Packet 8 - manual conclusions API.
-9. Packet 9 - host integration matrix fixtures.
-10. Packet 10 - optional OpenAPI adapter audit.
+3. Packet 11 - topology design fixtures.
+4. Packet 14 - configuration namespace.
+5. Packet 6 - dialectic chat contract.
+6. Packet 13 - streaming chat persistence.
+7. Packet 2 - filter AST.
+8. Packet 4 - summary slots and budget.
+9. Packet 5 - queue status read model.
+10. Packet 12 - operator diagnostics contract.
+11. Packet 7 - file upload import.
+12. Packet 8 - manual conclusions API.
+13. Packet 9 - host integration matrix fixtures.
+14. Packet 10 - optional OpenAPI adapter audit.
 
 The order is chosen to minimize rework: expose request shapes first, fix
-storage identity next, then add runtime behavior and operator surfaces.
+storage identity next, lock topology/config, then add runtime behavior and
+operator surfaces.
 
 ## Definition Of Done For Any Packet
 
