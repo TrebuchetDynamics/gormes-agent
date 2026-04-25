@@ -162,6 +162,101 @@ func TestRunOnce_HealthUpdatedEventEmittedOnSuccess(t *testing.T) {
 	}
 }
 
+func TestRunOnce_CommitsRunHealthAfterPromotedWorker(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+
+	progressPath := filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	if err := os.MkdirAll(filepath.Dir(progressPath), 0o755); err != nil {
+		t.Fatalf("mkdir progress dir: %v", err)
+	}
+	if err := os.WriteFile(progressPath, []byte(`{
+  "meta": {
+    "version": "2.0",
+    "last_updated": "2026-04-24",
+    "links": {"github_readme": "", "landing_page": "", "docs_site": "", "source_code": ""}
+  },
+  "phases": {
+    "3": {
+      "name": "P3",
+      "deliverable": "memory",
+      "subphases": {
+        "3.F": {
+          "name": "Goncho",
+          "items": [
+            {
+              "name": "health clean row",
+              "status": "planned",
+              "contract": "land worker and health",
+              "contract_status": "draft",
+              "write_scope": ["internal/goncho/"]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+`), 0o644); err != nil {
+		t.Fatalf("write progress: %v", err)
+	}
+	runGitCommand(t, repoRoot, "add", ".")
+	runGitCommand(t, repoRoot, "commit", "-m", "add progress")
+
+	runner := runnerFunc(func(ctx context.Context, command Command) Result {
+		switch command.Name {
+		case "opencode":
+			path := filepath.Join(command.Dir, "internal", "goncho", "health_clean.go")
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("package goncho\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if result := (ExecRunner{}).Run(ctx, Command{Name: "git", Args: []string{"add", "."}, Dir: command.Dir}); result.Err != nil {
+				t.Fatalf("git add: %v\n%s", result.Err, result.Stderr)
+			}
+			if result := (ExecRunner{}).Run(ctx, Command{Name: "git", Args: []string{"commit", "-m", "worker change"}, Dir: command.Dir}); result.Err != nil {
+				t.Fatalf("git commit: %v\n%s", result.Err, result.Stderr)
+			}
+			return Result{}
+		case "git":
+			if len(command.Args) > 0 && command.Args[0] == "push" {
+				return Result{Err: errors.New("offline push")}
+			}
+			return (ExecRunner{}).Run(ctx, command)
+		default:
+			return Result{}
+		}
+	})
+
+	runRoot := t.TempDir()
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     repoRoot,
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "opencode",
+			Mode:         "safe",
+			MaxAgents:    1,
+			MaxPhase:     3,
+		},
+		Runner: runner,
+		Now:    time.Date(2026, 4, 25, 4, 56, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	if status := gitStatusPorcelain(t, repoRoot); status != "" {
+		t.Fatalf("base repo status = %q, want clean after worker promotion and health update", status)
+	}
+	item := loadItem(t, progressPath, "3", "3.F", "health clean row")
+	if item.Health == nil || item.Health.LastSuccess == "" {
+		t.Fatalf("item.Health.LastSuccess not set after run; got %+v", item.Health)
+	}
+}
+
 func TestRunOnce_PreflightFailureSoftSkipsAndContinues(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)

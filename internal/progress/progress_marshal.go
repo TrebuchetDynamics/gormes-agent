@@ -23,7 +23,7 @@ func (p Progress) MarshalJSON() ([]byte, error) {
 		Meta:   p.Meta,
 		Phases: phases,
 	}
-	return json.Marshal(aux)
+	return marshalNoEscape(aux)
 }
 
 // MarshalJSON emits Phase with subphase keys in natural-numeric order so
@@ -46,7 +46,7 @@ func (ph Phase) MarshalJSON() ([]byte, error) {
 		DependencyNote: ph.DependencyNote,
 		Subphases:      subphases,
 	}
-	return json.Marshal(aux)
+	return marshalNoEscape(aux)
 }
 
 // marshalOrderedPhases emits a JSON object whose keys are the phase IDs of
@@ -69,7 +69,7 @@ func marshalOrderedPhases(m map[string]Phase) (json.RawMessage, error) {
 		buf.Write(k)
 		buf.WriteByte(':')
 		v := m[key]
-		body, err := json.Marshal(v)
+		body, err := marshalNoEscape(v)
 		if err != nil {
 			return nil, fmt.Errorf("marshal phase %q: %w", key, err)
 		}
@@ -97,7 +97,7 @@ func marshalOrderedSubphases(m map[string]Subphase) (json.RawMessage, error) {
 		buf.Write(k)
 		buf.WriteByte(':')
 		v := m[key]
-		body, err := json.Marshal(v)
+		body, err := marshalNoEscape(v)
 		if err != nil {
 			return nil, fmt.Errorf("marshal subphase %q: %w", key, err)
 		}
@@ -105,4 +105,14 @@ func marshalOrderedSubphases(m map[string]Subphase) (json.RawMessage, error) {
 	}
 	buf.WriteByte('}')
 	return buf.Bytes(), nil
+}
+
+func marshalNoEscape(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }

@@ -21,12 +21,14 @@ const (
 // Service is the first in-binary Goncho domain facade. It sits directly on
 // top of the SQLite store used by Gormes today.
 type Service struct {
-	db          *sql.DB
-	workspaceID string
-	observer    string
-	recentLimit int
-	sessions    SessionDirectory
-	log         *slog.Logger
+	db             *sql.DB
+	workspaceID    string
+	observer       string
+	recentLimit    int
+	maxMessageSize int
+	maxFileSize    int
+	sessions       SessionDirectory
+	log            *slog.Logger
 }
 
 const maxPeerCardFacts = 40
@@ -56,12 +58,14 @@ func NewService(db *sql.DB, cfg Config, log *slog.Logger) *Service {
 		recentLimit = DefaultRecentMessages
 	}
 	return &Service{
-		db:          db,
-		workspaceID: workspaceID,
-		observer:    observer,
-		recentLimit: recentLimit,
-		sessions:    cfg.SessionDirectory,
-		log:         log,
+		db:             db,
+		workspaceID:    workspaceID,
+		observer:       observer,
+		recentLimit:    recentLimit,
+		maxMessageSize: cfg.MaxMessageSize,
+		maxFileSize:    cfg.MaxFileSize,
+		sessions:       cfg.SessionDirectory,
+		log:            log,
 	}
 }
 
