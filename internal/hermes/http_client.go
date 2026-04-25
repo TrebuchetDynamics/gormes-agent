@@ -106,9 +106,10 @@ type orChatRequest struct {
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
-	msgs := makeOpenAICompatibleMessages(req.Messages, c.provider, req.Model, c.baseURL)
-	tools := make([]orToolDescriptor, len(req.Tools))
-	for i, t := range req.Tools {
+	msgs := makeOpenAICompatibleMessages(req.Messages)
+	descriptors := SanitizeToolDescriptors(req.Tools)
+	tools := make([]orToolDescriptor, len(descriptors))
+	for i, t := range descriptors {
 		tools[i] = orToolDescriptor{
 			Type: "function",
 			Function: struct {
@@ -149,7 +150,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
 	}
 	// The body stays open for streaming; chatStream owns the Close.
-	return newChatStream(resp.Body, resp.Header.Get("X-Hermes-Session-Id")), nil
+	return newChatStream(resp.Body, resp.Header.Get("X-Hermes-Session-Id"), descriptors), nil
 }
 
 func makeOpenAICompatibleMessages(messages []Message, provider, model, baseURL string) []orMessage {
