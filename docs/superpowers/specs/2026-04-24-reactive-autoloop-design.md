@@ -45,7 +45,7 @@ write-once-per-event but never *acts* on its own history.
 2. Salvage worker output that is correct-but-malformed.
 3. Make a single bad backend afternoon recoverable instead of fatal.
 4. Give the planner a clear "fix these" signal instead of a free-form audit.
-5. Ship as five independently-shippable layers so each can be reverted in
+5. Ship as five independently-shippable commits so each can be reverted in
    isolation if it regresses.
 
 ## Non-goals
@@ -83,19 +83,21 @@ typed `Health` block on each `progress.json` row.
                                                                    └──────────────────────────────┘
 ```
 
-Five layers, each independently shippable:
+Five commits, six logical layers (L4's behaviors land inside the L2 commit
+for cohesion — soft-skip and backend-degrade are both run-loop concerns and
+share the same per-worker-outcome touch points):
 
-| Layer | Slice description | Touches |
-|---|---|---|
-| L1. `Health` schema + merge IO | Extend `internal/progress` with typed `RowHealth` + atomic batched write helpers | `internal/progress/progress.go`, new `internal/progress/health.go`, tests |
-| L2. Run-loop writes health | Per-run accumulator, atomic flush at run end, soft-skip semantics, backend degrade | `internal/autoloop/run.go`, new `internal/autoloop/health_writer.go`, `backend.go`, `config.go` |
-| L3. Selection honors health | Quarantine filter + failure penalty in candidate ranking | `internal/autoloop/candidates.go` |
-| L4. Loop resilience | Soft-skip + loop-level backend degrade chain (folded into L2 commit; called out separately for clarity) | folded into L2 |
-| L5. Report repair pass | Salvage successful work whose final report won't strict-parse | `internal/autoloop/report.go`, promotion path in `run.go` |
-| L6. Planner consumes health | Quarantined-rows context + prompt preservation rule + post-regen validator | `internal/architectureplanner/context.go`, `prompt.go`, `run.go` |
+| Layer | Slice description | Touches | Commit |
+|---|---|---|---|
+| L1. `Health` schema + merge IO | Extend `internal/progress` with typed `RowHealth` + atomic batched write helpers | `internal/progress/progress.go`, new `internal/progress/health.go`, tests | C1 |
+| L2. Run-loop writes health | Per-run accumulator, atomic flush at run end | `internal/autoloop/run.go`, new `internal/autoloop/health_writer.go` | C2 |
+| L3. Selection honors health | Quarantine filter + failure penalty in candidate ranking | `internal/autoloop/candidates.go` | C3 |
+| L4. Loop resilience | Soft-skip + loop-level backend degrade chain | `internal/autoloop/run.go`, `backend.go`, `config.go` | C2 (folded) |
+| L5. Report repair pass | Salvage successful work whose final report won't strict-parse | `internal/autoloop/report.go`, promotion path in `run.go` | C4 |
+| L6. Planner consumes health | Quarantined-rows context + prompt preservation rule + post-regen validator | `internal/architectureplanner/context.go`, `prompt.go`, `run.go` | C5 |
 
-L1 is foundational. L2-L6 can land in any order after L1; the natural ramp is
-L1 → L2 → L3 → L5 → L6, with L4's behaviors landing inside the L2 commit.
+L1 is foundational (everyone else depends on it). C2-C5 can land in any order
+after C1; the natural ramp is C1 → C2 → C3 → C4 → C5.
 
 ## L1 — Health schema and merge IO
 
