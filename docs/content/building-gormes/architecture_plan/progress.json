@@ -3932,9 +3932,9 @@
                 "Provider-cap compression fixtures prove the auxiliary feasibility path forwards provider identity, uses the 272000 Codex cap, and reports fallback/source evidence without live provider calls."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-25T14:59:08Z",
-                "last_success": "2026-04-25T14:59:08Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T15:02:14Z",
+                "last_success": "2026-04-25T15:02:14Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -4870,6 +4870,11 @@
               "done_signal": [
                 "Process-notification fixtures prove mutual exclusion, per-session 1/15s throttling, three-strike promotion, suppress-after-exit, and global overflow trip/release behavior without spawning processes."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T15:02:14Z",
+                "last_success": "2026-04-25T15:02:14Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:97d54f0e tools/process_registry.py",
@@ -5255,15 +5260,15 @@
               "done_signal": [
                 "Page-scoped slot fixtures prove colon-bearing Hermes slot names round-trip through plugin manifests and disabled dashboard inventory without enabling a React/Vite runtime."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T15:02:14Z",
+                "last_success": "2026-04-25T15:02:14Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:af22421e web/src/plugins/slots.ts",
                 "note": "Hermes defines the page-scoped slot catalogue; Gormes should preserve it as Go-native metadata until it owns a dashboard slot runtime."
-              },
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-25T14:55:15Z",
-                "last_success": "2026-04-25T14:55:15Z"
               }
             },
             {
