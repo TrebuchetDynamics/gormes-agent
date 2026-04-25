@@ -11,7 +11,13 @@ import (
 // TestApplyHealthUpdates_RoundTripPreservesCheckedInProgressJSON loads the
 // real checked-in progress.json, runs an empty update set through
 // ApplyHealthUpdates, and asserts the file is byte-equal modulo trailing
-// whitespace. Catches any field reordering or formatting drift.
+// whitespace.
+//
+// With the documented `len(updates) == 0` short-circuit in
+// ApplyHealthUpdates, this is intentionally a noop on disk: an empty batch
+// must not rewrite the file. The test pins that contract so a future change
+// that drops the short-circuit (and thereby risks lossy reformatting on the
+// real file) trips the assertion immediately.
 func TestApplyHealthUpdates_RoundTripPreservesCheckedInProgressJSON(t *testing.T) {
 	src := filepath.Join("..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	original, err := os.ReadFile(src)

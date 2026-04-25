@@ -1,6 +1,7 @@
 package progress
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -132,12 +133,19 @@ func ApplyHealthUpdates(path string, updates []HealthUpdate) error {
 // file in the target directory, then rename. The temp file is created in
 // the same directory as the target so rename(2) is an atomic same-filesystem
 // op on POSIX. Stable key ordering is provided by the typed structs.
+//
+// HTML escaping is disabled so user-authored content with `<`, `>`, or `&`
+// (common in notes that quote command syntax or markdown) round-trips
+// verbatim instead of being mangled into `<` / `>` / `&`.
 func SaveProgress(path string, prog *Progress) error {
-	body, err := json.MarshalIndent(prog, "", "  ")
-	if err != nil {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(prog); err != nil {
 		return fmt.Errorf("marshal progress: %w", err)
 	}
-	body = append(body, '\n')
+	body := buf.Bytes() // Encoder.Encode already appends a trailing newline.
 
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".progress-*.json")

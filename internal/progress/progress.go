@@ -58,10 +58,17 @@ type AutoloopMeta struct {
 }
 
 type Meta struct {
-	Version     string            `json:"version"`
-	LastUpdated string            `json:"last_updated"`
-	Links       map[string]string `json:"links"`
-	Autoloop    AutoloopMeta      `json:"autoloop,omitempty"`
+	Version     string       `json:"version"`
+	LastUpdated string       `json:"last_updated"`
+	Links       Links        `json:"links"`
+	Autoloop    AutoloopMeta `json:"autoloop,omitempty"`
+}
+
+type Links struct {
+	GitHubReadme string `json:"github_readme"`
+	LandingPage  string `json:"landing_page"`
+	DocsSite     string `json:"docs_site"`
+	SourceCode   string `json:"source_code"`
 }
 
 type Item struct {
