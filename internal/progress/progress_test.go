@@ -947,8 +947,8 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	if crossChat.Priority != "P2" {
 		t.Fatalf("Phase 3.E.7 priority = %q, want P2", crossChat.Priority)
 	}
-	if got := crossChat.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 3.E.7 = %q, want in_progress", got)
+	if got := crossChat.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 3.E.7 = %q, want complete", got)
 	}
 	crossChatItems := itemsByName(crossChat.Items)
 	userID := crossChatItems["user_id concept above chat_id"]
@@ -985,9 +985,26 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	if denyFixtures.ContractStatus != ContractStatusValidated {
 		t.Fatalf("Phase 3.E.7 deny-path fixtures contract_status = %q, want validated", denyFixtures.ContractStatus)
 	}
+	sillyTavern := crossChatItems["SillyTavern persona and group-chat mapping fixtures"]
+	if sillyTavern.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.7 SillyTavern fixtures status = %q, want complete", sillyTavern.Status)
+	}
+	if sillyTavern.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 3.E.7 SillyTavern fixtures contract_status = %q, want validated", sillyTavern.ContractStatus)
+	}
+	if !strings.Contains(sillyTavern.Note, "group-chat") || !strings.Contains(sillyTavern.Note, "honcho_chat") {
+		t.Fatalf("Phase 3.E.7 SillyTavern fixtures note = %q, want group-chat/honcho_chat detail", sillyTavern.Note)
+	}
 	operatorEvidence3E7 := crossChatItems["Cross-chat operator evidence"]
-	if operatorEvidence3E7.Status != StatusPlanned {
-		t.Fatalf("Phase 3.E.7 operator evidence status = %q, want planned", operatorEvidence3E7.Status)
+	if operatorEvidence3E7.Status != StatusComplete {
+		t.Fatalf("Phase 3.E.7 operator evidence status = %q, want complete", operatorEvidence3E7.Status)
+	}
+	if operatorEvidence3E7.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 3.E.7 operator evidence contract_status = %q, want validated", operatorEvidence3E7.ContractStatus)
+	}
+	if !strings.Contains(operatorEvidence3E7.Note, "scope_evidence") ||
+		!strings.Contains(operatorEvidence3E7.Note, "same-chat fallback") {
+		t.Fatalf("Phase 3.E.7 operator evidence note = %q, want scope evidence + fallback detail", operatorEvidence3E7.Note)
 	}
 
 	insights := p.Phases["3"].Subphases["3.E.5"]

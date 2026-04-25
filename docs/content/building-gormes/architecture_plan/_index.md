@@ -37,13 +37,13 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 31/74 subphases shipped · 18 in progress · 25 planned
+**Overall:** 33/74 subphases shipped · 17 in progress · 24 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 3/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 13/20 subphases |
-| Phase 3 — The Black Box (Memory) | 🔨 | 12/14 subphases |
+| Phase 2 — The Gateway | 🔨 | 14/20 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 13/14 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
@@ -163,12 +163,12 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Interrupt propagation to concurrent-tool workers
 
-### 2.E.3 — OS-AI Spine: Durable Job Resilience 🔨
+### 2.E.3 — OS-AI Spine: Durable Job Resilience ✅
 
 - [x] Durable job backpressure + timeout audit
 - [x] Durable worker supervisor status seam
-- [ ] Durable pause/resume intent contract
-- [ ] Durable replay and inbox message contract
+- [x] Durable pause/resume intent contract
+- [x] Durable replay and inbox message contract
 
 ### 2.F.1 — Slash Command Registry + Gateway Dispatch ✅
 
@@ -286,7 +286,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Relationship writer freshness updates
 - [x] Deterministic weight attenuation at recall time
 
-### 3.E.7 — Cross-Chat Synthesis 🔨
+### 3.E.7 — Cross-Chat Synthesis ✅
 
 - [x] user_id concept above chat_id
 - [x] Same-chat default recall fence
@@ -294,9 +294,9 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Interrupted-turn memory sync suppression
 - [x] Honcho-compatible scope/source tool schema
 - [x] Honcho host integration compatibility fixtures
-- [ ] SillyTavern persona and group-chat mapping fixtures
+- [x] SillyTavern persona and group-chat mapping fixtures
 - [x] Cross-chat deny-path fixtures
-- [ ] Cross-chat operator evidence
+- [x] Cross-chat operator evidence
 
 ### 3.E.8 — Session Lineage + Cross-Source Search 🔨
 
@@ -452,12 +452,12 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [ ] ACP server side
 
-### 5.I — Plugins Architecture ⏳
+### 5.I — Plugins Architecture 🔨
 
-- [ ] Plugin SDK
-- [ ] Dashboard theme/plugin extension status contract
+- [x] Plugin SDK
+- [x] Dashboard theme/plugin extension status contract
 - [ ] Third-party extensions
-- [ ] First-party Spotify plugin fixture
+- [x] First-party Spotify plugin fixture
 
 ### 5.J — Approval / Security Guards ⏳
 

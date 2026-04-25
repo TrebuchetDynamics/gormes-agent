@@ -942,9 +942,9 @@
             {
               "name": "Durable pause/resume intent contract",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes durable jobs record pause and resume as explicit operator/system control intents over the SQLite ledger without starting a GBrain worker daemon",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -975,7 +975,7 @@
                 "Child-agent trust cannot pause or resume privileged deterministic shell/cron jobs.",
                 "Doctor/status includes paused and resume-pending counts plus degraded evidence when lifecycle control is unsupported."
               ],
-              "note": "Upstream GBrain v0.20.4 documents pause/resume as part of the unified minion-orchestrator surface. Gormes should add the data contract first over the existing durable_jobs tables and status surfaces; no worker process or shell handler belongs in this slice.",
+              "note": "Complete: TDD landed internal/subagent/durable_lifecycle_test.go over the Go SQLite ledger. Durable jobs now record pause/resume as explicit operator/system lifecycle intents, transition waiting or active work through a paused state with actor/reason/timestamp evidence, resume paused work back to a claimable waiting state without losing progress, parent, timeout, or lock audit fields, deny child-agent lifecycle control for privileged deterministic jobs, and surface paused, resume-pending, and unsupported lifecycle-control counts through doctor/status without starting worker daemons.",
               "write_scope": [
                 "internal/subagent/",
                 "internal/doctor/",
@@ -987,6 +987,11 @@
               "done_signal": [
                 "Durable lifecycle fixtures prove pause/resume state transitions, trust denial, and doctor/status counts over the Go SQLite ledger."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T09:54:25Z",
+                "last_success": "2026-04-25T09:54:25Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:11abb24 skills/minion-orchestrator/SKILL.md",
@@ -996,9 +1001,9 @@
             {
               "name": "Durable replay and inbox message contract",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes durable jobs can replay completed/failed work and store steer messages as auditable inbox data without exposing protected shell submission to child agents",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -1022,16 +1027,13 @@
               "not_ready_when": [
                 "The slice implements arbitrary shell execution, a full CLI, token accounting, or fan-out aggregators before replay/inbox storage and trust boundaries are fixture-locked."
               ],
-              "blocked_by": [
-                "Durable pause/resume intent contract"
-              ],
               "acceptance": [
                 "Replay creates a new job linked to replay_of with data_overrides preserved as JSON and without mutating the original terminal job.",
                 "Inbox messages store sender, directive payload, unread/read timestamps, and are only claimable by the owning job or operator/system trust.",
                 "Child-agent trust may observe get/list/progress-style durable job state but cannot submit protected shell_command work.",
                 "PGLite or in-process fallback is documented as a Gormes-local mode, not as a requirement to port GBrain's database engine."
               ],
-              "note": "The GBrain merge narrowed shell submission to CLI/operator trust while keeping get/list/progress, cancel, replay, and send_job_message observable through the minion surface. Gormes needs the same boundary as ledger fixtures before any worker-facing lifecycle tool is exposed.",
+              "note": "Complete: TDD landed internal/subagent/durable_replay_inbox_test.go over the Go SQLite ledger. Replay creates a fresh waiting job linked by replay_of, preserves data_overrides_json, and leaves the terminal source job untouched. Durable inbox messages persist sender/trust, directive payload, unread/read timestamps, and owner/operator/system claim boundaries. Child-agent trust can observe get/list/progress-style durable state while protected shell_command submit is denied and audited separately. Doctor/status now reports replay-unavailable, inbox-unread, and protected-submit-denied evidence independently. Gormes keeps this as a local SQLite/in-process durable ledger mode rather than porting GBrain's PGLite/Postgres engine or shell worker.",
               "write_scope": [
                 "internal/subagent/",
                 "internal/doctor/",
@@ -1043,6 +1045,11 @@
               "done_signal": [
                 "Replay/inbox fixtures prove replay lineage, steer-message audit, and protected shell-submit denial without importing GBrain Minions."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T10:06:46Z",
+                "last_success": "2026-04-25T10:06:46Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:11abb24 skills/minion-orchestrator/SKILL.md",
@@ -1685,9 +1692,9 @@
             {
               "name": "SillyTavern persona and group-chat mapping fixtures",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho maps Honcho SillyTavern peer modes, session naming, enrichment modes, and group-chat participants without widening recall or leaking the internal goncho name",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1718,7 +1725,7 @@
                 "Group-chat fixtures register one peer per character and lazy-add mid-chat characters instead of collapsing to one group peer.",
                 "Context-only, reasoning, and tool-call enrichment modes map to prompt context, honcho_chat-style reasoning, and tool exposure with explicit degraded evidence for unsupported modes."
               ],
-              "note": "Honcho upstream added the SillyTavern guide in e659b6b with concrete panel labels, config resolution, peer modes, session naming, and group-chat behavior. Current Gormes fixtures only cover generic chat-instance and recall-mode mapping, so this row narrows the remaining host drift into one testable Goncho contract.",
+              "note": "TDD landed: `internal/goncho/sillytavern_mapping_test.go` fixture-locks Honcho SillyTavern peer modes, auto/per-character/custom session naming with reset/orphan evidence, group-chat one-peer-per-character mapping with lazy mid-chat additions, context/reasoning/tool-call enrichment mapping, and degraded evidence for unsupported panel knobs or missing peer/session identifiers. The mapper stays pure Goncho host evidence: no SillyTavern extension, no Node/browser imports, no hosted Honcho calls, no persistence changes, and external tool evidence preserves honcho_* names including honcho_chat.",
               "write_scope": [
                 "internal/goncho/",
                 "internal/gonchotools/",
@@ -1731,6 +1738,11 @@
               "done_signal": [
                 "SillyTavern mapping fixtures prove persona/session/group-chat decisions and enrichment-mode degradation while external tools keep honcho_* names."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T09:54:25Z",
+                "last_success": "2026-04-25T09:54:25Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "honcho:e659b6b docs/v3/guides/integrations/sillytavern.mdx",
@@ -1787,9 +1799,9 @@
             },
             {
               "name": "Cross-chat operator evidence",
-              "status": "planned",
+              "status": "complete",
               "contract": "Memory and Goncho status expose operator-readable evidence for allowed, denied, and degraded cross-chat recall decisions",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1823,7 +1835,7 @@
                 "Goncho context/search dry-run output preserves origin_source evidence for returned hits.",
                 "`gormes memory status` or an equivalent diagnostics path renders the evidence without exposing raw SQL rows."
               ],
-              "note": "TDD: add operator-readable evidence for allowed and denied cross-chat recall paths, including resolved user_id/source scope details, before marking 3.E.7 complete. This row is intentionally blocked behind the SillyTavern drift fixture so host mapping gaps do not get hidden by generic cross-chat evidence.",
+              "note": "TDD landed: internal/memory/cross_chat_operator_evidence_test.go pins allowed and denied cross-chat recall evidence with resolved user_id, source allowlists, session/chat source, current binding details, widened-session counts, and same-chat fallback reasons for unresolved, unknown, or conflicting identity. Goncho search/context results now carry scope_evidence and preserve origin_source on returned hits, while gormes goncho doctor --scope user --sources renders the evidence without exposing raw SQL rows. The SillyTavern persona/group-chat mapping gate was fixture-locked before this closeout, so host mapping gaps remain explicit degraded evidence instead of being hidden by generic cross-chat status.",
               "write_scope": [
                 "internal/memory/",
                 "internal/goncho/",
@@ -1836,6 +1848,11 @@
               "done_signal": [
                 "Cross-chat evidence fixtures prove allowed and denied recall paths produce operator-readable user/source/session diagnostics."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T10:11:18Z",
+                "last_success": "2026-04-25T10:11:18Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T09:23:21Z"
@@ -3960,9 +3977,9 @@
             {
               "name": "Plugin SDK",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes loads plugin manifests, capability metadata, version constraints, and disabled-state evidence without executing plugin runtime code",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -3996,7 +4013,7 @@
                 "Capability registration can produce disabled tool/dashboard/backend-route inventory without executing plugin code.",
                 "Project plugin discovery remains disabled unless an explicit config/env gate is present."
               ],
-              "note": "TDD: port plugin manifest loading, capability registration metadata, version checks, and isolation boundaries from Hermes `plugins/` before third-party extension execution. The first worker slice should create the internal/plugins package and fixtures only; runtime hooks, dashboard assets, and Spotify handlers stay in dependent rows.",
+              "note": "Complete: TDD landed internal/plugins manifest fixtures and metadata-only inventory. Gormes now parses plugin.yaml plus dashboard/manifest.json for identity, version constraints, tool/hook/dashboard/backend-route capabilities, required env/auth, dashboard entry/css/api, tab override/hidden, and slots; malformed manifests, invalid names, unsupported capability kinds, incompatible constraints, missing credentials, disabled execution, and project-plugin gate denial all fail closed with structured evidence. internal/tools records disabled plugin capability rows without registering executable handlers, and internal/apiserver exposes disabled plugin inventory through /api/status and /api/dashboard/plugins without importing or executing plugin runtime code.",
               "write_scope": [
                 "internal/plugins/",
                 "internal/tools/",
@@ -4009,6 +4026,11 @@
               "done_signal": [
                 "Plugin manifest fixtures prove metadata parsing, version/capability validation, disabled inventory, and no implicit runtime code execution."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T09:54:25Z",
+                "last_success": "2026-04-25T09:54:25Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T09:23:21Z"
@@ -4021,9 +4043,9 @@
             },
             {
               "name": "Dashboard theme/plugin extension status contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native dashboard status exposes theme and UI/backend-plugin extension inventory as disabled, unavailable, or loaded without importing Hermes' React/Vite runtime",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -4054,7 +4076,7 @@
                 "When no Go-native extension runtime exists, `/api/dashboard/plugins` returns explicit disabled/unavailable evidence.",
                 "Docs-facing status avoids claiming Hermes drop-in theme/plugin support until fixture coverage exists."
               ],
-              "note": "Upstream consolidated dashboard themes and plugins into `Extending the Dashboard` at e5647d78. Gormes should track that as API/status inventory first; the Go runtime remains independent of the upstream React dashboard.",
+              "note": "Complete: TDD landed internal/apiserver dashboard extension fixtures. /api/status now categorizes built-in, optional, and optional-extension panels, exposes dashboard_extensions runtime/theme/UI-plugin/backend-route inventory, and marks the Hermes React/Vite dashboard runtime absent. /api/dashboard/plugins returns an explicit object with disabled runtime evidence, unavailable theme evidence, plugin metadata rows, capability rows, and backend-route rows without importing React/Vite assets, executing plugin JavaScript, or mounting backend plugin modules.",
               "write_scope": [
                 "internal/apiserver/",
                 "internal/plugins/",
@@ -4065,7 +4087,12 @@
               ],
               "done_signal": [
                 "Dashboard extension fixtures prove theme/plugin inventory states are explicit and no upstream React/Vite runtime is required."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T10:02:37Z",
+                "last_success": "2026-04-25T10:02:37Z"
+              }
             },
             {
               "name": "Third-party extensions",
@@ -4074,9 +4101,9 @@
             },
             {
               "name": "First-party Spotify plugin fixture",
-              "status": "planned",
+              "status": "complete",
               "contract": "First-party plugin manifests and tool packages load through the plugin SDK without reverting to built-in tool registration",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -4106,7 +4133,7 @@
                 "Missing credentials keep Spotify disabled with visible status.",
                 "Tool schemas and result envelopes match the upstream plugin fixture without live Spotify calls."
               ],
-              "note": "Upstream moved Spotify from `tools/spotify_tool.py` into `plugins/spotify/`. Track it as the first first-party plugin fixture so Gormes validates the plugin boundary with a real donor before third-party extension execution.",
+              "note": "Complete: TDD added the first-party Spotify plugin fixture in internal/plugins/spotify_plugin_test.go. The Plugin SDK now extracts inert Python package tool metadata from __init__.py/tools.py, infers the providers.spotify auth requirement from the availability check, records seven disabled Spotify tool capabilities with visible missing-auth/runtime evidence, and preserves upstream-style schema/result-envelope metadata without importing handlers or registering built-in Go tools.",
               "write_scope": [
                 "internal/tools/",
                 "internal/plugins/",
