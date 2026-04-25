@@ -92,6 +92,34 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	if !strings.Contains(string(installBody), "https://github.com/TrebuchetDynamics/gormes-agent.git") {
 		t.Fatalf("install.sh missing TrebuchetDynamics repo URL")
 	}
+
+	for _, asset := range []string{"install.ps1", "install.cmd"} {
+		body, err := os.ReadFile(filepath.Join(root, asset))
+		if err != nil {
+			t.Fatalf("read %s: %v", asset, err)
+		}
+		if len(body) == 0 {
+			t.Fatalf("%s is empty in static export", asset)
+		}
+	}
+
+	ps1Body, err := os.ReadFile(filepath.Join(root, "install.ps1"))
+	if err != nil {
+		t.Fatalf("read install.ps1: %v", err)
+	}
+	for _, want := range []string{"LOCALAPPDATA", "gormes-agent", "Invoke-Main"} {
+		if !strings.Contains(string(ps1Body), want) {
+			t.Fatalf("install.ps1 missing %q in static export", want)
+		}
+	}
+
+	cmdBody, err := os.ReadFile(filepath.Join(root, "install.cmd"))
+	if err != nil {
+		t.Fatalf("read install.cmd: %v", err)
+	}
+	if !strings.Contains(string(cmdBody), "install.ps1") {
+		t.Fatalf("install.cmd missing PowerShell handoff in static export")
+	}
 }
 
 func TestExportDir_RecreatesDist(t *testing.T) {

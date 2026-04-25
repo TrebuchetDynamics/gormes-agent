@@ -109,3 +109,84 @@ func TestServer_ServesInstallScript(t *testing.T) {
 		}
 	}
 }
+
+func TestServer_ServesPowerShellInstaller(t *testing.T) {
+	handler, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/install.ps1", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/plain") {
+		t.Fatalf("content-type = %q, want text/plain", ct)
+	}
+
+	body := rr.Body.String()
+	for _, want := range []string{
+		"LOCALAPPDATA",
+		"gormes-agent",
+		"winget",
+		"choco",
+		"GORMES_INSTALL_HOME",
+		"Invoke-Main",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("install.ps1 missing %q\n%s", want, body)
+		}
+	}
+}
+
+func TestServer_ServesCmdWrapper(t *testing.T) {
+	handler, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/install.cmd", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/plain") {
+		t.Fatalf("content-type = %q, want text/plain", ct)
+	}
+
+	body := rr.Body.String()
+	for _, want := range []string{
+		"install.ps1",
+		"powershell",
+		"ExecutionPolicy",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("install.cmd missing %q\n%s", want, body)
+		}
+	}
+}
+
+func TestServer_InstallerCacheControl(t *testing.T) {
+	handler, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+
+	for _, name := range []string{"install.sh", "install.ps1", "install.cmd"} {
+		req := httptest.NewRequest("GET", "/"+name, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != 200 {
+			t.Fatalf("%s status = %d, want 200", name, rr.Code)
+		}
+		if cc := rr.Header().Get("Cache-Control"); cc == "" {
+			t.Fatalf("%s missing Cache-Control header", name)
+		}
+	}
+}
