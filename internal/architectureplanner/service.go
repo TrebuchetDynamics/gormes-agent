@@ -69,13 +69,50 @@ WantedBy=timers.target
 `, interval, opts.ServiceUnitName)
 }
 
+// PlannerPathUnitOptions render the systemd .path unit that watches the
+// triggers ledger. systemd fires the linked service whenever the file
+// changes, with rate-limiting so a burst of triggers does not stampede
+// the planner.
+type PlannerPathUnitOptions struct {
+	Description string
+	PathToWatch string
+	ServiceUnit string
+}
+
+// RenderPlannerPathUnit returns a systemd .path unit body. The
+// TriggerLimit* directives cap planner firings to once per minute even
+// if autoloop appends many trigger events in quick succession.
+func RenderPlannerPathUnit(opts PlannerPathUnitOptions) string {
+	return fmt.Sprintf(`[Unit]
+Description=%s
+
+[Path]
+PathChanged=%s
+TriggerLimitIntervalSec=60
+TriggerLimitBurst=1
+Unit=%s
+
+[Install]
+WantedBy=default.target
+`, opts.Description, opts.PathToWatch, opts.ServiceUnit)
+}
+
 // PlannerServiceInstallOptions describe how to write planner systemd units to
 // the user unit directory.
 type PlannerServiceInstallOptions struct {
-	Runner      autoloop.Runner
-	UnitDir     string
-	UnitName    string
-	TimerName   string
+	Runner    autoloop.Runner
+	UnitDir   string
+	UnitName  string
+	TimerName string
+	// PathName is the filename of the .path unit that reactively fires
+	// the planner service on triggers ledger changes. Defaults to
+	// "gormes-architecture-planner.path" if empty.
+	PathName string
+	// PathToWatch is the absolute filesystem path the .path unit
+	// watches (autoloop's triggers JSONL ledger). Threaded in from the
+	// caller so the planner Config and systemd unit agree on which
+	// file represents the trigger source-of-truth.
+	PathToWatch string
 	PlannerPath string
 	WorkDir     string
 	Interval    string
@@ -119,6 +156,19 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 		return err
 	}
 
+	pathName := opts.PathName
+	if pathName == "" {
+		pathName = "gormes-architecture-planner.path"
+	}
+	pathUnitPath := filepath.Join(opts.UnitDir, pathName)
+	if err := writePlannerUnit(pathUnitPath, opts.Force, RenderPlannerPathUnit(PlannerPathUnitOptions{
+		Description: "Trigger Gormes architecture planner on autoloop signal",
+		PathToWatch: opts.PathToWatch,
+		ServiceUnit: opts.UnitName,
+	})); err != nil {
+		return err
+	}
+
 	if result := runner.Run(ctx, autoloop.Command{Name: "systemctl", Args: []string{"--user", "daemon-reload"}}); result.Err != nil {
 		return result.Err
 	}
@@ -126,6 +176,13 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 		result := runner.Run(ctx, autoloop.Command{
 			Name: "systemctl",
 			Args: []string{"--user", "enable", "--now", opts.TimerName},
+		})
+		if result.Err != nil {
+			return result.Err
+		}
+		result = runner.Run(ctx, autoloop.Command{
+			Name: "systemctl",
+			Args: []string{"--user", "enable", "--now", pathName},
 		})
 		if result.Err != nil {
 			return result.Err

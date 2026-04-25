@@ -2119,7 +2119,7 @@ git commit -m "feat(planner): consume autoloop trigger ledger via cursor"
 - Modify: `internal/architectureplanner/service.go`
 - Modify: `internal/architectureplanner/service_test.go`
 
-- [ ] **Step 8.1: Write failing tests for path unit rendering**
+- [x] **Step 8.1: Write failing tests for path unit rendering**
 
 Append to `internal/architectureplanner/service_test.go`:
 
@@ -2170,7 +2170,7 @@ func TestInstallPlannerService_WritesAllThreeUnits(t *testing.T) {
 }
 ```
 
-- [ ] **Step 8.2: Implement `RenderPlannerPathUnit` and extend install**
+- [x] **Step 8.2: Implement `RenderPlannerPathUnit` and extend install**
 
 In `internal/architectureplanner/service.go`:
 
@@ -2208,7 +2208,7 @@ type PlannerServiceInstallOptions struct {
 
 In `InstallPlannerService`, after writing the `.timer` file, also write the `.path` file. Use the `PlannerTriggersPath` from Config (or pass it via opts) to get the watched path.
 
-- [ ] **Step 8.3: Run + commit**
+- [x] **Step 8.3: Run + commit**
 
 ```bash
 go test ./internal/architectureplanner/ -run TestRenderPlannerPath -v

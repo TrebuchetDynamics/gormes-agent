@@ -83,7 +83,11 @@ func run(args []string) error {
 			if err != nil {
 				return err
 			}
-			return installPlannerService(root, force)
+			cfg, err := architectureplanner.ConfigFromEnv(root, plannerEnv(runOptions{}))
+			if err != nil {
+				return err
+			}
+			return installPlannerService(root, force, cfg.PlannerTriggersPath)
 		}
 		return fmt.Errorf(usage)
 	case "--help", "-h", "help":
@@ -234,7 +238,7 @@ func plannerServiceForce(args []string) (bool, error) {
 	return force, nil
 }
 
-func installPlannerService(root string, force bool) error {
+func installPlannerService(root string, force bool, pathToWatch string) error {
 	unitDir, err := plannerUnitDir()
 	if err != nil {
 		return err
@@ -247,6 +251,8 @@ func installPlannerService(root string, force bool) error {
 		UnitDir:     unitDir,
 		UnitName:    "gormes-architecture-planner.service",
 		TimerName:   "gormes-architecture-planner.timer",
+		PathName:    "gormes-architecture-planner.path",
+		PathToWatch: pathToWatch,
 		PlannerPath: plannerWrapperPath(root),
 		WorkDir:     root,
 		Interval:    interval,
