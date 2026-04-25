@@ -37,12 +37,12 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 30/72 subphases shipped · 11 in progress · 31 planned
+**Overall:** 28/72 subphases shipped · 13 in progress · 31 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 3/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 13/19 subphases |
+| Phase 2 — The Gateway | 🔨 | 11/19 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 11/13 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
 | Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
@@ -106,15 +106,18 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 2.B.4 — WhatsApp Adapter 🔨
 
 - [x] Bridge-vs-native runtime decision
+- [ ] WhatsApp identity resolution + self-chat guard
 - [x] Inbound normalization + command passthrough
 - [ ] Pairing, reconnect, and send contract
 
-### 2.B.5 — Session Context + Delivery Routing ✅
+### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
 - [x] SessionContext prompt injection
+- [ ] BlueBubbles iMessage session-context prompt guidance
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
+- [ ] Non-editable gateway progress/commentary send fallback
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -146,11 +149,13 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Typed result envelope
 - [x] Append-only run log
 
-### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution ✅
+### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution 🔨
 
 - [x] Runner-enforced tool allowlists + blocked-tool policy
 - [x] Tool-call audit in typed child results
 - [x] Real child Hermes stream loop
+- [ ] GBrain minion-orchestrator routing policy
+- [ ] Durable subagent/job ledger
 
 ### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ✅
 
@@ -175,6 +180,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Drain-timeout resume_pending recovery
 - [ ] Pairing read-model schema + atomic persistence
 - [ ] Pairing approval + rate-limit semantics
+- [ ] Unauthorized DM pairing response contract
 - [ ] `gormes gateway status` read-only command
 - [ ] Runtime status JSON + PID/process validation
 - [ ] Token-scoped gateway locks
@@ -276,7 +282,9 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] user_id concept above chat_id
 - [x] Same-chat default recall fence
 - [x] Opt-in user-scope recall + source filters
+- [ ] Interrupted-turn memory sync suppression
 - [ ] Honcho-compatible scope/source tool schema
+- [ ] Honcho host integration compatibility fixtures
 - [ ] Cross-chat deny-path fixtures
 - [ ] Cross-chat operator evidence
 
@@ -301,11 +309,16 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Bedrock Converse payload mapping (no AWS SDK)
 - [ ] Bedrock stream event decoding (SSE fixtures)
 - [ ] Bedrock SigV4 + credential seam
+- [ ] Bedrock stale-client eviction + retry classification
 - [ ] Gemini
 - [ ] OpenRouter
 - [ ] Google Code Assist
 - [ ] Codex
+- [ ] Codex Responses pure conversion harness
+- [ ] Codex OAuth state + stale-token relogin
+- [ ] Codex stream repair + tool-call leak sanitizer
 - [ ] Cross-provider reasoning-tag sanitization
+- [ ] Tool-call argument repair + schema sanitizer
 
 ### 4.B — Context Engine + Compression ⏳
 
@@ -343,6 +356,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 4.G — Credentials + OAuth ⏳
 
 - [ ] Token vault
+- [ ] Anthropic OAuth/keychain credential discovery
 - [ ] Multi-account auth
 - [ ] Google OAuth flow + refresh seam
 
@@ -398,6 +412,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [ ] Skills hub
 - [ ] Skill registries
+- [ ] Skill preprocessing + dynamic slash commands
 
 ### 5.G — MCP Integration ⏳
 
@@ -413,6 +428,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [ ] Plugin SDK
 - [ ] Third-party extensions
+- [ ] First-party Spotify plugin fixture
 
 ### 5.J — Approval / Security Guards ⏳
 
@@ -448,7 +464,9 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [ ] 49-file CLI tree port
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
+- [ ] PTY bridge protocol adapter
 - [ ] CLI command registry parity + active-turn busy policy
+- [ ] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
 - [ ] Gateway, platform, webhook, and cron management CLI
 - [ ] Diagnostics, backup, logs, and status CLI
@@ -467,6 +485,10 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] SSE streaming to Bubble Tea TUI
 - [ ] OpenAI-compatible chat-completions API server
 - [ ] Responses API store + run event stream
+- [ ] API server disconnect snapshot persistence
+- [ ] Gateway proxy mode forwarding contract
+- [ ] Dashboard API client contract
+- [ ] Dashboard PTY chat sidecar contract
 - [ ] API server health + cron admin endpoints
 
 ### 5.R — Code Execution Mode Policy ⏳
@@ -535,6 +557,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 7.E — Regional + Device Adapter Backlog 🔨
 
 - [x] BlueBubbles + HomeAssistant adapters
+- [ ] BlueBubbles iMessage bubble formatting parity
 - [x] Feishu shared-chassis bot seam
 - [x] DingTalk shared-chassis bot seam
 - [x] QQ Bot shared-chassis bot seam

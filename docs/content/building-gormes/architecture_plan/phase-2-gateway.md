@@ -17,19 +17,19 @@ weight: 30
 | Phase 2.B.1 — Telegram Scout | ✅ complete | P1 | Telegram adapter over the existing kernel, long-poll ingress, edit coalescing at the messaging edge |
 | Phase 2.B.2 — Gateway Chassis + Discord | ✅ complete | P1 | Shared gateway manager, Telegram migrated onto the chassis, `gormes gateway` multi-channel entrypoint, and Discord as the second real adapter |
 | Phase 2.B.3 — Slack on Shared Chassis | 🔨 in progress | P1 | `internal/slack` has a Socket Mode bot, threaded reply flow, and placeholder updates; the remaining work is now split into CommandRegistry parser wiring, a `gateway.Channel` shim, then config/doctor/`cmd/gormes gateway` registration |
-| Phase 2.B.4 — WhatsApp Adapter | 🔨 in progress | P1 | Transport-neutral ingress normalization, command passthrough, and bridge-vs-native runtime selection are landed in `internal/channels/whatsapp`; pairing/reconnect/send lifecycle still remains |
-| Phase 2.B.5 — Session Context + Delivery Routing | ✅ complete | P1 | Session-store handle resolution, SessionContext prompt injection, typed `--deliver` parsing, and deterministic gateway stream fan-out now live together in `internal/gateway` |
-| Phase 2.B.10 — WeChat Adapter | 🔨 in progress | P1 | WeCom/WeiXin shared-bot ingress and reply-path contracts are landed; transport/bootstrap remains the priority WeChat closeout |
+| Phase 2.B.4 — WhatsApp Adapter | 🔨 in progress | P1 | Transport-neutral ingress normalization, command passthrough, and bridge-vs-native runtime selection are landed in `internal/channels/whatsapp`; identity resolution/self-chat guards plus pairing/reconnect/send lifecycle still remain |
+| Phase 2.B.5 — Session Context + Delivery Routing | 🔨 in progress | P1 | Session-store handle resolution, baseline SessionContext prompt injection, typed `--deliver` parsing, and deterministic gateway stream fan-out now live together in `internal/gateway`; BlueBubbles/iMessage prompt guidance and non-editable progress/commentary fallback fixtures remain narrow follow-up slices |
+| Phase 2.B.10 — WeChat Adapter | ✅ complete | P1 | WeCom/WeiXin shared-bot ingress, reply-path contracts, WebSocket/callback bootstrap, credential validation, and outbound push/reply lifecycle seams are landed |
 | Phase 2.B.11 — Discord Forum Channels | 🔨 in progress | P3 | Forum-channel detection, parent-forum ingress routing, canonical thread IDs, and thread lifecycle gateway events are landed; media + outbound polish remains planned |
 | Phase 2.C — Thin Mapping Persistence | ✅ complete | P0 | bbolt-backed `(platform, chat_id) -> session_id` resume; no transcript ownership moved into Go |
 | Phase 2.D — Cron / Scheduled Automations | ✅ complete | P2 | `internal/cron` package with `robfig/cron/v3` scheduler, bbolt `cron_jobs` bucket, SQLite `cron_runs` audit table, CRON.md mirror, Heartbeat `[SYSTEM:]` prefix + exact-match `[SILENT]` suppression, kernel `PlatformEvent.SessionID`/`CronJobID` per-event override, generic `DeliverySink` interface, plus the shipped `scripts/gormes-architecture-planner-tasks-manager.sh` operator automation that writes `.codex/planner/architecture-planner-tasks.md`, report/state artifacts, validation logs, and periodic systemd/cron scheduling. Opt-in via `[cron].enabled=true` + `[telegram].allowed_chat_id`. Ship criterion proven live against Ollama (commits `e0b2fcea`…`8aa9a6e6`). Natural-language cron parsing is deferred to Phase 4.C; planner-wrapper compatibility is now complete under Phase 1.C |
 | **Phase 2.E.0 — Deterministic Subagent Runtime** | ✅ complete | **P0** | Runtime core landed: deterministic lifecycle manager, max-depth guard, bounded batch execution, timeout/cancellation scopes, typed result envelope, `[delegation]` config, Go-native `delegate_task`, and append-only run logging |
-| **Phase 2.E.1 — Delegation Policy + Child Execution** | ✅ complete | **P0** | Runner-enforced blocked-tool/allowlist policy, typed child tool-call audit, and a live Hermes child stream loop are now landed |
+| **Phase 2.E.1 — Delegation Policy + Child Execution** | 🔨 in progress | **P0** | Runner-enforced blocked-tool/allowlist policy, typed child tool-call audit, and a live Hermes child stream loop are landed; GBrain's unified `minion-orchestrator` now adds a routing-policy slice plus a blocked durable-job ledger slice |
 | Phase 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation | ✅ complete | P1 | Kernel-side interrupt propagation now fans one cancel across parallel `tool_calls`, sidecar sandbox jobs, and delegated subagent children; fixture tests freeze the cancel envelope before 2.F.5 mid-run steering |
 | **Phase 2.G — OS-AI Spine: Skills Runtime** | ✅ complete | **P0** | Static skills runtime and the first reviewed learning-loop proof are in-tree: validated `SKILL.md` parsing, active-store snapshots, deterministic selection + prompt rendering, kernel injection, append-only usage logging, delegated candidate drafting into the inactive store, and explicit promotion into the active store. |
 | Phase 2.F.1 — Slash Command Registry + Gateway Dispatch | ✅ complete | P1 | Canonical command registry now drives gateway parsing, help text, Telegram menus, and Slack subcommand exposure from one shared source of truth |
 | Phase 2.F.2 — Hook Registry + BOOT.md | ✅ complete | P2 | Shared gateway lifecycle hooks, live `HOOK.yaml` command loading, and the built-in `BOOT.md` startup hook with non-blocking failure semantics are landed |
-| Phase 2.F.3 — Restart / Pairing / Status | 🔨 in progress | P2 | Graceful shutdown drain is landed in `internal/gateway`; next slices are adapter startup cleanup, active-turn follow-up/late-arrival drain policy, drain-timeout resume recovery, pairing persistence, pairing approval/rate-limit semantics, a read-only status command, runtime-status JSON/PID validation, token-scoped credential locks, `/restart` takeover markers, then channel lifecycle writers |
+| Phase 2.F.3 — Restart / Pairing / Status | 🔨 in progress | P2 | Graceful shutdown drain is landed in `internal/gateway`; next slices are adapter startup cleanup, active-turn follow-up/late-arrival drain policy, drain-timeout resume recovery, pairing persistence, pairing approval/rate-limit semantics, unauthorized-DM pairing responses, a read-only status command, runtime-status JSON/PID validation, token-scoped credential locks, `/restart` takeover markers, then channel lifecycle writers |
 | Phase 2.F.4 — Home Channel + Operator Surfaces | ⏳ planned | P3 | Home-channel rules, notify-to routing, manager remember-source, channel-directory persistence/lookup, refresh/stale-target invalidation, mirror surfaces, and sticker-cache equivalents |
 | Phase 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy | ⏳ planned | P2 | `/steer` CommandDef + queue fallback, mid-run steer injection between tool calls, and a gateway-handled slash-command bypass of the active-session guard; depends on 2.E.2 concurrent-tool cancellation for safe mid-run fan-out |
 
@@ -72,9 +72,10 @@ semantics.
 
 GBrain adds one complementary lesson: gateway-triggered work that can outlive a
 single turn should enter a durable job/subagent ledger instead of depending on
-one in-memory process. Phase 2.D cron and Phase 2.E subagents are the first
-substrates; future queue/restart/resume work should converge on the same
-ledger contract.
+one in-memory process. Its current `minion-orchestrator` skill merged the older
+jobs lane and LLM subagent lane behind one policy surface. Gormes should borrow
+that routing discipline first, then add the smallest SQLite-first ledger needed
+for cron/subagent replay without importing the whole Minions queue.
 
 ## TDD Priority Queue
 
@@ -85,7 +86,7 @@ Phase 2 is no longer just "ship more adapters." The backlog is now dominated by 
 2. **P1 — 2.B.3 Slack gateway.Channel shim**
    Adapt the existing Socket Mode bot to the `gateway.Channel`/`Manager` lifecycle after parser behavior is green; only then add config loading, doctor checks, and `cmd/gormes gateway` registration.
 3. **P2 — 2.F.3 pairing read model + approval semantics**
-   Port the XDG-backed `pairing.json` read model first, then freeze code generation, expiry, max-pending, failed-attempt lockout, and rate-limit behavior from upstream `gateway/pairing.py` before any adapter issues codes.
+   Port the XDG-backed `pairing.json` read model first, then freeze code generation, expiry, max-pending, failed-attempt lockout, rate-limit behavior, and unauthorized-DM response semantics from upstream `gateway/pairing.py` plus the latest gateway tests before any adapter issues codes.
 4. **P2 — 2.F.3 startup/drain correctness before richer lifecycle UX**
    Freeze adapter startup failure cleanup first, then define active-turn follow-up queue/late-arrival behavior and drain-timeout `resume_pending` recovery. These are upstream race fixes from `gateway/platforms/base.py` and `gateway/run.py`; keeping them separate prevents the status/pairing work from hiding concurrency regressions.
 5. **P2 — 2.F.3 status readout + runtime convergence**
@@ -93,11 +94,9 @@ Phase 2 is no longer just "ship more adapters." The backlog is now dominated by 
 6. **P3 — 2.F.4 Home Channel + Operator Surfaces**
    Keep this decomposed: home-channel ownership rules, notify-to delivery routing, manager remember-source, channel-directory persistence/lookup, refresh/stale-target invalidation, then mirror/sticker-cache surfaces.
 7. **P1 — 2.B.4 WhatsApp runtime closeout**
-   `NormalizeInbound` and `DecideRuntime` are landed; the next slice is the pairing/reconnect/send contract on top of those ingress and startup seams.
-8. **P1 — 2.B.10 WeChat transport/bootstrap closeout**
-   WeCom/WeiXin shared-bot seams are landed; freeze callback/webhook bootstrap, credential validation, and outbound push/reply lifecycle before binding the real transports.
-9. **P7 — paused channel backlog**
-   Signal, Email/SMS, Matrix/Mattermost, Webhook, BlueBubbles/HomeAssistant, Feishu, DingTalk, and QQ stay in Phase 7 until Telegram, Discord, Slack, WhatsApp, and WeChat are stable.
+   `NormalizeInbound` and `DecideRuntime` are landed; the next slices are WhatsApp identity resolution/self-chat guards followed by the pairing/reconnect/send contract on top of those ingress and startup seams.
+8. **P7 — paused channel backlog**
+   Signal, Email/SMS, Matrix/Mattermost, Webhook, BlueBubbles/HomeAssistant, Feishu, DingTalk, and QQ stay in Phase 7 until Telegram, Discord, Slack, WhatsApp, and WeChat are stable. Keep the backlog split into platform seams before client/bootstrap code: Signal transport, Matrix/Mattermost bot seams and clients, Feishu transport plus Drive-comment rules/replies, DingTalk real SDK binding, and QQ transport/bootstrap.
 
 The subagent runtime, shared gateway chassis, reviewed procedural skill runtime, session-context routing, and registry-backed slash command layer now exist as stable substrates. The next leverage move is freezing the operator/runtime read models and closing the priority channel set before widening adapter-specific runtime slices.
 

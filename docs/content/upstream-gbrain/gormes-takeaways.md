@@ -135,8 +135,11 @@ Recommended minimum durable job table for SQLite:
 - `created_at`
 - `updated_at`
 
-Do not start with every Minions feature. Start with cron/subagent replay needs:
-claim, renew, complete, fail, retry, cancel, parent child_done event, and audit.
+Do not start with every Minions feature. Start with the current
+`minion-orchestrator` lesson: one routing policy for deterministic durable jobs
+and LLM subagents, with shell-like work kept operator-trusted. Then implement
+only the cron/subagent replay needs: claim, renew, complete, fail, retry,
+cancel, parent child_done event, and audit.
 
 ### 3. Strengthen Memory Provenance Before More Recall Magic
 
@@ -240,4 +243,3 @@ typed Go runtime
 That captures GBrain's useful system lessons while preserving Gormes's core
 advantages: small binary, static typing, local-first operation, and simpler
 runtime ownership.
-

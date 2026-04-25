@@ -213,6 +213,11 @@ mutating permissions, audit fields, and prompt-visible tool lists.
 ## Minions Job Queue
 
 Minions is GBrain's durable work system. It lives in `src/core/minions`.
+The current operator-facing skill is `skills/minion-orchestrator/SKILL.md`,
+which merged the older `gbrain-jobs` routing intent into one control surface
+for deterministic shell jobs and LLM subagent jobs. That naming matters for
+Gormes planning: borrow the unified policy surface, but do not rename Go-native
+`delegate_task` or `internal/subagent` APIs to Minions.
 
 Important mechanics:
 
@@ -238,7 +243,9 @@ The subagent runtime adds:
 
 This is the strongest donor idea for Gormes subagents and cron. Gormes already
 has goroutine subagents with context cancellation, timeouts, run logs, and tool
-allowlists. The missing class is durable rehydration after process death.
+allowlists. The missing class is durable rehydration after process death, plus
+a trust-aware routing rule that keeps privileged deterministic work separate
+from child-agent judgment work.
 
 ## Skills Layer
 
@@ -276,4 +283,3 @@ GBrain is deliberately agent-readable:
 This matters because agent platforms fail when the repo does not teach them
 where to start. Gormes should keep this pattern, but with smaller docs that stay
 closer to code ownership and tests.
-
