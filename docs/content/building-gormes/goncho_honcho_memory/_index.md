@@ -5,7 +5,7 @@ weight: 46
 
 # Goncho — The Honcho Port
 
-**Status:** Living document. First pass covers philosophy, Honcho architecture (extracted from upstream `plastic-labs/honcho`), the internal Go port plan, and its relationship to Phase 3.
+**Status:** Living document. First pass covers philosophy, Honcho architecture (extracted from upstream `plastic-labs/honcho`), the internal Go port plan, and its relationship to Phase 3. The latest docs-driven delta from Honcho v3 is captured in [Honcho Docs Study Plan](./03-honcho-docs-study/).
 
 **Audience:** Gormes contributors and future AI agents continuing the port. This is an **architecture reference**, not a migration cookbook — the cookbook lives in `docs/superpowers/specs/2026-04-21-goncho-architecture-design.md` and the Phase 3 ledger in `architecture_plan/phase-3-memory.md`.
 
@@ -24,6 +24,7 @@ linear read.
 | Honcho concepts to preserve | §1, §2, §6, §7 |
 | API and tool edge | §3, [Tool Schemas](./02-tool-schemas/) |
 | Deriver, dialectic, and dreamer mechanics | §5, [Prompts](./01-prompts/) |
+| Latest docs-driven implementation gaps | [Honcho Docs Study Plan](./03-honcho-docs-study/) |
 | Implementation order | §13, then the Phase 3 ledger |
 | Open follow-up work | Coverage/TODO footers and §15 |
 
@@ -220,7 +221,7 @@ Behavior: looks up peer cards, prefetches a pool of relevant observations (10 fo
 
 **Session context (`GET /v3/workspaces/{w}/sessions/{s}/context`)**
 
-Query params: `tokens`, `summary` (bool), `search_query`, `peer_target`, `peer_perspective`, `search_top_k`, `search_max_distance`.
+Query params: `tokens`, `summary` (bool), `search_query`, `peer_target`, `peer_perspective`, `limit_to_session`, `search_top_k`, `search_max_distance`, `include_most_frequent`, `max_conclusions`.
 Response: `SessionContext { summary?, messages[] }`.
 
 Allocation: 40% of the token budget to the summary (when enabled), 60% to the newest messages that fit. If a long summary exists and fits, it is preferred over the short summary.
@@ -230,6 +231,8 @@ These two endpoints are the **fast path** (session context) and **slow path** (d
 ### 3.3 Search surface
 
 Three symmetrical endpoints — workspace-wide, session-scoped, peer-scoped — all take `{ query, filters?, limit }` and fan through a hybrid strategy: FTS GIN on `messages.content` joined with pgvector HNSW on `message_embeddings.embedding`, fused via reciprocal-rank (RRF). External vector stores (Turbopuffer, LanceDB) can replace the HNSW side; see §5.
+
+Honcho's docs also expose a filter grammar that Goncho does not yet model: logical `AND`/`OR`/`NOT`, comparison operators (`gt`, `gte`, `lt`, `lte`, `ne`, `in`), text operators (`contains`, `icontains`), nested `metadata`, and wildcard `"*"`. Goncho's first filter slice should add a typed AST and explicit unsupported-filter errors before any public HTTP parity claim.
 
 ### Coverage / TODO
 
@@ -788,6 +791,20 @@ The port is intentionally staged so that each slice lands behind a flag and can 
 - Run the upstream SDKs against it as integration tests (see `sdks/python/tests/` and `sdks/typescript/tests/` in the Honcho repo for expected flows).
 - This is the point at which we can honestly claim "drop-in self-host" parity.
 
+### 13.10 Docs-driven planner cutlines
+
+The Honcho v3 docs study split the next Goncho work into smaller rows in
+`architecture_plan/progress.json` under `3.F - Goncho Honcho Memory Parity`.
+Those rows are the current autoloop entry points:
+
+1. `Goncho context representation options`
+2. `Goncho search filter grammar`
+3. `Directional peer cards and representation scopes`
+4. `Goncho queue status read model`
+5. `Goncho summary context budget`
+
+Keep these rows synchronized with [Honcho Docs Study Plan](./03-honcho-docs-study/). If upstream docs add a new public parameter, add it to the study page first, then either refine one of these rows or add a new row with source refs, fixtures, write scope, tests, and done signal.
+
 ### Coverage / TODO
 
 - [ ] For each slice above, link to (or create) a superpowers spec/plan under `docs/superpowers/specs/`.
@@ -853,11 +870,12 @@ This file is intentionally incomplete. When you pick it up:
 ### Priority order for the next few passes
 
 1. Keep [`01-prompts.md`](./01-prompts) and [`02-tool-schemas.md`](./02-tool-schemas) synchronized with upstream first. These close the prompt/tool-schema replication blockers; any drift changes agent behavior.
-2. Fill §3 Coverage TODOs — exhaustive route+schema catalogue is high-leverage for the HTTP surface slice.
-3. Fill §5 Coverage TODOs that are not already covered by `01-prompts.md` / `02-tool-schemas.md` — focus on runtime mechanics, output formats, and failure modes.
-4. Resolve §15 open questions one at a time.
-5. Draft §9 env-var naming decision so we stop blocking on config bikeshed.
-6. Once slice A (observation table) has a spec in `docs/superpowers/specs/`, turn §13.1 into a link rather than an inline task list.
+2. Keep [Honcho Docs Study Plan](./03-honcho-docs-study/) synchronized with the v3 docs so planner rows reflect the public SDK-facing contract.
+3. Fill §3 Coverage TODOs — exhaustive route+schema catalogue is high-leverage for the HTTP surface slice.
+4. Fill §5 Coverage TODOs that are not already covered by `01-prompts.md` / `02-tool-schemas.md` — focus on runtime mechanics, output formats, and failure modes.
+5. Resolve §15 open questions one at a time.
+6. Draft §9 env-var naming decision so we stop blocking on config bikeshed.
+7. Once slice A (observation table) has a spec in `docs/superpowers/specs/`, turn §13.1 into a link rather than an inline task list.
 
 ---
 
@@ -865,6 +883,7 @@ This file is intentionally incomplete. When you pick it up:
 
 - Upstream: [`plastic-labs/honcho`](https://github.com/plastic-labs/honcho), local mirror `/workspace-mineru/honcho/`.
 - Replication kit: [`01-prompts.md`](./01-prompts) for verbatim prompts and [`02-tool-schemas.md`](./02-tool-schemas) for verbatim Honcho agent tool schemas.
+- Docs study: [`03-honcho-docs-study.md`](./03-honcho-docs-study) maps Honcho v3 docs to Goncho planner rows.
 - Goncho service: `internal/goncho/service.go`, `types.go`, `sql.go`.
 - Tool layer: `internal/tools/honcho_tools.go`.
 - Memory substrate: `internal/memory/` (full Phase 3 inventory in §12.1).
