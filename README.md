@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>The Go-native runtime for Hermes Agent. One binary, zero dependencies.</strong>
+  <strong>Agents that don't crash, drift, or fail to deploy.</strong><br>
+  A Go-native runtime — one binary, no Python, no virtualenvs.
 </p>
 
 <p align="center">
@@ -14,7 +15,13 @@
 
 ---
 
+> 🚧 **Under construction.** Hermes is no longer required. The Go-native runtime that replaces it is still being wired up — **Gormes is not yet usable end-to-end**. Memory and Brain phases are in active development. Expect rough edges; expect the API to change. See [Build State](#build-state) below for what works today and what doesn't.
+
+---
+
 ## Quick Start
+
+> The installer is the source-of-truth for trying Gormes locally. The TUI runs and the gateway adapters stream, but the agent loop is incomplete — install today to follow along, not to deploy.
 
 **Linux / macOS / Termux:**
 
@@ -38,30 +45,42 @@ and reapplied. No Python, no virtualenv, no dependency drift.
 
 ---
 
-## What This Is
+## What Gormes Is
 
-Gormes is a complete Go rewrite of [Hermes Agent](https://github.com/NousResearch/hermes-agent)'s runtime infrastructure. While Hermes pioneered the multi-platform agent gateway (Python), Gormes moves the critical surfaces — TUI, tool registry, gateway adapters, memory layer — into a Go-native stack that deploys as a single static binary.
+Gormes is a Go-native rewrite of [Hermes Agent](https://github.com/NousResearch/hermes-agent)'s runtime infrastructure. It started as an independent Go port of Hermes's architecture (with upstream Git history preserved for attribution) and is being rebuilt around a single Go binary and Gormes-native runtime boundaries.
 
-Gormes began as an independent Go port/rework of ideas and architecture from Hermes-Agent, with upstream Git history preserved for attribution. It is being rebuilt around a single Go binary and Gormes-native runtime boundaries.
+**Gormes solves an operations problem, not an AI problem.** The thesis isn't "smarter agents." It's agents that survive deployment, don't crash mid-stream, and don't break when a Python dependency drifts on a host you SSH into six months from now.
 
-**Current state:** Phase 2 (Gateway) is shipping now. Phase 3 (Memory) and Phase 4 (Brain) are active development.
-
----
-
-## Why Go?
-
-| Problem | How Go Solves It |
-|---------|------------------|
-| **Deployment friction** | Single ~17.7 MB static binary. `scp` it anywhere, it runs. |
-| **Runtime reliability** | No Python GIL. Goroutines handle concurrent streams without contention. |
-| **Local validation** | `gormes doctor --offline` validates tool schemas before burning tokens. |
-| **Stream resilience** | Route-B reconnect treats dropped SSE as recoverable, not fatal. |
+Hermes is no longer a runtime dependency. The Go-native pieces that replace it are still being built — see the build state below.
 
 ---
 
-## Architecture
+## Why Hermes Breaks in Production — and How Gormes Fixes It
 
-Gormes is not a wrapper around Hermes. It is a **strangler fig rewrite** — each phase ships standalone value while moving the full stack toward pure Go.
+| Problem | Gormes |
+|---|---|
+| **Broken installs** — Python env drift, npm/Nix breakage, host package skew | Single ~17.7 MB static binary |
+| **Runtime drift** — virtualenv inconsistencies between dev, staging, prod | Pure Go. No `pip`, no `npm`, no `activate` |
+| **Process crashes** — multi-process Python orchestration | One runtime, one process tree |
+| **Dropped SSE streams** — silent token loss on flaky networks | Route-B auto-reconnect, no lost responses |
+| **3am debugging** — schema drift caught only after a tool call burns tokens | `gormes doctor --offline` validates locally first |
+
+> Gormes is not about smarter agents. It's about agents that don't crash, drift, or fail to deploy.
+
+---
+
+## Build State
+
+Gormes is a **strangler-fig rewrite**. Each phase ships a self-contained surface in Go and removes the corresponding Python surface from the runtime. Today the dashboard, gateway, and most of the memory layer are working in Go. The brain — the agent loop itself — is not.
+
+| Phase | Status | What's in scope |
+|---|---|---|
+| **Phase 1** — The Dashboard | shipping | Go-native TUI, render mailbox, settings surfaces |
+| **Phase 2** — The Gateway | partial | Telegram + Discord shipping; Slack/WhatsApp/WeChat in progress |
+| **Phase 3** — The Black Box (Memory) | active | SQLite + FTS5 lattice, ontological graph, neural recall |
+| **Phase 4** — The Brain Transplant | active | Native prompt building, agent orchestration in Go |
+| **Phase 5** — The Final Purge | planned | Last Python tool scripts ported; 100% Go runtime |
+| **Phase 6** — The Learning Loop | planned | Self-improvement loop |
 
 <!-- PROGRESS:START kind=readme-rollup -->
 | Phase | Status | Shipped |
@@ -81,12 +100,13 @@ Full item-level checklist and stats: **[docs.gormes.ai/building-gormes/architect
 
 ## Core Features
 
-- **Single Static Binary** — Zero CGO. ~17.7 MB. Deploy to Termux, Alpine, a fresh VPS — it runs.
-- **Always-On Runtime** — Survives restarts, reconnects dropped streams, runs for months unattended.
+- **Single Static Binary** — Zero CGO. ~17.7 MB. Deploy to Termux, Alpine, a fresh VPS — it runs. No Python, no virtualenv, no Nix.
+- **No Runtime Drift** — Pure Go. The binary you tested is the binary that deploys.
+- **Streams That Don't Drop** — Route-B reconnect treats SSE drops as recoverable, not fatal. Your agent doesn't lose work to a flaky network.
+- **Local Validation** — `gormes doctor --offline` checks tool schemas before you burn tokens.
 - **Multi-Platform Gateway** — Telegram and Discord run through the shared gateway today; Slack shared-runtime wiring, WhatsApp, and WeChat are the active channel priorities while the other adapters sit in Phase 7.
-- **In-Process Tool Loop** — Streamed tool calls execute against a Go-native registry.
 - **Scheduled Automations** — Built-in cron scheduler delivering to any platform.
-- **Isolated Subagents** — Parallel workstreams with resource isolation and bounded memory.
+- **Isolated Subagents** — Parallel workstreams with bounded memory and controlled execution.
 
 ---
 

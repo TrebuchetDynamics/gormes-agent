@@ -15,10 +15,14 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 
 	text := string(body)
 	wants := []string{
-		// Hero
+		// Hero — operations-first reframe; Hermes is no longer a dependency
+		// and the Go-native runtime is still under construction.
 		"OPEN SOURCE · MIT LICENSE",
-		"One Go Binary. Same Hermes Brain.",
-		"A static Go binary that talks to your Hermes backend over HTTP.",
+		"UNDER CONSTRUCTION",
+		"One Go Binary. No Python. No Drift.",
+		"Gormes is a Go-native rewrite of Hermes Agent",
+		"Hermes is no longer required",
+		"not production-ready yet",
 		// Install
 		"1. UNIX / MACOS / TERMUX",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
@@ -30,20 +34,21 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		// Copy button (clipboard JS is allowed for this widget only)
 		`class="copy-btn"`,
 		"navigator.clipboard.writeText",
-		// Features
-		"FEATURES",
-		"Why a Go layer matters.",
+		// Features — operations-first framing, problem→solution
+		"WHY GORMES",
+		"Why Hermes breaks in production — and how Gormes fixes it.",
 		"Single Static Binary",
-		"Boots Like a Tool",
-		"In-Process Tool Loop",
-		"Survives Dropped Streams",
+		"No Runtime Drift",
+		"Streams That Don&#39;t Drop",
+		"Local Validation",
 		"Route-B reconnect treats SSE drops",
+		"gormes doctor --offline",
 		// Roadmap section — structural checks only. The roadmap itself
 		// is now driven by progress.json; asserting exact counts or
 		// item names here would re-introduce the very drift we just
 		// eliminated. We check for tones and structure instead.
-		"SHIPPING STATE",
-		"What ships now, what doesn&#39;t.",
+		"BUILD STATE",
+		"What works today, and what&#39;s still being wired up.",
 		// Fuzzy phase-title presence (each phase renders)
 		"Phase 1",
 		"Phase 2",
@@ -83,6 +88,13 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Inspect the Machine",
 		"~8 MB",
 		"~12 MB",
+		// Old hero/features copy that conflated frontend with full replacement
+		"One Go Binary. Same Hermes Brain.",
+		"A static Go binary that talks to your Hermes backend over HTTP.",
+		"Why a Go layer matters.",
+		"Boots Like a Tool",
+		"In-Process Tool Loop",
+		"Survives Dropped Streams",
 		// Obsolete single-row ledger copy replaced by grouped roadmap
 		"Phase 3 — SQLite + FTS5 transcript memory.",
 		"Phase 3.A–C — SQLite + FTS5 lattice, ontological graph, neural recall.",

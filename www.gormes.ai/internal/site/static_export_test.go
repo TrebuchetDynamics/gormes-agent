@@ -21,12 +21,12 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	}
 	text := string(indexBody)
 	wants := []string{
-		"One Go Binary. Same Hermes Brain.",
+		"One Go Binary. No Python. No Drift.",
 		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"irm https://gormes.ai/install.ps1 | iex",
 		"Rerun the installer to update the managed Gormes checkout.",
-		"Why a Go layer matters.",
-		"What ships now, what doesn&#39;t.",
+		"Why Hermes breaks in production — and how Gormes fixes it.",
+		"What works today, and what&#39;s still being wired up.",
 		// Structural roadmap checks — no exact counts or item names,
 		// those come from progress.json and must not be locked in here.
 		"roadmap-status-progress",
@@ -57,6 +57,11 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Phase 3.A–C + 3.D.5 — SQLite + FTS5 lattice, ontological graph, neural recall, USER.md mirror",
 		"Boot Sequence",
 		"Proof Rail",
+		// Old hero/features copy that conflated frontend with full replacement
+		"One Go Binary. Same Hermes Brain.",
+		"A static Go binary that talks to your Hermes backend over HTTP.",
+		"Why a Go layer matters.",
+		"Boots Like a Tool",
 	}
 	for _, want := range wants {
 		if !strings.Contains(text, want) {
