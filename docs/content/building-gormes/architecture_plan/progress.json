@@ -1535,15 +1535,10 @@
                 "Unauthorized-DM fixtures prove deny, pair, and ignore modes never start an agent session for unknown users."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-25T13:16:16Z",
-                "last_success": "2026-04-25T13:16:16Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T13:38:33Z",
+                "last_success": "2026-04-25T13:38:33Z"
               },
-              "completed_files": [
-                "internal/gateway/authorization.go",
-                "internal/gateway/unauthorized_dm_test.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T11:39:48Z"
@@ -4596,9 +4591,9 @@
                 "Discord toolset fixtures prove split descriptors, platform scoping, default-off behavior, and dynamic schema dropping without live Discord API calls."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-25T13:31:23Z",
-                "last_success": "2026-04-25T13:31:23Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T13:38:33Z",
+                "last_success": "2026-04-25T13:38:33Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -5389,9 +5384,9 @@
                 "Toolset config fixtures prove platform-default stripping, MCP preservation/no_mcp, numeric normalization, and Discord platform restrictions."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-25T13:17:11Z",
-                "last_success": "2026-04-25T13:17:11Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T13:38:33Z",
+                "last_success": "2026-04-25T13:38:33Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
