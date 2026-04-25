@@ -1799,9 +1799,9 @@
             },
             {
               "name": "Cross-chat operator evidence",
-              "status": "planned",
+              "status": "complete",
               "contract": "Memory and Goncho status expose operator-readable evidence for allowed, denied, and degraded cross-chat recall decisions",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1835,7 +1835,7 @@
                 "Goncho context/search dry-run output preserves origin_source evidence for returned hits.",
                 "`gormes memory status` or an equivalent diagnostics path renders the evidence without exposing raw SQL rows."
               ],
-              "note": "TDD: add operator-readable evidence for allowed and denied cross-chat recall paths, including resolved user_id/source scope details, before marking 3.E.7 complete. This row is intentionally blocked behind the SillyTavern drift fixture so host mapping gaps do not get hidden by generic cross-chat evidence.",
+              "note": "TDD landed: internal/memory/cross_chat_operator_evidence_test.go pins allowed and denied cross-chat recall evidence with resolved user_id, source allowlists, session/chat source, current binding details, widened-session counts, and same-chat fallback reasons for unresolved, unknown, or conflicting identity. Goncho search/context results now carry scope_evidence and preserve origin_source on returned hits, while gormes goncho doctor --scope user --sources renders the evidence without exposing raw SQL rows. The SillyTavern persona/group-chat mapping gate was fixture-locked before this closeout, so host mapping gaps remain explicit degraded evidence instead of being hidden by generic cross-chat status.",
               "write_scope": [
                 "internal/memory/",
                 "internal/goncho/",
@@ -1848,6 +1848,11 @@
               "done_signal": [
                 "Cross-chat evidence fixtures prove allowed and denied recall paths produce operator-readable user/source/session diagnostics."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T10:11:18Z",
+                "last_success": "2026-04-25T10:11:18Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T09:23:21Z"

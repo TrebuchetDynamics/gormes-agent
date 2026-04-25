@@ -24,6 +24,151 @@ type SearchFilter struct {
 	CurrentChatKey   string
 }
 
+const (
+	// CrossChatDecisionAllowed means a user-scoped recall request had enough
+	// canonical identity evidence to widen beyond the current chat/session.
+	CrossChatDecisionAllowed = "allowed"
+	// CrossChatDecisionDenied means widening was refused and callers must use
+	// the same-chat fallback scope.
+	CrossChatDecisionDenied = "denied"
+	// CrossChatDecisionDegraded means the operator surface could not inspect a
+	// dependency needed for user-scoped widening.
+	CrossChatDecisionDegraded = "degraded"
+
+	CrossChatFallbackSameChat = "same-chat"
+)
+
+// CrossChatSessionEvidence is the operator-readable identity for one session
+// considered by a user-scoped cross-chat recall request.
+type CrossChatSessionEvidence struct {
+	SessionID string `json:"session_id"`
+	Source    string `json:"source,omitempty"`
+	ChatID    string `json:"chat_id,omitempty"`
+	ChatKey   string `json:"chat_key,omitempty"`
+	Current   bool   `json:"current,omitempty"`
+}
+
+// CrossChatRecallEvidence explains why a user-scoped recall/search request was
+// allowed, denied, or degraded before the query result set is rendered.
+type CrossChatRecallEvidence struct {
+	Decision                  string                     `json:"decision"`
+	Scope                     string                     `json:"scope"`
+	FallbackScope             string                     `json:"fallback_scope,omitempty"`
+	Reason                    string                     `json:"reason,omitempty"`
+	UserID                    string                     `json:"user_id,omitempty"`
+	CurrentSessionID          string                     `json:"current_session_id,omitempty"`
+	CurrentChatKey            string                     `json:"current_chat_key,omitempty"`
+	CurrentBinding            *CrossChatSessionEvidence  `json:"current_binding,omitempty"`
+	SourceAllowlist           []string                   `json:"source_allowlist,omitempty"`
+	SessionsConsidered        int                        `json:"sessions_considered"`
+	WidenedSessionsConsidered int                        `json:"widened_sessions_considered"`
+	Sessions                  []CrossChatSessionEvidence `json:"sessions,omitempty"`
+}
+
+// ExplainCrossChatRecall mirrors the session catalog scope selection logic and
+// returns the evidence operators need to audit a user-scoped widening decision.
+func ExplainCrossChatRecall(metas []session.Metadata, filter SearchFilter) CrossChatRecallEvidence {
+	evidence := CrossChatRecallEvidence{
+		Scope:            "user",
+		UserID:           strings.TrimSpace(filter.UserID),
+		CurrentSessionID: strings.TrimSpace(filter.CurrentSessionID),
+		CurrentChatKey:   strings.TrimSpace(filter.CurrentChatKey),
+		SourceAllowlist:  normalizeSources(filter.Sources),
+	}
+	if evidence.UserID == "" {
+		return deniedCrossChatEvidence(evidence, "unresolved user_id; same-chat fallback scope used")
+	}
+
+	requireCurrentBinding := evidence.CurrentSessionID != "" || evidence.CurrentChatKey != ""
+	currentBindingMatched := !requireCurrentBinding
+	for _, meta := range metas {
+		if !metadataMatchesCurrent(meta, evidence.CurrentSessionID, evidence.CurrentChatKey) {
+			continue
+		}
+		binding := crossChatSessionEvidence(meta, true)
+		evidence.CurrentBinding = &binding
+		metaUserID := strings.TrimSpace(meta.UserID)
+		if metaUserID == "" {
+			return deniedCrossChatEvidence(evidence, "unresolved current binding: current chat/session has no user_id; same-chat fallback scope used")
+		}
+		if metaUserID != evidence.UserID {
+			return deniedCrossChatEvidence(evidence, fmt.Sprintf("conflicting current binding: current binding belongs to %q; same-chat fallback scope used", metaUserID))
+		}
+		currentBindingMatched = true
+	}
+	if !currentBindingMatched {
+		return deniedCrossChatEvidence(evidence, "unknown current binding: current chat/session is not bound to the requested user_id; same-chat fallback scope used")
+	}
+
+	allowedSources := normalizeSources(filter.Sources)
+	allowedSessions := normalizeSessionIDs(filter.SessionIDs)
+	for _, meta := range metas {
+		metaUserID := strings.TrimSpace(meta.UserID)
+		if metaUserID != evidence.UserID {
+			continue
+		}
+		if len(allowedSources) > 0 && !slices.Contains(allowedSources, strings.ToLower(strings.TrimSpace(meta.Source))) {
+			continue
+		}
+		if len(allowedSessions) > 0 && !slices.Contains(allowedSessions, strings.TrimSpace(meta.SessionID)) {
+			continue
+		}
+		item := crossChatSessionEvidence(meta, metadataMatchesCurrent(meta, evidence.CurrentSessionID, evidence.CurrentChatKey))
+		evidence.Sessions = append(evidence.Sessions, item)
+		if !item.Current {
+			evidence.WidenedSessionsConsidered++
+		}
+	}
+	if len(evidence.Sessions) == 0 {
+		return deniedCrossChatEvidence(evidence, fmt.Sprintf("unresolved user binding: no sessions matched user_id %q and source/session filters; same-chat fallback scope used", evidence.UserID))
+	}
+
+	evidence.Decision = CrossChatDecisionAllowed
+	evidence.Reason = "resolved user_id and current binding; user-scope recall may widen across listed sessions"
+	evidence.SessionsConsidered = len(evidence.Sessions)
+	return evidence
+}
+
+// DegradedCrossChatRecallEvidence reports that a caller asked for user scope
+// but the diagnostic path could not inspect the session binding dependency.
+func DegradedCrossChatRecallEvidence(filter SearchFilter, reason string) CrossChatRecallEvidence {
+	evidence := CrossChatRecallEvidence{
+		Decision:         CrossChatDecisionDegraded,
+		Scope:            "user",
+		FallbackScope:    CrossChatFallbackSameChat,
+		Reason:           strings.TrimSpace(reason),
+		UserID:           strings.TrimSpace(filter.UserID),
+		CurrentSessionID: strings.TrimSpace(filter.CurrentSessionID),
+		CurrentChatKey:   strings.TrimSpace(filter.CurrentChatKey),
+		SourceAllowlist:  normalizeSources(filter.Sources),
+	}
+	if evidence.Reason == "" {
+		evidence.Reason = "cross-chat recall evidence unavailable; same-chat fallback scope used"
+	}
+	return evidence
+}
+
+func deniedCrossChatEvidence(evidence CrossChatRecallEvidence, reason string) CrossChatRecallEvidence {
+	evidence.Decision = CrossChatDecisionDenied
+	evidence.FallbackScope = CrossChatFallbackSameChat
+	evidence.Reason = reason
+	evidence.Sessions = nil
+	evidence.SessionsConsidered = 0
+	evidence.WidenedSessionsConsidered = 0
+	return evidence
+}
+
+func crossChatSessionEvidence(meta session.Metadata, current bool) CrossChatSessionEvidence {
+	item := CrossChatSessionEvidence{
+		SessionID: strings.TrimSpace(meta.SessionID),
+		Source:    strings.TrimSpace(meta.Source),
+		ChatID:    strings.TrimSpace(meta.ChatID),
+		Current:   current,
+	}
+	item.ChatKey = canonicalChatKey(meta)
+	return item
+}
+
 // SearchLineageStatusUnavailable means the hit matched through a chat key but
 // there was no session-specific metadata row to prove a lineage chain.
 const SearchLineageStatusUnavailable = "unavailable"

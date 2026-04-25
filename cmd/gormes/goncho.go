@@ -19,6 +19,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -38,8 +39,26 @@ func init() {
 	gonchoDoctorCmd.Flags().Bool("json", false, "emit machine-readable JSON")
 	gonchoDoctorCmd.Flags().String("peer", "operator:diagnostic", "peer id for the context dry-run")
 	gonchoDoctorCmd.Flags().String("session", "", "optional session key for the context dry-run")
+	gonchoDoctorCmd.Flags().String("scope", "", "optional recall scope for the context dry-run, for example user")
+	gonchoDoctorCmd.Flags().StringSlice("sources", nil, "optional source allowlist for user-scoped context dry-run")
 	gonchoDoctorCmd.Flags().Bool("require-provider", false, "treat provider/auth readiness as required for this diagnostic")
 	gonchoCmd.AddCommand(gonchoDoctorCmd)
+}
+
+func resetGonchoDoctorFlags() {
+	flags := gonchoDoctorCmd.Flags()
+	for _, name := range []string{"json", "peer", "session", "scope", "sources", "require-provider"} {
+		flag := flags.Lookup(name)
+		if flag == nil {
+			continue
+		}
+		if name == "sources" {
+			_ = flag.Value.Set("")
+		} else {
+			_ = flag.Value.Set(flag.DefValue)
+		}
+		flag.Changed = false
+	}
 }
 
 type gonchoDoctorReport struct {
@@ -90,6 +109,8 @@ type contextDryRunStatus struct {
 	Peer           string                              `json:"peer"`
 	SessionKey     string                              `json:"session_key"`
 	Representation string                              `json:"representation"`
+	ScopeEvidence  *memory.CrossChatRecallEvidence     `json:"scope_evidence,omitempty"`
+	SearchResults  []goncho.SearchHit                  `json:"search_results,omitempty"`
 	Unavailable    []goncho.ContextUnavailableEvidence `json:"unavailable"`
 }
 
@@ -144,10 +165,13 @@ func runGonchoDoctor(cmd *cobra.Command, _ []string) error {
 	emitJSON, _ := cmd.Flags().GetBool("json")
 	peer, _ := cmd.Flags().GetString("peer")
 	sessionKey, _ := cmd.Flags().GetString("session")
+	scope, _ := cmd.Flags().GetString("scope")
+	sources, _ := cmd.Flags().GetStringSlice("sources")
 	requireProvider, _ := cmd.Flags().GetBool("require-provider")
 
 	peer = strings.TrimSpace(peer)
 	sessionKey = strings.TrimSpace(sessionKey)
+	scope = strings.TrimSpace(scope)
 	if peer == "" {
 		return newExitCodeError(1, errors.New("goncho doctor: --peer is required"))
 	}
@@ -173,7 +197,7 @@ func runGonchoDoctor(cmd *cobra.Command, _ []string) error {
 	db.SetMaxOpenConns(1)
 
 	ctx := context.Background()
-	report, code, err := buildGonchoDoctorReport(ctx, cfg, db, peer, sessionKey, requireProvider)
+	report, code, err := buildGonchoDoctorReport(ctx, cfg, db, peer, sessionKey, scope, sources, requireProvider)
 	if err != nil {
 		return newExitCodeError(code, err)
 	}
@@ -195,7 +219,7 @@ func runGonchoDoctor(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB, peer, sessionKey string, requireProvider bool) (gonchoDoctorReport, int, error) {
+func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB, peer, sessionKey, scope string, sources []string, requireProvider bool) (gonchoDoctorReport, int, error) {
 	schema, err := memory.ReadSchemaStatus(ctx, db)
 	if err != nil {
 		return gonchoDoctorReport{}, 2, err
@@ -219,10 +243,20 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 	if err != nil {
 		return gonchoDoctorReport{}, 2, err
 	}
+	sessionCatalog, err := readSessionCatalogStatus(config.SessionDBPath())
+	if err != nil {
+		return gonchoDoctorReport{}, 2, err
+	}
 
-	svc := goncho.NewService(db, goncho.Config{}, nil)
+	sessionDir, closeSessionDir, err := openSessionDirectoryForGonchoDoctor(scope)
+	if err != nil {
+		return gonchoDoctorReport{}, 2, err
+	}
+	defer closeSessionDir()
+
+	svc := goncho.NewService(db, goncho.Config{SessionDirectory: sessionDir}, nil)
 	toolStatus := readToolRegistration(svc)
-	contextStatus, err := readContextDryRun(ctx, svc, peer, sessionKey)
+	contextStatus, err := readContextDryRun(ctx, svc, peer, sessionKey, scope, sources)
 	if err != nil {
 		return gonchoDoctorReport{}, 2, err
 	}
@@ -231,10 +265,6 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 		return gonchoDoctorReport{}, 2, err
 	}
 	summaries, err := readSummaryAvailability(ctx, db)
-	if err != nil {
-		return gonchoDoctorReport{}, 2, err
-	}
-	sessionCatalog, err := readSessionCatalogStatus(config.SessionDBPath())
 	if err != nil {
 		return gonchoDoctorReport{}, 2, err
 	}
@@ -284,6 +314,24 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 	return report, report.ExitCode, nil
 }
 
+func openSessionDirectoryForGonchoDoctor(scope string) (goncho.SessionDirectory, func(), error) {
+	if !strings.EqualFold(strings.TrimSpace(scope), "user") {
+		return nil, func() {}, nil
+	}
+	path := config.SessionDBPath()
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, func() {}, nil
+		}
+		return nil, func() {}, err
+	}
+	smap, err := session.OpenBolt(path)
+	if err != nil {
+		return nil, func() {}, fmt.Errorf("session catalog: open %s: %w", path, err)
+	}
+	return smap, func() { _ = smap.Close() }, nil
+}
+
 func currentGonchoDoctorConfig(cfg config.Config) gonchoDoctorConfig {
 	configPath := config.ConfigPath()
 	_, err := os.Stat(configPath)
@@ -329,12 +377,14 @@ func readToolRegistration(svc *goncho.Service) toolRegistrationStatus {
 	return out
 }
 
-func readContextDryRun(ctx context.Context, svc *goncho.Service, peer, sessionKey string) (contextDryRunStatus, error) {
+func readContextDryRun(ctx context.Context, svc *goncho.Service, peer, sessionKey, scope string, sources []string) (contextDryRunStatus, error) {
 	result, err := svc.Context(ctx, goncho.ContextParams{
 		Peer:       peer,
 		Query:      "doctor dry-run",
 		MaxTokens:  400,
 		SessionKey: sessionKey,
+		Scope:      scope,
+		Sources:    sources,
 	})
 	if err != nil {
 		return contextDryRunStatus{}, err
@@ -344,6 +394,8 @@ func readContextDryRun(ctx context.Context, svc *goncho.Service, peer, sessionKe
 		Peer:           result.Peer,
 		SessionKey:     result.SessionKey,
 		Representation: result.Representation,
+		ScopeEvidence:  result.ScopeEvidence,
+		SearchResults:  result.SearchResults,
 		Unavailable:    result.Unavailable,
 	}, nil
 }
@@ -555,6 +607,8 @@ func formatGonchoDoctorReport(report gonchoDoctorReport) string {
 	fmt.Fprintf(&b, "peer: %s\n", report.ContextDryRun.Peer)
 	fmt.Fprintf(&b, "session_key: %s\n", valueOrNone(report.ContextDryRun.SessionKey))
 	fmt.Fprintf(&b, "representation: %s\n", report.ContextDryRun.Representation)
+	b.WriteString(formatCrossChatScopeEvidence(report.ContextDryRun.ScopeEvidence))
+	b.WriteString(formatContextSearchResults(report.ContextDryRun.SearchResults))
 	if len(report.ContextDryRun.Unavailable) == 0 {
 		b.WriteString("unavailable: none\n\n")
 	} else {
@@ -604,6 +658,68 @@ func formatGonchoDoctorReport(report gonchoDoctorReport) string {
 	}
 	for _, item := range report.DegradedModes {
 		fmt.Fprintf(&b, "- %s: %s (%s)\n", item.Capability, item.Severity, item.Reason)
+	}
+	return b.String()
+}
+
+func formatCrossChatScopeEvidence(evidence *memory.CrossChatRecallEvidence) string {
+	if evidence == nil {
+		return "scope_evidence: none\n"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "scope_evidence: decision=%s user_id=%s scope=%s",
+		evidence.Decision,
+		valueOrNone(evidence.UserID),
+		valueOrNone(evidence.Scope),
+	)
+	if evidence.FallbackScope != "" {
+		fmt.Fprintf(&b, " fallback_scope=%s", evidence.FallbackScope)
+	}
+	if len(evidence.SourceAllowlist) > 0 {
+		fmt.Fprintf(&b, " source_allowlist=%s", strings.Join(evidence.SourceAllowlist, ","))
+	}
+	fmt.Fprintf(&b, " sessions_considered=%d widened_sessions_considered=%d\n",
+		evidence.SessionsConsidered,
+		evidence.WidenedSessionsConsidered,
+	)
+	if evidence.Reason != "" {
+		fmt.Fprintf(&b, "scope_reason: %s\n", evidence.Reason)
+	}
+	if evidence.CurrentBinding != nil {
+		fmt.Fprintf(&b, "current_binding: session_id=%s source=%s chat_id=%s chat_key=%s\n",
+			valueOrNone(evidence.CurrentBinding.SessionID),
+			valueOrNone(evidence.CurrentBinding.Source),
+			valueOrNone(evidence.CurrentBinding.ChatID),
+			valueOrNone(evidence.CurrentBinding.ChatKey),
+		)
+	}
+	if len(evidence.Sessions) > 0 {
+		b.WriteString("scope_sessions:\n")
+		for _, item := range evidence.Sessions {
+			fmt.Fprintf(&b, "- session_id=%s source=%s chat_id=%s current=%t\n",
+				valueOrNone(item.SessionID),
+				valueOrNone(item.Source),
+				valueOrNone(item.ChatID),
+				item.Current,
+			)
+		}
+	}
+	return b.String()
+}
+
+func formatContextSearchResults(results []goncho.SearchHit) string {
+	if len(results) == 0 {
+		return "search_results: none\n"
+	}
+	var b strings.Builder
+	b.WriteString("search_results:\n")
+	for _, hit := range results {
+		fmt.Fprintf(&b, "- source=%s origin_source=%s session_key=%s content=%q\n",
+			valueOrNone(hit.Source),
+			valueOrNone(hit.OriginSource),
+			valueOrNone(hit.SessionKey),
+			hit.Content,
+		)
 	}
 	return b.String()
 }
