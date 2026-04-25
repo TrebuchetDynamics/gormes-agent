@@ -57,6 +57,10 @@ type Config struct {
 	SkillUsage SkillUsageRecorder
 	// ToolAudit records append-only JSONL tool execution events when non-nil.
 	ToolAudit audit.Recorder
+	// ContextEngine owns context-window status, context-engine tools, and the
+	// explicit compression boundary. The kernel may update usage and dispatch
+	// engine tools, but it must not call Compress as an implicit side effect.
+	ContextEngine hermes.ContextEngine
 }
 
 type SkillProvider interface {
@@ -101,6 +105,9 @@ func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log
 		log = slog.Default()
 	}
 	tm.SetModel(cfg.Model)
+	if cfg.ContextEngine != nil {
+		cfg.ContextEngine.UpdateModelContext(hermes.ContextModelContext{Model: cfg.Model})
+	}
 	return &Kernel{
 		cfg:         cfg,
 		client:      c,
@@ -197,6 +204,9 @@ func (k *Kernel) Run(ctx context.Context) error {
 				k.history = nil
 				k.sessionID = ""
 				k.lastError = ""
+				if k.cfg.ContextEngine != nil {
+					k.cfg.ContextEngine.OnSessionReset()
+				}
 				k.phase = PhaseIdle
 				k.emitFrame("session reset")
 				if e.ack != nil {
@@ -316,6 +326,9 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID st
 		}
 		request.Tools = wireDescs
 	}
+	if k.cfg.ContextEngine != nil {
+		request.Tools = append(request.Tools, k.cfg.ContextEngine.ToolDescriptors()...)
+	}
 	maxIter := k.cfg.MaxToolIterations
 	if maxIter <= 0 {
 		maxIter = 10
@@ -418,6 +431,7 @@ toolLoop:
 			fatalErr = fmt.Errorf("stream closed without finish_reason")
 			break toolLoop
 		}
+		k.updateContextEngineUsage(finalDelta)
 
 		if finalDelta.FinishReason != "tool_calls" {
 			// Normal end of turn. Exit the tool loop to finalise.
@@ -533,6 +547,18 @@ toolLoop:
 	prov.LogDone(k.log)
 	k.phase = PhaseIdle
 	k.emitFrame("idle")
+}
+
+func (k *Kernel) updateContextEngineUsage(ev hermes.Event) {
+	if k.cfg.ContextEngine == nil {
+		return
+	}
+	total := ev.TokensIn + ev.TokensOut
+	k.cfg.ContextEngine.UpdateFromResponse(hermes.ContextUsage{
+		PromptTokens:     ev.TokensIn,
+		CompletionTokens: ev.TokensOut,
+		TotalTokens:      total,
+	})
 }
 
 type streamOutcome int
@@ -712,19 +738,25 @@ func (k *Kernel) addSoul(text string) {
 // in the capacity-1 buffer, drain it and drop it before enqueueing the new
 // one. This is what keeps a slow TUI from backpressuring the kernel.
 func (k *Kernel) emitFrame(status string) {
+	var contextStatus *hermes.ContextStatus
+	if k.cfg.ContextEngine != nil {
+		snapshot := k.cfg.ContextEngine.Status()
+		contextStatus = &snapshot
+	}
 	frame := RenderFrame{
 		Seq:            k.seq.Add(1),
 		Phase:          k.phase,
 		DraftText:      k.draft,
 		History:        append([]hermes.Message(nil), k.history...),
 		Telemetry:      k.tm.Snapshot(),
-		ProviderStatus: hermes.ProviderStatusOf(k.client),
-		RetryStatus:    k.retryStatus.snapshot(),
 		StatusText:     status,
 		SessionID:      k.sessionID,
 		Model:          k.cfg.Model,
+		ProviderStatus: hermes.ProviderStatusOf(k.client),
+		RetryStatus:    k.retryStatus.snapshot(),
 		LastError:      k.lastError,
 		SoulEvents:     append([]SoulEntry(nil), k.soul...),
+		ContextStatus:  contextStatus,
 	}
 	// Drain old frame if present, then enqueue new.
 	select {

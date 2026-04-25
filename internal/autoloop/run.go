@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
@@ -39,6 +41,40 @@ type workerRun struct {
 }
 
 func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
+	now := opts.Now
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	runID := runIDFromTime(now)
+	runner := opts.Runner
+	if runner == nil {
+		runner = ExecRunner{}
+	}
+
+	if !opts.DryRun {
+		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "run_started",
+			Status: "started",
+		}); err != nil {
+			return RunSummary{}, err
+		}
+		if err := preflightCleanWorktree(opts.Config, runID); err != nil {
+			return RunSummary{}, err
+		}
+		if opts.Config.MergeOpenPullRequests {
+			if _, err := MergeOpenPullRequests(ctx, PullRequestIntakeOptions{
+				Runner:   runner,
+				RepoRoot: opts.Config.RepoRoot,
+				RunRoot:  opts.Config.RunRoot,
+				RunID:    runID,
+			}); err != nil {
+				return RunSummary{}, err
+			}
+		}
+	}
+
 	candidates, err := NormalizeCandidates(opts.Config.ProgressJSON, CandidateOptions{
 		ActiveFirst:        true,
 		PriorityBoost:      opts.Config.PriorityBoost,
@@ -50,11 +86,6 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	selected := selectAcrossSubphases(candidates, opts.Config.MaxAgents)
-	now := opts.Now
-	if now.IsZero() {
-		now = time.Now().UTC()
-	}
-	runID := now.UTC().Format("20060102T150405Z")
 
 	summary := RunSummary{
 		Candidates: len(candidates),
@@ -64,26 +95,11 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	if opts.DryRun {
 		return summary, nil
 	}
-	if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
-		TS:     time.Now().UTC(),
-		RunID:  runID,
-		Event:  "run_started",
-		Status: "started",
-	}); err != nil {
-		return RunSummary{}, err
-	}
-	if err := preflightCleanWorktree(opts.Config, runID); err != nil {
-		return RunSummary{}, err
-	}
 
 	// Reactive autoloop wiring (Tasks 3-4): the per-run accumulator captures
 	// success / failure outcomes for each candidate; Flush at the end of the
 	// run mutates progress.json in one batched write.
 	acc := newHealthAccumulator(runID, time.Now, opts.Config.QuarantineThreshold)
-	runner := opts.Runner
-	if runner == nil {
-		runner = ExecRunner{}
-	}
 	chain := opts.Config.BackendFallback
 	if len(chain) == 0 {
 		chain = []string{opts.Config.Backend}
@@ -126,7 +142,8 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			return ""
 		}
 
-		if err := acc.Flush(opts.Config.ProgressJSON, hashOf); err != nil {
+		triggerEvents, err := acc.FlushWithTriggers(opts.Config.ProgressJSON, hashOf)
+		if err != nil {
 			_ = appendRunLedgerEvent(opts.Config, LedgerEvent{
 				TS:     time.Now().UTC(),
 				RunID:  runID,
@@ -152,12 +169,18 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			Event:  "health_updated",
 			Status: "ok",
 		})
+
+		// Emit planner trigger events. Soft-fail: a missing or unwritable
+		// triggers ledger must not break a successful autoloop run; the
+		// planner will still pick up state changes on its periodic timer.
+		emitPlannerTriggers(opts.Config.PlannerTriggersPath, triggerEvents)
 		return nil
 	}
 
 	// observeOutcome feeds the degrader and emits backend_degraded ledger
 	// events on switch. Called sequentially after each finishWorker so it is
 	// safe with no synchronization.
+	completedWork := false
 	observeOutcome := func(out workerOutcome) {
 		switched, from, to := degrader.ObserveOutcome(out)
 		if !switched {
@@ -170,6 +193,21 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			Status: "degraded",
 			Detail: fmt.Sprintf("from=%s to=%s threshold=%d", from, to, opts.Config.BackendDegradeThreshold),
 		})
+	}
+
+	completeRun := func() error {
+		if err := runPostPromotionGate(ctx, opts.Config, runner, runID, completedWork); err != nil {
+			return err
+		}
+		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "run_completed",
+			Status: "completed",
+		}); err != nil {
+			return errors.Join(err, flushHealth())
+		}
+		return flushHealth()
 	}
 
 	argv, err := BuildBackendCommand(opts.Config.Backend, opts.Config.Mode)
@@ -201,16 +239,9 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			if finishErr != nil {
 				return RunSummary{}, errors.Join(finishErr, flushHealth())
 			}
+			completedWork = true
 		}
-		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
-			TS:     time.Now().UTC(),
-			RunID:  runID,
-			Event:  "run_completed",
-			Status: "completed",
-		}); err != nil {
-			return RunSummary{}, errors.Join(err, flushHealth())
-		}
-		if err := flushHealth(); err != nil {
+		if err := completeRun(); err != nil {
 			return summary, err
 		}
 
@@ -289,20 +320,252 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		if finishErr != nil {
 			return RunSummary{}, errors.Join(finishErr, flushHealth())
 		}
+		completedWork = true
 	}
-	if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
-		TS:     time.Now().UTC(),
-		RunID:  runID,
-		Event:  "run_completed",
-		Status: "completed",
-	}); err != nil {
-		return RunSummary{}, errors.Join(err, flushHealth())
-	}
-	if err := flushHealth(); err != nil {
+	if err := completeRun(); err != nil {
 		return summary, err
 	}
 
 	return summary, nil
+}
+
+func runIDFromTime(t time.Time) string {
+	t = t.UTC()
+	runID := t.Format("20060102T150405Z")
+	if t.Nanosecond() == 0 {
+		return runID
+	}
+	return fmt.Sprintf("%s-%09d", runID, t.Nanosecond())
+}
+
+func runPostPromotionGate(ctx context.Context, cfg Config, runner Runner, runID string, promotedWork bool) error {
+	if !promotedWork || len(cfg.PostPromotionVerifyCommands) == 0 {
+		return nil
+	}
+
+	verifyErr := runPostPromotionVerification(ctx, cfg, runner, runID, 1)
+	if verifyErr == nil {
+		return nil
+	}
+
+	attempts := cfg.PostPromotionRepairAttempts
+	if !cfg.PostPromotionRepairEnabled || attempts <= 0 {
+		_ = appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "run_failed",
+			Status: "post_promotion_verify_failed",
+			Detail: truncateLedgerDetail(verifyErr.Error()),
+		})
+		return verifyErr
+	}
+
+	lastErr := verifyErr
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if repairErr := runPostPromotionRepair(ctx, cfg, runner, runID, attempt, lastErr); repairErr != nil {
+			_ = appendRunLedgerEvent(cfg, LedgerEvent{
+				TS:     time.Now().UTC(),
+				RunID:  runID,
+				Event:  "run_failed",
+				Status: "post_promotion_repair_failed",
+				Detail: truncateLedgerDetail(repairErr.Error()),
+			})
+			return errors.Join(lastErr, repairErr)
+		}
+		lastErr = runPostPromotionVerification(ctx, cfg, runner, runID, attempt+1)
+		if lastErr == nil {
+			return nil
+		}
+	}
+
+	_ = appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "run_failed",
+		Status: "post_promotion_verify_failed",
+		Detail: truncateLedgerDetail(lastErr.Error()),
+	})
+	return lastErr
+}
+
+func runPostPromotionVerification(ctx context.Context, cfg Config, runner Runner, runID string, attempt int) error {
+	if err := appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "post_promotion_verify_started",
+		Status: "started",
+		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(cfg.PostPromotionVerifyCommands)),
+	}); err != nil {
+		return err
+	}
+
+	for i, shellCommand := range cfg.PostPromotionVerifyCommands {
+		result := runner.Run(ctx, Command{
+			Name: "sh",
+			Args: []string{"-lc", shellCommand},
+			Dir:  cfg.RepoRoot,
+			Env:  postPromotionCommandEnv(cfg),
+		})
+		if result.Err != nil {
+			err := postPromotionCommandError("verification", shellCommand, result)
+			ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+				TS:     time.Now().UTC(),
+				RunID:  runID,
+				Event:  "post_promotion_verify_failed",
+				Status: "failed",
+				Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d command=%d/%d %q: %s", attempt, i+1, len(cfg.PostPromotionVerifyCommands), shellCommand, commandFailureDetail(result))),
+			})
+			return errors.Join(err, ledgerErr)
+		}
+	}
+
+	if err := ensureNoMergeConflicts(cfg.RepoRoot); err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "post_promotion_verify_failed",
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d clean-check: %s", attempt, err.Error())),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+	if err := ensureWorktreeClean(cfg.RepoRoot); err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "post_promotion_verify_failed",
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d clean-check: %s", attempt, err.Error())),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+
+	return appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "post_promotion_verify_succeeded",
+		Status: "ok",
+		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(cfg.PostPromotionVerifyCommands)),
+	})
+}
+
+func runPostPromotionRepair(ctx context.Context, cfg Config, runner Runner, runID string, attempt int, cause error) error {
+	if err := appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "post_promotion_repair_started",
+		Status: "started",
+		Detail: fmt.Sprintf("attempt=%d", attempt),
+	}); err != nil {
+		return err
+	}
+
+	argv, err := BuildBackendCommand(cfg.Backend, cfg.Mode)
+	if err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "post_promotion_repair_failed",
+			Status: "failed",
+			Detail: truncateLedgerDetail(err.Error()),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+
+	args := append([]string(nil), argv[1:]...)
+	args = append(args, BuildPostPromotionRepairPrompt(cfg.PostPromotionVerifyCommands, cause))
+	result := runner.Run(ctx, Command{
+		Name: argv[0],
+		Args: args,
+		Dir:  cfg.RepoRoot,
+		Env:  postPromotionCommandEnv(cfg),
+	})
+	if result.Err != nil {
+		err := postPromotionCommandError("repair", argv[0], result)
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "post_promotion_repair_failed",
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d: %s", attempt, commandFailureDetail(result))),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+	if err := ensureNoMergeConflicts(cfg.RepoRoot); err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "post_promotion_repair_failed",
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d clean-check: %s", attempt, err.Error())),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+	if err := ensureWorktreeClean(cfg.RepoRoot); err != nil {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "post_promotion_repair_failed",
+			Status: "failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d clean-check: %s", attempt, err.Error())),
+		})
+		return errors.Join(err, ledgerErr)
+	}
+
+	return appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "post_promotion_repair_succeeded",
+		Status: "ok",
+		Detail: fmt.Sprintf("attempt=%d", attempt),
+	})
+}
+
+func postPromotionCommandError(kind, command string, result Result) error {
+	output := commandFailureDetail(result)
+	if output == "" {
+		return fmt.Errorf("post-promotion %s command %q failed: %w", kind, command, result.Err)
+	}
+	return fmt.Errorf("post-promotion %s command %q failed: %w: %s", kind, command, result.Err, output)
+}
+
+func commandFailureDetail(result Result) string {
+	var parts []string
+	if result.Err != nil {
+		parts = append(parts, result.Err.Error())
+	}
+	output := strings.TrimSpace(result.Stderr)
+	if output == "" {
+		output = strings.TrimSpace(result.Stdout)
+	}
+	if output != "" {
+		parts = append(parts, output)
+	}
+	return strings.Join(parts, ": ")
+}
+
+func postPromotionCommandEnv(cfg Config) []string {
+	env := []string{
+		"PROGRESS_JSON=" + cfg.ProgressJSON,
+		"RUN_ROOT=" + cfg.RunRoot,
+		"BACKEND=" + cfg.Backend,
+		"MODE=" + cfg.Mode,
+		fmt.Sprintf("MAX_AGENTS=%d", cfg.MaxAgents),
+		fmt.Sprintf("MAX_PHASE=%d", cfg.MaxPhase),
+	}
+	if len(cfg.PriorityBoost) > 0 {
+		env = append(env, "PRIORITY_BOOST="+strings.Join(cfg.PriorityBoost, ","))
+	}
+	return env
+}
+
+func truncateLedgerDetail(value string) string {
+	value = strings.TrimSpace(value)
+	const maxDetail = 2000
+	if len(value) <= maxDetail {
+		return value
+	}
+	return value[:maxDetail] + "..."
 }
 
 // recordWorkerOutcome translates a finishWorker result into accumulator +
@@ -575,6 +838,32 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		Commit: commitSha,
 		Status: "success",
 	})
+}
+
+// emitPlannerTriggers writes one plannertriggers ledger entry per
+// FlushedTriggerEvent. An empty path or empty event slice is a no-op.
+// Each append is independent: if one entry fails to land, the rest still
+// get a chance, and failures are logged rather than returned because the
+// trigger ledger is a best-effort signal channel — the planner's own
+// timer is the durable fallback.
+func emitPlannerTriggers(path string, events []FlushedTriggerEvent) {
+	if path == "" || len(events) == 0 {
+		return
+	}
+	for _, ev := range events {
+		entry := plannertriggers.TriggerEvent{
+			Source:        "autoloop",
+			Kind:          ev.Kind,
+			PhaseID:       ev.PhaseID,
+			SubphaseID:    ev.SubphaseID,
+			ItemName:      ev.ItemName,
+			Reason:        ev.Reason,
+			AutoloopRunID: ev.AutoloopRunID,
+		}
+		if err := plannertriggers.AppendTriggerEvent(path, entry); err != nil {
+			log.Printf("autoloop: append planner trigger failed: %v", err)
+		}
+	}
 }
 
 func appendRunLedgerEvent(cfg Config, event LedgerEvent) error {
@@ -851,6 +1140,38 @@ func selectAcrossSubphases(candidates []Candidate, maxAgents int) []Candidate {
 
 func BuildWorkerPrompt(candidate Candidate) string {
 	return BuildWorkerPromptWithBranch(candidate, "")
+}
+
+func BuildPostPromotionRepairPrompt(verifyCommands []string, cause error) string {
+	var prompt strings.Builder
+
+	prompt.WriteString("Mission:\n")
+	prompt.WriteString("Repair the integrated Gormes control checkout after promoted autoloop worker changes failed the mandatory post-promotion verification gate.\n\n")
+
+	prompt.WriteString("Context:\n")
+	prompt.WriteString("- You are repairing the already-promoted integration state, not selecting new roadmap work.\n")
+	prompt.WriteString("- Keep edits minimal and directly tied to the failing verification output.\n")
+	prompt.WriteString("- The final run health must not be recorded until this full-suite gate passes.\n\n")
+
+	prompt.WriteString("Failing verification:\n")
+	if cause == nil {
+		prompt.WriteString("- (no error detail available)\n\n")
+	} else {
+		fmt.Fprintf(&prompt, "- %s\n\n", truncateLedgerDetail(cause.Error()))
+	}
+
+	prompt.WriteString("Full-suite commands to restore:\n")
+	writePromptList(&prompt, verifyCommands)
+	prompt.WriteString("\n")
+
+	prompt.WriteString("Requirements:\n")
+	prompt.WriteString("- Inspect the failure before editing.\n")
+	prompt.WriteString("- Fix code, tests, docs, or progress metadata needed for the promoted integration to pass.\n")
+	prompt.WriteString("- Run the full-suite commands above after repair.\n")
+	prompt.WriteString("- Stage and commit repair changes with a clear message before exiting.\n")
+	prompt.WriteString("- Leave the repository with no uncommitted changes or unresolved merge conflicts.\n")
+
+	return prompt.String()
 }
 
 func BuildWorkerPromptWithBranch(candidate Candidate, branch string) string {

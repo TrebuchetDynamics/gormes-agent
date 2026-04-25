@@ -46,13 +46,15 @@ func TestRenderPlannerTimerUnitDefaultsInterval(t *testing.T) {
 
 func TestInstallPlannerServiceWritesUnitsAndEnablesTimer(t *testing.T) {
 	unitDir := t.TempDir()
-	runner := &autoloop.FakeRunner{Results: []autoloop.Result{{}, {}}}
+	runner := &autoloop.FakeRunner{Results: []autoloop.Result{{}, {}, {}}}
 
 	err := InstallPlannerService(context.Background(), PlannerServiceInstallOptions{
 		Runner:      runner,
 		UnitDir:     unitDir,
 		UnitName:    "gormes-planner.service",
 		TimerName:   "gormes-planner.timer",
+		PathName:    "gormes-planner.path",
+		PathToWatch: "/srv/gormes/.codex/architecture-planner/triggers.jsonl",
 		PlannerPath: "/opt/gormes/bin/architecture-planner-loop",
 		WorkDir:     "/srv/gormes",
 		AutoStart:   true,
@@ -67,13 +69,66 @@ func TestInstallPlannerServiceWritesUnitsAndEnablesTimer(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(unitDir, "gormes-planner.timer")); err != nil {
 		t.Fatalf("timer unit missing: %v", err)
 	}
-	if got, want := len(runner.Commands), 2; got != want {
+	if _, err := os.Stat(filepath.Join(unitDir, "gormes-planner.path")); err != nil {
+		t.Fatalf("path unit missing: %v", err)
+	}
+	if got, want := len(runner.Commands), 3; got != want {
 		t.Fatalf("Commands length = %d, want %d", got, want)
 	}
 	if strings.Join(runner.Commands[0].Args, " ") != "--user daemon-reload" {
 		t.Fatalf("daemon-reload args = %#v", runner.Commands[0].Args)
 	}
 	if strings.Join(runner.Commands[1].Args, " ") != "--user enable --now gormes-planner.timer" {
-		t.Fatalf("enable args = %#v", runner.Commands[1].Args)
+		t.Fatalf("enable timer args = %#v", runner.Commands[1].Args)
+	}
+	if strings.Join(runner.Commands[2].Args, " ") != "--user enable --now gormes-planner.path" {
+		t.Fatalf("enable path args = %#v", runner.Commands[2].Args)
+	}
+}
+
+func TestRenderPlannerPathUnit_ContainsExpectedDirectives(t *testing.T) {
+	rendered := RenderPlannerPathUnit(PlannerPathUnitOptions{
+		Description: "Trigger Gormes architecture planner on autoloop signal",
+		PathToWatch: "/home/test/.codex/architecture-planner/triggers.jsonl",
+		ServiceUnit: "gormes-architecture-planner.service",
+	})
+	wants := []string{
+		"PathChanged=/home/test/.codex/architecture-planner/triggers.jsonl",
+		"TriggerLimitIntervalSec=60",
+		"TriggerLimitBurst=1",
+		"Unit=gormes-architecture-planner.service",
+		"WantedBy=default.target",
+	}
+	for _, w := range wants {
+		if !strings.Contains(rendered, w) {
+			t.Errorf("rendered unit missing %q\n%s", w, rendered)
+		}
+	}
+}
+
+func TestInstallPlannerService_WritesAllThreeUnits(t *testing.T) {
+	dir := t.TempDir()
+	runner := &autoloop.FakeRunner{Results: []autoloop.Result{{}}}
+	opts := PlannerServiceInstallOptions{
+		Runner:      runner,
+		UnitDir:     dir,
+		UnitName:    "gormes-architecture-planner.service",
+		TimerName:   "gormes-architecture-planner.timer",
+		PathName:    "gormes-architecture-planner.path",
+		PathToWatch: "/srv/gormes/.codex/architecture-planner/triggers.jsonl",
+		PlannerPath: "/usr/local/bin/planner.sh",
+		WorkDir:     "/repo",
+	}
+	if err := InstallPlannerService(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{
+		"gormes-architecture-planner.service",
+		"gormes-architecture-planner.timer",
+		"gormes-architecture-planner.path",
+	} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("unit %s not written: %v", name, err)
+		}
 	}
 }

@@ -180,3 +180,105 @@ func quarantineReason(consecutive int, cat progress.FailureCategory) string {
 	}
 	return "auto: " + strconv.Itoa(consecutive) + " consecutive failures, last category " + string(cat)
 }
+
+// FlushedTriggerEvent represents one trigger event the accumulator
+// determined should fire after the batched ApplyHealthUpdates landed. It
+// is a local autoloop-side shape; the run loop converts each entry into a
+// plannertriggers.TriggerEvent for the actual ledger write so this
+// package stays free of any ledger-IO dependency.
+type FlushedTriggerEvent struct {
+	Kind          string // "quarantine_added" | "quarantine_stale_cleared"
+	PhaseID       string
+	SubphaseID    string
+	ItemName      string
+	Reason        string
+	AutoloopRunID string
+}
+
+// FlushWithTriggers performs the same work as Flush but also classifies
+// each touched row's before/after state and returns the trigger events
+// the run loop should emit to the planner trigger ledger. The before
+// snapshot is read prior to applying updates; the after snapshot is read
+// fresh from disk afterwards so we observe the merged on-disk state
+// (matching what the planner would see).
+//
+// Soft contract: if the after-state load fails, returns the existing
+// flush error (nil if Flush succeeded) and nil triggers so the run loop
+// never emits triggers it cannot validate.
+func (a *healthAccumulator) FlushWithTriggers(progressPath string, hashOf SpecHashProvider) ([]FlushedTriggerEvent, error) {
+	if len(a.rows) == 0 {
+		return nil, nil
+	}
+
+	// Snapshot before-state for trigger classification. A load error here
+	// is non-fatal: an empty index makes every "after has Quarantine" row
+	// look new, which is the safest default for a fresh progress.json.
+	beforeProg, _ := progress.Load(progressPath)
+	beforeIndex := indexHealthByKey(beforeProg)
+
+	if err := a.Flush(progressPath, hashOf); err != nil {
+		return nil, err
+	}
+
+	afterProg, err := progress.Load(progressPath)
+	if err != nil {
+		return nil, nil
+	}
+	afterIndex := indexHealthByKey(afterProg)
+
+	var events []FlushedTriggerEvent
+	for key, pending := range a.rows {
+		before := beforeIndex[key]
+		after := afterIndex[key]
+		kind, fire := classifyForTrigger(before, after, pending)
+		if !fire {
+			continue
+		}
+		reason := ""
+		if after != nil && after.Quarantine != nil {
+			reason = after.Quarantine.Reason
+		}
+		events = append(events, FlushedTriggerEvent{
+			Kind:          kind,
+			PhaseID:       key.phaseID,
+			SubphaseID:    key.subphaseID,
+			ItemName:      key.itemName,
+			Reason:        reason,
+			AutoloopRunID: a.runID,
+		})
+	}
+	return events, nil
+}
+
+// classifyForTrigger decides whether a row transition warrants a planner
+// trigger. Two transitions matter:
+//   - A row that was healthy (or absent) before and is quarantined after.
+//   - A row whose stale quarantine was cleared this run (planner needs to
+//     reconfirm the spec).
+func classifyForTrigger(before, after *progress.RowHealth, p *pendingHealth) (string, bool) {
+	if (before == nil || before.Quarantine == nil) && after != nil && after.Quarantine != nil {
+		return "quarantine_added", true
+	}
+	if before != nil && before.Quarantine != nil && after != nil && after.Quarantine == nil && p.staleClear {
+		return "quarantine_stale_cleared", true
+	}
+	return "", false
+}
+
+// indexHealthByKey flattens a progress doc into a map keyed by row
+// coordinates so per-key before/after lookup is constant-time.
+func indexHealthByKey(prog *progress.Progress) map[rowKey]*progress.RowHealth {
+	out := map[rowKey]*progress.RowHealth{}
+	if prog == nil {
+		return out
+	}
+	for phaseID, phase := range prog.Phases {
+		for subID, sub := range phase.Subphases {
+			for i := range sub.Items {
+				it := &sub.Items[i]
+				out[rowKey{phaseID, subID, it.Name}] = it.Health
+			}
+		}
+	}
+	return out
+}

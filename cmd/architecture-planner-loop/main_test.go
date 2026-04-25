@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -146,6 +147,31 @@ func TestServiceInstallWritesUnits(t *testing.T) {
 	}
 }
 
+func TestParseRunOptions_PositionalKeywords(t *testing.T) {
+	opts, err := parseRunOptions([]string{"--codexu", "honcho", "memory"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.backend != "codexu" {
+		t.Errorf("backend = %q", opts.backend)
+	}
+	want := []string{"honcho", "memory"}
+	if !reflect.DeepEqual(opts.keywords, want) {
+		t.Errorf("keywords = %v, want %v", opts.keywords, want)
+	}
+}
+
+func TestParseRunOptions_QuotedMultiwordKeywordsSplitOnWhitespace(t *testing.T) {
+	opts, err := parseRunOptions([]string{"skills tools"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"skills", "tools"}
+	if !reflect.DeepEqual(opts.keywords, want) {
+		t.Errorf("keywords = %v, want %v", opts.keywords, want)
+	}
+}
+
 func TestRunRejectsUnknownCommand(t *testing.T) {
 	err := run([]string{"unknown"})
 	if err == nil {
@@ -160,6 +186,7 @@ func writeCommandFixture(t *testing.T) string {
 	t.Helper()
 
 	root := t.TempDir()
+	t.Setenv("PROGRESS_JSON", filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"))
 	writeCommandFile(t, filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
   "phases": {
     "2": {

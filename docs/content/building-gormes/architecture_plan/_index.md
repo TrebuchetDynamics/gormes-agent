@@ -37,7 +37,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 30/73 subphases shipped · 12 in progress · 31 planned
+**Overall:** 30/73 subphases shipped · 18 in progress · 25 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -322,7 +322,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] Anthropic
 - [ ] Bedrock
-- [ ] Bedrock Converse payload mapping (no AWS SDK)
+- [x] Bedrock Converse payload mapping (no AWS SDK)
 - [ ] Bedrock stream event decoding (SSE fixtures)
 - [ ] Bedrock SigV4 + credential seam
 - [ ] Bedrock stale-client eviction + retry classification
@@ -336,11 +336,11 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Cross-provider reasoning-tag sanitization
 - [ ] Tool-call argument repair + schema sanitizer
 
-### 4.B — Context Engine + Compression ⏳
+### 4.B — Context Engine + Compression 🔨
 
 - [ ] Long session management
 - [ ] Context compression
-- [ ] ContextEngine interface + status tool contract
+- [x] ContextEngine interface + status tool contract
 - [ ] Compression token-budget trigger + summary sizing
 - [ ] Tool-result pruning + protected head/tail summary
 - [ ] Manual compression feedback + context references
@@ -353,10 +353,10 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Toolset-aware skills prompt snapshot
 - [ ] Memory and session-search guidance assembly
 
-### 4.D — Smart Model Routing ⏳
+### 4.D — Smart Model Routing 🔨
 
 - [ ] Model metadata registry + context limits
-- [ ] Provider-enforced context-length resolver
+- [x] Provider-enforced context-length resolver
 - [ ] Model pricing/capability registry fixtures
 - [ ] Routing policy and fallback selector
 - [ ] Per-turn model selection
@@ -380,7 +380,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 ### 4.H — Rate / Retry / Caching 🔨
 
-- [ ] Provider-side resilience
+- [x] Provider-side resilience
 - [x] Classified provider-error taxonomy
 - [x] Jittered reconnect backoff schedule
 - [x] Retry-After header parsing + HTTPError hint
@@ -392,10 +392,10 @@ machine-readable queue for developing the full `gormes-agent`.
 
 *Python tool scripts ported to Go or WASM*
 
-### 5.A — Tool Surface Port ⏳
+### 5.A — Tool Surface Port 🔨
 
 - [ ] 61-tool registry port
-- [ ] Tool registry inventory + schema parity harness
+- [x] Tool registry inventory + schema parity harness
 - [ ] Pure core tools first
 - [ ] Stateful tool migration queue
 
@@ -426,11 +426,11 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Transcription tool contract
 - [ ] TTS synthesis + voice-mode state
 
-### 5.F — Skills System (Remaining) ⏳
+### 5.F — Skills System (Remaining) 🔨
 
 - [ ] Skills hub
 - [ ] Skill registries
-- [ ] Skill preprocessing + dynamic slash commands
+- [x] Skill preprocessing + dynamic slash commands
 
 ### 5.G — MCP Integration ⏳
 
@@ -478,11 +478,11 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Cron prompt/script safety + pre-run script contract
 - [ ] Cron multi-target delivery + media/live-adapter fallback
 
-### 5.O — Hermes CLI Parity ⏳
+### 5.O — Hermes CLI Parity 🔨
 
 - [ ] 49-file CLI tree port
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
-- [ ] PTY bridge protocol adapter
+- [x] PTY bridge protocol adapter
 - [ ] CLI command registry parity + active-turn busy policy
 - [ ] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
@@ -497,11 +497,11 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
 
-### 5.Q — API Server + TUI Gateway Streaming ⏳
+### 5.Q — API Server + TUI Gateway Streaming 🔨
 
 - [ ] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [ ] SSE streaming to Bubble Tea TUI
-- [ ] OpenAI-compatible chat-completions API server
+- [x] OpenAI-compatible chat-completions API server
 - [ ] Responses API store + run event stream
 - [ ] API server disconnect snapshot persistence
 - [ ] Gateway proxy mode forwarding contract

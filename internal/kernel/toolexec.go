@@ -157,27 +157,54 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 	default:
 	}
 
-	if k.cfg.Tools == nil {
+	executeContextEngineTool := func() indexedToolResult {
+		payload, err := k.cfg.ContextEngine.HandleToolCall(ctx, call.Name, call.Arguments, hermes.ContextToolCallOptions{})
+		if len(payload) == 0 && err != nil {
+			payload = json.RawMessage(fmt.Sprintf(`{"error":%q}`, err.Error()))
+		}
+		status := "completed"
+		if err != nil {
+			status = "failed"
+		}
+		result := toolResult{ID: call.ID, Name: call.Name, Content: string(payload)}
+		return indexedToolResult{
+			Index:  index,
+			Result: result,
+			Status: status,
+			Err:    err,
+			Audit:  buildAudit(status, payload, err),
+		}
+	}
+
+	var tool tools.Tool
+	if k.cfg.Tools != nil {
+		var ok bool
+		tool, ok = k.cfg.Tools.Get(call.Name)
+		if !ok && k.cfg.ContextEngine != nil {
+			return executeContextEngineTool()
+		}
+		if !ok {
+			err := fmt.Errorf("unknown tool: %q", call.Name)
+			result := toolResult{
+				ID: call.ID, Name: call.Name,
+				Content: fmt.Sprintf(`{"error":"unknown tool: %q"}`, call.Name),
+			}
+			return indexedToolResult{
+				Index:  index,
+				Result: result,
+				Status: "failed",
+				Err:    err,
+				Audit:  buildAudit("failed", nil, err),
+			}
+		}
+	} else {
+		if k.cfg.ContextEngine != nil {
+			return executeContextEngineTool()
+		}
 		err := errors.New("no tool registry configured")
 		result := toolResult{
 			ID: call.ID, Name: call.Name,
 			Content: `{"error":"no tool registry configured"}`,
-		}
-		return indexedToolResult{
-			Index:  index,
-			Result: result,
-			Status: "failed",
-			Err:    err,
-			Audit:  buildAudit("failed", nil, err),
-		}
-	}
-
-	tool, ok := k.cfg.Tools.Get(call.Name)
-	if !ok {
-		err := fmt.Errorf("unknown tool: %q", call.Name)
-		result := toolResult{
-			ID: call.ID, Name: call.Name,
-			Content: fmt.Sprintf(`{"error":"unknown tool: %q"}`, call.Name),
 		}
 		return indexedToolResult{
 			Index:  index,

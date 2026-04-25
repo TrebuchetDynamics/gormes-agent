@@ -62,6 +62,14 @@ Useful environment variables:
   unbounded run.
 - `PRIORITY_BOOST`: comma-separated subphase IDs to pull ahead of equally ready
   work. Defaults to the active priority channels: `2.B.3,2.B.4,2.B.10,2.B.11`.
+- `POST_PROMOTION_VERIFY_COMMANDS`: override the mandatory post-promotion
+  full-suite gate. Separate shell commands with `;;` or newlines. Defaults to
+  `go test ./... -count=1`, `www.gormes.ai` Go tests, progress validation,
+  autoloop dry-run, and the site Playwright e2e suite.
+- `POST_PROMOTION_REPAIR`: enable or disable the automatic repair backend after
+  a failed post-promotion gate. Defaults to enabled.
+- `POST_PROMOTION_REPAIR_ATTEMPTS`: number of repair attempts before the run is
+  recorded as failed. Defaults to `1`.
 
 ## Worker isolation and promotion
 
@@ -93,6 +101,11 @@ finished branches in worker order. The flow per worker is:
    <commit>`. If push or `gh` fails, autoloop still attempts the same local
    cherry-pick fallback. Clean successful/no-change worktrees are removed;
    failed worktrees stay in `$RUN_ROOT/worktrees/` for inspection.
+7. After all worker promotions land, run the mandatory post-promotion full-suite
+   gate before emitting `run_completed` or `health_updated`. A gate failure
+   emits `post_promotion_verify_failed`, starts one repair backend by default,
+   requires the repair to leave the checkout clean, reruns the full suite, and
+   records final health only after the gate passes.
 
 Each promotion attempt emits a `worker_promoted` or `worker_promotion_failed`
 ledger event so the audit's `productivity` metric reflects work that actually

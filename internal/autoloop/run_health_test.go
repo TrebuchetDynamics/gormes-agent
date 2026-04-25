@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -159,6 +160,128 @@ func TestRunOnce_HealthUpdatedEventEmittedOnSuccess(t *testing.T) {
 	item := loadItem(t, progressPath, "12", "12.A", "row-1")
 	if item.Health == nil || item.Health.LastSuccess == "" {
 		t.Fatalf("item.Health.LastSuccess not set; got %+v", item.Health)
+	}
+}
+
+func TestRunOnce_PostPromotionVerifyFailureStopsBeforeRunHealth(t *testing.T) {
+	progressPath := writeNamedProgressJSON(t, baseNamedProgress)
+	runRoot := t.TempDir()
+	verifyErr := errors.New("exit status 1")
+	runner := &FakeRunner{Results: []Result{
+		{},
+		{Err: verifyErr, Stderr: "suite broke"},
+	}}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:                    t.TempDir(),
+			ProgressJSON:                progressPath,
+			RunRoot:                     runRoot,
+			Backend:                     "opencode",
+			Mode:                        "safe",
+			MaxAgents:                   1,
+			MaxPhase:                    12,
+			PostPromotionVerifyCommands: []string{"go test ./... -count=1"},
+			PostPromotionRepairEnabled:  false,
+			PostPromotionRepairAttempts: 0,
+			QuarantineThreshold:         3,
+			BackendDegradeThreshold:     3,
+		},
+		Runner: runner,
+	})
+	if !errors.Is(err, verifyErr) {
+		t.Fatalf("RunOnce() error = %v, want wrapped %v", err, verifyErr)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	if !ledgerContainsEvent(events, "post_promotion_verify_failed") {
+		t.Fatalf("ledger missing post_promotion_verify_failed; got=%v", ledgerEventNames(events))
+	}
+	if ledgerContainsEvent(events, "run_completed") {
+		t.Fatalf("ledger should NOT contain run_completed after failed post-promotion verification; got=%v", ledgerEventNames(events))
+	}
+	if ledgerContainsEvent(events, "health_updated") {
+		t.Fatalf("ledger should NOT contain health_updated after failed post-promotion verification; got=%v", ledgerEventNames(events))
+	}
+
+	item := loadItem(t, progressPath, "12", "12.A", "row-1")
+	if item.Health != nil && item.Health.LastSuccess != "" {
+		t.Fatalf("item.Health.LastSuccess = %q, want empty because health was not flushed", item.Health.LastSuccess)
+	}
+	if got, want := len(runner.Commands), 2; got != want {
+		t.Fatalf("Commands length = %d, want %d", got, want)
+	}
+	if runner.Commands[1].Name != "sh" || !reflect.DeepEqual(runner.Commands[1].Args, []string{"-lc", "go test ./... -count=1"}) {
+		t.Fatalf("verification command = %#v, want shell command", runner.Commands[1])
+	}
+}
+
+func TestRunOnce_PostPromotionVerifyFailureRepairsBeforeRunHealth(t *testing.T) {
+	progressPath := writeNamedProgressJSON(t, baseNamedProgress)
+	runRoot := t.TempDir()
+	verifyErr := errors.New("exit status 1")
+	runner := &FakeRunner{Results: []Result{
+		{},
+		{Err: verifyErr, Stderr: "suite broke"},
+		{},
+		{},
+	}}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:                    t.TempDir(),
+			ProgressJSON:                progressPath,
+			RunRoot:                     runRoot,
+			Backend:                     "opencode",
+			Mode:                        "safe",
+			MaxAgents:                   1,
+			MaxPhase:                    12,
+			PostPromotionVerifyCommands: []string{"go test ./... -count=1"},
+			PostPromotionRepairEnabled:  true,
+			PostPromotionRepairAttempts: 1,
+			QuarantineThreshold:         3,
+			BackendDegradeThreshold:     3,
+		},
+		Runner: runner,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	var got []string
+	for _, event := range events {
+		got = append(got, event.Event+":"+event.Status)
+	}
+	want := []string{
+		"run_started:started",
+		"worker_claimed:claimed",
+		"worker_success:success",
+		"post_promotion_verify_started:started",
+		"post_promotion_verify_failed:failed",
+		"post_promotion_repair_started:started",
+		"post_promotion_repair_succeeded:ok",
+		"post_promotion_verify_started:started",
+		"post_promotion_verify_succeeded:ok",
+		"run_completed:completed",
+		"health_updated:ok",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+
+	item := loadItem(t, progressPath, "12", "12.A", "row-1")
+	if item.Health == nil || item.Health.LastSuccess == "" {
+		t.Fatalf("item.Health.LastSuccess not set after repaired verification; got %+v", item.Health)
+	}
+	if got, want := len(runner.Commands), 4; got != want {
+		t.Fatalf("Commands length = %d, want %d", got, want)
+	}
+	if runner.Commands[2].Name != "opencode" {
+		t.Fatalf("repair command = %#v, want opencode backend", runner.Commands[2])
+	}
+	if runner.Commands[3].Name != "sh" || !reflect.DeepEqual(runner.Commands[3].Args, []string{"-lc", "go test ./... -count=1"}) {
+		t.Fatalf("second verification command = %#v, want shell command", runner.Commands[3])
 	}
 }
 

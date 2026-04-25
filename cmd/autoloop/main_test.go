@@ -316,6 +316,16 @@ func TestRunCommandHelpPrintsUsage(t *testing.T) {
 	}
 }
 
+func TestAutoloopEnvIncludesPlannerTriggersPath(t *testing.T) {
+	t.Setenv("PLANNER_TRIGGERS_PATH", filepath.Join(t.TempDir(), "triggers.jsonl"))
+
+	env := autoloopEnv()
+
+	if got, want := env["PLANNER_TRIGGERS_PATH"], os.Getenv("PLANNER_TRIGGERS_PATH"); got != want {
+		t.Fatalf("PLANNER_TRIGGERS_PATH = %q, want %q", got, want)
+	}
+}
+
 func TestDigestUsesConfiguredRunRoot(t *testing.T) {
 	repoRoot := t.TempDir()
 	runRoot := filepath.Join(repoRoot, "custom-runs")

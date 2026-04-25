@@ -22,6 +22,8 @@
         "MAX_AGENTS is a safety cap: if fewer metadata-ready rows are available, run fewer workers instead of selecting filler or random work.",
         "Each worker runs in an isolated git worktree under RUN_ROOT/worktrees and promotion rejects committed paths outside the selected row's write_scope.",
         "When git worktrees are available and MAX_AGENTS is greater than 1, cmd/autoloop launches selected workers concurrently, then validates and promotes each branch through the same ledgered safety gates.",
+        "After all promotions, cmd/autoloop runs the mandatory post-promotion full-suite gate before emitting run_completed or health_updated.",
+        "On post-promotion gate failure, cmd/autoloop starts one backend repair attempt by default, requires the checkout to be clean, reruns the suite, and records final health only if the gate passes.",
         "Prefer contract rows with write_scope, test_commands, and done_signal.",
         "Inject selected progress metadata into the worker prompt instead of asking workers to rescan the whole roadmap."
       ]
@@ -2370,9 +2372,9 @@
             },
             {
               "name": "Bedrock Converse payload mapping (no AWS SDK)",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pure Bedrock Converse request mapping over the shared provider message/tool contract",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2400,7 +2402,7 @@
                 "Tool definitions map to Bedrock toolSpec inputSchema without dropping required fields.",
                 "Golden request fixtures pin max_tokens, temperature, cache/reasoning passthrough, and empty-content placeholders."
               ],
-              "note": "TDD first slice: port Bedrock Converse request-payload shaping plus canonical Message->Bedrock tool-aware mapping with pure fixtures and no AWS SDK dependency. Land alongside a request-body golden file that pins role/tool-result block order, reasoning/cache-control passthrough, and max_tokens/temperature translation. Gates the next two slices.",
+              "note": "Complete: TDD added pure Bedrock Converse request-payload shaping in `internal/hermes` plus a request-body golden fixture. The mapper converts shared system/user/assistant/tool-result messages into Converse roles and content blocks, preserves assistant reasoning blocks and Bedrock cachePoint hints, maps tool definitions to `toolSpec.inputSchema.json` without dropping required fields, and pins `inferenceConfig.maxTokens`/`temperature` plus empty-content placeholders without importing AWS SDK clients or signing live requests. Bedrock remains unavailable until stream decoding and credential wiring land.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -2410,7 +2412,12 @@
               ],
               "done_signal": [
                 "Bedrock request-body golden fixtures prove Converse mapping without AWS credentials or SDK clients."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Bedrock stream event decoding (SSE fixtures)",
@@ -2711,9 +2718,9 @@
             },
             {
               "name": "ContextEngine interface + status tool contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Stable context engine status and compression boundary",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -2721,7 +2728,7 @@
                 "system"
               ],
               "degraded_mode": "Context status reports disabled compression, cooldowns, unknown tools, token-budget pressure, and replay gaps.",
-              "fixture": "internal/contextengine status and compression replay fixtures",
+              "fixture": "internal/hermes/testdata/context_status and internal/kernel context-engine replay fixtures",
               "source_refs": [
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
@@ -2732,9 +2739,6 @@
               "not_ready_when": [
                 "Compression is wired into the kernel before the context engine boundary and status contract are stable."
               ],
-              "blocked_by": [
-                "Provider interface + stream fixture harness"
-              ],
               "unblocks": [
                 "Compression token-budget trigger + summary sizing",
                 "Tool-result pruning + protected head/tail summary"
@@ -2744,7 +2748,7 @@
                 "Compression remains an explicit engine boundary, not a hidden kernel side effect.",
                 "Fixtures replay context status without live provider calls."
               ],
-              "note": "TDD: port the `agent/context_engine.py` interface, `get_status` payload, update_model_context behavior, and unknown tool error shape before any compressor implementation is wired into the agent loop.",
+              "note": "Complete: TDD landed a provider-owned Go ContextEngine contract in internal/hermes, a disabled engine with context_status payload fixtures for window, budget pressure, compression disabled/cooldown state, replay gaps, and structured unknown-context-tool errors. The kernel now snapshots context status, updates usage from provider EventDone, advertises context-engine tools, and dispatches them through the explicit engine boundary without calling Compress as a hidden side effect.",
               "write_scope": [
                 "internal/kernel/",
                 "internal/hermes/",
@@ -2755,7 +2759,12 @@
               ],
               "done_signal": [
                 "Context status fixtures expose budget, compression state, and unknown-tool errors without live provider calls."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Compression token-budget trigger + summary sizing",
@@ -2824,9 +2833,9 @@
             },
             {
               "name": "Provider-enforced context-length resolver",
-              "status": "planned",
+              "status": "complete",
               "contract": "Displayed and budgeted context windows prefer provider-enforced limits over raw models.dev metadata",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2857,7 +2866,7 @@
                 "Provider-specific caps for Codex OAuth, Copilot, and Nous win over model-info fallbacks when present.",
                 "Unknown resolver failures fall back to fixture model metadata and report unknown when both sources are empty."
               ],
-              "note": "Hermes now routes /model display through resolve_display_context_length so provider-enforced caps win over raw models.dev entries. Gormes should port the resolver as a pure metadata fixture first; CLI/gateway display wiring can consume it later without duplicating cap logic.",
+              "note": "TDD landed: internal/hermes/model_context_resolver_test.go proves ResolveDisplayContextLength and ModelContextResolver deterministically prefer provider-enforced caps over raw models.dev metadata, fall back to fixture model metadata when provider metadata is unavailable, and report unknown when both sources are empty. The pure resolver has no live provider credentials, disk cache, routing policy, or network dependency.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -2867,7 +2876,12 @@
               ],
               "done_signal": [
                 "Context resolver fixtures prove provider caps, models.dev fallback, and unknown-model reporting are deterministic without network calls."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Model pricing/capability registry fixtures",
@@ -3072,9 +3086,9 @@
           "items": [
             {
               "name": "Provider-side resilience",
-              "status": "in_progress",
+              "status": "complete",
               "contract": "Provider resilience umbrella over retry, cache, rate, and budget behavior",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "provider",
               "trust_class": [
@@ -3105,7 +3119,7 @@
                 "Kernel retry policy reports schedule and provider hint decisions.",
                 "Unavailable cache/rate/budget capability is visible before routing relies on it."
               ],
-              "note": "Umbrella tracker for 4.H closeout. Already shipped: structured provider-error taxonomy in `internal/hermes/errors.go`, Retry-After header/body parsing on `HTTPError`, and `internal/kernel/retry.go` 1s/2s/4s/8s/16s +/-20% reconnect budget with provider Retry-After hints preferred and capped during open-stream retries. Remaining work is owned by the sibling slices below — `Prompt-cache capability guard` and `Provider rate guard + budget telemetry`.",
+              "note": "Complete: TDD landed the 4.H umbrella status contract without porting the sibling slices monolithically. `internal/hermes.ProviderStatusOf` now exposes prompt-cache, rate-guard, and budget-telemetry capability rows for OpenAI-compatible, Anthropic, mock, and unknown providers; OpenAI-compatible request fixtures prove unsupported `cache_control` metadata is stripped with a visible disabled path, while Anthropic reports cache-control support. `internal/kernel.RenderFrame` now carries provider status plus retry status, including the 1s/2s/4s/8s/16s schedule, max Retry-After cap, attempts used, provider hint vs scheduled-backoff decision, and retryable provider-error class/kind. Rate-guard and budget-telemetry implementations remain planned in their sibling slices, but their unavailable state is visible before routing can rely on them. Verified with `go test ./internal/hermes ./internal/kernel -count=1`.",
               "write_scope": [
                 "internal/hermes/",
                 "internal/kernel/",
@@ -3116,7 +3130,12 @@
               ],
               "done_signal": [
                 "Retry, cache, rate, budget, and provider-hint behavior is fixture-covered and visible in provider/kernel status."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Classified provider-error taxonomy",
@@ -3219,9 +3238,9 @@
             },
             {
               "name": "Tool registry inventory + schema parity harness",
-              "status": "planned",
+              "status": "complete",
               "contract": "Operation and tool descriptor parity before handler ports",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -3252,7 +3271,7 @@
                 "No handler port can mark complete until its descriptor parity row exists.",
                 "Doctor can report missing dependencies or disabled provider-specific paths."
               ],
-              "note": "TDD: snapshot upstream `tools/registry.py`, `toolsets.py`, and discovered schemas into a Go parity fixture that proves names, toolsets, required env vars, and JSON result shapes before porting handlers.",
+              "note": "Complete: TDD added an embedded upstream tool parity manifest generated from `tools/registry.py`, `toolsets.py`, and discovered schemas. The fixture captures 55 tool rows plus static/resolved toolsets with required env vars, provider paths, JSON schemas, result envelopes, trust classes, dependencies, and degraded status metadata. `LoadUpstreamToolParityManifest`, descriptor-row port gating, and the parity doctor now report disabled tools, missing dependencies, schema drift, and unavailable provider-specific paths before any handler port can claim completion.",
               "write_scope": [
                 "internal/tools/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -3262,7 +3281,12 @@
               ],
               "done_signal": [
                 "Tool descriptor parity fixtures capture names, schemas, trust classes, dependencies, and degraded status before handler ports."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Pure core tools first",
@@ -3386,9 +3410,9 @@
             },
             {
               "name": "Skill preprocessing + dynamic slash commands",
-              "status": "planned",
+              "status": "complete",
               "contract": "Skill content preprocessing and skill-backed slash commands are deterministic, disabled-skill aware, and prompt-safe",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -3420,7 +3444,7 @@
                 "Inline shell preprocessing is disabled by default and bounded when explicitly enabled.",
                 "Skill slash commands skip disabled/incompatible skills and build stable user-message content."
               ],
-              "note": "Hermes split shared SKILL.md preprocessing into `agent/skill_preprocessing.py` and expanded skill slash command scanning. Gormes has the core Phase 2.G store; this slice adds the remaining prompt/command preprocessing contract without widening automatic skill execution.",
+              "note": "TDD landed: internal/skills/preprocessing_commands_test.go covers deterministic template preprocessing, inline shell remaining disabled by default and output-bounded when explicitly enabled, status reporting for disabled/unsupported/missing-prerequisite/preprocessing-failed skills without prompt injection, and skill slash-command generation that exposes only available skills through stable gateway command surfaces.",
               "write_scope": [
                 "internal/skills/",
                 "internal/gateway/",
@@ -3431,7 +3455,12 @@
               ],
               "done_signal": [
                 "Skill preprocessing and slash-command fixtures prove disabled/incompatible skills do not enter prompt or command surfaces."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             }
           ]
         },
@@ -3654,9 +3683,9 @@
             },
             {
               "name": "PTY bridge protocol adapter",
-              "status": "planned",
+              "status": "complete",
               "contract": "Dashboard/TUI PTY sessions expose bounded read, write, resize, close, and unavailable-state behavior through a testable adapter",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -3684,7 +3713,7 @@
                 "Writes and resize messages validate input before reaching the PTY.",
                 "Unsupported platforms return PtyUnavailable-style errors without starting a shell."
               ],
-              "note": "Upstream added `hermes_cli/pty_bridge.py` plus dashboard `/api/pty` wiring. Port the PTY adapter as a small protocol slice before any dashboard or remote TUI transport work consumes it.",
+              "note": "Complete: TDD landed internal/cli/pty_bridge_test.go plus a small internal/cli PTY adapter. Fixtures prove bounded read timeout/chunk behavior, write forwarding with pre-session validation, resize escape validation and winsize forwarding, idempotent close/child termination, and ErrPtyUnavailable degradation before spawn on unsupported platforms without dashboard, network, or live TUI dependencies.",
               "write_scope": [
                 "internal/cli/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -3694,7 +3723,12 @@
               ],
               "done_signal": [
                 "PTY bridge fixtures prove read/write/resize/close/unavailable behavior without network or live dashboard dependencies."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "CLI command registry parity + active-turn busy policy",
@@ -3807,9 +3841,9 @@
             },
             {
               "name": "OpenAI-compatible chat-completions API server",
-              "status": "planned",
+              "status": "complete",
               "contract": "OpenAI-compatible chat.completions HTTP surface over the native Gormes turn loop",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3852,7 +3886,12 @@
               ],
               "done_signal": [
                 "Chat-completions HTTP fixtures prove auth, body limits, content normalization, streaming envelopes, and session continuity over native Gormes state."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T05:56:06Z",
+                "last_success": "2026-04-25T05:56:06Z"
+              }
             },
             {
               "name": "Responses API store + run event stream",
