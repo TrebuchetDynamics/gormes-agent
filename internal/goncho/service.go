@@ -304,6 +304,73 @@ func (s *Service) Context(ctx context.Context, params ContextParams) (ContextRes
 	}, nil
 }
 
+func (s *Service) Chat(ctx context.Context, peer string, params ChatParams) (ChatResult, error) {
+	peer = strings.TrimSpace(peer)
+	if peer == "" {
+		return ChatResult{}, fmt.Errorf("goncho: peer is required")
+	}
+	query := strings.TrimSpace(params.Query)
+	if query == "" {
+		return ChatResult{}, fmt.Errorf("goncho: query is required")
+	}
+	if len([]rune(query)) > 10000 {
+		return ChatResult{}, fmt.Errorf("goncho: query must be 10000 characters or fewer")
+	}
+	reasoningLevel, err := normalizeChatReasoningLevel(params.ReasoningLevel)
+	if err != nil {
+		return ChatResult{}, err
+	}
+
+	card, err := getPeerCard(ctx, s.db, s.workspaceID, peer)
+	if err != nil {
+		return ChatResult{}, err
+	}
+	searchResult, err := s.Search(ctx, SearchParams{
+		Peer:       peer,
+		Query:      query,
+		SessionKey: strings.TrimSpace(params.SessionID),
+	})
+	if err != nil {
+		return ChatResult{}, err
+	}
+
+	return ChatResult{
+		Content: buildChatContent(peer, query, reasoningLevel, card, searchResult.Results, chatUnsupportedEvidence(params)),
+	}, nil
+}
+
+func normalizeChatReasoningLevel(level string) (string, error) {
+	level = strings.TrimSpace(level)
+	if level == "" {
+		return "low", nil
+	}
+	switch level {
+	case "minimal", "low", "medium", "high", "max":
+		return level, nil
+	default:
+		return "", fmt.Errorf("goncho: invalid reasoning_level %q", level)
+	}
+}
+
+func chatUnsupportedEvidence(params ChatParams) []ContextUnavailableEvidence {
+	var unavailable []ContextUnavailableEvidence
+	if params.Stream {
+		unavailable = append(unavailable, ContextUnavailableEvidence{
+			Field:      "stream",
+			Capability: "streaming_dialectic_chat",
+			Reason:     "stream=true requires the future dialectic streaming transport",
+		})
+	}
+	if strings.TrimSpace(params.Target) != "" {
+		unavailable = append(unavailable, ContextUnavailableEvidence{
+			Field:      "target",
+			Capability: "target_specific_reasoning",
+			Reason:     "target requires directional representation storage and the dialectic tool loop",
+		})
+	}
+	return unavailable
+}
+
 func limitToSession(params ContextParams) bool {
 	return params.LimitToSession != nil && *params.LimitToSession
 }
@@ -374,6 +441,51 @@ func buildRepresentation(peer string, card, conclusions []string) string {
 		for _, item := range conclusions {
 			b.WriteString("\n- ")
 			b.WriteString(item)
+		}
+	}
+	return b.String()
+}
+
+func buildChatContent(peer, query, reasoningLevel string, card []string, hits []SearchHit, unavailable []ContextUnavailableEvidence) string {
+	conclusions := make([]string, 0, len(hits))
+	otherEvidence := make([]SearchHit, 0)
+	for _, hit := range hits {
+		if hit.Source == "conclusion" {
+			conclusions = append(conclusions, hit.Content)
+			continue
+		}
+		otherEvidence = append(otherEvidence, hit)
+	}
+
+	var b strings.Builder
+	b.WriteString("Query: ")
+	b.WriteString(query)
+	b.WriteString("\n\nReasoning level: ")
+	b.WriteString(reasoningLevel)
+	b.WriteString("\n\n")
+	b.WriteString(buildRepresentation(peer, card, conclusions))
+
+	if len(otherEvidence) > 0 {
+		b.WriteString("\n\nRelevant evidence:")
+		for _, hit := range otherEvidence {
+			b.WriteString("\n- ")
+			if strings.TrimSpace(hit.Source) != "" {
+				b.WriteString(hit.Source)
+				b.WriteString(": ")
+			}
+			b.WriteString(hit.Content)
+		}
+	}
+
+	if len(unavailable) > 0 {
+		b.WriteString("\n\nUnsupported evidence:")
+		for _, item := range unavailable {
+			b.WriteString("\n- field=")
+			b.WriteString(item.Field)
+			b.WriteString(" capability=")
+			b.WriteString(item.Capability)
+			b.WriteString(" reason=")
+			b.WriteString(item.Reason)
 		}
 	}
 	return b.String()

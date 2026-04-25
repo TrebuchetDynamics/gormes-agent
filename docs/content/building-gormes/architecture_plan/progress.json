@@ -1839,9 +1839,9 @@
             {
               "name": "Goncho dialectic chat contract",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho exposes a Honcho peer.chat-compatible request and response contract while keeping query-specific reasoning separate from prompt-time context assembly",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [

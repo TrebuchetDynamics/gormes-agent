@@ -23,6 +23,7 @@ func RegisterHonchoTools(reg *tools.Registry, svc *goncho.Service) {
 	reg.MustRegister(&HonchoProfileTool{Service: svc})
 	reg.MustRegister(&HonchoSearchTool{Service: svc})
 	reg.MustRegister(&HonchoContextTool{Service: svc})
+	reg.MustRegister(&HonchoChatTool{Service: svc})
 	reg.MustRegister(&HonchoReasoningTool{Service: svc})
 	reg.MustRegister(&HonchoConcludeTool{Service: svc})
 }
@@ -117,6 +118,43 @@ func (t *HonchoContextTool) Execute(ctx context.Context, args json.RawMessage) (
 		return nil, fmt.Errorf("honcho_context: invalid args: %w", err)
 	}
 	out, err := t.Service.Context(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(out)
+}
+
+type HonchoChatTool struct {
+	Service *goncho.Service
+}
+
+func (*HonchoChatTool) Name() string { return "honcho_chat" }
+func (*HonchoChatTool) Description() string {
+	return "Query Goncho for Honcho peer.chat-compatible reasoning-backed content."
+}
+func (*HonchoChatTool) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"peer":{"type":"string"},"query":{"type":"string","minLength":1,"maxLength":10000},"session_id":{"type":"string"},"target":{"type":"string"},"reasoning_level":{"type":"string","enum":["minimal","low","medium","high","max"],"default":"low"},"stream":{"type":"boolean","default":false}},"required":["peer","query"]}`)
+}
+func (*HonchoChatTool) Timeout() time.Duration { return 5 * time.Second }
+func (t *HonchoChatTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
+	var in struct {
+		Peer           string `json:"peer"`
+		Query          string `json:"query"`
+		SessionID      string `json:"session_id"`
+		Target         string `json:"target"`
+		ReasoningLevel string `json:"reasoning_level"`
+		Stream         bool   `json:"stream"`
+	}
+	if err := json.Unmarshal(args, &in); err != nil {
+		return nil, fmt.Errorf("honcho_chat: invalid args: %w", err)
+	}
+	out, err := t.Service.Chat(ctx, in.Peer, goncho.ChatParams{
+		Query:          in.Query,
+		SessionID:      in.SessionID,
+		Target:         in.Target,
+		ReasoningLevel: in.ReasoningLevel,
+		Stream:         in.Stream,
+	})
 	if err != nil {
 		return nil, err
 	}
