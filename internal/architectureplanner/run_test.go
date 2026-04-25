@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/autoloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
@@ -296,6 +297,46 @@ func TestRunOnceReturnsBackendErrorWithOutput(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "backend denied") {
 		t.Fatalf("RunOnce() error = %q, want backend stderr", err)
+	}
+}
+
+func TestRunOnceAppliesBackendTimeoutAndRecordsErrDetail(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	cfg.BackendTimeout = time.Minute
+	runner := &deadlineCapturingRunner{}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want backend timeout error")
+	}
+	if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+		t.Fatalf("RunOnce() error = %q, want deadline detail", err)
+	}
+	if !runner.backendHadDeadline {
+		t.Fatal("backend command did not receive a context deadline")
+	}
+	remaining := time.Until(runner.backendDeadline)
+	if remaining <= 0 || remaining > cfg.BackendTimeout {
+		t.Fatalf("backend deadline remaining = %s, want within %s", remaining, cfg.BackendTimeout)
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1", len(events))
+	}
+	if events[0].Status != "backend_failed" {
+		t.Fatalf("Status = %q, want backend_failed", events[0].Status)
+	}
+	if !strings.Contains(events[0].Detail, context.DeadlineExceeded.Error()) {
+		t.Fatalf("Detail = %q, want deadline detail", events[0].Detail)
+	}
+	if len(events[0].Attempts) != 1 || !strings.Contains(events[0].Attempts[0].Detail, context.DeadlineExceeded.Error()) {
+		t.Fatalf("Attempts = %#v, want deadline detail", events[0].Attempts)
 	}
 }
 
@@ -941,6 +982,23 @@ type perAttemptRunner struct {
 	t                *testing.T
 	backendCallCount int
 	prompts          []string
+}
+
+type deadlineCapturingRunner struct {
+	commands           []autoloop.Command
+	backendHadDeadline bool
+	backendDeadline    time.Time
+}
+
+func (r *deadlineCapturingRunner) Run(ctx context.Context, command autoloop.Command) autoloop.Result {
+	r.commands = append(r.commands, command)
+	if command.Name != "codexu" && command.Name != "claudeu" {
+		return autoloop.Result{}
+	}
+	deadline, ok := ctx.Deadline()
+	r.backendHadDeadline = ok
+	r.backendDeadline = deadline
+	return autoloop.Result{Err: context.DeadlineExceeded}
 }
 
 func (r *perAttemptRunner) Run(ctx context.Context, command autoloop.Command) autoloop.Result {

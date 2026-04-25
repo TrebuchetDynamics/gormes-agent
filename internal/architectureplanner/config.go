@@ -52,6 +52,12 @@ type Config struct {
 	// PLANNER_MAX_RETRIES; default DefaultMaxRetries (2). Set to 0 to
 	// disable retries (pre-L3 single-attempt behavior).
 	MaxRetries int
+	// BackendTimeout bounds each planner LLM backend invocation. A stuck
+	// codexu/claudeu child must not block the periodic planner scheduler
+	// indefinitely or leave autoloop paused. Sourced from
+	// PLANNER_BACKEND_TIMEOUT (Go time.ParseDuration syntax, e.g. "20m");
+	// default 20 minutes.
+	BackendTimeout time.Duration
 	// MergeOpenPullRequests controls whether planner cycles merge all
 	// non-draft open pull requests before collecting context.
 	MergeOpenPullRequests bool
@@ -115,6 +121,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		PlannerQuarantineLimit: 5,
 		PlannerTriggersPath:    filepath.Join(repoRoot, ".codex", "architecture-planner", "triggers.jsonl"),
 		MaxRetries:             DefaultMaxRetries,
+		BackendTimeout:         20 * time.Minute,
 		MergeOpenPullRequests:  true,
 		PRConflictAction:       autoloop.PRConflictActionClose,
 		EvaluationWindow:       DefaultEvaluationWindow,
@@ -185,6 +192,16 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 			return Config{}, fmt.Errorf("PLANNER_MAX_RETRIES must be non-negative")
 		}
 		cfg.MaxRetries = n
+	}
+	if value := env["PLANNER_BACKEND_TIMEOUT"]; value != "" {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PLANNER_BACKEND_TIMEOUT must be a Go duration (e.g. \"20m\"): %w", err)
+		}
+		if d <= 0 {
+			return Config{}, fmt.Errorf("PLANNER_BACKEND_TIMEOUT must be positive")
+		}
+		cfg.BackendTimeout = d
 	}
 	if value := env["MERGE_OPEN_PULL_REQUESTS"]; value != "" {
 		b, err := parseBoolEnv(value)

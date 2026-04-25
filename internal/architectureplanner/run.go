@@ -220,17 +220,24 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	)
 	for i := 0; i <= maxRetries; i++ {
 		attempt := retryAttempt{Index: i}
-		result := runner.Run(ctx, autoloop.Command{
+		backendCtx := ctx
+		cancelBackend := func() {}
+		if cfg.BackendTimeout > 0 {
+			backendCtx, cancelBackend = context.WithTimeout(ctx, cfg.BackendTimeout)
+		}
+		result := runner.Run(backendCtx, autoloop.Command{
 			Name: argv[0],
 			Args: append(append([]string(nil), argv[1:]...), currentPrompt),
 			Dir:  cfg.RepoRoot,
 		})
+		cancelBackend()
 		lastResult = result
 		if result.Err != nil {
 			// Backend failure short-circuits the retry loop: this is
 			// infrastructure, not an LLM-correctable mistake.
+			detail := plannerFailureDetail(result)
 			attempt.Status = "backend_failed"
-			attempt.Detail = strings.TrimSpace(result.Stderr)
+			attempt.Detail = detail
 			attempts = append(attempts, attempt)
 			appendPlannerLedger(ledgerPath, LedgerEvent{
 				TS:            now.UTC().Format(time.RFC3339),
@@ -240,7 +247,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 				Backend:       cfg.Backend,
 				Mode:          cfg.Mode,
 				Status:        "backend_failed",
-				Detail:        strings.TrimSpace(result.Stderr),
+				Detail:        detail,
 				BeforeStats:   computeStats(beforeDoc),
 				Keywords:      opts.Keywords,
 				RetryAttempt:  attempt.Index,
@@ -472,14 +479,24 @@ func writeState(path string, state stateFile) error {
 }
 
 func commandError(name string, result autoloop.Result) error {
-	output := strings.TrimSpace(result.Stderr)
-	if output == "" {
-		output = strings.TrimSpace(result.Stdout)
-	}
+	output := plannerFailureDetail(result)
 	if output == "" {
 		return fmt.Errorf("%s failed: %w", name, result.Err)
 	}
 	return fmt.Errorf("%s failed: %w: %s", name, result.Err, output)
+}
+
+func plannerFailureDetail(result autoloop.Result) string {
+	if output := strings.TrimSpace(result.Stderr); output != "" {
+		return output
+	}
+	if output := strings.TrimSpace(result.Stdout); output != "" {
+		return output
+	}
+	if result.Err != nil {
+		return result.Err.Error()
+	}
+	return ""
 }
 
 // loadProgressForValidation reads progress.json for the health-preservation

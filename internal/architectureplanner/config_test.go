@@ -41,6 +41,9 @@ func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 	if cfg.PRConflictAction != autoloop.PRConflictActionClose {
 		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, autoloop.PRConflictActionClose)
 	}
+	if cfg.BackendTimeout != 20*time.Minute {
+		t.Fatalf("BackendTimeout = %s, want 20m", cfg.BackendTimeout)
+	}
 }
 
 func TestConfigFromEnvReadsOverrides(t *testing.T) {
@@ -60,6 +63,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		"PLANNER_GORMES_ORIGINAL_PATHS": "cmd/autoloop/,internal/progress/",
 		"PLANNER_IMPL_LOOKBACK":         "48h",
 		"PLANNER_TRIGGER_REASON":        "impl_change",
+		"PLANNER_BACKEND_TIMEOUT":       "7m",
 	})
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
@@ -104,6 +108,9 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	if cfg.TriggerReason != "impl_change" {
 		t.Fatalf("TriggerReason = %q, want impl_change", cfg.TriggerReason)
 	}
+	if cfg.BackendTimeout != 7*time.Minute {
+		t.Fatalf("BackendTimeout = %s, want 7m", cfg.BackendTimeout)
+	}
 }
 
 func TestConfigFromEnvRejectsEmptyRepoRoot(t *testing.T) {
@@ -146,6 +153,20 @@ func TestConfigFromEnv_MaxRetriesDefaultAndOverride(t *testing.T) {
 	}
 	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_MAX_RETRIES": "abc"}); err == nil {
 		t.Fatal("expected error for non-integer MaxRetries")
+	}
+}
+
+func TestConfigFromEnv_BackendTimeoutValidation(t *testing.T) {
+	root := filepath.Join("tmp", "repo")
+
+	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_BACKEND_TIMEOUT": "soon"}); err == nil {
+		t.Fatal("expected error for invalid PLANNER_BACKEND_TIMEOUT")
+	}
+	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_BACKEND_TIMEOUT": "0"}); err == nil {
+		t.Fatal("expected error for non-positive PLANNER_BACKEND_TIMEOUT")
+	}
+	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_BACKEND_TIMEOUT": "-1s"}); err == nil {
+		t.Fatal("expected error for negative PLANNER_BACKEND_TIMEOUT")
 	}
 }
 

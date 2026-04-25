@@ -144,7 +144,10 @@ different wrapper, and `FORCE=1` or `--force` to overwrite existing units.
 ## Backends
 
 The default backend is `codexu`. Use `--claudeu` only on hosts where `claudeu`
-is installed.
+is installed. Each planner backend invocation is deadline-bound so a stuck
+planner agent cannot leave the periodic scheduler paused forever. The default
+timeout is 20 minutes; override it with `PLANNER_BACKEND_TIMEOUT` using a Go
+duration such as `10m` or `45m`.
 
 ## Validation
 
