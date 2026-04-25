@@ -253,6 +253,13 @@ For each row with at least one success in this run:
   ConsecutiveFailures = 0
   LastSuccess = now
   Quarantine = nil
+
+For each row that selection flagged stale_quarantine this run
+(regardless of whether it was attempted in this run):
+  ConsecutiveFailures = 0
+  Quarantine = nil
+  (LastSuccess is NOT touched — stale-clear is "give it fresh runway",
+   not "pretend it succeeded")
 ```
 
 ### Soft-skip semantics
