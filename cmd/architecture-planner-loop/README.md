@@ -108,6 +108,22 @@ By default artifacts are written under `.codex/architecture-planner/`:
 
 Override the artifact root with `RUN_ROOT`.
 
+## Service Timer
+
+Install the long-running planner timer with:
+
+```sh
+go run ./cmd/architecture-planner-loop service install
+```
+
+This writes `gormes-architecture-planner.service` and
+`gormes-architecture-planner.timer` into the user systemd unit directory and
+enables the timer by default. The timer runs `scripts/architecture-planner-loop.sh`,
+which executes the Go command from the repository root with `BACKEND=codexu` and
+`MODE=safe` defaults. Set `PLANNER_INTERVAL` to change the default `6h` cadence,
+`AUTO_START=0` to write units without enabling them, `PLANNER_PATH` to use a
+different wrapper, and `FORCE=1` or `--force` to overwrite existing units.
+
 ## Backends
 
 The default backend is `codexu`. Use `--claudeu` only on hosts where `claudeu`
