@@ -57,7 +57,9 @@
   </div>
   <script>
     function gormesCopy(b) {
-      var code = b.parentElement.querySelector('code').innerText;
+      var step = b.closest('.install-step');
+      var codeEl = step ? step.querySelector('code') : b.parentElement.querySelector('code');
+      var code = codeEl.innerText;
       navigator.clipboard.writeText(code).then(function () {
         var label = b.querySelector('.copy-label');
         var orig = label.textContent;

@@ -240,31 +240,47 @@ a:focus-visible,
 }
 .install-grid {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
+
+/* Each install step is a unified bordered block: header strip up top
+   (platform label + copy button) followed by a flush code body
+   sharing the same outer border. Removes the v4 "floating copy
+   button" feel and visually attaches each label to its command. */
 .install-step {
   background: var(--bg-1);
   border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 16px;
-  display: grid;
-  gap: 10px;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
-.install-step .kicker {
+.install-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 8px 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+}
+.install-step-label {
   margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--accent);
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
-.cmd-wrap {
-  position: relative;
-  min-width: 0;
-}
 .cmd {
   background: var(--bg-1);
-  border: 1px solid var(--border-strong);
-  padding: 15px 92px 15px 15px;
-  border-radius: 2px;
+  border: none;
+  padding: 14px 16px;
+  border-radius: 0;
   font-family: var(--font-mono);
   font-size: 12.5px;
   margin: 0;
@@ -279,23 +295,22 @@ a:focus-visible,
 }
 
 .copy-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-2);
+  background: transparent;
   border: 1px solid var(--border-strong);
   color: var(--muted-strong);
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 6px 10px;
-  border-radius: 2px;
+  padding: 5px 10px;
+  border-radius: 0;
   cursor: pointer;
-  min-height: 32px;
+  min-height: 28px;
+  flex-shrink: 0;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .copy-btn:hover {
@@ -372,36 +387,33 @@ a:focus-visible,
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
+/* Cards: brutal/technical, not soft-marketing. Transparent bg so they
+   sit *on* the page rather than floating above it. Sharp 2px accent
+   top-edge + 1px outer rule = structural. No hover lift. Internal
+   1px divider under the title splits the card into header/body so
+   the title:body hierarchy reads at a glance. */
 .feature-card {
-  background: var(--bg-1);
+  background: transparent;
   border: 1px solid var(--border);
-  padding: 18px 18px 20px;
-  border-radius: 2px;
+  border-top: 2px solid var(--accent);
+  padding: 16px 18px 18px;
+  border-radius: 0;
   min-width: 0;
   position: relative;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-.feature-card::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: 16px;
-  width: 36px;
-  height: 1px;
-  background: var(--accent);
-}
-.feature-card:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
 }
 .feature-card h3 {
   font-family: var(--font-body);
   margin: 0 0 10px;
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
+  letter-spacing: -0.005em;
   overflow-wrap: break-word;
   color: var(--text);
 }
+/* Internal divider — splits the card into header/body so the
+   title:body hierarchy reads at a glance. Pseudo-element keeps
+   the rule independent of the h3 box (locked by site.css contract
+   in static_export_test). */
 .feature-card h3::after {
   content: '';
   display: block;
@@ -412,7 +424,7 @@ a:focus-visible,
 }
 .feature-card p {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--muted-strong);
   line-height: 1.55;
   overflow-wrap: break-word;
