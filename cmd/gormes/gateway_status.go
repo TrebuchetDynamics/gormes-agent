@@ -16,6 +16,14 @@ func init() {
 	gatewayCmd.AddCommand(gatewayStatusCmd)
 }
 
+type gatewayStatusRuntimeStore interface {
+	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
+}
+
+var newGatewayStatusRuntimeStore = func(path string) gatewayStatusRuntimeStore {
+	return gateway.NewRuntimeStatusStore(path)
+}
+
 var gatewayStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Inspect configured gateway channels and persisted runtime state",
@@ -38,7 +46,7 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("pairing status: %w", err)
 	}
 
-	runtimeSnapshot, err := gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()).ReadRuntimeStatusSnapshot(ctx)
+	runtimeSnapshot, err := newGatewayStatusRuntimeStore(config.GatewayRuntimeStatusPath()).ReadValidatedRuntimeStatusSnapshot(ctx)
 	if err != nil {
 		return fmt.Errorf("runtime status: %w", err)
 	}
@@ -47,16 +55,39 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 		runtimeStatus = gateway.RuntimeStatus{}
 	}
 
-	out := gateway.RenderStatusSummary(gateway.StatusSummary{
+	output := gateway.RenderStatusSummary(gateway.StatusSummary{
 		Channels: configuredGatewayStatusChannels(cfg),
 		Pairing:  pairingStatus,
 		Runtime:  runtimeStatus,
 	})
-	if !cfg.Slack.Enabled {
-		out += "gateway/slack: disabled\n"
+	if validationLine := renderRuntimeValidationLine(runtimeSnapshot.Validation); validationLine != "" {
+		output += validationLine + "\n"
 	}
-	_, err = fmt.Fprint(cmd.OutOrStdout(), out)
+	_, err = fmt.Fprint(cmd.OutOrStdout(), output)
 	return err
+}
+
+func renderRuntimeValidationLine(validation gateway.RuntimeProcessValidation) string {
+	if validation.Status == "" {
+		return ""
+	}
+	line := fmt.Sprintf("runtime_validation: %s live=%t", validation.Status, validation.Live)
+	if validation.PID > 0 {
+		line += fmt.Sprintf(" pid=%d", validation.PID)
+	}
+	if validation.ExpectedStartTime > 0 {
+		line += fmt.Sprintf(" expected_start_time=%d", validation.ExpectedStartTime)
+	}
+	if validation.ActualStartTime > 0 {
+		line += fmt.Sprintf(" actual_start_time=%d", validation.ActualStartTime)
+	}
+	if validation.Command != "" {
+		line += fmt.Sprintf(" command=%q", validation.Command)
+	}
+	if validation.Message != "" {
+		line += fmt.Sprintf(" message=%q", validation.Message)
+	}
+	return line
 }
 
 func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel {
