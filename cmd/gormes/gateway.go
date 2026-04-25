@@ -98,6 +98,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	allowedChats := map[string]string{}
 	allowDiscovery := map[string]bool{}
 	coalesceMs := gatewayCoalesceMs(cfg)
+	runtimeStatusPath := config.GatewayRuntimeStatusPath()
+	runtimeStatus := gateway.NewRuntimeStatusStore(runtimeStatusPath)
+	restartMarkerStore := gateway.NewRestartTakeoverStore(gateway.DefaultRestartTakeoverMarkerPath(runtimeStatusPath))
 
 	hooksRoot := config.HooksRoot()
 	hooks, loadedHooks, err := gateway.LoadHookScripts(hooksRoot, slog.Default())
@@ -112,10 +115,15 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		CoalesceMs:     coalesceMs,
 		SessionMap:     smap,
 		Hooks:          hooks,
-		RuntimeStatus:  gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()),
+		RuntimeStatus:  runtimeStatus,
+		Restart: gateway.RestartConfig{
+			MarkerStore:             restartMarkerStore,
+			ServiceManagerAvailable: gateway.EnvironmentServiceManagerAvailable,
+			DrainTimeout:            kernel.ShutdownBudget,
+		},
 	}, k, slog.Default())
 
-	registeredChannels, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, defaultGatewayChannelFactories(), gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()), slog.Default())
+	registeredChannels, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, defaultGatewayChannelFactories(), runtimeStatus, slog.Default())
 	if err != nil {
 		return err
 	}

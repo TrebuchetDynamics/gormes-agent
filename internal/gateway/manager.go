@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,6 +57,7 @@ type ManagerConfig struct {
 	SessionMap     session.Map
 	Hooks          *Hooks
 	RuntimeStatus  RuntimeStatusWriter
+	Restart        RestartConfig
 	Now            func() time.Time
 }
 
@@ -317,6 +319,9 @@ func (m *Manager) Run(ctx context.Context) error {
 	}()
 
 	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateRunning})
+	if err := m.ConsumeRestartTakeoverMarker(runCtx); err != nil {
+		m.log.Debug("consume restart takeover marker", "err", err)
+	}
 
 	activeChannels := len(channels)
 	var firstFailure error
@@ -353,7 +358,11 @@ func (m *Manager) Run(ctx context.Context) error {
 				return firstFailure
 			}
 		case ev := <-inbox:
-			m.handleInbound(runCtx, ev)
+			if err := m.handleInbound(runCtx, ev); err != nil {
+				cancel()
+				wg.Wait()
+				return err
+			}
 		}
 	}
 }
@@ -401,7 +410,7 @@ func (m *Manager) runOutbound(ctx context.Context) {
 	}
 }
 
-func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
+func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	m.fireHook(ctx, HookEvent{
 		Point:    HookBeforeReceive,
 		Platform: ev.Platform,
@@ -427,17 +436,17 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 		} else {
 			m.log.Warn("unauthorised chat blocked", "platform", ev.Platform, "chat_id", ev.ChatID)
 		}
-		return
+		return nil
 	}
 
 	ch := m.lookupChannel(ev.Platform)
 	if ch == nil {
 		m.log.Warn("inbound for unknown channel", "platform", ev.Platform)
-		return
+		return nil
 	}
 	if m.isShuttingDown() && ev.Kind != EventCancel {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, shutdownNotice)
-		return
+		return nil
 	}
 
 	switch ev.Kind {
@@ -445,14 +454,16 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
 			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
 		}
+		return nil
 	case EventCancel:
 		m.markTurnCancelled()
 		if m.kernel != nil {
 			_ = m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 		}
+		return nil
 	case EventReset:
 		if m.kernel == nil {
-			return
+			return nil
 		}
 		if err := m.kernel.ResetSession(); err != nil {
 			if errors.Is(err, kernel.ErrResetDuringTurn) {
@@ -460,7 +471,7 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 			} else {
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
 			}
-			return
+			return nil
 		}
 		if m.cfg.SessionMap != nil {
 			if err := m.cfg.SessionMap.Put(ctx, ev.ChatKey(), ""); err != nil {
@@ -468,23 +479,29 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) {
 			}
 		}
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
+		return nil
+	case EventRestart:
+		return m.handleRestartCommand(ctx, ch, ev)
 	case EventSubmit:
 		if m.kernel == nil {
-			return
+			return nil
 		}
 		queued, full := m.queueFollowUpIfActive(ev)
 		if queued {
-			return
+			return nil
 		}
 		if full {
 			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, followUpQueueFullNotice)
-			return
+			return nil
 		}
 		m.pinTurn(ev.Platform, ev.ChatID, ev.MsgID)
 		m.submitPinned(ctx, ch, ev)
+		return nil
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
+		return nil
 	}
+	return nil
 }
 
 func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **coalescer, coCancel *context.CancelFunc) {
@@ -621,6 +638,205 @@ func (m *Manager) writeRuntimeStatus(ctx context.Context, update RuntimeStatusUp
 	if err := m.cfg.RuntimeStatus.UpdateRuntimeStatus(ctx, update); err != nil && !errors.Is(err, context.Canceled) {
 		m.log.Debug("write gateway runtime status", "err", err)
 	}
+}
+
+func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev InboundEvent) error {
+	now := m.now()
+	if marker, duplicate, err := m.restartDuplicate(ctx, ev); err != nil {
+		m.log.Warn("read restart takeover marker", "err", err)
+	} else if duplicate {
+		evidence := restartDuplicateEvidence(marker, ev, now)
+		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{DuplicateRestartEvidence: &evidence})
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "duplicate_restart_suppressed")
+		return nil
+	}
+
+	restartRequested := true
+	activeAgents := m.activeAgentCount()
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		RestartRequested: &restartRequested,
+		ActiveAgents:     &activeAgents,
+	})
+
+	if !m.restartServiceManagerAvailable() {
+		evidence := RuntimeServiceManagerUnavailableEvidence{
+			Source:   ev.Platform,
+			ChatID:   ev.ChatID,
+			ThreadID: ev.ThreadID,
+			Reason:   "service-manager restart exit path is unavailable",
+			At:       now.Format(time.RFC3339Nano),
+		}
+		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{ServiceManagerUnavailableEvidence: &evidence})
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "service_manager_unavailable: restart request recorded but no service manager restart path is available.")
+		return nil
+	}
+
+	marker, err := m.writeRestartTakeoverMarker(ctx, ev, now)
+	if err != nil {
+		evidence := RuntimeServiceManagerUnavailableEvidence{
+			Source:   ev.Platform,
+			ChatID:   ev.ChatID,
+			ThreadID: ev.ThreadID,
+			Reason:   "restart takeover marker write failed: " + err.Error(),
+			At:       now.Format(time.RFC3339Nano),
+		}
+		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{ServiceManagerUnavailableEvidence: &evidence})
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "service_manager_unavailable: restart takeover marker could not be written.")
+		return nil
+	}
+	takeoverEvidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusWritten, now)
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{TakeoverMarkerEvidence: &takeoverEvidence})
+
+	if activeAgents > 0 {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("restart_requested: draining %d active agent(s) before restart.", activeAgents))
+	} else {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "restart_requested: handing off to service manager.")
+	}
+
+	drainCtx, cancel := context.WithTimeout(context.Background(), m.restartDrainTimeout())
+	defer cancel()
+	if err := m.ShutdownWithDrainReason(drainCtx, DrainReasonRestartTimeout); err != nil &&
+		!errors.Is(err, context.DeadlineExceeded) &&
+		!errors.Is(err, context.Canceled) {
+		m.log.Warn("gateway restart drain", "err", err)
+	}
+	return RestartRequestedError{
+		Code:    GatewayServiceRestartExitCode,
+		Message: "gateway restart requested",
+	}
+}
+
+func (m *Manager) restartDuplicate(ctx context.Context, ev InboundEvent) (RestartTakeoverMarker, bool, error) {
+	store := m.cfg.Restart.MarkerStore
+	if store == nil {
+		return RestartTakeoverMarker{}, false, nil
+	}
+	return store.SuppressDuplicate(ctx, ev)
+}
+
+func (m *Manager) writeRestartTakeoverMarker(ctx context.Context, ev InboundEvent, now time.Time) (RestartTakeoverMarker, error) {
+	store := m.cfg.Restart.MarkerStore
+	if store == nil {
+		return RestartTakeoverMarker{}, nil
+	}
+	marker := RestartTakeoverMarker{
+		SourcePlatform: strings.ToLower(strings.TrimSpace(ev.Platform)),
+		ChatID:         strings.TrimSpace(ev.ChatID),
+		ThreadID:       strings.TrimSpace(ev.ThreadID),
+		UpdateID:       restartUpdateID(ev),
+		MessageID:      strings.TrimSpace(ev.MsgID),
+		Generation:     m.runtimeStatusGeneration(ctx),
+		RequestedAt:    now.Format(time.RFC3339Nano),
+	}
+	if err := store.Write(ctx, marker); err != nil {
+		return marker, err
+	}
+	return marker, nil
+}
+
+func (m *Manager) restartServiceManagerAvailable() bool {
+	if m.cfg.Restart.ServiceManagerAvailable == nil {
+		return false
+	}
+	return m.cfg.Restart.ServiceManagerAvailable()
+}
+
+func (m *Manager) restartDrainTimeout() time.Duration {
+	if m.cfg.Restart.DrainTimeout > 0 {
+		return m.cfg.Restart.DrainTimeout
+	}
+	return time.Minute
+}
+
+func (m *Manager) runtimeStatusGeneration(ctx context.Context) uint64 {
+	reader, ok := m.cfg.RuntimeStatus.(interface {
+		ReadRuntimeStatus(context.Context) (RuntimeStatus, error)
+	})
+	if !ok {
+		return 0
+	}
+	status, err := reader.ReadRuntimeStatus(ctx)
+	if err != nil {
+		m.log.Debug("read gateway runtime status generation", "err", err)
+		return 0
+	}
+	return status.Generation
+}
+
+func restartTakeoverEvidence(marker RestartTakeoverMarker, status RestartTakeoverMarkerStatus, at time.Time) RuntimeRestartTakeoverEvidence {
+	return RuntimeRestartTakeoverEvidence{
+		Status:     status,
+		Source:     marker.SourcePlatform,
+		ChatID:     marker.ChatID,
+		ThreadID:   marker.ThreadID,
+		UpdateID:   marker.UpdateID,
+		MessageID:  marker.MessageID,
+		Generation: marker.Generation,
+		At:         at.UTC().Format(time.RFC3339Nano),
+	}
+}
+
+func restartDuplicateEvidence(marker RestartTakeoverMarker, ev InboundEvent, at time.Time) RuntimeRestartDuplicateEvidence {
+	source := marker.SourcePlatform
+	if source == "" {
+		source = ev.Platform
+	}
+	chatID := marker.ChatID
+	if chatID == "" {
+		chatID = ev.ChatID
+	}
+	threadID := marker.ThreadID
+	if threadID == "" {
+		threadID = ev.ThreadID
+	}
+	updateID := marker.UpdateID
+	if updateID == "" {
+		updateID = restartUpdateID(ev)
+	}
+	messageID := marker.MessageID
+	if messageID == "" {
+		messageID = ev.MsgID
+	}
+	return RuntimeRestartDuplicateEvidence{
+		Status:     RestartDuplicateStatusSuppressed,
+		Source:     source,
+		ChatID:     chatID,
+		ThreadID:   threadID,
+		UpdateID:   updateID,
+		MessageID:  messageID,
+		Generation: marker.Generation,
+		At:         at.UTC().Format(time.RFC3339Nano),
+	}
+}
+
+func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
+	store := m.cfg.Restart.MarkerStore
+	if store == nil {
+		return nil
+	}
+	marker, ok, expired, err := store.Read(ctx)
+	if err != nil {
+		return err
+	}
+	now := m.now()
+	if expired {
+		evidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusExpired, now)
+		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{TakeoverMarkerEvidence: &evidence})
+		return nil
+	}
+	if !ok || marker.NotificationSentAt != "" {
+		return nil
+	}
+	ch := m.lookupChannel(marker.SourcePlatform)
+	if ch == nil {
+		return nil
+	}
+	evidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusSeen, now)
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{TakeoverMarkerEvidence: &evidence})
+	if _, err := m.sendWithHooks(ctx, ch, marker.ChatID, "Gateway restarted successfully. Your session continues."); err != nil {
+		return err
+	}
+	return store.MarkNotificationSent(ctx, marker, now)
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {

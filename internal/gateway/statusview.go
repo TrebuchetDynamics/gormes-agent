@@ -107,6 +107,18 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 	if runtime.ExitReason != "" {
 		parts = append(parts, fmt.Sprintf("exit_reason=%q", runtime.ExitReason))
 	}
+	if runtime.RestartRequested {
+		parts = append(parts, "restart_requested=true")
+	}
+	if len(runtime.TakeoverMarkers) > 0 {
+		parts = append(parts, fmt.Sprintf("takeover_marker_seen=%d", len(runtime.TakeoverMarkers)))
+	}
+	if len(runtime.DuplicateRestarts) > 0 {
+		parts = append(parts, fmt.Sprintf("duplicate_restart_suppressed=%d", len(runtime.DuplicateRestarts)))
+	}
+	if len(runtime.ServiceManagerUnavailable) > 0 {
+		parts = append(parts, fmt.Sprintf("service_manager_unavailable=%d", len(runtime.ServiceManagerUnavailable)))
+	}
 	return fmt.Sprintf("runtime: %s (%s)", state, strings.Join(parts, " "))
 }
 
@@ -115,10 +127,13 @@ func runtimeStatusMissing(runtime RuntimeStatus) bool {
 		runtime.PID == 0 &&
 		runtime.GatewayState == "" &&
 		runtime.ExitReason == "" &&
+		!runtime.RestartRequested &&
 		runtime.ActiveAgents == 0 &&
 		len(runtime.Platforms) == 0 &&
 		len(runtime.TokenLocks) == 0 &&
-		len(runtime.ExpiryFinalized) == 0 &&
+		len(runtime.TakeoverMarkers) == 0 &&
+		len(runtime.DuplicateRestarts) == 0 &&
+		len(runtime.ServiceManagerUnavailable) == 0 &&
 		runtime.Proxy == (ProxyRuntimeStatus{}) &&
 		runtime.UpdatedAt == ""
 }

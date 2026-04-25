@@ -60,11 +60,17 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 		Pairing:  pairingStatus,
 		Runtime:  runtimeStatus,
 	})
+	output += renderGatewaySlackDiagnosticLine(cfg, runtimeStatus)
 	if validationLine := renderRuntimeValidationLine(runtimeSnapshot.Validation); validationLine != "" {
 		output += validationLine + "\n"
 	}
 	_, err = fmt.Fprint(cmd.OutOrStdout(), output)
 	return err
+}
+
+func renderGatewaySlackDiagnosticLine(cfg config.Config, runtime gateway.RuntimeStatus) string {
+	check := doctorSlackGatewayConfig(cfg, runtime)
+	return fmt.Sprintf("gateway/slack: %s\n", check.Summary)
 }
 
 func renderRuntimeValidationLine(validation gateway.RuntimeProcessValidation) string {

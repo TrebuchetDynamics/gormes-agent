@@ -1990,9 +1990,9 @@
             {
               "name": "Gateway /restart command + takeover markers",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway /restart uses registry-owned active-turn policy, deduped takeover markers, and service-manager exit semantics without looping redelivered platform updates",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2026,7 +2026,7 @@
                 "Redelivered platform events with the same marker are suppressed once and report duplicate_restart_suppressed instead of starting a loop.",
                 "--replace/takeover startup consumes the marker, sends at most one restart notification, and clears or expires the marker under fake-clock tests."
               ],
-              "note": "TDD: keep /restart after resume, PID validation, and token locks so restart can report exact takeover status without widening service-manager update logic.",
+              "note": "TDD landed: restart-command fixtures lock /restart registry policy, takeover marker write/read/expiry, once-only duplicate redelivery suppression, restart_timeout resume_pending recovery, service-manager unavailable evidence, and EX_TEMPFAIL service-manager exit semantics without live service control.",
               "write_scope": [
                 "internal/gateway/",
                 "cmd/gormes/",
@@ -2040,10 +2040,15 @@
               "done_signal": [
                 "Restart-command fixtures prove registry policy, takeover marker write/read/expiry, duplicate suppression, and service-manager exit semantics without live service control."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-25T17:45:27Z",
+                "last_success": "2026-04-25T17:45:27Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T15:16:17Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "unstuck"
               },
               "provenance": {
                 "origin_type": "hybrid",

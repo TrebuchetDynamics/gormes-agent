@@ -39,24 +39,27 @@ const (
 
 // RuntimeStatus is the shared gateway status read model.
 type RuntimeStatus struct {
-	Kind              string                           `json:"kind"`
-	PID               int                              `json:"pid"`
-	StartTime         int64                            `json:"start_time,omitempty"`
-	Generation        uint64                           `json:"generation"`
-	Command           string                           `json:"command,omitempty"`
-	Argv              []string                         `json:"argv,omitempty"`
-	ProcessValidation RuntimeProcessValidation         `json:"process_validation,omitempty"`
-	GatewayState      GatewayState                     `json:"gateway_state"`
-	ExitReason        string                           `json:"exit_reason"`
-	ActiveAgents      int                              `json:"active_agents"`
-	Platforms         map[string]PlatformRuntimeStatus `json:"platforms"`
-	Proxy             ProxyRuntimeStatus               `json:"proxy"`
-	TokenLocks        []TokenLockEvidence              `json:"token_locks,omitempty"`
-	DrainTimeouts     []RuntimeDrainTimeoutEvidence    `json:"drain_timeouts,omitempty"`
-	ResumePending     []RuntimeResumePendingEvidence   `json:"resume_pending,omitempty"`
-	NonResumable      []RuntimeNonResumableEvidence    `json:"non_resumable,omitempty"`
-	ExpiryFinalized   []RuntimeExpiryFinalizedEvidence `json:"expiry_finalized,omitempty"`
-	UpdatedAt         string                           `json:"updated_at"`
+	Kind                      string                                     `json:"kind"`
+	PID                       int                                        `json:"pid"`
+	StartTime                 int64                                      `json:"start_time,omitempty"`
+	Generation                uint64                                     `json:"generation"`
+	Command                   string                                     `json:"command,omitempty"`
+	Argv                      []string                                   `json:"argv,omitempty"`
+	ProcessValidation         RuntimeProcessValidation                   `json:"process_validation,omitempty"`
+	GatewayState              GatewayState                               `json:"gateway_state"`
+	ExitReason                string                                     `json:"exit_reason"`
+	RestartRequested          bool                                       `json:"restart_requested"`
+	ActiveAgents              int                                        `json:"active_agents"`
+	Platforms                 map[string]PlatformRuntimeStatus           `json:"platforms"`
+	Proxy                     ProxyRuntimeStatus                         `json:"proxy"`
+	TokenLocks                []TokenLockEvidence                        `json:"token_locks,omitempty"`
+	DrainTimeouts             []RuntimeDrainTimeoutEvidence              `json:"drain_timeouts,omitempty"`
+	ResumePending             []RuntimeResumePendingEvidence             `json:"resume_pending,omitempty"`
+	NonResumable              []RuntimeNonResumableEvidence              `json:"non_resumable,omitempty"`
+	TakeoverMarkers           []RuntimeRestartTakeoverEvidence           `json:"takeover_marker_seen,omitempty"`
+	DuplicateRestarts         []RuntimeRestartDuplicateEvidence          `json:"duplicate_restart_suppressed,omitempty"`
+	ServiceManagerUnavailable []RuntimeServiceManagerUnavailableEvidence `json:"service_manager_unavailable,omitempty"`
+	UpdatedAt                 string                                     `json:"updated_at"`
 }
 
 // RuntimeProcessValidationStatus classifies how much trust callers can place
@@ -133,20 +136,56 @@ type RuntimeNonResumableEvidence struct {
 	At         string `json:"at,omitempty"`
 }
 
-type RuntimeExpiryFinalizedEvidence struct {
-	SessionID             string `json:"session_id,omitempty"`
-	Source                string `json:"source,omitempty"`
-	ChatID                string `json:"chat_id,omitempty"`
-	UserID                string `json:"user_id,omitempty"`
-	ExpiryFinalized       bool   `json:"expiry_finalized"`
-	MigratedMemoryFlushed bool   `json:"migrated_memory_flushed,omitempty"`
+type RestartTakeoverMarkerStatus string
+
+const (
+	RestartTakeoverMarkerStatusWritten RestartTakeoverMarkerStatus = "written"
+	RestartTakeoverMarkerStatusSeen    RestartTakeoverMarkerStatus = "seen"
+	RestartTakeoverMarkerStatusExpired RestartTakeoverMarkerStatus = "expired"
+)
+
+type RuntimeRestartTakeoverEvidence struct {
+	Status     RestartTakeoverMarkerStatus `json:"status,omitempty"`
+	Source     string                      `json:"source,omitempty"`
+	ChatID     string                      `json:"chat_id,omitempty"`
+	ThreadID   string                      `json:"thread_id,omitempty"`
+	UpdateID   string                      `json:"update_id,omitempty"`
+	MessageID  string                      `json:"message_id,omitempty"`
+	Generation uint64                      `json:"generation,omitempty"`
+	At         string                      `json:"at,omitempty"`
+}
+
+type RestartDuplicateStatus string
+
+const (
+	RestartDuplicateStatusSuppressed RestartDuplicateStatus = "suppressed"
+)
+
+type RuntimeRestartDuplicateEvidence struct {
+	Status     RestartDuplicateStatus `json:"status,omitempty"`
+	Source     string                 `json:"source,omitempty"`
+	ChatID     string                 `json:"chat_id,omitempty"`
+	ThreadID   string                 `json:"thread_id,omitempty"`
+	UpdateID   string                 `json:"update_id,omitempty"`
+	MessageID  string                 `json:"message_id,omitempty"`
+	Generation uint64                 `json:"generation,omitempty"`
+	At         string                 `json:"at,omitempty"`
+}
+
+type RuntimeServiceManagerUnavailableEvidence struct {
+	Source   string `json:"source,omitempty"`
+	ChatID   string `json:"chat_id,omitempty"`
+	ThreadID string `json:"thread_id,omitempty"`
+	Reason   string `json:"reason,omitempty"`
+	At       string `json:"at,omitempty"`
 }
 
 // RuntimeStatusUpdate carries a partial update to the shared runtime status.
 type RuntimeStatusUpdate struct {
-	GatewayState GatewayState
-	ExitReason   string
-	ActiveAgents *int
+	GatewayState     GatewayState
+	ExitReason       string
+	RestartRequested *bool
+	ActiveAgents     *int
 
 	Platform      string
 	PlatformState PlatformState
@@ -156,11 +195,13 @@ type RuntimeStatusUpdate struct {
 	ProxyURL          string
 	ProxyErrorMessage string
 
-	DrainTimeoutEvidence    *RuntimeDrainTimeoutEvidence
-	ResumePendingEvidence   *RuntimeResumePendingEvidence
-	NonResumableEvidence    *RuntimeNonResumableEvidence
-	ExpiryFinalizedEvidence *RuntimeExpiryFinalizedEvidence
-	TokenLockEvidence       *TokenLockEvidence
+	DrainTimeoutEvidence              *RuntimeDrainTimeoutEvidence
+	ResumePendingEvidence             *RuntimeResumePendingEvidence
+	NonResumableEvidence              *RuntimeNonResumableEvidence
+	TokenLockEvidence                 *TokenLockEvidence
+	TakeoverMarkerEvidence            *RuntimeRestartTakeoverEvidence
+	DuplicateRestartEvidence          *RuntimeRestartDuplicateEvidence
+	ServiceManagerUnavailableEvidence *RuntimeServiceManagerUnavailableEvidence
 }
 
 // RuntimeStatusSnapshot is a read-only view of the runtime status file that
@@ -445,6 +486,9 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 		update.GatewayState == GatewayStateStopped {
 		status.ExitReason = update.ExitReason
 	}
+	if update.RestartRequested != nil {
+		status.RestartRequested = *update.RestartRequested
+	}
 	if update.ActiveAgents != nil {
 		if *update.ActiveAgents < 0 {
 			status.ActiveAgents = 0
@@ -481,6 +525,18 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 	if update.TokenLockEvidence != nil {
 		evidence := *update.TokenLockEvidence
 		status.TokenLocks = append(status.TokenLocks, evidence)
+	}
+	if update.TakeoverMarkerEvidence != nil {
+		evidence := *update.TakeoverMarkerEvidence
+		status.TakeoverMarkers = append(status.TakeoverMarkers, evidence)
+	}
+	if update.DuplicateRestartEvidence != nil {
+		evidence := *update.DuplicateRestartEvidence
+		status.DuplicateRestarts = append(status.DuplicateRestarts, evidence)
+	}
+	if update.ServiceManagerUnavailableEvidence != nil {
+		evidence := *update.ServiceManagerUnavailableEvidence
+		status.ServiceManagerUnavailable = append(status.ServiceManagerUnavailable, evidence)
 	}
 	if update.Platform == "" {
 		return

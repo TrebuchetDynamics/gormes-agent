@@ -21,6 +21,8 @@ const (
 	EventReset
 	// EventStart is the help or welcome command.
 	EventStart
+	// EventRestart requests a graceful service-manager restart.
+	EventRestart
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
 	EventThreadLifecycle
 )
@@ -36,6 +38,8 @@ func (k EventKind) String() string {
 		return "reset"
 	case EventStart:
 		return "start"
+	case EventRestart:
+		return "restart"
 	case EventThreadLifecycle:
 		return "thread_lifecycle"
 	default:
