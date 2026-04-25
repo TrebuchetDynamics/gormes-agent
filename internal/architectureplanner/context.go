@@ -29,6 +29,30 @@ type ContextBundle struct {
 	SyncResults             []RepoSyncResult        `json:"sync_results,omitempty"`
 	ImplementationInventory ImplementationInventory `json:"implementation_inventory"`
 	AutoloopAudit           AutoloopAudit           `json:"autoloop_audit"`
+	// QuarantinedRows surfaces autoloop-quarantined progress.json items as a
+	// call-to-action list for the planner (sorted most-attempted-then-oldest).
+	// Capped by Config.PlannerQuarantineLimit. Empty when no rows are
+	// quarantined or when progress.json could not be loaded.
+	QuarantinedRows []QuarantinedRowContext `json:"quarantined_rows,omitempty"`
+}
+
+// QuarantinedRowContext is the planner-side view of one autoloop-quarantined
+// row. Sorted by (AttemptCount desc, QuarantinedSince asc) so the planner
+// sees the most-attempted-then-oldest rows first. AuditCorroboration is
+// reserved for cross-referencing AutoloopAudit but is currently always
+// empty (the audit surface is subphase-level, not row-level).
+type QuarantinedRowContext struct {
+	PhaseID            string                   `json:"phase_id"`
+	SubphaseID         string                   `json:"subphase_id"`
+	ItemName           string                   `json:"item_name"`
+	Contract           string                   `json:"contract,omitempty"`
+	LastCategory       progress.FailureCategory `json:"last_category,omitempty"`
+	AttemptCount       int                      `json:"attempt_count,omitempty"`
+	BackendsTried      []string                 `json:"backends_tried,omitempty"`
+	QuarantinedSince   string                   `json:"quarantined_since,omitempty"`
+	SpecHash           string                   `json:"spec_hash,omitempty"`
+	LastFailureExcerpt string                   `json:"last_failure_excerpt,omitempty"`
+	AuditCorroboration string                   `json:"audit_corroboration,omitempty"`
 }
 
 type ProgressInfo struct {
@@ -47,17 +71,16 @@ type ImplementationInventory struct {
 }
 
 func CollectContext(cfg Config, now time.Time) (ContextBundle, error) {
-	progressInfo := ProgressInfo{}
-	if p, err := progress.Load(cfg.ProgressJSON); err == nil {
-		stats := p.Stats()
-		progressInfo = ProgressInfo{
-			Items:      stats.Items.Total,
-			Planned:    stats.Items.Planned,
-			InProgress: stats.Items.InProgress,
-			Complete:   stats.Items.Complete,
-		}
-	} else {
+	prog, err := progress.Load(cfg.ProgressJSON)
+	if err != nil {
 		return ContextBundle{}, err
+	}
+	stats := prog.Stats()
+	progressInfo := ProgressInfo{
+		Items:      stats.Items.Total,
+		Planned:    stats.Items.Planned,
+		InProgress: stats.Items.InProgress,
+		Complete:   stats.Items.Complete,
 	}
 
 	roots := cfg.SourceRoots()
@@ -85,7 +108,78 @@ func CollectContext(cfg Config, now time.Time) (ContextBundle, error) {
 		SourceRoots:             roots,
 		ImplementationInventory: inventory,
 		AutoloopAudit:           audit,
+		QuarantinedRows:         collectQuarantinedRows(prog, audit, cfg.PlannerQuarantineLimit),
 	}, nil
+}
+
+// collectQuarantinedRows returns the quarantined items in prog sorted by
+// (AttemptCount desc, QuarantinedSince asc), capped at limit. limit=0
+// means unlimited. Items without a Health.Quarantine block are skipped.
+// Stderr tails are capped at 1 KiB so the planner prompt stays bounded.
+func collectQuarantinedRows(prog *progress.Progress, audit AutoloopAudit, limit int) []QuarantinedRowContext {
+	out := []QuarantinedRowContext{}
+	if prog == nil {
+		return out
+	}
+	for phaseID, phase := range prog.Phases {
+		for subID, sub := range phase.Subphases {
+			for i := range sub.Items {
+				it := &sub.Items[i]
+				if it.Health == nil || it.Health.Quarantine == nil {
+					continue
+				}
+				excerpt := ""
+				if it.Health.LastFailure != nil {
+					excerpt = capExcerpt(it.Health.LastFailure.StderrTail, 1024)
+				}
+				out = append(out, QuarantinedRowContext{
+					PhaseID:            phaseID,
+					SubphaseID:         subID,
+					ItemName:           it.Name,
+					Contract:           it.Contract,
+					LastCategory:       it.Health.Quarantine.LastCategory,
+					AttemptCount:       it.Health.AttemptCount,
+					BackendsTried:      append([]string(nil), it.Health.BackendsTried...),
+					QuarantinedSince:   it.Health.Quarantine.Since,
+					SpecHash:           it.Health.Quarantine.SpecHash,
+					LastFailureExcerpt: excerpt,
+					AuditCorroboration: corroborateFromAudit(audit, phaseID, subID, it.Name),
+				})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].AttemptCount != out[j].AttemptCount {
+			return out[i].AttemptCount > out[j].AttemptCount
+		}
+		return out[i].QuarantinedSince < out[j].QuarantinedSince
+	})
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
+// capExcerpt returns at most max trailing bytes of s. The tail is preferred
+// over the head because failure stack traces are usually most diagnostic at
+// the bottom (panic site / final assertion). Returns s unchanged when short.
+func capExcerpt(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[len(s)-max:]
+}
+
+// corroborateFromAudit would return a short note when SummarizeAutoloopAudit
+// already flagged this row as toxic/hot. AutoloopAudit currently exposes
+// subphase-level aggregates, not row-level, so this returns "" today.
+// Future work can scan audit.RecentFailedTasks for a matching task key.
+func corroborateFromAudit(audit AutoloopAudit, phaseID, subphaseID, itemName string) string {
+	_ = audit
+	_ = phaseID
+	_ = subphaseID
+	_ = itemName
+	return ""
 }
 
 func autoloopLedgerPath(cfg Config) string {

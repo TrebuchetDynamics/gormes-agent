@@ -6,6 +6,45 @@ import (
 	"strings"
 )
 
+// healthPreservationClause is appended to every planner prompt as a HARD
+// rule. The autoloop runtime owns RowHealth metadata; the planner must
+// reproduce it verbatim for any row it keeps. Dropping or reformatting any
+// field inside `health` causes RunOnce to reject the regeneration via
+// validateHealthPreservation.
+const healthPreservationClause = `
+HEALTH BLOCK PRESERVATION (HARD RULE)
+Every progress.json item may carry a ` + "`health`" + ` block (RowHealth). This block
+is OWNED by the autoloop runtime — you must reproduce it verbatim in your
+output for any row you keep. Do not modify, omit, or reformat any field
+inside ` + "`health`" + `. If you delete a row, the health block dies with it (that
+is expected). If you split a row into multiple new rows, the original
+health block is dropped (the split is a new contract; quarantine resets
+naturally via spec-hash detection).
+`
+
+// quarantinePriorityClause is appended to every planner prompt as a SOFT
+// rule. It instructs the planner to materially change quarantined rows
+// (sharpen, split, or mark for human review) so autoloop's auto-clear path
+// (spec-hash mismatch) actually triggers on the next run.
+const quarantinePriorityClause = `
+QUARANTINE PRIORITY (SOFT RULE)
+Rows in quarantined_rows[] are top priority for repair. For each one:
+  - Read its last_category and last_failure_excerpt
+  - Examine its contract and acceptance
+  - Decide ONE of:
+    (a) Sharpen the contract — make done_signal more concrete, add an
+        explicit fixture path, narrow write_scope
+    (b) Split the row — if it's an umbrella that workers can't complete
+        atomically, split into 2-3 smaller rows with explicit dependencies
+    (c) Mark it for human review — if the failure is infrastructural
+        (category=worker_error or backend_degraded with no diff), set
+        contract_status: "draft" and add a note in degraded_mode
+        explaining what's needed
+  Whatever you choose, the row's contract/contract_status/blocked_by/
+  write_scope/fixture must change in some material way. Otherwise
+  quarantine will not auto-clear and autoloop will keep skipping the row.
+`
+
 func BuildPrompt(bundle ContextBundle) string {
 	var roots []string
 	for _, root := range bundle.SourceRoots {
@@ -29,6 +68,7 @@ func BuildPrompt(bundle ContextBundle) string {
 	landingSite := formatInventorySurface(bundle.ImplementationInventory.LandingSite)
 	hugoDocs := formatInventorySurface(bundle.ImplementationInventory.HugoDocs)
 	auditBlock := formatAutoloopAudit(bundle.AutoloopAudit)
+	quarantineBlock := formatQuarantinedRows(bundle.QuarantinedRows)
 
 	return fmt.Sprintf(`You are the Gormes Architecture Planner Loop.
 
@@ -96,7 +136,30 @@ Required final report sections:
 6. Recommended next autoloop tasks
 7. Autoloop handoff completeness
 8. Risks and ambiguities
-`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items)
+%s%s%s
+`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, quarantinePriorityClause, quarantineBlock)
+}
+
+// formatQuarantinedRows renders the planner's call-to-action list for
+// quarantined rows. Returns the empty string when there are no rows so the
+// section is omitted entirely (the HARD/SOFT rule clauses still ship).
+func formatQuarantinedRows(rows []QuarantinedRowContext) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## Quarantined Rows (Top Priority for Repair)\n\n")
+	for _, r := range rows {
+		fmt.Fprintf(&b, "- %s/%s/%s — %d attempts, last category=%s, since=%s\n",
+			r.PhaseID, r.SubphaseID, r.ItemName, r.AttemptCount, r.LastCategory, r.QuarantinedSince)
+		if r.Contract != "" {
+			fmt.Fprintf(&b, "  contract: %s\n", r.Contract)
+		}
+		if r.LastFailureExcerpt != "" {
+			fmt.Fprintf(&b, "  last failure tail: %s\n", r.LastFailureExcerpt)
+		}
+	}
+	return b.String()
 }
 
 func formatAutoloopAudit(audit AutoloopAudit) string {
