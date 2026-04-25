@@ -38,16 +38,18 @@ func (p Phase) String() string {
 // RenderFrame is the only TUI input. The TUI never assembles assistant text
 // from raw provider events; it renders this frame, full stop.
 type RenderFrame struct {
-	Seq        uint64
-	Phase      Phase
-	DraftText  string
-	History    []hermes.Message
-	Telemetry  telemetry.Snapshot
-	StatusText string
-	SessionID  string
-	Model      string
-	LastError  string
-	SoulEvents []SoulEntry
+	Seq            uint64
+	Phase          Phase
+	DraftText      string
+	History        []hermes.Message
+	Telemetry      telemetry.Snapshot
+	StatusText     string
+	SessionID      string
+	Model          string
+	ProviderStatus hermes.ProviderStatus
+	RetryStatus    RetryStatus
+	LastError      string
+	SoulEvents     []SoulEntry
 	// ContextStatus snapshots the active ContextEngine status, when one is
 	// configured. Nil means no context engine has been wired for this kernel.
 	ContextStatus *hermes.ContextStatus

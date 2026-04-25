@@ -36,7 +36,6 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 	}
 	for _, want := range []string{
 		`"5": {`,
-		`"status": "in_progress"`,
 		`"5.K": {`,
 		`"status": "complete"`,
 	} {

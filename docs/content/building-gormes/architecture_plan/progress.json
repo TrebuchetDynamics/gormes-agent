@@ -2833,7 +2833,7 @@
               "name": "Provider-enforced context-length resolver",
               "status": "complete",
               "contract": "Displayed and budgeted context windows prefer provider-enforced limits over raw models.dev metadata",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -3238,7 +3238,7 @@
               "name": "Tool registry inventory + schema parity harness",
               "status": "complete",
               "contract": "Operation and tool descriptor parity before handler ports",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -3410,7 +3410,7 @@
               "name": "Skill preprocessing + dynamic slash commands",
               "status": "complete",
               "contract": "Skill content preprocessing and skill-backed slash commands are deterministic, disabled-skill aware, and prompt-safe",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -3841,7 +3841,7 @@
               "name": "OpenAI-compatible chat-completions API server",
               "status": "complete",
               "contract": "OpenAI-compatible chat.completions HTTP surface over the native Gormes turn loop",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [

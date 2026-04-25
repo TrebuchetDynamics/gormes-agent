@@ -744,17 +744,19 @@ func (k *Kernel) emitFrame(status string) {
 		contextStatus = &snapshot
 	}
 	frame := RenderFrame{
-		Seq:           k.seq.Add(1),
-		Phase:         k.phase,
-		DraftText:     k.draft,
-		History:       append([]hermes.Message(nil), k.history...),
-		Telemetry:     k.tm.Snapshot(),
-		StatusText:    status,
-		SessionID:     k.sessionID,
-		Model:         k.cfg.Model,
-		LastError:     k.lastError,
-		SoulEvents:    append([]SoulEntry(nil), k.soul...),
-		ContextStatus: contextStatus,
+		Seq:            k.seq.Add(1),
+		Phase:          k.phase,
+		DraftText:      k.draft,
+		History:        append([]hermes.Message(nil), k.history...),
+		Telemetry:      k.tm.Snapshot(),
+		StatusText:     status,
+		SessionID:      k.sessionID,
+		Model:          k.cfg.Model,
+		ProviderStatus: hermes.ProviderStatusOf(k.client),
+		RetryStatus:    k.retryStatus.snapshot(),
+		LastError:      k.lastError,
+		SoulEvents:     append([]SoulEntry(nil), k.soul...),
+		ContextStatus:  contextStatus,
 	}
 	// Drain old frame if present, then enqueue new.
 	select {
