@@ -249,7 +249,7 @@ func defaults() Config {
 }
 
 func loadFile(cfg *Config) error {
-	path := filepath.Join(xdgConfigHome(), "gormes", "config.toml")
+	path := ConfigPath()
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil
@@ -356,6 +356,11 @@ func xdgDataHome() string {
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".local", "share")
+}
+
+// ConfigPath returns the Gormes TOML config file path resolved from XDG rules.
+func ConfigPath() string {
+	return filepath.Join(xdgConfigHome(), "gormes", "config.toml")
 }
 
 // LogPath returns the default path for the Gormes log file.
