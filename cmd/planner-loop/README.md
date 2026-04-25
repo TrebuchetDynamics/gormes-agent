@@ -18,8 +18,8 @@ Run from the repository root:
 
 ```sh
 go run ./cmd/planner-loop run --dry-run
-go run ./cmd/planner-loop run --codexu
-go run ./cmd/planner-loop run --claudeu
+go run ./cmd/planner-loop run --backend codexu
+go run ./cmd/planner-loop run --backend claudeu
 go run ./cmd/planner-loop status
 go run ./cmd/planner-loop show-report
 ```
@@ -154,11 +154,37 @@ in addition to the older companion timers.
 
 ## Backends
 
-The default backend is `codexu`. Use `--claudeu` only on hosts where
-`claudeu` is installed. Each planner backend invocation is deadline-bound
+The default backend is `codexu`. Use `--backend claudeu` only on hosts
+where `claudeu` is installed. Each planner backend invocation is deadline-bound
 so a stuck planner agent cannot leave the periodic scheduler paused
 forever. The default timeout is 20 minutes; override it with
 `PLANNER_BACKEND_TIMEOUT` using a Go duration such as `10m` or `45m`.
+
+### Backend PATH prerequisites
+
+`codexu` is a thin wrapper that `exec`s `codex --dangerously-bypass-approvals-and-sandbox`,
+so anywhere `codexu` is on `PATH`, `codex` itself must also be resolvable
+from the same `PATH`. The systemd-user unit installed by `service install`
+sets `Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin`, which
+matches an interactive shell only when `codex` is in one of those
+directories.
+
+If `codex` was installed via `npm i -g @openai/codex` under nvm, it lives
+under `~/.nvm/versions/node/<version>/bin/` and will not be on the
+service unit's `PATH`. Either symlink it onto a `PATH`-listed directory
+once:
+
+```sh
+ln -sf "$(which codex)" ~/.local/bin/codex
+```
+
+…or extend the unit's `Environment=PATH` to include the nvm node bin
+directory. The symlink approach is more robust against shell-config
+drift; the nvm node version is independent of when the symlink target
+must change.
+
+If a planner timer firing exits with `codexu: line 2: exec: codex: not
+found`, this PATH prerequisite is the cause.
 
 ## Validation
 
