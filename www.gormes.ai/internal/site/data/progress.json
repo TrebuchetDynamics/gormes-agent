@@ -199,8 +199,170 @@
               "done_signal": [
                 "Both legacy wrapper names exist, exec the renamed planner manager, and the focused ArchitecturePlanner suite passes."
               ]
+            },
+            {
+              "name": "Autoloop row health and quarantine contract",
+              "status": "complete",
+              "contract": "Autoloop records per-row health, failure categories, quarantine state, stale-spec recovery, and backend penalties without letting planner writes mutate runtime-owned health blocks",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Rows with repeated worker failures are skipped or demoted with visible health/quarantine evidence instead of being retried indefinitely.",
+              "fixture": "internal/progress/health_test.go and internal/autoloop/health_writer_test.go",
+              "source_refs": [
+                "docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md",
+                "internal/progress/health.go",
+                "internal/autoloop/health_writer.go",
+                "internal/autoloop/candidates.go",
+                "internal/autoloop/run_health_test.go"
+              ],
+              "ready_when": [
+                "RowHealth is a typed progress field and autoloop can batch health updates after worker outcomes."
+              ],
+              "not_ready_when": [
+                "The planner modifies or removes existing health blocks instead of treating them as autoloop-owned runtime state."
+              ],
+              "unblocks": [
+                "Planner self-healing verdict loop"
+              ],
+              "acceptance": [
+                "RowHealth, Quarantine, and ItemSpecHash round-trip through the progress model.",
+                "Autoloop writes success/failure health updates, quarantines rows after threshold failures, clears stale quarantines after spec changes, and emits trigger events.",
+                "Candidate selection skips active quarantines by default, exposes stale quarantines for reset, and applies deterministic failure penalties."
+              ],
+              "note": "Complete: internal/progress now owns RowHealth plus ItemSpecHash and ApplyHealthUpdates; internal/autoloop writes batched run health, quarantines repeated failures with current spec hashes, clears stale quarantines, emits planner trigger events, filters active quarantines, and demotes rows with repeated failures/backends tried.",
+              "write_scope": [
+                "internal/progress/",
+                "internal/autoloop/",
+                "internal/plannertriggers/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/progress ./internal/autoloop ./internal/plannertriggers -count=1"
+              ],
+              "done_signal": [
+                "Health writer, candidate selection, and progress preservation tests prove quarantine state is runtime-owned, typed, and stale-spec recoverable."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-04-25T11:02:16Z",
+                "note": "Autoloop row health/quarantine is a Gormes control-plane invention with no upstream Hermes, Honcho, or GBrain implementation analog."
+              }
+            },
+            {
+              "name": "Planner self-healing verdict loop",
+              "status": "complete",
+              "contract": "Architecture planner consumes autoloop health/ledger outcomes, stamps planner-owned verdicts, retries validation-safe regenerations, and escalates rows that stay failing after repeated reshapes",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Rows that resist planner reshapes are marked needs_human and removed from default autoloop selection instead of silently cycling.",
+              "fixture": "internal/architectureplanner/lifecycle_test.go",
+              "source_refs": [
+                "docs/superpowers/specs/2026-04-24-planner-self-healing-design.md",
+                "internal/architectureplanner/verdict.go",
+                "internal/architectureplanner/evaluation.go",
+                "internal/architectureplanner/retry.go",
+                "internal/autoloop/candidates_health_test.go"
+              ],
+              "ready_when": [
+                "Autoloop row health blocks and planner trigger events exist on main."
+              ],
+              "not_ready_when": [
+                "The slice relies on live LLM calls or manual ledger edits instead of deterministic planner/autoloop fixtures."
+              ],
+              "unblocks": [
+                "Planner divergence and provenance awareness"
+              ],
+              "acceptance": [
+                "PlannerVerdict round-trips and is preserved by autoloop health writes.",
+                "Planner self-evaluation distinguishes unstuck, still_failing, and no_attempts_yet outcomes.",
+                "NeedsHuman is sticky after the configured reshape threshold, and autoloop skips those rows by default."
+              ],
+              "note": "Complete: architectureplanner now records planner ledger events, consumes trigger/cursor state, evaluates previous reshapes against autoloop outcomes, retries validation failures with feedback, stamps PlannerVerdict reshape counts/outcomes, escalates persistent failures to needs_human, and exposes needs-human rows in status while autoloop skips them by default.",
+              "write_scope": [
+                "internal/architectureplanner/",
+                "internal/autoloop/",
+                "internal/progress/",
+                "cmd/architecture-planner-loop/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/architectureplanner ./internal/autoloop ./internal/progress -count=1"
+              ],
+              "done_signal": [
+                "Planner lifecycle tests prove trigger consumption, reshape self-evaluation, PlannerVerdict stamping, sticky needs_human escalation, and autoloop candidate skipping."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-04-25T11:02:16Z",
+                "note": "PlannerVerdict, planner retry/self-evaluation, and needs_human selection are Gormes-owned autoloop control-plane behavior."
+              }
+            },
+            {
+              "name": "Planner divergence and provenance awareness",
+              "status": "complete",
+              "contract": "Architecture planner distinguishes upstream-led, converged, and Gormes-owned surfaces using per-row provenance, subphase drift state, and implementation inventory from cmd/internal paths",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Planner status reports porting/converged/owned buckets and recent promotions so Gormes-original surfaces stop receiving fabricated upstream refs.",
+              "fixture": "internal/architectureplanner/divergence_lifecycle_test.go",
+              "source_refs": [
+                "docs/superpowers/specs/2026-04-25-planner-divergence-awareness-design.md",
+                "internal/progress/health.go",
+                "internal/architectureplanner/implscan.go",
+                "internal/architectureplanner/drift.go",
+                "internal/architectureplanner/status.go"
+              ],
+              "ready_when": [
+                "PlannerVerdict and RowHealth preservation are validated on main."
+              ],
+              "not_ready_when": [
+                "The planner fabricates upstream_ref values for Gormes-original code or demotes owned subphases automatically."
+              ],
+              "acceptance": [
+                "Provenance and DriftState round-trip through progress and survive autoloop writes.",
+                "Implementation inventory lists Gormes-original paths under cmd/autoloop, cmd/architecture-planner-loop, internal/autoloop, internal/architectureplanner, internal/plannertriggers, and progress health schema.",
+                "Status output buckets drift states and records forward-only drift promotions."
+              ],
+              "note": "Complete: progress now has typed Provenance and DriftState blocks; architectureplanner scans Gormes-original cmd/internal paths, injects implementation inventory and drift-state guidance into prompts, records forward drift promotions, and renders drift-state status buckets without treating owned surfaces as upstream-led.",
+              "write_scope": [
+                "internal/progress/",
+                "internal/architectureplanner/",
+                "cmd/architecture-planner-loop/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/progress ./internal/architectureplanner -count=1"
+              ],
+              "done_signal": [
+                "Divergence lifecycle and status tests prove provenance preservation, implementation inventory, forward-only drift promotions, and owned/porting/converged status reporting."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-04-25T11:02:16Z",
+                "note": "Divergence awareness exists to protect Gormes-owned surfaces from upstream-led planning assumptions."
+              }
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-04-25T11:02:16Z",
+            "origin_decision": "Automation reliability, autoloop row health, planner self-healing, and drift/provenance awareness are Gormes-original control-plane surfaces. Upstream Hermes/Honcho/GBrain are still checked globally, but this subphase is no longer upstream-led."
+          }
         }
       }
     },
@@ -2030,8 +2192,66 @@
             },
             {
               "name": "Operator-auditable search evidence",
+              "priority": "P1",
               "status": "planned",
-              "note": "TDD: add CLI or mirror evidence that shows source filters, user scope, and lineage metadata for session/message search so operators can audit why a cross-source hit appeared."
+              "contract": "Goncho/Honcho-compatible search surfaces operator evidence for user scope, source filters, and session lineage on every widened cross-source search hit",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Search output reports missing session-directory evidence, same-chat fallback, unavailable lineage, orphaned lineage, and source allowlists instead of implying cross-source recall was safe by default.",
+              "fixture": "cmd/gormes/goncho_search_evidence_test.go",
+              "source_refs": [
+                "internal/memory/session_catalog.go",
+                "internal/memory/session_lineage_search_test.go",
+                "internal/goncho/service.go",
+                "cmd/gormes/goncho.go",
+                "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+                "../honcho/docs/v3/documentation/features/advanced/search.mdx@e659b6b",
+                "../honcho/docs/v3/documentation/features/advanced/using-filters.mdx@e659b6b"
+              ],
+              "ready_when": [
+                "Lineage-aware source-filtered search hits are validated on main.",
+                "GONCHO user-scope search/context parameters and Honcho-compatible scope/source tool schemas are validated on main.",
+                "The slice can be tested from seeded SQLite/Bolt fixtures without provider calls or external Honcho services."
+              ],
+              "not_ready_when": [
+                "The slice changes search ranking, widens default same-chat recall, implements Honcho v3 HTTP/SDK parity, or adds new filters beyond reporting existing scope/source/lineage evidence."
+              ],
+              "acceptance": [
+                "`gormes goncho doctor --peer <user> --session <source:chat> --scope user --sources <source>` text output includes scope decision, source allowlist, sessions considered, widened session count, search hit source/origin_source/session_key, and lineage status for each hit.",
+                "JSON output includes the same search evidence fields so autoloop and docs tests can assert them without parsing text.",
+                "Search evidence reports orphan/unavailable lineage explicitly and does not widen recall when scope=user is denied or session directory evidence is missing."
+              ],
+              "note": "TDD: extend Goncho search result evidence rather than search behavior. Add a focused cmd/gormes/goncho_search_evidence_test.go seeded with current, child, orphan, and chat-only sessions; thread memory.SearchLineage from internal/memory.SearchMessages through goncho.SearchHit and the doctor report/formatter; preserve the existing honcho_search and honcho_context names while keeping the implementation under internal/goncho.",
+              "write_scope": [
+                "cmd/gormes/goncho.go",
+                "cmd/gormes/goncho_search_evidence_test.go",
+                "internal/goncho/types.go",
+                "internal/goncho/service.go",
+                "internal/goncho/service_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run TestGonchoDoctorSearchEvidence -count=1",
+                "go test ./internal/goncho -run TestServiceSearch -count=1",
+                "go test ./internal/memory -run TestSessionCatalog_SearchHitsIncludeLineageContext -count=1"
+              ],
+              "done_signal": [
+                "Goncho doctor fixtures prove cross-source search evidence names source filters, user-scope decisions, and lineage status for widened hits without changing default recall fences."
+              ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-25T10:59:11Z"
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "honcho:e659b6b docs/v3/documentation/features/advanced/search.mdx",
+                "note": "Honcho v3 defines search/filter concepts; Gormes owns the operator-evidence shape that makes Goncho cross-source search auditable inside one local binary."
+              }
             }
           ]
         },
@@ -3241,9 +3461,9 @@
             {
               "name": "Compression token-budget trigger + summary sizing",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Go context compression budget state recalculates threshold, tail, and summary token budgets whenever the active model context window changes",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -3277,7 +3497,7 @@
                 "Summary target ratio is clamped to the upstream 0.10-0.80 range and the threshold floor preserves MINIMUM_CONTEXT_LENGTH-equivalent behavior.",
                 "The focused test mirrors Hermes TestUpdateModelBudgets without wiring compression into the kernel or requiring provider credentials."
               ],
-              "note": "Upstream Hermes 5401a008 fixed ContextCompressor.update_model after tail_token_budget and max_summary_tokens stayed calibrated to the old model window during model switches. Gormes already has the status boundary and provider-cap resolver, but no native compressor budget state, so this row is the first pure 4.B budget slice before message pruning or summarization lands.",
+              "note": "Complete: TDD landed a pure internal/hermes ContextCompressorBudget helper mirroring upstream Hermes 5401a008 budget recalculation. Fixtures prove 200K initialization, 200K to 32K model-window updates, summary_target_ratio clamping, the 64K minimum-context threshold floor, max_summary_tokens sizing, and unavailable degraded status for unknown model windows without kernel wiring, provider credentials, summarizer calls, or message-history mutation.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -3288,9 +3508,15 @@
               "done_signal": [
                 "internal/hermes/context_compressor_budget_test.go proves initialization and UpdateModelContext-style model switches recalculate threshold, tail, and max-summary budgets from the active context window."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-25T10:36:15Z",
+                "last_success": "2026-04-25T10:36:15Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
-                "last_reshape": "2026-04-25T10:20:06Z"
+                "last_reshape": "2026-04-25T10:20:06Z",
+                "last_outcome": "unstuck"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -3311,8 +3537,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-25T10:23:07Z",
-            "origin_decision": "Hermes 5401a008 changed ContextCompressor.update_model to recalculate tail and max-summary budgets on model switches. Gormes has the Go ContextEngine status boundary and provider-cap resolver but no native compressor budget state, so compressor behavior remains upstream-led until the budget, pruning, and feedback slices land."
+            "last_upstream_check": "2026-04-25T11:02:16Z",
+            "origin_decision": "Hermes 5401a008 changed ContextCompressor.update_model to recalculate tail and max-summary budgets on model switches. Gormes now has the Go ContextEngine status boundary, provider-cap resolver, and pure compressor budget helper, but the subphase remains upstream-led until tool-result pruning, protected head/tail summaries, and manual compression feedback/context-reference slices land."
           }
         },
         "4.C": {
@@ -3519,8 +3745,63 @@
             },
             {
               "name": "Per-turn model selection",
+              "priority": "P1",
               "status": "planned",
-              "note": "Status reverted from `complete` after planner audit on 2026-04-24: the prior `complete` claim referenced commit `23b34cb5 feat(kernel): add per-turn model selection`, which only lives on `codexu/20260423T112611Z-3659166-014/worker4` and is NOT an ancestor of `main` (`git merge-base --is-ancestor 23b34cb5 HEAD` returns 1). On main today: `internal/kernel/frame.go:84` advertises a `PlatformEvent.Model` field with a doc-comment that references a `Config.ModelSelector` that does not exist; `internal/kernel/kernel.go:179` calls `runTurn(ctx, e.Text, e.SessionContext, e.CronJobID)` and silently drops `e.Model`; `internal/kernel/kernel.go:296` builds the `hermes.ChatRequest` with `Model: k.cfg.Model` (no per-turn override); `internal/kernel/model_selection.go` does not exist (`git cat-file -e HEAD:internal/kernel/model_selection.go` returns 128); and `grep -rn 'activeModel\\|ModelSelector\\|selectModel' internal/kernel` returns zero hits. Net: only the struct field landed; the wiring is dead. TDD (single small slice, no need to split): (a) add `internal/kernel/per_turn_model_test.go` (RED) that asserts a `PlatformEvent{Kind: PlatformEventSubmit, Model: \"override-model\"}` produces a `hermes.ChatRequest.Model == \"override-model\"` while `k.cfg.Model` remains the resident default for the next non-overriding event, and that the `RenderFrame.Model` reflects the per-turn choice for the duration of the turn; (b) thread `e.Model` through the `runTurn` signature into the `hermes.ChatRequest` build site at `internal/kernel/kernel.go:296` and into `emitFrame` at `internal/kernel/kernel.go:694`, falling back to `k.cfg.Model` when empty; (c) fix the misleading struct doc-comment at `internal/kernel/frame.go:84` to drop the `ModelSelector` reference until that companion 4.D registry/selector slice lands. Do NOT re-introduce `Config.ModelSelector` in this slice — that belongs in `Routing policy and fallback selector`. Keep `tm.SetModel` updates contained to the in-flight turn so telemetry per-turn vs default semantics are pinned by the same RED test."
+              "contract": "Kernel accepts a per-turn model override, sends it on exactly one hermes.ChatRequest, exposes the active model in RenderFrame during that turn, and falls back to the resident config model on the next turn",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If no per-turn model is supplied or the override is blank, the kernel continues using cfg.Model and status frames make the resident model explicit.",
+              "fixture": "internal/kernel/per_turn_model_test.go",
+              "source_refs": [
+                "internal/kernel/frame.go",
+                "internal/kernel/kernel.go",
+                "internal/hermes/model_routing.go",
+                "docs/content/upstream-hermes/user-guide/features/provider-routing.md",
+                "../hermes-agent/run_agent.py@5401a008"
+              ],
+              "ready_when": [
+                "Routing policy and fallback selector is validated on main.",
+                "Kernel tests can use internal/hermes.MockClient to inspect ChatRequest.Model without live provider credentials.",
+                "Current main has no PlatformEvent.Model field and still builds ChatRequest with k.cfg.Model, so the first test must be RED before implementation."
+              ],
+              "not_ready_when": [
+                "The slice reintroduces Config.ModelSelector, changes provider routing policy, makes provider network calls, mutates cfg.Model globally, or wires context compression history pruning."
+              ],
+              "acceptance": [
+                "A PlatformEventSubmit with Model=\"override-model\" causes the outbound hermes.ChatRequest.Model to be override-model for that turn.",
+                "A following PlatformEventSubmit with no Model uses the original cfg.Model, proving the override did not mutate resident kernel configuration.",
+                "RenderFrame.Model reflects the active override while the turn is connecting/streaming and returns to cfg.Model after the turn settles.",
+                "The test stays in internal/kernel with MockClient and does not add provider calls or routing selector changes."
+              ],
+              "note": "Status remains planned after a fresh 2026-04-25 audit. Current main has no PlatformEvent.Model field in internal/kernel/frame.go, runTurn is called without a model override, ChatRequest.Model is still k.cfg.Model, and no internal/kernel/model_selection.go exists. This is a single TDD slice: add the event field and focused test first, thread the override through Run -> runTurn -> ChatRequest and emitFrame, and keep the resident cfg.Model unchanged for subsequent turns.",
+              "write_scope": [
+                "internal/kernel/frame.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/per_turn_model_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run TestPerTurnModel -count=1",
+                "go test ./internal/kernel -count=1"
+              ],
+              "done_signal": [
+                "internal/kernel/per_turn_model_test.go proves override, fallback, and frame-model behavior without mutating cfg.Model or provider routing."
+              ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-25T10:59:11Z"
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:5401a008 run_agent.py",
+                "note": "Hermes defines model switching and provider-routing behavior; Gormes must implement a smaller Go kernel per-turn override that consumes the native routing selector without importing Python runtime."
+              }
             }
           ]
         },

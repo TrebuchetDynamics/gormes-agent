@@ -13,10 +13,10 @@ Hermes hard to shrink.
 ## Study Snapshot
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
-- Upstream commit: `e5d41f05d47ed2e8b80a61625f2c48ae58b45b86`
+- Upstream commit: `5401a008`
 - Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
-- Gormes commit: `c97c9c37aab4996e814ec7c80f59575a3ff0621b`
-- Date: 2026-04-24
+- Gormes commit: `f7b083ca`
+- Date: 2026-04-25
 
 ## High-Level Shape
 
@@ -186,7 +186,7 @@ Good mechanics to keep:
 - cached session runtime only when the effective configuration signature
   matches.
 
-Latest sync delta (2026-04-24): upstream commit `f731c2c2` tightened
+Recent gateway sync delta (2026-04-24): upstream commit `f731c2c2` tightened
 BlueBubbles/iMessage behavior. `gateway/platforms/bluebubbles.py` now treats
 BlueBubbles as non-editable, splits blank-line paragraphs into separate
 iMessage bubbles, and removes pagination suffixes from long-message chunks.
@@ -194,6 +194,14 @@ iMessage bubbles, and removes pagination suffixes from long-message chunks.
 conversational, blank-line-separated replies. Gormes should keep this as
 capability-based gateway behavior plus a BlueBubbles formatter fixture, not a
 special-case branch in the kernel.
+
+Latest context sync delta (2026-04-25): upstream commit `5401a008` changed
+`agent/context_compressor.py` so `ContextCompressor.update_model()` recalculates
+threshold, tail, and max-summary token budgets when the active model window
+changes. Gormes has already mirrored the pure budget behavior in
+`internal/hermes/context_compressor_budget_test.go`; remaining work is kernel
+model-override wiring and real history pruning/summary feedback, not another
+metadata-only row.
 
 Risk to avoid: the running-agent command path is a long imperative chain inside
 one very large file. Gormes should put active-turn policy in the command

@@ -70,6 +70,9 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Orchestrator failure-row stabilization for 4-8 workers
 - [x] Soft-success-nonzero bats coverage
 - [x] Planner wrapper/test consistency closeout
+- [x] Autoloop row health and quarantine contract
+- [x] Planner self-healing verdict loop
+- [x] Planner divergence and provenance awareness
 
 ## Phase 2 — The Gateway 🔨
 
@@ -351,7 +354,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Long session management
 - [ ] Context compression
 - [x] ContextEngine interface + status tool contract
-- [ ] Compression token-budget trigger + summary sizing
+- [x] Compression token-budget trigger + summary sizing
 - [ ] Tool-result pruning + protected head/tail summary
 - [ ] Manual compression feedback + context references
 
