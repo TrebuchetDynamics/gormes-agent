@@ -102,7 +102,34 @@ type Config struct {
 	PlannerTriggersPath string // PLANNER_TRIGGERS_PATH
 }
 
-func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
+// EnvLookup mirrors os.LookupEnv: a function that, given a key, returns the
+// value and a boolean indicating whether the key was set. cmd/ binaries pass
+// os.LookupEnv. Tests pass a closure over a map (see MapEnv).
+//
+// The two-value shape preserves the distinction between "unset" and "set but
+// empty" required by knobs like BACKEND_FALLBACK, where empty means "clear
+// the chain" rather than "leave the default".
+type EnvLookup = func(string) (string, bool)
+
+// MapEnv adapts a map to the EnvLookup contract. Convenient for tests so a
+// case can declare its env as a literal map. A nil/missing key returns
+// ("", false), matching os.LookupEnv.
+func MapEnv(m map[string]string) EnvLookup {
+	return func(key string) (string, bool) {
+		v, ok := m[key]
+		return v, ok
+	}
+}
+
+// envValue is a small helper used by ConfigFromEnv to read a key without
+// caring about the comma-ok bool. The ~25 sites that just check for non-empty
+// values stay readable.
+func envValue(lookup EnvLookup, key string) string {
+	v, _ := lookup(key)
+	return v
+}
+
+func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 	if repoRoot == "" {
 		return Config{}, fmt.Errorf("repo root is required")
 	}
@@ -139,19 +166,19 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		PlannerTriggersPath: defaultPlannerTriggersPath(repoRoot),
 	}
 
-	if value := env["PROGRESS_JSON"]; value != "" {
+	if value := envValue(lookup, "PROGRESS_JSON"); value != "" {
 		cfg.ProgressJSON = value
 	}
-	if value := env["RUN_ROOT"]; value != "" {
+	if value := envValue(lookup, "RUN_ROOT"); value != "" {
 		cfg.RunRoot = value
 	}
-	if value := env["BACKEND"]; value != "" {
+	if value := envValue(lookup, "BACKEND"); value != "" {
 		cfg.Backend = value
 	}
-	if value := env["MODE"]; value != "" {
+	if value := envValue(lookup, "MODE"); value != "" {
 		cfg.Mode = value
 	}
-	if value := env["MAX_AGENTS"]; value != "" {
+	if value := envValue(lookup, "MAX_AGENTS"); value != "" {
 		maxAgents, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("MAX_AGENTS must be an integer: %w", err)
@@ -161,7 +188,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.MaxAgents = maxAgents
 	}
-	if value := env["MAX_PHASE"]; value != "" {
+	if value := envValue(lookup, "MAX_PHASE"); value != "" {
 		maxPhase, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("MAX_PHASE must be an integer: %w", err)
@@ -171,15 +198,15 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.MaxPhase = maxPhase
 	}
-	if value := env["PRIORITY_BOOST"]; value != "" {
+	if value := envValue(lookup, "PRIORITY_BOOST"); value != "" {
 		cfg.PriorityBoost = splitCSV(value)
 	}
 	// BUILDER_LOOP_BACKEND_TIMEOUT is the canonical name; AUTOLOOP_BACKEND_TIMEOUT
 	// is read as a fallback so existing operator env files keep working
 	// across the autoloop -> builder-loop rename.
-	timeoutSrc, timeoutValue := "BUILDER_LOOP_BACKEND_TIMEOUT", env["BUILDER_LOOP_BACKEND_TIMEOUT"]
+	timeoutSrc, timeoutValue := "BUILDER_LOOP_BACKEND_TIMEOUT", envValue(lookup, "BUILDER_LOOP_BACKEND_TIMEOUT")
 	if timeoutValue == "" {
-		timeoutSrc, timeoutValue = "AUTOLOOP_BACKEND_TIMEOUT", env["AUTOLOOP_BACKEND_TIMEOUT"]
+		timeoutSrc, timeoutValue = "AUTOLOOP_BACKEND_TIMEOUT", envValue(lookup, "AUTOLOOP_BACKEND_TIMEOUT")
 	}
 	if timeoutValue != "" {
 		d, err := time.ParseDuration(timeoutValue)
@@ -192,7 +219,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		cfg.BackendTimeout = d
 	}
 
-	if value := env["QUARANTINE_THRESHOLD"]; value != "" {
+	if value := envValue(lookup, "QUARANTINE_THRESHOLD"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("QUARANTINE_THRESHOLD must be an integer: %w", err)
@@ -202,7 +229,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.QuarantineThreshold = n
 	}
-	if value := env["BACKEND_DEGRADE_THRESHOLD"]; value != "" {
+	if value := envValue(lookup, "BACKEND_DEGRADE_THRESHOLD"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("BACKEND_DEGRADE_THRESHOLD must be an integer: %w", err)
@@ -212,32 +239,32 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.BackendDegradeThreshold = n
 	}
-	if value, ok := env["BACKEND_FALLBACK"]; ok {
+	if value, ok := lookup("BACKEND_FALLBACK"); ok {
 		// Empty string explicitly clears the chain to no fallback (back-compat).
 		cfg.BackendFallback = splitCSV(value)
 	}
-	if value := env["GORMES_INCLUDE_QUARANTINED"]; value != "" {
+	if value := envValue(lookup, "GORMES_INCLUDE_QUARANTINED"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("GORMES_INCLUDE_QUARANTINED: %w", err)
 		}
 		cfg.IncludeQuarantined = b
 	}
-	if value := env["GORMES_INCLUDE_NEEDS_HUMAN"]; value != "" {
+	if value := envValue(lookup, "GORMES_INCLUDE_NEEDS_HUMAN"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("GORMES_INCLUDE_NEEDS_HUMAN: %w", err)
 		}
 		cfg.IncludeNeedsHuman = b
 	}
-	if value := env["GORMES_REPORT_REPAIR"]; value != "" {
+	if value := envValue(lookup, "GORMES_REPORT_REPAIR"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("GORMES_REPORT_REPAIR: %w", err)
 		}
 		cfg.ReportRepairEnabled = b
 	}
-	if value := env["GORMES_PLANNER_QUARANTINE_LIMIT"]; value != "" {
+	if value := envValue(lookup, "GORMES_PLANNER_QUARANTINE_LIMIT"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("GORMES_PLANNER_QUARANTINE_LIMIT must be an integer: %w", err)
@@ -247,49 +274,49 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.PlannerQuarantineLimit = n
 	}
-	if value := env["MERGE_OPEN_PULL_REQUESTS"]; value != "" {
+	if value := envValue(lookup, "MERGE_OPEN_PULL_REQUESTS"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("MERGE_OPEN_PULL_REQUESTS: %w", err)
 		}
 		cfg.MergeOpenPullRequests = b
 	}
-	if value := env["PR_INTAKE_CONFLICT_ACTION"]; value != "" {
+	if value := envValue(lookup, "PR_INTAKE_CONFLICT_ACTION"); value != "" {
 		action, err := parsePRConflictAction(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PR_INTAKE_CONFLICT_ACTION: %w", err)
 		}
 		cfg.PRConflictAction = action
 	}
-	if value := env["AUTO_COMMIT_DIRTY_WORKTREE"]; value != "" {
+	if value := envValue(lookup, "AUTO_COMMIT_DIRTY_WORKTREE"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("AUTO_COMMIT_DIRTY_WORKTREE: %w", err)
 		}
 		cfg.AutoCommitDirtyWorktree = b
 	}
-	if value := env["POST_PROMOTION_VERIFY_COMMANDS"]; value != "" {
+	if value := envValue(lookup, "POST_PROMOTION_VERIFY_COMMANDS"); value != "" {
 		commands := splitCommandList(value)
 		if len(commands) == 0 {
 			return Config{}, fmt.Errorf("POST_PROMOTION_VERIFY_COMMANDS must contain at least one command")
 		}
 		cfg.PostPromotionVerifyCommands = commands
 	}
-	if value := env["PRE_PROMOTION_VERIFY_COMMANDS"]; value != "" {
+	if value := envValue(lookup, "PRE_PROMOTION_VERIFY_COMMANDS"); value != "" {
 		commands := splitCommandList(value)
 		if len(commands) == 0 {
 			return Config{}, fmt.Errorf("PRE_PROMOTION_VERIFY_COMMANDS must contain at least one command")
 		}
 		cfg.PrePromotionVerifyCommands = commands
 	}
-	if value := env["PRE_PROMOTION_REPAIR"]; value != "" {
+	if value := envValue(lookup, "PRE_PROMOTION_REPAIR"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PRE_PROMOTION_REPAIR: %w", err)
 		}
 		cfg.PrePromotionRepairEnabled = b
 	}
-	if value := env["PRE_PROMOTION_REPAIR_ATTEMPTS"]; value != "" {
+	if value := envValue(lookup, "PRE_PROMOTION_REPAIR_ATTEMPTS"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PRE_PROMOTION_REPAIR_ATTEMPTS must be an integer: %w", err)
@@ -299,14 +326,14 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.PrePromotionRepairAttempts = n
 	}
-	if value := env["POST_PROMOTION_REPAIR"]; value != "" {
+	if value := envValue(lookup, "POST_PROMOTION_REPAIR"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("POST_PROMOTION_REPAIR: %w", err)
 		}
 		cfg.PostPromotionRepairEnabled = b
 	}
-	if value := env["POST_PROMOTION_REPAIR_ATTEMPTS"]; value != "" {
+	if value := envValue(lookup, "POST_PROMOTION_REPAIR_ATTEMPTS"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("POST_PROMOTION_REPAIR_ATTEMPTS must be an integer: %w", err)
@@ -316,7 +343,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.PostPromotionRepairAttempts = n
 	}
-	if value := env["PLANNER_TRIGGERS_PATH"]; value != "" {
+	if value := envValue(lookup, "PLANNER_TRIGGERS_PATH"); value != "" {
 		cfg.PlannerTriggersPath = value
 	}
 

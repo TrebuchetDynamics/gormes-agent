@@ -145,7 +145,27 @@ type Config struct {
 	TriggerReason string
 }
 
-func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
+// EnvLookup mirrors os.LookupEnv: cmd/ binaries pass os.LookupEnv;
+// tests pass MapEnv over a literal. The comma-ok shape preserves the
+// distinction between "unset" and "set but empty" if any future knob needs it.
+type EnvLookup = func(string) (string, bool)
+
+// MapEnv adapts a map to EnvLookup so test cases can declare env as a map.
+func MapEnv(m map[string]string) EnvLookup {
+	return func(key string) (string, bool) {
+		v, ok := m[key]
+		return v, ok
+	}
+}
+
+// envValue strips the comma-ok bool for the common "default-or-override"
+// callers in ConfigFromEnv.
+func envValue(lookup EnvLookup, key string) string {
+	v, _ := lookup(key)
+	return v
+}
+
+func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 	if repoRoot == "" {
 		return Config{}, fmt.Errorf("repo root is required")
 	}
@@ -179,52 +199,52 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		TriggerReason:          "",
 	}
 
-	if value := env["PROGRESS_JSON"]; value != "" {
+	if value := envValue(lookup, "PROGRESS_JSON"); value != "" {
 		cfg.ProgressJSON = value
 	}
-	if value := env["RUN_ROOT"]; value != "" {
+	if value := envValue(lookup, "RUN_ROOT"); value != "" {
 		cfg.RunRoot = value
 	}
 	// BUILDER_LOOP_RUN_ROOT is the canonical override for the path the
 	// planner watches for the builder-loop ledger; AUTOLOOP_RUN_ROOT is
 	// read as a fallback so existing operator env files keep working
 	// across the autoloop -> builder-loop rename.
-	if value := env["BUILDER_LOOP_RUN_ROOT"]; value != "" {
+	if value := envValue(lookup, "BUILDER_LOOP_RUN_ROOT"); value != "" {
 		cfg.AutoloopRunRoot = value
-	} else if value := env["AUTOLOOP_RUN_ROOT"]; value != "" {
+	} else if value := envValue(lookup, "AUTOLOOP_RUN_ROOT"); value != "" {
 		cfg.AutoloopRunRoot = value
 	}
-	if value := env["BACKEND"]; value != "" {
+	if value := envValue(lookup, "BACKEND"); value != "" {
 		cfg.Backend = value
 	}
-	if value := env["MODE"]; value != "" {
+	if value := envValue(lookup, "MODE"); value != "" {
 		cfg.Mode = value
 	}
-	if value := env["HERMES_DIR"]; value != "" {
+	if value := envValue(lookup, "HERMES_DIR"); value != "" {
 		cfg.HermesDir = value
 	}
-	if value := env["GBRAIN_DIR"]; value != "" {
+	if value := envValue(lookup, "GBRAIN_DIR"); value != "" {
 		cfg.GBrainDir = value
 	}
-	if value := env["HONCHO_DIR"]; value != "" {
+	if value := envValue(lookup, "HONCHO_DIR"); value != "" {
 		cfg.HonchoDir = value
 	}
-	if value := env["HERMES_REPO_URL"]; value != "" {
+	if value := envValue(lookup, "HERMES_REPO_URL"); value != "" {
 		cfg.HermesRepoURL = value
 	}
-	if value := env["GBRAIN_REPO_URL"]; value != "" {
+	if value := envValue(lookup, "GBRAIN_REPO_URL"); value != "" {
 		cfg.GBrainRepoURL = value
 	}
-	if value := env["HONCHO_REPO_URL"]; value != "" {
+	if value := envValue(lookup, "HONCHO_REPO_URL"); value != "" {
 		cfg.HonchoRepoURL = value
 	}
-	if value := env["PLANNER_VALIDATE"]; value == "0" {
+	if value := envValue(lookup, "PLANNER_VALIDATE"); value == "0" {
 		cfg.Validate = false
 	}
-	if value := env["PLANNER_SYNC_REPOS"]; value == "0" {
+	if value := envValue(lookup, "PLANNER_SYNC_REPOS"); value == "0" {
 		cfg.SyncRepos = false
 	}
-	if value := env["GORMES_PLANNER_QUARANTINE_LIMIT"]; value != "" {
+	if value := envValue(lookup, "GORMES_PLANNER_QUARANTINE_LIMIT"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("GORMES_PLANNER_QUARANTINE_LIMIT must be an integer: %w", err)
@@ -234,10 +254,10 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.PlannerQuarantineLimit = n
 	}
-	if value := env["PLANNER_TRIGGERS_PATH"]; value != "" {
+	if value := envValue(lookup, "PLANNER_TRIGGERS_PATH"); value != "" {
 		cfg.PlannerTriggersPath = value
 	}
-	if value := env["PLANNER_MAX_RETRIES"]; value != "" {
+	if value := envValue(lookup, "PLANNER_MAX_RETRIES"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PLANNER_MAX_RETRIES must be an integer: %w", err)
@@ -247,7 +267,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.MaxRetries = n
 	}
-	if value := env["PLANNER_BACKEND_TIMEOUT"]; value != "" {
+	if value := envValue(lookup, "PLANNER_BACKEND_TIMEOUT"); value != "" {
 		d, err := time.ParseDuration(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PLANNER_BACKEND_TIMEOUT must be a Go duration (e.g. \"20m\"): %w", err)
@@ -257,21 +277,21 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.BackendTimeout = d
 	}
-	if value := env["MERGE_OPEN_PULL_REQUESTS"]; value != "" {
+	if value := envValue(lookup, "MERGE_OPEN_PULL_REQUESTS"); value != "" {
 		b, err := parseBoolEnv(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("MERGE_OPEN_PULL_REQUESTS: %w", err)
 		}
 		cfg.MergeOpenPullRequests = b
 	}
-	if value := env["PR_INTAKE_CONFLICT_ACTION"]; value != "" {
+	if value := envValue(lookup, "PR_INTAKE_CONFLICT_ACTION"); value != "" {
 		action, err := parsePRConflictAction(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PR_INTAKE_CONFLICT_ACTION: %w", err)
 		}
 		cfg.PRConflictAction = action
 	}
-	if value := env["PLANNER_EVALUATION_WINDOW"]; value != "" {
+	if value := envValue(lookup, "PLANNER_EVALUATION_WINDOW"); value != "" {
 		d, err := time.ParseDuration(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PLANNER_EVALUATION_WINDOW must be a Go duration (e.g. \"168h\"): %w", err)
@@ -281,7 +301,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.EvaluationWindow = d
 	}
-	if value := env["PLANNER_ESCALATION_THRESHOLD"]; value != "" {
+	if value := envValue(lookup, "PLANNER_ESCALATION_THRESHOLD"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PLANNER_ESCALATION_THRESHOLD must be an integer: %w", err)
@@ -291,10 +311,10 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.EscalationThreshold = n
 	}
-	if value := env["PLANNER_GORMES_ORIGINAL_PATHS"]; value != "" {
+	if value := envValue(lookup, "PLANNER_GORMES_ORIGINAL_PATHS"); value != "" {
 		cfg.GormesOriginalPaths = splitCSV(value)
 	}
-	if value := env["PLANNER_IMPL_LOOKBACK"]; value != "" {
+	if value := envValue(lookup, "PLANNER_IMPL_LOOKBACK"); value != "" {
 		d, err := time.ParseDuration(value)
 		if err != nil {
 			return Config{}, fmt.Errorf("PLANNER_IMPL_LOOKBACK must be a Go duration (e.g. \"24h\"): %w", err)
@@ -304,7 +324,7 @@ func ConfigFromEnv(repoRoot string, env map[string]string) (Config, error) {
 		}
 		cfg.ImplLookback = d
 	}
-	if value := env["PLANNER_TRIGGER_REASON"]; value != "" {
+	if value := envValue(lookup, "PLANNER_TRIGGER_REASON"); value != "" {
 		cfg.TriggerReason = value
 	}
 

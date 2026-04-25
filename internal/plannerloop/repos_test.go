@@ -12,7 +12,7 @@ import (
 )
 
 func TestConfigFromEnvDefaultsExternalRepoURLs(t *testing.T) {
-	cfg, err := ConfigFromEnv(filepath.Join("tmp", "repo"), map[string]string{})
+	cfg, err := ConfigFromEnv(filepath.Join("tmp", "repo"), MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -29,11 +29,11 @@ func TestConfigFromEnvDefaultsExternalRepoURLs(t *testing.T) {
 }
 
 func TestConfigFromEnvReadsExternalRepoURLOverrides(t *testing.T) {
-	cfg, err := ConfigFromEnv(filepath.Join("tmp", "repo"), map[string]string{
+	cfg, err := ConfigFromEnv(filepath.Join("tmp", "repo"), MapEnv(map[string]string{
 		"HERMES_REPO_URL": "https://example.test/hermes.git",
 		"GBRAIN_REPO_URL": "https://example.test/gbrain.git",
 		"HONCHO_REPO_URL": "https://example.test/honcho.git",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -52,14 +52,14 @@ func TestConfigFromEnvReadsExternalRepoURLOverrides(t *testing.T) {
 
 func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.T) {
 	root := t.TempDir()
-	cfg, err := ConfigFromEnv(filepath.Join(root, "gormes-agent"), map[string]string{
+	cfg, err := ConfigFromEnv(filepath.Join(root, "gormes-agent"), MapEnv(map[string]string{
 		"HERMES_DIR":      filepath.Join(root, "hermes-agent"),
 		"GBRAIN_DIR":      filepath.Join(root, "gbrain"),
 		"HONCHO_DIR":      filepath.Join(root, "honcho"),
 		"HERMES_REPO_URL": "https://example.test/hermes.git",
 		"GBRAIN_REPO_URL": "https://example.test/gbrain.git",
 		"HONCHO_REPO_URL": "https://example.test/honcho.git",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -100,9 +100,9 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 
 func TestSyncExternalReposRejectsNonGitExistingDirectory(t *testing.T) {
 	root := t.TempDir()
-	cfg, err := ConfigFromEnv(filepath.Join(root, "gormes-agent"), map[string]string{
+	cfg, err := ConfigFromEnv(filepath.Join(root, "gormes-agent"), MapEnv(map[string]string{
 		"HERMES_DIR": filepath.Join(root, "hermes-agent"),
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}

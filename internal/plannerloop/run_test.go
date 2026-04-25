@@ -642,10 +642,10 @@ func mustReadLedger(t *testing.T, path string) []LedgerEvent {
 func mustConfig(t *testing.T, repoRoot string) Config {
 	t.Helper()
 
-	cfg, err := ConfigFromEnv(repoRoot, map[string]string{
+	cfg, err := ConfigFromEnv(repoRoot, MapEnv(map[string]string{
 		"RUN_ROOT":                 filepath.Join(repoRoot, ".codex", "architecture-planner-test"),
 		"MERGE_OPEN_PULL_REQUESTS": "0",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}

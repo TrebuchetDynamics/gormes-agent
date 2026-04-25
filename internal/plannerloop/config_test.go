@@ -12,7 +12,7 @@ import (
 func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
-	cfg, err := ConfigFromEnv(root, map[string]string{})
+	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -49,7 +49,7 @@ func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
-	cfg, err := ConfigFromEnv(root, map[string]string{
+	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{
 		"PROGRESS_JSON":                 "/tmp/progress.json",
 		"RUN_ROOT":                      "/tmp/planner",
 		"AUTOLOOP_RUN_ROOT":             "/tmp/autoloop",
@@ -64,7 +64,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		"PLANNER_IMPL_LOOKBACK":         "48h",
 		"PLANNER_TRIGGER_REASON":        "impl_change",
 		"PLANNER_BACKEND_TIMEOUT":       "7m",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -114,7 +114,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 }
 
 func TestConfigFromEnvRejectsEmptyRepoRoot(t *testing.T) {
-	if _, err := ConfigFromEnv("", map[string]string{}); err == nil {
+	if _, err := ConfigFromEnv("", MapEnv(map[string]string{})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
@@ -123,7 +123,7 @@ func TestConfigFromEnv_MaxRetriesDefaultAndOverride(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
 	// Default: MaxRetries = DefaultMaxRetries (2).
-	cfg, err := ConfigFromEnv(root, map[string]string{})
+	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -132,14 +132,14 @@ func TestConfigFromEnv_MaxRetriesDefaultAndOverride(t *testing.T) {
 	}
 
 	// Env override accepted; 0 disables retries (pre-L3 behavior).
-	cfg, err = ConfigFromEnv(root, map[string]string{"PLANNER_MAX_RETRIES": "0"})
+	cfg, err = ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_MAX_RETRIES": "0"}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() override 0 error = %v", err)
 	}
 	if cfg.MaxRetries != 0 {
 		t.Fatalf("MaxRetries = %d, want 0", cfg.MaxRetries)
 	}
-	cfg, err = ConfigFromEnv(root, map[string]string{"PLANNER_MAX_RETRIES": "5"})
+	cfg, err = ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_MAX_RETRIES": "5"}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() override 5 error = %v", err)
 	}
@@ -148,10 +148,10 @@ func TestConfigFromEnv_MaxRetriesDefaultAndOverride(t *testing.T) {
 	}
 
 	// Negative and non-integer rejected.
-	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_MAX_RETRIES": "-1"}); err == nil {
+	if _, err := ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_MAX_RETRIES": "-1"})); err == nil {
 		t.Fatal("expected error for negative MaxRetries")
 	}
-	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_MAX_RETRIES": "abc"}); err == nil {
+	if _, err := ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_MAX_RETRIES": "abc"})); err == nil {
 		t.Fatal("expected error for non-integer MaxRetries")
 	}
 }
@@ -159,13 +159,13 @@ func TestConfigFromEnv_MaxRetriesDefaultAndOverride(t *testing.T) {
 func TestConfigFromEnv_BackendTimeoutValidation(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
-	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_BACKEND_TIMEOUT": "soon"}); err == nil {
+	if _, err := ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_BACKEND_TIMEOUT": "soon"})); err == nil {
 		t.Fatal("expected error for invalid PLANNER_BACKEND_TIMEOUT")
 	}
-	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_BACKEND_TIMEOUT": "0"}); err == nil {
+	if _, err := ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_BACKEND_TIMEOUT": "0"})); err == nil {
 		t.Fatal("expected error for non-positive PLANNER_BACKEND_TIMEOUT")
 	}
-	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_BACKEND_TIMEOUT": "-1s"}); err == nil {
+	if _, err := ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_BACKEND_TIMEOUT": "-1s"})); err == nil {
 		t.Fatal("expected error for negative PLANNER_BACKEND_TIMEOUT")
 	}
 }
@@ -174,7 +174,7 @@ func TestConfigFromEnv_PlannerTriggersPathDefaultAndOverride(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
 	// Default: PlannerTriggersPath under repoRoot/.codex/planner-loop.
-	cfg, err := ConfigFromEnv(root, map[string]string{})
+	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -189,10 +189,10 @@ func TestConfigFromEnv_PlannerTriggersPathDefaultAndOverride(t *testing.T) {
 
 	// Env override: PLANNER_TRIGGERS_PATH replaces the default; the cursor
 	// path is NOT env-overridable (it follows RunRoot).
-	cfg, err = ConfigFromEnv(root, map[string]string{
+	cfg, err = ConfigFromEnv(root, MapEnv(map[string]string{
 		"PLANNER_TRIGGERS_PATH": "/srv/triggers.jsonl",
 		"RUN_ROOT":              "/srv/planner",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() override error = %v", err)
 	}
@@ -207,7 +207,7 @@ func TestConfigFromEnv_PlannerTriggersPathDefaultAndOverride(t *testing.T) {
 func TestConfigFromEnv_ImplInventoryDefaultsAndValidation(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
-	cfg, err := ConfigFromEnv(root, map[string]string{})
+	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -221,10 +221,10 @@ func TestConfigFromEnv_ImplInventoryDefaultsAndValidation(t *testing.T) {
 		t.Fatalf("TriggerReason default = %q, want empty", cfg.TriggerReason)
 	}
 
-	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_IMPL_LOOKBACK": "soon"}); err == nil {
+	if _, err := ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_IMPL_LOOKBACK": "soon"})); err == nil {
 		t.Fatal("expected error for invalid PLANNER_IMPL_LOOKBACK")
 	}
-	if _, err := ConfigFromEnv(root, map[string]string{"PLANNER_IMPL_LOOKBACK": "0"}); err == nil {
+	if _, err := ConfigFromEnv(root, MapEnv(map[string]string{"PLANNER_IMPL_LOOKBACK": "0"})); err == nil {
 		t.Fatal("expected error for non-positive PLANNER_IMPL_LOOKBACK")
 	}
 }

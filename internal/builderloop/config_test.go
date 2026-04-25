@@ -10,7 +10,7 @@ import (
 func TestConfigFromEnvDefaultsToRepoRootPaths(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
-	cfg, err := ConfigFromEnv(root, map[string]string{})
+	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -57,7 +57,7 @@ func TestConfigFromEnvDefaultsToRepoRootPaths(t *testing.T) {
 func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
-	cfg, err := ConfigFromEnv(root, map[string]string{
+	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{
 		"RUN_ROOT":                 "/tmp/run",
 		"BACKEND":                  "claudeu",
 		"MODE":                     "full",
@@ -65,7 +65,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		"MAX_PHASE":                "5",
 		"PRIORITY_BOOST":           "3.E.7, 4.A ",
 		"AUTOLOOP_BACKEND_TIMEOUT": "9m",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -99,43 +99,43 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 }
 
 func TestConfigFromEnvRejectsEmptyRepoRoot(t *testing.T) {
-	if _, err := ConfigFromEnv("", map[string]string{}); err == nil {
+	if _, err := ConfigFromEnv("", MapEnv(map[string]string{})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
 
 func TestConfigFromEnvRejectsInvalidMaxAgents(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_AGENTS": "many"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"MAX_AGENTS": "many"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
 
 func TestConfigFromEnvRejectsZeroMaxAgents(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_AGENTS": "0"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"MAX_AGENTS": "0"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
 
 func TestConfigFromEnvRejectsInvalidMaxPhase(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"MAX_PHASE": "many"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"MAX_PHASE": "many"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
 
 func TestConfigFromEnvRejectsInvalidBackendTimeout(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "soon"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "soon"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want invalid timeout error")
 	}
-	if _, err := ConfigFromEnv("repo", map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "0"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "0"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want non-positive timeout error")
 	}
-	if _, err := ConfigFromEnv("repo", map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "-1s"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"AUTOLOOP_BACKEND_TIMEOUT": "-1s"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want negative timeout error")
 	}
 }
 
 func TestConfigFromEnvAllowsZeroMaxPhaseAsUnbounded(t *testing.T) {
-	cfg, err := ConfigFromEnv("repo", map[string]string{"MAX_PHASE": "0"})
+	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{"MAX_PHASE": "0"}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -146,7 +146,7 @@ func TestConfigFromEnvAllowsZeroMaxPhaseAsUnbounded(t *testing.T) {
 }
 
 func TestConfigFromEnvReadsProgressJSONOverride(t *testing.T) {
-	cfg, err := ConfigFromEnv("repo", map[string]string{"PROGRESS_JSON": "/tmp/progress.json"})
+	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{"PROGRESS_JSON": "/tmp/progress.json"}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -157,7 +157,7 @@ func TestConfigFromEnvReadsProgressJSONOverride(t *testing.T) {
 }
 
 func TestConfigFromEnvReactiveDefaults(t *testing.T) {
-	cfg, err := ConfigFromEnv("repo", map[string]string{})
+	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -204,7 +204,7 @@ func TestConfigFromEnvReactiveDefaults(t *testing.T) {
 }
 
 func TestConfigFromEnvReactiveOverrides(t *testing.T) {
-	cfg, err := ConfigFromEnv("repo", map[string]string{
+	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{
 		"QUARANTINE_THRESHOLD":            "7",
 		"BACKEND_DEGRADE_THRESHOLD":       "2",
 		"BACKEND_FALLBACK":                "codexu, claudeu ,opencode",
@@ -218,7 +218,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/builderloop -count=1;;go run ./cmd/builder-loop progress validate",
 		"POST_PROMOTION_REPAIR":           "off",
 		"POST_PROMOTION_REPAIR_ATTEMPTS":  "2",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -266,7 +266,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 }
 
 func TestConfigFromEnvBackendFallbackEmptyYieldsEmptySlice(t *testing.T) {
-	cfg, err := ConfigFromEnv("repo", map[string]string{"BACKEND_FALLBACK": ""})
+	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{"BACKEND_FALLBACK": ""}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -278,7 +278,7 @@ func TestConfigFromEnvBackendFallbackEmptyYieldsEmptySlice(t *testing.T) {
 
 func TestConfigFromEnvBackendFallbackUnsetKeepsDefault(t *testing.T) {
 	// Map with no key at all -> keep default nil.
-	cfg, err := ConfigFromEnv("repo", map[string]string{})
+	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -288,7 +288,7 @@ func TestConfigFromEnvBackendFallbackUnsetKeepsDefault(t *testing.T) {
 }
 
 func TestConfigFromEnvQuarantineThresholdEmptyKeepsDefault(t *testing.T) {
-	cfg, err := ConfigFromEnv("repo", map[string]string{"QUARANTINE_THRESHOLD": ""})
+	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{"QUARANTINE_THRESHOLD": ""}))
 	if err != nil {
 		t.Fatalf("ConfigFromEnv() error = %v", err)
 	}
@@ -299,7 +299,7 @@ func TestConfigFromEnvQuarantineThresholdEmptyKeepsDefault(t *testing.T) {
 
 func TestConfigFromEnvReportRepairFalseValues(t *testing.T) {
 	for _, v := range []string{"0", "false", "no", "off", "FALSE"} {
-		cfg, err := ConfigFromEnv("repo", map[string]string{"GORMES_REPORT_REPAIR": v})
+		cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{"GORMES_REPORT_REPAIR": v}))
 		if err != nil {
 			t.Fatalf("ConfigFromEnv(%q) error = %v", v, err)
 		}
@@ -310,31 +310,31 @@ func TestConfigFromEnvReportRepairFalseValues(t *testing.T) {
 }
 
 func TestConfigFromEnvRejectsInvalidQuarantineThreshold(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"QUARANTINE_THRESHOLD": "abc"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"QUARANTINE_THRESHOLD": "abc"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
-	if _, err := ConfigFromEnv("repo", map[string]string{"QUARANTINE_THRESHOLD": "0"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"QUARANTINE_THRESHOLD": "0"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error for zero threshold")
 	}
 }
 
 func TestConfigFromEnvRejectsInvalidReportRepair(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"GORMES_REPORT_REPAIR": "maybe"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"GORMES_REPORT_REPAIR": "maybe"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
 
 func TestConfigFromEnvRejectsInvalidPostPromotionRepair(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"POST_PROMOTION_REPAIR": "maybe"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"POST_PROMOTION_REPAIR": "maybe"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
 }
 
 func TestConfigFromEnvRejectsInvalidPostPromotionRepairAttempts(t *testing.T) {
-	if _, err := ConfigFromEnv("repo", map[string]string{"POST_PROMOTION_REPAIR_ATTEMPTS": "many"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"POST_PROMOTION_REPAIR_ATTEMPTS": "many"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want error")
 	}
-	if _, err := ConfigFromEnv("repo", map[string]string{"POST_PROMOTION_REPAIR_ATTEMPTS": "-1"}); err == nil {
+	if _, err := ConfigFromEnv("repo", MapEnv(map[string]string{"POST_PROMOTION_REPAIR_ATTEMPTS": "-1"})); err == nil {
 		t.Fatal("ConfigFromEnv() error = nil, want non-negative error")
 	}
 }
