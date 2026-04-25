@@ -291,6 +291,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 3.E.8 — Session Lineage + Cross-Source Search 🔨
 
 - [ ] parent_session_id lineage for compression splits
+- [ ] Gateway resume follows compression continuation
 - [x] Source-filtered session/message search core
 - [x] GONCHO user-scope search/context parameters
 - [ ] Lineage-aware source-filtered search hits
@@ -304,6 +305,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Provider interface + stream fixture harness
 - [x] Tool-call normalization + continuation contract
+- [ ] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] Anthropic
 - [ ] Bedrock
 - [ ] Bedrock Converse payload mapping (no AWS SDK)
@@ -340,6 +342,8 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 4.D — Smart Model Routing ⏳
 
 - [ ] Model metadata registry + context limits
+- [ ] Provider-enforced context-length resolver
+- [ ] Model pricing/capability registry fixtures
 - [ ] Routing policy and fallback selector
 - [ ] Per-turn model selection
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-24",
+    "last_updated": "2026-04-25",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -1426,7 +1426,99 @@
             {
               "name": "parent_session_id lineage for compression splits",
               "status": "planned",
-              "note": "Execution plan frozen: add parent_session_id + lineage_kind to session.Metadata, keep roots null/primary by default, reject trivial loops, and surface orphan chains in mirrors/status instead of failing silently."
+              "contract": "Session metadata records compression/fork lineage and can resolve the live descendant without rewriting ancestor history",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Session mirrors and status show missing, orphaned, or looped lineage instead of silently resuming stale roots.",
+              "fixture": "internal/session/lineage_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_state.py",
+                "../hermes-agent/docs/developer-guide/session-storage.md",
+                "../hermes-agent/tests/gateway/test_resume_command.py",
+                "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+              ],
+              "ready_when": [
+                "internal/session.Metadata already persists source, chat_id, user_id, and updated_at on bbolt-backed sessions."
+              ],
+              "not_ready_when": [
+                "The slice implements compression itself or rewrites existing session IDs instead of adding append-only lineage metadata."
+              ],
+              "unblocks": [
+                "Gateway resume follows compression continuation",
+                "Lineage-aware source-filtered search hits"
+              ],
+              "acceptance": [
+                "session.Metadata carries parent_session_id and lineage_kind while root sessions remain parentless by default.",
+                "Self-parent and trivial parent loops are rejected in BoltMap and MemMap tests.",
+                "SessionIndexMirror or an equivalent read model exposes parent/child/orphan lineage for operator audit."
+              ],
+              "note": "Execution plan frozen and refined after upstream Hermes commit 19a3e2ce: add parent_session_id + lineage_kind to session.Metadata, keep roots null/primary by default, reject trivial loops, and surface orphan chains in mirrors/status instead of failing silently. This is only lineage storage and resolution scaffolding; compression, gateway resume routing, and lineage-aware search are separate dependent rows.",
+              "write_scope": [
+                "internal/session/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/session -count=1"
+              ],
+              "done_signal": [
+                "Session lineage fixtures prove append-only parent metadata, loop rejection, and operator-visible orphan status without implementing compression."
+              ]
+            },
+            {
+              "name": "Gateway resume follows compression continuation",
+              "status": "planned",
+              "contract": "Gateway and CLI resume resolve a titled or root session to the newest live compression descendant before loading transcript history",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Resume status reports unresolved continuation chains and falls back visibly instead of loading an ended compression root as live history.",
+              "fixture": "internal/gateway/resume_continuation_test.go",
+              "source_refs": [
+                "upstream Hermes 19a3e2ce",
+                "../hermes-agent/gateway/run.py",
+                "../hermes-agent/tests/gateway/test_resume_command.py",
+                "../hermes-agent/docs/user-guide/sessions.md"
+              ],
+              "blocked_by": [
+                "parent_session_id lineage for compression splits"
+              ],
+              "ready_when": [
+                "Session lineage metadata can resolve root -> child chains and distinguish ended compression roots from live descendants."
+              ],
+              "not_ready_when": [
+                "The slice changes context compression behavior or loads transcripts from a separate store instead of reusing the native session read model."
+              ],
+              "unblocks": [
+                "Context compression"
+              ],
+              "acceptance": [
+                "Resume by title or root ID follows a compression child chain to the newest live descendant.",
+                "Already-current session checks compare against the resolved descendant, not the stale root.",
+                "Transcript loading and session switching use the resolved descendant while operator output still names the requested session."
+              ],
+              "note": "Upstream Hermes now calls resolve_resume_session_id after resolving a gateway /resume title so compressed roots reopen their live continuation. Gormes should keep this as a gateway/session read-model slice after parent_session_id exists, not as part of compression implementation.",
+              "write_scope": [
+                "internal/gateway/",
+                "internal/session/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/session -count=1"
+              ],
+              "done_signal": [
+                "Gateway resume fixtures prove compressed roots reopen live descendants and stale roots are reported visibly."
+              ]
             },
             {
               "name": "Source-filtered session/message search core",
@@ -1441,7 +1533,51 @@
             {
               "name": "Lineage-aware source-filtered search hits",
               "status": "planned",
-              "note": "TDD: once parent_session_id exists, make SearchMessages/SearchSessions expose parent/child lineage context for matched sessions without changing default same-chat recall behavior."
+              "contract": "Session and message search can surface parent/child lineage context for matched sessions without widening the same-chat default recall fence",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Search evidence reports lineage unavailable or orphaned instead of implying a complete compression chain.",
+              "fixture": "internal/memory/session_lineage_search_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_state.py",
+                "../hermes-agent/docs/developer-guide/session-storage.md",
+                "internal/memory/session_catalog.go",
+                "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+              ],
+              "blocked_by": [
+                "parent_session_id lineage for compression splits"
+              ],
+              "ready_when": [
+                "Session lineage metadata is persisted and can be queried from the session read model."
+              ],
+              "not_ready_when": [
+                "The slice changes user-scope access rules or bundles operator evidence rendering in the same implementation."
+              ],
+              "unblocks": [
+                "Operator-auditable search evidence"
+              ],
+              "acceptance": [
+                "SearchMessages and SearchSessions include lineage metadata for matched sessions when parent/child data exists.",
+                "Same-chat default recall remains unchanged unless scope=user or source filters explicitly widen it.",
+                "Orphaned or incomplete chains produce explicit evidence fields instead of dropped results."
+              ],
+              "note": "TDD: once parent_session_id exists, make SearchMessages/SearchSessions expose parent/child lineage context for matched sessions without changing default same-chat recall behavior.",
+              "write_scope": [
+                "internal/memory/",
+                "internal/session/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/memory ./internal/session -count=1"
+              ],
+              "done_signal": [
+                "Lineage-aware search fixtures prove matched sessions carry parent/child context while default same-chat recall stays fenced."
+              ]
             },
             {
               "name": "Operator-auditable search evidence",
@@ -1531,6 +1667,7 @@
                 "Continuation mapping is implemented inside one provider adapter instead of the shared event model."
               ],
               "unblocks": [
+                "DeepSeek/Kimi reasoning_content echo for tool-call replay",
                 "Bedrock stream event decoding (SSE fixtures)",
                 "OpenRouter",
                 "Codex"
@@ -1550,6 +1687,52 @@
               ],
               "done_signal": [
                 "Cross-provider fixtures prove tool-call accumulation and continuation payloads preserve provider-safe semantics."
+              ]
+            },
+            {
+              "name": "DeepSeek/Kimi reasoning_content echo for tool-call replay",
+              "status": "planned",
+              "contract": "Thinking-mode providers that require reasoning_content on assistant tool-call turns receive an echoed value during persistence and API replay",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Provider status explains when a thinking-mode provider requires reasoning echo padding and when a stored transcript was repaired for replay.",
+              "fixture": "internal/hermes/reasoning_content_echo_test.go",
+              "source_refs": [
+                "upstream Hermes d58b305a",
+                "../hermes-agent/run_agent.py",
+                "../hermes-agent/tests/run_agent/test_deepseek_reasoning_content_echo.py",
+                "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+              ],
+              "ready_when": [
+                "Shared provider continuation fixtures can serialize assistant tool-call messages and replay them without live provider credentials."
+              ],
+              "not_ready_when": [
+                "The slice stores hidden reasoning text in ordinary assistant content or changes non-thinking providers' replay payloads."
+              ],
+              "unblocks": [
+                "Cross-provider reasoning-tag sanitization",
+                "OpenRouter",
+                "Codex stream repair + tool-call leak sanitizer"
+              ],
+              "acceptance": [
+                "DeepSeek is detected by provider name, model substring, or api.deepseek.com host and gets reasoning_content=\"\" on assistant tool-call replay when no reasoning exists.",
+                "Kimi/Moonshot detection keeps the existing reasoning_content padding behavior.",
+                "Explicit reasoning_content or reasoning fields are preserved, while non-tool assistant turns and non-thinking providers are left untouched."
+              ],
+              "note": "Upstream Hermes commit d58b305a added DeepSeek V4 thinking-mode regression coverage and extracted Kimi/DeepSeek detection helpers so both creation and replay paths inject reasoning_content on assistant tool-call turns. Port this as a provider-boundary fixture over Gormes' shared Message/Event contract before more reasoning-model adapters land.",
+              "write_scope": [
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -count=1"
+              ],
+              "done_signal": [
+                "Reasoning echo fixtures prove DeepSeek and Kimi tool-call replays include provider-required reasoning_content without mutating ordinary assistant content."
               ]
             },
             {
@@ -2004,12 +2187,159 @@
             {
               "name": "Model metadata registry + context limits",
               "status": "planned",
-              "note": "TDD: port `agent/model_metadata.py` and `agent/models_dev.py` into a read-only Go registry with deterministic context-window, pricing, capability, and provider-family fixtures before routing decisions consume it."
+              "slice_size": "umbrella",
+              "execution_owner": "provider",
+              "not_ready_when": [
+                "The row is assigned as one metadata/routing implementation instead of the resolver, pricing/capability, and selector slices below."
+              ],
+              "unblocks": [
+                "Provider-enforced context-length resolver",
+                "Model pricing/capability registry fixtures",
+                "Routing policy and fallback selector"
+              ],
+              "note": "Umbrella only: port `agent/model_metadata.py` and `agent/models_dev.py` through smaller fixtures. The 2026-04-24 upstream sync proved context display must prefer provider-enforced limits over raw models.dev context windows, so do not let routing, display, pricing, and capability data land as one broad slice."
+            },
+            {
+              "name": "Provider-enforced context-length resolver",
+              "status": "planned",
+              "contract": "Displayed and budgeted context windows prefer provider-enforced limits over raw models.dev metadata",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Model status reports whether the context length came from provider-specific caps, models.dev fallback, or an unknown model.",
+              "fixture": "internal/hermes/model_context_resolver_test.go",
+              "source_refs": [
+                "upstream Hermes 05d8f110",
+                "../hermes-agent/hermes_cli/model_switch.py",
+                "../hermes-agent/cli.py",
+                "../hermes-agent/gateway/run.py",
+                "../hermes-agent/tests/hermes_cli/test_model_switch_context_display.py"
+              ],
+              "ready_when": [
+                "Provider status and model metadata can be tested as pure functions without live provider credentials."
+              ],
+              "not_ready_when": [
+                "The slice implements routing/fallback policy or pulls live models.dev/network data during unit tests."
+              ],
+              "unblocks": [
+                "Compression token-budget trigger + summary sizing",
+                "Routing policy and fallback selector"
+              ],
+              "acceptance": [
+                "openai-codex gpt-5.5 displays and budgets the provider cap (272000 tokens) instead of the raw models.dev 1050000-token window.",
+                "Provider-specific caps for Codex OAuth, Copilot, and Nous win over model-info fallbacks when present.",
+                "Unknown resolver failures fall back to fixture model metadata and report unknown when both sources are empty."
+              ],
+              "note": "Hermes now routes /model display through resolve_display_context_length so provider-enforced caps win over raw models.dev entries. Gormes should port the resolver as a pure metadata fixture first; CLI/gateway display wiring can consume it later without duplicating cap logic.",
+              "write_scope": [
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -count=1"
+              ],
+              "done_signal": [
+                "Context resolver fixtures prove provider caps, models.dev fallback, and unknown-model reporting are deterministic without network calls."
+              ]
+            },
+            {
+              "name": "Model pricing/capability registry fixtures",
+              "status": "planned",
+              "contract": "Read-only model metadata exposes deterministic pricing, capability flags, provider family, and raw context facts before routing consumes them",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Model status distinguishes unknown pricing, unknown capability, and stale embedded registry data instead of inventing defaults.",
+              "fixture": "internal/hermes/model_registry_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/model_metadata.py",
+                "../hermes-agent/agent/models_dev.py",
+                "../hermes-agent/agent/usage_pricing.py",
+                "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
+              ],
+              "blocked_by": [
+                "Provider-enforced context-length resolver"
+              ],
+              "ready_when": [
+                "Provider-enforced context resolver fixtures establish the metadata package shape and fallback semantics."
+              ],
+              "not_ready_when": [
+                "The slice implements smart routing decisions or provider calls instead of read-only metadata fixtures."
+              ],
+              "unblocks": [
+                "Routing policy and fallback selector"
+              ],
+              "acceptance": [
+                "Fixture registry exposes model family, raw context window, max output, pricing fields, and capability flags.",
+                "Missing pricing and missing capability values remain explicit unknowns.",
+                "Registry fixtures are embedded or local-testdata only and never require live models.dev access."
+              ],
+              "note": "Split out from the former broad metadata row so autoloop workers can first land read-only model facts before any routing selector consumes them.",
+              "write_scope": [
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -count=1"
+              ],
+              "done_signal": [
+                "Model registry fixtures expose pricing, capability, provider-family, and raw context metadata with explicit unknown states."
+              ]
             },
             {
               "name": "Routing policy and fallback selector",
               "status": "planned",
-              "note": "TDD: port `agent/smart_model_routing.py` as a pure selector over task signals, explicit overrides, provider availability, and fallback_model behavior before any provider call can switch models."
+              "contract": "Smart model routing is a pure selector over explicit overrides, provider availability, fallback policy, and model metadata before any provider call switches models",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Routing status reports metadata gaps, unavailable providers, and disabled fallback routes before changing a turn's model.",
+              "fixture": "internal/hermes/model_routing_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/smart_model_routing.py",
+                "../hermes-agent/agent/model_metadata.py",
+                "../hermes-agent/hermes_cli/runtime_provider.py",
+                "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+              ],
+              "blocked_by": [
+                "Provider-enforced context-length resolver",
+                "Model pricing/capability registry fixtures"
+              ],
+              "ready_when": [
+                "Context limits, pricing, capabilities, and provider-family metadata are fixture-backed."
+              ],
+              "not_ready_when": [
+                "The selector mutates kernel turn state, opens provider network calls, or hides operator-specified model overrides."
+              ],
+              "acceptance": [
+                "Explicit per-turn or config overrides win over automatic routing unless invalid.",
+                "Fallback choices are deterministic from fixture provider availability and model metadata.",
+                "Selector output includes a reason code suitable for telemetry and operator status."
+              ],
+              "note": "TDD: port `agent/smart_model_routing.py` as a pure selector over task signals, explicit overrides, provider availability, and fallback_model behavior before any provider call can switch models.",
+              "write_scope": [
+                "internal/hermes/",
+                "internal/kernel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes ./internal/kernel -count=1"
+              ],
+              "done_signal": [
+                "Routing selector fixtures prove deterministic model choices and reason codes without provider calls or kernel mutation."
+              ]
             },
             {
               "name": "Per-turn model selection",

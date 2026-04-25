@@ -106,7 +106,47 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Cross-chat deny-path fixtures, Honcho host integration compatibility fixtures
 - Why now: Unblocks Cross-chat deny-path fixtures, Honcho host integration compatibility fixtures.
 
-## 5. Bedrock Converse payload mapping (no AWS SDK)
+## 5. parent_session_id lineage for compression splits
+
+- Phase: 3 / 3.E.8
+- Owner: `memory`
+- Size: `small`
+- Status: `planned`
+- Contract: Session metadata records compression/fork lineage and can resolve the live descendant without rewriting ancestor history
+- Trust class: operator, gateway, system
+- Ready when: internal/session.Metadata already persists source, chat_id, user_id, and updated_at on bbolt-backed sessions.
+- Not ready when: The slice implements compression itself or rewrites existing session IDs instead of adding append-only lineage metadata.
+- Degraded mode: Session mirrors and status show missing, orphaned, or looped lineage instead of silently resuming stale roots.
+- Fixture: `internal/session/lineage_test.go`
+- Write scope: `internal/session/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/session -count=1`
+- Done signal: Session lineage fixtures prove append-only parent metadata, loop rejection, and operator-visible orphan status without implementing compression.
+- Acceptance: session.Metadata carries parent_session_id and lineage_kind while root sessions remain parentless by default., Self-parent and trivial parent loops are rejected in BoltMap and MemMap tests., SessionIndexMirror or an equivalent read model exposes parent/child/orphan lineage for operator audit.
+- Source refs: ../hermes-agent/hermes_state.py, ../hermes-agent/docs/developer-guide/session-storage.md, ../hermes-agent/tests/gateway/test_resume_command.py, docs/content/building-gormes/architecture_plan/phase-3-memory.md
+- Unblocks: Gateway resume follows compression continuation, Lineage-aware source-filtered search hits
+- Why now: Unblocks Gateway resume follows compression continuation, Lineage-aware source-filtered search hits.
+
+## 6. DeepSeek/Kimi reasoning_content echo for tool-call replay
+
+- Phase: 4 / 4.A
+- Owner: `provider`
+- Size: `small`
+- Status: `planned`
+- Contract: Thinking-mode providers that require reasoning_content on assistant tool-call turns receive an echoed value during persistence and API replay
+- Trust class: system
+- Ready when: Shared provider continuation fixtures can serialize assistant tool-call messages and replay them without live provider credentials.
+- Not ready when: The slice stores hidden reasoning text in ordinary assistant content or changes non-thinking providers' replay payloads.
+- Degraded mode: Provider status explains when a thinking-mode provider requires reasoning echo padding and when a stored transcript was repaired for replay.
+- Fixture: `internal/hermes/reasoning_content_echo_test.go`
+- Write scope: `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -count=1`
+- Done signal: Reasoning echo fixtures prove DeepSeek and Kimi tool-call replays include provider-required reasoning_content without mutating ordinary assistant content.
+- Acceptance: DeepSeek is detected by provider name, model substring, or api.deepseek.com host and gets reasoning_content="" on assistant tool-call replay when no reasoning exists., Kimi/Moonshot detection keeps the existing reasoning_content padding behavior., Explicit reasoning_content or reasoning fields are preserved, while non-tool assistant turns and non-thinking providers are left untouched.
+- Source refs: upstream Hermes d58b305a, ../hermes-agent/run_agent.py, ../hermes-agent/tests/run_agent/test_deepseek_reasoning_content_echo.py, docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md
+- Unblocks: Cross-provider reasoning-tag sanitization, OpenRouter, Codex stream repair + tool-call leak sanitizer
+- Why now: Unblocks Cross-provider reasoning-tag sanitization, OpenRouter, Codex stream repair + tool-call leak sanitizer.
+
+## 7. Bedrock Converse payload mapping (no AWS SDK)
 
 - Phase: 4 / 4.A
 - Owner: `provider`
@@ -126,7 +166,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Bedrock stream event decoding (SSE fixtures)
 - Why now: Unblocks Bedrock stream event decoding (SSE fixtures).
 
-## 6. Codex Responses pure conversion harness
+## 8. Codex Responses pure conversion harness
 
 - Phase: 4 / 4.A
 - Owner: `provider`
@@ -146,7 +186,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Codex stream repair + tool-call leak sanitizer, Codex OAuth state + stale-token relogin
 - Why now: Unblocks Codex stream repair + tool-call leak sanitizer, Codex OAuth state + stale-token relogin.
 
-## 7. Tool-call argument repair + schema sanitizer
+## 9. Tool-call argument repair + schema sanitizer
 
 - Phase: 4 / 4.A
 - Owner: `provider`
@@ -166,64 +206,24 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Codex stream repair + tool-call leak sanitizer, OpenRouter, Bedrock stream event decoding (SSE fixtures)
 - Why now: Unblocks Codex stream repair + tool-call leak sanitizer, OpenRouter, Bedrock stream event decoding (SSE fixtures).
 
-## 8. Skill preprocessing + dynamic slash commands
+## 10. Provider-enforced context-length resolver
 
-- Phase: 5 / 5.F
-- Owner: `skills`
+- Phase: 4 / 4.D
+- Owner: `provider`
 - Size: `small`
 - Status: `planned`
-- Contract: Skill content preprocessing and skill-backed slash commands are deterministic, disabled-skill aware, and prompt-safe
-- Trust class: operator, gateway, system
-- Ready when: Phase 2.G parser/store and inactive candidate flow are complete.
-- Not ready when: Inline shell preprocessing can execute during prompt assembly or disabled skills remain invokable through slash commands.
-- Degraded mode: Skill status reports disabled, missing-prerequisite, or preprocessing-failed skills without injecting them into prompts.
-- Fixture: `internal/skills/preprocessing_commands_test.go`
-- Write scope: `internal/skills/`, `internal/gateway/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/skills ./internal/gateway -count=1`
-- Done signal: Skill preprocessing and slash-command fixtures prove disabled/incompatible skills do not enter prompt or command surfaces.
-- Acceptance: Template variable preprocessing is deterministic and fixture-covered., Inline shell preprocessing is disabled by default and bounded when explicitly enabled., Skill slash commands skip disabled/incompatible skills and build stable user-message content.
-- Source refs: ../hermes-agent/agent/skill_preprocessing.py, ../hermes-agent/agent/skill_commands.py, ../hermes-agent/tools/skills_tool.py, ../hermes-agent/tests/tools/test_skills_tool.py, ../hermes-agent/tests/agent/test_skill_commands.py
-- Unblocks: Toolset-aware skills prompt snapshot, TUI + Telegram browsing
-- Why now: Unblocks Toolset-aware skills prompt snapshot, TUI + Telegram browsing.
-
-## 9. PTY bridge protocol adapter
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Contract: Dashboard/TUI PTY sessions expose bounded read, write, resize, close, and unavailable-state behavior through a testable adapter
-- Trust class: operator
-- Ready when: Deterministic CLI helper ports are understood and PTY behavior can be isolated from the web dashboard transport.
-- Not ready when: The slice starts the web dashboard, opens network listeners, or binds to a real TUI process in unit tests.
-- Degraded mode: Dashboard or CLI status reports PTY unavailable instead of falling back to unsafe shell execution.
-- Fixture: `internal/cli/pty_bridge_test.go`
-- Write scope: `internal/cli/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/cli -count=1`
-- Done signal: PTY bridge fixtures prove read/write/resize/close/unavailable behavior without network or live dashboard dependencies.
-- Acceptance: Reads are bounded by timeout and chunk size., Writes and resize messages validate input before reaching the PTY., Unsupported platforms return PtyUnavailable-style errors without starting a shell.
-- Source refs: ../hermes-agent/hermes_cli/pty_bridge.py, ../hermes-agent/tests/hermes_cli/test_pty_bridge.py, ../hermes-agent/hermes_cli/web_server.py
-- Unblocks: SSE streaming to Bubble Tea TUI, Dashboard PTY chat sidecar contract
-- Why now: Unblocks SSE streaming to Bubble Tea TUI, Dashboard PTY chat sidecar contract.
-
-## 10. OpenAI-compatible chat-completions API server
-
-- Phase: 5 / 5.Q
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Contract: OpenAI-compatible chat.completions HTTP surface over the native Gormes turn loop
-- Trust class: operator, gateway
-- Ready when: Native kernel turn loop, gateway session handles, and provider event streaming are stable enough for HTTP replay fixtures.
-- Not ready when: The server shells out to Python api_server or creates a second session store instead of using native Gormes state.
-- Degraded mode: API health and error envelopes report auth, body-size, content-normalization, and streaming failures without starting hidden sessions.
-- Fixture: `internal/apiserver/chat_completions_test.go`
-- Write scope: `internal/gateway/`, `internal/kernel/`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway ./internal/kernel ./internal/apiserver -count=1`
-- Done signal: Chat-completions HTTP fixtures prove auth, body limits, content normalization, streaming envelopes, and session continuity over native Gormes state.
-- Acceptance: Bearer/API-key auth, request body limits, and OpenAI error envelopes are fixture-covered., Chat content parts normalize to the same user-message shape used by gateway sessions., Streaming and non-streaming responses include stable X-Hermes-Session-Id continuity.
-- Source refs: ../hermes-agent/gateway/platforms/api_server.py, ../hermes-agent/tests/gateway/test_api_server.py, docs/content/upstream-hermes/user-guide/features/api-server.md, docs/content/building-gormes/architecture_plan/phase-5-final-purge.md
-- Unblocks: Responses API store + run event stream, Gateway proxy mode forwarding contract, Dashboard API client contract
-- Why now: Unblocks Responses API store + run event stream, Gateway proxy mode forwarding contract, Dashboard API client contract.
+- Contract: Displayed and budgeted context windows prefer provider-enforced limits over raw models.dev metadata
+- Trust class: operator, system
+- Ready when: Provider status and model metadata can be tested as pure functions without live provider credentials.
+- Not ready when: The slice implements routing/fallback policy or pulls live models.dev/network data during unit tests.
+- Degraded mode: Model status reports whether the context length came from provider-specific caps, models.dev fallback, or an unknown model.
+- Fixture: `internal/hermes/model_context_resolver_test.go`
+- Write scope: `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -count=1`
+- Done signal: Context resolver fixtures prove provider caps, models.dev fallback, and unknown-model reporting are deterministic without network calls.
+- Acceptance: openai-codex gpt-5.5 displays and budgets the provider cap (272000 tokens) instead of the raw models.dev 1050000-token window., Provider-specific caps for Codex OAuth, Copilot, and Nous win over model-info fallbacks when present., Unknown resolver failures fall back to fixture model metadata and report unknown when both sources are empty.
+- Source refs: upstream Hermes 05d8f110, ../hermes-agent/hermes_cli/model_switch.py, ../hermes-agent/cli.py, ../hermes-agent/gateway/run.py, ../hermes-agent/tests/hermes_cli/test_model_switch_context_display.py
+- Unblocks: Compression token-budget trigger + summary sizing, Routing policy and fallback selector
+- Why now: Unblocks Compression token-budget trigger + summary sizing, Routing policy and fallback selector.
 
 <!-- PROGRESS:END -->
