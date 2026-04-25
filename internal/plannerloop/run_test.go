@@ -161,6 +161,47 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 	}
 }
 
+func TestRunOnceClearsStaleRawReportBeforeBackend(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	if err := os.MkdirAll(cfg.RunRoot, 0o755); err != nil {
+		t.Fatalf("MkdirAll(run root) error = %v", err)
+	}
+	rawReportPath := filepath.Join(cfg.RunRoot, "latest_planner_report.raw.md")
+	if err := os.WriteFile(rawReportPath, []byte("stale backend report\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(stale raw report) error = %v", err)
+	}
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "fresh planner stdout\n"},
+		},
+	}
+
+	summary, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	reportRaw, err := os.ReadFile(summary.ReportPath)
+	if err != nil {
+		t.Fatalf("ReadFile(report) error = %v", err)
+	}
+	report := string(reportRaw)
+	if strings.Contains(report, "stale backend report") {
+		t.Fatalf("report reused stale raw backend output:\n%s", report)
+	}
+	if !strings.Contains(report, "fresh planner stdout") {
+		t.Fatalf("report missing fresh backend stdout:\n%s", report)
+	}
+}
+
 func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {

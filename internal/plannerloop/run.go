@@ -271,6 +271,9 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	)
 	for i := 0; i <= maxRetries; i++ {
 		attempt := retryAttempt{Index: i}
+		if err := clearRawReport(rawReportPath); err != nil {
+			return RunSummary{}, fmt.Errorf("planner: clear raw report: %w", err)
+		}
 		backendCtx := ctx
 		cancelBackend := func() {}
 		if cfg.BackendTimeout > 0 {
@@ -539,6 +542,13 @@ func writeReport(path, rawPath string, result cmdrunner.Result, bundle ContextBu
 %s
 `, now.UTC().Format(time.RFC3339), bundle.RepoRoot, bundle.ProgressJSON, bundle.ProgressStats.Items, raw)
 	return os.WriteFile(path, []byte(body), 0o644)
+}
+
+func clearRawReport(path string) error {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func writeState(path string, state stateFile) error {
