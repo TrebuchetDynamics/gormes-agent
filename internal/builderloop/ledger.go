@@ -17,33 +17,43 @@ type LedgerEvent struct {
 	Commit string    `json:"commit,omitempty"`
 	Status string    `json:"status,omitempty"`
 	Detail string    `json:"detail,omitempty"`
+	// Speculative indicates the worker was claimed speculatively (blocked_by
+	// not yet complete). Used for tracing and verification.
+	Speculative bool `json:"speculative,omitempty"`
+	// SpecHashAtClaim is the ItemSpecHash snapshot at claim time. Used to
+	// detect spec changes during speculative execution before promotion.
+	SpecHashAtClaim string `json:"spec_hash_at_claim,omitempty"`
 }
 
 func (event *LedgerEvent) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		TS     time.Time       `json:"ts"`
-		RunID  string          `json:"run_id,omitempty"`
-		Event  string          `json:"event"`
-		Worker int             `json:"worker,omitempty"`
-		Task   string          `json:"task,omitempty"`
-		Branch string          `json:"branch,omitempty"`
-		Commit string          `json:"commit,omitempty"`
-		Status string          `json:"status,omitempty"`
-		Detail json.RawMessage `json:"detail,omitempty"`
+		TS              time.Time       `json:"ts"`
+		RunID           string          `json:"run_id,omitempty"`
+		Event           string          `json:"event"`
+		Worker          int             `json:"worker,omitempty"`
+		Task            string          `json:"task,omitempty"`
+		Branch          string          `json:"branch,omitempty"`
+		Commit          string          `json:"commit,omitempty"`
+		Status          string          `json:"status,omitempty"`
+		Detail          json.RawMessage `json:"detail,omitempty"`
+		Speculative     bool            `json:"speculative,omitempty"`
+		SpecHashAtClaim string          `json:"spec_hash_at_claim,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 
 	*event = LedgerEvent{
-		TS:     raw.TS,
-		RunID:  raw.RunID,
-		Event:  raw.Event,
-		Worker: raw.Worker,
-		Task:   raw.Task,
-		Branch: raw.Branch,
-		Commit: raw.Commit,
-		Status: raw.Status,
+		TS:              raw.TS,
+		RunID:           raw.RunID,
+		Event:           raw.Event,
+		Worker:          raw.Worker,
+		Task:            raw.Task,
+		Branch:          raw.Branch,
+		Commit:          raw.Commit,
+		Status:          raw.Status,
+		Speculative:     raw.Speculative,
+		SpecHashAtClaim: raw.SpecHashAtClaim,
 	}
 	if len(raw.Detail) == 0 || string(raw.Detail) == "null" {
 		return nil

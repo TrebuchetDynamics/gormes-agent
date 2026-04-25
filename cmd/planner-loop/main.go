@@ -615,7 +615,7 @@ func latestPlannerRunTime(path string) (time.Time, error) {
 
 func plannerFinalStatus(status string) bool {
 	switch status {
-	case "ok", "validation_rejected", "backend_failed", "no_changes", "needs_human_set":
+	case "ok", "validation_rejected", "validation_failed", "backend_failed", "no_changes", "needs_human_set":
 		return true
 	default:
 		return false

@@ -337,7 +337,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Provider interface + stream fixture harness
 - [x] Tool-call normalization + continuation contract
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
-- [ ] DeepSeek/Kimi cross-provider reasoning isolation
+- [x] DeepSeek/Kimi cross-provider reasoning isolation
 - [x] Anthropic
 - [ ] Bedrock
 - [x] Bedrock Converse payload mapping (no AWS SDK)

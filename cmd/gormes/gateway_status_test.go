@@ -44,7 +44,7 @@ token = "bogus-discord-token"
 allowed_channel_id = "D123"
 `))
 
-	now := time.Date(2026, 4, 25, 20, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
 	pairing := gateway.NewXDGPairingStore()
 	if err := pairing.RecordPendingPairing(context.Background(), gateway.PairingPendingRecord{
 		Platform:  "telegram",

@@ -73,6 +73,17 @@ type Candidate struct {
 	// reporting / status tooling to highlight the override without re-loading
 	// the verdict block. Always false in the default skip-NeedsHuman path.
 	NeedsHumanFlag bool
+	// Speculative indicates this candidate has blocked_by dependencies that
+	// are not yet complete, but ready_when is satisfied. The builder-loop
+	// will start work on it speculatively, verifying before promotion that
+	// (1) the spec hasn't changed, and (2) all blocked_by completed successfully.
+	Speculative bool
+	// SpecHashAtClaim is the ItemSpecHash snapshot at the time of claim.
+	// Used to detect spec changes during speculative execution.
+	SpecHashAtClaim string
+	// BlockedByPending lists the blocked_by dependencies not yet complete.
+	// Only populated when Speculative is true.
+	BlockedByPending []string
 }
 
 // failurePenalty returns the ranking penalty for n consecutive failures.
@@ -116,6 +127,9 @@ func (candidate Candidate) SelectionReason() string {
 	}
 	if candidate.NeedsHumanFlag {
 		base += " needs_human_visible"
+	}
+	if candidate.Speculative {
+		base += " speculative"
 	}
 	return base
 }
@@ -557,4 +571,74 @@ func blockerKeys(phaseID, subphaseID, itemName string) []string {
 		keys = append(keys, strings.ToLower(phaseID+"/"+subphaseID+"/"+itemName))
 	}
 	return keys
+}
+
+// selectSpeculativeCandidates identifies candidates that are blocked by
+// incomplete dependencies but have their ready_when satisfied. These can
+// be started speculatively for parallel execution, with verification before
+// promotion ensuring the spec hasn't changed and blockers completed.
+//
+// readyWhenSatisfied is a predicate function that checks if a candidate's
+// ready_when conditions are met (passed as a function to avoid circular
+// dependencies with the progress package).
+func selectSpeculativeCandidates(
+	candidates []Candidate,
+	completed map[string]struct{},
+	readyWhenSatisfied func(Candidate) bool,
+	maxSpeculative int,
+) []Candidate {
+	if maxSpeculative <= 0 {
+		return nil
+	}
+
+	var speculative []Candidate
+	for _, c := range candidates {
+		// Skip if already selected or no blocked_by
+		if len(c.BlockedBy) == 0 {
+			continue
+		}
+
+		// Check which blockers are pending
+		var pending []string
+		for _, blocker := range c.BlockedBy {
+			key := strings.ToLower(strings.TrimSpace(blocker))
+			if key == "" {
+				continue
+			}
+			if _, ok := completed[key]; !ok {
+				pending = append(pending, key)
+			}
+		}
+
+		// If all blockers complete, not speculative
+		if len(pending) == 0 {
+			continue
+		}
+
+		// Check if ready_when is satisfied
+		if !readyWhenSatisfied(c) {
+			continue
+		}
+
+		// This is a speculative candidate
+		c.Speculative = true
+		c.BlockedByPending = pending
+		speculative = append(speculative, c)
+
+		if len(speculative) >= maxSpeculative {
+			break
+		}
+	}
+
+	return speculative
+}
+
+// enrichCandidatesWithSpecHash populates the SpecHashAtClaim field for all
+// candidates using the provided hash function. This snapshot is used to
+// detect spec changes during speculative execution.
+func enrichCandidatesWithSpecHash(candidates []Candidate, hashOf func(Candidate) string) []Candidate {
+	for i := range candidates {
+		candidates[i].SpecHashAtClaim = hashOf(candidates[i])
+	}
+	return candidates
 }

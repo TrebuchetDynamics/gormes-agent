@@ -18,7 +18,7 @@ type LedgerEvent struct {
 	TriggerEvents []string      `json:"trigger_events,omitempty"`
 	Backend       string        `json:"backend"`
 	Mode          string        `json:"mode"`
-	Status        string        `json:"status"` // "ok" | "validation_rejected" | "backend_failed" | "no_changes" | "needs_human_set"
+	Status        string        `json:"status"` // "ok" | "validation_rejected" | "validation_failed" | "backend_failed" | "no_changes" | "needs_human_set"
 	Detail        string        `json:"detail,omitempty"`
 	BeforeStats   ProgressStats `json:"before_stats,omitempty"`
 	AfterStats    ProgressStats `json:"after_stats,omitempty"`

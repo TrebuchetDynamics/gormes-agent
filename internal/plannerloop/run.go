@@ -385,8 +385,33 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		return RunSummary{}, err
 	}
 
+	// Spec rows that changed in this run feed the verdict-stamping pass
+	// (Phase C Task 11) and every terminal ledger event, including
+	// post-backend validation failures.
+	rowsChanged := diffRows(beforeDoc, afterDoc)
+	finalAttempt := 0
+	if len(attempts) > 0 {
+		finalAttempt = attempts[len(attempts)-1].Index
+	}
+
 	if cfg.Validate && !opts.SkipValidation {
 		if err := runValidation(ctx, runner, cfg.RepoRoot, validationLogPath); err != nil {
+			appendPlannerLedger(ledgerPath, LedgerEvent{
+				TS:            now.UTC().Format(time.RFC3339),
+				RunID:         runID,
+				Trigger:       trigger,
+				TriggerEvents: triggerEventIDs,
+				Backend:       cfg.Backend,
+				Mode:          cfg.Mode,
+				Status:        "validation_failed",
+				Detail:        err.Error(),
+				BeforeStats:   computeStats(beforeDoc),
+				AfterStats:    computeStats(afterDoc),
+				RowsChanged:   rowsChanged,
+				Keywords:      opts.Keywords,
+				RetryAttempt:  finalAttempt,
+				Attempts:      attempts,
+			})
 			return RunSummary{}, err
 		}
 	}
@@ -404,11 +429,6 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}); err != nil {
 		return RunSummary{}, err
 	}
-
-	// Spec rows that changed in this run feed the verdict-stamping pass
-	// (Phase C Task 11). Computing them once here keeps both the verdict
-	// pass and the ledger entry consistent.
-	rowsChanged := diffRows(beforeDoc, afterDoc)
 
 	// L5 verdict stamping: deterministic post-processing that increments
 	// PlannerVerdict.ReshapeCount on reshaped rows and sets sticky
@@ -440,11 +460,6 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			}
 		}
 	}
-	finalAttempt := 0
-	if len(attempts) > 0 {
-		finalAttempt = attempts[len(attempts)-1].Index
-	}
-
 	combinedRows := append([]RowChange(nil), rowsChanged...)
 	combinedRows = append(combinedRows, verdictChanges...)
 
@@ -524,10 +539,7 @@ func runValidation(ctx context.Context, runner cmdrunner.Runner, repoRoot, logPa
 }
 
 func writeReport(path, rawPath string, result cmdrunner.Result, bundle ContextBundle, now time.Time) error {
-	raw := strings.TrimSpace(result.Stdout)
-	if data, err := os.ReadFile(rawPath); err == nil && strings.TrimSpace(string(data)) != "" {
-		raw = strings.TrimSpace(string(data))
-	}
+	raw := backendReportText(rawPath, result)
 	if raw == "" {
 		raw = "Planner backend completed without a text report."
 	}
@@ -542,6 +554,47 @@ func writeReport(path, rawPath string, result cmdrunner.Result, bundle ContextBu
 %s
 `, now.UTC().Format(time.RFC3339), bundle.RepoRoot, bundle.ProgressJSON, bundle.ProgressStats.Items, raw)
 	return os.WriteFile(path, []byte(body), 0o644)
+}
+
+func backendReportText(rawPath string, result cmdrunner.Result) string {
+	if data, err := os.ReadFile(rawPath); err == nil && strings.TrimSpace(string(data)) != "" {
+		return strings.TrimSpace(string(data))
+	}
+	stdout := strings.TrimSpace(result.Stdout)
+	if text, ok := finalAgentMessageFromJSONStream(stdout); ok {
+		return strings.TrimSpace(text)
+	}
+	return stdout
+}
+
+func finalAgentMessageFromJSONStream(output string) (string, bool) {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return "", false
+	}
+
+	var lastAgentMessage string
+	sawJSON := false
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var event struct {
+			Item struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"item"`
+		}
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			return "", false
+		}
+		sawJSON = true
+		if event.Item.Type == "agent_message" && strings.TrimSpace(event.Item.Text) != "" {
+			lastAgentMessage = event.Item.Text
+		}
+	}
+	return strings.TrimSpace(lastAgentMessage), sawJSON
 }
 
 func clearRawReport(path string) error {
