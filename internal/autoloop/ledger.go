@@ -9,10 +9,14 @@ import (
 
 type LedgerEvent struct {
 	TS     time.Time `json:"ts"`
+	RunID  string    `json:"run_id,omitempty"`
 	Event  string    `json:"event"`
 	Worker int       `json:"worker,omitempty"`
 	Task   string    `json:"task,omitempty"`
+	Branch string    `json:"branch,omitempty"`
+	Commit string    `json:"commit,omitempty"`
 	Status string    `json:"status,omitempty"`
+	Detail string    `json:"detail,omitempty"`
 }
 
 func AppendLedgerEvent(path string, event LedgerEvent) error {

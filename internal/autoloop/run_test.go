@@ -477,6 +477,113 @@ func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *test
 	}
 }
 
+func TestRunOnceRefusesDirtyRepositoryBeforeWorkerLaunch(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"12": {
+				"subphases": {
+					"12.A": {
+						"items": [
+							{"item_name": "dirty preflight", "status": "planned", "contract": "dirty contract", "contract_status": "draft"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	if err := os.WriteFile(filepath.Join(repoRoot, "dirty.txt"), []byte("dirty\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runRoot := t.TempDir()
+	runner := &FakeRunner{Results: []Result{{}}}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     repoRoot,
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "opencode",
+			Mode:         "safe",
+			MaxAgents:    1,
+		},
+		Runner: runner,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want dirty worktree error")
+	}
+	if !strings.Contains(err.Error(), "uncommitted changes") {
+		t.Fatalf("RunOnce() error = %q, want dirty worktree context", err)
+	}
+	if len(runner.Commands) != 0 {
+		t.Fatalf("Commands length = %d, want 0", len(runner.Commands))
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	var got []string
+	for _, event := range events {
+		got = append(got, event.Event+":"+event.Status)
+	}
+	want := []string{"run_started:started", "run_failed:worktree_dirty"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+}
+
+func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"12": {
+				"subphases": {
+					"12.A": {
+						"items": [
+							{"item_name": "dirty worker", "status": "planned", "contract": "dirty worker contract", "contract_status": "draft"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	runRoot := t.TempDir()
+	runner := runnerFunc(func(context.Context, Command) Result {
+		if err := os.WriteFile(filepath.Join(repoRoot, "worker-dirty.go"), []byte("package dirty\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return Result{}
+	})
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     repoRoot,
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "opencode",
+			Mode:         "safe",
+			MaxAgents:    1,
+		},
+		Runner: runner,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want dirty worktree error")
+	}
+	if !strings.Contains(err.Error(), "uncommitted changes") {
+		t.Fatalf("RunOnce() error = %q, want dirty worktree context", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	var got []string
+	for _, event := range events {
+		got = append(got, event.Event+":"+event.Status)
+	}
+	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:worktree_dirty"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+}
+
 func TestRunOnceFailsWhenWorkerLeavesMergeConflicts(t *testing.T) {
 	repoRoot := t.TempDir()
 	initConflictingRepo(t, repoRoot)
@@ -541,14 +648,7 @@ func (fn runnerFunc) Run(ctx context.Context, command Command) Result {
 func initConflictingRepo(t *testing.T, repoRoot string) {
 	t.Helper()
 
-	runGitCommand(t, repoRoot, "init")
-	runGitCommand(t, repoRoot, "config", "user.email", "test@example.com")
-	runGitCommand(t, repoRoot, "config", "user.name", "Test User")
-	if err := os.WriteFile(filepath.Join(repoRoot, "conflict.txt"), []byte("base\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	runGitCommand(t, repoRoot, "add", "conflict.txt")
-	runGitCommand(t, repoRoot, "commit", "-m", "base")
+	initCleanRepo(t, repoRoot)
 	runGitCommand(t, repoRoot, "checkout", "-b", "worker-branch")
 	if err := os.WriteFile(filepath.Join(repoRoot, "conflict.txt"), []byte("worker\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -559,6 +659,19 @@ func initConflictingRepo(t *testing.T, repoRoot string) {
 		t.Fatal(err)
 	}
 	runGitCommand(t, repoRoot, "commit", "-am", "main")
+}
+
+func initCleanRepo(t *testing.T, repoRoot string) {
+	t.Helper()
+
+	runGitCommand(t, repoRoot, "init")
+	runGitCommand(t, repoRoot, "config", "user.email", "test@example.com")
+	runGitCommand(t, repoRoot, "config", "user.name", "Test User")
+	if err := os.WriteFile(filepath.Join(repoRoot, "conflict.txt"), []byte("base\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, repoRoot, "add", "conflict.txt")
+	runGitCommand(t, repoRoot, "commit", "-m", "base")
 }
 
 func runGitCommand(t *testing.T, repoRoot string, args ...string) {

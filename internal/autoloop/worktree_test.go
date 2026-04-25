@@ -2,12 +2,28 @@ package autoloop
 
 import "testing"
 
-func TestWorkerBranchName(t *testing.T) {
-	got := WorkerBranchName("run-1", 3)
-	want := "codexu/run-1/worker3"
+func TestWorkerBranchNameIncludesRunWorkerAndSlug(t *testing.T) {
+	got := WorkerBranchName("20260101T000000Z", 3, Candidate{
+		PhaseID:    "2",
+		SubphaseID: "2.B.3",
+		ItemName:   "Slack CommandRegistry parser wiring",
+	})
+	want := "autoloop/20260101T000000Z/w3/2-2.b.3-slack-commandregistry-parser-wiring"
 
 	if got != want {
 		t.Fatalf("WorkerBranchName() = %q, want %q", got, want)
+	}
+}
+
+func TestWorkerBranchNameTruncatesLongSlug(t *testing.T) {
+	got := WorkerBranchName("run", 1, Candidate{
+		PhaseID:    "2",
+		SubphaseID: "2.F.3",
+		ItemName:   "this is a deliberately very long item name that should be truncated to keep the branch reasonable",
+	})
+
+	if len(got) > len("autoloop/run/w1/")+60 {
+		t.Fatalf("WorkerBranchName() = %q, want slug truncated to <=60 chars", got)
 	}
 }
 
