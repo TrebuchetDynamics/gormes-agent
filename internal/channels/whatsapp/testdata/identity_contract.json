@@ -1,0 +1,135 @@
+{
+  "bridge_dm_lid_alias_routes_with_raw_delivery_peer": {
+    "Context": {
+      "Runtime": "bridge",
+      "AccountMode": "bot",
+      "BotIDs": ["18005550100:10@s.whatsapp.net"],
+      "AliasMappings": [
+        {
+          "From": "999999999999999@lid",
+          "To": "15551234567@s.whatsapp.net"
+        }
+      ]
+    },
+    "Message": {
+      "ChatID": "999999999999999@lid",
+      "ChatName": "Alice",
+      "ChatKind": "direct",
+      "UserID": "999999999999999@lid",
+      "UserName": "Alice",
+      "MessageID": "wamid-bridge-1",
+      "Text": " hello from bridge "
+    },
+    "Want": {
+      "Decision": "route",
+      "Kind": "submit",
+      "Text": "hello from bridge",
+      "EventChatID": "15551234567",
+      "EventUserID": "15551234567",
+      "IdentityChatID": "15551234567",
+      "IdentityUserID": "15551234567",
+      "RawChatID": "999999999999999@lid",
+      "RawUserID": "999999999999999@lid",
+      "ReplyChatID": "999999999999999@lid",
+      "BotIdentitySource": "bridge_message",
+      "BotResolved": true,
+      "BotID": "18005550100"
+    }
+  },
+  "native_group_message_routes_with_raw_group_delivery_peer": {
+    "Context": {
+      "Runtime": "native",
+      "AccountMode": "bot",
+      "NativeBotID": "18005550100:5@s.whatsapp.net"
+    },
+    "Message": {
+      "ChatID": "120363000000000000@g.us",
+      "ChatName": "Ops",
+      "ChatKind": "group",
+      "UserID": "15557654321:47@s.whatsapp.net",
+      "UserName": "Bob",
+      "MessageID": "wamid-native-1",
+      "Text": " /new "
+    },
+    "Want": {
+      "Decision": "route",
+      "Kind": "reset",
+      "EventChatID": "120363000000000000",
+      "EventUserID": "15557654321",
+      "IdentityChatID": "120363000000000000",
+      "IdentityUserID": "15557654321",
+      "RawChatID": "120363000000000000@g.us",
+      "RawUserID": "15557654321:47@s.whatsapp.net",
+      "ReplyChatID": "120363000000000000@g.us",
+      "BotIdentitySource": "native_session",
+      "BotResolved": true,
+      "BotID": "18005550100"
+    }
+  },
+  "bot_mode_from_me_message_is_suppressed": {
+    "Context": {
+      "Runtime": "bridge",
+      "AccountMode": "bot",
+      "BotIDs": ["18005550100@s.whatsapp.net"]
+    },
+    "Message": {
+      "ChatID": "15551234567@s.whatsapp.net",
+      "ChatKind": "direct",
+      "UserID": "18005550100@s.whatsapp.net",
+      "MessageID": "wamid-own-1",
+      "Text": "agent echo",
+      "FromMe": true
+    },
+    "Want": {
+      "Decision": "suppress_self_chat",
+      "BotIdentitySource": "bridge_message",
+      "BotResolved": true,
+      "BotID": "18005550100",
+      "SuppressionReason": "bot_own_message"
+    }
+  },
+  "self_chat_prefixed_agent_echo_is_suppressed": {
+    "Context": {
+      "Runtime": "bridge",
+      "AccountMode": "self-chat",
+      "BotIDs": ["15550001111:10@s.whatsapp.net"],
+      "ReplyPrefix": "[Gormes]\n"
+    },
+    "Message": {
+      "ChatID": "15550001111@s.whatsapp.net",
+      "ChatKind": "direct",
+      "UserID": "15550001111@s.whatsapp.net",
+      "MessageID": "wamid-echo-1",
+      "Text": "[Gormes]\nanswer",
+      "FromMe": true
+    },
+    "Want": {
+      "Decision": "suppress_self_chat",
+      "BotIdentitySource": "bridge_message",
+      "BotResolved": true,
+      "BotID": "15550001111",
+      "SuppressionReason": "agent_echo"
+    }
+  },
+  "native_from_me_without_bot_identity_degrades": {
+    "Context": {
+      "Runtime": "native",
+      "AccountMode": "bot"
+    },
+    "Message": {
+      "ChatID": "15551234567@s.whatsapp.net",
+      "ChatKind": "direct",
+      "UserID": "15551234567@s.whatsapp.net",
+      "MessageID": "wamid-unresolved-1",
+      "Text": "loop risk",
+      "FromMe": true
+    },
+    "Want": {
+      "Decision": "unresolved_identity",
+      "BotIdentitySource": "native_session",
+      "BotResolved": false,
+      "StatusReason": "bot_identity_unresolved",
+      "SuppressionReason": "bot_identity_unresolved"
+    }
+  }
+}
