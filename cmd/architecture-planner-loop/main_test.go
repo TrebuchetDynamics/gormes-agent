@@ -160,6 +160,7 @@ func writeCommandFixture(t *testing.T) string {
 	t.Helper()
 
 	root := t.TempDir()
+	t.Setenv("PROGRESS_JSON", filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"))
 	writeCommandFile(t, filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
   "phases": {
     "2": {

@@ -106,7 +106,7 @@ type orChatRequest struct {
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
-	msgs := makeOpenAICompatibleMessages(req.Messages)
+	msgs := makeOpenAICompatibleMessages(req.Messages, c.provider, req.Model, c.baseURL)
 	descriptors := SanitizeToolDescriptors(req.Tools)
 	tools := make([]orToolDescriptor, len(descriptors))
 	for i, t := range descriptors {

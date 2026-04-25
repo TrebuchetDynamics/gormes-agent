@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -23,6 +24,7 @@ type RunOptions struct {
 }
 
 type RunSummary struct {
+	RunID         string
 	Backend       string
 	Mode          string
 	RunRoot       string
@@ -92,7 +94,11 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		return RunSummary{}, err
 	}
 
+	runID := now.UTC().Format("20060102T150405Z")
+	ledgerPath := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
+
 	summary := RunSummary{
+		RunID:         runID,
 		Backend:       cfg.Backend,
 		Mode:          cfg.Mode,
 		RunRoot:       cfg.RunRoot,
@@ -129,6 +135,16 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		Dir:  cfg.RepoRoot,
 	})
 	if result.Err != nil {
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:          now.UTC().Format(time.RFC3339),
+			RunID:       runID,
+			Trigger:     "scheduled",
+			Backend:     cfg.Backend,
+			Mode:        cfg.Mode,
+			Status:      "backend_failed",
+			Detail:      strings.TrimSpace(result.Stderr),
+			BeforeStats: computeStats(beforeDoc),
+		})
 		return RunSummary{}, commandError(argv[0], result)
 	}
 
@@ -136,13 +152,27 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	// regeneration if any Health block was dropped or modified. Skipped
 	// entirely when there was no before-doc (fresh checkout) or when the
 	// after-doc cannot be loaded (treat as no regeneration to validate).
+	var afterDoc *progress.Progress
 	if beforeDoc != nil {
-		afterDoc, loadErr := loadProgressForValidation(cfg.ProgressJSON)
+		loaded, loadErr := loadProgressForValidation(cfg.ProgressJSON)
 		if loadErr != nil {
 			return RunSummary{}, fmt.Errorf("planner: load after-doc: %w", loadErr)
 		}
+		afterDoc = loaded
 		if afterDoc != nil {
 			if err := validateHealthPreservation(beforeDoc, afterDoc); err != nil {
+				appendPlannerLedger(ledgerPath, LedgerEvent{
+					TS:          now.UTC().Format(time.RFC3339),
+					RunID:       runID,
+					Trigger:     "scheduled",
+					Backend:     cfg.Backend,
+					Mode:        cfg.Mode,
+					Status:      "validation_rejected",
+					Detail:      err.Error(),
+					BeforeStats: computeStats(beforeDoc),
+					AfterStats:  computeStats(afterDoc),
+					RowsChanged: diffRows(beforeDoc, afterDoc),
+				})
 				return RunSummary{}, fmt.Errorf("planner: regeneration rejected: %w", err)
 			}
 		}
@@ -172,7 +202,33 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		return RunSummary{}, err
 	}
 
+	runStatus := "ok"
+	if beforeDoc == nil || afterDoc == nil {
+		runStatus = "no_changes"
+	}
+	appendPlannerLedger(ledgerPath, LedgerEvent{
+		TS:          now.UTC().Format(time.RFC3339),
+		RunID:       runID,
+		Trigger:     "scheduled",
+		Backend:     cfg.Backend,
+		Mode:        cfg.Mode,
+		Status:      runStatus,
+		BeforeStats: computeStats(beforeDoc),
+		AfterStats:  computeStats(afterDoc),
+		RowsChanged: diffRows(beforeDoc, afterDoc),
+	})
+
 	return summary, nil
+}
+
+// appendPlannerLedger writes one LedgerEvent and soft-fails on error: the
+// ledger is observability, not the planner run's success criterion. Errors
+// are logged via the standard log package so operators see them, but they
+// do not fail the run.
+func appendPlannerLedger(path string, event LedgerEvent) {
+	if err := AppendLedgerEvent(path, event); err != nil {
+		log.Printf("planner: append ledger failed: %v", err)
+	}
 }
 
 func plannerBackendCommand(backend, mode, rawReportPath string) ([]string, error) {
@@ -325,4 +381,79 @@ func healthEqual(a, b *progress.RowHealth) bool {
 		return false
 	}
 	return reflect.DeepEqual(a, b)
+}
+
+// computeStats walks a Progress doc and counts rows by status, including
+// the new Phase C buckets (Quarantined, NeedsHuman) which aren't in the
+// existing Progress.Stats() function. Returns a zero ProgressStats when
+// prog is nil so the helper is safe on the dry-run / no-before-doc paths.
+func computeStats(prog *progress.Progress) ProgressStats {
+	if prog == nil {
+		return ProgressStats{}
+	}
+	var stats ProgressStats
+	for _, phase := range prog.Phases {
+		for _, sub := range phase.Subphases {
+			for i := range sub.Items {
+				it := &sub.Items[i]
+				switch it.Status {
+				case progress.StatusComplete:
+					stats.Shipped++
+				case progress.StatusInProgress:
+					stats.InProgress++
+				default:
+					stats.Planned++
+				}
+				if it.Health != nil && it.Health.Quarantine != nil {
+					stats.Quarantined++
+				}
+				if it.PlannerVerdict != nil && it.PlannerVerdict.NeedsHuman {
+					stats.NeedsHuman++
+				}
+			}
+		}
+	}
+	return stats
+}
+
+// diffRows compares before/after docs and returns RowChange records for
+// added/deleted/spec_changed rows. Spec change is detected via
+// progress.ItemSpecHash so cosmetic edits don't show up as changes. Returns
+// nil when both inputs are nil/empty.
+func diffRows(before, after *progress.Progress) []RowChange {
+	var out []RowChange
+	beforeIndex := indexItems(before)
+	afterIndex := indexItems(after)
+
+	for key, beforeItem := range beforeIndex {
+		afterItem, exists := afterIndex[key]
+		if !exists {
+			out = append(out, RowChange{
+				PhaseID:    key.phaseID,
+				SubphaseID: key.subphaseID,
+				ItemName:   key.itemName,
+				Kind:       "deleted",
+			})
+			continue
+		}
+		if progress.ItemSpecHash(beforeItem) != progress.ItemSpecHash(afterItem) {
+			out = append(out, RowChange{
+				PhaseID:    key.phaseID,
+				SubphaseID: key.subphaseID,
+				ItemName:   key.itemName,
+				Kind:       "spec_changed",
+			})
+		}
+	}
+	for key := range afterIndex {
+		if _, existed := beforeIndex[key]; !existed {
+			out = append(out, RowChange{
+				PhaseID:    key.phaseID,
+				SubphaseID: key.subphaseID,
+				ItemName:   key.itemName,
+				Kind:       "added",
+			})
+		}
+	}
+	return out
 }

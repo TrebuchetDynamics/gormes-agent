@@ -2318,7 +2318,7 @@
               "name": "DeepSeek/Kimi reasoning_content echo for tool-call replay",
               "status": "complete",
               "contract": "Thinking-mode providers that require reasoning_content on assistant tool-call turns receive an echoed value during persistence and API replay",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -2652,7 +2652,7 @@
               "name": "Tool-call argument repair + schema sanitizer",
               "status": "complete",
               "contract": "Provider tool-call arguments are repaired or rejected against available tool schemas before execution",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -3902,9 +3902,9 @@
             },
             {
               "name": "Responses API store + run event stream",
-              "status": "completed",
+              "status": "complete",
               "contract": "Stateful OpenAI Responses and runs APIs over the same native session chain as chat completions",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3948,12 +3948,7 @@
               ],
               "done_signal": [
                 "Responses/runs fixtures prove bounded response storage, previous_response_id chaining, event streaming, and orphan cleanup over native session state."
-              ],
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-25T06:45:48Z",
-                "last_success": "2026-04-25T06:45:48Z"
-              }
+              ]
             },
             {
               "name": "API server disconnect snapshot persistence",
