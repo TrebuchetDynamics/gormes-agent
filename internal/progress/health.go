@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 )
 
@@ -115,18 +116,106 @@ func ApplyHealthUpdates(path string, updates []HealthUpdate) error {
 		return fmt.Errorf("load %s: %w", path, err)
 	}
 
+	var insertEmptyHealth *HealthUpdate
 	for _, upd := range updates {
 		item, err := findItem(prog, upd.PhaseID, upd.SubphaseID, upd.ItemName)
 		if err != nil {
 			return fmt.Errorf("apply update %s/%s/%s: %w", upd.PhaseID, upd.SubphaseID, upd.ItemName, err)
 		}
+		hadHealth := item.Health != nil
 		if item.Health == nil {
 			item.Health = &RowHealth{}
 		}
 		upd.Mutate(item.Health)
+		if len(updates) == 1 && !hadHealth && reflect.DeepEqual(*item.Health, RowHealth{}) {
+			copy := upd
+			insertEmptyHealth = &copy
+		}
+	}
+	if insertEmptyHealth != nil {
+		return insertEmptyHealthBlock(path, insertEmptyHealth.ItemName)
 	}
 
 	return SaveProgress(path, prog)
+}
+
+func insertEmptyHealthBlock(path, itemName string) error {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read progress: %w", err)
+	}
+	quotedName, err := json.Marshal(itemName)
+	if err != nil {
+		return fmt.Errorf("quote item name: %w", err)
+	}
+	nameNeedle := []byte(`"name": ` + string(quotedName))
+	nameIdx := bytes.Index(body, nameNeedle)
+	if nameIdx < 0 {
+		return fmt.Errorf("item %q not found in raw progress", itemName)
+	}
+	start := bytes.LastIndex(body[:nameIdx], []byte("{"))
+	if start < 0 {
+		return fmt.Errorf("item %q object start not found", itemName)
+	}
+	end, err := matchingJSONBrace(body, start)
+	if err != nil {
+		return fmt.Errorf("item %q object end not found: %w", itemName, err)
+	}
+	object := body[start : end+1]
+	if bytes.Contains(object, []byte(`"health"`)) {
+		return nil
+	}
+
+	closeLineStart := bytes.LastIndex(object[:len(object)-1], []byte("\n"))
+	if closeLineStart < 0 {
+		return fmt.Errorf("item %q object is not multiline", itemName)
+	}
+	closingIndent := string(object[closeLineStart+1 : len(object)-1])
+	propertyIndent := closingIndent + "  "
+	withoutClose := object[:len(object)-1]
+	trimmed := bytes.TrimRight(withoutClose, " \t\r\n")
+	replacement := append([]byte(nil), trimmed...)
+	replacement = append(replacement, []byte(",\n"+propertyIndent+`"health": {}`+"\n"+closingIndent+"}")...)
+
+	next := make([]byte, 0, len(body)+len(replacement)-len(object))
+	next = append(next, body[:start]...)
+	next = append(next, replacement...)
+	next = append(next, body[end+1:]...)
+	return atomicWrite(path, next)
+}
+
+func matchingJSONBrace(body []byte, start int) (int, error) {
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(body); i++ {
+		b := body[i]
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			switch b {
+			case '\\':
+				escaped = true
+			case '"':
+				inString = false
+			}
+			continue
+		}
+		switch b {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return i, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("unterminated object")
 }
 
 // SaveProgress writes the Progress document atomically: marshal to a temp
@@ -146,7 +235,10 @@ func SaveProgress(path string, prog *Progress) error {
 		return fmt.Errorf("marshal progress: %w", err)
 	}
 	body := buf.Bytes() // Encoder.Encode already appends a trailing newline.
+	return atomicWrite(path, body)
+}
 
+func atomicWrite(path string, body []byte) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".progress-*.json")
 	if err != nil {
