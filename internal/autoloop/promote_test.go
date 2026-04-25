@@ -8,9 +8,10 @@ import (
 	"testing"
 )
 
-func TestPromoteCreatesPRWhenPushAndGHSucceed(t *testing.T) {
+func TestPromoteCreatesPRAndLandsCommitWhenPushAndGHSucceed(t *testing.T) {
 	runner := &FakeRunner{
 		Results: []Result{
+			{},
 			{},
 			{},
 		},
@@ -35,6 +36,11 @@ func TestPromoteCreatesPRWhenPushAndGHSucceed(t *testing.T) {
 		{
 			Name: "gh",
 			Args: []string{"pr", "create", "--fill", "--head", "codexu/run/worker1"},
+			Dir:  "/tmp/repo",
+		},
+		{
+			Name: "git",
+			Args: []string{"cherry-pick", "-Xtheirs", "abc123"},
 			Dir:  "/tmp/repo",
 		},
 	}

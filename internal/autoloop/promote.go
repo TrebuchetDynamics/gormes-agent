@@ -60,7 +60,7 @@ func PromoteWorker(ctx context.Context, opts PromoteOptions) error {
 		return cherryPick(ctx, runner, opts.RepoRoot, opts.WorkerCommit)
 	}
 
-	return nil
+	return cherryPick(ctx, runner, opts.RepoRoot, opts.WorkerCommit)
 }
 
 func cherryPick(ctx context.Context, runner Runner, repoRoot string, workerCommit string) error {

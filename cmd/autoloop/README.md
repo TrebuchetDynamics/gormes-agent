@@ -87,15 +87,17 @@ finished branches in worker order. The flow per worker is:
 5. Diff the worker commit against its base commit and reject any changed path
    outside the selected row's `write_scope`
    (`worker_failed:write_scope_violation`).
-6. From the clean control checkout, call `PromoteWorker`:
-   `git push origin <branch>` then `gh pr create --fill --head <branch>`,
-   falling back to `git cherry-pick -Xtheirs <commit>` if push or `gh` fails.
-   Clean successful/no-change worktrees are removed; failed worktrees stay in
-   `$RUN_ROOT/worktrees/` for inspection.
+6. From the clean control checkout, call `PromoteWorker`: `git push origin
+   <branch>`, create a review PR with `gh pr create --fill --head <branch>`,
+   then land the worker commit locally with `git cherry-pick -Xtheirs
+   <commit>`. If push or `gh` fails, autoloop still attempts the same local
+   cherry-pick fallback. Clean successful/no-change worktrees are removed;
+   failed worktrees stay in `$RUN_ROOT/worktrees/` for inspection.
 
 Each promotion attempt emits a `worker_promoted` or `worker_promotion_failed`
 ledger event so the audit's `productivity` metric reflects work that actually
-landed, not just claims that survived a backend call.
+landed in the control checkout, not just claims that survived a backend call
+or opened a PR.
 
 When `MAX_AGENTS > 1`, candidate selection diversifies across subphases
 (one slot per distinct subphase first) before stacking additional workers,
