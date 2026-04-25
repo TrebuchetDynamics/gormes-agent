@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"time"
 
@@ -627,100 +626,4 @@ func diffRows(before, after *progress.Progress) []RowChange {
 		}
 	}
 	return out
-}
-
-// driftStatusOrPorting returns the DriftState.Status for a subphase, or
-// "porting" when DriftState is unset. Centralised so the bucket count in
-// the status surface and the diff helper agree on the default semantics
-// the L3 prompt clause documents.
-func driftStatusOrPorting(sub progress.Subphase) string {
-	if sub.DriftState == nil || strings.TrimSpace(sub.DriftState.Status) == "" {
-		return "porting"
-	}
-	return sub.DriftState.Status
-}
-
-// driftStatusRank assigns the convergence ratchet ordering. Forward edges
-// have a strictly increasing rank: porting (0) < converged (1) < owned (2).
-// Unknown statuses get -1 so any transition involving them is treated as
-// non-monotonic and skipped.
-func driftStatusRank(status string) int {
-	switch status {
-	case "porting":
-		return 0
-	case "converged":
-		return 1
-	case "owned":
-		return 2
-	default:
-		return -1
-	}
-}
-
-// diffSubphaseStates walks both progress docs by (phaseID, subphaseID) and
-// records DriftState.Status transitions. Forward transitions
-// (porting→converged, porting→owned, converged→owned) are returned as
-// DriftPromotion entries. Backward transitions are logged via the standard
-// log package as a warning but NOT emitted: the planner runtime never
-// demotes, so a backward edge means a human edited progress.json directly
-// and the operator should see the warning rather than have the ledger
-// silently swallow the change. Subphases present in only one doc, or where
-// the status did not change, contribute nothing.
-//
-// Returns nil when either doc is nil (no diff possible) or no transitions
-// occurred. Output is sorted by SubphaseID for deterministic ledger output.
-func diffSubphaseStates(before, after *progress.Progress) []DriftPromotion {
-	if before == nil || after == nil {
-		return nil
-	}
-	type subKey struct{ phaseID, subphaseID string }
-	beforeIndex := map[subKey]progress.Subphase{}
-	for phaseID, phase := range before.Phases {
-		for subID, sub := range phase.Subphases {
-			beforeIndex[subKey{phaseID, subID}] = sub
-		}
-	}
-	var promotions []DriftPromotion
-	for phaseID, phase := range after.Phases {
-		for subID, afterSub := range phase.Subphases {
-			beforeSub, ok := beforeIndex[subKey{phaseID, subID}]
-			if !ok {
-				continue
-			}
-			fromStatus := driftStatusOrPorting(beforeSub)
-			toStatus := driftStatusOrPorting(afterSub)
-			if fromStatus == toStatus {
-				continue
-			}
-			id := phaseID + "." + subID
-			fromRank := driftStatusRank(fromStatus)
-			toRank := driftStatusRank(toStatus)
-			if fromRank < 0 || toRank < 0 || toRank <= fromRank {
-				// Backward (or unknown) transition: log but do not emit.
-				// Humans demote via direct edit; planner runtime never
-				// demotes. Surfacing the warning lets operators spot
-				// unexpected manual edits without polluting the ledger.
-				log.Printf("planner: drift_state backward transition on %s: %s -> %s (not emitted)",
-					id, fromStatus, toStatus)
-				continue
-			}
-			reason := ""
-			if afterSub.DriftState != nil {
-				reason = strings.TrimSpace(afterSub.DriftState.OriginDecision)
-			}
-			promotions = append(promotions, DriftPromotion{
-				SubphaseID: id,
-				From:       fromStatus,
-				To:         toStatus,
-				Reason:     reason,
-			})
-		}
-	}
-	if len(promotions) == 0 {
-		return nil
-	}
-	sort.Slice(promotions, func(i, j int) bool {
-		return promotions[i].SubphaseID < promotions[j].SubphaseID
-	})
-	return promotions
 }
