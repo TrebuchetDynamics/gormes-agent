@@ -821,7 +821,7 @@ a:focus-visible,
   .topbar-inner {
     flex-wrap: nowrap;
     align-items: baseline;
-    padding: 10px var(--pad);
+    padding: 6px var(--pad);
     gap: 14px;
   }
   .topnav {
@@ -845,15 +845,15 @@ a:focus-visible,
      the headline larger on mobile than the desktop cap, which
      was the root cause of the v10 fold regression). */
   .hero-inner {
-    /* Mobile top stack compacted to one tight unit: 20px above the
-       kicker (was 28→44 in earlier passes). Combined with the
-       single-row topbar above and a 6px kicker→headline gap below,
-       the entire topbar→kicker→headline cluster occupies ~80px
-       instead of ~140px. */
-    padding: 20px var(--pad) 32px;
+    padding: 12px var(--pad) 28px;
   }
   .kicker {
-    margin-bottom: 6px;
+    /* Smaller font + tighter margin so the kicker reads as a tag
+       attached directly to the topbar/headline cluster, not a
+       separate label. */
+    font-size: 10px;
+    margin-bottom: 4px;
+    letter-spacing: 0.18em;
   }
   .hero-title {
     margin-bottom: 14px;
