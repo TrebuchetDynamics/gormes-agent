@@ -1534,9 +1534,9 @@
             },
             {
               "name": "Lineage-aware source-filtered search hits",
-              "status": "planned",
+              "status": "complete",
               "contract": "Session and message search can surface parent/child lineage context for matched sessions without widening the same-chat default recall fence",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -1550,9 +1550,6 @@
                 "../hermes-agent/docs/developer-guide/session-storage.md",
                 "internal/memory/session_catalog.go",
                 "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
-              ],
-              "blocked_by": [
-                "parent_session_id lineage for compression splits"
               ],
               "ready_when": [
                 "Session lineage metadata is persisted and can be queried from the session read model."
@@ -1568,7 +1565,7 @@
                 "Same-chat default recall remains unchanged unless scope=user or source filters explicitly widen it.",
                 "Orphaned or incomplete chains produce explicit evidence fields instead of dropped results."
               ],
-              "note": "TDD: once parent_session_id exists, make SearchMessages/SearchSessions expose parent/child lineage context for matched sessions without changing default same-chat recall behavior.",
+              "note": "Complete: TDD landed internal/memory/session_lineage_search_test.go. SearchMessages and SearchSessions now attach SearchLineage evidence with parent_session_id, lineage_kind, child_session_ids, and explicit ok/orphan/unavailable status without changing the same-chat default recall fence.",
               "write_scope": [
                 "internal/memory/",
                 "internal/session/",
