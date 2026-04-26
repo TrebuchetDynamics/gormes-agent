@@ -7137,9 +7137,9 @@
             {
               "name": "Home Assistant HASS_TOKEN platform-toolset carveout",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Platform toolset resolution keeps homeassistant enabled for cron and CLI default selections when HASS_TOKEN is present while leaving MOA/RL and missing-token Home Assistant default-off behavior unchanged",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -7175,7 +7175,7 @@
                 "An explicit empty platform_toolsets selection still stays empty; the env carveout only applies to default selections.",
                 "No Home Assistant network or channel code is touched."
               ],
-              "note": "Upstream Hermes 4921b269 fixed a cron regression where HA users with HASS_TOKEN lost the homeassistant toolset after per-platform tool config made default-off filtering stricter. Gormes has the same platform toolset helper shape, so this is a narrow pure CLI/toolset row, not a Home Assistant handler port.",
+              "note": "Complete: TDD landed the pure platform toolset carveout. Default cron and CLI selections include homeassistant only when HASS_TOKEN is non-empty, missing or empty HASS_TOKEN reports homeassistant_token_missing while keeping Home Assistant default-off, MOA/RL remain outside defaults, and explicit empty platform_toolsets selections stay empty without touching Home Assistant channel or network code.",
               "write_scope": [
                 "internal/cli/toolset_config.go",
                 "internal/cli/toolset_config_test.go",
@@ -7189,6 +7189,11 @@
               "done_signal": [
                 "Toolset config fixtures prove HASS_TOKEN opts Home Assistant back into cron/CLI defaults while missing-token, explicit-empty, MOA, and RL behavior remain unchanged."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T22:15:03Z",
+                "last_success": "2026-04-26T22:15:03Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:4921b269 hermes_cli/tools_config.py",

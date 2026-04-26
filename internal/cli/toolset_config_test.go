@@ -154,6 +154,49 @@ func TestPlatformToolsetConfigRejectsDiscordToolsetsOutsideDiscord(t *testing.T)
 	assertNoIssue(t, discordReport, PlatformToolsetIssueRestrictedToolset)
 }
 
+func TestPlatformToolsetStatusKeepsHomeAssistantWhenHASSTokenSet(t *testing.T) {
+	t.Setenv("HASS_TOKEN", "fake-test-token")
+
+	cfg, _ := parseToolsetConfigYAML(t, `platform_toolsets: {}`)
+
+	for _, platform := range []string{"cron", "cli"} {
+		status, err := cfg.PlatformStatus(platform)
+		if err != nil {
+			t.Fatalf("PlatformStatus(%s): %v", platform, err)
+		}
+		assertContains(t, status.RuntimeToolsets, "homeassistant")
+		assertNotContains(t, status.RuntimeToolsets, "moa")
+		assertNotContains(t, status.RuntimeToolsets, "rl")
+	}
+
+	explicitEmpty, _ := parseToolsetConfigYAML(t, `
+platform_toolsets:
+  cli: []
+`)
+	status, err := explicitEmpty.PlatformStatus("cli")
+	if err != nil {
+		t.Fatalf("PlatformStatus(cli): %v", err)
+	}
+	if len(status.RuntimeToolsets) != 0 {
+		t.Fatalf("explicit empty cli runtime toolsets = %v, want empty", status.RuntimeToolsets)
+	}
+}
+
+func TestPlatformToolsetStatusLeavesHomeAssistantOffWithoutHASSToken(t *testing.T) {
+	t.Setenv("HASS_TOKEN", "")
+
+	cfg, _ := parseToolsetConfigYAML(t, `platform_toolsets: {}`)
+
+	for _, platform := range []string{"cron", "cli"} {
+		status, err := cfg.PlatformStatus(platform)
+		if err != nil {
+			t.Fatalf("PlatformStatus(%s): %v", platform, err)
+		}
+		assertNotContains(t, status.RuntimeToolsets, "homeassistant")
+		assertIssue(t, status, PlatformToolsetIssueHomeAssistantTokenMissing, "homeassistant")
+	}
+}
+
 func parseToolsetConfigYAML(t *testing.T, body string) (PlatformToolsetConfig, PlatformToolsetReport) {
 	t.Helper()
 	var raw any

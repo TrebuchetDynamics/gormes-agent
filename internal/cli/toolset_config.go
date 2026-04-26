@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -9,6 +10,8 @@ import (
 )
 
 const noMCPToolsetSentinel = "no_mcp"
+const homeAssistantToolset = "homeassistant"
+const hassTokenEnv = "HASS_TOKEN"
 
 var platformDefaultToolsets = map[string]string{
 	"api_server":     "hermes-api-server",
@@ -55,11 +58,12 @@ var defaultRuntimeToolsets = []string{
 type PlatformToolsetIssueKind string
 
 const (
-	PlatformToolsetIssueIgnoredDefaultSuperset PlatformToolsetIssueKind = "ignored_default_superset"
-	PlatformToolsetIssueNumericKeyNormalized   PlatformToolsetIssueKind = "numeric_key_normalized"
-	PlatformToolsetIssueNumericEntryNormalized PlatformToolsetIssueKind = "numeric_entry_normalized"
-	PlatformToolsetIssueNoMCPSuppression       PlatformToolsetIssueKind = "no_mcp_suppression"
-	PlatformToolsetIssueRestrictedToolset      PlatformToolsetIssueKind = "restricted_toolset"
+	PlatformToolsetIssueIgnoredDefaultSuperset    PlatformToolsetIssueKind = "ignored_default_superset"
+	PlatformToolsetIssueHomeAssistantTokenMissing PlatformToolsetIssueKind = "homeassistant_token_missing"
+	PlatformToolsetIssueNumericKeyNormalized      PlatformToolsetIssueKind = "numeric_key_normalized"
+	PlatformToolsetIssueNumericEntryNormalized    PlatformToolsetIssueKind = "numeric_entry_normalized"
+	PlatformToolsetIssueNoMCPSuppression          PlatformToolsetIssueKind = "no_mcp_suppression"
+	PlatformToolsetIssueRestrictedToolset         PlatformToolsetIssueKind = "restricted_toolset"
 )
 
 // PlatformToolsetIssue records a normalization or degraded-mode decision.
@@ -160,6 +164,18 @@ func (cfg PlatformToolsetConfig) PlatformStatus(platform string) (PlatformToolse
 	selected, configured := cfg.PlatformToolsets[platform]
 	if !configured {
 		selected = append([]string(nil), defaultRuntimeToolsets...)
+		if homeAssistantDefaultPlatform(platform) {
+			if !hasHomeAssistantToken() {
+				report.Issues = append(report.Issues, PlatformToolsetIssue{
+					Kind:     PlatformToolsetIssueHomeAssistantTokenMissing,
+					Platform: platform,
+					Toolset:  homeAssistantToolset,
+					Detail:   "HASS_TOKEN is not set; Home Assistant stays default-off",
+				})
+			} else {
+				selected = append(selected, homeAssistantToolset)
+			}
+		}
 	}
 
 	runtime := make(map[string]struct{})
@@ -312,6 +328,19 @@ func toolsetAllowedForPlatform(manifest tools.UpstreamToolParityManifest, name s
 		}
 	}
 	return false
+}
+
+func homeAssistantDefaultPlatform(platform string) bool {
+	switch platform {
+	case "cron", "cli":
+		return true
+	default:
+		return false
+	}
+}
+
+func hasHomeAssistantToken() bool {
+	return strings.TrimSpace(os.Getenv(hassTokenEnv)) != ""
 }
 
 func knownManifestToolsets(manifest tools.UpstreamToolParityManifest) map[string]struct{} {
