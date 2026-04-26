@@ -51,7 +51,7 @@ func NewPtyChatSidecar(cfg PtyChatSidecarConfig) *PtyChatSidecar {
 	s := &PtyChatSidecar{
 		sink:  cfg.Sink,
 		queue: make(chan map[string]any, queueSize),
-		done:  make(chan struct{}),
+			done:  make(chan struct{}, 0),
 	}
 	if cfg.Sink == nil {
 		s.healthy.Store(false)
