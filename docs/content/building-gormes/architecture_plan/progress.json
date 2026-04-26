@@ -7418,7 +7418,7 @@
             {
               "name": "MCP OAuth state store + noninteractive auth errors",
               "status": "planned",
-              "contract": "MCP OAuth tokens, redirect/device state, expiry, and 401 session-expired recovery persist in a reusable store while noninteractive runs return actionable auth-required errors",
+              "contract": "internal/tools adds a pure in-memory MCPOAuthStore with methods Get(server string) (MCPOAuthToken, bool), Set(server string, tok MCPOAuthToken) error, Clear(server string), and StatusFor(server string, now time.Time) MCPOAuthStatus where MCPOAuthToken has fields {AccessToken, RefreshToken, Scope, Issuer string; ExpiresAt time.Time}, MCPOAuthStatus has fields {Server, State, Evidence string} with State in {'absent','valid','expired','noninteractive_required'}; the store never logs or returns AccessToken/RefreshToken in its String()/Status output",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -7426,75 +7426,115 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "MCP calls that need auth report oauth_required, token_expired, or noninteractive_auth_unavailable instead of launching a browser or retrying forever.",
-              "fixture": "internal/tools/mcp_oauth_test.go",
+              "degraded_mode": "Status output reports state and evidence labels (absent, valid, expired, noninteractive_required) instead of leaking secret material; redaction is enforced in the store boundary, not at call sites.",
+              "fixture": "internal/tools/mcp_oauth_store_test.go",
               "source_refs": [
-                "../hermes-agent/tools/mcp_oauth.py@edc78e25",
+                "../hermes-agent/tools/mcp_oauth.py@edc78e25:_tokens_path",
+                "../hermes-agent/tools/mcp_oauth.py@edc78e25:get_tokens",
+                "../hermes-agent/tools/mcp_oauth.py@edc78e25:set_tokens",
                 "../hermes-agent/tools/mcp_oauth_manager.py@edc78e25",
-                "../hermes-agent/tests/tools/test_mcp_oauth.py@edc78e25",
-                "../hermes-agent/tests/tools/test_mcp_oauth_manager.py@edc78e25",
-                "../hermes-agent/tests/tools/test_mcp_tool_401_handling.py@edc78e25",
-                "../hermes-agent/tests/tools/test_mcp_tool_session_expired.py@edc78e25"
+                "internal/tools/mcp_config.go"
               ],
               "ready_when": [
-                "MCP server config/env resolver is validated, so per-server OAuth settings and status redaction are available without live transports."
+                "internal/tools already exposes mcp_config.go and mcp_config_test.go, so adding a single new file with one exported store + token type compiles cleanly alongside them.",
+                "This slice only defines an in-memory store and a deterministic status read; no token persistence to disk, no refresh client, no HTTP transport, no real OAuth flow, and no browser or device code is required."
               ],
               "not_ready_when": [
-                "The slice starts a managed gateway, opens a real browser in tests, calls a live OAuth provider, or changes generic provider credential storage."
+                "The slice opens HTTP listeners, calls real OAuth issuers, persists tokens to disk, ports refresh logic, registers MCP tool handlers, or modifies internal/tools/mcp_config.go.",
+                "The slice's Status output includes any character of an AccessToken or RefreshToken field."
               ],
               "blocked_by": [
                 "MCP server config/env resolver"
               ],
               "unblocks": [
+                "MCP OAuth refresh + 401 session-expired recovery",
                 "Managed tool gateway bridge"
               ],
               "acceptance": [
-                "OAuth state fixtures persist access token, refresh token, expiry, scopes, issuer, and redirect/device pending state with secrets redacted in status.",
-                "Expired tokens are refreshed when a fake refresher is available and otherwise report token_expired with the server name.",
-                "401 and session-expired tool responses clear the usable token and return oauth_required evidence.",
-                "Noninteractive mode never opens a browser or blocks on device-code input; it returns noninteractive_auth_unavailable."
+                "TestMCPOAuthStore_AbsentByDefault: NewMCPOAuthStore().StatusFor('srv', t0) returns {Server:'srv', State:'absent', Evidence:'no_token'}.",
+                "TestMCPOAuthStore_SetGetRoundTrip: after Set('srv', tok), Get('srv') returns the same token and ok=true; subsequent Clear('srv') makes Get return ok=false and StatusFor returns State='absent'.",
+                "TestMCPOAuthStore_ExpiredWhenPastExpiresAt: token with ExpiresAt=t0.Add(-time.Minute) returns StatusFor State='expired', Evidence='token_expired'.",
+                "TestMCPOAuthStore_ValidWhenFutureExpiresAt: token with ExpiresAt=t0.Add(time.Hour) returns StatusFor State='valid', Evidence='ok'.",
+                "TestMCPOAuthStore_StatusRedactsSecrets: tokens with AccessToken='sk-abc-secret' and RefreshToken='rt-xyz-secret' produce a StatusFor result whose String() and Evidence fields contain neither 'sk-abc-secret' nor 'rt-xyz-secret' (sub-string assertion).",
+                "TestMCPOAuthStore_NoninteractiveErrorClass: a constant ErrMCPOAuthNoninteractiveRequired is exported and StatusFor for an absent server in noninteractive mode (NewMCPOAuthStore().WithNoninteractive(true)) returns State='noninteractive_required', Evidence='noninteractive_auth_unavailable'."
               ],
-              "note": "OAuth stays separate from MCP discovery so fake-server descriptor work can land without auth state or browser behavior.",
+              "note": "Reshape of the prior quarantined 5.G row. The previous contract spanned token store + refresh flow + 401 recovery + browser handling — workers had no obvious atomic edit. This row narrows scope to one in-memory store with a typed token + status read, six named tests, and one declared error class, all inside internal/tools. Refresh, 401 recovery, and persistence land in follow-up rows. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
-                "internal/tools/mcp_oauth.go",
-                "internal/tools/mcp_oauth_test.go",
-                "internal/tools/mcp_config.go",
+                "internal/tools/mcp_oauth_store.go",
+                "internal/tools/mcp_oauth_store_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools -run 'Test.*MCP.*OAuth|Test.*MCP.*401|Test.*MCP.*SessionExpired' -count=1",
+                "go test ./internal/tools -run 'TestMCPOAuthStore_' -count=1",
                 "go test ./internal/tools -count=1",
+                "go vet ./internal/tools",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "MCP OAuth fixtures prove state persistence, refresh/expiry handling, 401 recovery, secret redaction, and noninteractive auth-required errors."
+                "internal/tools/mcp_oauth_store.go declares MCPOAuthStore, MCPOAuthToken, MCPOAuthStatus, and ErrMCPOAuthNoninteractiveRequired; six named tests pass; no other internal/tools file is modified."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:31:50Z",
-                "last_failure": {
-                  "run_id": "20260426T143133Z-783778276",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.G/MCP OAuth state store + noninteractive auth errors"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:31:50Z",
-                  "after_run_id": "20260426T143133Z-783778276",
-                  "threshold": 3,
-                  "spec_hash": "a24ae869bf0cf9b5cff91b5877b9da7a7b0b95134748dbafb138110bcc2e6745",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:edc78e25 tools/mcp_oauth.py",
-                "note": "Hermes defines MCP OAuth lifecycle behavior; Gormes keeps it in a native tools package store."
+                "note": "Reshape of the prior 5.G quarantine. Hermes defines MCP OAuth state shape; Gormes lands the smallest in-memory store + redaction guarantee first, before any refresh, persistence, 401 recovery, or browser logic."
+              }
+            },
+            {
+              "name": "MCP OAuth refresh + 401 session-expired recovery",
+              "status": "planned",
+              "contract": "internal/tools adds a pure function `RefreshMCPOAuth(ctx context.Context, store *MCPOAuthStore, server string, refresher MCPRefresher, now time.Time) (MCPOAuthRefreshResult, error)` where MCPRefresher is an interface with one method `Refresh(ctx, refreshToken string) (newTokens MCPOAuthToken, err error)`; the function refreshes expired tokens, handles 401-equivalent SessionExpired errors by clearing the stored token, and never blocks on user input",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Refresh result reports Outcome in {'refreshed','still_valid','token_cleared','noninteractive_required','refresher_unavailable'} so callers can decide whether to retry the underlying MCP call without inspecting transport errors.",
+              "fixture": "internal/tools/mcp_oauth_refresh_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/mcp_oauth_manager.py@edc78e25",
+                "../hermes-agent/tests/tools/test_mcp_tool_401_handling.py@edc78e25",
+                "../hermes-agent/tests/tools/test_mcp_tool_session_expired.py@edc78e25"
+              ],
+              "ready_when": [
+                "MCP OAuth state store + noninteractive auth errors is validated, exporting MCPOAuthStore/MCPOAuthToken/ErrMCPOAuthNoninteractiveRequired."
+              ],
+              "not_ready_when": [
+                "The slice opens HTTP listeners, calls real OAuth issuers, ports the full mcp_oauth_manager.py, or wires a managed gateway."
+              ],
+              "blocked_by": [
+                "MCP OAuth state store + noninteractive auth errors"
+              ],
+              "unblocks": [
+                "Managed tool gateway bridge"
+              ],
+              "acceptance": [
+                "TestRefreshMCPOAuth_StillValidNoOp: token with ExpiresAt=now.Add(time.Hour) returns Outcome='still_valid' without calling refresher.",
+                "TestRefreshMCPOAuth_RefreshesWhenExpired: expired token with non-empty RefreshToken returns Outcome='refreshed' and store now holds the new token from refresher.Refresh.",
+                "TestRefreshMCPOAuth_ClearsOnRefresherError: refresher returns ErrMCPOAuthSessionExpired sentinel; store is cleared and Outcome='token_cleared'.",
+                "TestRefreshMCPOAuth_NoninteractiveWhenNoRefreshToken: token with empty RefreshToken in noninteractive store returns Outcome='noninteractive_required' and a non-nil ErrMCPOAuthNoninteractiveRequired error.",
+                "TestRefreshMCPOAuth_RefresherUnavailable: nil refresher returns Outcome='refresher_unavailable' without panicking and store is not mutated."
+              ],
+              "note": "Follow-up to the MCP OAuth state store. Refresh and 401 recovery are isolated as a pure function over a fake refresher so workers do not have to land transport, persistence, and refresh in one row.",
+              "write_scope": [
+                "internal/tools/mcp_oauth_refresh.go",
+                "internal/tools/mcp_oauth_refresh_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestRefreshMCPOAuth_' -count=1",
+                "go test ./internal/tools -count=1",
+                "go vet ./internal/tools",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/tools/mcp_oauth_refresh.go declares RefreshMCPOAuth, MCPRefresher, MCPOAuthRefreshResult, and ErrMCPOAuthSessionExpired; five named tests pass; the store from the prior row is reused without modification."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:edc78e25 tools/mcp_oauth_manager.py",
+                "note": "Hermes defines refresh + 401 recovery semantics; Gormes lands them as a pure function over the in-memory store + a fake refresher before any live transport."
               }
             },
             {
@@ -8245,13 +8285,15 @@
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
-                "The row is assigned as one combined hermes_cli helper-file migration instead of the two pure-helper slices below."
+                "The row is assigned as one combined hermes_cli helper-file migration instead of the four pure-helper slices below."
               ],
               "unblocks": [
                 "CLI banner/output formatting helpers",
-                "CLI tips/dump/webhook deterministic helpers"
+                "CLI deterministic tip selector",
+                "CLI webhook URL normalizer",
+                "CLI dump support-summary helper"
               ],
-              "note": "Umbrella only: keep for inventory continuity after repeated helper-port collisions. Execute through `CLI banner/output formatting helpers` first, then `CLI tips/dump/webhook deterministic helpers`; command registry, config/auth/setup, management CLI, and diagnostics rows must not consume this whole helper surface."
+              "note": "Umbrella only: keep for inventory continuity after repeated helper-port collisions. Execute through `CLI banner/output formatting helpers` first, then the three pure-helper sibling rows (tip selector, webhook URL normalizer, dump support-summary helper). Command registry, config/auth/setup, management CLI, and diagnostics rows must not consume this whole helper surface."
             },
             {
               "name": "CLI banner/output formatting helpers",
@@ -8279,7 +8321,8 @@
                 "The slice opens a terminal, reads real config files, registers Cobra commands, or ports tips/webhook/dump helpers in the same change."
               ],
               "unblocks": [
-                "CLI tips/dump/webhook deterministic helpers"
+                "CLI deterministic tip selector",
+                "CLI dump support-summary helper"
               ],
               "acceptance": [
                 "FormatContextLength, DisplayToolsetName, and banner version labels match upstream golden fixtures.",
@@ -8313,57 +8356,187 @@
               }
             },
             {
-              "name": "CLI tips/dump/webhook deterministic helpers",
+              "name": "CLI deterministic tip selector",
               "status": "planned",
-              "contract": "Pure tips, dump, and webhook helper ports are deterministic and file/config inert before CLI command groups consume them",
+              "contract": "internal/cli adds a fixed exported corpus `Tips []string` of at least 30 non-empty entries (each unique, none containing newlines) and a pure function `TipFor(seed int64) string` that returns Tips[(seed mod len(Tips))]; tip text is owned by Gormes and does not need to mirror upstream tip strings",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
-                "operator",
-                "system"
+                "operator"
               ],
-              "degraded_mode": "Tips, support dumps, and webhook helper output stay unavailable or minimal until fixed-input fixtures prove deterministic behavior.",
-              "fixture": "internal/cli/tips_dump_webhook_test.go",
+              "degraded_mode": "Callers that want a non-deterministic random tip can inject `time.Now().UnixNano()` as the seed; tests always inject a fixed seed so output is deterministic.",
+              "fixture": "internal/cli/tips_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/tips.py@edc78e25",
-                "../hermes-agent/hermes_cli/dump.py@edc78e25",
-                "../hermes-agent/hermes_cli/webhook.py@edc78e25",
-                "internal/cli/"
+                "../hermes-agent/hermes_cli/tips.py@edc78e25:get_random_tip",
+                "internal/cli/banner.go",
+                "internal/cli/output.go"
               ],
               "ready_when": [
-                "CLI banner/output formatting helpers are validated, so shared formatting helpers exist for dump/webhook output."
+                "internal/cli already exposes pure helpers (banner.go, output.go); adding a single new file with a corpus + selector compiles cleanly.",
+                "This slice does not need any random source, clock, network, filesystem, or upstream tip-text parity."
               ],
               "not_ready_when": [
-                "The slice reads real Hermes/Gormes homes, opens network webhooks, registers commands, or uses random/time behavior without injected deterministic inputs."
+                "The slice imports math/rand without an injected seed, reads files, registers commands, or copies upstream tip text verbatim (which would couple Gormes to Hermes string churn).",
+                "The slice spans dump.py or webhook.py — those land in their own rows."
               ],
               "blocked_by": [
                 "CLI banner/output formatting helpers"
               ],
               "unblocks": [
-                "CLI command registry parity + active-turn busy policy"
+                "CLI webhook URL normalizer",
+                "CLI dump support-summary helper"
               ],
               "acceptance": [
-                "Tip selection uses injected deterministic selection and stable corpus ordering.",
-                "Dump helpers produce redacted support-summary fixtures from in-memory config/status inputs only.",
-                "Webhook helpers normalize URLs/payload labels without sending network requests."
+                "TestTips_CorpusInvariants: len(Tips) >= 30; every entry is non-empty, contains no '\\n', and the corpus has no duplicate entries.",
+                "TestTipFor_DeterministicForFixedSeed: TipFor(42) == TipFor(42) across two calls and equals Tips[42 mod len(Tips)].",
+                "TestTipFor_HandlesNegativeSeed: TipFor(-1) returns a non-empty string from Tips and never panics (the function normalizes negative seeds before indexing).",
+                "TestTipFor_HandlesZeroSeed: TipFor(0) == Tips[0].",
+                "TestTipFor_DistributesAcrossCorpus: calling TipFor(int64(i)) for i in [0, len(Tips)) returns each Tips entry exactly once."
               ],
-              "note": "Second pure-helper slice after banner/output; keeps tips, dump, and webhook helper behavior out of the broader command-registry port.",
+              "note": "Reshape of the prior quarantined 5.O row. The previous contract bundled tips + dump + webhook in one slice with a 'tips_dump_webhook_test.go' fixture name — three concept layers that workers couldn't land atomically. This row narrows scope to one file with one corpus + one selector and five named tests. Dump and webhook are tracked as separate sibling rows below. Gormes owns the tip text; we do not port the Hermes corpus verbatim because tip strings reference hermes-specific commands (/save, /personality, hermes -c) that do not all exist in Gormes yet. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
                 "internal/cli/tips.go",
-                "internal/cli/dump.go",
-                "internal/cli/webhook.go",
-                "internal/cli/tips_dump_webhook_test.go",
+                "internal/cli/tips_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/cli -run 'Test.*Tips|Test.*Dump|Test.*Webhook' -count=1",
+                "go test ./internal/cli -run 'TestTips_|TestTipFor_' -count=1",
                 "go test ./internal/cli -count=1",
+                "go vet ./internal/cli",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Pure helper fixtures prove tips, dump, and webhook output from fixed inputs with no filesystem, clock, random, or network dependency."
+                "internal/cli/tips.go declares Tips and TipFor; five named tests pass; no other internal/cli file is modified."
               ],
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-04-26T16:00:00Z",
+                "note": "Reshape of the prior 5.O quarantine. Tip text references Gormes-specific commands and is owned by Gormes; the selector idea originates in hermes_cli/tips.py but the corpus does not need to mirror upstream."
+              }
+            },
+            {
+              "name": "CLI webhook URL normalizer",
+              "status": "planned",
+              "contract": "internal/cli adds a pure function `NormalizeWebhookURL(raw string) (string, error)` that trims whitespace, requires scheme http or https, strips trailing slashes from the path, lowercases the host, rejects userinfo (raw URLs containing '@' before the host) with a sentinel error, and returns the canonicalized URL string; no network call is made",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Callers handle the typed error classes (ErrWebhookURLEmpty, ErrWebhookURLBadScheme, ErrWebhookURLUserInfoForbidden, ErrWebhookURLParseFailed) instead of treating any non-empty string as a valid webhook target.",
+              "fixture": "internal/cli/webhook_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/webhook.py@edc78e25",
+                "internal/cli/output.go"
+              ],
+              "ready_when": [
+                "CLI deterministic tip selector lands so internal/cli has a stable surface; this row only adds one pure function with sentinel errors."
+              ],
+              "not_ready_when": [
+                "The slice opens network sockets, ports webhook signing, registers a Cobra command, or modifies any other internal/cli file."
+              ],
+              "blocked_by": [
+                "CLI deterministic tip selector"
+              ],
+              "unblocks": [
+                "CLI command registry parity + active-turn busy policy"
+              ],
+              "acceptance": [
+                "TestNormalizeWebhookURL_TrimsAndCanonicalizes: NormalizeWebhookURL('  HTTPS://Example.COM/Hooks/x/  ') returns ('https://example.com/Hooks/x', nil).",
+                "TestNormalizeWebhookURL_StripsTrailingSlashOnRoot: NormalizeWebhookURL('https://example.com/') returns ('https://example.com', nil).",
+                "TestNormalizeWebhookURL_PreservesQueryAndFragment: NormalizeWebhookURL('https://example.com/x/?a=1#f') returns ('https://example.com/x?a=1#f', nil).",
+                "TestNormalizeWebhookURL_RejectsEmpty: NormalizeWebhookURL('   ') returns ('', ErrWebhookURLEmpty).",
+                "TestNormalizeWebhookURL_RejectsNonHTTP: NormalizeWebhookURL('ftp://example.com') and NormalizeWebhookURL('javascript:alert(1)') each return ('', ErrWebhookURLBadScheme).",
+                "TestNormalizeWebhookURL_RejectsUserInfo: NormalizeWebhookURL('https://user:pass@example.com/x') returns ('', ErrWebhookURLUserInfoForbidden) — credentials must not be embedded in webhook URLs."
+              ],
+              "note": "Sibling slice after deterministic tip selector. Keeps the webhook URL contract at one pure function with six named tests so workers can land it atomically without porting webhook signing or command wiring.",
+              "write_scope": [
+                "internal/cli/webhook.go",
+                "internal/cli/webhook_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run 'TestNormalizeWebhookURL_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go vet ./internal/cli",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/cli/webhook.go declares NormalizeWebhookURL plus the four sentinel errors; six named tests pass; no other internal/cli file is modified."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:edc78e25 hermes_cli/webhook.py",
+                "note": "Hermes accepts arbitrary webhook URLs; Gormes lands a stricter normalizer first so command handlers can rely on canonical input."
+              }
+            },
+            {
+              "name": "CLI dump support-summary helper",
+              "status": "planned",
+              "contract": "internal/cli adds a pure function `RenderDumpSummary(in DumpInput) string` where DumpInput has fields {Version, OS, Arch, ProfileName string; Toolsets []string; SecretsLikeKeys []string} that returns a deterministic multi-line summary; the function never reads files, clock, env, or network and redacts every entry of SecretsLikeKeys (replaces literal occurrences with '[redacted]') in the output text",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Empty Toolsets renders 'toolsets: (none)'; missing fields render 'unknown' instead of leaking errors.",
+              "fixture": "internal/cli/dump_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/dump.py@edc78e25",
+                "internal/cli/output.go"
+              ],
+              "ready_when": [
+                "CLI banner/output formatting helpers are validated, so deterministic line formatting helpers exist."
+              ],
+              "not_ready_when": [
+                "The slice reads runtime config, gateway state, network, processes.json, env vars, the clock, or registers a Cobra command in the same change."
+              ],
+              "blocked_by": [
+                "CLI banner/output formatting helpers"
+              ],
+              "unblocks": [
+                "Diagnostics, backup, logs, and status CLI"
+              ],
+              "acceptance": [
+                "TestRenderDumpSummary_StableOrder: input {Version:'0.1.0',OS:'linux',Arch:'amd64',ProfileName:'default',Toolsets:['core','web']} renders lines in the exact order: version, os, arch, profile, toolsets.",
+                "TestRenderDumpSummary_RedactsSecrets: input with SecretsLikeKeys=['sk-abcdef'] and a Version that happens to contain 'sk-abcdef' (synthetic) replaces 'sk-abcdef' with '[redacted]' in the rendered output.",
+                "TestRenderDumpSummary_HandlesMissingFields: input with empty Version/OS/Arch/ProfileName renders 'version: unknown', 'os: unknown', etc., and 'toolsets: (none)' for empty Toolsets.",
+                "TestRenderDumpSummary_DeterministicAcrossCalls: identical inputs return byte-for-byte equal output across two calls.",
+                "TestRenderDumpSummary_NoTrailingWhitespace: every line has no trailing space and the output ends in a single '\\n'."
+              ],
+              "note": "Sibling slice after deterministic tip selector and webhook URL normalizer. Renders an in-memory diagnostic summary deterministically with explicit redaction at the boundary; runtime collection (config, gateway state, etc.) lands later under the management CLI rows.",
+              "write_scope": [
+                "internal/cli/dump.go",
+                "internal/cli/dump_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run 'TestRenderDumpSummary_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go vet ./internal/cli",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/cli/dump.go declares RenderDumpSummary and DumpInput; five named tests pass; no other internal/cli file is modified."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:edc78e25 hermes_cli/dump.py",
+                "note": "Hermes assembles a runtime support dump; Gormes lands the pure rendering layer first so workers can wire collection later without touching the formatter."
+              }
+            },
+            {
+              "name": "CLI tips/dump/webhook deterministic helpers (deprecated umbrella)",
+              "status": "deprecated",
+              "slice_size": "umbrella",
+              "execution_owner": "tools",
+              "not_ready_when": [
+                "The row is selected at all — execute the three sibling rows above (CLI deterministic tip selector, CLI webhook URL normalizer, CLI dump support-summary helper) instead."
+              ],
+              "note": "Deprecated 2026-04-26: the prior tips+dump+webhook umbrella was repeatedly quarantined because workers could not land three concept layers atomically. Replaced by three smaller sibling rows. Keep this row in inventory so historical references resolve.",
               "health": {
                 "attempt_count": 3,
                 "consecutive_failures": 3,
@@ -8462,13 +8635,15 @@
                 "internal/cli/"
               ],
               "ready_when": [
-                "CLI tips/dump/webhook deterministic helpers are validated, so command registry output can reuse pure helper formatting."
+                "CLI deterministic tip selector, CLI webhook URL normalizer, and CLI dump support-summary helper are validated, so command registry output can reuse the three pure helper layers."
               ],
               "not_ready_when": [
                 "The slice implements config/auth/setup flows, opens provider credentials, or ports command handlers before the registry policy table is fixture-locked."
               ],
               "blocked_by": [
-                "CLI tips/dump/webhook deterministic helpers"
+                "CLI deterministic tip selector",
+                "CLI webhook URL normalizer",
+                "CLI dump support-summary helper"
               ],
               "unblocks": [
                 "Busy command guard for compression and long CLI actions",
@@ -8647,16 +8822,18 @@
                 "The row is assigned as one combined config/profile/auth/setup migration instead of the pure profile, auth-status, setup, and uninstall slices."
               ],
               "unblocks": [
-                "CLI profile path and active-profile store",
+                "CLI profile name validator",
+                "CLI profile root resolver",
+                "CLI active-profile store",
                 "CLI auth status read model before provider setup",
                 "Setup/uninstall dry-run command contracts"
               ],
-              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Execute dependency-ordered pure helper rows first; do not assign this umbrella row directly."
+              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then auth-status, setup/uninstall. Do not assign this umbrella row directly."
             },
             {
-              "name": "CLI profile path and active-profile store",
+              "name": "CLI profile name validator",
               "status": "planned",
-              "contract": "Gormes models Hermes profile names, active-profile selection, and profile-root resolution as pure XDG-scoped helpers before command UI, alias wrappers, cloning, or export/import behavior is ported",
+              "contract": "internal/cli adds a pure function `ValidateProfileName(name string) error` and an exported sentinel error set: ErrProfileNameEmpty, ErrProfileNameTooLong, ErrProfileNameInvalidChars, ErrProfileNameReserved; the function accepts names matching `^[a-z0-9][a-z0-9_-]{0,63}$`, treats 'default' as valid (special alias), and rejects the reserved subcommand names {'create','delete','list','use','export','import','show'}",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -8664,73 +8841,179 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Profile commands report invalid profile names, missing profiles, reserved-name collisions, and unset active profile state without writing outside the selected Gormes config/data roots.",
-              "fixture": "internal/cli/profile_store_test.go",
+              "degraded_mode": "Callers report a typed sentinel error class instead of free-form text so the CLI can render uniform error messages later without re-parsing strings.",
+              "fixture": "internal/cli/profile_name_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/profiles.py@edc78e25",
+                "../hermes-agent/hermes_cli/profiles.py@edc78e25:_PROFILE_ID_RE",
+                "../hermes-agent/hermes_cli/profiles.py@edc78e25:validate_profile_name",
                 "../hermes-agent/tests/hermes_cli/test_profiles.py@edc78e25",
-                "internal/config/config.go",
-                "cmd/gormes/main.go"
+                "internal/cli/banner.go"
               ],
               "ready_when": [
-                "This slice only defines validation, path resolution, active-profile read/write, and environment resolution helpers.",
-                "No command UI, alias wrapper, service file, tar export/import, clone-all copy, or provider credential migration is required."
+                "internal/cli already exposes pure helpers; adding one new file with one validator + sentinel errors compiles cleanly alongside them.",
+                "This slice only defines validation; no path resolution, active-profile read/write, command wiring, alias wrapper, or env mutation is required."
               ],
               "not_ready_when": [
-                "The slice creates shell wrapper scripts, copies profile directories, mutates provider credentials, or changes runtime config loading for non-profile commands."
+                "The slice resolves filesystem paths, creates wrapper scripts, mutates provider credentials, modifies internal/config, or registers a Cobra command.",
+                "The slice modifies any other internal/cli file beyond the new profile_name.go and profile_name_test.go."
+              ],
+              "unblocks": [
+                "CLI active-profile store",
+                "CLI profile root resolver"
+              ],
+              "acceptance": [
+                "TestValidateProfileName_AcceptsValid: ValidateProfileName each of {'default','coder','work-1','tier_2','a','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'} returns nil (the last is exactly 64 chars).",
+                "TestValidateProfileName_RejectsEmpty: ValidateProfileName('') and ValidateProfileName('   ') (after caller-side trim) both return ErrProfileNameEmpty.",
+                "TestValidateProfileName_RejectsTooLong: ValidateProfileName(strings.Repeat('a', 65)) returns ErrProfileNameTooLong.",
+                "TestValidateProfileName_RejectsInvalidChars: each of {'Coder','my profile','-leading','_leading','dot.name','slash/name','tab\\tname'} returns ErrProfileNameInvalidChars.",
+                "TestValidateProfileName_RejectsReserved: each of {'create','delete','list','use','export','import','show'} returns ErrProfileNameReserved (these collide with subcommand names)."
+              ],
+              "note": "Reshape of the prior quarantined 5.O 'CLI profile path and active-profile store' row. The previous contract bundled validation + path resolution + active-profile store + env resolution, four concept layers that workers couldn't land atomically. This row narrows scope to the validator alone; path resolver and active-profile store are tracked as the two sibling rows below. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+              "write_scope": [
+                "internal/cli/profile_name.go",
+                "internal/cli/profile_name_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run 'TestValidateProfileName_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go vet ./internal/cli",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/cli/profile_name.go declares ValidateProfileName plus the four sentinel errors; five named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
+                "note": "Reshape of the prior 5.O quarantine. Hermes defines the profile name regex and reserved-name list; Gormes lands the validator first as a pure function before path resolution, active-profile store, or command wiring."
+              }
+            },
+            {
+              "name": "CLI profile root resolver",
+              "status": "planned",
+              "contract": "internal/cli adds a pure function `ResolveProfileRoot(name string, gormesXDGConfigHome string) (string, error)` that returns gormesXDGConfigHome+'/gormes' for name=='default' and gormesXDGConfigHome+'/gormes/profiles/'+name for any other valid profile name; it rejects invalid names by returning the same sentinel errors as ValidateProfileName and never touches the filesystem",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Path resolution returns sentinel errors for invalid names; callers handle filesystem access (mkdir, stat) outside this helper.",
+              "fixture": "internal/cli/profile_root_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/profiles.py@edc78e25:_get_profiles_root",
+                "../hermes-agent/hermes_cli/profiles.py@edc78e25:get_profile_dir"
+              ],
+              "ready_when": [
+                "CLI profile name validator is validated, exporting ValidateProfileName."
+              ],
+              "not_ready_when": [
+                "The slice reads $XDG_CONFIG_HOME from os.Getenv inside the function (the function takes the value as a parameter), creates directories, walks the filesystem, or modifies internal/config."
+              ],
+              "blocked_by": [
+                "CLI profile name validator"
+              ],
+              "unblocks": [
+                "CLI active-profile store"
+              ],
+              "acceptance": [
+                "TestResolveProfileRoot_DefaultProfile: ResolveProfileRoot('default', '/tmp/cfg') returns ('/tmp/cfg/gormes', nil).",
+                "TestResolveProfileRoot_NamedProfile: ResolveProfileRoot('coder', '/tmp/cfg') returns ('/tmp/cfg/gormes/profiles/coder', nil).",
+                "TestResolveProfileRoot_RejectsInvalidName: ResolveProfileRoot('Coder', '/tmp/cfg') returns ('', ErrProfileNameInvalidChars).",
+                "TestResolveProfileRoot_RejectsEmptyXDGRoot: ResolveProfileRoot('default', '') returns ('', ErrProfileXDGRootRequired).",
+                "TestResolveProfileRoot_NoFilesystemAccess: a fixture that runs the function with a path under a directory that does not exist still returns the canonical string and no error (proves the function does not stat or mkdir)."
+              ],
+              "note": "Sibling row after the validator. Path resolution is isolated as a pure function so the active-profile store row can compose validator + resolver without re-discovering the rules.",
+              "write_scope": [
+                "internal/cli/profile_root.go",
+                "internal/cli/profile_root_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run 'TestResolveProfileRoot_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go vet ./internal/cli",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/cli/profile_root.go declares ResolveProfileRoot and ErrProfileXDGRootRequired; five named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
+                "note": "Hermes resolves profile dirs via env reads inside the helper; Gormes takes the XDG root as a parameter so the function stays pure and testable."
+              }
+            },
+            {
+              "name": "CLI active-profile store",
+              "status": "planned",
+              "contract": "internal/cli adds an active-profile read/write store with `ReadActiveProfile(rootFile string) (string, error)` returning ErrActiveProfileUnset when missing, `WriteActiveProfile(rootFile, name string) error` that calls ValidateProfileName before writing, and `ClearActiveProfile(rootFile string) error`; both write paths use a temp-file + rename pattern so partial writes never produce a half-written file",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Read returns ErrActiveProfileUnset for missing files; write rejects invalid names via the validator's sentinel errors; clear is idempotent (no error when the file does not exist).",
+              "fixture": "internal/cli/active_profile_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/profiles.py@edc78e25:_get_active_profile_path"
+              ],
+              "ready_when": [
+                "CLI profile name validator and CLI profile root resolver are validated, exporting ValidateProfileName/ResolveProfileRoot."
+              ],
+              "not_ready_when": [
+                "The slice mutates process env, creates wrapper scripts, copies profile directories, registers a Cobra command, or modifies internal/config."
+              ],
+              "blocked_by": [
+                "CLI profile name validator",
+                "CLI profile root resolver"
               ],
               "unblocks": [
                 "CLI auth status read model before provider setup",
                 "Setup/uninstall dry-run command contracts"
               ],
               "acceptance": [
-                "Profile name validation accepts lowercase alphanumeric, underscore, and hyphen names up to 64 characters, keeps default as a special alias, and rejects uppercase, spaces, leading punctuation, empty names, and reserved subcommand names.",
-                "Default and named profile directories resolve under Gormes XDG roots without reading or writing legacy Hermes profile directories.",
-                "Active-profile read/write helpers persist only the selected name plus explicit missing/unset evidence.",
-                "Profile environment resolution returns the effective GORMES profile root for default and named profiles without mutating process-wide environment variables in tests."
+                "TestReadActiveProfile_UnsetWhenMissing: ReadActiveProfile(<nonexistent path>) returns ('', ErrActiveProfileUnset).",
+                "TestWriteActiveProfile_RoundTrip: WriteActiveProfile then ReadActiveProfile returns the same name with nil error.",
+                "TestWriteActiveProfile_RejectsInvalidName: WriteActiveProfile(path, 'Bad Name') returns ErrProfileNameInvalidChars and leaves the file unchanged.",
+                "TestWriteActiveProfile_AtomicTempRename: a fixture that pre-creates a sentinel file at path+'.tmp' confirms WriteActiveProfile completes successfully (proving temp-file + rename) and the final file content equals the new name byte-for-byte.",
+                "TestClearActiveProfile_IdempotentMissing: ClearActiveProfile(<nonexistent path>) returns nil.",
+                "TestClearActiveProfile_RemovesExisting: after WriteActiveProfile, ClearActiveProfile removes the file and the next ReadActiveProfile returns ErrActiveProfileUnset."
               ],
-              "note": "Split from the broad config/profile/auth/setup bucket so workers can land the pure profile contract before risky command wiring, alias wrappers, cloning, auth-store migration, or uninstall behavior.",
+              "note": "Sibling row after validator and root resolver. Persists only the active-profile name through atomic temp-file + rename so workers can land the store boundary without hand-rolling concurrency.",
               "write_scope": [
-                "internal/cli/profile_store.go",
-                "internal/cli/profile_store_test.go",
-                "internal/config/",
+                "internal/cli/active_profile.go",
+                "internal/cli/active_profile_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/cli ./internal/config -run 'Test.*Profile.*Store|Test.*Profile.*Path|Test.*Active.*Profile' -count=1",
-                "go test ./internal/cli ./internal/config -count=1",
+                "go test ./internal/cli -run 'TestReadActiveProfile_|TestWriteActiveProfile_|TestClearActiveProfile_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go vet ./internal/cli",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Profile helper fixtures prove validation, path resolution, active-profile persistence, environment resolution, and no writes outside selected Gormes roots."
+                "internal/cli/active_profile.go declares ReadActiveProfile/WriteActiveProfile/ClearActiveProfile and ErrActiveProfileUnset; six named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:32:48Z",
-                "last_failure": {
-                  "run_id": "20260426T143235Z-044472064",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.O/CLI profile path and active-profile store"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:32:48Z",
-                  "after_run_id": "20260426T143235Z-044472064",
-                  "threshold": 3,
-                  "spec_hash": "5b0300cf0400b1146dc9c09672dfdba8c9c6c3dcc1d536d55b376f8b04ec1492",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
-                "note": "Hermes defines the multi-profile operator contract; Gormes should first express it as Go-native XDG helper behavior."
+                "note": "Hermes persists active_profile as a plain text file under HERMES_HOME; Gormes does the same with atomic write semantics under the resolved XDG profile root."
               }
+            },
+            {
+              "name": "CLI profile path and active-profile store (deprecated umbrella)",
+              "status": "deprecated",
+              "slice_size": "umbrella",
+              "execution_owner": "tools",
+              "not_ready_when": [
+                "The row is selected at all — execute the three sibling rows above (CLI profile name validator, CLI profile root resolver, CLI active-profile store) instead."
+              ],
+              "note": "Deprecated 2026-04-26: the prior validator+resolver+store umbrella was repeatedly quarantined because workers could not land four concept layers atomically. Replaced by three sibling rows. Keep this row in inventory so historical references resolve."
             },
             {
               "name": "Top-level oneshot flag and model/provider resolver",
@@ -9369,7 +9652,7 @@
               "name": "Custom provider model-switch credential preservation",
               "priority": "P2",
               "status": "planned",
-              "contract": "CLI/TUI model switching resolves named custom providers from Gormes config, preserves env/key references when persisting model selection, and accepts configured cloud aliases even when a fake /v1/models catalog omits them",
+              "contract": "internal/cli adds a pure function `ResolveCustomProviderSecret(ref CustomProviderRef, env map[string]string) (CustomProviderResolution, error)` where CustomProviderRef has fields {Name string, BaseURL string, APIKey string, KeyEnv string} and CustomProviderResolution has fields {EffectiveSecret string, PersistAsRef string, Evidence string}; the function reads env-template `${VAR}` from APIKey via env, prefers KeyEnv when APIKey is empty, and never returns plaintext in PersistAsRef when the input was a reference",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -9377,81 +9660,52 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Model-switch status reports custom_provider_configured, secret_ref_preserved, catalog_model_missing_but_configured, or credential_missing evidence instead of writing plaintext secrets or rejecting configured aliases.",
-              "fixture": "internal/cli/custom_provider_model_switch_test.go",
+              "degraded_mode": "Resolution returns Evidence='credential_missing', 'secret_ref_preserved', 'plaintext_provided', or 'env_var_unset' so callers can distinguish persistable references from resolved secrets without writing plaintext to config.",
+              "fixture": "internal/cli/custom_provider_secret_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/model_switch.py@2c56dce0:switch_model",
                 "../hermes-agent/hermes_cli/main.py@1fdc31b2:_custom_provider_api_key_config_value",
                 "../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map",
-                "../hermes-agent/tui_gateway/server.py@2c56dce0:_apply_model_switch",
                 "../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8bbeaea6",
-                "internal/config/config.go",
-                "internal/hermes/model_registry.go",
-                "cmd/gormes/main.go"
+                "internal/cli/banner.go",
+                "internal/cli/output.go"
               ],
               "ready_when": [
-                "Top-level oneshot flag and model/provider resolver and TUI launch model override + static alias resolver are validated, so Gormes already has noninteractive model/provider override paths.",
-                "The first slice can be a pure resolver over temp TOML config, fake catalog results, and environment variables; no live provider calls or interactive picker UI are required."
+                "internal/cli already exposes pure helpers (banner.go, output.go, parity.go) so adding a single new file with one exported function compiles cleanly.",
+                "This slice only defines a pure resolver over Go map/struct literals; no config reader, /model command handler, fake catalog server, or TUI dispatch is required."
               ],
               "not_ready_when": [
-                "The slice implements broad setup/auth prompts, profile cloning, command registry handlers, or remote TUI transport instead of the pure resolver/persistence contract.",
-                "The slice writes plaintext API keys when config contains ${VAR}-style or key_env-style references, or treats a missing live catalog entry as fatal when the model is listed in config."
-              ],
-              "blocked_by": [
-                "Top-level oneshot flag and model/provider resolver",
-                "TUI launch model override + static alias resolver"
+                "The slice ports model_switch.py wholesale, opens a fake /v1/models server, modifies internal/config or internal/hermes, or wires the resolver into command handlers in the same change.",
+                "The slice returns plaintext in CustomProviderResolution.PersistAsRef when the input APIKey was an env-template `${VAR}` reference or KeyEnv was set."
               ],
               "unblocks": [
                 "CLI command registry parity + active-turn busy policy"
               ],
               "acceptance": [
-                "Named custom provider config resolves provider, base_url, api_mode, and configured model list for both CLI and TUI switch requests without falling back to a generic custom provider that loses credentials.",
-                "Env-ref base_url plus env-ref api_key and key_env-style configs use the resolved secret for fake catalog probes but persist the original reference, and fixture output proves the plaintext secret never appears in saved config.",
-                "A requested model absent from the fake /v1/models response but present in the configured provider model list is accepted with catalog_model_missing_but_configured evidence.",
-                "Same-provider switches keep current endpoint credentials when provider resolution falls through, while known-provider switches still refresh provider metadata deterministically."
+                "TestResolveCustomProviderSecret_EnvTemplatePreserved: ref={Name:'acme',APIKey:'${ACME_KEY}'}, env={'ACME_KEY':'sk-real'} returns {EffectiveSecret:'sk-real', PersistAsRef:'${ACME_KEY}', Evidence:'secret_ref_preserved'}.",
+                "TestResolveCustomProviderSecret_KeyEnvFallback: ref={Name:'acme',APIKey:'',KeyEnv:'ACME_KEY'}, env={'ACME_KEY':'sk-real'} returns {EffectiveSecret:'sk-real', PersistAsRef:'${ACME_KEY}', Evidence:'secret_ref_preserved'}.",
+                "TestResolveCustomProviderSecret_PlaintextProvided: ref={Name:'acme',APIKey:'sk-plain'}, env={} returns {EffectiveSecret:'sk-plain', PersistAsRef:'sk-plain', Evidence:'plaintext_provided'} (the function does not invent a reference).",
+                "TestResolveCustomProviderSecret_EnvVarUnset: ref={Name:'acme',APIKey:'${ACME_KEY}'}, env={} returns {EffectiveSecret:'', PersistAsRef:'${ACME_KEY}', Evidence:'env_var_unset'} and a non-nil error of class ErrCustomProviderEnvUnset.",
+                "TestResolveCustomProviderSecret_BothEmpty: ref={Name:'acme',APIKey:'',KeyEnv:''}, env={} returns {EffectiveSecret:'', PersistAsRef:'', Evidence:'credential_missing'} and a non-nil error of class ErrCustomProviderCredentialMissing."
               ],
-              "note": "Hermes 2c56dce0, 1fdc31b2, and 8bbeaea6 fixed custom-provider model switching around named providers, configured cloud aliases, and env-template secret preservation. Gormes should land the equivalent as a pure native resolver before wiring /model command handlers.",
+              "note": "Reshape of the prior quarantined 5.O row. The previous contract spanned model_switch.py, main.py, tui_gateway/server.py, fake /v1/models catalogs, and internal/config + internal/hermes — workers had no obvious first edit. This row narrows scope to one named pure function plus its struct/error declarations and five named tests, all inside internal/cli. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
-                "internal/cli/custom_provider_model_switch.go",
-                "internal/cli/custom_provider_model_switch_test.go",
-                "internal/config/",
-                "internal/hermes/model_registry.go",
+                "internal/cli/custom_provider_secret.go",
+                "internal/cli/custom_provider_secret_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/cli ./internal/config ./internal/hermes -run 'Test.*Custom.*Provider.*Model.*Switch|Test.*Provider.*Credential|Test.*Configured.*Model' -count=1",
-                "go test ./internal/cli ./internal/config ./internal/hermes -count=1",
+                "go test ./internal/cli -run 'TestResolveCustomProviderSecret_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go vet ./internal/cli",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Custom-provider model-switch fixtures prove named provider resolution, configured-model override, and secret-reference preservation without live provider calls or command UI."
+                "internal/cli/custom_provider_secret.go declares ResolveCustomProviderSecret, CustomProviderRef, CustomProviderResolution, ErrCustomProviderEnvUnset, and ErrCustomProviderCredentialMissing; five named tests pass; no internal/config, internal/hermes, or cmd/gormes file is modified."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:31:50Z",
-                "last_failure": {
-                  "run_id": "20260426T143133Z-783778276",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.O/Custom provider model-switch credential preservation"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:31:50Z",
-                  "after_run_id": "20260426T143133Z-783778276",
-                  "threshold": 3,
-                  "spec_hash": "74fd31587022dce406138740010e929be95918e8f0c4a254633d60a3ef0cbd3e",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:8bbeaea6 hermes_cli/main.py",
-                "note": "Hermes defines the custom-provider model-switch regression behavior; Gormes should adapt it to the native config and CLI helper layer before handler wiring."
+                "note": "Reshape of the prior 5.O quarantine. Hermes defines env-template-vs-plaintext semantics for custom-provider api keys; Gormes lands the smallest pure resolver first, before any /model command handler or fake catalog probe."
               }
             },
             {
