@@ -567,7 +567,6 @@
               ],
               "health": {
                 "attempt_count": 3,
-                "consecutive_failures": 3,
                 "last_attempt": "2026-04-26T15:09:51Z",
                 "last_failure": {
                   "run_id": "20260426T150941Z-113448856",
@@ -577,15 +576,7 @@
                 },
                 "backends_tried": [
                   "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T15:09:51Z",
-                  "after_run_id": "20260426T150941Z-113448856",
-                  "threshold": 3,
-                  "spec_hash": "24f8551fb920d476973febac169c25c1641f80bd34737dc320bdf0922fc0bebe",
-                  "last_category": "no_progress"
-                }
+                ]
               },
               "planner_verdict": {
                 "reshape_count": 9,
@@ -4652,7 +4643,6 @@
               ],
               "health": {
                 "attempt_count": 3,
-                "consecutive_failures": 3,
                 "last_attempt": "2026-04-26T15:09:01Z",
                 "last_failure": {
                   "run_id": "20260426T150848Z-251659260",
@@ -4662,15 +4652,7 @@
                 },
                 "backends_tried": [
                   "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T15:09:01Z",
-                  "after_run_id": "20260426T150848Z-251659260",
-                  "threshold": 3,
-                  "spec_hash": "7a41a3a6e2d641973adce7ce1b16f9562208f492b51b1888df0c365a14912edc",
-                  "last_category": "no_progress"
-                }
+                ]
               },
               "planner_verdict": {
                 "reshape_count": 11,
@@ -7164,6 +7146,11 @@
               "done_signal": [
                 "internal/tools/docker_container_key_test.go fixtures prove shared top-level default container keying and isolated subagent/rollout task_id requirements without live Docker."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T18:43:58Z",
+                "last_success": "2026-04-26T18:43:58Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:9be83728 website/docs/user-guide/configuration.md",
@@ -7267,6 +7254,11 @@
               "done_signal": [
                 "Browser hybrid routing fixtures prove private/LAN hosts select a ::local sidecar only in cloud+auto-local mode, while public and override cases keep the bare session key without starting a browser."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T18:43:58Z",
+                "last_success": "2026-04-26T18:43:58Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:42c076d3 tools/browser_tool.py",
@@ -11290,6 +11282,20 @@
               "done_signal": [
                 "Fork fixtures prove transcript copy, fork lineage metadata, compression-tip exclusion, TUI session switch, custom branch title propagation, and no kernel submission for `/branch`."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T18:43:58Z",
+                "last_failure": {
+                  "run_id": "20260426T183240Z-416305121",
+                  "category": "report_validation_failed",
+                  "backend": "codexu",
+                  "stderr_tail": "claudeu: credit exhausted; falling back to /home/xel/.local/bin/codexu\nReading additional input from stdin...\n"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:0824ba6a cli.py:_handle_branch_command",
