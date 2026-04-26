@@ -369,6 +369,233 @@ func TestRunPrePromotionGate_RepairAttemptsExhausted(t *testing.T) {
 	}
 }
 
+func TestRunRowEvaluator_RunsOnlyTestCommands(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot: filepath.Join(dir, "main"),
+		RunRoot:  filepath.Join(dir, "runroot"),
+	}
+	worker := workerRun{
+		ID:       5,
+		Task:     "4/4.A/replay",
+		Branch:   "autoloop/test/w5",
+		RepoRoot: filepath.Join(dir, "worktree-5"),
+		Candidate: Candidate{
+			TestCommands: []string{"echo row-test"},
+			Acceptance:   []string{"reasoning replay is visible in the transcript"},
+		},
+	}
+
+	var commands []Command
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		commands = append(commands, cmd)
+		return Result{}
+	})
+
+	if err := runRowEvaluator(context.Background(), cfg, runner, "run-A", worker); err != nil {
+		t.Fatalf("row evaluator should pass: %v", err)
+	}
+	if len(commands) != 1 {
+		t.Fatalf("runner called %d times, want 1 test command only", len(commands))
+	}
+	gotCommand := strings.Join(commands[0].Args, " ")
+	if !strings.Contains(gotCommand, "echo row-test") {
+		t.Fatalf("runner command = %q, want row test command", gotCommand)
+	}
+	if strings.Contains(gotCommand, "reasoning replay") {
+		t.Fatalf("runner command includes acceptance prose as shell: %q", gotCommand)
+	}
+	if commands[0].Dir != worker.RepoRoot {
+		t.Fatalf("row evaluator Dir = %q, want worker repo %q", commands[0].Dir, worker.RepoRoot)
+	}
+
+	body := readLedgerLines(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	var started, succeeded bool
+	for _, line := range body {
+		if strings.Contains(line, `"event":"row_evaluation_started"`) && strings.Contains(line, "commands=1") {
+			started = true
+		}
+		if strings.Contains(line, `"event":"row_evaluation_succeeded"`) && strings.Contains(line, "commands=1") {
+			succeeded = true
+		}
+	}
+	if !started || !succeeded {
+		t.Fatalf("row evaluator ledger missing start/success commands=1:\n%s", strings.Join(body, "\n"))
+	}
+}
+
+func TestFinishWorkerUsesPostRepairHeadForPromotion(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	baseCommit, err := gitHeadSha(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseBranch := mustGitCurrentBranch(t, repoRoot)
+	workerDir := filepath.Join(t.TempDir(), "worker")
+	workerBranch := "autoloop/test/w6"
+	runGitCommand(t, repoRoot, "worktree", "add", "-b", workerBranch, workerDir)
+
+	writeAndCommitTestFile(t, workerDir, "allowed/initial.txt", "initial\n", "initial worker change")
+	initialCommit, err := gitHeadSha(workerDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                   repoRoot,
+		RunRoot:                    filepath.Join(dir, "runroot"),
+		Backend:                    "opencode",
+		Mode:                       "safe",
+		PrePromotionVerifyCommands: []string{"go test ./..."},
+		PrePromotionRepairEnabled:  true,
+		PrePromotionRepairAttempts: 1,
+	}
+	worker := workerRun{
+		ID:           6,
+		Task:         "4/4.A/replay",
+		Branch:       workerBranch,
+		RepoRoot:     workerDir,
+		WorktreePath: workerDir,
+		BaseCommit:   baseCommit,
+		Candidate: Candidate{
+			WriteScope: []string{"allowed/"},
+		},
+	}
+
+	verifyCalls := 0
+	var promotedCommit string
+	var repairedCommit string
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		switch cmd.Name {
+		case "sh":
+			verifyCalls++
+			if verifyCalls == 1 {
+				return Result{Err: errors.New("exit status 1"), Stderr: "first verify failed"}
+			}
+			return Result{}
+		case "opencode":
+			writeAndCommitTestFile(t, cmd.Dir, "allowed/repair.txt", "repair\n", "repair worker change")
+			var err error
+			repairedCommit, err = gitHeadSha(cmd.Dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return Result{}
+		case "git":
+			if len(cmd.Args) >= 3 && cmd.Args[0] == "cherry-pick" {
+				promotedCommit = cmd.Args[len(cmd.Args)-1]
+				return Result{}
+			}
+			return Result{}
+		case "gh":
+			return Result{}
+		default:
+			return Result{Err: ErrUnexpectedCommand}
+		}
+	})
+
+	if err := finishWorker(context.Background(), cfg, runner, "opencode", "run-A", baseBranch, true, worker); err != nil {
+		t.Fatalf("finishWorker should pass: %v", err)
+	}
+	if repairedCommit == initialCommit {
+		t.Fatal("test setup failed: repair did not advance worker head")
+	}
+	if promotedCommit != repairedCommit {
+		t.Fatalf("promoted commit = %s, want repaired head %s (initial was %s)", promotedCommit, repairedCommit, initialCommit)
+	}
+}
+
+func TestFinishWorkerRechecksWriteScopeAfterPrePromotionRepair(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	baseCommit, err := gitHeadSha(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseBranch := mustGitCurrentBranch(t, repoRoot)
+	workerDir := filepath.Join(t.TempDir(), "worker")
+	workerBranch := "autoloop/test/w7"
+	runGitCommand(t, repoRoot, "worktree", "add", "-b", workerBranch, workerDir)
+
+	writeAndCommitTestFile(t, workerDir, "allowed/initial.txt", "initial\n", "initial worker change")
+
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                   repoRoot,
+		RunRoot:                    filepath.Join(dir, "runroot"),
+		Backend:                    "opencode",
+		Mode:                       "safe",
+		PrePromotionVerifyCommands: []string{"go test ./..."},
+		PrePromotionRepairEnabled:  true,
+		PrePromotionRepairAttempts: 1,
+	}
+	worker := workerRun{
+		ID:           7,
+		Task:         "4/4.A/replay",
+		Branch:       workerBranch,
+		RepoRoot:     workerDir,
+		WorktreePath: workerDir,
+		BaseCommit:   baseCommit,
+		Candidate: Candidate{
+			WriteScope: []string{"allowed/"},
+		},
+	}
+
+	verifyCalls := 0
+	promoteCalls := 0
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		switch cmd.Name {
+		case "sh":
+			verifyCalls++
+			if verifyCalls == 1 {
+				return Result{Err: errors.New("exit status 1"), Stderr: "first verify failed"}
+			}
+			return Result{}
+		case "opencode":
+			writeAndCommitTestFile(t, cmd.Dir, "internal/memory/interrupted_sync_test.go", "package memory\n", "repair outside row scope")
+			return Result{}
+		case "git":
+			if len(cmd.Args) >= 3 && cmd.Args[0] == "cherry-pick" {
+				promoteCalls++
+				return Result{}
+			}
+			return Result{}
+		case "gh":
+			return Result{}
+		default:
+			return Result{Err: ErrUnexpectedCommand}
+		}
+	})
+
+	err = finishWorker(context.Background(), cfg, runner, "opencode", "run-A", baseBranch, true, worker)
+	if err == nil {
+		t.Fatal("finishWorker error = nil, want write scope violation after repair")
+	}
+	if !strings.Contains(err.Error(), "internal/memory/interrupted_sync_test.go") {
+		t.Fatalf("finishWorker error = %q, want repaired out-of-scope path", err)
+	}
+	if promoteCalls != 0 {
+		t.Fatalf("promote called %d times, want 0 after repair scope violation", promoteCalls)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	var failed LedgerEvent
+	for _, event := range events {
+		if event.Event == "worker_failed" && event.Status == "write_scope_violation" {
+			failed = event
+			break
+		}
+	}
+	if failed.Event == "" {
+		t.Fatalf("missing worker_failed/write_scope_violation event:\n%#v", events)
+	}
+	if !strings.Contains(failed.Detail, "internal/memory/interrupted_sync_test.go") {
+		t.Fatalf("scope violation detail = %q, want repaired path", failed.Detail)
+	}
+}
+
 func TestBuildPrePromotionRepairPrompt_NamesBranchAndCommands(t *testing.T) {
 	worker := workerRun{Branch: "autoloop/run-A/w4", Task: "2/2.B/sample"}
 	prompt := BuildPrePromotionRepairPrompt(
@@ -414,6 +641,20 @@ func TestRunPostPromotionVerification_AllCommandsPassEmitsSuccess(t *testing.T) 
 	if !succeeded {
 		t.Fatalf("expected post_promotion_verify_succeeded event in ledger:\n%s", strings.Join(body, "\n"))
 	}
+}
+
+func writeAndCommitTestFile(t *testing.T, repoRoot string, rel string, body string, message string) {
+	t.Helper()
+
+	path := filepath.Join(repoRoot, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, repoRoot, "add", rel)
+	runGitCommand(t, repoRoot, "commit", "-m", message)
 }
 
 // readLedgerLines reads runs.jsonl as one line per event, returning a

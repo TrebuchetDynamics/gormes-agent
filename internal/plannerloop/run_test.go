@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -375,6 +376,45 @@ func TestPlannerFailureDetailIncludesProcessErrorWithStdout(t *testing.T) {
 	}
 }
 
+func TestRunOnceClassifiesKilledBackendWithoutBlamingStdinWait(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Err: errors.New("signal: killed"), Stdout: "Reading additional input from stdin...\n"},
+		},
+	}
+	cfg := mustConfig(t, repoRoot)
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want backend failure")
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1: %#v", len(events), events)
+	}
+	if events[0].Status != "backend_failed" {
+		t.Fatalf("Status = %q, want backend_failed terminal status", events[0].Status)
+	}
+	if events[0].Event != "backend_killed" {
+		t.Fatalf("Event = %q, want backend_killed classification", events[0].Event)
+	}
+	if !strings.Contains(events[0].Detail, "backend_killed") {
+		t.Fatalf("Detail = %q, want backend_killed prefix", events[0].Detail)
+	}
+	if !strings.Contains(events[0].Detail, "Reading additional input from stdin") {
+		t.Fatalf("Detail = %q, want preserved stdin output", events[0].Detail)
+	}
+}
+
 func TestRunOnceAppliesBackendTimeoutAndRecordsErrDetail(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
@@ -417,6 +457,8 @@ func TestRunOnceAppliesBackendTimeoutAndRecordsErrDetail(t *testing.T) {
 
 func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
+	home := filepath.Join(t.TempDir(), "home")
+	t.Setenv("HOME", home)
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{{}, {}, {}, {}, {}, {}, {}, {}, {}},
 	}
@@ -450,6 +492,10 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 	}
 	if got, want := runner.Commands[8].Dir, filepath.Join(repoRoot, "www.gormes.ai"); got != want {
 		t.Fatalf("landing validation dir = %q, want %q", got, want)
+	}
+	docsEnv := strings.Join(runner.Commands[7].Env, "\n")
+	if !strings.Contains(docsEnv, filepath.Join(home, "go", "bin")) {
+		t.Fatalf("docs validation env = %#v, want HOME/go/bin on PATH", runner.Commands[7].Env)
 	}
 }
 
@@ -766,6 +812,53 @@ func TestRunOnce_RejectsRuntimeSourceEdits(t *testing.T) {
 	}
 }
 
+func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	runtimePath := filepath.Join(repoRoot, "internal", "plannerloop", "topics_test.go")
+	writeFile(t, runtimePath, "package plannerloop\n")
+	initPlannerGitRepo(t, repoRoot)
+	writeFile(t, runtimePath, "package plannerloop\n\nfunc dirtyRuntimeFixture() {}\n")
+
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want dirty runtime source preflight rejection")
+	}
+	if !strings.Contains(err.Error(), "runtime source preflight") {
+		t.Fatalf("RunOnce() error = %q, want preflight rejection", err)
+	}
+	if !strings.Contains(err.Error(), "internal/plannerloop/topics_test.go") {
+		t.Fatalf("RunOnce() error = %q, want dirty runtime path", err)
+	}
+	if got := len(runner.Commands); got != 3 {
+		t.Fatalf("runner commands = %d, want only 3 sync commands before backend", got)
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1: %#v", len(events), events)
+	}
+	if events[0].Status != "validation_rejected" {
+		t.Fatalf("Status = %q, want validation_rejected", events[0].Status)
+	}
+	if !strings.Contains(events[0].Detail, "internal/plannerloop/topics_test.go") {
+		t.Fatalf("Detail = %q, want dirty runtime path", events[0].Detail)
+	}
+}
+
 func TestRunOnce_LedgerWriteFailureIsSoftFail(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
@@ -890,6 +983,24 @@ func writePlannerFixture(t *testing.T) string {
 		writeFile(t, path, "# fixture\n")
 	}
 	return root
+}
+
+func initPlannerGitRepo(t *testing.T, repoRoot string) {
+	t.Helper()
+	runPlannerGitCommand(t, repoRoot, "init")
+	runPlannerGitCommand(t, repoRoot, "config", "user.email", "planner-test@example.com")
+	runPlannerGitCommand(t, repoRoot, "config", "user.name", "Planner Test")
+	runPlannerGitCommand(t, repoRoot, "add", ".")
+	runPlannerGitCommand(t, repoRoot, "commit", "-m", "initial fixture")
+}
+
+func runPlannerGitCommand(t *testing.T, repoRoot string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, output)
+	}
 }
 
 func TestRunOnce_TriggerEventsThreadIntoPrompt(t *testing.T) {

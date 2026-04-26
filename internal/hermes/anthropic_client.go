@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -15,12 +18,31 @@ const (
 	defaultAnthropicMessagesPath = "/v1/messages"
 	defaultAnthropicModelsPath   = "/v1/models"
 	defaultAnthropicMaxTokens    = 1024
+	defaultAzureAnthropicVersion = "2025-04-15"
 )
 
 type anthropicClient struct {
-	baseURL string
-	apiKey  string
-	http    *http.Client
+	baseURL      string
+	apiKey       string
+	defaultQuery url.Values
+	authMode     anthropicAuthMode
+	azure        bool
+	apiVersion   string
+	http         *http.Client
+}
+
+type anthropicAuthMode int
+
+const (
+	anthropicAuthAuto anthropicAuthMode = iota
+	anthropicAuthXAPIKey
+)
+
+type AzureAnthropicClientConfig struct {
+	BaseURL    string
+	APIKey     string
+	APIVersion string
+	LookupEnv  func(string) (string, bool)
 }
 
 type anthropicRequest struct {
@@ -75,11 +97,42 @@ func NewAnthropicClient(baseURL, apiKey string) Client {
 	}
 }
 
+func NewAzureAnthropicClient(cfg AzureAnthropicClientConfig) Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 5 * time.Second
+	apiKey := strings.TrimSpace(cfg.APIKey)
+	if apiKey == "" {
+		lookupEnv := cfg.LookupEnv
+		if lookupEnv == nil {
+			lookupEnv = os.LookupEnv
+		}
+		if value, ok := lookupEnv("AZURE_ANTHROPIC_KEY"); ok {
+			apiKey = strings.TrimSpace(value)
+		}
+	}
+	baseURL, query, apiVersion := normalizeAzureAnthropicBaseURL(cfg.BaseURL, cfg.APIVersion)
+	return &anthropicClient{
+		baseURL:      baseURL,
+		apiKey:       apiKey,
+		defaultQuery: query,
+		authMode:     anthropicAuthXAPIKey,
+		azure:        true,
+		apiVersion:   apiVersion,
+		http:         &http.Client{Timeout: 0, Transport: transport},
+	}
+}
+
 func (c *anthropicClient) ProviderStatus() ProviderStatus {
+	if c.azure {
+		return c.azureProviderStatus()
+	}
 	return anthropicProviderStatus()
 }
 
 func (c *anthropicClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
+	if err := c.requireReady(); err != nil {
+		return nil, err
+	}
 	descriptors := SanitizeToolDescriptors(req.Tools)
 	req.Tools = descriptors
 	payload, err := buildAnthropicRequest(req)
@@ -90,7 +143,11 @@ func (c *anthropicClient) OpenStream(ctx context.Context, req ChatRequest) (Stre
 	if err != nil {
 		return nil, err
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+defaultAnthropicMessagesPath, bytes.NewReader(body))
+	endpoint, err := c.endpoint(defaultAnthropicMessagesPath)
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +173,14 @@ func (c *anthropicClient) OpenRunEvents(context.Context, string) (RunEventStream
 }
 
 func (c *anthropicClient) Health(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+defaultAnthropicModelsPath, nil)
+	if err := c.requireReady(); err != nil {
+		return err
+	}
+	endpoint, err := c.endpoint(defaultAnthropicModelsPath)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return err
 	}
@@ -138,11 +202,97 @@ func (c *anthropicClient) applyAuth(req *http.Request) {
 	if c.apiKey == "" {
 		return
 	}
+	if c.authMode == anthropicAuthXAPIKey {
+		req.Header.Set("x-api-key", c.apiKey)
+		return
+	}
 	if strings.HasPrefix(c.apiKey, "sk-ant-api") {
 		req.Header.Set("x-api-key", c.apiKey)
 		return
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+}
+
+func (c *anthropicClient) endpoint(path string) (string, error) {
+	raw := c.baseURL + path
+	if len(c.defaultQuery) == 0 {
+		return raw, nil
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	query := parsed.Query()
+	for key, values := range c.defaultQuery {
+		query.Del(key)
+		for _, value := range values {
+			query.Add(key, value)
+		}
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
+}
+
+func (c *anthropicClient) requireReady() error {
+	if c.azure && strings.TrimSpace(c.apiKey) == "" {
+		return fmt.Errorf("azure_anthropic_key_missing: set AZURE_ANTHROPIC_KEY or configure an Azure Anthropic static key")
+	}
+	return nil
+}
+
+func (c *anthropicClient) azureProviderStatus() ProviderStatus {
+	evidence := []string{
+		"azure_api_version_query: api-version=" + c.apiVersion,
+		"azure_oauth_bypassed: static Azure API key auth",
+	}
+	keyReady := strings.TrimSpace(c.apiKey) != ""
+	if !keyReady {
+		evidence = append([]string{"azure_anthropic_key_missing: set AZURE_ANTHROPIC_KEY or configure an Azure Anthropic static key"}, evidence...)
+	}
+	reason := strings.Join(evidence, "; ")
+	return ProviderStatus{
+		Provider: "anthropic",
+		Runtime:  "azure_anthropic_messages",
+		Capabilities: ProviderCapabilities{
+			PromptCache:     CapabilityStatus{Available: keyReady, Reason: reason},
+			ReasoningEcho:   unavailableCapability("reasoning_content echo padding is not required by azure anthropic messages"),
+			RateGuard:       unavailableCapability("provider rate guard not implemented"),
+			BudgetTelemetry: unavailableCapability("budget telemetry not implemented"),
+		},
+	}
+}
+
+func normalizeAzureAnthropicBaseURL(rawBaseURL, requestedAPIVersion string) (string, url.Values, string) {
+	rawBaseURL = strings.TrimSpace(rawBaseURL)
+	apiVersion := strings.TrimSpace(requestedAPIVersion)
+	query := url.Values{}
+	if parsed, err := url.Parse(rawBaseURL); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		baseQuery := parsed.Query()
+		if apiVersion == "" {
+			apiVersion = strings.TrimSpace(baseQuery.Get("api-version"))
+		}
+		if apiVersion == "" {
+			apiVersion = defaultAzureAnthropicVersion
+		}
+		query.Set("api-version", apiVersion)
+		parsed.RawQuery = ""
+		parsed.ForceQuery = false
+		parsed.Path = stripTrailingAzureAnthropicV1(parsed.Path)
+		return strings.TrimRight(parsed.String(), "/"), query, apiVersion
+	}
+	if apiVersion == "" {
+		apiVersion = defaultAzureAnthropicVersion
+	}
+	query.Set("api-version", apiVersion)
+	return strings.TrimRight(stripTrailingAzureAnthropicV1(rawBaseURL), "/"), query, apiVersion
+}
+
+func stripTrailingAzureAnthropicV1(rawPath string) string {
+	trimmed := strings.TrimRight(rawPath, "/")
+	if strings.HasSuffix(strings.ToLower(trimmed), "/v1") {
+		trimmed = trimmed[:len(trimmed)-len("/v1")]
+	}
+	return trimmed
 }
 
 func buildAnthropicRequest(req ChatRequest) (anthropicRequest, error) {

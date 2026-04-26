@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -56,6 +57,121 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 	}
 	if len(runner.Commands) != 0 {
 		t.Fatalf("Commands length = %d, want 0", len(runner.Commands))
+	}
+}
+
+func TestRunOnceRefusesToStartWhilePlannerRunLockHeld(t *testing.T) {
+	dir := t.TempDir()
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	runRoot := filepath.Join(dir, "builder-loop")
+	plannerRoot := filepath.Join(dir, "planner-loop")
+	if err := os.MkdirAll(plannerRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(plannerRoot, "run.lock")
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lockFile.Close()
+	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+
+	_, err = RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:              dir,
+			ProgressJSON:          progressPath,
+			RunRoot:               runRoot,
+			Backend:               "codexu",
+			Mode:                  "safe",
+			MaxAgents:             1,
+			MergeOpenPullRequests: false,
+			PlannerTriggersPath:   filepath.Join(plannerRoot, "triggers.jsonl"),
+		},
+		Runner: &FakeRunner{},
+	})
+	if !errors.Is(err, ErrControlPlaneRunInProgress) {
+		t.Fatalf("RunOnce() error = %v, want ErrControlPlaneRunInProgress", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger events = %d, want 1: %#v", len(events), events)
+	}
+	if got := events[0].Event + ":" + events[0].Status; got != "run_blocked:control_plane_locked" {
+		t.Fatalf("ledger event = %q, want run_blocked:control_plane_locked", got)
+	}
+	if !strings.Contains(events[0].Detail, lockPath) {
+		t.Fatalf("ledger detail = %q, want lock path %q", events[0].Detail, lockPath)
+	}
+}
+
+func TestRunOnceRefusesBehindUpstreamBranch(t *testing.T) {
+	dir := t.TempDir()
+	origin := filepath.Join(dir, "origin.git")
+	if output, err := exec.Command("git", "init", "--bare", origin).CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare failed: %v\n%s", err, output)
+	}
+
+	seedRoot := filepath.Join(dir, "seed")
+	if err := os.MkdirAll(seedRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	initCleanRepo(t, seedRoot)
+	runGitCommand(t, seedRoot, "remote", "add", "origin", origin)
+	runGitCommand(t, seedRoot, "push", "-u", "origin", "HEAD")
+
+	repoRoot := filepath.Join(dir, "repo")
+	if output, err := exec.Command("git", "clone", origin, repoRoot).CombinedOutput(); err != nil {
+		t.Fatalf("git clone failed: %v\n%s", err, output)
+	}
+	runGitCommand(t, repoRoot, "config", "user.email", "test@example.com")
+	runGitCommand(t, repoRoot, "config", "user.name", "Test User")
+
+	if err := os.WriteFile(filepath.Join(seedRoot, "remote.txt"), []byte("remote\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, seedRoot, "add", "remote.txt")
+	runGitCommand(t, seedRoot, "commit", "-m", "remote")
+	runGitCommand(t, seedRoot, "push")
+	runGitCommand(t, repoRoot, "fetch", "origin")
+
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	runRoot := filepath.Join(dir, "builder-loop")
+	plannerRoot := filepath.Join(dir, "planner-loop")
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:              repoRoot,
+			ProgressJSON:          progressPath,
+			RunRoot:               runRoot,
+			Backend:               "codexu",
+			Mode:                  "safe",
+			MaxAgents:             1,
+			MergeOpenPullRequests: false,
+			PlannerTriggersPath:   filepath.Join(plannerRoot, "triggers.jsonl"),
+		},
+		Runner: &FakeRunner{},
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want behind-upstream preflight error")
+	}
+	if !strings.Contains(err.Error(), "behind upstream") {
+		t.Fatalf("RunOnce() error = %q, want behind upstream context", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	var got []string
+	for _, event := range events {
+		got = append(got, event.Event+":"+event.Status)
+	}
+	want := []string{"run_started:started", "run_failed:branch_behind_upstream"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+	if !strings.Contains(events[1].Detail, "@{upstream}") {
+		t.Fatalf("ledger detail = %q, want upstream revision context", events[1].Detail)
 	}
 }
 
@@ -717,8 +833,8 @@ func TestRunOnceAppliesBackendTimeoutAndRecordsDeadlineDetail(t *testing.T) {
 	if len(events) < 3 {
 		t.Fatalf("ledger events = %#v, want worker_failed event", events)
 	}
-	if events[2].Event != "worker_failed" || events[2].Status != "backend_failed" {
-		t.Fatalf("worker failure event = %#v, want backend_failed", events[2])
+	if events[2].Event != "worker_failed" || events[2].Status != "backend_no_progress" {
+		t.Fatalf("worker failure event = %#v, want backend_no_progress", events[2])
 	}
 	if !strings.Contains(events[2].Detail, context.DeadlineExceeded.Error()) {
 		t.Fatalf("worker failure detail = %q, want deadline detail", events[2].Detail)

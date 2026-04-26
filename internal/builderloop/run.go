@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
@@ -22,6 +23,13 @@ import (
 // outcome to a distinct exit code so systemd / CI can react differently
 // from a generic internal error.
 var ErrPostPromotionVerifyFailed = errors.New("post-promotion verify failed")
+
+// ErrControlPlaneRunInProgress marks a builder run blocked by another
+// control-plane loop holding the shared planner-loop run lock. Builder
+// mutates the same checkout/progress surfaces as planner during claims,
+// promotions, and health writes, so non-dry-run builder cycles must not
+// overlap planner regeneration.
+var ErrControlPlaneRunInProgress = errors.New("control-plane run already in progress")
 
 type RunOptions struct {
 	Config Config
@@ -61,6 +69,19 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	if !opts.DryRun {
+		controlLock, err := acquireControlPlaneRunLock(opts.Config, now)
+		if err != nil {
+			_ = appendRunLedgerEvent(opts.Config, LedgerEvent{
+				TS:     time.Now().UTC(),
+				RunID:  runID,
+				Event:  "run_blocked",
+				Status: "control_plane_locked",
+				Detail: err.Error(),
+			})
+			return RunSummary{}, err
+		}
+		defer controlLock.release()
+
 		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
@@ -404,6 +425,55 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	return summary, nil
 }
 
+type controlPlaneRunLock struct {
+	file *os.File
+}
+
+func acquireControlPlaneRunLock(cfg Config, now time.Time) (*controlPlaneRunLock, error) {
+	lockPath := controlPlaneRunLockPath(cfg)
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return nil, fmt.Errorf("%w: %s", ErrControlPlaneRunInProgress, lockPath)
+		}
+		return nil, err
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	_ = file.Truncate(0)
+	_, _ = file.WriteString(fmt.Sprintf("holder=builder-loop\npid=%d\nstarted_utc=%s\n", os.Getpid(), now.UTC().Format(time.RFC3339)))
+	return &controlPlaneRunLock{file: file}, nil
+}
+
+func controlPlaneRunLockPath(cfg Config) string {
+	if strings.TrimSpace(cfg.PlannerTriggersPath) != "" {
+		return filepath.Join(filepath.Dir(cfg.PlannerTriggersPath), "run.lock")
+	}
+	if strings.TrimSpace(cfg.RunRoot) != "" {
+		return filepath.Join(filepath.Dir(filepath.Clean(cfg.RunRoot)), "planner-loop", "run.lock")
+	}
+	if strings.TrimSpace(cfg.RepoRoot) != "" {
+		return filepath.Join(cfg.RepoRoot, ".codex", "planner-loop", "run.lock")
+	}
+	return filepath.Join(".codex", "planner-loop", "run.lock")
+}
+
+func (lock *controlPlaneRunLock) release() {
+	if lock == nil || lock.file == nil {
+		return
+	}
+	_ = syscall.Flock(int(lock.file.Fd()), syscall.LOCK_UN)
+	_ = lock.file.Close()
+}
+
 func runIDFromTime(t time.Time) string {
 	t = t.UTC()
 	runID := t.Format("20060102T150405Z")
@@ -692,6 +762,72 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		Branch: worker.Branch,
 		Status: "ok",
 		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(cfg.PrePromotionVerifyCommands)),
+	})
+}
+
+func runRowEvaluator(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun) error {
+	commands := append([]string(nil), worker.Candidate.TestCommands...)
+	if len(commands) == 0 {
+		return nil
+	}
+
+	if err := appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "row_evaluation_started",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "started",
+		Detail: fmt.Sprintf("commands=%d", len(commands)),
+	}); err != nil {
+		return err
+	}
+
+	var (
+		commandErrs    []error
+		failureDetails []string
+	)
+	for i, shellCommand := range commands {
+		result := runner.Run(ctx, Command{
+			Name: "sh",
+			Args: []string{"-lc", shellCommand},
+			Dir:  worker.RepoRoot,
+			Env:  postPromotionCommandEnv(cfg),
+		})
+		if result.Err == nil {
+			continue
+		}
+		commandErrs = append(commandErrs, fmt.Errorf("command %d failed: %w", i+1, result.Err))
+		failureDetails = append(failureDetails,
+			fmt.Sprintf("command=%d/%d %q:\n%s", i+1, len(commands), shellCommand, commandFailureDetail(result)),
+		)
+	}
+	if len(commandErrs) > 0 {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "worker_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Status: "row_evaluation_failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("failed=%d/%d\n\n%s",
+				len(commandErrs), len(commands),
+				strings.Join(failureDetails, "\n\n---\n\n"))),
+		})
+		return errors.Join(append(commandErrs, ledgerErr)...)
+	}
+
+	return appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "row_evaluation_succeeded",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "ok",
+		Detail: fmt.Sprintf("commands=%d", len(commands)),
 	})
 }
 
@@ -1076,6 +1212,7 @@ func runBackendCommand(ctx context.Context, cfg Config, runner Runner, command C
 
 func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName string, runID string, baseBranch string, hasGit bool, worker workerRun) error {
 	if worker.Result.Err != nil {
+		failure := ClassifyBackendFailure(worker.Result.Err, worker.Result.Stdout, worker.Result.Stderr)
 		if err := appendRunLedgerEvent(cfg, LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
@@ -1083,8 +1220,8 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			Worker: worker.ID,
 			Task:   worker.Task,
 			Branch: worker.Branch,
-			Status: "backend_failed",
-			Detail: truncateLedgerDetail(commandFailureDetail(worker.Result)),
+			Status: failure.Status,
+			Detail: truncateLedgerDetail(failure.Detail),
 		}); err != nil {
 			return err
 		}
@@ -1145,20 +1282,7 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			return err
 		}
 		if commitSha != worker.BaseCommit {
-			if err := ensureChangedPathsWithinWriteScope(worker.RepoRoot, worker.BaseCommit, commitSha, worker.Candidate); err != nil {
-				if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
-					TS:     time.Now().UTC(),
-					RunID:  runID,
-					Event:  "worker_failed",
-					Worker: worker.ID,
-					Task:   worker.Task,
-					Branch: worker.Branch,
-					Commit: commitSha,
-					Status: "write_scope_violation",
-					Detail: err.Error(),
-				}); ledgerErr != nil {
-					return ledgerErr
-				}
+			if err := ensureWorkerCommitWithinWriteScope(cfg, runID, worker, commitSha); err != nil {
 				return err
 			}
 			if err := ensureCurrentBranch(cfg.RepoRoot, baseBranch); err != nil {
@@ -1193,8 +1317,33 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			if err := runPrePromotionGate(ctx, cfg, runner, runID, worker); err != nil {
 				return err
 			}
-			if err := promoteWorkerCommit(ctx, cfg, runner, runID, worker.ID, worker.Task, worker.Branch, commitSha); err != nil {
+			commitSha, err = gitHeadSha(worker.RepoRoot)
+			if err != nil {
 				return err
+			}
+			if commitSha != worker.BaseCommit {
+				if err := ensureWorkerCommitWithinWriteScope(cfg, runID, worker, commitSha); err != nil {
+					return err
+				}
+				if err := runRowEvaluator(ctx, cfg, runner, runID, worker); err != nil {
+					return err
+				}
+				if err := promoteWorkerCommit(ctx, cfg, runner, runID, worker.ID, worker.Task, worker.Branch, commitSha); err != nil {
+					return err
+				}
+			} else {
+				commitSha = ""
+				if err := appendRunLedgerEvent(cfg, LedgerEvent{
+					TS:     time.Now().UTC(),
+					RunID:  runID,
+					Event:  "worker_no_changes",
+					Worker: worker.ID,
+					Task:   worker.Task,
+					Branch: worker.Branch,
+					Status: "no_changes",
+				}); err != nil {
+					return err
+				}
 			}
 			removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
 		} else {
@@ -1224,6 +1373,26 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		Commit: commitSha,
 		Status: "success",
 	})
+}
+
+func ensureWorkerCommitWithinWriteScope(cfg Config, runID string, worker workerRun, commitSha string) error {
+	if err := ensureChangedPathsWithinWriteScope(worker.RepoRoot, worker.BaseCommit, commitSha, worker.Candidate); err != nil {
+		if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "worker_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Commit: commitSha,
+			Status: "write_scope_violation",
+			Detail: err.Error(),
+		}); ledgerErr != nil {
+			return ledgerErr
+		}
+		return err
+	}
+	return nil
 }
 
 // verifySpeculativeWorker checks that a speculative worker can be promoted:
@@ -1487,6 +1656,18 @@ func preflightCleanWorktree(cfg Config, runID string) error {
 			RunID:  runID,
 			Event:  "run_failed",
 			Status: "worktree_dirty",
+			Detail: err.Error(),
+		}); ledgerErr != nil {
+			return ledgerErr
+		}
+		return err
+	}
+	if err := ensureUpstreamNotBehind(cfg.RepoRoot); err != nil {
+		if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "run_failed",
+			Status: "branch_behind_upstream",
 			Detail: err.Error(),
 		}); ledgerErr != nil {
 			return ledgerErr
@@ -1903,13 +2084,10 @@ func valueOrDash(value string) string {
 }
 
 func backendRunError(name string, result Result) error {
-	output := strings.TrimSpace(result.Stderr)
-	if output == "" {
-		output = strings.TrimSpace(result.Stdout)
-	}
-	if output == "" {
+	failure := ClassifyBackendFailure(result.Err, result.Stdout, result.Stderr)
+	if failure.Detail == "" {
 		return fmt.Errorf("%s failed: %w", name, result.Err)
 	}
 
-	return fmt.Errorf("%s failed: %w: %s", name, result.Err, output)
+	return fmt.Errorf("%s failed: %w: %s", name, result.Err, failure.Detail)
 }
