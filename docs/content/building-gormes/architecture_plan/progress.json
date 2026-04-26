@@ -7853,9 +7853,9 @@
             },
             {
               "name": "MCP schema normalization + structured-content adapter",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings — sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
