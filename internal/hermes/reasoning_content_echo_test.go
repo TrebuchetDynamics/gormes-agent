@@ -78,7 +78,7 @@ func TestReasoningContentEchoDetectsThinkingProviders(t *testing.T) {
 	}
 }
 
-func TestReasoningContentEchoPadsAssistantToolCallReplayForThinkingProviders(t *testing.T) {
+func TestReasoningContentEchoPadsAllAssistantReplayForThinkingProviders(t *testing.T) {
 	tests := []struct {
 		name     string
 		provider string
@@ -141,21 +141,20 @@ func TestReasoningContentEchoPadsAssistantToolCallReplayForThinkingProviders(t *
 				},
 			})
 
-			toolAssistant := messages[1]
-			if got, ok := toolAssistant["reasoning_content"].(string); !ok || got != "" {
-				t.Fatalf("assistant tool-call reasoning_content = %v (present=%v), want empty string", toolAssistant["reasoning_content"], ok)
-			}
-			if got := toolAssistant["content"]; got != "Calling terminal." {
-				t.Fatalf("assistant content = %v, want ordinary content preserved", got)
-			}
-			if _, ok := messages[2]["reasoning_content"]; ok {
-				t.Fatalf("non-tool assistant got reasoning_content padding: %+v", messages[2])
+			for i, wantContent := range []string{"Calling terminal.", "No tool call here."} {
+				assistant := messages[i+1]
+				if got, ok := assistant["reasoning_content"].(string); !ok || got != "" {
+					t.Fatalf("assistant %d reasoning_content = %v (present=%v), want empty string", i+1, assistant["reasoning_content"], ok)
+				}
+				if got := assistant["content"]; got != wantContent {
+					t.Fatalf("assistant %d content = %v, want ordinary content %q preserved", i+1, got, wantContent)
+				}
 			}
 		})
 	}
 }
 
-func TestReasoningContentEchoIsolationUsesEmptyPlaceholderForGenericReasoning(t *testing.T) {
+func TestReasoningContentEchoPlainAndToolCallIsolationUsesEmptyPlaceholderForGenericReasoning(t *testing.T) {
 	tests := []struct {
 		name     string
 		provider string
@@ -227,8 +226,8 @@ func TestReasoningContentEchoIsolationUsesEmptyPlaceholderForGenericReasoning(t 
 			}
 
 			nonToolAssistant := messages[2]
-			if _, ok := nonToolAssistant["reasoning_content"]; ok {
-				t.Fatalf("non-tool assistant got reasoning_content padding: %+v", nonToolAssistant)
+			if got, ok := nonToolAssistant["reasoning_content"].(string); !ok || got != "" {
+				t.Fatalf("plain assistant reasoning_content = %v (present=%v), want empty string", nonToolAssistant["reasoning_content"], ok)
 			}
 			if _, ok := nonToolAssistant["reasoning"]; ok {
 				t.Fatalf("non-tool assistant leaked storage-only reasoning field: %+v", nonToolAssistant)
@@ -244,7 +243,19 @@ func TestReasoningContentEchoPreservesExplicitReasoningContent(t *testing.T) {
 		want    string
 	}{
 		{
-			name: "explicit reasoning_content",
+			name: "plain assistant explicit reasoning_content",
+			message: Message{
+				Role:             "assistant",
+				Content:          "Plain reply.",
+				ReasoningContent: stringPtr("plain vendor trace"),
+				Reasoning: &ReasoningContent{
+					Text: "storage-only trace from another provider",
+				},
+			},
+			want: "plain vendor trace",
+		},
+		{
+			name: "tool-call assistant explicit reasoning_content",
 			message: Message{
 				Role:             "assistant",
 				Content:          "Calling terminal.",
@@ -278,8 +289,8 @@ func TestReasoningContentEchoPreservesExplicitReasoningContent(t *testing.T) {
 			if got := assistant["reasoning_content"]; got != tt.want {
 				t.Fatalf("reasoning_content = %v, want %q", got, tt.want)
 			}
-			if got := assistant["content"]; got != "Calling terminal." {
-				t.Fatalf("assistant content = %v, want ordinary content preserved", got)
+			if got := assistant["content"]; got != tt.message.Content {
+				t.Fatalf("assistant content = %v, want ordinary content %q preserved", got, tt.message.Content)
 			}
 			if _, ok := assistant["reasoning"]; ok {
 				t.Fatalf("assistant request leaked storage-only reasoning field: %+v", assistant)
@@ -300,6 +311,14 @@ func TestReasoningContentEchoLeavesNonThinkingProvidersUntouched(t *testing.T) {
 			{Role: "user", Content: "run terminal"},
 			{
 				Role:             "assistant",
+				Content:          "Plain reply.",
+				ReasoningContent: stringPtr("stored plain trace for another provider"),
+				Reasoning: &ReasoningContent{
+					Text: "storage-only generic plain reasoning",
+				},
+			},
+			{
+				Role:             "assistant",
 				Content:          "Calling terminal.",
 				ReasoningContent: stringPtr("stored trace for another provider"),
 				Reasoning: &ReasoningContent{
@@ -314,11 +333,13 @@ func TestReasoningContentEchoLeavesNonThinkingProvidersUntouched(t *testing.T) {
 		},
 	})
 
-	if _, ok := messages[1]["reasoning_content"]; ok {
-		t.Fatalf("non-thinking provider got reasoning_content padding: %+v", messages[1])
-	}
-	if _, ok := messages[1]["reasoning"]; ok {
-		t.Fatalf("non-thinking provider got storage-only reasoning field: %+v", messages[1])
+	for i := 1; i <= 2; i++ {
+		if _, ok := messages[i]["reasoning_content"]; ok {
+			t.Fatalf("non-thinking provider assistant %d got reasoning_content padding: %+v", i, messages[i])
+		}
+		if _, ok := messages[i]["reasoning"]; ok {
+			t.Fatalf("non-thinking provider assistant %d got storage-only reasoning field: %+v", i, messages[i])
+		}
 	}
 }
 

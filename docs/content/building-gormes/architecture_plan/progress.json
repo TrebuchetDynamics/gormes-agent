@@ -3999,15 +3999,15 @@
             {
               "name": "DeepSeek/Kimi all-assistant reasoning_content replay",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "DeepSeek, Kimi, and Moonshot OpenAI-compatible replays include provider-required reasoning_content on every assistant message while preserving Gormes' cross-provider reasoning isolation",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
                 "system"
               ],
-              "degraded_mode": "Provider status reports all-assistant reasoning_content padding as unavailable until fixtures prove plain assistant turns and tool-call turns both satisfy thinking-provider replay requirements.",
+              "degraded_mode": "Provider status explains reasoning_content echo padding for thinking-mode providers; focused fixtures prove plain assistant turns and tool-call turns both satisfy thinking-provider replay requirements.",
               "fixture": "internal/hermes/reasoning_content_echo_test.go",
               "source_refs": [
                 "../hermes-agent/run_agent.py@ad0ac894:_copy_reasoning_content_for_api",
@@ -4036,7 +4036,7 @@
                 "Explicit provider-native ReasoningContent is preserved on plain and tool-call assistant turns.",
                 "Storage-only Message.Reasoning is not serialized to thinking providers, and non-thinking providers remain unchanged."
               ],
-              "note": "Hermes ad0ac894 tightened the earlier tool-call-only fix: DeepSeek V4/Kimi thinking mode now requires reasoning_content on every assistant message. Gormes already has tool-call padding and cross-provider isolation, so this follow-up should change only the OpenAI-compatible request serializer and focused fixtures.",
+              "note": "Complete: TDD widened `openAICompatibleReasoningContent` so DeepSeek/Kimi/Moonshot assistant messages serialize provider-native `ReasoningContent` when present and `reasoning_content=\"\"` otherwise, including plain text assistant turns and assistant tool-call turns. Fixtures prove storage-only `Message.Reasoning` is never serialized to thinking providers and non-thinking provider payloads remain unchanged.",
               "write_scope": [
                 "internal/hermes/http_client.go",
                 "internal/hermes/reasoning_content_echo_test.go",
@@ -4050,6 +4050,11 @@
               "done_signal": [
                 "Reasoning echo fixtures prove plain assistant and tool-call assistant messages satisfy DeepSeek/Kimi/Moonshot reasoning_content replay without leaking storage-only reasoning."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T01:17:07Z",
+                "last_success": "2026-04-26T01:17:07Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:ad0ac894 run_agent.py",
