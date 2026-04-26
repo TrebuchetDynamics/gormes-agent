@@ -7113,9 +7113,9 @@
             {
               "name": "Docker backend top-level container reuse semantics",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pure helper internal/tools/docker_container_key.go exposes type DockerContainerRequest struct{TaskID string; IsSubagent bool; IsRollout bool} and DockerContainerKey(req DockerContainerRequest) string. The helper trims TaskID, returns \"default\" for top-level requests with empty TaskID, returns the trimmed TaskID for top-level explicit task IDs, and returns the trimmed TaskID for subagent or rollout requests. If IsSubagent or IsRollout is true and TaskID is empty, it returns \"\" so callers must generate an isolated task ID before creating a Docker environment. No Docker CLI calls, no filesystem reads, no cleanup, no env config.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -7150,7 +7150,7 @@
                 "TestDockerContainerKey_RolloutRequiresIsolatedTaskID: IsRollout=true with empty TaskID returns \"\" and with TaskID=\"rollout-1\" returns \"rollout-1\".",
                 "TestDockerContainerKey_TrimsWhitespace: surrounding whitespace never creates a distinct container key."
               ],
-              "note": "Hermes 9be83728 clarified that the top-level Docker terminal backend reuses one default container across sessions, /new, and /reset, while delegate_task subagents and RL rollouts isolate by task_id. Gormes should freeze the keying rule before implementing the live Docker backend so public docs and runtime behavior do not diverge.",
+              "note": "Complete: TDD landed the pure DockerContainerKey helper and table fixtures. Top-level Docker requests now trim task_id and share the default container when empty, explicit top-level task IDs key their own container, and subagent or rollout requests return an empty key without a generated task_id so callers must allocate isolated Docker environments before live backend execution lands.",
               "write_scope": [
                 "internal/tools/docker_container_key.go",
                 "internal/tools/docker_container_key_test.go",
