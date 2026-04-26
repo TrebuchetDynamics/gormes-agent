@@ -35,6 +35,39 @@ var gatewayCmd = &cobra.Command{
 	RunE:         runGateway,
 }
 
+// gatewayMutatingUnavailableExitCode is the stable non-zero exit code surfaced
+// by the mutating gateway subcommands (start/stop/restart/install/uninstall).
+// They intentionally never shell out to systemd/launchd from the Go binary;
+// operators are pointed at the internal/cli/service_restart.go helper instead.
+const gatewayMutatingUnavailableExitCode = 2
+
+var gatewayMutatingUnavailableSubcommands = []string{
+	"start",
+	"stop",
+	"restart",
+	"install",
+	"uninstall",
+}
+
+func init() {
+	for _, name := range gatewayMutatingUnavailableSubcommands {
+		gatewayCmd.AddCommand(newGatewayMutatingUnavailableCommand(name))
+	}
+}
+
+func newGatewayMutatingUnavailableCommand(name string) *cobra.Command {
+	return &cobra.Command{
+		Use:          name,
+		Short:        fmt.Sprintf("Unavailable: %s the gateway via the service_restart helper", name),
+		Long:         fmt.Sprintf("The %s subcommand is intentionally unavailable in gormes; use the systemd/launchd helper exposed by internal/cli/service_restart.go to drive the live service manager.", name),
+		SilenceUsage: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return newExitCodeError(gatewayMutatingUnavailableExitCode,
+				fmt.Errorf("gateway: %s is not available; use the service_restart helper", name))
+		},
+	}
+}
+
 type gracefulShutdownManager interface {
 	Shutdown(context.Context) error
 }
