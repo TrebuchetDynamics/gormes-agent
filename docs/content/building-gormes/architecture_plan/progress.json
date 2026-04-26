@@ -4142,9 +4142,9 @@
             {
               "name": "Azure Anthropic Messages endpoint contract",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Azure Anthropic endpoints use static Azure API keys, strip trailing /v1 before Messages requests, and pass api-version through query parameters without invoking Anthropic OAuth refresh",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -4177,7 +4177,7 @@
                 "Azure Anthropic auth uses AZURE_ANTHROPIC_KEY or a configured static key before any Anthropic OAuth refresh path and reports missing keys clearly.",
                 "Non-Azure Anthropic requests keep existing x-api-key and bearer behavior."
               ],
-              "note": "Hermes c15064fa, 7bfa9442, d8e4c721, and 6ef3a47c split Azure Anthropic away from hosted Anthropic OAuth and fixed api-version/base-URL handling. Gormes should freeze request/auth behavior before adding broader Azure resolver or setup flows.",
+              "note": "Complete: TDD added `internal/hermes/azure_anthropic_transport_test.go` and a native Azure Anthropic client seam. Fixtures prove `/anthropic/v1` base URLs are stored as `/anthropic` before appending `/v1/messages`, `api-version=2025-04-15` is carried as a query parameter, static Azure keys use `x-api-key`, `AZURE_ANTHROPIC_KEY` is preferred without hosted Anthropic OAuth, missing keys report `azure_anthropic_key_missing` before any live request, and normal Anthropic x-api-key/bearer behavior remains intact.",
               "write_scope": [
                 "internal/hermes/anthropic_client.go",
                 "internal/hermes/azure_anthropic_transport_test.go",
