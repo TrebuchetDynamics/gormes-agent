@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
@@ -22,6 +23,13 @@ import (
 // outcome to a distinct exit code so systemd / CI can react differently
 // from a generic internal error.
 var ErrPostPromotionVerifyFailed = errors.New("post-promotion verify failed")
+
+// ErrControlPlaneRunInProgress marks a builder run blocked by another
+// control-plane loop holding the shared planner-loop run lock. Builder
+// mutates the same checkout/progress surfaces as planner during claims,
+// promotions, and health writes, so non-dry-run builder cycles must not
+// overlap planner regeneration.
+var ErrControlPlaneRunInProgress = errors.New("control-plane run already in progress")
 
 type RunOptions struct {
 	Config Config
@@ -61,6 +69,19 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	if !opts.DryRun {
+		controlLock, err := acquireControlPlaneRunLock(opts.Config, now)
+		if err != nil {
+			_ = appendRunLedgerEvent(opts.Config, LedgerEvent{
+				TS:     time.Now().UTC(),
+				RunID:  runID,
+				Event:  "run_blocked",
+				Status: "control_plane_locked",
+				Detail: err.Error(),
+			})
+			return RunSummary{}, err
+		}
+		defer controlLock.release()
+
 		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
@@ -402,6 +423,55 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	return summary, nil
+}
+
+type controlPlaneRunLock struct {
+	file *os.File
+}
+
+func acquireControlPlaneRunLock(cfg Config, now time.Time) (*controlPlaneRunLock, error) {
+	lockPath := controlPlaneRunLockPath(cfg)
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return nil, fmt.Errorf("%w: %s", ErrControlPlaneRunInProgress, lockPath)
+		}
+		return nil, err
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	_ = file.Truncate(0)
+	_, _ = file.WriteString(fmt.Sprintf("holder=builder-loop\npid=%d\nstarted_utc=%s\n", os.Getpid(), now.UTC().Format(time.RFC3339)))
+	return &controlPlaneRunLock{file: file}, nil
+}
+
+func controlPlaneRunLockPath(cfg Config) string {
+	if strings.TrimSpace(cfg.PlannerTriggersPath) != "" {
+		return filepath.Join(filepath.Dir(cfg.PlannerTriggersPath), "run.lock")
+	}
+	if strings.TrimSpace(cfg.RunRoot) != "" {
+		return filepath.Join(filepath.Dir(filepath.Clean(cfg.RunRoot)), "planner-loop", "run.lock")
+	}
+	if strings.TrimSpace(cfg.RepoRoot) != "" {
+		return filepath.Join(cfg.RepoRoot, ".codex", "planner-loop", "run.lock")
+	}
+	return filepath.Join(".codex", "planner-loop", "run.lock")
+}
+
+func (lock *controlPlaneRunLock) release() {
+	if lock == nil || lock.file == nil {
+		return
+	}
+	_ = syscall.Flock(int(lock.file.Fd()), syscall.LOCK_UN)
+	_ = lock.file.Close()
 }
 
 func runIDFromTime(t time.Time) string {
