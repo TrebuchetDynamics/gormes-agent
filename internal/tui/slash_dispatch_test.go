@@ -49,21 +49,6 @@ func TestSlashRegistry_NonSlashInputIsNotHandled(t *testing.T) {
 	}
 }
 
-func TestSlashRegistry_SaveStubReturnsNotImplemented(t *testing.T) {
-	registry := NewDefaultSlashRegistry()
-
-	res := registry.Dispatch("/save", nil)
-	if !res.Handled {
-		t.Fatal("/save Handled = false, want true (default registry must register save stub)")
-	}
-	if res.StatusMessage != "save not yet implemented" {
-		t.Fatalf("StatusMessage = %q, want %q", res.StatusMessage, "save not yet implemented")
-	}
-	if res.Cmd != nil {
-		t.Fatal("Cmd != nil, want nil for stub (no terminal-mode side effects)")
-	}
-}
-
 func TestSlashRegistry_MouseHandlerMigrationParity(t *testing.T) {
 	tests := []struct {
 		name    string

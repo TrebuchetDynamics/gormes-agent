@@ -115,15 +115,16 @@ func normalizeSlashName(name string) string {
 }
 
 // NewDefaultSlashRegistry returns a registry pre-populated with the slash
-// commands the Gormes TUI ships today: /mouse and its /scroll alias, the
-// /save no-op stub that downstream rows replace with the real session
-// export, and /branch which forks the active session into a child via the
-// SessionBranchFunc injected on the Model.
+// commands the Gormes TUI ships today: /mouse and its /scroll alias,
+// /save which exports the canonical persisted transcript via the
+// SessionExportFunc injected on the Model, and /branch which forks the
+// active session into a child via the SessionBranchFunc injected on the
+// Model.
 func NewDefaultSlashRegistry() *SlashRegistry {
 	r := NewSlashRegistry()
 	r.Register("mouse", mouseSlashHandler)
 	r.Register("scroll", mouseSlashHandler)
-	r.Register("save", saveStubHandler)
+	r.Register("save", saveSlashHandler)
 	r.Register("branch", branchSlashHandler)
 	return r
 }
@@ -155,13 +156,3 @@ func mouseSlashHandler(input string, model *Model) SlashResult {
 	return SlashResult{Handled: true, StatusMessage: statusMessage, Cmd: cmd}
 }
 
-// saveStubHandler is the placeholder for /save. The follow-up progress row
-// "Native TUI /save canonical session export" replaces this stub with the
-// real export call; until then we explicitly tell the user the command was
-// recognized but not yet wired.
-func saveStubHandler(input string, model *Model) SlashResult {
-	return SlashResult{
-		Handled:       true,
-		StatusMessage: "save not yet implemented",
-	}
-}

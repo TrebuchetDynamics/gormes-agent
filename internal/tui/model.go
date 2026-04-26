@@ -37,6 +37,14 @@ type Options struct {
 	// visible busy evidence so the kernel cannot receive a competing turn.
 	// nil disables the busy check (legacy callers, kernel-only tests).
 	BusyGuard BusyInputEvaluator
+	// SessionExport is the injected canonical-transcript export helper
+	// invoked by the /save slash command. The implementation is expected
+	// to delegate to internal/transcript.ExportMarkdown over the
+	// persisted session store; nil disables /save (handler returns
+	// `save: store unavailable`). cmd/gormes wires the real
+	// MemoryDBPath-backed implementation in main.go so the TUI never
+	// opens a SQLite handle itself.
+	SessionExport SessionExportFunc
 }
 
 // BusyInputVerdict mirrors the cli.BusyInputVerdict shape for callers that
@@ -86,6 +94,7 @@ type Model struct {
 	// before the kernel acks the switch on its next render frame.
 	sessionID     string
 	sessionBranch SessionBranchFunc
+	sessionExport SessionExportFunc
 
 	slashRegistry *SlashRegistry
 }
@@ -114,6 +123,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		mouseModeCmd:  opts.MouseModeCmd,
 		sessionBranch: opts.SessionBranch,
 		busyGuard:     opts.BusyGuard,
+		sessionExport: opts.SessionExport,
 		slashRegistry: NewDefaultSlashRegistry(),
 	}
 }

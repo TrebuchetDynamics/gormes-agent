@@ -11194,9 +11194,9 @@
             {
               "name": "Native TUI /save canonical session export",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native Bubble Tea TUI replaces the /save no-op stub registered by `Native TUI slash-command dispatch table` with a handler that calls an injected SessionExportFunc(ctx, sessionID) (path string, err error) which delegates to internal/transcript.ExportMarkdown over the persisted session DB and renders the resulting file path through StatusMessage — never via the kernel submit path",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
