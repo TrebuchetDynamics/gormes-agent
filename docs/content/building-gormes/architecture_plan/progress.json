@@ -10546,6 +10546,20 @@
               "done_signal": [
                 "All 5 TestSlashRegistry_* fixtures pass and the existing mouse-tracking tests still pass after parseMouseTrackingSlash is migrated behind the registry."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T16:17:18Z",
+                "last_failure": {
+                  "run_id": "20260426T161040Z-908697454",
+                  "category": "report_validation_failed",
+                  "backend": "codexu",
+                  "stderr_tail": "worker changed paths outside declared write scope: internal/tui/model.go (allowed: internal/tui/slash_dispatch.go, internal/tui/slash_dispatch_test.go, internal/tui/update.go, internal/tui/mouse_tracking.go, docs/content/building-gormes/architecture_plan/progress.json)"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned dispatch primitive that doesn't exist in upstream (Hermes uses an Ink/TS slash registry). Reshaped 2026-04-26 from the prior `Native TUI /save canonical session export` quarantine — the original row was split into this dispatch prerequisite + the /save wiring follow-up below; the original RowHealth block was dropped per the planner split convention."
