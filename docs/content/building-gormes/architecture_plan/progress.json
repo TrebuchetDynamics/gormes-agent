@@ -7828,9 +7828,9 @@
             },
             {
               "name": "MCP OAuth refresh + 401 session-expired recovery",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tools adds a pure function `RefreshMCPOAuth(ctx context.Context, store *MCPOAuthStore, server string, refresher MCPRefresher, now time.Time) (MCPOAuthRefreshResult, error)` where MCPRefresher is an interface with one method `Refresh(ctx, refreshToken string) (newTokens MCPOAuthToken, err error)`; the function refreshes expired tokens, handles 401-equivalent SessionExpired errors by clearing the stored token, and never blocks on user input",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
