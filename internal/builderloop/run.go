@@ -1381,7 +1381,7 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		return err
 	}
 	if err := ensureWorktreeClean(worker.RepoRoot); err != nil {
-		if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+		event := LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
 			Event:  "worker_failed",
@@ -1390,7 +1390,9 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			Branch: worker.Branch,
 			Status: "worktree_dirty",
 			Detail: err.Error(),
-		}); ledgerErr != nil {
+		}
+		attachWorkerResultEvidence(&event, worker.Result)
+		if ledgerErr := appendRunLedgerEvent(cfg, event); ledgerErr != nil {
 			return ledgerErr
 		}
 		return err
@@ -1454,7 +1456,7 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 				}
 			} else {
 				commitSha = ""
-				if err := appendRunLedgerEvent(cfg, LedgerEvent{
+				event := LedgerEvent{
 					TS:     time.Now().UTC(),
 					RunID:  runID,
 					Event:  "worker_no_changes",
@@ -1462,7 +1464,9 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 					Task:   worker.Task,
 					Branch: worker.Branch,
 					Status: "no_changes",
-				}); err != nil {
+				}
+				attachWorkerResultEvidence(&event, worker.Result)
+				if err := appendRunLedgerEvent(cfg, event); err != nil {
 					return err
 				}
 				removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
@@ -1471,7 +1475,7 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
 		} else {
 			commitSha = ""
-			if err := appendRunLedgerEvent(cfg, LedgerEvent{
+			event := LedgerEvent{
 				TS:     time.Now().UTC(),
 				RunID:  runID,
 				Event:  "worker_no_changes",
@@ -1479,7 +1483,9 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 				Task:   worker.Task,
 				Branch: worker.Branch,
 				Status: "no_changes",
-			}); err != nil {
+			}
+			attachWorkerResultEvidence(&event, worker.Result)
+			if err := appendRunLedgerEvent(cfg, event); err != nil {
 				return err
 			}
 			removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
@@ -1497,6 +1503,16 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		Commit: commitSha,
 		Status: "success",
 	})
+}
+
+func attachWorkerResultEvidence(event *LedgerEvent, result Result) {
+	if event == nil {
+		return
+	}
+	event.StdoutBytes = len(result.Stdout)
+	event.StderrBytes = len(result.Stderr)
+	event.StdoutTail = boundedRedactedTail(result.Stdout)
+	event.StderrTail = boundedRedactedTail(result.Stderr)
 }
 
 func ensureWorkerCommitWithinWriteScope(cfg Config, runID string, worker workerRun, commitSha string) error {

@@ -114,6 +114,12 @@ in-place rename does not lose pre-existing planner state):
 
 Override the artifact root with `RUN_ROOT`.
 
+Planner PR intake runs before context collection when
+`MERGE_OPEN_PULL_REQUESTS=1` (the default). Empty intake results are cached
+for 5 minutes so builder-driven planner cycles do not poll GitHub every
+iteration when no PRs are open. Override with `PR_INTAKE_EMPTY_BACKOFF`
+using a Go duration such as `30s`, `5m`, or `0` to disable the backoff.
+
 ## Builder-Loop Audit Feedback
 
 Every planner run reads the builder-loop ledger

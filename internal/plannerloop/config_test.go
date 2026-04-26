@@ -39,6 +39,9 @@ func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 	if cfg.MergeOpenPullRequests != true {
 		t.Fatalf("MergeOpenPullRequests = %v, want true", cfg.MergeOpenPullRequests)
 	}
+	if cfg.PRIntakeEmptyBackoff != 5*time.Minute {
+		t.Fatalf("PRIntakeEmptyBackoff = %s, want 5m", cfg.PRIntakeEmptyBackoff)
+	}
 	if cfg.PRConflictAction != builderloop.PRConflictActionClose {
 		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, builderloop.PRConflictActionClose)
 	}
@@ -86,6 +89,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		"GBRAIN_DIR":                    "/tmp/gbrain",
 		"HONCHO_DIR":                    "/tmp/honcho",
 		"MERGE_OPEN_PULL_REQUESTS":      "0",
+		"PR_INTAKE_EMPTY_BACKOFF":       "2m30s",
 		"PR_INTAKE_CONFLICT_ACTION":     "skip",
 		"PLANNER_GORMES_ORIGINAL_PATHS": "cmd/builder-loop/,internal/progress/",
 		"PLANNER_IMPL_LOOKBACK":         "48h",
@@ -122,6 +126,9 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	}
 	if cfg.MergeOpenPullRequests != false {
 		t.Fatalf("MergeOpenPullRequests = %v, want false", cfg.MergeOpenPullRequests)
+	}
+	if cfg.PRIntakeEmptyBackoff != 150*time.Second {
+		t.Fatalf("PRIntakeEmptyBackoff = %s, want 2m30s", cfg.PRIntakeEmptyBackoff)
 	}
 	if cfg.PRConflictAction != builderloop.PRConflictActionSkip {
 		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, builderloop.PRConflictActionSkip)

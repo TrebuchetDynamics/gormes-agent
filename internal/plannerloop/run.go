@@ -111,6 +111,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	if runner == nil {
 		runner = cmdrunner.ExecRunner{}
 	}
+	ledgerPath := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
 
 	runLock, err := acquirePlannerRunLock(cfg.RunRoot, now)
 	if err != nil {
@@ -119,7 +120,15 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	defer runLock.release()
 
 	if cfg.MergeOpenPullRequests && !opts.DryRun {
-		if _, err := builderloop.MergeOpenPullRequests(ctx, builderloop.PullRequestIntakeOptions{
+		if skip, detail := shouldBackOffPullRequestIntake(cfg, now); skip {
+			appendPlannerLedger(ledgerPath, LedgerEvent{
+				TS:     time.Now().UTC().Format(time.RFC3339Nano),
+				RunID:  runID,
+				Event:  "pr_intake_skipped",
+				Status: "empty_backoff",
+				Detail: detail,
+			})
+		} else if _, err := builderloop.MergeOpenPullRequests(ctx, builderloop.PullRequestIntakeOptions{
 			Runner:         runner,
 			RepoRoot:       cfg.RepoRoot,
 			RunRoot:        cfg.RunRoot,
@@ -208,7 +217,6 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	// failing, or haven't been retried yet. Errors are swallowed so a missing
 	// or corrupt ledger never blocks the run; the planner just gets an empty
 	// PreviousReshapes section in that case (handled by formatPreviousReshapes).
-	ledgerPath := filepath.Join(cfg.RunRoot, "state", "runs.jsonl")
 	bundle.PreviousReshapes, _ = Evaluate(ledgerPath, autoloopLedgerPath(cfg), cfg.EvaluationWindow, now)
 
 	if err := writeContext(contextPath, bundle); err != nil {
@@ -568,6 +576,52 @@ func appendPlannerLedger(path string, event LedgerEvent) {
 	if err := AppendLedgerEvent(path, event); err != nil {
 		log.Printf("planner: append ledger failed: %v", err)
 	}
+}
+
+func shouldBackOffPullRequestIntake(cfg Config, now time.Time) (bool, string) {
+	if cfg.PRIntakeEmptyBackoff <= 0 || strings.TrimSpace(cfg.RunRoot) == "" {
+		return false, ""
+	}
+	events, err := LoadLedger(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if err != nil {
+		return false, ""
+	}
+	var latest LedgerEvent
+	var latestTS time.Time
+	for _, event := range events {
+		if event.Event != "pr_intake_completed" || event.Status != "completed" {
+			continue
+		}
+		ts, err := time.Parse(time.RFC3339Nano, event.TS)
+		if err != nil {
+			continue
+		}
+		if latestTS.IsZero() || ts.After(latestTS) {
+			latest = event
+			latestTS = ts
+		}
+	}
+	if latestTS.IsZero() || !pullRequestIntakeListedEmpty(latest.Detail) {
+		return false, ""
+	}
+	next := latestTS.UTC().Add(cfg.PRIntakeEmptyBackoff)
+	if !now.UTC().Before(next) {
+		return false, ""
+	}
+	return true, fmt.Sprintf("last_empty=%s next_after=%s backoff=%s",
+		latestTS.UTC().Format(time.RFC3339),
+		next.Format(time.RFC3339),
+		cfg.PRIntakeEmptyBackoff,
+	)
+}
+
+func pullRequestIntakeListedEmpty(detail string) bool {
+	for _, field := range strings.Fields(detail) {
+		if field == "listed=0" {
+			return true
+		}
+	}
+	return false
 }
 
 func plannerBackendCommand(backend, mode, rawReportPath string) ([]string, error) {
