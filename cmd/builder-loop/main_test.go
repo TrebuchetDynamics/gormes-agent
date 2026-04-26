@@ -1112,12 +1112,12 @@ func TestServiceInstallWritesUnitUnderXDGConfigHome(t *testing.T) {
 	if !strings.Contains(string(unit), "WorkingDirectory="+repoRoot) {
 		t.Fatalf("unit = %q, want workdir %q", unit, repoRoot)
 	}
-	wantExec := "ExecStart=" + filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh")
+	wantExec := "ExecStart=" + filepath.Join(repoRoot, "scripts", "gormes-auto-codexu-orchestrator.sh") + " run --loop"
 	if !strings.Contains(string(unit), wantExec) {
 		t.Fatalf("unit = %q, want stable wrapper exec %q", unit, wantExec)
 	}
-	if strings.Contains(string(unit), "go-build") || strings.Contains(string(unit), " run") {
-		t.Fatalf("unit = %q, want no temporary go-build path and no extra run arg", unit)
+	if strings.Contains(string(unit), "go-build") {
+		t.Fatalf("unit = %q, want no temporary go-build path", unit)
 	}
 
 	wantCommands := []cmdrunner.Command{

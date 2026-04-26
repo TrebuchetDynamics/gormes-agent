@@ -448,7 +448,7 @@ func installService(ctx context.Context, deps cliDeps, root string, force bool) 
 		UnitName:     "gormes-orchestrator.service",
 		AutoloopPath: orchestratorWrapperPath(root),
 		WorkDir:      root,
-		ExecArgs:     []string{},
+		ExecArgs:     []string{"run", "--loop"},
 		AutoStart:    autoStart(),
 		Force:        force,
 	})
