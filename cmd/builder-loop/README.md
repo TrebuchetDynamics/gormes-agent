@@ -85,7 +85,9 @@ Useful environment variables:
   one.
 - `MAX_PHASE`: cap eligible roadmap phases. Defaults to `4` so current
   unattended runs include the active Phase 4 queue without opening later
-  phases. Set `0` only for an explicit unbounded run.
+  phases. Set `0` for an explicit unbounded run. The generated production
+  systemd unit sets `MAX_PHASE=0` so the service keeps advancing when the
+  roadmap moves beyond the CLI default.
 - `PRIORITY_BOOST`: comma-separated subphase IDs to pull ahead of equally ready
   work. Defaults to the active priority channels: `2.B.3,2.B.4,2.B.10,2.B.11`.
 - `POST_PROMOTION_VERIFY_COMMANDS`: override the mandatory post-promotion

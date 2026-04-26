@@ -46,6 +46,7 @@ KillSignal=SIGTERM
 Environment=DISABLE_COMPANIONS=0
 Environment=COMPANION_ON_IDLE=1
 Environment=MAX_AGENTS=4
+Environment=MAX_PHASE=0
 Environment=MODE=safe
 
 [Install]

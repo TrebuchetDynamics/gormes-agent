@@ -26,6 +26,7 @@ func TestRenderServiceUnitInjectsPaths(t *testing.T) {
 		"Environment=DISABLE_COMPANIONS=0",
 		"Environment=COMPANION_ON_IDLE=1",
 		"Environment=MAX_AGENTS=4",
+		"Environment=MAX_PHASE=0",
 		"Environment=MODE=safe",
 		"WorkingDirectory=/srv/gormes",
 		"ExecStart=/opt/gormes/bin/autoloop run --loop",
