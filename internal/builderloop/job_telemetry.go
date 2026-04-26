@@ -16,19 +16,37 @@ var secretTelemetryPatterns = []*regexp.Regexp{
 }
 
 type jobSpec struct {
-	ID      string
-	Kind    string
-	Attempt int
-	Command string
-	Dir     string
-	Worker  int
-	Task    string
-	Branch  string
+	ID            string
+	Kind          string
+	Attempt       int
+	Command       string
+	Dir           string
+	Worker        int
+	Task          string
+	Branch        string
+	FailureStatus string
 }
 
 func runLoggedJob(ctx context.Context, cfg Config, runner Runner, runID string, spec jobSpec, command Command) Result {
 	start := time.Now().UTC()
 	spec = normalizeJobSpec(spec, command)
+	appendJobStarted(cfg, runID, spec, start)
+
+	result := runner.Run(ctx, command)
+	appendJobFinished(cfg, runID, spec, start, result)
+	return result
+}
+
+func runLoggedOperation(cfg Config, runID string, spec jobSpec, fn func() Result) Result {
+	start := time.Now().UTC()
+	spec = normalizeJobSpec(spec, Command{})
+	appendJobStarted(cfg, runID, spec, start)
+	result := fn()
+	appendJobFinished(cfg, runID, spec, start, result)
+	return result
+}
+
+func appendJobStarted(cfg Config, runID string, spec jobSpec, start time.Time) {
 	_ = appendRunLedgerEvent(cfg, LedgerEvent{
 		TS:        start,
 		RunID:     runID,
@@ -44,8 +62,9 @@ func runLoggedJob(ctx context.Context, cfg Config, runner Runner, runID string, 
 		Dir:       spec.Dir,
 		StartedAt: start.Format(time.RFC3339Nano),
 	})
+}
 
-	result := runner.Run(ctx, command)
+func appendJobFinished(cfg Config, runID string, spec jobSpec, start time.Time, result Result) {
 	finished := time.Now().UTC()
 	durationMS := finished.Sub(start).Milliseconds()
 	if durationMS <= 0 {
@@ -58,7 +77,7 @@ func runLoggedJob(ctx context.Context, cfg Config, runner Runner, runID string, 
 		Worker:      spec.Worker,
 		Task:        spec.Task,
 		Branch:      spec.Branch,
-		Status:      jobStatus(result.Err),
+		Status:      jobStatus(result.Err, spec.FailureStatus),
 		JobID:       spec.ID,
 		JobKind:     spec.Kind,
 		Attempt:     spec.Attempt,
@@ -75,7 +94,6 @@ func runLoggedJob(ctx context.Context, cfg Config, runner Runner, runID string, 
 		event.StderrTail = boundedRedactedTail(result.Stderr)
 	}
 	_ = appendRunLedgerEvent(cfg, event)
-	return result
 }
 
 func normalizeJobSpec(spec jobSpec, command Command) jobSpec {
@@ -101,7 +119,7 @@ func sanitizeTelemetryCommand(command string) string {
 	return strings.TrimSpace(command[:maxCommandBytes]) + " ... [truncated]"
 }
 
-func jobStatus(err error) string {
+func jobStatus(err error, failureStatus string) string {
 	switch {
 	case err == nil:
 		return "ok"
@@ -109,6 +127,8 @@ func jobStatus(err error) string {
 		return "timeout"
 	case errors.Is(err, context.Canceled):
 		return "canceled"
+	case failureStatus != "":
+		return failureStatus
 	default:
 		return "failed"
 	}

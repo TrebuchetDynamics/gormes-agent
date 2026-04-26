@@ -99,14 +99,24 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			return RunSummary{}, err
 		}
 		if opts.Config.MergeOpenPullRequests {
-			if _, err := MergeOpenPullRequests(ctx, PullRequestIntakeOptions{
-				Runner:         runner,
-				RepoRoot:       opts.Config.RepoRoot,
-				RunRoot:        opts.Config.RunRoot,
-				RunID:          runID,
-				ConflictAction: opts.Config.PRConflictAction,
-			}); err != nil {
-				return RunSummary{}, err
+			result := runLoggedOperation(opts.Config, runID, jobSpec{
+				ID:            fmt.Sprintf("%s/pr-intake/1", runID),
+				Kind:          "pr_intake",
+				Command:       "MergeOpenPullRequests",
+				Dir:           opts.Config.RepoRoot,
+				FailureStatus: "pr_intake_failed",
+			}, func() Result {
+				_, err := MergeOpenPullRequests(ctx, PullRequestIntakeOptions{
+					Runner:         runner,
+					RepoRoot:       opts.Config.RepoRoot,
+					RunRoot:        opts.Config.RunRoot,
+					RunID:          runID,
+					ConflictAction: opts.Config.PRConflictAction,
+				})
+				return Result{Err: err}
+			})
+			if result.Err != nil {
+				return RunSummary{}, result.Err
 			}
 		}
 	}
@@ -326,7 +336,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		for _, sk := range skipped {
 			acc.RecordFailure(sk.Candidate, progress.FailureProgressSummary, degrader.Current(), sk.Reason)
 		}
-		runBackendWorkers(ctx, opts.Config, runner, argv, workers)
+		runBackendWorkers(ctx, opts.Config, runner, runID, argv, workers)
 		for _, worker := range workers {
 			finishErr := finishWorker(ctx, opts.Config, runner, argv[0], runID, baseBranch, hasGit, worker)
 			recordWorkerOutcome(acc, observeOutcome, degrader.Current(), worker, finishErr)
@@ -406,7 +416,16 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 
 		args := append([]string(nil), argv[1:]...)
 		args = append(args, BuildWorkerPromptWithBranch(candidate, worker.Branch))
-		worker.Result = runBackendCommand(ctx, opts.Config, runner, Command{
+		worker.Result = runLoggedBackendCommand(ctx, opts.Config, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/worker/%d/backend", runID, worker.ID),
+			Kind:          "worker_backend",
+			Command:       backendTelemetryCommand(argv),
+			Dir:           worker.RepoRoot,
+			Worker:        worker.ID,
+			Task:          worker.Task,
+			Branch:        worker.Branch,
+			FailureStatus: "backend_failed",
+		}, Command{
 			Name: argv[0],
 			Args: args,
 			Dir:  worker.RepoRoot,
@@ -631,7 +650,17 @@ func runPrePromotionRepair(ctx context.Context, cfg Config, runner Runner, runID
 
 	args := append([]string(nil), argv[1:]...)
 	args = append(args, BuildPrePromotionRepairPrompt(cfg.PrePromotionVerifyCommands, worker, cause))
-	result := runBackendCommand(ctx, cfg, runner, Command{
+	result := runLoggedBackendCommand(ctx, cfg, runner, runID, jobSpec{
+		ID:            fmt.Sprintf("%s/worker/%d/pre-repair/%d", runID, worker.ID, attempt),
+		Kind:          "pre_repair_backend",
+		Attempt:       attempt,
+		Command:       backendTelemetryCommand(argv),
+		Dir:           worker.RepoRoot,
+		Worker:        worker.ID,
+		Task:          worker.Task,
+		Branch:        worker.Branch,
+		FailureStatus: "pre_repair_failed",
+	}, Command{
 		Name: argv[0],
 		Args: args,
 		Dir:  worker.RepoRoot,
@@ -723,7 +752,17 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		failureDetails []string
 	)
 	for i, shellCommand := range cfg.PrePromotionVerifyCommands {
-		result := runner.Run(ctx, Command{
+		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/worker/%d/pre-verify/%d/%d", runID, worker.ID, attempt, i+1),
+			Kind:          "pre_verify_command",
+			Attempt:       attempt,
+			Command:       shellCommand,
+			Dir:           worker.RepoRoot,
+			Worker:        worker.ID,
+			Task:          worker.Task,
+			Branch:        worker.Branch,
+			FailureStatus: "pre_verify_failed",
+		}, Command{
 			Name: "sh",
 			Args: []string{"-lc", shellCommand},
 			Dir:  worker.RepoRoot,
@@ -789,7 +828,16 @@ func runRowEvaluator(ctx context.Context, cfg Config, runner Runner, runID strin
 		failureDetails []string
 	)
 	for i, shellCommand := range commands {
-		result := runner.Run(ctx, Command{
+		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/worker/%d/row-eval/%d", runID, worker.ID, i+1),
+			Kind:          "row_eval_command",
+			Command:       shellCommand,
+			Dir:           worker.RepoRoot,
+			Worker:        worker.ID,
+			Task:          worker.Task,
+			Branch:        worker.Branch,
+			FailureStatus: "row_eval_failed",
+		}, Command{
 			Name: "sh",
 			Args: []string{"-lc", shellCommand},
 			Dir:  worker.RepoRoot,
@@ -851,7 +899,14 @@ func runPostPromotionVerification(ctx context.Context, cfg Config, runner Runner
 		failureDetails []string
 	)
 	for i, shellCommand := range cfg.PostPromotionVerifyCommands {
-		result := runner.Run(ctx, Command{
+		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/post-verify/%d/%d", runID, attempt, i+1),
+			Kind:          "post_verify_command",
+			Attempt:       attempt,
+			Command:       shellCommand,
+			Dir:           cfg.RepoRoot,
+			FailureStatus: "post_verify_failed",
+		}, Command{
 			Name: "sh",
 			Args: []string{"-lc", shellCommand},
 			Dir:  cfg.RepoRoot,
@@ -933,7 +988,14 @@ func runPostPromotionRepair(ctx context.Context, cfg Config, runner Runner, runI
 
 	args := append([]string(nil), argv[1:]...)
 	args = append(args, BuildPostPromotionRepairPrompt(cfg.PostPromotionVerifyCommands, cause))
-	result := runBackendCommand(ctx, cfg, runner, Command{
+	result := runLoggedBackendCommand(ctx, cfg, runner, runID, jobSpec{
+		ID:            fmt.Sprintf("%s/post-repair/%d", runID, attempt),
+		Kind:          "post_repair_backend",
+		Attempt:       attempt,
+		Command:       backendTelemetryCommand(argv),
+		Dir:           cfg.RepoRoot,
+		FailureStatus: "post_repair_failed",
+	}, Command{
 		Name: argv[0],
 		Args: args,
 		Dir:  cfg.RepoRoot,
@@ -1181,7 +1243,7 @@ type skippedCandidate struct {
 	Reason    string
 }
 
-func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, argv []string, workers []workerRun) {
+func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, runID string, argv []string, workers []workerRun) {
 	var wg sync.WaitGroup
 	for i := range workers {
 		worker := &workers[i]
@@ -1190,7 +1252,16 @@ func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, argv []st
 			defer wg.Done()
 			args := append([]string(nil), argv[1:]...)
 			args = append(args, BuildWorkerPromptWithBranch(worker.Candidate, worker.Branch))
-			worker.Result = runBackendCommand(ctx, cfg, runner, Command{
+			worker.Result = runLoggedBackendCommand(ctx, cfg, runner, runID, jobSpec{
+				ID:            fmt.Sprintf("%s/worker/%d/backend", runID, worker.ID),
+				Kind:          "worker_backend",
+				Command:       backendTelemetryCommand(argv),
+				Dir:           worker.RepoRoot,
+				Worker:        worker.ID,
+				Task:          worker.Task,
+				Branch:        worker.Branch,
+				FailureStatus: "backend_failed",
+			}, Command{
 				Name: argv[0],
 				Args: args,
 				Dir:  worker.RepoRoot,
@@ -1200,15 +1271,23 @@ func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, argv []st
 	wg.Wait()
 }
 
-func runBackendCommand(ctx context.Context, cfg Config, runner Runner, command Command) Result {
+func runLoggedBackendCommand(ctx context.Context, cfg Config, runner Runner, runID string, spec jobSpec, command Command) Result {
 	backendCtx := ctx
 	cancel := func() {}
 	if cfg.BackendTimeout > 0 {
 		backendCtx, cancel = context.WithTimeout(ctx, cfg.BackendTimeout)
 	}
-	result := runner.Run(backendCtx, command)
+	result := runLoggedJob(backendCtx, cfg, runner, runID, spec, command)
 	cancel()
 	return result
+}
+
+func backendTelemetryCommand(argv []string) string {
+	if len(argv) == 0 {
+		return "<backend> <prompt>"
+	}
+	base := strings.Join(argv, " ")
+	return base + " <prompt>"
 }
 
 func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName string, runID string, baseBranch string, hasGit bool, worker workerRun) error {

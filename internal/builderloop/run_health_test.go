@@ -249,10 +249,7 @@ func TestRunOnce_PostPromotionVerifyFailureRepairsBeforeRunHealth(t *testing.T) 
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	var got []string
-	for _, event := range events {
-		got = append(got, event.Event+":"+event.Status)
-	}
+	got := ledgerEventPairsExcludingJobs(events)
 	want := []string{
 		"run_started:started",
 		"worker_claimed:claimed",
@@ -268,6 +265,15 @@ func TestRunOnce_PostPromotionVerifyFailureRepairsBeforeRunHealth(t *testing.T) 
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+	if _, ok := findJobFinished(events, "post_verify_command", "post_verify_failed"); !ok {
+		t.Fatalf("ledger missing failed post_verify_command job_finished: %+v", events)
+	}
+	if _, ok := findJobFinished(events, "post_repair_backend", "ok"); !ok {
+		t.Fatalf("ledger missing successful post_repair_backend job_finished: %+v", events)
+	}
+	if _, ok := findJobFinished(events, "post_verify_command", "ok"); !ok {
+		t.Fatalf("ledger missing successful post_verify_command job_finished after repair: %+v", events)
 	}
 
 	item := loadItem(t, progressPath, "12", "12.A", "row-1")
