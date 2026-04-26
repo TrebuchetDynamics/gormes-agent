@@ -8288,9 +8288,9 @@
             },
             {
               "name": "Recoverable dangerous patterns + blocked-result schema",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tools declares DangerousPatterns []HardlinePattern (recoverable rules from Hermes DANGEROUS_PATTERNS), DetectDangerous(cmd) (matched, description), and BlockedResult{Approved=false, Hardline bool, Description, Operator, Command, Evidence map[string]string} produced by GuardCommand(cmd, mode) which calls DetectHardline first then DetectDangerous; pure, no execute_code wiring in this slice",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -8332,7 +8332,7 @@
                 "TestBlockedResultEvidenceFields: Evidence map records the matched pattern description and the input command verbatim.",
                 "TestGuardCommandPure: GuardCommand has no side effects (verified by absence of os/exec, net/http, os.Open in dangerous_command.go)."
               ],
-              "note": "Continuation of the 5.J split. The prior single quarantined row is replaced by this two-row sequence; a third follow-up row will wire GuardCommand into execute_code.",
+              "note": "Complete: TDD added internal/tools/dangerous_command_test.go and the pure internal/tools/dangerous_command.go guard. The recoverable Hermes DANGEROUS_PATTERNS table compiles under Go regexp, DetectDangerous reports matched descriptions, GuardCommand calls DetectHardline first, hardline results remain unapproved and non-bypassable, recoverable results set ApprovalRequired=true, benign commands return the zero value, evidence records the command and matched pattern description, and execute_code.go remains untouched.",
               "write_scope": [
                 "internal/tools/dangerous_command.go",
                 "internal/tools/dangerous_command_test.go",
@@ -8347,6 +8347,11 @@
               "done_signal": [
                 "GuardCommand returns typed BlockedResult values; hardline beats recoverable; benign returns zero value; no side effects; execute_code.go is still unchanged."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T17:34:56Z",
+                "last_success": "2026-04-26T17:34:56Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:eb28145f tools/approval.py",
