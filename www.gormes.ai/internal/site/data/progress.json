@@ -6539,18 +6539,26 @@
                 "Skills hub search fixtures prove read-only fake-registry search, degraded evidence, RPC/command dispatch, and no active-store mutation or prompt injection."
               ],
               "health": {
-                "attempt_count": 2,
-                "consecutive_failures": 2,
-                "last_attempt": "2026-04-26T14:28:54Z",
+                "attempt_count": 3,
+                "consecutive_failures": 3,
+                "last_attempt": "2026-04-26T14:29:55Z",
                 "last_failure": {
-                  "run_id": "20260426T142840Z-771787827",
+                  "run_id": "20260426T142936Z-986783975",
                   "category": "no_progress",
                   "backend": "codexu",
                   "stderr_tail": "worker made no changes: 5/5.F/Skills hub search RPC read model"
                 },
                 "backends_tried": [
                   "codexu"
-                ]
+                ],
+                "quarantine": {
+                  "reason": "auto: 3 consecutive failures, last category no_progress",
+                  "since": "2026-04-26T14:29:55Z",
+                  "after_run_id": "20260426T142936Z-986783975",
+                  "threshold": 3,
+                  "spec_hash": "42146ee28ae53bf921b0f6bc157a6e4636cfc840ea1e7813d99735a505f69e44",
+                  "last_category": "no_progress"
+                }
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -6833,11 +6841,11 @@
                 "MCP OAuth fixtures prove state persistence, refresh/expiry handling, 401 recovery, secret redaction, and noninteractive auth-required errors."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-26T14:27:57Z",
+                "attempt_count": 2,
+                "consecutive_failures": 2,
+                "last_attempt": "2026-04-26T14:29:55Z",
                 "last_failure": {
-                  "run_id": "20260426T141709Z-105849682",
+                  "run_id": "20260426T142936Z-986783975",
                   "category": "no_progress",
                   "backend": "codexu",
                   "stderr_tail": "worker made no changes: 5/5.G/MCP OAuth state store + noninteractive auth errors"
@@ -7253,18 +7261,26 @@
                 "Dangerous-command fixtures prove hardline blocks are unconditional, regular dangerous detections remain yolo-bypassable, benign lookalikes pass, and blocked results are side-effect free."
               ],
               "health": {
-                "attempt_count": 2,
-                "consecutive_failures": 2,
-                "last_attempt": "2026-04-26T14:28:54Z",
+                "attempt_count": 3,
+                "consecutive_failures": 3,
+                "last_attempt": "2026-04-26T14:29:55Z",
                 "last_failure": {
-                  "run_id": "20260426T142840Z-771787827",
+                  "run_id": "20260426T142936Z-986783975",
                   "category": "no_progress",
                   "backend": "codexu",
                   "stderr_tail": "worker made no changes: 5/5.J/Dangerous-command detector + blocked-result schema"
                 },
                 "backends_tried": [
                   "codexu"
-                ]
+                ],
+                "quarantine": {
+                  "reason": "auto: 3 consecutive failures, last category no_progress",
+                  "since": "2026-04-26T14:29:55Z",
+                  "after_run_id": "20260426T142936Z-986783975",
+                  "threshold": 3,
+                  "spec_hash": "0e7a6a636c270e7dd38dd6f1d42271fb7dd65c9e236a23497ec6c22f328b7ea4",
+                  "last_category": "no_progress"
+                }
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -7449,11 +7465,11 @@
                 "Backend/audit fixtures prove stdin-waiting and killed backends are classified with preserved evidence and no blank toxic-subphase buckets."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-26T14:28:54Z",
+                "attempt_count": 2,
+                "consecutive_failures": 2,
+                "last_attempt": "2026-04-26T14:29:55Z",
                 "last_failure": {
-                  "run_id": "20260426T142840Z-771787827",
+                  "run_id": "20260426T142936Z-986783975",
                   "category": "no_progress",
                   "backend": "codexu",
                   "stderr_tail": "worker made no changes: 5/5.N/Planner backend noninteractive stdin failure guard"
@@ -7688,6 +7704,20 @@
               "done_signal": [
                 "Pure helper fixtures prove tips, dump, and webhook output from fixed inputs with no filesystem, clock, random, or network dependency."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:29:55Z",
+                "last_failure": {
+                  "run_id": "20260426T142936Z-986783975",
+                  "category": "no_progress",
+                  "backend": "codexu",
+                  "stderr_tail": "worker made no changes: 5/5.O/CLI tips/dump/webhook deterministic helpers"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/tips.py",
@@ -7998,6 +8028,20 @@
               "done_signal": [
                 "Profile helper fixtures prove validation, path resolution, active-profile persistence, environment resolution, and no writes outside selected Gormes roots."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:29:55Z",
+                "last_failure": {
+                  "run_id": "20260426T142936Z-986783975",
+                  "category": "no_progress",
+                  "backend": "codexu",
+                  "stderr_tail": "worker made no changes: 5/5.O/CLI profile path and active-profile store"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
@@ -8674,11 +8718,11 @@
                 "Custom-provider model-switch fixtures prove named provider resolution, configured-model override, and secret-reference preservation without live provider calls or command UI."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-26T14:27:57Z",
+                "attempt_count": 2,
+                "consecutive_failures": 2,
+                "last_attempt": "2026-04-26T14:29:55Z",
                 "last_failure": {
-                  "run_id": "20260426T141709Z-105849682",
+                  "run_id": "20260426T142936Z-986783975",
                   "category": "no_progress",
                   "backend": "codexu",
                   "stderr_tail": "worker made no changes: 5/5.O/Custom provider model-switch credential preservation"
@@ -8925,6 +8969,20 @@
               "done_signal": [
                 "Pure internal/tuigateway fixtures prove progress mode, completion path, and tool-summary helpers without transport or Bubble Tea dependencies."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:29:55Z",
+                "last_failure": {
+                  "run_id": "20260426T142936Z-986783975",
+                  "category": "no_progress",
+                  "backend": "codexu",
+                  "stderr_tail": "worker made no changes: 5/5.Q/TUI gateway progress/completion helpers"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 tui_gateway/server.py",
