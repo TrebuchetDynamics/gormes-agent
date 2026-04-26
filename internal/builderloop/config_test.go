@@ -188,6 +188,9 @@ func TestConfigFromEnvReactiveDefaults(t *testing.T) {
 	if cfg.PRConflictAction != PRConflictActionClose {
 		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, PRConflictActionClose)
 	}
+	if cfg.PRIntakeEmptyBackoff != 5*time.Minute {
+		t.Fatalf("PRIntakeEmptyBackoff = %s, want 5m", cfg.PRIntakeEmptyBackoff)
+	}
 	if cfg.AutoCommitDirtyWorktree != true {
 		t.Fatalf("AutoCommitDirtyWorktree = %v, want true", cfg.AutoCommitDirtyWorktree)
 	}
@@ -214,6 +217,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 		"GORMES_PLANNER_QUARANTINE_LIMIT": "9",
 		"MERGE_OPEN_PULL_REQUESTS":        "0",
 		"PR_INTAKE_CONFLICT_ACTION":       "skip",
+		"PR_INTAKE_EMPTY_BACKOFF":         "2m30s",
 		"AUTO_COMMIT_DIRTY_WORKTREE":      "false",
 		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/builderloop -count=1;;go run ./cmd/builder-loop progress validate",
 		"POST_PROMOTION_REPAIR":           "off",
@@ -249,6 +253,9 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 	}
 	if cfg.PRConflictAction != PRConflictActionSkip {
 		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, PRConflictActionSkip)
+	}
+	if cfg.PRIntakeEmptyBackoff != 150*time.Second {
+		t.Fatalf("PRIntakeEmptyBackoff = %s, want 2m30s", cfg.PRIntakeEmptyBackoff)
 	}
 	if cfg.AutoCommitDirtyWorktree != false {
 		t.Fatalf("AutoCommitDirtyWorktree = %v, want false", cfg.AutoCommitDirtyWorktree)

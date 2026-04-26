@@ -206,7 +206,10 @@ func TestRunOnce_NoChangeWorkerCountsAsNoProgressAndSkipsPostVerify(t *testing.T
 	runner := runnerFunc(func(ctx context.Context, command Command) Result {
 		switch command.Name {
 		case "opencode":
-			return Result{}
+			return Result{
+				Stdout: strings.Repeat("backend progress noise\n", 80) + "worker stopped without edits api_key=sk-secret\n",
+				Stderr: "no-change stderr clue token=secret-value\n",
+			}
 		case "sh":
 			postVerifyRuns++
 			return Result{}
@@ -242,6 +245,28 @@ func TestRunOnce_NoChangeWorkerCountsAsNoProgressAndSkipsPostVerify(t *testing.T
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
 	if !ledgerContainsEvent(events, "worker_no_changes") {
 		t.Fatalf("ledger missing worker_no_changes; got=%v", ledgerEventNames(events))
+	}
+	var noChanges *LedgerEvent
+	for i := range events {
+		if events[i].Event == "worker_no_changes" {
+			noChanges = &events[i]
+			break
+		}
+	}
+	if noChanges == nil {
+		t.Fatal("worker_no_changes event not found")
+	}
+	if !strings.Contains(noChanges.StdoutTail, "worker stopped without edits") {
+		t.Fatalf("worker_no_changes stdout_tail missing backend evidence: %q", noChanges.StdoutTail)
+	}
+	if !strings.Contains(noChanges.StderrTail, "no-change stderr clue") {
+		t.Fatalf("worker_no_changes stderr_tail missing backend evidence: %q", noChanges.StderrTail)
+	}
+	if strings.Contains(noChanges.StdoutTail, "sk-secret") || strings.Contains(noChanges.StderrTail, "secret-value") {
+		t.Fatalf("worker_no_changes leaked secret output: stdout=%q stderr=%q", noChanges.StdoutTail, noChanges.StderrTail)
+	}
+	if noChanges.StdoutBytes == 0 || noChanges.StderrBytes == 0 {
+		t.Fatalf("worker_no_changes missing byte counts: stdout=%d stderr=%d", noChanges.StdoutBytes, noChanges.StderrBytes)
 	}
 	if ledgerContainsEvent(events, "worker_success") {
 		t.Fatalf("ledger contains worker_success for no-change worker; got=%v", ledgerEventNames(events))

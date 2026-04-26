@@ -225,6 +225,55 @@ func TestRunOnceMergesOpenPullRequestsBeforeSelectingWork(t *testing.T) {
 	}
 }
 
+func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	runRoot := t.TempDir()
+	lastEmpty := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	if err := AppendLedgerEvent(filepath.Join(runRoot, "state", "runs.jsonl"), LedgerEvent{
+		TS:     lastEmpty,
+		RunID:  "previous-run",
+		Event:  "pr_intake_completed",
+		Status: "completed",
+		Detail: "listed=0 merged=0 closed=0 failed=0 skipped=0",
+	}); err != nil {
+		t.Fatalf("seed ledger: %v", err)
+	}
+	runner := &FakeRunner{}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:              repoRoot,
+			ProgressJSON:          progressPath,
+			RunRoot:               runRoot,
+			Backend:               "opencode",
+			Mode:                  "safe",
+			MaxAgents:             1,
+			MergeOpenPullRequests: true,
+			PRIntakeEmptyBackoff:  5 * time.Minute,
+		},
+		Runner: runner,
+		Now:    lastEmpty.Add(2 * time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if len(runner.Commands) != 0 {
+		t.Fatalf("runner commands = %#v, want no gh/git PR intake commands inside empty backoff", runner.Commands)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	event, ok := findLedgerEvent(events, "pr_intake_skipped", "empty_backoff")
+	if !ok {
+		t.Fatalf("ledger missing pr_intake_skipped:empty_backoff: %+v", events)
+	}
+	if !strings.Contains(event.Detail, "last_empty=2026-04-26T12:00:00Z") ||
+		!strings.Contains(event.Detail, "next_after=2026-04-26T12:05:00Z") {
+		t.Fatalf("backoff detail = %q, want last_empty and next_after evidence", event.Detail)
+	}
+}
+
 func TestRunOnceUsesNanosecondSuffixForRapidRunIDs(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{"phases": {}}`)
 	config := Config{
@@ -744,6 +793,61 @@ func TestRunOnceWritesLedgerEvents(t *testing.T) {
 	}
 }
 
+func TestRunOnceRecordsSelfImprovementUserFeatureMix(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"5": {
+				"subphases": {
+					"5.A": {
+						"items": [
+							{"name": "builder loop checkpoint coalescing", "status": "planned", "contract": "loop contract", "contract_status": "draft", "write_scope": ["internal/builderloop/run.go"]}
+						]
+					},
+					"5.B": {
+						"items": [
+							{"name": "provider feature surface", "status": "planned", "contract": "provider contract", "contract_status": "draft", "write_scope": ["internal/hermes/client.go"]}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	runRoot := t.TempDir()
+	runner := &FakeRunner{Results: []Result{{}, {}}}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     t.TempDir(),
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "opencode",
+			Mode:         "safe",
+			MaxAgents:    2,
+		},
+		Runner: runner,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	completed, ok := findLedgerEvent(events, "run_completed", "completed")
+	if !ok {
+		t.Fatalf("ledger missing run_completed: %+v", events)
+	}
+	for _, want := range []string{
+		"self_improvement=1",
+		"user_feature=1",
+		"unknown=0",
+		"self_ratio=0.50",
+		"basis=selected",
+	} {
+		if !strings.Contains(completed.Detail, want) {
+			t.Fatalf("run_completed detail = %q, want %q", completed.Detail, want)
+		}
+	}
+}
+
 func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *testing.T) {
 	progressPath := writeProgressJSON(t, `{
 		"phases": {
@@ -985,6 +1089,39 @@ func TestRunOnceAutoCommitsDirtyRepositoryBeforePreflight(t *testing.T) {
 	}
 }
 
+func TestCheckpointDirtyWorktreeAmendsPreviousCheckpointCommit(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	runRoot := t.TempDir()
+	cfg := Config{RepoRoot: repoRoot, RunRoot: runRoot}
+
+	if err := os.WriteFile(filepath.Join(repoRoot, "first.txt"), []byte("first\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckpointDirtyWorktree(context.Background(), cfg, "loop-checkpoint-20260426T120000Z"); err != nil {
+		t.Fatalf("first CheckpointDirtyWorktree() error = %v", err)
+	}
+	if got := gitCommitCount(t, repoRoot); got != "2" {
+		t.Fatalf("commit count after first checkpoint = %s, want 2", got)
+	}
+
+	if err := os.WriteFile(filepath.Join(repoRoot, "second.txt"), []byte("second\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckpointDirtyWorktree(context.Background(), cfg, "loop-checkpoint-20260426T120030Z"); err != nil {
+		t.Fatalf("second CheckpointDirtyWorktree() error = %v", err)
+	}
+	if got := gitCommitCount(t, repoRoot); got != "2" {
+		t.Fatalf("commit count after second checkpoint = %s, want previous checkpoint amended", got)
+	}
+	if status := gitStatusPorcelain(t, repoRoot); status != "" {
+		t.Fatalf("git status = %q, want clean checkpointed worktree", status)
+	}
+	if subject := gitLogSubject(t, repoRoot); !strings.HasPrefix(subject, "builder-loop: checkpoint dirty worktree loop-checkpoint-") {
+		t.Fatalf("last commit subject = %q, want checkpoint subject", subject)
+	}
+}
+
 func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
@@ -1006,7 +1143,10 @@ func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(command.Dir, "worker-dirty.go"), []byte("package dirty\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		return Result{}
+		return Result{
+			Stdout: "worker wrote files but did not commit api_key=sk-secret\n",
+			Stderr: "git commit missing token=secret-value\n",
+		}
 	})
 
 	_, err := RunOnce(context.Background(), RunOptions{
@@ -1032,6 +1172,28 @@ func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:worktree_dirty", "health_updated:ok"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+	var failed *LedgerEvent
+	for i := range events {
+		if events[i].Event == "worker_failed" && events[i].Status == "worktree_dirty" {
+			failed = &events[i]
+			break
+		}
+	}
+	if failed == nil {
+		t.Fatal("worker_failed:worktree_dirty event not found")
+	}
+	if !strings.Contains(failed.StdoutTail, "worker wrote files but did not commit") {
+		t.Fatalf("dirty worker stdout_tail missing backend evidence: %q", failed.StdoutTail)
+	}
+	if !strings.Contains(failed.StderrTail, "git commit missing") {
+		t.Fatalf("dirty worker stderr_tail missing backend evidence: %q", failed.StderrTail)
+	}
+	if strings.Contains(failed.StdoutTail, "sk-secret") || strings.Contains(failed.StderrTail, "secret-value") {
+		t.Fatalf("dirty worker leaked secret output: stdout=%q stderr=%q", failed.StdoutTail, failed.StderrTail)
+	}
+	if failed.StdoutBytes == 0 || failed.StderrBytes == 0 {
+		t.Fatalf("dirty worker missing byte counts: stdout=%d stderr=%d", failed.StdoutBytes, failed.StderrBytes)
 	}
 }
 
@@ -1434,6 +1596,16 @@ func gitLogSubject(t *testing.T, repoRoot string) string {
 	out, err := exec.Command("git", "-C", repoRoot, "log", "-1", "--pretty=%s").Output()
 	if err != nil {
 		t.Fatalf("git log -1 --pretty=%%s failed: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func gitCommitCount(t *testing.T, repoRoot string) string {
+	t.Helper()
+
+	out, err := exec.Command("git", "-C", repoRoot, "rev-list", "--count", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("git rev-list --count HEAD failed: %v", err)
 	}
 	return strings.TrimSpace(string(out))
 }
