@@ -73,6 +73,7 @@ func TestSubphaseFromTaskEmptyReturnsControlPlane(t *testing.T) {
 		{name: "empty string", task: "", want: ControlPlaneSubphaseID},
 		{name: "whitespace only", task: "   ", want: ControlPlaneSubphaseID},
 		{name: "tabs and spaces", task: "\t  \n", want: ControlPlaneSubphaseID},
+		{name: "non-conforming label", task: "backend_failed", want: ControlPlaneSubphaseID},
 		{name: "named row preserved", task: "5/5.J/Foo", want: "5/5.J"},
 	}
 	for _, tc := range cases {

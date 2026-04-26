@@ -8482,9 +8482,9 @@
             {
               "name": "Planner audit blank-subphase control-plane bucket",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/plannerloop.subphaseFromTask normalizes empty/non-conforming task labels to a sentinel ControlPlaneSubphaseID = 'control-plane/backend' so SummarizeAutoloopAudit toxic_subphases and hot_subphases never use the empty string as a subphase_id",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
