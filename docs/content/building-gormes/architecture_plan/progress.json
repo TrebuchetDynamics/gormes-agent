@@ -9960,9 +9960,9 @@
             },
             {
               "name": "Gateway mutating-subcommand unavailability stub",
-              "status": "planned",
+              "status": "complete",
               "contract": "When `gormes gateway` introduces start/stop/restart/install/uninstall subcommands, each unsupported mutating subcommand surfaces a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out to systemd/launchd",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -9999,7 +9999,7 @@
                 "The existing `gateway status` subcommand and runtime status path are unchanged.",
                 "No new gateway runtime state file or service manager dependency is introduced."
               ],
-              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26. The closeout row's read-only acceptance was already validated; this row covers the remaining mutating-command unavailability gap once mutating verbs are introduced.",
+              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go now registers start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covers each verb, asserts no runtime/state file is opened, and verifies `gateway status` is unaffected. No service-manager dependency or runtime state file was added.",
               "write_scope": [
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_mutating_unavailable_test.go",
