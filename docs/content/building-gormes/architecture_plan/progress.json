@@ -1247,9 +1247,9 @@
             {
               "name": "Slack rich-text quotes/lists + link-unfurl ingress",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Slack inbound text augmentation extracts readable rich_text quote/list/preformatted blocks and link-unfurl attachment previews while routing commands from the original Slack text only",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1290,7 +1290,7 @@
                 "Channel.toInboundEvent parses Event.Kind from the original Text field, so quoted `/deploy` remains EventSubmit text and does not become EventUnknown or a command.",
                 "No Slack network client or file download behavior is introduced."
               ],
-              "note": "Upstream Hermes 6087e040 fixes Slack messages where forwarded/quoted rich_text blocks and link unfurl previews were invisible to the agent. Gormes currently normalizes only Event.Text; this row ports the behavior as a fake-payload Slack seam first, preserving command routing from original text.",
+              "note": "Complete: TDD landed fixture-only Slack Event block/attachment payloads plus a pure rich-text augmenter. internal/slack/rich_text_test.go proves quotes, bullet/ordered lists, preformatted blocks, duplicate composer text suppression, link preview fields, skipped message unfurls, and slack_rich_text_unavailable evidence for malformed payloads. Channel fixtures prove EventSubmit text is augmented while Event.Kind is parsed from the original Slack text so quoted /deploy remains submit text.",
               "write_scope": [
                 "internal/slack/client.go",
                 "internal/slack/channel.go",

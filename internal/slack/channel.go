@@ -77,6 +77,13 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 	c.rememberThread(channelID, threadTS)
 
 	kind, body := gateway.ParseInboundText(strings.TrimSpace(e.Text))
+	if kind == gateway.EventSubmit {
+		var evidence []SlackRichTextEvidence
+		body, evidence = augmentInboundText(body, e.Blocks, e.Attachments)
+		for _, ev := range evidence {
+			c.log.Warn(slackRichTextUnavailableCode, "source", ev.Source, "reason", ev.Reason)
+		}
+	}
 	ts := strings.TrimSpace(e.Timestamp)
 	return gateway.InboundEvent{
 		Platform:  "slack",

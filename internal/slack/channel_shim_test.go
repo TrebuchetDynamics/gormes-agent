@@ -276,6 +276,105 @@ func TestSlackChannel_ManagerReportsSendDegradation(t *testing.T) {
 	}
 }
 
+func TestSlackChannel_RichTextIngress(t *testing.T) {
+	mc := newMockClient()
+	ch := NewChannel(mc, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	inbox := make(chan gateway.InboundEvent, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- ch.Run(ctx, inbox)
+	}()
+
+	mc.pushEvent(Event{
+		RequestID:   "req-rich-text",
+		ChannelID:   "C123",
+		UserID:      "U1",
+		Text:        "Can you summarize this?",
+		Timestamp:   "1711111111.000700",
+		Blocks:      sampleRichTextBlocks(),
+		Attachments: sampleAttachmentPreviews(),
+	})
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventSubmit {
+			t.Fatalf("Kind = %s, want submit", ev.Kind)
+		}
+		for _, want := range []string{
+			"Can you summarize this?",
+			"> Quoted line",
+			"- First bullet",
+			"1. First ordered",
+			"```go\nfmt.Println(\"hi\")\n```",
+			"Link preview: Spec",
+			"https://example.com/spec",
+			"The latest product spec preview",
+			"Notion",
+		} {
+			if !strings.Contains(ev.Text, want) {
+				t.Fatalf("Event text missing %q:\n%s", want, ev.Text)
+			}
+		}
+		if strings.Contains(ev.Text, "Thread copy") {
+			t.Fatalf("Event text contains skipped message unfurl:\n%s", ev.Text)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for rich-text Slack event")
+	}
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run after cancel = %v, want nil", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Run did not return after cancellation")
+	}
+}
+
+func TestSlackChannel_QuotedSlashDoesNotRouteAsCommand(t *testing.T) {
+	ch := NewChannel(newMockClient(), nil)
+
+	ev, ok := ch.toInboundEvent(Event{
+		ChannelID: "C123",
+		UserID:    "U1",
+		Text:      "please review",
+		Timestamp: "1711111111.000800",
+		Blocks: []SlackBlock{
+			{
+				"type": "rich_text",
+				"elements": []any{
+					SlackBlock{
+						"type": "rich_text_quote",
+						"elements": []any{
+							SlackBlock{
+								"type": "rich_text_section",
+								"elements": []any{
+									SlackBlock{"type": "text", "text": "/deploy now"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	if !ok {
+		t.Fatal("toInboundEvent dropped event, want submit")
+	}
+	if ev.Kind != gateway.EventSubmit {
+		t.Fatalf("Kind = %s, want submit", ev.Kind)
+	}
+	if ev.Text != "please review\n> /deploy now" {
+		t.Fatalf("Text = %q, want original text plus quoted slash as submit text", ev.Text)
+	}
+}
+
 func waitForSlackCondition(t *testing.T, timeout time.Duration, cond func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)

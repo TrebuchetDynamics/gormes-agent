@@ -3,14 +3,16 @@ package slack
 import "context"
 
 type Event struct {
-	RequestID string
-	ChannelID string
-	UserID    string
-	Text      string
-	Timestamp string
-	ThreadTS  string
-	SubType   string
-	BotID     string
+	RequestID   string
+	ChannelID   string
+	UserID      string
+	Text        string
+	Timestamp   string
+	ThreadTS    string
+	SubType     string
+	BotID       string
+	Blocks      []SlackBlock
+	Attachments []SlackAttachmentPreview
 }
 
 type Client interface {
