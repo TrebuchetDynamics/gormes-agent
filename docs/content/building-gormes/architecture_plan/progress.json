@@ -11060,9 +11060,9 @@
             },
             {
               "name": "TUI TerminalNativeSelectionHelp constant + help-string fixture",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui declares an exported string constant TerminalNativeSelectionHelp = 'Selection: use your terminal's native selection (Shift-drag in most terminals; iTerm Cmd-drag, tmux copy-mode). Gormes does not advertise an in-app copy hotkey.' and a pure helper SelectionHelpLine() that returns it; one fixture asserts the constant exists, mentions 'terminal' but not 'Cmd+C'/'Ctrl+C'/'Ctrl-Shift-C'/'OSC 52'/'clipboard hotkey'/'Ink', and another asserts no advertised copy shortcut leaks anywhere else in the package",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -11108,6 +11108,11 @@
               "done_signal": [
                 "internal/tui/selection_help.go declares TerminalNativeSelectionHelp and SelectionHelpLine; three named tests pass; no other internal/tui or cmd/gormes file is modified."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T21:33:59Z",
+                "last_success": "2026-04-26T21:33:59Z"
+              },
               "provenance": {
                 "origin_type": "gormes",
                 "owned_since": "2026-04-26T15:30:00Z",
