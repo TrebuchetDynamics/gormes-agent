@@ -386,6 +386,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Model-specific role and tool-use guidance
 - [ ] Toolset-aware skills prompt snapshot
 - [ ] Memory and session-search guidance assembly
+- [ ] [SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility
 
 ### 4.D — Smart Model Routing 🔨
 

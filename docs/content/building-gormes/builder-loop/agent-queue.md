@@ -29,7 +29,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Size: `small`
 - Status: `planned`
 - Priority: `P1`
-- Contract: Pure helper internal/builderloop/watchdog_coalesce.go exposes DecideCheckpoint(now time.Time, st CheckpointState, cfg CoalesceConfig) (Decision, CheckpointState) where Decision is one of {first, amend, noop} and CheckpointState records {LastCheckpointAt, LastSubject, WindowID}; given the current state and a coalesce window (default 600s), the helper returns first on the first dirty tick of a window, amend while still inside the window with the same WindowID, and noop when no fresh state is needed. No git invocation, no shell-script change, no live filesystem mutation in this slice.
+- Contract: Pure helper internal/builderloop/watchdog_coalesce.go exposes type Decision string with constants DecisionFirst="first", DecisionAmend="amend", DecisionNoop="noop"; type CheckpointState struct{LastCheckpointAt time.Time; LastSubject string; WindowID string}; type CoalesceConfig struct{WindowSeconds int; Dirty bool; NextWindowID func() string} and one function DecideCheckpoint(now time.Time, st CheckpointState, cfg CoalesceConfig) (Decision, CheckpointState). Window math: windowSeconds <= 0 falls back to 600. Algorithm: when cfg.Dirty is false, return DecisionNoop and the input state unchanged. When cfg.Dirty is true and (st.WindowID == "" OR now.Sub(st.LastCheckpointAt) >= window), return DecisionFirst with state {LastCheckpointAt: now, LastSubject: st.LastSubject (caller fills), WindowID: cfg.NextWindowID()}. Otherwise (cfg.Dirty and inside the window) return DecisionAmend with state {LastCheckpointAt: now, LastSubject: st.LastSubject, WindowID: st.WindowID} (preserve the existing WindowID). No git invocation, no shell-script change, no live filesystem mutation in this slice; cfg.NextWindowID is the only source of new IDs and is supplied by the caller (typically a small monotonic counter or a uuid stub in tests).
 - Trust class: operator, system
 - Ready when: Watchdog dirty-worktree checkpointing is in place (commit ff96a5d94) and emits a record_run_health event we can key off of., Tests can use a fake clock and an in-memory git repo or a synthetic commit-recorder seam — no live system clock or systemd is required.
 - Not ready when: The slice changes the watchdog stall threshold, the dead-process detection, or the planner cadence., The slice silently drops the dirty-worktree checkpoint when a stall is real — the first tick of every distinct stall window must still produce a single observable checkpoint.
@@ -38,7 +38,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Write scope: `internal/builderloop/watchdog_coalesce.go`, `internal/builderloop/watchdog_coalesce_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
 - Test commands: `go test ./internal/builderloop -run TestDecideCheckpoint -count=1`, `go test ./internal/builderloop -count=1`, `go run ./cmd/builder-loop progress validate`
 - Done signal: internal/builderloop/watchdog_coalesce_test.go fixtures prove first/amend/first-after-rotation/noop decisions across a fake clock with no live git or systemd.
-- Acceptance: TestDecideCheckpoint_FirstTickInFreshWindowReturnsFirst seeded with empty state returns Decision=first and a CheckpointState with WindowID assigned and LastCheckpointAt=now., TestDecideCheckpoint_LaterTickInsideWindowReturnsAmend with prior state inside windowSeconds returns Decision=amend and the same WindowID., TestDecideCheckpoint_LaterTickPastWindowReturnsFirst rotates WindowID and LastCheckpointAt=now when now-prior > windowSeconds., TestDecideCheckpoint_NoopWhenNotDirty (helper exposes DecideCheckpointDirty=false) returns Decision=noop and unchanged state., Helper is a pure function with no time.Now, no git invocation, no os.* calls — caller passes both the clock and the dirty flag.
+- Acceptance: TestDecideCheckpoint_FirstTickInFreshWindowReturnsFirst: empty state, cfg.Dirty=true, NextWindowID=()=>"w-1" returns (DecisionFirst, {LastCheckpointAt: now, WindowID: "w-1"})., TestDecideCheckpoint_LaterTickInsideWindowReturnsAmend: prior state {LastCheckpointAt: now-30s, WindowID: "w-1"}, cfg.Dirty=true, windowSeconds=600 returns (DecisionAmend, {LastCheckpointAt: now, WindowID: "w-1"}); NextWindowID is NOT called., TestDecideCheckpoint_LaterTickPastWindowReturnsFirst: prior state {LastCheckpointAt: now-601s, WindowID: "w-1"}, cfg.Dirty=true, windowSeconds=600, NextWindowID=()=>"w-2" returns (DecisionFirst, {LastCheckpointAt: now, WindowID: "w-2"})., TestDecideCheckpoint_NoopWhenNotDirty: any prior state, cfg.Dirty=false returns (DecisionNoop, prior state unchanged); NextWindowID is NOT called., TestDecideCheckpoint_DefaultWindowWhenZeroOrNegative: cfg.WindowSeconds=0 and cfg.WindowSeconds=-5 both behave like windowSeconds=600., Helper is a pure function with no time.Now, no git invocation, no os.* calls — caller passes both the clock (now) and the dirty flag (cfg.Dirty) and the WindowID generator (cfg.NextWindowID).
 - Source refs: internal/builderloop/run.go:CheckpointDirtyWorktree,lastCommitIsBuilderLoopCheckpoint,isBuilderLoopCheckpointSubject, scripts/orchestrator/watchdog.sh:checkpoint_dirty, docs/superpowers/specs/2026-04-25-builder-owned-planner-cycle-design.md
 - Unblocks: Watchdog dead-process vs slow-progress separation
 - Why now: Unblocks Watchdog dead-process vs slow-progress separation.
@@ -50,7 +50,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Size: `small`
 - Status: `planned`
 - Priority: `P1`
-- Contract: Pure helper internal/builderloop/watchdog_state.go exposes type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool} and Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict where Verdict is one of {healthy, slow, dead}. dead fires when v.PIDIsLive is false and (PID == 0 OR now-LastCommitAt >= deadAfter). slow fires when v.PIDIsLive is true and now-LastCommitAt >= slowAfter. healthy otherwise. Caller injects PIDIsLive (it should wrap os.FindProcess + Signal(0)) so the helper can be tested without forking processes.
+- Contract: Pure helper internal/builderloop/watchdog_state.go exposes type Verdict string with constants VerdictHealthy="healthy", VerdictSlow="slow", VerdictDead="dead" (zero value = VerdictHealthy is NOT used; the helper always sets one of the three explicitly); type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and one function Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Algorithm (evaluated in this order — first match wins): (1) when v.PID == 0, return VerdictDead (zero PID is treated as missing, regardless of PIDIsLive or thresholds). (2) when v.PIDIsLive == false AND now.Sub(v.LastCommitAt) >= deadAfter, return VerdictDead. (3) when v.PIDIsLive == true AND now.Sub(v.LastCommitAt) >= slowAfter, return VerdictSlow. (4) otherwise return VerdictHealthy. Threshold preconditions enforced by tests: deadAfter and slowAfter are both > 0 and deadAfter <= slowAfter; the helper does NOT validate them — the orchestrator config layer does. No os.FindProcess, no signal delivery, no time.Now lookup, no goroutines. Caller injects v.PIDIsLive (typically a small shim around os.FindProcess + Signal(0) in production; a fixed bool in tests).
 - Trust class: operator, system
 - Ready when: Existing watchdog timer (commit f96a5d94) emits stall events at a single threshold; this slice carves the threshold into two independent ones., Watchdog checkpoint coalescing is fixture-ready or validated, so the dead-process tick does not amplify the commit storm.
 - Not ready when: The slice changes how worker output is rejected or how dirty worktrees are committed — only worker liveness detection is in scope., The slice introduces process-group signal sending or container-aware death detection (those belong to a separate sandboxing row).
@@ -59,7 +59,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Write scope: `internal/builderloop/watchdog_state.go`, `internal/builderloop/watchdog_state_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
 - Test commands: `go test ./internal/builderloop -run TestDiagnose -count=1`, `go test ./internal/builderloop -count=1`, `go run ./cmd/builder-loop progress validate`
 - Done signal: internal/builderloop/watchdog_state_test.go fixtures prove healthy/slow/dead verdicts including the dead-vs-slow precedence rule with no os.FindProcess or signal calls.
-- Acceptance: TestDiagnose_HealthyWhenRecentCommitAndAlive returns Verdict=healthy., TestDiagnose_SlowWhenAliveButOverSlowThreshold returns Verdict=slow., TestDiagnose_DeadWhenPIDNotLiveAndOverDeadThreshold returns Verdict=dead., TestDiagnose_DeadWhenPIDIsZero returns Verdict=dead even with v.PIDIsLive=true (zero PID treated as missing process)., TestDiagnose_SlowDoesNotMaskDead when both thresholds elapsed and PID not live, dead wins., Helper is pure — caller injects the clock and the PIDIsLive result.
+- Acceptance: TestDiagnose_HealthyWhenRecentCommitAndAlive: v={PID:1234, LastCommitAt:now-5s, PIDIsLive:true}, deadAfter=120s, slowAfter=600s returns VerdictHealthy., TestDiagnose_SlowWhenAliveButOverSlowThreshold: v={PID:1234, LastCommitAt:now-700s, PIDIsLive:true} returns VerdictSlow., TestDiagnose_DeadWhenPIDNotLiveAndOverDeadThreshold: v={PID:1234, LastCommitAt:now-200s, PIDIsLive:false} returns VerdictDead., TestDiagnose_DeadWhenPIDIsZero: v={PID:0, LastCommitAt:now-1s, PIDIsLive:true} returns VerdictDead (zero PID short-circuits; thresholds and PIDIsLive are ignored)., TestDiagnose_DeadDoesNotDowngradeToSlow: v={PID:1234, LastCommitAt:now-700s, PIDIsLive:false} with deadAfter=120s, slowAfter=600s returns VerdictDead (dead wins over slow when both fire)., TestDiagnose_NotDeadWhenPIDLiveEvenIfSilent: v={PID:1234, LastCommitAt:now-99999s, PIDIsLive:true} returns VerdictSlow (never VerdictDead while the process answers Signal(0))., Helper is pure — caller injects the clock (now) and the PIDIsLive result.
 - Source refs: internal/builderloop/run.go, internal/builderloop/run_health_test.go
 - Unblocks: Builder-loop self-improvement vs user-feature ratio metric
 - Why now: Unblocks Builder-loop self-improvement vs user-feature ratio metric.
@@ -91,7 +91,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Size: `small`
 - Status: `planned`
 - Priority: `P2`
-- Contract: Pure helper internal/hermes/azure_foundry_path_sniff.go exposes type AzureTransport string with constants AzureTransportAnthropic, AzureTransportOpenAI, AzureTransportUnknown, and one function ClassifyAzurePath(rawURL string) AzureTransport. Returns AzureTransportAnthropic when (case-insensitive) the URL path ends in /anthropic or contains /anthropic/. Every other URL returns AzureTransportUnknown. The OpenAI constant is reserved for the next slice; this slice never returns it. No HTTP, no env reads, no config writes. Use net/url + strings.ToLower; reject parse errors by returning Unknown.
+- Contract: Pure helper internal/hermes/azure_foundry_path_sniff.go exposes type AzureTransport string with three string-typed constants — AzureTransportAnthropic = "anthropic", AzureTransportOpenAI = "openai", AzureTransportUnknown = "" (zero value) — and one function ClassifyAzurePath(rawURL string) AzureTransport. Algorithm: parse rawURL with url.Parse; on parse error or empty result, return AzureTransportUnknown. Otherwise lowercase parsed.Path with strings.ToLower; if the lowercased path equals "/anthropic", ends with the suffix "/anthropic", or contains the substring "/anthropic/", return AzureTransportAnthropic. Every other input — including bare hosts, /openai/* paths, missing paths, or paths matching /anthropicx (no trailing slash) — returns AzureTransportUnknown. The OpenAI constant is declared so the follow-up /models classification slice can return it; this slice never returns AzureTransportOpenAI. No HTTP, no env reads, no config writes, no goroutines.
 - Trust class: operator, system
 - Ready when: internal/hermes already compiles and has no azure_foundry_path_sniff.go file yet — this row creates the file plus a sibling _test.go., No upstream gating: this is a pure URL inspector with synthetic input.
 - Not ready when: The slice opens HTTP connections, performs a /models probe, reads AZURE_FOUNDRY_BASE_URL or AZURE_FOUNDRY_API_KEY, or mutates config., The slice introduces detection of any third transport family (Bedrock, Vertex, etc.).
@@ -100,12 +100,32 @@ tests, and candidate policy. Keep those control-plane facts in
 - Write scope: `internal/hermes/azure_foundry_path_sniff.go`, `internal/hermes/azure_foundry_path_sniff_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
 - Test commands: `go test ./internal/hermes -run TestClassifyAzurePath -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/builder-loop progress validate`
 - Done signal: internal/hermes/azure_foundry_path_sniff_test.go fixtures prove anthropic-path classification across suffix, mid-path, and case variants without HTTP.
-- Acceptance: TestClassifyAzurePath_AnthropicSuffix: https://x.openai.azure.com/openai/deployments/y/anthropic returns AzureTransportAnthropic., TestClassifyAzurePath_AnthropicMidPath: https://x/openai/anthropic/v1/messages returns AzureTransportAnthropic., TestClassifyAzurePath_CaseInsensitive: /AnthrOPic and /ANTHROPIC both return AzureTransportAnthropic., TestClassifyAzurePath_OpenAIDefault: https://x.openai.azure.com/openai/v1/chat/completions returns AzureTransportUnknown., TestClassifyAzurePath_MalformedReturnsUnknown: empty string and "::garbage::" return AzureTransportUnknown.
+- Acceptance: TestClassifyAzurePath_AnthropicSuffix: https://x.openai.azure.com/openai/deployments/y/anthropic returns AzureTransportAnthropic., TestClassifyAzurePath_AnthropicMidPath: https://x/openai/anthropic/v1/messages returns AzureTransportAnthropic., TestClassifyAzurePath_CaseInsensitive: /AnthrOPic and /ANTHROPIC both return AzureTransportAnthropic., TestClassifyAzurePath_OpenAIDefault: https://x.openai.azure.com/openai/v1/chat/completions returns AzureTransportUnknown (never AzureTransportOpenAI in this slice)., TestClassifyAzurePath_MalformedReturnsUnknown: empty string, "::garbage::", and rawURL="http://%zz" return AzureTransportUnknown., TestClassifyAzurePath_NotASubstringFalsePositive: /anthropicx and /anthropic-mirror return AzureTransportUnknown (substring guard requires "/anthropic" with a trailing path separator or end-of-path).
 - Source refs: ../hermes-agent/hermes_cli/azure_detect.py:_looks_like_anthropic_path:114
 - Unblocks: Azure Foundry probe — /models classification + Anthropic fallback
 - Why now: Unblocks Azure Foundry probe — /models classification + Anthropic fallback.
 
-## 5. Provider rate guard — x-ratelimit header classification
+## 5. [SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility
+
+- Phase: 4 / 4.C
+- Owner: `provider`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Single rename of the bracketed meta-instruction prefix used for skill-invocation and cron-heartbeat prompts: change every occurrence of the literal string "[SYSTEM:" to "[IMPORTANT:" in (a) internal/skills/commands.go (currently at line 94 inside the BuildSkill block string template) and (b) internal/cron/heartbeat.go's CronHeartbeatPrefix constant. The replacement is byte-for-byte over a 7→10 character literal; semantic meaning to the model is unchanged. Update the two existing assertions in internal/skills/preprocessing_commands_test.go (string literal `[SYSTEM: The user has invoked`) and the two assertions in internal/cron/heartbeat_test.go (HasPrefix and contained "[SYSTEM:") to match the new prefix. No public Go API renames, no struct shape changes, no provider/transport edits, no schema migrations.
+- Trust class: system
+- Ready when: Both internal/skills/commands.go and internal/cron/heartbeat.go currently use the literal "[SYSTEM:" prefix (verified 2026-04-26 by grep)., Both *_test.go files assert against the literal "[SYSTEM:" prefix and will need synchronized updates inside this slice's write_scope., No upstream gate beyond the upstream Hermes commit d7a34682 already merged.
+- Not ready when: The slice changes the body content of the cron heartbeat or skill-invocation prompts — only the bracketed prefix token rename is in scope., The slice introduces a runtime feature flag, environment variable, or config knob to switch between [SYSTEM: and [IMPORTANT: — the rename is unconditional., The slice touches gateway prompt assembly, provider transports, or any runtime that does not currently emit the [SYSTEM: marker.
+- Degraded mode: Cron-heartbeat and skill-invocation prompts continue to assemble in the same shape; only the leading bracketed marker token differs. Azure OpenAI content-filter (Default/DefaultV2) no longer rejects with HTTP 400 'prompt-injection attempt' when these markers appear at message head.
+- Fixture: `internal/cron/heartbeat_test.go`
+- Write scope: `internal/skills/commands.go`, `internal/cron/heartbeat.go`, `internal/skills/preprocessing_commands_test.go`, `internal/cron/heartbeat_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/cron -run TestCronHeartbeat -count=1`, `go test ./internal/skills -run TestPreprocessingCommands -count=1`, `go test ./internal/skills ./internal/cron -count=1`, `go vet ./...`, `go run ./cmd/builder-loop progress validate`
+- Done signal: internal/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the [IMPORTANT: prefix and the codebase contains zero remaining "[SYSTEM:" string literals under internal/skills and internal/cron.
+- Acceptance: TestCronHeartbeatBuildPromptUsesImportantPrefix asserts BuildPrompt output starts with "[IMPORTANT:" and contains the existing scheduled-cron-job description body unchanged., TestCronHeartbeatPrefixConstantValue asserts CronHeartbeatPrefix is exactly the new "[IMPORTANT: You are running as a scheduled cron job. " prefix., TestPreprocessingCommandsRendersImportantMarker (updated existing test) asserts the rendered skill block contains "[IMPORTANT: The user has invoked" and no longer contains "[SYSTEM:" anywhere., TestSkillsCommandsBuildBlockNeverEmitsLegacyMarker (new) renders BuildSkillBlock against a synthetic active skill and asserts strings.Contains(out, "[SYSTEM:") == false., go vet ./... and go build ./... pass with no compile errors after the rename.
+- Source refs: ../hermes-agent/agent/skill_commands.py@d7a34682, ../hermes-agent/cron/scheduler.py@d7a34682, internal/skills/commands.go:94, internal/cron/heartbeat.go:16, internal/skills/preprocessing_commands_test.go:181, internal/cron/heartbeat_test.go:11
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 6. Provider rate guard — x-ratelimit header classification
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -126,7 +146,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Provider rate guard — degraded-state + last-known-good evidence
 - Why now: Unblocks Provider rate guard — degraded-state + last-known-good evidence.
 
-## 6. Skills list — enabled/disabled status column + --enabled-only filter
+## 7. Skills list — enabled/disabled status column + --enabled-only filter
 
 - Phase: 5 / 5.F
 - Owner: `skills`
@@ -146,7 +166,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Skills hub search read-model function over registry providers
 - Why now: Unblocks Skills hub search read-model function over registry providers.
 
-## 7. CLI log redactor for known secret shapes
+## 8. CLI log redactor for known secret shapes
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -166,7 +186,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI log snapshot reader using shared redactor
 - Why now: Unblocks CLI log snapshot reader using shared redactor.
 
-## 8. BlueBubbles iMessage bubble formatting parity
+## 9. BlueBubbles iMessage bubble formatting parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -187,7 +207,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: BlueBubbles iMessage session-context prompt guidance
 - Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
 
-## 9. CLI profile name validator
+## 10. CLI profile name validator
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -206,26 +226,5 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/hermes_cli/profiles.py@edc78e25:_PROFILE_ID_RE, ../hermes-agent/hermes_cli/profiles.py@edc78e25:validate_profile_name, ../hermes-agent/tests/hermes_cli/test_profiles.py@edc78e25, internal/cli/banner.go
 - Unblocks: CLI active-profile store, CLI profile root resolver
 - Why now: Unblocks CLI active-profile store, CLI profile root resolver.
-
-## 10. doctorCustomEndpointReadiness check function
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: cmd/gormes adds a pure function `doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult` that returns Name='Custom endpoint', Status=Pass when Hermes.Endpoint and Hermes.APIKey and Hermes.Model are all non-empty, Status=Warn when any one is missing (with itemized evidence), and Status=Fail when Endpoint is set but Model is empty; doctorCmd RunE invokes this function after the existing Goncho/Slack checks; --offline still skips network probes elsewhere
-- Trust class: operator, system
-- Ready when: cmd/gormes/doctor.go already calls doctorGonchoConfig(cfg) and doctorSlackGatewayConfig(cfg, runtimeStatus) — adding a third helper alongside them is mechanical., internal/config/config.go declares HermesCfg{Endpoint, APIKey, Model} so the check has a stable typed input., internal/doctor/doctor.go already exposes CheckResult, ItemInfo, StatusPass/StatusWarn/StatusFail; this row only composes them.
-- Not ready when: The slice changes config schema, adds new HermesCfg fields, modifies provider routing, or introduces a live /v1/models or auth lookup., The slice changes any other doctor check's behaviour., The slice ports Hermes Python config.yaml reading.
-- Degraded mode: When endpoint is set but credentials or model are missing, the check emits Status=Warn with item-level notes (api_key=missing, model=missing) instead of exiting non-zero, so operators see precisely which field needs attention.
-- Fixture: `cmd/gormes/doctor_custom_provider_test.go`
-- Write scope: `cmd/gormes/doctor.go`, `cmd/gormes/doctor_custom_provider_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run 'TestDoctorCustomEndpoint\|TestDoctorCmdInvokesCustomEndpointReadiness' -count=1`, `go test ./cmd/gormes -count=1`, `go vet ./cmd/gormes`, `go run ./cmd/builder-loop progress validate`
-- Done signal: doctorCustomEndpointReadiness is a pure function with five named tests; doctorCmd invokes it; no internal/config or internal/hermes files are modified.
-- Acceptance: TestDoctorCustomEndpointAllSet: cfg with Endpoint='https://example.invalid', APIKey='secret', Model='m' returns CheckResult{Name='Custom endpoint', Status=StatusPass, Summary contains 'configured'} and no items are flagged Warn., TestDoctorCustomEndpointMissingAPIKey: cfg with Endpoint set, APIKey empty, Model='m' returns Status=StatusWarn with an item Name='api_key' Status=StatusWarn Note='missing'., TestDoctorCustomEndpointMissingModel: cfg with Endpoint set, APIKey set, Model empty returns Status=StatusFail with an item Name='model' Status=StatusFail Note='missing' (Hermes considers this a hard error since requests cannot route)., TestDoctorCustomEndpointAllEmpty: cfg with all three empty returns Status=StatusWarn Summary='disabled' so doctor stays useful even when no endpoint is configured., TestDoctorCmdInvokesCustomEndpointReadiness: running doctorCmd.RunE against an in-memory cfg with custom endpoint emits the new check's Format() block to stdout in --offline mode and exits 0 when Status<=Warn.
-- Source refs: ../hermes-agent/hermes_cli/doctor.py@b2d3308f:_run_doctor, ../hermes-agent/tests/hermes_cli/test_doctor.py@b2d3308f:test_run_doctor_accepts_bare_custom_provider, cmd/gormes/doctor.go, cmd/gormes/goncho_doctor_test.go, internal/config/config.go:HermesCfg, internal/doctor/doctor.go:CheckResult
-- Unblocks: CLI status summary over native stores
-- Why now: Unblocks CLI status summary over native stores.
 
 <!-- PROGRESS:END -->
