@@ -350,7 +350,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Azure Foundry probe — path sniffing
 - [x] Azure Foundry probe — /models classification + Anthropic fallback
 - [x] Azure Foundry runtime env/config read model
-- [ ] Azure Foundry CLI setup/status manual fallback
+- [x] Azure Foundry CLI setup/status manual fallback
 - [ ] Bedrock
 - [x] Bedrock Converse payload mapping (no AWS SDK)
 - [ ] Bedrock stream event decoding (SSE fixtures)
@@ -426,7 +426,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Kernel retry honors Retry-After hint
 - [x] Streaming interrupt retry suppression
 - [ ] Prompt-cache capability guard
-- [ ] Provider rate guard + budget telemetry
+- [x] Provider rate guard + budget telemetry
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
@@ -491,7 +491,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] MCP schema normalization + structured-content adapter
 - [x] MCP OAuth state store + noninteractive auth errors
 - [x] MCP OAuth refresh + 401 session-expired recovery
-- [ ] Managed tool gateway bridge
+- [x] Managed tool gateway bridge
 
 ### 5.H — ACP Integration ⏳
 
@@ -548,14 +548,14 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
-- [ ] CLI command registry parity + active-turn busy policy
+- [x] CLI command registry parity + active-turn busy policy
 - [x] Gateway /reasoning command parser
 - [x] Gateway /reasoning apply + dispatch
 - [ ] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
 - [x] CLI profile name validator
-- [ ] CLI profile root resolver
-- [ ] CLI active-profile store
+- [x] CLI profile root resolver
+- [x] CLI active-profile store
 - [ ] CLI profile path and active-profile store (deprecated umbrella)
 - [x] Top-level oneshot flag and model/provider resolver
 - [x] Oneshot final-output writer boundary
@@ -564,12 +564,12 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Effective toolset picker dedupes bundled plugin keys
 - [ ] Gateway, platform, webhook, and cron management CLI
 - [x] Gateway management CLI read-model closeout
-- [ ] Gateway mutating-subcommand unavailability stub
+- [x] Gateway mutating-subcommand unavailability stub
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
-- [ ] doctorCustomEndpointReadiness check function
-- [ ] Custom provider model-switch credential preservation
+- [x] doctorCustomEndpointReadiness check function
+- [x] Custom provider model-switch credential preservation
 - [x] CLI log redactor for known secret shapes
 - [x] CLI log snapshot reader using shared redactor
 
@@ -598,7 +598,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Native TUI /save canonical session export
 - [x] Native TUI /branch session fork + transcript target switch
 - [ ] TUI running-agent placeholder surfaces interrupt + queued slash actions
-- [ ] SSE streaming to Bubble Tea TUI
+- [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence

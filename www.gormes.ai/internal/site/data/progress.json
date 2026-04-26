@@ -4808,9 +4808,9 @@
             {
               "name": "Azure Foundry CLI setup/status manual fallback",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Azure Foundry CLI/status surfaces expose probe/runtime evidence and manual api_mode/deployment fallback without running a live setup wizard in tests",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -4858,6 +4858,11 @@
               "done_signal": [
                 "CLI/status fixtures prove detected/manual Azure Foundry states, deployment/model fallback, secret redaction, and no live setup or provider calls."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:731e1ef8 hermes_cli/main.py",
@@ -4932,7 +4937,7 @@
               "name": "Bedrock stale-client eviction + retry classification",
               "status": "planned",
               "contract": "Bedrock runtime clients evict stale transport state without hiding request or validation failures",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -6528,9 +6533,9 @@
             },
             {
               "name": "Provider rate guard + budget telemetry",
-              "status": "planned",
+              "status": "complete",
               "contract": "Provider rate guards distinguish true account quota exhaustion from upstream-capacity 429s and expose budget telemetry without sleeping or blocking unrelated models in unit tests",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -6567,7 +6572,7 @@
                 "Last-known-good exhausted bucket evidence can classify a bare 429 as genuine, while healthy last-known state keeps a bare 429 as upstream_capacity.",
                 "Malformed or missing budget headers degrade visibly without sleeping, retry amplification, or blocking other provider/model choices."
               ],
-              "note": "Hermes 192e7eb2 fixed Nous Portal upstream-capacity 429s tripping the cross-session breaker. Gormes should port the decision table as provider-status evidence first, not as a live shared-file breaker.",
+              "note": "Complete (2026-04-26): TDD added DecideRateGuard + ParseBudget plus the four StatusRateGuardUnavailable / StatusNousRateLimited / StatusNousUpstreamCapacity / StatusBudgetHeaderMissing evidence tags in internal/hermes/provider_rate_guard.go, reusing the existing Classify429 + ApplyClassification helpers. internal/hermes/provider_rate_guard_test.go fixtures prove genuine_quota with redacted reset-window evidence, healthy-header upstream_capacity (overrides stale last_known without tripping a breaker), bare-429 fallback to last-known genuine vs upstream, missing/malformed degraded decisions with rate_guard_unavailable + budget_header_missing tags, decision purity across repeated calls, and a no-sleep timing assertion. The slice does not change retry timing, provider routing, or model fallback policy and writes no process-global breaker state.",
               "write_scope": [
                 "internal/hermes/provider_rate_guard.go",
                 "internal/hermes/provider_rate_guard_test.go",
@@ -6583,7 +6588,9 @@
                 "Provider rate-guard fixtures prove genuine quota, upstream-capacity, last-known-state, malformed-header, and no-sleep degraded decisions with visible status evidence."
               ],
               "health": {
-                "last_attempt": "2026-04-26T12:49:08Z",
+                "attempt_count": 3,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z",
                 "backends_tried": [
                   "codexu"
                 ]
@@ -6726,7 +6733,6 @@
               ],
               "health": {
                 "attempt_count": 4,
-                "consecutive_failures": 0,
                 "last_attempt": "2026-04-26T19:42:54Z",
                 "last_success": "2026-04-26T19:42:54Z",
                 "last_failure": {
@@ -8051,9 +8057,9 @@
             },
             {
               "name": "Managed tool gateway bridge",
-              "status": "planned",
+              "status": "complete",
               "contract": "Managed tool gateway bridges expose discovered remote tools through the same MCP descriptor/call contract as local fake servers without requiring live external services in tests",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -8100,10 +8106,15 @@
               "done_signal": [
                 "Managed-gateway fixtures prove inventory discovery, pass-through calls, auth/unavailable degradation, and zero live-service dependency over the shared MCP descriptor path."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T22:17:23Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "validated"
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -9102,9 +9113,9 @@
             },
             {
               "name": "CLI command registry parity + active-turn busy policy",
-              "status": "planned",
+              "status": "complete",
               "contract": "CLI slash/command registry parity declares active-turn policy for every recognized command before handlers can mutate runtime state",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -9141,7 +9152,7 @@
                 "Gateway-safe commands remain invokable during active turns while mutating/long-running commands return busy evidence.",
                 "Unknown commands share the existing gateway unknown-command behavior and do not enter the model prompt as command text."
               ],
-              "note": "TDD: expand the Go command registry toward upstream hermes_cli/commands.py as a policy table first, not as a handler port. This keeps busy-state semantics, gateway bypass, and unavailable evidence testable before config/auth/setup or management commands land.",
+              "note": "Complete: TDD landed the CLI policy table in `internal/cli/command_registry.go` with closed enum `ActiveTurnPolicy{bypass,queue,busy_reject,unavailable}`, `CommandPolicy` entries (name/description/aliases/surface/active-turn policy/ported flag) for every shared and CLI-only slash command from upstream `hermes_cli/commands.py@edc78e25`, plus `ResolveCommandPolicy`, `EvaluateActiveTurnVerdict`, and `SlashLeaksToModelPrompt`. The fixture `internal/cli/command_registry_policy_test.go` proves every entry declares one of the closed policies, names round-trip through the slash/alias normalizer, busy verdicts surface explicit busy/queue/unavailable evidence, idle dispatch is allowed for every ported command, unknown slash text resolves to `ActiveTurnPolicyUnavailable` with operator-facing evidence (so it cannot leak into the model prompt), and gateway parity holds: every entry in `internal/gateway/CommandRegistry` exists in the CLI registry with the corresponding policy mapping (Immediate/Drain → bypass, Reject → busy_reject), aliases included. `internal/gateway/commands_test.go` adds `TestSlashCommandPolicyParityWithCLIRegistry`, `TestSlashCommandBusyVerdictRejectsKnownMutators`, and `TestSlashCommandUnknownDoesNotEnterModelPrompt` to lock the parity from the gateway side. No handler, config, auth, or setup wiring landed — those remain on the unblocked rows.",
               "write_scope": [
                 "internal/cli/",
                 "internal/gateway/commands.go",
@@ -9156,10 +9167,15 @@
               "done_signal": [
                 "Command-registry policy fixtures prove every recognized command has explicit active-turn behavior and unknown commands do not leak into model prompts."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T21:04:49Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "promoted"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -9425,9 +9441,9 @@
             },
             {
               "name": "CLI profile root resolver",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cli adds a pure function `ResolveProfileRoot(name string, gormesXDGConfigHome string) (string, error)` that returns gormesXDGConfigHome+'/gormes' for name=='default' and gormesXDGConfigHome+'/gormes/profiles/'+name for any other valid profile name; it rejects invalid names by returning the same sentinel errors as ValidateProfileName and never touches the filesystem",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -9474,6 +9490,11 @@
               "done_signal": [
                 "internal/cli/profile_root.go declares ResolveProfileRoot and ErrProfileXDGRootRequired; five named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
@@ -9482,9 +9503,9 @@
             },
             {
               "name": "CLI active-profile store",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cli adds an active-profile read/write store with `ReadActiveProfile(rootFile string) (string, error)` returning ErrActiveProfileUnset when missing, `WriteActiveProfile(rootFile, name string) error` that calls ValidateProfileName before writing, and `ClearActiveProfile(rootFile string) error`; both write paths use a temp-file + rename pattern so partial writes never produce a half-written file",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -9533,6 +9554,11 @@
               "done_signal": [
                 "internal/cli/active_profile.go declares ReadActiveProfile/WriteActiveProfile/ClearActiveProfile and ErrActiveProfileUnset; six named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-26T20:26:35Z",
+                "last_success": "2026-04-26T20:26:35Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
@@ -9948,9 +9974,9 @@
             },
             {
               "name": "Gateway mutating-subcommand unavailability stub",
-              "status": "planned",
+              "status": "complete",
               "contract": "When `gormes gateway` introduces start/stop/restart/install/uninstall subcommands, each unsupported mutating subcommand surfaces a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out to systemd/launchd",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -9987,7 +10013,7 @@
                 "The existing `gateway status` subcommand and runtime status path are unchanged.",
                 "No new gateway runtime state file or service manager dependency is introduced."
               ],
-              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26. The closeout row's read-only acceptance was already validated; this row covers the remaining mutating-command unavailability gap once mutating verbs are introduced.",
+              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go now registers start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covers each verb, asserts no runtime/state file is opened, and verifies `gateway status` is unaffected. No service-manager dependency or runtime state file was added.",
               "write_scope": [
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_mutating_unavailable_test.go",
@@ -10001,6 +10027,11 @@
               "done_signal": [
                 "TestGatewayMutating* fixtures prove every introduced mutating subcommand returns the stable unavailability error and never invokes a live service manager."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/gateway.py",
@@ -10147,9 +10178,9 @@
             {
               "name": "doctorCustomEndpointReadiness check function",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "cmd/gormes adds a pure function `doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult` that returns Name='Custom endpoint', Status=Pass when Hermes.Endpoint and Hermes.APIKey and Hermes.Model are all non-empty, Status=Warn when any one is missing (with itemized evidence), and Status=Fail when Endpoint is set but Model is empty; doctorCmd RunE invokes this function after the existing Goncho/Slack checks; --offline still skips network probes elsewhere",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -10202,18 +10233,9 @@
                 "doctorCustomEndpointReadiness is a pure function with five named tests; doctorCmd invokes it; no internal/config or internal/hermes files are modified."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-26T15:33:49Z",
-                "last_failure": {
-                  "run_id": "20260426T152715Z-551870907",
-                  "category": "worker_error",
-                  "backend": "codexu",
-                  "stderr_tail": "command 3 failed: exit status 1"
-                },
-                "backends_tried": [
-                  "codexu"
-                ]
+                "attempt_count": 3,
+                "last_attempt": "2026-04-26T20:26:35Z",
+                "last_success": "2026-04-26T20:26:35Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -10224,9 +10246,9 @@
             {
               "name": "Custom provider model-switch credential preservation",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cli adds a pure function `ResolveCustomProviderSecret(ref CustomProviderRef, env map[string]string) (CustomProviderResolution, error)` where CustomProviderRef has fields {Name string, BaseURL string, APIKey string, KeyEnv string} and CustomProviderResolution has fields {EffectiveSecret string, PersistAsRef string, Evidence string}; the function reads env-template `${VAR}` from APIKey via env, prefers KeyEnv when APIKey is empty, and never returns plaintext in PersistAsRef when the input was a reference",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -10276,18 +10298,9 @@
                 "internal/cli/custom_provider_secret.go declares ResolveCustomProviderSecret, CustomProviderRef, CustomProviderResolution, ErrCustomProviderEnvUnset, and ErrCustomProviderCredentialMissing; five named tests pass; no internal/config, internal/hermes, or cmd/gormes file is modified."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-26T15:50:41Z",
-                "last_failure": {
-                  "run_id": "20260426T154403Z-926734365",
-                  "category": "worker_error",
-                  "backend": "codexu",
-                  "stderr_tail": "command 4 failed: exit status 1"
-                },
-                "backends_tried": [
-                  "codexu"
-                ]
+                "attempt_count": 3,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -10785,15 +10798,15 @@
               "done_signal": [
                 "Media/personality/platform-event fixtures prove deterministic helper behavior and JSON schema without remote transport."
               ],
-              "planner_verdict": {
-                "reshape_count": 1,
-                "last_reshape": "2026-04-26T16:17:18Z",
-                "last_outcome": "no_attempts_yet"
-              },
               "health": {
                 "attempt_count": 1,
                 "last_attempt": "2026-04-26T19:51:20Z",
                 "last_success": "2026-04-26T19:51:20Z"
+              },
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-26T16:17:18Z",
+                "last_outcome": "no_attempts_yet"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -11140,7 +11153,7 @@
                 "internal/tui/model.go",
                 "internal/tui/mouse_tracking.go",
                 "internal/tui/slash_dispatch.go",
-                "internal/tui/slash_dispatch_test.go",
+                "internal/tui/slash_dispatch_test.go:TestSlashRegistry_SaveStubReturnsNotImplemented",
                 "internal/tui/update.go"
               ],
               "test_commands": [
@@ -11194,40 +11207,60 @@
               ],
               "ready_when": [
                 "`Native TUI slash-command dispatch table` is complete (the registry and /save stub already exist).",
-                "internal/transcript.ExportMarkdown is the canonical persisted-transcript reader — `cmd/gormes/session.go` already proves it works over a sql.DB pointing at config.MemoryDBPath()."
+                "internal/transcript.ExportMarkdown is the canonical persisted-transcript reader — `cmd/gormes/session.go` already proves it works over a sql.DB pointing at config.MemoryDBPath().",
+                "The existing TestSlashRegistry_SaveStubReturnsNotImplemented assertion in internal/tui/slash_dispatch_test.go is the only test the prior dispatch row required to assert /save was a no-op; replacing the stub means that one named test must be deleted or rewritten in the same slice (no test outside internal/tui asserts the stub message)."
               ],
               "not_ready_when": [
                 "The slice writes UI-shaped Model.frame.History rows directly instead of going through internal/transcript.ExportMarkdown.",
                 "The slice opens a network connection, starts SSE/api_server transport, or treats /save as a normal model prompt.",
-                "The slice changes kernel.Submit signatures or the registry shape introduced by the prior row."
+                "The slice changes kernel.Submit signatures or the registry shape introduced by the prior row.",
+                "The slice modifies any internal/tui file other than slash_dispatch.go, slash_dispatch_test.go, slash_save.go, slash_save_test.go, or model.go (in particular: update.go, view.go, mouse_tracking.go, and auto_title.go must be untouched).",
+                "The slice modifies cmd/gormes/* — wiring config.MemoryDBPath() into a real SessionExportFunc lives in a follow-up cmd-level row, not here."
               ],
               "blocked_by": [
                 "Native TUI slash-command dispatch table"
               ],
               "acceptance": [
                 "internal/tui declares: type SessionExportFunc func(ctx context.Context, sessionID string) (path string, err error); Options gains a SessionExport SessionExportFunc field; NewModelWithOptions stores it on Model; the registry's `save` handler invokes it with the active session id from m.frame.SessionID (or returns `save: no active session` when empty).",
+                "internal/tui/slash_dispatch.go's saveStubHandler is removed and NewDefaultSlashRegistry registers the new saveSlashHandler from internal/tui/slash_save.go in its place.",
+                "internal/tui/slash_dispatch_test.go's TestSlashRegistry_SaveStubReturnsNotImplemented is deleted (or renamed and rewritten) so the build does not assert the old `save not yet implemented` StatusMessage against the new handler.",
                 "TestSlashSave_NoConversationReturnsStatus runs /save against a Model with empty frame.History and asserts StatusMessage=`save: no conversation` with no SessionExportFunc call.",
                 "TestSlashSave_NoActiveSessionReturnsStatus runs /save with non-empty history but empty SessionID and asserts StatusMessage=`save: no active session`.",
                 "TestSlashSave_HappyPathReturnsWrittenPath wires a fake SessionExportFunc returning `/tmp/sess-export-fixture.md` and asserts StatusMessage contains that path, exactly one fake invocation, and no kernel.Submit call.",
                 "TestSlashSave_ExportFailureRemovesPartialFile wires a fake that writes a partial file then returns an error; asserts the partial file is removed (os.Stat ENOENT) and StatusMessage starts with `save: write failed:`.",
                 "TestSlashSave_ErrSessionNotFoundReturnsStoreUnavailable wires a fake returning transcript.ErrSessionNotFound; asserts StatusMessage=`save: store unavailable`."
               ],
-              "note": "Reshaped 2026-04-26 (continuation of `Native TUI slash-command dispatch table`). Wires the no-op /save stub to internal/transcript.ExportMarkdown via an injected function so unit tests do not need a real SQLite DB. cmd/gormes/main.go is responsible for binding the real implementation (open MemoryDBPath, call ExportMarkdown) when constructing the Model — that wiring lives outside this row's write_scope.",
+              "note": "Reshaped 2026-04-26 (continuation of `Native TUI slash-command dispatch table`). Wires the no-op /save stub to internal/transcript.ExportMarkdown via an injected function so unit tests do not need a real SQLite DB. cmd/gormes/main.go is responsible for binding the real implementation (open MemoryDBPath, call ExportMarkdown) when constructing the Model — that wiring lives outside this row's write_scope. 2026-04-26T20:30Z reshape: prior attempt failed report_validation_failed because the worker needed to delete TestSlashRegistry_SaveStubReturnsNotImplemented from internal/tui/slash_dispatch_test.go but that file was not in write_scope; this reshape adds slash_dispatch_test.go to write_scope, names the deletion explicitly in acceptance, and tightens not_ready_when to forbid touching any other internal/tui file.",
               "write_scope": [
                 "internal/tui/slash_dispatch.go",
+                "internal/tui/slash_dispatch_test.go",
                 "internal/tui/slash_save.go",
                 "internal/tui/slash_save_test.go",
                 "internal/tui/model.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tui -run 'TestSlashSave_' -count=1",
+                "go test ./internal/tui -run 'TestSlashSave_|TestSlashRegistry_' -count=1",
                 "go test ./internal/tui ./internal/transcript -count=1",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "All 5 TestSlashSave_* fixtures pass; the existing TestSlashRegistry_SaveStubReturnsNotImplemented assertion is updated or removed because the stub is replaced; no test in internal/tui opens a real network or DB connection."
+                "All 5 TestSlashSave_* fixtures pass; TestSlashRegistry_SaveStubReturnsNotImplemented is no longer present in internal/tui/slash_dispatch_test.go (it has been deleted because the stub it asserted is gone); no test in internal/tui opens a real network or DB connection; `go test ./internal/tui ./internal/transcript -count=1` is green."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T20:26:35Z",
+                "last_failure": {
+                  "run_id": "20260426T201556Z-870526464",
+                  "category": "report_validation_failed",
+                  "backend": "codexu",
+                  "stderr_tail": "worker changed paths outside declared write scope: internal/tui/slash_dispatch_test.go (allowed: internal/tui/slash_dispatch.go, internal/tui/slash_save.go, internal/tui/slash_save_test.go, internal/tui/model.go, docs/content/building-gormes/architecture_plan/progress.json)"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:2536a36f ui-tui/src/app/slash/commands/core.ts",
@@ -11384,9 +11417,9 @@
             },
             {
               "name": "SSE streaming to Bubble Tea TUI",
-              "status": "planned",
+              "status": "complete",
               "contract": "Remote Bubble Tea clients can consume native Gormes turn events over SSE without the Python tui_gateway process",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -11423,7 +11456,7 @@
                 "NewGatewayMux or equivalent exposes submit/cancel/resize/platform-event endpoints over native Go HTTP handlers.",
                 "`--remote <url>` startup threading is fixture-covered without starting api_server, Python, Node, or a live provider."
               ],
-              "note": "TDD: port only the transport/lifecycle wiring after helper rows land. This slice owns DialSSE/NewRemoteClient/NewGatewayMux/JSONRPC-style dispatch/PostPlatformEvent and `--remote <url>` threading through runTUI; helper primitives and TUI launch model semantics stay in their own rows.",
+              "note": "Complete: internal/tuigateway/sse_stream.go ports DialSSE/NewRemoteClient with reconnect, cancellation, and POST helpers (Submit/Cancel/Resize/PostPlatformEvent) covered by sse_stream_test.go fixtures. internal/tuigateway/gateway_mux.go exposes /events SSE plus /submit /cancel /resize /platform-event endpoints, dispatched into a KernelHandle and covered by gateway_mux_test.go. cmd/gormes/remote_tui.go wires --remote <url> through runResolvedTUIWithRuntime, bypassing api_server health, hermes HTTP, and the kernel; remote_tui_test.go proves no Python/Node/api_server contact at startup. doctor TUI status surfaces remote streaming evidence so the degraded path is visible without --remote.",
               "write_scope": [
                 "internal/tuigateway/",
                 "cmd/gormes/",
@@ -11439,6 +11472,11 @@
               "done_signal": [
                 "Remote TUI fixtures prove SSE event consumption, submit/cancel/resize dispatch, remote startup wiring, and no Python/Node dependency."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T20:12:55Z",
+                "last_success": "2026-04-26T20:12:55Z"
+              },
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T21:04:49Z",
