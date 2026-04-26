@@ -209,6 +209,28 @@ Gormes should prove compatibility with behavior, not file structure.
 
 ## Latest Sync Lessons
 
+The 2026-04-26 upstream sync adds several small contracts:
+
+- Azure Foundry remains upstream-led, but the quarantined Gormes row should stay
+  split into probe, runtime env/config read model, and CLI/status fallback
+  slices so workers do not retry the full setup/runtime umbrella.
+- Nous Portal 429 handling must distinguish true account quota exhaustion from
+  upstream-capacity failures before tripping any cross-session breaker. Gormes
+  tracks this as provider rate-guard/status evidence, not a live shared-file
+  breaker first.
+- Hardline command blocks belong below yolo/approval-off/cron approve modes for
+  unrecoverable host-destructive commands; recoverable dangerous commands still
+  stay in the normal approval lane.
+- Skill review prompts should be survey-first and class-first: prefer
+  generalizing an existing skill over creating a near-duplicate, and preserve
+  `Nothing to save.` as the no-op outcome.
+- TUI/gateway skills search should first become a read-only RPC/result contract
+  over fake registries; registry cache/install flows stay separate.
+- Plugin hook timing now includes `duration_ms` on `post_tool_call` and
+  `transform_tool_result`. Gormes already has audit `duration_ms`; future hook
+  runtime work should preserve the same timing field without executing arbitrary
+  plugin code in the trusted core.
+
 The 2026-04-25 upstream sync adds a narrow ContextCompressor regression:
 
 - `ContextCompressor.update_model()` must recalculate `threshold_tokens`,

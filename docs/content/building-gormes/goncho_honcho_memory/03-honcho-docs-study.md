@@ -5,7 +5,7 @@ weight: 3
 
 # 03 - Honcho Docs Study Plan
 
-Last studied: 2026-04-25.
+Last studied: 2026-04-26.
 
 Source root: `/home/xel/git/sages-openclaw/workspace-mineru/honcho/docs`.
 
@@ -84,10 +84,13 @@ Goncho now has the main local parity slices for `internal/goncho.Service`,
 `honcho_*` tools, peer cards, manual conclusions, same-chat recall,
 `scope=user` / `sources[]` plumbing, representation options, directional peer
 cards, fail-closed filters, queue status, configuration inheritance, summaries,
-chat, streaming persistence, file imports, and operator diagnostics. The
-remaining local Honcho-docs gap is dreaming as scheduler/status evidence; full
-managed-Honcho HTTP/webhook parity remains intentionally outside the local
-Goncho baseline unless a future roadmap row opts into it.
+chat, streaming persistence, file imports, operator diagnostics, and dreaming
+scheduler/status evidence. The local Goncho baseline is therefore closed for
+current Honcho v3 docs. Recent Honcho `e659b6b` docs changes sharpen
+SillyTavern panel labels, per-platform installer wording, OpenCode install
+instructions, and filter/surprisal examples; they do not reopen the internal
+memory package. Full managed-Honcho HTTP/webhook parity remains intentionally
+outside the local Goncho baseline unless a future roadmap row opts into it.
 
 ## Docs-Driven Gaps
 
