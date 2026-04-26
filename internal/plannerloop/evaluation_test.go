@@ -48,6 +48,50 @@ func TestEvaluate_UnstuckRowDetected(t *testing.T) {
 	}
 }
 
+func TestEvaluate_IgnoresBuilderJobTelemetryFields(t *testing.T) {
+	dir := t.TempDir()
+	plannerLedger := filepath.Join(dir, "planner.jsonl")
+	autoloopLedger := filepath.Join(dir, "autoloop.jsonl")
+
+	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
+	reshapeTS := now.Add(-2 * time.Hour)
+
+	if err := AppendLedgerEvent(plannerLedger, LedgerEvent{
+		TS: reshapeTS.Format(time.RFC3339), RunID: "planner-1", Status: "ok",
+		RowsChanged: []RowChange{{PhaseID: "2", SubphaseID: "2.B", ItemName: "row-1", Kind: "spec_changed"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	appendLineJSON(t, autoloopLedger, map[string]any{
+		"ts":           now.Add(-1 * time.Hour).Format(time.RFC3339),
+		"event":        "worker_failed",
+		"task":         "2/2.B/row-1",
+		"status":       "backend_failed",
+		"job_id":       "run-1/worker/1",
+		"job_kind":     "worker_backend",
+		"duration_ms":  1234,
+		"stdout_tail":  "ignored stdout",
+		"stderr_tail":  "ignored stderr",
+		"stdout_bytes": 4096,
+		"stderr_bytes": 128,
+	})
+
+	outcomes, err := Evaluate(plannerLedger, autoloopLedger, 7*24*time.Hour, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(outcomes) != 1 {
+		t.Fatalf("expected 1 outcome, got %d", len(outcomes))
+	}
+	if outcomes[0].Outcome != "still_failing" {
+		t.Fatalf("expected still_failing, got %q", outcomes[0].Outcome)
+	}
+	if outcomes[0].LastFailure != "backend_failed" {
+		t.Fatalf("LastFailure = %q, want backend_failed", outcomes[0].LastFailure)
+	}
+}
+
 func TestEvaluate_StillFailingDetected(t *testing.T) {
 	dir := t.TempDir()
 	plannerLedger := filepath.Join(dir, "planner.jsonl")
