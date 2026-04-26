@@ -115,13 +115,14 @@ type orToolDescriptor struct {
 }
 
 type orChatRequest struct {
-	Model           string             `json:"model"`
-	Messages        []orMessage        `json:"messages"`
-	Stream          bool               `json:"stream"`
-	MaxTokens       int                `json:"max_tokens,omitempty"`
-	Temperature     *float64           `json:"temperature,omitempty"`
-	ReasoningEffort *ReasoningEffort   `json:"reasoning_effort,omitempty"`
-	Tools           []orToolDescriptor `json:"tools,omitempty"`
+	Model               string             `json:"model"`
+	Messages            []orMessage        `json:"messages"`
+	Stream              bool               `json:"stream"`
+	MaxTokens           int                `json:"max_tokens,omitempty"`
+	MaxCompletionTokens int                `json:"max_completion_tokens,omitempty"`
+	Temperature         *float64           `json:"temperature,omitempty"`
+	ReasoningEffort     *ReasoningEffort   `json:"reasoning_effort,omitempty"`
+	Tools               []orToolDescriptor `json:"tools,omitempty"`
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
@@ -200,13 +201,14 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 	}
 	maxTokens, maxCompletionTokens := openAICompatibleMaxTokenFields(req.MaxTokens, c.provider, c.baseURL, req.Model)
 	body, err := json.Marshal(orChatRequest{
-		Model:           req.Model,
-		Messages:        msgs,
-		Stream:          true,
-		MaxTokens:       req.MaxTokens,
-		Temperature:     req.Temperature,
-		ReasoningEffort: reasoningEffort,
-		Tools:           tools,
+		Model:               req.Model,
+		Messages:            msgs,
+		Stream:              true,
+		MaxTokens:           maxTokens,
+		MaxCompletionTokens: maxCompletionTokens,
+		Temperature:         req.Temperature,
+		ReasoningEffort:     reasoningEffort,
+		Tools:               tools,
 	})
 	if err != nil {
 		return nil, nil, err
