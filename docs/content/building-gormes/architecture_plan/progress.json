@@ -6060,15 +6060,15 @@
               "done_signal": [
                 "MCP config fixtures prove transport/env parsing, redaction, invalid-config degradation, no live SDK startup, and HONCHO_API_URL server-local handling."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-26T00:33:29Z",
+                "last_success": "2026-04-26T00:33:29Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/mcp_config.py",
                 "note": "Hermes defines the MCP server config shape; Honcho contributes the self-hosted MCP env drift; Gormes owns the Go config resolver."
-              },
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-26T00:27:35Z",
-                "last_success": "2026-04-26T00:27:35Z"
               }
             },
             {
@@ -6815,6 +6815,11 @@
               "done_signal": [
                 "Focused internal/cli fixtures prove banner and output helper formatting with no TTY, config, or command-registry dependency."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T00:33:29Z",
+                "last_success": "2026-04-26T00:33:29Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/banner.py",
@@ -8015,6 +8020,11 @@
               "done_signal": [
                 "Focused fixtures prove Gormes TUI startup/status remains independent from Hermes Node/Ink bundle rebuild checks and public install copy still promises no runtime npm dependency."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T00:33:29Z",
+                "last_success": "2026-04-26T00:33:29Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:ee0728c6 hermes_cli/main.py",
@@ -8076,6 +8086,11 @@
               "done_signal": [
                 "TUI startup fixtures prove --model/--provider/env override behavior, static alias resolution, exit-code-2 ambiguity errors, and no network catalog lookup."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T00:33:29Z",
+                "last_success": "2026-04-26T00:33:29Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:283c8fd6 hermes_cli/main.py",
