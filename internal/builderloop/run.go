@@ -102,6 +102,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	selected := selectAcrossSubphases(candidates, opts.Config.MaxAgents)
+	candidateCount := len(candidates)
 
 	// Speculative execution: if enabled and slots remain, select candidates
 	// whose blocked_by isn't complete but ready_when is satisfied.
@@ -112,17 +113,26 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			maxSpeculative = remainingSlots
 		}
 
-		// Build completed set for blocker checking
-		completed := make(map[string]struct{})
-		for _, c := range candidates {
-			if c.Status == "complete" {
-				for _, key := range blockerKeys(c.PhaseID, c.SubphaseID, c.ItemName) {
-					completed[key] = struct{}{}
-				}
-			}
+		speculativePool, err := NormalizeCandidates(opts.Config.ProgressJSON, CandidateOptions{
+			ActiveFirst:        true,
+			PriorityBoost:      opts.Config.PriorityBoost,
+			MaxPhase:           opts.Config.MaxPhase,
+			IncludeBlocked:     true,
+			IncludeQuarantined: opts.Config.IncludeQuarantined,
+			IncludeNeedsHuman:  opts.Config.IncludeNeedsHuman,
+		})
+		if err != nil {
+			return RunSummary{}, err
 		}
+		candidateCount = len(speculativePool)
 
-		speculative := selectSpeculativeCandidates(candidates, completed, func(c Candidate) bool {
+		progressDoc, err := progress.Load(opts.Config.ProgressJSON)
+		if err != nil {
+			return RunSummary{}, err
+		}
+		completed := completedItemSetFromProgress(progressDoc)
+
+		speculative := selectSpeculativeCandidates(speculativePool, completed, func(c Candidate) bool {
 			// ready_when satisfied if no not_ready_when conditions exist
 			// and ready_when conditions are implied by being a candidate
 			return len(c.NotReadyWhen) == 0
@@ -131,32 +141,14 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		if len(speculative) > 0 {
 			// Enrich with spec hashes for staleness detection
 			speculative = enrichCandidatesWithSpecHash(speculative, func(c Candidate) string {
-				// Get spec hash from progress.json
-				prog, err := progress.Load(opts.Config.ProgressJSON)
-				if err != nil {
-					return ""
-				}
-				phase, ok := prog.Phases[c.PhaseID]
-				if !ok {
-					return ""
-				}
-				sub, ok := phase.Subphases[c.SubphaseID]
-				if !ok {
-					return ""
-				}
-				for i := range sub.Items {
-					if sub.Items[i].Name == c.ItemName {
-						return progress.ItemSpecHash(&sub.Items[i])
-					}
-				}
-				return ""
+				return itemSpecHashFromProgress(progressDoc, c)
 			})
 			selected = append(selected, speculative...)
 		}
 	}
 
 	summary := RunSummary{
-		Candidates: len(candidates),
+		Candidates: candidateCount,
 		Selected:   append([]Candidate(nil), selected...),
 		RunID:      runID,
 	}
@@ -1307,6 +1299,46 @@ func verifySpeculativeWorker(ctx context.Context, cfg Config, worker workerRun, 
 	}
 
 	return nil
+}
+
+func completedItemSetFromProgress(progressDoc *progress.Progress) map[string]struct{} {
+	completed := make(map[string]struct{})
+	if progressDoc == nil {
+		return completed
+	}
+	for phaseID, phase := range progressDoc.Phases {
+		for subphaseID, subphase := range phase.Subphases {
+			for i := range subphase.Items {
+				if subphase.Items[i].Status != progress.StatusComplete {
+					continue
+				}
+				for _, key := range blockerKeys(phaseID, subphaseID, subphase.Items[i].Name) {
+					completed[key] = struct{}{}
+				}
+			}
+		}
+	}
+	return completed
+}
+
+func itemSpecHashFromProgress(progressDoc *progress.Progress, candidate Candidate) string {
+	if progressDoc == nil {
+		return ""
+	}
+	phase, ok := progressDoc.Phases[candidate.PhaseID]
+	if !ok {
+		return ""
+	}
+	subphase, ok := phase.Subphases[candidate.SubphaseID]
+	if !ok {
+		return ""
+	}
+	for i := range subphase.Items {
+		if subphase.Items[i].Name == candidate.ItemName {
+			return progress.ItemSpecHash(&subphase.Items[i])
+		}
+	}
+	return ""
 }
 
 // emitPlannerTriggers writes one plannertriggers ledger entry per
