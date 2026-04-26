@@ -10165,9 +10165,9 @@
             {
               "name": "TUI gateway tool-progress mode normalizer",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pure helper internal/tuigateway/tool_progress_mode.go exposes NormalizeToolProgressMode(raw any) string returning one of {off, new, all, verbose}. Mirrors upstream tui_gateway/server.py:_load_tool_progress_mode (line 661). Boolean false → off, boolean true → all, string is lowercased and trimmed; any value outside the recognised set defaults to all. No config file reads, no session state.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -10203,7 +10203,7 @@
                 "TestNormalizeToolProgressMode_UnknownDefaultsToAll for `loud`, empty string, nil.",
                 "Helper has no side effects; package internal/tuigateway exists after this row lands."
               ],
-              "note": "First TUI gateway pure-helper slice — also creates the internal/tuigateway package directory.",
+              "note": "Complete: internal/tuigateway package created with NormalizeToolProgressMode(raw any) string. Bool false→off, bool true→all, recognised strings round-trip after trim+lowercase, unknown values (including nil, numbers, slices, empty/whitespace-only strings) collapse to all. Pure helper — no config reads, no session state, no transport. Verified by table-driven tests in internal/tuigateway/tool_progress_mode_test.go covering RecognizedValues, BooleanFalseToOff, BooleanTrueToAll, LowercasesAndTrims, UnknownDefaultsToAll.",
               "write_scope": [
                 "internal/tuigateway/tool_progress_mode.go",
                 "internal/tuigateway/tool_progress_mode_test.go",
