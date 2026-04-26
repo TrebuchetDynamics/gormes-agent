@@ -19,6 +19,8 @@ import (
 // string-typing "control-plane/backend".
 const ControlPlaneSubphaseID = "control-plane/backend"
 
+const recentFailureDetailMax = 240
+
 // AutoloopAudit summarises recent autoloop ledger activity so the planner can
 // see which subphases keep failing, claiming-without-promoting, or otherwise
 // signalling that a row needs to be split or re-specified.
@@ -53,6 +55,7 @@ type TaskAuditRow struct {
 	SubphaseID string `json:"subphase_id"`
 	Task       string `json:"task"`
 	Status     string `json:"status"`
+	Detail     string `json:"detail,omitempty"`
 }
 
 type subphaseAcc struct {
@@ -133,6 +136,7 @@ func SummarizeAutoloopAudit(ledgerPath string, window time.Duration, now time.Ti
 				SubphaseID: subphaseFromTask(event.Task),
 				Task:       event.Task,
 				Status:     status,
+				Detail:     recentFailureDetail(event),
 			})
 		}
 	}
@@ -214,6 +218,21 @@ func subphaseFromTask(task string) string {
 		}
 	}
 	return ControlPlaneSubphaseID
+}
+
+func recentFailureDetail(event builderloop.LedgerEvent) string {
+	fields := []string{event.Detail, event.ExitError, event.StderrTail, event.StdoutTail}
+	parts := make([]string, 0, len(fields))
+	for _, field := range fields {
+		part := strings.Join(strings.Fields(field), " ")
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return capExcerpt(strings.Join(parts, " | "), recentFailureDetailMax)
 }
 
 // ProductivityPercent returns the percentage of claims that landed (promoted)

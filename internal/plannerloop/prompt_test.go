@@ -121,6 +121,39 @@ func TestBuildPrompt_RecentAutoloopSignalsOmittedWhenEmpty(t *testing.T) {
 	}
 }
 
+func TestBuildPromptIncludesRecentFailureDetail(t *testing.T) {
+	bundle := ContextBundle{
+		AutoloopAudit: AutoloopAudit{
+			RecentFailedTasks: []TaskAuditRow{
+				{
+					TS:     "2026-04-25T09:00:00Z",
+					Status: "backend_failed",
+					Task:   "5/5.N/Autoloop recent-failure detail excerpts",
+					Detail: "backend_waiting_for_stdin Reading additional input from stdin",
+				},
+				{
+					TS:     "2026-04-25T10:00:00Z",
+					Status: "worktree_dirty",
+					Task:   "5/5.N/No detail",
+				},
+			},
+		},
+	}
+
+	prompt := BuildPrompt(bundle, nil)
+	withDetail := "  - 2026-04-25T09:00:00Z [backend_failed]: 5/5.N/Autoloop recent-failure detail excerpts — backend_waiting_for_stdin Reading additional input from stdin\n"
+	if !strings.Contains(prompt, withDetail) {
+		t.Fatalf("BuildPrompt missing detail line %q\nprompt:\n%s", withDetail, prompt)
+	}
+	withoutDetail := "  - 2026-04-25T10:00:00Z [worktree_dirty]: 5/5.N/No detail\n"
+	if !strings.Contains(prompt, withoutDetail) {
+		t.Fatalf("BuildPrompt changed empty-detail line %q\nprompt:\n%s", withoutDetail, prompt)
+	}
+	if strings.Contains(prompt, "5/5.N/No detail —") {
+		t.Fatalf("BuildPrompt appended detail separator to empty-detail row:\n%s", prompt)
+	}
+}
+
 func TestBuildPrompt_SelfEvaluationClauseAlwaysPresent(t *testing.T) {
 	// SELF-EVALUATION (SOFT RULE) is unconditional, like the HARD/SOFT
 	// quarantine clauses. The data section beneath it appears only when

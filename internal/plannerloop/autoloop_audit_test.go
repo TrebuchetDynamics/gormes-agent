@@ -2,6 +2,7 @@ package plannerloop
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -144,6 +145,81 @@ func TestSummarizeAutoloopAuditBlankBucket(t *testing.T) {
 		if row.SubphaseID == "" {
 			t.Fatalf("RecentFailedTasks contains empty subphase_id: %#v", audit.RecentFailedTasks)
 		}
+	}
+}
+
+func TestSummarizeAutoloopAuditIncludesRecentFailureDetail(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "runs.jsonl")
+	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
+	longStderr := strings.Repeat("x", 4096)
+	events := []builderloop.LedgerEvent{
+		{
+			TS:         now.Add(-3 * time.Hour),
+			Event:      "worker_failed",
+			Task:       "",
+			Status:     "backend_failed",
+			Detail:     "backend_waiting_for_stdin: backend requested interactive input",
+			StderrTail: "Reading additional input from stdin",
+		},
+		{
+			TS:         now.Add(-2 * time.Hour),
+			Event:      "worker_failed",
+			Task:       "5/5.N/Long stderr",
+			Status:     "backend_failed",
+			StderrTail: longStderr,
+		},
+		{
+			TS:     now.Add(-1 * time.Hour),
+			Event:  "worker_failed",
+			Task:   "5/5.N/No detail",
+			Status: "worktree_dirty",
+		},
+	}
+	for _, event := range events {
+		if err := builderloop.AppendLedgerEvent(path, event); err != nil {
+			t.Fatalf("AppendLedgerEvent() error = %v", err)
+		}
+	}
+
+	audit, err := SummarizeAutoloopAudit(path, 7*24*time.Hour, now)
+	if err != nil {
+		t.Fatalf("SummarizeAutoloopAudit() error = %v", err)
+	}
+
+	if audit.Failed != 3 {
+		t.Fatalf("Failed = %d, want 3", audit.Failed)
+	}
+	if got := audit.FailStatusCounts["backend_failed"]; got != 2 {
+		t.Fatalf("backend_failed count = %d, want 2", got)
+	}
+	if got := audit.FailStatusCounts["worktree_dirty"]; got != 1 {
+		t.Fatalf("worktree_dirty count = %d, want 1", got)
+	}
+	if len(audit.RecentFailedTasks) != 3 {
+		t.Fatalf("RecentFailedTasks len = %d, want 3: %#v", len(audit.RecentFailedTasks), audit.RecentFailedTasks)
+	}
+
+	controlPlane := audit.RecentFailedTasks[0]
+	if controlPlane.SubphaseID != ControlPlaneSubphaseID {
+		t.Fatalf("control-plane SubphaseID = %q, want %q", controlPlane.SubphaseID, ControlPlaneSubphaseID)
+	}
+	if !strings.Contains(controlPlane.Detail, "backend_waiting_for_stdin") {
+		t.Fatalf("control-plane Detail = %q, want classified detail", controlPlane.Detail)
+	}
+	if !strings.Contains(controlPlane.Detail, "Reading additional input from stdin") {
+		t.Fatalf("control-plane Detail = %q, want stderr clue", controlPlane.Detail)
+	}
+
+	longDetail := audit.RecentFailedTasks[1].Detail
+	if len(longDetail) != 240 {
+		t.Fatalf("long Detail length = %d, want 240", len(longDetail))
+	}
+	if strings.Contains(longDetail, "\n") {
+		t.Fatalf("long Detail should be a single-line excerpt: %q", longDetail)
+	}
+
+	if audit.RecentFailedTasks[2].Detail != "" {
+		t.Fatalf("empty-detail row Detail = %q, want empty", audit.RecentFailedTasks[2].Detail)
 	}
 }
 

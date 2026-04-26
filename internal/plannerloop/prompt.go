@@ -421,7 +421,11 @@ func formatAutoloopAudit(audit AutoloopAudit) string {
 	if len(audit.RecentFailedTasks) > 0 {
 		b.WriteString("- Recent failed tasks:\n")
 		for _, row := range audit.RecentFailedTasks {
-			fmt.Fprintf(&b, "  - %s [%s]: %s\n", row.TS, row.Status, row.Task)
+			detail := ""
+			if row.Detail != "" {
+				detail = " — " + row.Detail
+			}
+			fmt.Fprintf(&b, "  - %s [%s]: %s%s\n", row.TS, row.Status, row.Task, detail)
 		}
 	}
 
