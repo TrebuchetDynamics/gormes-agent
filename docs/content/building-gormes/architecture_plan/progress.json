@@ -7732,9 +7732,9 @@
             },
             {
               "name": "MCP stdio transport + tool/list discovery",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests — deterministic over an in-process fake server with no real subprocess",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -7773,7 +7773,7 @@
                 "TestStdioClient_CloseIsIdempotent calls Close twice and asserts no panic, no double-close error.",
                 "No test calls os/exec; verified by `grep -L 'os/exec' internal/tools/mcp_stdio.go internal/tools/mcp_stdio_test.go`."
               ],
-              "note": "Reshaped 2026-04-26 (split 1 of 3 from the prior `MCP fake-server discovery + tool schema normalization` quarantine). Original contract bundled stdio + HTTP + normalization + dynamic refresh + stderr isolation into one medium row; workers couldn't land it atomically and reported no_progress 3 times. This row is the smallest runnable stdio slice. The original RowHealth was dropped per the split convention.",
+              "note": "Complete: TDD landed internal/tools/mcp_stdio.go as the JSON-RPC-over-newline-delimited stdio client behind an injected io.ReadWriteCloser. Five TestStdioClient_* fixtures pass over an in-process net.Pipe fake server, exercising protocolVersion negotiation (2024-11-05), ErrInitializeFailed wrapping the peer error message, verbatim json.RawMessage InputSchema round-trip with stable ordering and a missing-schema fallback, context.DeadlineExceeded on a hung peer, and idempotent Close. No os/exec import in either file (verified by `grep -L os/exec internal/tools/mcp_stdio*.go`); no global stderr/stdout writes; HTTP transport, schema normalization, and `tools/list_changed` notifications stay in follow-up rows. Reshape lineage: split 1 of 3 from the prior `MCP fake-server discovery + tool schema normalization` quarantine (which bundled stdio + HTTP + normalization + dynamic refresh + stderr isolation into one row workers couldn't land atomically).",
               "write_scope": [
                 "internal/tools/mcp_stdio.go",
                 "internal/tools/mcp_stdio_test.go",
@@ -7787,10 +7787,15 @@
               "done_signal": [
                 "All 5 TestStdioClient_* fixtures pass and `grep -L 'os/exec' internal/tools/mcp_stdio*.go` confirms no real subprocess is spawned."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T19:06:47Z",
+                "last_success": "2026-04-26T19:06:47Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:edc78e25 tools/mcp_tool.py",
-                "note": "Hermes remains the donor for MCP stdio runtime behavior; Gormes ports it behind an injected io.ReadWriteCloser so unit tests skip the real subprocess. Health block dropped per split convention."
+                "note": "Hermes remains the donor for MCP stdio runtime behavior; Gormes ports it behind an injected io.ReadWriteCloser so unit tests skip the real subprocess."
               }
             },
             {
