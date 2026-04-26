@@ -1,6 +1,7 @@
 package builderloop
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -101,6 +102,17 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			return RunSummary{}, err
 		}
 		if opts.Config.MergeOpenPullRequests {
+			if skip, detail := shouldBackOffPullRequestIntake(opts.Config, now); skip {
+				if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
+					TS:     time.Now().UTC(),
+					RunID:  runID,
+					Event:  "pr_intake_skipped",
+					Status: "empty_backoff",
+					Detail: detail,
+				}); err != nil {
+					return RunSummary{}, err
+				}
+			} else {
 			result := runLoggedOperation(opts.Config, runID, jobSpec{
 				ID:            fmt.Sprintf("%s/pr-intake/1", runID),
 				Kind:          "pr_intake",
@@ -119,6 +131,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			})
 			if result.Err != nil {
 				return RunSummary{}, result.Err
+			}
 			}
 		}
 	}
@@ -310,6 +323,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			RunID:  runID,
 			Event:  "run_completed",
 			Status: "completed",
+			Detail: runHealthMixDetail(selected),
 		}); err != nil {
 			return errors.Join(err, flushHealth())
 		}
@@ -1652,6 +1666,58 @@ func appendRunLedgerEvent(cfg Config, event LedgerEvent) error {
 	return AppendLedgerEvent(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"), event)
 }
 
+func shouldBackOffPullRequestIntake(cfg Config, now time.Time) (bool, string) {
+	if cfg.PRIntakeEmptyBackoff <= 0 || strings.TrimSpace(cfg.RunRoot) == "" {
+		return false, ""
+	}
+	latest, ok := latestPullRequestIntakeCompletion(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if !ok || latest.TS.IsZero() || !pullRequestIntakeListedEmpty(latest.Detail) {
+		return false, ""
+	}
+	next := latest.TS.UTC().Add(cfg.PRIntakeEmptyBackoff)
+	if !now.UTC().Before(next) {
+		return false, ""
+	}
+	return true, fmt.Sprintf("last_empty=%s next_after=%s backoff=%s",
+		latest.TS.UTC().Format(time.RFC3339),
+		next.Format(time.RFC3339),
+		cfg.PRIntakeEmptyBackoff,
+	)
+}
+
+func latestPullRequestIntakeCompletion(path string) (LedgerEvent, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return LedgerEvent{}, false
+	}
+	defer file.Close()
+
+	var latest LedgerEvent
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var event LedgerEvent
+		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
+			continue
+		}
+		if event.Event != "pr_intake_completed" || event.Status != "completed" {
+			continue
+		}
+		if latest.TS.IsZero() || event.TS.After(latest.TS) {
+			latest = event
+		}
+	}
+	return latest, !latest.TS.IsZero()
+}
+
+func pullRequestIntakeListedEmpty(detail string) bool {
+	for _, field := range strings.Fields(detail) {
+		if field == "listed=0" {
+			return true
+		}
+	}
+	return false
+}
+
 // CheckpointDirtyWorktree commits dirty control-checkout changes so unattended
 // loop mode can keep moving without losing planner or generated state.
 func CheckpointDirtyWorktree(ctx context.Context, cfg Config, runID string) error {
@@ -1685,12 +1751,18 @@ func CheckpointDirtyWorktree(ctx context.Context, cfg Config, runID string) erro
 	}
 
 	message := fmt.Sprintf("builder-loop: checkpoint dirty worktree %s", runID)
-	if _, err := runGitCheckpointCommand(ctx, cfg.RepoRoot,
+	commitArgs := []string{
 		"-c", "user.name=Gormes Builder Loop",
 		"-c", "user.email=builder-loop@gormes.local",
 		"-c", "commit.gpgsign=false",
-		"commit", "-m", message,
-	); err != nil {
+	}
+	amended := lastCommitIsBuilderLoopCheckpoint(ctx, cfg.RepoRoot)
+	if amended {
+		commitArgs = append(commitArgs, "commit", "--amend", "--no-edit")
+	} else {
+		commitArgs = append(commitArgs, "commit", "-m", message)
+	}
+	if _, err := runGitCheckpointCommand(ctx, cfg.RepoRoot, commitArgs...); err != nil {
 		return recordCheckpointFailure(cfg, runID, "commit_failed", err)
 	}
 
@@ -1704,7 +1776,29 @@ func CheckpointDirtyWorktree(ctx context.Context, cfg Config, runID string) erro
 		Event:  "worktree_checkpoint_committed",
 		Status: "committed",
 		Commit: sha,
+		Detail: checkpointCommitDetail(amended),
 	})
+}
+
+func lastCommitIsBuilderLoopCheckpoint(ctx context.Context, repoRoot string) bool {
+	subject, err := runGitCheckpointCommand(ctx, repoRoot, "log", "-1", "--pretty=%s")
+	if err != nil {
+		return false
+	}
+	return isBuilderLoopCheckpointSubject(subject)
+}
+
+func isBuilderLoopCheckpointSubject(subject string) bool {
+	subject = strings.TrimSpace(subject)
+	return strings.HasPrefix(subject, "builder-loop: checkpoint dirty worktree ") ||
+		strings.HasPrefix(subject, "builder-loop: watchdog checkpoint ")
+}
+
+func checkpointCommitDetail(amended bool) string {
+	if amended {
+		return "amended=true"
+	}
+	return ""
 }
 
 func recordCheckpointFailure(cfg Config, runID string, status string, err error) error {
