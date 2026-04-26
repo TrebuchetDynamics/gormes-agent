@@ -648,13 +648,14 @@
                 "internal/builderloop/ship_ratio_test.go fixtures prove classifier coverage of self_improvement/user_feature/unclassified plus windowed aggregation with no record_run_health writes."
               ],
               "health": {
-                "attempt_count": 3,
-                "last_attempt": "2026-04-26T15:09:51Z",
+                "attempt_count": 4,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T19:52:25Z",
                 "last_failure": {
-                  "run_id": "20260426T150941Z-113448856",
-                  "category": "no_progress",
+                  "run_id": "20260426T194254Z-265829762",
+                  "category": "worker_error",
                   "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 1/1.C/Builder-loop self-improvement vs user-feature ratio metric"
+                  "stderr_tail": "command 3 failed: exit status 1"
                 },
                 "backends_tried": [
                   "codexu"
