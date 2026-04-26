@@ -342,7 +342,9 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Anthropic
 - [x] Azure OpenAI query/default_query transport contract
 - [x] Azure Anthropic Messages endpoint contract
-- [ ] Azure Foundry endpoint autodetect + model context read model
+- [ ] Azure Foundry transport probe read model
+- [ ] Azure Foundry runtime env/config read model
+- [ ] Azure Foundry CLI setup/status manual fallback
 - [ ] Bedrock
 - [x] Bedrock Converse payload mapping (no AWS SDK)
 - [ ] Bedrock stream event decoding (SSE fixtures)
@@ -462,7 +464,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 ### 5.F — Skills System (Remaining) 🔨
 
-- [ ] Skills hub
+- [ ] Skills hub search RPC read model
 - [ ] Skill registries
 - [x] Skill preprocessing + dynamic slash commands
 
@@ -599,6 +601,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 6.D — Skill Retrieval + Matching ⏳
 
 - [ ] Hybrid lexical + semantic lookup
+- [ ] Source-aware retrieval damping fixtures
 - [ ] Code Cathedral II code-context retrieval fixtures
 
 ### 6.E — Feedback Loop ⏳

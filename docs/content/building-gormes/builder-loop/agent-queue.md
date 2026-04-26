@@ -22,7 +22,28 @@ tests, and candidate policy. Keep those control-plane facts in
 `meta.builder_loop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Native TUI terminal-selection divergence contract
+## 1. Azure Foundry transport probe read model
+
+- Phase: 4 / 4.A
+- Owner: `provider`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Azure Foundry endpoint probing determines OpenAI-style, Anthropic-style, or manual-required transport from deterministic inputs without reading credentials or writing config
+- Trust class: operator, system
+- Ready when: Azure OpenAI query/default_query transport contract and Azure Anthropic Messages endpoint contract are validated, so each detected transport has a request-builder contract., The worker can implement pure probe functions with injected fake HTTP responses; no config mutation or provider runtime resolver is needed.
+- Not ready when: The slice requires ARM deployment-list credentials, live Azure network calls, browser auth, or hosted provider credentials in unit tests., The slice reads or writes AZURE_FOUNDRY_BASE_URL, AZURE_FOUNDRY_API_KEY, deployment config, or model context metadata.
+- Degraded mode: Probe status reports azure_transport_detected, azure_models_probe_failed, azure_anthropic_probe_failed, or azure_detect_manual_required evidence while preserving manual endpoint entry.
+- Fixture: `internal/hermes/azure_foundry_probe_test.go`
+- Write scope: `internal/hermes/azure_foundry_probe.go`, `internal/hermes/azure_foundry_probe_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run TestAzureFoundryProbe -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Azure Foundry probe fixtures prove path sniffing, OpenAI /models detection, Anthropic Messages fallback detection, manual-required evidence, and zero config/credential mutation.
+- Acceptance: Path sniffing detects /anthropic endpoints as anthropic_messages without HTTP., A fake /models OpenAI-shaped response selects chat_completions and records advisory model IDs without persisting them., Failed /models plus a fake Anthropic Messages-shaped error selects anthropic_messages with explicit probe evidence., Total probe failure returns manual-required evidence, not a fatal error, and does not hide manual api_mode selection.
+- Source refs: ../hermes-agent/hermes_cli/azure_detect.py@731e1ef8, ../hermes-agent/tests/hermes_cli/test_azure_detect.py@731e1ef8, ../hermes-agent/website/docs/guides/azure-foundry.md@7c50ed70, internal/hermes/http_client.go, internal/hermes/azure_openai_transport_test.go, internal/hermes/azure_anthropic_transport_test.go
+- Unblocks: Azure Foundry runtime env/config read model
+- Why now: Unblocks Azure Foundry runtime env/config read model.
+
+## 2. Native TUI terminal-selection divergence contract
 
 - Phase: 5 / 5.Q
 - Owner: `gateway`
@@ -41,7 +62,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@edc78e25, ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.test.ts@edc78e25, ../hermes-agent/ui-tui/src/lib/platform.ts@edc78e25, ../hermes-agent/ui-tui/src/app/useInputHandlers.ts@edc78e25, ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@31d7f195, internal/tui/, docs/content/upstream-hermes/user-guide/tui.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. BlueBubbles iMessage bubble formatting parity
+## 3. BlueBubbles iMessage bubble formatting parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -62,7 +83,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: BlueBubbles iMessage session-context prompt guidance
 - Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
 
-## 3. CLI profile path and active-profile store
+## 4. CLI profile path and active-profile store
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -82,7 +103,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI auth status read model before provider setup, Setup/uninstall dry-run command contracts
 - Why now: Unblocks CLI auth status read model before provider setup, Setup/uninstall dry-run command contracts.
 
-## 4. Gateway management CLI read-model closeout
+## 5. Gateway management CLI read-model closeout
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -102,7 +123,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Webhook/platform management CLI helpers, Cron management CLI over native store
 - Why now: Unblocks Webhook/platform management CLI helpers, Cron management CLI over native store.
 
-## 5. Doctor custom endpoint provider readiness
+## 6. Doctor custom endpoint provider readiness
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -123,7 +144,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI status summary over native stores
 - Why now: Unblocks CLI status summary over native stores.
 
-## 6. CLI log snapshot reader
+## 7. CLI log snapshot reader
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -143,7 +164,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI status summary over native stores, Backup manifest dry-run contract
 - Why now: Unblocks CLI status summary over native stores, Backup manifest dry-run contract.
 
-## 7. TUI gateway progress/completion helpers
+## 8. TUI gateway progress/completion helpers
 
 - Phase: 5 / 5.Q
 - Owner: `gateway`
@@ -163,7 +184,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: TUI gateway image/personality/platform-event helpers
 - Why now: Unblocks TUI gateway image/personality/platform-event helpers.
 
-## 8. Planner backend noninteractive stdin failure guard
+## 9. Planner backend noninteractive stdin failure guard
 
 - Phase: 5 / 5.N
 - Owner: `orchestrator`
@@ -183,7 +204,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: .codex/planner-loop/state/runs.jsonl:20260425T210430Z backend_failed Reading additional input from stdin, .codex/planner-loop/state/runs.jsonl:20260425T233746Z backend_failed signal: killed: Reading additional input from stdin, .codex/orchestrator/state/runs.jsonl, internal/builderloop/backend.go, internal/builderloop/failures.go, internal/plannerloop/autoloop_audit.go, internal/plannerloop/run.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Native TUI /save canonical session export
+## 10. Native TUI /save canonical session export
 
 - Phase: 5 / 5.Q
 - Owner: `gateway`

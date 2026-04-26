@@ -4101,7 +4101,7 @@
                 "The slice removes the existing generic unsupported-parameter retry instead of adding Azure-specific first-request and routing fixtures."
               ],
               "unblocks": [
-                "Azure Foundry endpoint autodetect + model context read model"
+                "Azure Foundry transport probe read model"
               ],
               "acceptance": [
                 "A legacy Azure base URL with ?api-version=... sends POST requests to a clean /v1/chat/completions path while preserving the query parameters.",
@@ -4165,7 +4165,7 @@
                 "The slice reads or mutates ~/.claude, ~/.hermes, or hosted Anthropic OAuth state in unit tests."
               ],
               "unblocks": [
-                "Azure Foundry endpoint autodetect + model context read model"
+                "Azure Foundry transport probe read model"
               ],
               "acceptance": [
                 "A https://.../anthropic/v1 base URL stores and uses the Azure Anthropic base stripped to /anthropic before appending /v1/messages.",
@@ -4200,10 +4200,69 @@
               }
             },
             {
-              "name": "Azure Foundry endpoint autodetect + model context read model",
+              "name": "Azure Foundry transport probe read model",
               "priority": "P2",
               "status": "planned",
-              "contract": "Azure Foundry setup/runtime resolution records endpoint transport, advisory model list, and context-length evidence from deterministic probes while keeping manual fallback usable",
+              "contract": "Azure Foundry endpoint probing determines OpenAI-style, Anthropic-style, or manual-required transport from deterministic inputs without reading credentials or writing config",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Probe status reports azure_transport_detected, azure_models_probe_failed, azure_anthropic_probe_failed, or azure_detect_manual_required evidence while preserving manual endpoint entry.",
+              "fixture": "internal/hermes/azure_foundry_probe_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/azure_detect.py@731e1ef8",
+                "../hermes-agent/tests/hermes_cli/test_azure_detect.py@731e1ef8",
+                "../hermes-agent/website/docs/guides/azure-foundry.md@7c50ed70",
+                "internal/hermes/http_client.go",
+                "internal/hermes/azure_openai_transport_test.go",
+                "internal/hermes/azure_anthropic_transport_test.go"
+              ],
+              "ready_when": [
+                "Azure OpenAI query/default_query transport contract and Azure Anthropic Messages endpoint contract are validated, so each detected transport has a request-builder contract.",
+                "The worker can implement pure probe functions with injected fake HTTP responses; no config mutation or provider runtime resolver is needed."
+              ],
+              "not_ready_when": [
+                "The slice requires ARM deployment-list credentials, live Azure network calls, browser auth, or hosted provider credentials in unit tests.",
+                "The slice reads or writes AZURE_FOUNDRY_BASE_URL, AZURE_FOUNDRY_API_KEY, deployment config, or model context metadata."
+              ],
+              "unblocks": [
+                "Azure Foundry runtime env/config read model"
+              ],
+              "acceptance": [
+                "Path sniffing detects /anthropic endpoints as anthropic_messages without HTTP.",
+                "A fake /models OpenAI-shaped response selects chat_completions and records advisory model IDs without persisting them.",
+                "Failed /models plus a fake Anthropic Messages-shaped error selects anthropic_messages with explicit probe evidence.",
+                "Total probe failure returns manual-required evidence, not a fatal error, and does not hide manual api_mode selection."
+              ],
+              "note": "Split from the quarantined Azure Foundry umbrella after 86 attempts/no-progress quarantine. This first slice owns only deterministic transport probing and advisory model evidence; runtime env/config, context length, and CLI setup/status are separate dependent rows.",
+              "write_scope": [
+                "internal/hermes/azure_foundry_probe.go",
+                "internal/hermes/azure_foundry_probe_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestAzureFoundryProbe -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Azure Foundry probe fixtures prove path sniffing, OpenAI /models detection, Anthropic Messages fallback detection, manual-required evidence, and zero config/credential mutation."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:731e1ef8 hermes_cli/azure_detect.py",
+                "note": "Hermes defines Azure Foundry probing semantics; Gormes ports the pure read model first to avoid another setup/runtime umbrella attempt."
+              }
+            },
+            {
+              "name": "Azure Foundry runtime env/config read model",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Azure Foundry runtime resolution combines detected api_mode, deployment/model, redacted env/config evidence, and provider context metadata without contacting Azure or storing plaintext secrets",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -4211,80 +4270,117 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Setup and status report azure_detect_manual_required, azure_models_probe_failed, azure_context_unknown, and azure_transport_detected evidence without blocking manual endpoint configuration.",
-              "fixture": "internal/cli/azure_foundry_detect_test.go",
+              "degraded_mode": "Provider status reports azure_foundry_base_url_missing, azure_foundry_key_missing, azure_context_known, azure_context_unknown, and azure_secret_redacted evidence before any live request.",
+              "fixture": "internal/hermes/azure_foundry_runtime_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/azure_detect.py@731e1ef8",
-                "../hermes-agent/tests/hermes_cli/test_azure_detect.py@731e1ef8",
-                "../hermes-agent/hermes_cli/main.py@731e1ef8:_model_flow_azure_foundry",
                 "../hermes-agent/hermes_cli/runtime_provider.py@731e1ef8:_resolve_azure_foundry_runtime",
+                "../hermes-agent/hermes_cli/main.py@731e1ef8:_model_flow_azure_foundry",
+                "../hermes-agent/hermes_cli/config.py@731e1ef8:AZURE_FOUNDRY_API_KEY",
+                "../hermes-agent/hermes_cli/config.py@731e1ef8:AZURE_FOUNDRY_BASE_URL",
                 "../hermes-agent/website/docs/guides/azure-foundry.md@7c50ed70",
                 "internal/config/config.go",
                 "internal/hermes/model_context_resolver.go"
               ],
               "ready_when": [
-                "Azure OpenAI query/default_query transport contract and Azure Anthropic Messages endpoint contract are fixture-ready or validated so detected transport modes have request-builder contracts.",
+                "Azure Foundry transport probe read model is fixture-ready or validated, so this row can consume a typed probe result instead of reimplementing transport detection.",
                 "Provider-enforced context-length resolver is validated and can resolve model context from pure registry fixtures."
               ],
               "not_ready_when": [
-                "The slice requires ARM deployment-list credentials, live Azure network calls, browser auth, or hosted provider credentials in unit tests.",
-                "The slice treats failed probes as fatal instead of preserving manual API mode and deployment-name entry."
+                "The slice starts interactive setup, runs live Azure probes, persists API keys in status output, or changes OpenAI/Anthropic request builders.",
+                "The slice treats missing env/config as fatal before producing operator-readable degraded evidence."
               ],
               "blocked_by": [
-                "Azure OpenAI query/default_query transport contract",
-                "Azure Anthropic Messages endpoint contract",
+                "Azure Foundry transport probe read model",
                 "Provider-enforced context-length resolver"
               ],
-              "acceptance": [
-                "Path sniffing detects /anthropic endpoints as anthropic_messages without HTTP.",
-                "A fake /models OpenAI-shaped response selects chat_completions and records advisory model IDs.",
-                "Failed /models plus a fake Anthropic error shape selects anthropic_messages; total probe failure returns manual-required evidence, not a fatal error.",
-                "Context-length lookup records a known length when resolver metadata exists and explicit unknown evidence when fallback/default metadata is all that exists.",
-                "Resolver config honors AZURE_FOUNDRY_BASE_URL and AZURE_FOUNDRY_API_KEY without storing plaintext secrets in status output."
+              "unblocks": [
+                "Azure Foundry CLI setup/status manual fallback"
               ],
-              "note": "Hermes 731e1ef8 added Azure Foundry endpoint transport detection, advisory model discovery, deployment/context handling, and manual fallback; 7c50ed70 documents the operator flow and environment variables. Gormes should add a pure read-model/probe contract after the request builders are fixture-backed, not a live Azure setup wizard first.",
+              "acceptance": [
+                "AZURE_FOUNDRY_BASE_URL and AZURE_FOUNDRY_API_KEY override empty config values while status output redacts key material.",
+                "Configured deployment/model and api_mode combine with the typed probe result without changing request-builder behavior.",
+                "Known model context resolves to an explicit token length; missing or fallback-only metadata records azure_context_unknown evidence.",
+                "Missing base URL or API key returns degraded runtime evidence that keeps manual endpoint configuration possible."
+              ],
+              "note": "Second Azure Foundry split slice: keep env/config/context evidence separate from pure transport probing and CLI setup UX so one worker can land a bounded read model.",
               "write_scope": [
-                "internal/cli/azure_foundry_detect.go",
-                "internal/cli/azure_foundry_detect_test.go",
                 "internal/config/",
+                "internal/hermes/azure_foundry_runtime.go",
+                "internal/hermes/azure_foundry_runtime_test.go",
                 "internal/hermes/model_context_resolver.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/cli ./internal/config ./internal/hermes -run 'TestAzureFoundry|TestModelContext' -count=1",
-                "go test ./internal/cli ./internal/config ./internal/hermes -count=1",
+                "go test ./internal/config ./internal/hermes -run 'TestAzureFoundryRuntime|TestModelContext' -count=1",
+                "go test ./internal/config ./internal/hermes -count=1",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Azure Foundry fixtures prove deterministic transport detection, advisory model/context evidence, manual fallback, env-var resolution, and redacted status with no live Azure dependency."
+                "Runtime fixtures prove env/config precedence, redacted credential evidence, api_mode/deployment read model, context-known/context-unknown status, and no live Azure dependency."
               ],
-              "health": {
-                "attempt_count": 86,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T07:02:13Z",
-                "last_success": "2026-04-26T06:37:27Z",
-                "last_failure": {
-                  "run_id": "20260426T070200Z-648518425",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 4/4.A/Azure Foundry endpoint autodetect + model context read model"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T07:02:13Z",
-                  "after_run_id": "20260426T070200Z-648518425",
-                  "threshold": 3,
-                  "spec_hash": "e6c06908eb6e7fbfea0aedac122b37434bc0a16159e14f3ffa1b39cf7eb97f35",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:731e1ef8 hermes_cli/azure_detect.py",
-                "note": "Hermes now has an Azure Foundry setup/runtime detection surface; Gormes should port the behavior as a pure native read-model before live setup UX."
+                "upstream_ref": "hermes:731e1ef8 hermes_cli/runtime_provider.py",
+                "note": "Hermes defines Azure Foundry runtime config resolution; Gormes keeps it as a redacted Go read model before CLI setup wiring."
+              }
+            },
+            {
+              "name": "Azure Foundry CLI setup/status manual fallback",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Azure Foundry CLI/status surfaces expose probe/runtime evidence and manual api_mode/deployment fallback without running a live setup wizard in tests",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "CLI status reports azure_detect_manual_required, azure_models_probe_failed, azure_context_unknown, and secret-redacted runtime evidence while preserving manual api_mode and model entry.",
+              "fixture": "internal/cli/azure_foundry_status_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py@731e1ef8:_model_flow_azure_foundry",
+                "../hermes-agent/hermes_cli/azure_detect.py@731e1ef8",
+                "../hermes-agent/website/docs/guides/azure-foundry.md@7c50ed70",
+                "internal/cli/",
+                "internal/config/config.go",
+                "internal/hermes/azure_foundry_runtime.go"
+              ],
+              "ready_when": [
+                "Azure Foundry runtime env/config read model is validated and can emit redacted operator evidence.",
+                "CLI command registry parity or a focused internal/cli helper seam can render provider setup/status without broad command wiring."
+              ],
+              "not_ready_when": [
+                "The slice opens browser auth, writes real home config, performs live Azure network probes, or ports the whole Hermes model wizard.",
+                "The slice mixes OpenAI/Anthropic transport changes with CLI rendering."
+              ],
+              "blocked_by": [
+                "Azure Foundry runtime env/config read model"
+              ],
+              "acceptance": [
+                "CLI/status fixtures render detected OpenAI-style, detected Anthropic-style, and manual-required states from fake probe/runtime data.",
+                "Manual api_mode and deployment/model entry stay available when every probe fails.",
+                "Status redacts AZURE_FOUNDRY_API_KEY and other key material while naming which env/config source was used.",
+                "The focused fixtures do not require live Azure credentials, TTY prompts, browser auth, or broad provider setup command wiring."
+              ],
+              "note": "Final Azure Foundry split slice: operator-visible setup/status fallback after probe and runtime read models exist. This prevents workers from reopening the full Hermes model wizard while preserving manual fallback behavior.",
+              "write_scope": [
+                "internal/cli/azure_foundry_status.go",
+                "internal/cli/azure_foundry_status_test.go",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli ./internal/config -run TestAzureFoundryStatus -count=1",
+                "go test ./internal/cli ./internal/config -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "CLI/status fixtures prove detected/manual Azure Foundry states, deployment/model fallback, secret redaction, and no live setup or provider calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:731e1ef8 hermes_cli/main.py",
+                "note": "Hermes defines the operator flow; Gormes adapts it to native CLI/status helpers after read-model contracts land."
               }
             },
             {
@@ -4699,8 +4795,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-26T02:10:57Z",
-            "origin_decision": "Hermes ad0ac894 widened DeepSeek/Kimi thinking-mode replay from assistant tool-call turns to all assistant turns after the earlier f93d4624 cross-provider isolation row landed in Gormes. Hermes 24b4b24d/ac571142/c15064fa/7bfa9442/d8e4c721/731e1ef8/7c50ed70 also moved Azure OpenAI, Azure Anthropic, and Azure Foundry provider behavior ahead of Gormes. Gormes still trails those provider edges, so this subphase remains upstream-led until the all-assistant reasoning_content row and the three Azure fixture rows validate; b2d3308f/25ba6a4a doctor and gateway reasoning drift are tracked under 5.O/4.D."
+            "last_upstream_check": "2026-04-26T12:19:33Z",
+            "origin_decision": "Hermes ad0ac894 widened DeepSeek/Kimi thinking-mode replay from assistant tool-call turns to all assistant turns, and the Gormes provider fixtures now validate the DeepSeek/Kimi, Azure OpenAI, and Azure Anthropic edges. Azure Foundry remains upstream-led but is split into probe, runtime read-model, and CLI/status fallback rows after the prior umbrella row quarantined with no-progress. Later Hermes 192e7eb2 provider-rate drift is tracked under 4.H; b2d3308f/25ba6a4a doctor and gateway reasoning drift are tracked under 5.O/4.D."
           }
         },
         "4.B": {
@@ -5885,13 +5981,68 @@
             {
               "name": "Provider rate guard + budget telemetry",
               "status": "planned",
-              "note": "TDD: port `agent/rate_limit_tracker.py` and `agent/nous_rate_guard.py` as deterministic budget/rate decisions that feed Phase 3 insights without sleeping in unit tests."
+              "contract": "Provider rate guards distinguish true account quota exhaustion from upstream-capacity 429s and expose budget telemetry without sleeping or blocking unrelated models in unit tests",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Provider status reports rate_guard_unavailable, nous_rate_limited, nous_upstream_capacity, budget_header_missing, and reset-window evidence instead of silently tripping a global breaker.",
+              "fixture": "internal/hermes/provider_rate_guard_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/nous_rate_guard.py@192e7eb2",
+                "../hermes-agent/tests/agent/test_nous_rate_guard.py@192e7eb2",
+                "../hermes-agent/run_agent.py@192e7eb2",
+                "internal/hermes/errors.go",
+                "internal/hermes/client.go",
+                "internal/kernel/retry.go"
+              ],
+              "ready_when": [
+                "Provider-side resilience, classified provider-error taxonomy, and Retry-After hint handling are validated, so this row only adds rate-guard/budget decisions and status evidence.",
+                "The worker can use fake headers and fake clock fixtures; no live Nous Portal, provider key, or wall-clock sleep is required."
+              ],
+              "not_ready_when": [
+                "The slice changes retry timing, provider routing, or model fallback policy instead of only classifying rate-guard state and telemetry evidence.",
+                "The slice writes process-global breaker state in unit tests or treats every 429 as account-level quota exhaustion."
+              ],
+              "blocked_by": [
+                "Provider-side resilience",
+                "Classified provider-error taxonomy",
+                "Retry-After header parsing + HTTPError hint"
+              ],
+              "acceptance": [
+                "Headers with remaining=0 and reset window >=60s classify as genuine account rate limit and record redacted reset evidence.",
+                "429 responses with healthy x-ratelimit buckets classify as upstream_capacity and do not trip cross-session/provider-wide breaker state.",
+                "Last-known-good exhausted bucket evidence can classify a bare 429 as genuine, while healthy last-known state keeps a bare 429 as upstream_capacity.",
+                "Malformed or missing budget headers degrade visibly without sleeping, retry amplification, or blocking other provider/model choices."
+              ],
+              "note": "Hermes 192e7eb2 fixed Nous Portal upstream-capacity 429s tripping the cross-session breaker. Gormes should port the decision table as provider-status evidence first, not as a live shared-file breaker.",
+              "write_scope": [
+                "internal/hermes/provider_rate_guard.go",
+                "internal/hermes/provider_rate_guard_test.go",
+                "internal/hermes/errors.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestProviderRateGuard -count=1",
+                "go test ./internal/hermes ./internal/kernel -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Provider rate-guard fixtures prove genuine quota, upstream-capacity, last-known-state, malformed-header, and no-sleep degraded decisions with visible status evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:192e7eb2 agent/nous_rate_guard.py",
+                "note": "Hermes defines the Nous 429 distinction; Gormes adapts it to native provider status and retry/budget telemetry."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-25T17:16:35Z",
-            "origin_decision": "Hermes 7c17accb added a streaming retry interrupt guard after the generic unsupported-parameter work. Gormes has retry/backoff and provider-hint behavior, but this subphase remains upstream-led until the cancel-before-retry fixture, prompt-cache guards, and provider budget telemetry are fixture-backed."
+            "last_upstream_check": "2026-04-26T12:19:33Z",
+            "origin_decision": "Hermes 7c17accb added a streaming retry interrupt guard and Hermes 192e7eb2 sharpened Nous 429 handling so upstream-capacity responses do not trip a cross-session quota breaker. Gormes has retry/backoff and provider-hint behavior, but this subphase remains upstream-led until prompt-cache guards and provider budget/rate telemetry are fixture-backed."
           }
         }
       }
@@ -6286,9 +6437,68 @@
           "name": "Skills System (Remaining)",
           "items": [
             {
-              "name": "Skills hub",
+              "name": "Skills hub search RPC read model",
               "status": "planned",
-              "note": "TDD: port `tools/skills_hub.py` and registry lookup as read-only search/install planning first, reusing the Phase 2.G active/inactive store instead of creating another skills root."
+              "contract": "Skills hub search is exposed as a read-only RPC/command contract over configured registries without installing skills, mutating the active store, or requiring the Hermes Python hub runtime",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Skill surfaces report skills_search_unavailable, registry_rate_limited, empty_query, or no_results evidence instead of failing TUI/gateway command dispatch.",
+              "fixture": "internal/skills/hub_search_test.go",
+              "source_refs": [
+                "../hermes-agent/tui_gateway/server.py@91a7a0ac:skills.manage",
+                "../hermes-agent/tests/tui_gateway/test_protocol.py@91a7a0ac:test_skills_manage_search_uses_tools_hub_sources",
+                "../hermes-agent/hermes_cli/skills_hub.py@91a7a0ac",
+                "../hermes-agent/tools/skills_hub.py@91a7a0ac",
+                "internal/skills/store.go",
+                "internal/gateway/commands.go"
+              ],
+              "ready_when": [
+                "Phase 2.G active/inactive skill store is complete and Skill preprocessing + dynamic slash commands is validated, so this row only adds a read-only search result contract.",
+                "The worker can use fake registry providers and fake RPC/command dispatch; no GitHub network, install flow, or prompt injection is required."
+              ],
+              "not_ready_when": [
+                "The slice installs skills, edits active/inactive SKILL.md files, downloads registry content, or ports registry caching/signature verification.",
+                "The slice blocks TUI/gateway dispatch on live GitHub or skills.sh availability."
+              ],
+              "blocked_by": [
+                "Skill preprocessing + dynamic slash commands"
+              ],
+              "unblocks": [
+                "Skill registries",
+                "TUI + Telegram browsing"
+              ],
+              "acceptance": [
+                "A skills.manage/search-style fixture returns stable result rows with name, description, source, and install_id from fake registry data.",
+                "Empty query, unavailable registry, rate-limit, and no-results cases return explicit degraded evidence without mutating the active skill store.",
+                "Gateway/TUI command dispatch can call the read model without injecting returned skills into prompts.",
+                "Install planning remains a separate row; this slice is read-only."
+              ],
+              "note": "Hermes 91a7a0ac restored TUI skills search RPC via tools.skills_hub sources. Gormes should port the read-only search result contract first and leave registry metadata/install flows in dependent slices.",
+              "write_scope": [
+                "internal/skills/hub_search.go",
+                "internal/skills/hub_search_test.go",
+                "internal/gateway/commands.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills ./internal/gateway -run 'Test.*Skill.*Hub|Test.*Skills.*Search' -count=1",
+                "go test ./internal/skills ./internal/gateway -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Skills hub search fixtures prove read-only fake-registry search, degraded evidence, RPC/command dispatch, and no active-store mutation or prompt injection."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:91a7a0ac tui_gateway/server.py",
+                "note": "Hermes defines the skills.manage search RPC shape; Gormes adapts it to native skills storage and gateway command dispatch."
+              }
             },
             {
               "name": "Skill registries",
@@ -6898,7 +7108,69 @@
             {
               "name": "Dangerous-command detector + blocked-result schema",
               "status": "planned",
-              "note": "TDD: port upstream dangerous-command pattern detection into a pure Go guard that returns the same blocked tool-result shape agents already understand, without prompting or side effects."
+              "contract": "Dangerous command detection has a pure blocked-result schema plus a hardline floor for unrecoverable host-destructive commands that cannot be bypassed by yolo, approval-off, or cron approve modes",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Tool execution status reports dangerous_command_blocked, hardline_blocked, approval_required, or guard_unavailable before a command reaches a host-impacting backend.",
+              "fixture": "internal/tools/dangerous_command_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/approval.py@eb28145f:HARDLINE_PATTERNS",
+                "../hermes-agent/tests/tools/test_hardline_blocklist.py@eb28145f",
+                "../hermes-agent/tests/tools/test_yolo_mode.py@eb28145f",
+                "../hermes-agent/tests/tools/test_cron_approval_mode.py@eb28145f",
+                "internal/tools/execute_code.go",
+                "internal/tools/registry.go"
+              ],
+              "ready_when": [
+                "Sandboxed exec is complete, so command execution has a central Go boundary where pure guard results can be checked before host-impacting backends run.",
+                "The slice can use table-driven command strings and fake execution backends; no shell command should run in unit tests."
+              ],
+              "not_ready_when": [
+                "The slice prompts for approval, changes approval-mode config, executes shell commands, or adds path/URL/Tirith policy integration in the same change.",
+                "The slice treats containerized backends the same as host-local/ssh backends before backend impact classification is explicit."
+              ],
+              "blocked_by": [
+                "Sandboxed exec"
+              ],
+              "unblocks": [
+                "Approval mode config normalization",
+                "Subagent dangerous-command non-interactive approval policy",
+                "Cron dangerous-command approval mode",
+                "Tirith, path, URL, and website policy integration"
+              ],
+              "acceptance": [
+                "Hardline fixtures block rm -rf /, protected root/home deletes, mkfs, raw block-device writes, fork bombs, kill -1, shutdown/reboot/halt/poweroff/init/telinit/systemctl poweroff regardless of yolo or approval-off flags.",
+                "Recoverable dangerous commands such as rm -rf /tmp/x, chmod -R 777 ., git reset --hard, and git push --force remain regular dangerous detections that yolo can bypass.",
+                "Benign lookalikes such as echo reboot, grep shutdown, mkfs_helper, and systemctl status are not hardline-blocked.",
+                "Blocked results include approved=false, hardline=true when applicable, a stable operator message, command/environment evidence, and no side effects."
+              ],
+              "note": "Hermes eb28145f added an unconditional hardline blocklist below yolo. Gormes should port the pure detector/result contract first so later approval-mode and cron-policy rows do not each invent their own dangerous-command semantics.",
+              "write_scope": [
+                "internal/tools/dangerous_command.go",
+                "internal/tools/dangerous_command_test.go",
+                "internal/tools/execute_code.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'Test.*Dangerous.*Command|Test.*Hardline' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Dangerous-command fixtures prove hardline blocks are unconditional, regular dangerous detections remain yolo-bypassable, benign lookalikes pass, and blocked results are side-effect free."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:eb28145f tools/approval.py",
+                "note": "Hermes defines the hardline floor; Gormes adapts it to the native tool execution guard before approval UX is wired."
+              }
             },
             {
               "name": "Approval mode config normalization",
@@ -9325,7 +9597,59 @@
             {
               "name": "LLM-assisted pattern distillation",
               "status": "planned",
-              "note": "TDD: define the extraction input bundle and output schema with fake model fixtures, including rejection of secrets, one-off tasks, and implementation-specific noise before live generation."
+              "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, and preserve a clear no-op escape path before any generated draft can be promoted",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Skill review status reports review_prompt_unavailable, overlap_detected, no_skill_to_save, or draft_requires_review instead of auto-promoting narrow one-off skills.",
+              "fixture": "internal/skills/distillation_prompt_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py@76042f58:AIAgent._SKILL_REVIEW_PROMPT",
+                "../hermes-agent/tests/run_agent/test_review_prompt_class_first.py@76042f58",
+                "internal/skills/store.go",
+                "internal/skills/selector.go",
+                "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
+              ],
+              "ready_when": [
+                "Portable SKILL.md format is validated, so generated drafts can carry review state and remain out of prompt injection until approved.",
+                "The row can use fake model/review prompt fixtures; no live provider, skill install, or prompt injection is required."
+              ],
+              "not_ready_when": [
+                "The slice creates active skills directly, calls a live LLM, or changes the skill selector before the prompt/review contract is fixture-locked.",
+                "The slice writes broad skill files without overlap evidence or a class-level task name."
+              ],
+              "blocked_by": [
+                "Portable SKILL.md format"
+              ],
+              "acceptance": [
+                "Prompt fixtures instruct the reviewer to call skills_list and inspect likely existing skills before deciding.",
+                "Prompt fixtures explicitly prefer updating/generalizing an existing skill at the task-class level and gate new skill creation as a last resort.",
+                "Overlap evidence is captured for follow-up review when a draft resembles existing skills.",
+                "The no-op escape phrase `Nothing to save.` remains valid and produces no draft writes."
+              ],
+              "note": "Hermes 76042f58 changed skill review prompts to be class-first and update-over-create. Gormes should fixture-lock that review contract before adding any LLM-backed skill extractor.",
+              "write_scope": [
+                "internal/skills/distillation_prompt.go",
+                "internal/skills/distillation_prompt_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'Test.*Distillation.*Prompt|Test.*Skill.*Review' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Distillation prompt fixtures prove survey-first behavior, class-level generalization, overlap evidence, draft-review gating, and the Nothing-to-save escape path."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:76042f58 run_agent.py",
+                "note": "Hermes defines the class-first review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
+              }
             }
           ]
         },
@@ -9416,6 +9740,7 @@
                 "Portable SKILL.md format"
               ],
               "unblocks": [
+                "Source-aware retrieval damping fixtures",
                 "Code Cathedral II code-context retrieval fixtures",
                 "Skill effectiveness scoring"
               ],
@@ -9447,6 +9772,71 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:f718c59 src/core/search/hybrid.ts",
                 "note": "GBrain informs retrieval scoring; Gormes adapts it to reviewed SKILL.md assets and SQLite/optional embeddings."
+              }
+            },
+            {
+              "name": "Source-aware retrieval damping fixtures",
+              "status": "planned",
+              "contract": "Skill and memory retrieval can prefer curated/reviewed sources over bulky chat or raw imports while preserving high-detail temporal lookup and explaining every source boost or exclusion",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Retrieval status reports source_boost_unavailable, source_excluded, source_dampened, or temporal_bypass evidence instead of silently letting transcript bulk swamp curated knowledge.",
+              "fixture": "internal/skills/source_aware_retrieval_test.go",
+              "source_refs": [
+                "../gbrain/CHANGELOG.md@172b55b:v0.22.0",
+                "../gbrain/src/core/search/sql-ranking.ts@172b55b",
+                "../gbrain/test/sql-ranking.test.ts@172b55b",
+                "../gbrain/test/e2e/search-swamp.test.ts@172b55b",
+                "docs/content/upstream-gbrain/gormes-takeaways.md",
+                "internal/skills/selector.go",
+                "internal/memory/semantic_sql.go"
+              ],
+              "ready_when": [
+                "Hybrid lexical + semantic lookup is validated and returns score explanations that can carry source-tier evidence.",
+                "The worker can use synthetic skill/memory sources and fake scores; no GBrain SQL engine, PGLite, Postgres, or tree-sitter runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice copies GBrain SQL builders, introduces Postgres/PGLite, or applies hard excludes without operator-visible evidence.",
+                "The slice dampens high-detail temporal/history queries that should intentionally search chat-like sources."
+              ],
+              "blocked_by": [
+                "Hybrid lexical + semantic lookup"
+              ],
+              "unblocks": [
+                "Code Cathedral II code-context retrieval fixtures",
+                "Skill effectiveness scoring"
+              ],
+              "acceptance": [
+                "Synthetic curated/reviewed skill or memory entries outrank bulk transcript/raw-import entries when lexical and semantic scores are otherwise close.",
+                "Configured hard-exclude source prefixes are removed before ranking and reported in source_excluded evidence.",
+                "High-detail or temporal lookup mode bypasses damping so recent chat/history sources can still surface.",
+                "Score explanations include source tier, boost/damping factor, and bypass/exclusion reason without importing GBrain's SQL runtime."
+              ],
+              "note": "GBrain 172b55b/v0.22.0 added source-aware ranking to prevent chat/source swamp. Gormes should borrow the source-tier idea for reviewed skills and memory retrieval explanations, not the Postgres/PGLite SQL implementation.",
+              "write_scope": [
+                "internal/skills/source_aware_retrieval.go",
+                "internal/skills/source_aware_retrieval_test.go",
+                "internal/memory/",
+                "docs/content/upstream-gbrain/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills ./internal/memory -run 'Test.*Source.*Aware|Test.*Retrieval.*Damping|Test.*Temporal.*Bypass' -count=1",
+                "go test ./internal/skills ./internal/memory -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Source-aware retrieval fixtures prove curated/reviewed boost, bulk-source damping, hard-exclude evidence, temporal bypass, and score explanations without GBrain runtime imports."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "gbrain:172b55b src/core/search/sql-ranking.ts",
+                "note": "GBrain defines source-swamp resistance; Gormes adapts it as explainable source-tier scoring for skills and memory."
               }
             },
             {
@@ -9506,7 +9896,12 @@
                 "note": "GBrain's Code Cathedral II is donor evidence for code-context retrieval, not a subsystem to embed."
               }
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-26T12:19:33Z",
+            "origin_decision": "GBrain f718c59/172b55b lead the retrieval lessons for hybrid scoring, Code Cathedral II evidence, and source-swamp resistance. Gormes should adapt these as small SQLite/skills evidence contracts with visible degraded modes, not import GBrain's TypeScript chunker, PGLite/Postgres search runtime, or SQL ranking builders."
+          }
         },
         "6.E": {
           "name": "Feedback Loop",
