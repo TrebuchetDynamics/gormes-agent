@@ -551,7 +551,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] CLI command registry parity + active-turn busy policy
 - [x] Gateway /reasoning command parser
 - [x] Gateway /reasoning apply + dispatch
-- [ ] Busy command guard for compression and long CLI actions
+- [x] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
 - [x] CLI profile name validator
 - [x] CLI profile root resolver
@@ -593,18 +593,18 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
 - [x] TUI prompt-submit auto-title eligibility helper
-- [ ] TUI TerminalNativeSelectionHelp constant + help-string fixture
+- [x] TUI TerminalNativeSelectionHelp constant + help-string fixture
 - [x] Native TUI slash-command dispatch table
-- [ ] Native TUI /save canonical session export
+- [x] Native TUI /save canonical session export
 - [x] Native TUI /branch session fork + transcript target switch
-- [ ] TUI running-agent placeholder surfaces interrupt + queued slash actions
+- [x] TUI running-agent placeholder surfaces interrupt + queued slash actions
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence
 - [x] Gateway proxy mode forwarding contract
 - [x] Dashboard API client contract
-- [ ] Dashboard PTY chat sidecar contract
+- [x] Dashboard PTY chat sidecar contract
 - [ ] API server health + cron admin endpoints
 
 ### 5.R — Code Execution Mode Policy ⏳

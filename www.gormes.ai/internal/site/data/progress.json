@@ -9321,9 +9321,9 @@
             },
             {
               "name": "Busy command guard for compression and long CLI actions",
-              "status": "planned",
+              "status": "complete",
               "contract": "Long-running CLI commands set busy input state and reject overlapping user input until the command exits",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -9350,10 +9350,13 @@
                 "User input during busy command execution returns a visible busy response.",
                 "The guard does not block gateway-safe commands that explicitly declare active-turn bypass."
               ],
-              "note": "Hermes now wraps `/compress` in a busy command guard. Track the behavior as a CLI policy slice so Gormes does not accept overlapping input while compression or other long-running commands mutate context.",
+              "note": "Complete: TDD landed `BusyCommandGuard` in `internal/cli/busy_command.go` with `Run(name, status, fn)` that sets command-busy state, defers a clearing closure so success, error, and panic exit paths all reset the flag, and rejects nested entries with `ErrBusyCommandActive` (empty names rejected with `ErrBusyCommandInvalid`). The guard exposes `IsBusy`, `Status`, `ActiveCommand`, and `EvaluateInput` for the input dispatcher; `EvaluateInput` consults `ResolveCommandPolicy` so any command declared `ActiveTurnPolicyBypass` (`/help`, `/stop`, `/restart`) passes through while the guard is busy, and every other input — plain text, recognized non-bypass slash, or unknown slash — gets a uniform `Gormes is busy — <status> — wait for it to finish or send /stop` notice that includes the active status label. `internal/tui/model.go` adds an `Options.BusyGuard BusyInputEvaluator` interface so the kernel package stays independent of `internal/cli`; `internal/tui/update.go` consults the guard in the `tea.KeyEnter` branch before slash dispatch and submit, so a rejected verdict resets the editor, surfaces the evidence as `statusMessage`, and skips both the slash registry and the Submitter callback. Tests cover idle baseline, busy-during-fn, success/error/panic clear, nested rejection, idle-accepts-anything, plain-text rejection, bypass allow-list (incl. mixed-case `/STOP`), non-bypass slash rejection, unknown slash rejection, evidence-mentions-status, concurrent EvaluateInput across goroutines, ActiveCommand reporting, and empty-name rejection. The TUI fixture asserts plain text is consumed without calling Submitter while busy, that idle evaluators preserve the existing submit path, and that bypass slash commands still dispatch through the slash registry while busy.",
               "write_scope": [
-                "internal/cli/",
-                "internal/tui/",
+                "internal/cli/busy_command.go",
+                "internal/cli/busy_command_test.go",
+                "internal/tui/model.go",
+                "internal/tui/update.go",
+                "internal/tui/busy_input_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -9361,7 +9364,12 @@
               ],
               "done_signal": [
                 "Busy-command fixtures prove overlapping input is rejected while long-running CLI commands execute and busy state clears on every exit path."
-              ]
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T21:33:59Z",
+                "last_success": "2026-04-26T21:33:59Z"
+              }
             },
             {
               "name": "Config, profile, auth, and setup command surfaces",
@@ -11052,9 +11060,9 @@
             },
             {
               "name": "TUI TerminalNativeSelectionHelp constant + help-string fixture",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui declares an exported string constant TerminalNativeSelectionHelp = 'Selection: use your terminal's native selection (Shift-drag in most terminals; iTerm Cmd-drag, tmux copy-mode). Gormes does not advertise an in-app copy hotkey.' and a pure helper SelectionHelpLine() that returns it; one fixture asserts the constant exists, mentions 'terminal' but not 'Cmd+C'/'Ctrl+C'/'Ctrl-Shift-C'/'OSC 52'/'clipboard hotkey'/'Ink', and another asserts no advertised copy shortcut leaks anywhere else in the package",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -11100,6 +11108,11 @@
               "done_signal": [
                 "internal/tui/selection_help.go declares TerminalNativeSelectionHelp and SelectionHelpLine; three named tests pass; no other internal/tui or cmd/gormes file is modified."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T21:33:59Z",
+                "last_success": "2026-04-26T21:33:59Z"
+              },
               "provenance": {
                 "origin_type": "gormes",
                 "owned_since": "2026-04-26T15:30:00Z",
@@ -11186,9 +11199,9 @@
             {
               "name": "Native TUI /save canonical session export",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native Bubble Tea TUI replaces the /save no-op stub registered by `Native TUI slash-command dispatch table` with a handler that calls an injected SessionExportFunc(ctx, sessionID) (path string, err error) which delegates to internal/transcript.ExportMarkdown over the persisted session DB and renders the resulting file path through StatusMessage — never via the kernel submit path",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -11355,9 +11368,9 @@
             {
               "name": "TUI running-agent placeholder surfaces interrupt + queued slash actions",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui Model.editor.Placeholder switches between an idle placeholder (`Type a message and hit Enter…`) and an in-flight placeholder that lists discoverable busy-time actions — at minimum `msg=interrupt · Ctrl+C cancel`, plus any slash command registered with BusyAvailable=true on the SlashRegistry — so operators can discover the cancel + interrupt UX without reading docs",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -11409,6 +11422,20 @@
               "done_signal": [
                 "All 3 TestRunningPlaceholder_* fixtures pass; the placeholder transitions on PhaseIdle frames; no Hermes /queue or /bg implementation is added by this slice."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T21:43:06Z",
+                "last_failure": {
+                  "run_id": "20260426T213359Z-993884799",
+                  "category": "worker_error",
+                  "backend": "codexu",
+                  "stderr_tail": "command 3 failed: exit status 1"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:eaa7e2db cli.py running_placeholder",
@@ -11750,9 +11777,9 @@
             },
             {
               "name": "Dashboard PTY chat sidecar contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Dashboard chat sidecar bridges PTY bytes and structured tool events without merging terminal transport into API server state",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -11781,7 +11808,7 @@
                 "Sidecar publish failures do not kill the PTY session.",
                 "Dashboard chat can degrade to API-only mode when PTY is unavailable."
               ],
-              "note": "Upstream dashboard chat now combines PTY-over-WebSocket with sidecar tool-event publication. Track that as a later contract after PTY and TUI gateway streaming are individually stable.",
+              "note": "Complete: TDD landed Config.ChatTransport plus pty_chat/chat_sidecar dashboard panels and a non-blocking PtyChatSidecar publisher in internal/cli that keeps PTY byte transport and structured tool-event publication independently steerable. Sidecar sink failures mark the publisher unhealthy without ever reaching the PTY adapter, and the API server reports PTY/sidecar/chat panels with non-overlapping endpoint hints so the dashboard can degrade to API-only chat when PTY is unavailable.",
               "write_scope": [
                 "internal/apiserver/",
                 "internal/cli/",
