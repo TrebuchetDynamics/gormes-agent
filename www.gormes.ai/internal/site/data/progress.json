@@ -3999,9 +3999,9 @@
             {
               "name": "DeepSeek/Kimi all-assistant reasoning_content replay",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "DeepSeek, Kimi, and Moonshot OpenAI-compatible replays include provider-required reasoning_content on every assistant message while preserving Gormes' cross-provider reasoning isolation",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -4039,7 +4039,7 @@
                 "Explicit provider-native ReasoningContent is preserved on plain and tool-call assistant turns.",
                 "Storage-only Message.Reasoning is not serialized to thinking providers, and non-thinking providers remain unchanged."
               ],
-              "note": "Hermes ad0ac894 tightened the earlier tool-call-only fix: DeepSeek V4/Kimi thinking mode now requires reasoning_content on every assistant message. A prior worker branch reached the provider implementation, then pre-promotion repair stabilized only the asynchronous memory wait helper in internal/memory/interrupted_sync_test.go before promotion failed. Keep this slice limited to the OpenAI-compatible request serializer, reasoning echo fixtures, and that exact memory test fixture stabilization; do not change memory behavior or broaden provider routing.",
+              "note": "Complete: TDD widened the OpenAI-compatible reasoning_content replay fixture and serializer so DeepSeek/Kimi/Moonshot assistant messages always carry provider-required `reasoning_content`. Plain assistant turns and assistant tool-call turns without provider-native `ReasoningContent` serialize `reasoning_content=\"\"`; explicit provider-native `ReasoningContent` is preserved on both shapes; storage-only `Message.Reasoning` remains isolated from thinking-provider payloads; and non-thinking provider payloads remain unchanged.",
               "write_scope": [
                 "internal/hermes/http_client.go",
                 "internal/hermes/reasoning_content_echo_test.go",
@@ -4056,18 +4056,9 @@
                 "Reasoning echo fixtures prove plain assistant and tool-call assistant messages satisfy DeepSeek/Kimi/Moonshot reasoning_content replay without leaking storage-only reasoning."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-26T01:34:11Z",
-                "last_failure": {
-                  "run_id": "20260426T011416Z-162546173",
-                  "category": "worker_error",
-                  "backend": "codexu",
-                  "stderr_tail": "Reading additional input from stdin...\n"
-                },
-                "backends_tried": [
-                  "codexu"
-                ]
+                "attempt_count": 3,
+                "last_attempt": "2026-04-26T03:24:14Z",
+                "last_success": "2026-04-26T03:24:14Z"
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -4083,9 +4074,9 @@
             {
               "name": "Azure OpenAI query/default_query transport contract",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "OpenAI-compatible Azure endpoints preserve api-version query parameters and keep GPT-5.x deployments on chat/completions with max_completion_tokens semantics instead of upgrading to Codex Responses",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -4118,7 +4109,7 @@
                 "Azure OpenAI o-series and GPT-5 fixtures emit or retry to max_completion_tokens without changing non-Azure generic providers.",
                 "All Azure OpenAI transport tests run through httptest with no network access or live Azure credentials."
               ],
-              "note": "Hermes 24b4b24d and ac571142 fixed Azure OpenAI request construction after custom/Azure base URLs lost api-version query parameters and GPT-5.x deployments were routed as Codex Responses. Gormes lacks Azure-specific request fixtures, so this first Azure slice should freeze only request URL, API-mode, and token-parameter semantics.",
+              "note": "Complete: TDD landed internal/hermes/azure_openai_transport_test.go. Httptest fixtures prove base URLs with api-version query parameters send POST requests to /v1/chat/completions with the query preserved, Azure OpenAI GPT-5.x and o-series requests stay on chat_completions with messages-shaped bodies and max_completion_tokens, ProviderStatus reports azure_query_preserved and azure_chat_completions evidence, and generic non-Azure GPT-5 plus unsupported-parameter retry behavior keep their existing max_tokens first-request contract. No Azure account, deployment, or live provider credential is required.",
               "write_scope": [
                 "internal/hermes/http_client.go",
                 "internal/hermes/azure_openai_transport_test.go",
@@ -4133,6 +4124,11 @@
               "done_signal": [
                 "Azure OpenAI fixtures prove api-version query preservation, GPT-5.x chat/completions routing, max_completion_tokens behavior, and zero live Azure dependency."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T03:24:14Z",
+                "last_success": "2026-04-26T03:24:14Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:24b4b24d agent/auxiliary_client.py",
@@ -4142,9 +4138,9 @@
             {
               "name": "Azure Anthropic Messages endpoint contract",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Azure Anthropic endpoints use static Azure API keys, strip trailing /v1 before Messages requests, and pass api-version through query parameters without invoking Anthropic OAuth refresh",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -4177,7 +4173,7 @@
                 "Azure Anthropic auth uses AZURE_ANTHROPIC_KEY or a configured static key before any Anthropic OAuth refresh path and reports missing keys clearly.",
                 "Non-Azure Anthropic requests keep existing x-api-key and bearer behavior."
               ],
-              "note": "Hermes c15064fa, 7bfa9442, d8e4c721, and 6ef3a47c split Azure Anthropic away from hosted Anthropic OAuth and fixed api-version/base-URL handling. Gormes should freeze request/auth behavior before adding broader Azure resolver or setup flows.",
+              "note": "Complete: TDD added `internal/hermes/azure_anthropic_transport_test.go` and a native Azure Anthropic client seam. Fixtures prove `/anthropic/v1` base URLs are stored as `/anthropic` before appending `/v1/messages`, `api-version=2025-04-15` is carried as a query parameter, static Azure keys use `x-api-key`, `AZURE_ANTHROPIC_KEY` is preferred without hosted Anthropic OAuth, missing keys report `azure_anthropic_key_missing` before any live request, and normal Anthropic x-api-key/bearer behavior remains intact.",
               "write_scope": [
                 "internal/hermes/anthropic_client.go",
                 "internal/hermes/azure_anthropic_transport_test.go",
@@ -4192,6 +4188,11 @@
               "done_signal": [
                 "Azure Anthropic fixtures prove base-URL cleanup, api-version query handling, static Azure-key auth, hosted-OAuth bypass, and no regression to normal Anthropic requests."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T03:24:14Z",
+                "last_success": "2026-04-26T03:24:14Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:c15064fa agent/anthropic_adapter.py",
@@ -5305,9 +5306,9 @@
             {
               "name": "Per-turn reasoning effort propagation",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Kernel and provider request models carry an optional reasoning effort for exactly one turn or session without mutating resident model/provider configuration",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -5344,7 +5345,7 @@
                 "Unsupported providers or absent request fields report explicit degraded evidence instead of silently dropping a requested override.",
                 "Existing per-turn model selection fixtures remain green and no provider network calls are introduced."
               ],
-              "note": "Hermes 25ba6a4a made gateway reasoning state session-scoped, but Gormes first needs a typed Go request path before slash-command state can influence native turns.",
+              "note": "Complete: TDD added `internal/hermes/reasoning_effort_request_test.go` and `internal/kernel/per_turn_reasoning_test.go`. The provider request model validates and serializes optional reasoning_effort values none, minimal, low, medium, high, and xhigh; absent defaults omit the request field, invalid values are rejected with evidence, and unsupported provider runtimes report degraded evidence. The kernel threads Config.ReasoningEffort and PlatformEvent.ReasoningEffort through exactly one turn without mutating resident configuration, exposes RenderFrame reasoning evidence, forwards supported overrides/defaults, and falls back to provider/config defaults on later turns.",
               "write_scope": [
                 "internal/hermes/client.go",
                 "internal/hermes/http_client.go",
@@ -5363,6 +5364,11 @@
               "done_signal": [
                 "Kernel/provider fixtures prove reasoning effort is turn-scoped, validated, visible in status evidence, and absent from subsequent turns unless explicitly requested."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-26T03:24:14Z",
+                "last_success": "2026-04-26T03:24:14Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:25ba6a4a gateway/run.py",
@@ -6395,9 +6401,9 @@
                 "MCP config fixtures prove transport/env parsing, redaction, invalid-config degradation, no live SDK startup, and HONCHO_API_URL server-local handling."
               ],
               "health": {
-                "attempt_count": 2,
-                "last_attempt": "2026-04-26T00:33:29Z",
-                "last_success": "2026-04-26T00:33:29Z"
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T00:27:35Z",
+                "last_success": "2026-04-26T00:27:35Z"
               },
               "provenance": {
                 "origin_type": "hybrid",

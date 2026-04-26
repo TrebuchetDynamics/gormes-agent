@@ -338,10 +338,10 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Tool-call normalization + continuation contract
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] DeepSeek/Kimi cross-provider reasoning isolation
-- [ ] DeepSeek/Kimi all-assistant reasoning_content replay
+- [x] DeepSeek/Kimi all-assistant reasoning_content replay
 - [x] Anthropic
-- [ ] Azure OpenAI query/default_query transport contract
-- [ ] Azure Anthropic Messages endpoint contract
+- [x] Azure OpenAI query/default_query transport contract
+- [x] Azure Anthropic Messages endpoint contract
 - [ ] Azure Foundry endpoint autodetect + model context read model
 - [ ] Bedrock
 - [x] Bedrock Converse payload mapping (no AWS SDK)
@@ -386,7 +386,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Model pricing/capability registry fixtures
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
-- [ ] Per-turn reasoning effort propagation
+- [x] Per-turn reasoning effort propagation
 
 ### 4.E — Trajectory + Insights ⏳
 
