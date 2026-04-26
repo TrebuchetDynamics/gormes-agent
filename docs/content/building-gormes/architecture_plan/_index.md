@@ -472,7 +472,8 @@ machine-readable queue for developing the full `gormes-agent`.
 
 ### 5.F — Skills System (Remaining) 🔨
 
-- [ ] Skills hub search RPC read model
+- [ ] Skills hub search result types + in-memory registry provider
+- [ ] Skills hub search read-model function over registry providers
 - [ ] Skill registries
 - [x] Skill preprocessing + dynamic slash commands
 
@@ -499,7 +500,8 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 5.J — Approval / Security Guards ⏳
 
 - [ ] Dangerous action gating
-- [ ] Dangerous-command detector + blocked-result schema
+- [ ] Hardline command pattern table + DetectHardline function
+- [ ] Recoverable dangerous patterns + blocked-result schema
 - [ ] Approval mode config normalization
 - [ ] Subagent dangerous-command non-interactive approval policy
 - [ ] Cron dangerous-command approval mode
@@ -523,7 +525,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Clarify
 - [ ] Session search
 - [ ] Debug helpers
-- [ ] Planner backend noninteractive stdin failure guard
+- [ ] Planner audit blank-subphase control-plane bucket
 - [ ] Cronjob tool API + schedule parser parity
 - [ ] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract
@@ -551,7 +553,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
-- [ ] Doctor custom endpoint provider readiness
+- [ ] doctorCustomEndpointReadiness check function
 - [ ] Custom provider model-switch credential preservation
 - [ ] CLI log snapshot reader
 
@@ -572,7 +574,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] TUI mouse tracking config + slash toggle
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
-- [ ] Native TUI terminal-selection divergence contract
+- [ ] TUI TerminalNativeSelectionHelp constant + help-string fixture
 - [ ] Native TUI /save canonical session export
 - [ ] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server

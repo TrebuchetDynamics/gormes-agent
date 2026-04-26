@@ -204,6 +204,19 @@ func TestRunOnceClearsStaleRawReportBeforeBackend(t *testing.T) {
 	}
 }
 
+func TestPlannerBackendWatchdogEventReportsElapsedNotNoOutput(t *testing.T) {
+	ev := plannerBackendWatchdogEvent("run-1", "codexu", "full", 6*time.Minute, 2, time.Date(2026, 4, 26, 15, 0, 0, 0, time.UTC))
+	if ev.Event != "backend_stuck" {
+		t.Fatalf("Event = %q, want backend_stuck", ev.Event)
+	}
+	if ev.Detail != "elapsed=6m0s attempt=2" {
+		t.Fatalf("Detail = %q, want elapsed detail", ev.Detail)
+	}
+	if strings.Contains(ev.Detail, "no_output_for") {
+		t.Fatalf("Detail falsely reports output silence: %q", ev.Detail)
+	}
+}
+
 func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {

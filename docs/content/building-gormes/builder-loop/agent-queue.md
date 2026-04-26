@@ -189,26 +189,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Provider rate guard + budget telemetry
 - Why now: Unblocks Provider rate guard + budget telemetry.
 
-## 9. Native TUI terminal-selection divergence contract
-
-- Phase: 5 / 5.Q
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Contract: Gormes documents and fixture-locks a terminal-native selection model for the Bubble Tea TUI, with no advertised custom copy hotkey until a Go-native implementation exists
-- Trust class: operator
-- Ready when: Gormes native TUI has mouse tracking toggles but no custom selection/copy implementation., Upstream Hermes edc78e25 and 31d7f195 fixed SSH copy shortcuts, rendered-space preservation, indentation, and bounds clamping in the Node/Ink TUI.
-- Not ready when: The slice ports Hermes Ink, adds Node/npm dependencies, calls OSC clipboard APIs, changes remote TUI transport, or implements custom selection copying in the same change.
-- Degraded mode: TUI status/help reports terminal-native selection behavior and does not advertise SSH/local copy shortcuts, rendered-space copy, or clipboard semantics that Gormes cannot honor.
-- Fixture: `internal/tui/selection_copy_test.go`
-- Write scope: `internal/tui/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/progress.json`, `docs/content/building-gormes/architecture_plan/phase-5-final-purge.md`
-- Test commands: `go test ./internal/tui ./cmd/gormes -run 'Test.*Selection\|Test.*Copy\|Test.*TUI.*Help' -count=1`, `go test ./internal/tui ./cmd/gormes -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: Native TUI fixtures and docs prove Gormes advertises terminal-native selection honestly and remains independent from Hermes Ink/Node clipboard behavior.
-- Acceptance: TUI help/status fixtures say selection uses the operator's terminal selection until a native Gormes copy mode is explicitly implemented., No fake copy hotkey, SSH copy shortcut, or clipboard command is advertised in help/status output., Docs state the divergence from Hermes' custom Ink selection stack and point future parity work at a separate Go-native fixture., The solution remains native Go/Bubble Tea with no Hermes Ink bundle, Node, OSC clipboard dependency, or npm runtime requirement.
-- Source refs: ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@edc78e25, ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.test.ts@edc78e25, ../hermes-agent/ui-tui/src/lib/platform.ts@edc78e25, ../hermes-agent/ui-tui/src/app/useInputHandlers.ts@edc78e25, ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@31d7f195, internal/tui/, docs/content/upstream-hermes/user-guide/tui.md
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. BlueBubbles iMessage bubble formatting parity
+## 9. BlueBubbles iMessage bubble formatting parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -228,5 +209,25 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/gateway/platforms/bluebubbles.py@f731c2c2, ../hermes-agent/tests/gateway/test_bluebubbles.py@f731c2c2, internal/channels/bluebubbles/bot.go, internal/gateway/channel.go
 - Unblocks: BlueBubbles iMessage session-context prompt guidance
 - Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
+
+## 10. Skills hub search result types + in-memory registry provider
+
+- Phase: 5 / 5.F
+- Owner: `skills`
+- Size: `small`
+- Status: `planned`
+- Contract: internal/skills declares HubSearchResult{Name,Description,Source,InstallID,Score}, HubRegistryProvider interface{ Snapshot(ctx) ([]HubSearchResult, error) }, and an in-memory fake provider used by tests; no Search() function, gateway dispatch, or active-store mutation is added in this slice
+- Trust class: operator, system
+- Ready when: internal/skills already has store.go and types.go so adding a small new file alongside them compiles cleanly., The slice owns only types, an interface, and a fake; it does not call any registry, no gateway command, and no Hermes runtime.
+- Not ready when: The slice writes a Search() function, calls a real registry, edits internal/gateway/commands.go, or mutates the active/inactive skill store., The slice imports network packages or shells out.
+- Degraded mode: The fake provider returns sentinel errors (registry_unavailable, registry_rate_limited) so later slices can table-test degraded evidence without changing the type surface.
+- Fixture: `internal/skills/hub_search_types_test.go`
+- Write scope: `internal/skills/hub_search.go`, `internal/skills/hub_search_types_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/skills -run 'TestHubSearchResultZeroValue\|TestInMemoryRegistryProviderSnapshot\|TestInMemoryRegistryProviderUnavailable' -count=1`, `go test ./internal/skills -count=1`, `go vet ./internal/skills`, `go run ./cmd/builder-loop progress validate`
+- Done signal: internal/skills/hub_search.go declares the result struct, provider interface, and in-memory fake; three table tests in hub_search_types_test.go pass; gateway/command code is unchanged.
+- Acceptance: TestHubSearchResultZeroValue confirms the zero value of HubSearchResult is empty and JSON-serialisable with all stable field names., TestInMemoryRegistryProviderSnapshot returns a deterministic, sorted slice from a constructor that takes a []HubSearchResult., TestInMemoryRegistryProviderUnavailable shows the constructor accepts an injected error so later slices can simulate registry_unavailable without network., go vet ./internal/skills passes and no other package depends on hub_search.go yet.
+- Source refs: ../hermes-agent/tools/skills_hub.py@91a7a0ac:_hub_sources, ../hermes-agent/hermes_cli/skills_hub.py@91a7a0ac:search, internal/skills/store.go, internal/skills/types.go
+- Unblocks: Skills hub search read-model function over registry providers
+- Why now: Unblocks Skills hub search read-model function over registry providers.
 
 <!-- PROGRESS:END -->

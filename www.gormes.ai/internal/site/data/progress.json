@@ -6929,7 +6929,7 @@
               ],
               "unblocks": [
                 "Stateful tool migration queue",
-                "Dangerous-command detector + blocked-result schema",
+                "Hardline command pattern table + DetectHardline function",
                 "PTY bridge protocol adapter"
               ],
               "acceptance": [
@@ -7068,9 +7068,66 @@
           "name": "Skills System (Remaining)",
           "items": [
             {
-              "name": "Skills hub search RPC read model",
+              "name": "Skills hub search result types + in-memory registry provider",
               "status": "planned",
-              "contract": "Skills hub search is exposed as a read-only RPC/command contract over configured registries without installing skills, mutating the active store, or requiring the Hermes Python hub runtime",
+              "contract": "internal/skills declares HubSearchResult{Name,Description,Source,InstallID,Score}, HubRegistryProvider interface{ Snapshot(ctx) ([]HubSearchResult, error) }, and an in-memory fake provider used by tests; no Search() function, gateway dispatch, or active-store mutation is added in this slice",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The fake provider returns sentinel errors (registry_unavailable, registry_rate_limited) so later slices can table-test degraded evidence without changing the type surface.",
+              "fixture": "internal/skills/hub_search_types_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/skills_hub.py@91a7a0ac:_hub_sources",
+                "../hermes-agent/hermes_cli/skills_hub.py@91a7a0ac:search",
+                "internal/skills/store.go",
+                "internal/skills/types.go"
+              ],
+              "ready_when": [
+                "internal/skills already has store.go and types.go so adding a small new file alongside them compiles cleanly.",
+                "The slice owns only types, an interface, and a fake; it does not call any registry, no gateway command, and no Hermes runtime."
+              ],
+              "not_ready_when": [
+                "The slice writes a Search() function, calls a real registry, edits internal/gateway/commands.go, or mutates the active/inactive skill store.",
+                "The slice imports network packages or shells out."
+              ],
+              "unblocks": [
+                "Skills hub search read-model function over registry providers"
+              ],
+              "acceptance": [
+                "TestHubSearchResultZeroValue confirms the zero value of HubSearchResult is empty and JSON-serialisable with all stable field names.",
+                "TestInMemoryRegistryProviderSnapshot returns a deterministic, sorted slice from a constructor that takes a []HubSearchResult.",
+                "TestInMemoryRegistryProviderUnavailable shows the constructor accepts an injected error so later slices can simulate registry_unavailable without network.",
+                "go vet ./internal/skills passes and no other package depends on hub_search.go yet."
+              ],
+              "note": "Audit shows 'Skills hub search RPC read model' kept failing as no_progress because the worker had to invent types, a provider interface, a fake, and the Search() function in one slice. Splitting out the type/provider scaffold gives the next slice a stable seam to test against. The split intentionally drops the prior health/quarantine block; the prior spec contract is materially replaced.",
+              "write_scope": [
+                "internal/skills/hub_search.go",
+                "internal/skills/hub_search_types_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestHubSearchResultZeroValue|TestInMemoryRegistryProviderSnapshot|TestInMemoryRegistryProviderUnavailable' -count=1",
+                "go test ./internal/skills -count=1",
+                "go vet ./internal/skills",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/skills/hub_search.go declares the result struct, provider interface, and in-memory fake; three table tests in hub_search_types_test.go pass; gateway/command code is unchanged."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:91a7a0ac tools/skills_hub.py",
+                "note": "Scaffold-first split of the prior quarantined 5.F row. Provider interface mirrors the Hermes _hub_sources shape; Gormes adapts to typed Go contracts."
+              }
+            },
+            {
+              "name": "Skills hub search read-model function over registry providers",
+              "status": "planned",
+              "contract": "internal/skills exposes Search(ctx, query, providers []HubRegistryProvider, opts) (HubSearchResponse, error) returning sorted results plus typed degraded evidence (HubSearchEvidenceEmptyQuery, HubSearchEvidenceRegistryUnavailable, HubSearchEvidenceRateLimited, HubSearchEvidenceNoResults) without touching the active/inactive skill store or any HTTP client",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "skills",
@@ -7079,78 +7136,55 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Skill surfaces report skills_search_unavailable, registry_rate_limited, empty_query, or no_results evidence instead of failing TUI/gateway command dispatch.",
+              "degraded_mode": "Search returns HubSearchResponse{Results,Evidence} where Evidence is a typed enum value; callers must not assume an empty Results slice means failure.",
               "fixture": "internal/skills/hub_search_test.go",
               "source_refs": [
                 "../hermes-agent/tui_gateway/server.py@91a7a0ac:skills.manage",
                 "../hermes-agent/tests/tui_gateway/test_protocol.py@91a7a0ac:test_skills_manage_search_uses_tools_hub_sources",
-                "../hermes-agent/hermes_cli/skills_hub.py@91a7a0ac",
                 "../hermes-agent/tools/skills_hub.py@91a7a0ac",
-                "internal/skills/store.go",
-                "internal/gateway/commands.go"
+                "internal/skills/hub_search.go",
+                "internal/skills/store.go"
               ],
               "ready_when": [
-                "Phase 2.G active/inactive skill store is complete and Skill preprocessing + dynamic slash commands is validated, so this row only adds a read-only search result contract.",
-                "The worker can use fake registry providers and fake RPC/command dispatch; no GitHub network, install flow, or prompt injection is required."
+                "Skills hub search result types + in-memory registry provider is validated so the type seam is stable.",
+                "The slice can use only the in-memory fake provider; no gateway command wiring, no install flow, and no prompt-injection are part of this row."
               ],
               "not_ready_when": [
-                "The slice installs skills, edits active/inactive SKILL.md files, downloads registry content, or ports registry caching/signature verification.",
-                "The slice blocks TUI/gateway dispatch on live GitHub or skills.sh availability."
+                "The slice wires Search into internal/gateway/commands.go, downloads registry content, mutates the active store, or adds signature verification.",
+                "The slice introduces network calls, OS sleeps, or live time-based behaviour."
               ],
               "blocked_by": [
-                "Skill preprocessing + dynamic slash commands"
+                "Skills hub search result types + in-memory registry provider"
               ],
               "unblocks": [
                 "Skill registries",
                 "TUI + Telegram browsing"
               ],
               "acceptance": [
-                "A skills.manage/search-style fixture returns stable result rows with name, description, source, and install_id from fake registry data.",
-                "Empty query, unavailable registry, rate-limit, and no-results cases return explicit degraded evidence without mutating the active skill store.",
-                "Gateway/TUI command dispatch can call the read model without injecting returned skills into prompts.",
-                "Install planning remains a separate row; this slice is read-only."
+                "TestHubSearchEmptyQueryReturnsEmptyEvidence: Search(ctx, '', providers, opts) returns Evidence=HubSearchEvidenceEmptyQuery and no Results.",
+                "TestHubSearchSortsAndDedupes: results from two providers are merged, deduped by InstallID, and sorted by Score descending then Name ascending.",
+                "TestHubSearchRegistryUnavailable: when one provider returns ErrRegistryUnavailable, Search includes the other provider's results and reports Evidence=HubSearchEvidenceRegistryUnavailable.",
+                "TestHubSearchNoResults: a non-empty query with no matches returns Evidence=HubSearchEvidenceNoResults.",
+                "Search makes no calls to internal/gateway, internal/skills/store, or any HTTP client (verified by reading hub_search.go imports)."
               ],
-              "note": "Hermes 91a7a0ac restored TUI skills search RPC via tools.skills_hub sources. Gormes should port the read-only search result contract first and leave registry metadata/install flows in dependent slices.",
+              "note": "Continuation of the 5.F split. Once this lands, a follow-up row can wire Search() into gateway command dispatch.",
               "write_scope": [
                 "internal/skills/hub_search.go",
                 "internal/skills/hub_search_test.go",
-                "internal/gateway/commands.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/skills ./internal/gateway -run 'Test.*Skill.*Hub|Test.*Skills.*Search' -count=1",
-                "go test ./internal/skills ./internal/gateway -count=1",
+                "go test ./internal/skills -run 'TestHubSearchEmptyQueryReturnsEmptyEvidence|TestHubSearchSortsAndDedupes|TestHubSearchRegistryUnavailable|TestHubSearchNoResults' -count=1",
+                "go test ./internal/skills -count=1",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Skills hub search fixtures prove read-only fake-registry search, degraded evidence, RPC/command dispatch, and no active-store mutation or prompt injection."
+                "Search() is implemented over the in-memory provider seam; four table tests pass; hub_search.go has no imports of net/http, internal/gateway, or internal/skills/store mutators."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:29:55Z",
-                "last_failure": {
-                  "run_id": "20260426T142936Z-986783975",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.F/Skills hub search RPC read model"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:29:55Z",
-                  "after_run_id": "20260426T142936Z-986783975",
-                  "threshold": 3,
-                  "spec_hash": "42146ee28ae53bf921b0f6bc157a6e4636cfc840ea1e7813d99735a505f69e44",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:91a7a0ac tui_gateway/server.py",
-                "note": "Hermes defines the skills.manage search RPC shape; Gormes adapts it to native skills storage and gateway command dispatch."
+                "upstream_ref": "hermes:91a7a0ac tools/skills_hub.py",
+                "note": "Continuation of the 5.F quarantine split. Read-model semantics mirror Hermes skills.manage/search; Gormes uses typed Go evidence values instead of dict tags."
               }
             },
             {
@@ -7803,9 +7837,71 @@
               "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, and policy-integration tasks below before dangerous terminal/file/code tools become available."
             },
             {
-              "name": "Dangerous-command detector + blocked-result schema",
+              "name": "Hardline command pattern table + DetectHardline function",
               "status": "planned",
-              "contract": "Dangerous command detection has a pure blocked-result schema plus a hardline floor for unrecoverable host-destructive commands that cannot be bypassed by yolo, approval-off, or cron approve modes",
+              "contract": "internal/tools declares HardlinePattern{Regex, Description}, a HardlinePatterns []HardlinePattern table seeded from Hermes HARDLINE_PATTERNS, and DetectHardline(cmd string) (matched bool, description string) that compiles patterns once via sync.Once and is pure (no I/O, no globals besides the compiled list)",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "DetectHardline returns false for any input on a corrupt regex (test-only seam) instead of panicking; production patterns are validated at init.",
+              "fixture": "internal/tools/dangerous_hardline_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/approval.py@eb28145f:HARDLINE_PATTERNS",
+                "../hermes-agent/tools/approval.py@eb28145f:detect_hardline_command",
+                "../hermes-agent/tests/tools/test_hardline_blocklist.py@eb28145f",
+                "internal/tools/execute_code.go"
+              ],
+              "ready_when": [
+                "Sandboxed exec is complete; the local sandbox in internal/tools/execute_code.go shows the package conventions to follow.",
+                "The slice owns a single new file plus its test; no execute_code.go change, no result struct, no integration with approval modes."
+              ],
+              "not_ready_when": [
+                "The slice ports the recoverable DANGEROUS_PATTERNS list, defines a blocked-result struct, edits execute_code.go, or wires the detector into any handler.",
+                "The slice introduces approval prompts, network calls, or shells out in tests."
+              ],
+              "blocked_by": [
+                "Sandboxed exec"
+              ],
+              "unblocks": [
+                "Recoverable dangerous patterns + blocked-result schema"
+              ],
+              "acceptance": [
+                "TestDetectHardlineRmRoot: 'rm -rf /', 'sudo rm -rf /', 'rm -rf /etc', 'rm -rf $HOME' all match with non-empty descriptions.",
+                "TestDetectHardlineMkfsAndDD: 'mkfs.ext4 /dev/sda1', 'dd if=/dev/zero of=/dev/sdb', '> /dev/sda' all match.",
+                "TestDetectHardlineForkBomb: ':(){ :|: & };:' matches 'fork bomb'.",
+                "TestDetectHardlineShutdownAndReboot: 'reboot', 'shutdown -h now', 'systemctl poweroff', 'init 0', 'telinit 6' all match; 'echo reboot', 'grep shutdown logs', 'systemctl status' do NOT match.",
+                "TestDetectHardlineKillAll: 'kill -1', 'sudo kill -1' match; 'kill -9 1234' does not match (recoverable).",
+                "DetectHardline returns (false, '') for empty input and for benign commands like 'ls', 'echo hi', 'mkfs_helper'."
+              ],
+              "note": "Audit shows the prior 5.J row kept failing as no_progress because the worker had to port HARDLINE_PATTERNS, port DANGEROUS_PATTERNS, design a result schema, and wire execute_code in one slice. Splitting out the hardline-only table makes the first slice unambiguously small. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+              "write_scope": [
+                "internal/tools/dangerous_hardline.go",
+                "internal/tools/dangerous_hardline_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestDetectHardline' -count=1",
+                "go test ./internal/tools -count=1",
+                "go vet ./internal/tools",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/tools/dangerous_hardline.go declares the pattern table and DetectHardline; six table tests cover root/home, mkfs/dd, fork bomb, shutdown anchoring, kill all, and benign lookalikes; execute_code.go is unchanged."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:eb28145f tools/approval.py",
+                "note": "Scaffold-first split of the prior quarantined 5.J row. Hardline-only floor mirrors HARDLINE_PATTERNS/_CMDPOS; recoverable patterns and result schema are in the next row."
+              }
+            },
+            {
+              "name": "Recoverable dangerous patterns + blocked-result schema",
+              "status": "planned",
+              "contract": "internal/tools declares DangerousPatterns []HardlinePattern (recoverable rules from Hermes DANGEROUS_PATTERNS), DetectDangerous(cmd) (matched, description), and BlockedResult{Approved=false, Hardline bool, Description, Operator, Command, Evidence map[string]string} produced by GuardCommand(cmd, mode) which calls DetectHardline first then DetectDangerous; pure, no execute_code wiring in this slice",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -7815,80 +7911,58 @@
                 "child-agent",
                 "system"
               ],
-              "degraded_mode": "Tool execution status reports dangerous_command_blocked, hardline_blocked, approval_required, or guard_unavailable before a command reaches a host-impacting backend.",
+              "degraded_mode": "GuardCommand returns BlockedResult{Hardline=true} unconditionally for hardline matches; recoverable dangerous matches return BlockedResult{Hardline=false, ApprovalRequired=true} which yolo-mode callers can ignore in a later slice.",
               "fixture": "internal/tools/dangerous_command_test.go",
               "source_refs": [
-                "../hermes-agent/tools/approval.py@eb28145f:HARDLINE_PATTERNS",
-                "../hermes-agent/tests/tools/test_hardline_blocklist.py@eb28145f",
+                "../hermes-agent/tools/approval.py@eb28145f:DANGEROUS_PATTERNS",
+                "../hermes-agent/tools/approval.py@eb28145f:_hardline_block_result",
                 "../hermes-agent/tests/tools/test_yolo_mode.py@eb28145f",
-                "../hermes-agent/tests/tools/test_cron_approval_mode.py@eb28145f",
-                "internal/tools/execute_code.go",
-                "internal/tools/registry.go"
+                "internal/tools/dangerous_hardline.go"
               ],
               "ready_when": [
-                "Sandboxed exec is complete, so command execution has a central Go boundary where pure guard results can be checked before host-impacting backends run.",
-                "The slice can use table-driven command strings and fake execution backends; no shell command should run in unit tests."
+                "Hardline command pattern table + DetectHardline function is validated so DetectHardline can be called from GuardCommand.",
+                "The slice owns one new file plus its test; execute_code.go and the registry are not touched in this row."
               ],
               "not_ready_when": [
-                "The slice prompts for approval, changes approval-mode config, executes shell commands, or adds path/URL/Tirith policy integration in the same change.",
-                "The slice treats containerized backends the same as host-local/ssh backends before backend impact classification is explicit."
+                "The slice modifies execute_code.go, calls execute_code.Sandbox.Execute, prompts for approval, or implements yolo/cron mode toggles.",
+                "The slice introduces approval mode config parsing or persistence."
               ],
               "blocked_by": [
-                "Sandboxed exec"
+                "Hardline command pattern table + DetectHardline function"
               ],
               "unblocks": [
                 "Approval mode config normalization",
                 "Subagent dangerous-command non-interactive approval policy",
                 "Cron dangerous-command approval mode",
-                "Tirith, path, URL, and website policy integration"
+                "Tirith, path, URL, and website policy integration",
+                "Wire GuardCommand into execute_code boundary"
               ],
               "acceptance": [
-                "Hardline fixtures block rm -rf /, protected root/home deletes, mkfs, raw block-device writes, fork bombs, kill -1, shutdown/reboot/halt/poweroff/init/telinit/systemctl poweroff regardless of yolo or approval-off flags.",
-                "Recoverable dangerous commands such as rm -rf /tmp/x, chmod -R 777 ., git reset --hard, and git push --force remain regular dangerous detections that yolo can bypass.",
-                "Benign lookalikes such as echo reboot, grep shutdown, mkfs_helper, and systemctl status are not hardline-blocked.",
-                "Blocked results include approved=false, hardline=true when applicable, a stable operator message, command/environment evidence, and no side effects."
+                "TestGuardCommandHardlineWins: GuardCommand('rm -rf /', any-mode) returns BlockedResult{Hardline=true, Approved=false, Description containing 'root filesystem'}.",
+                "TestGuardCommandRecoverable: GuardCommand('rm -rf /tmp/x', mode='manual') returns BlockedResult{Hardline=false, ApprovalRequired=true}; GuardCommand('git reset --hard', mode='manual') likewise.",
+                "TestGuardCommandBenign: GuardCommand('ls', mode='manual') returns BlockedResult{} (zero value indicating no block).",
+                "TestBlockedResultEvidenceFields: Evidence map records the matched pattern description and the input command verbatim.",
+                "TestGuardCommandPure: GuardCommand has no side effects (verified by absence of os/exec, net/http, os.Open in dangerous_command.go)."
               ],
-              "note": "Hermes eb28145f added an unconditional hardline blocklist below yolo. Gormes should port the pure detector/result contract first so later approval-mode and cron-policy rows do not each invent their own dangerous-command semantics.",
+              "note": "Continuation of the 5.J split. The prior single quarantined row is replaced by this two-row sequence; a third follow-up row will wire GuardCommand into execute_code.",
               "write_scope": [
                 "internal/tools/dangerous_command.go",
                 "internal/tools/dangerous_command_test.go",
-                "internal/tools/execute_code.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools -run 'Test.*Dangerous.*Command|Test.*Hardline' -count=1",
+                "go test ./internal/tools -run 'TestGuardCommand|TestBlockedResultEvidenceFields|TestDetectDangerous' -count=1",
                 "go test ./internal/tools -count=1",
+                "go vet ./internal/tools",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Dangerous-command fixtures prove hardline blocks are unconditional, regular dangerous detections remain yolo-bypassable, benign lookalikes pass, and blocked results are side-effect free."
+                "GuardCommand returns typed BlockedResult values; hardline beats recoverable; benign returns zero value; no side effects; execute_code.go is still unchanged."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:29:55Z",
-                "last_failure": {
-                  "run_id": "20260426T142936Z-986783975",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.J/Dangerous-command detector + blocked-result schema"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:29:55Z",
-                  "after_run_id": "20260426T142936Z-986783975",
-                  "threshold": 3,
-                  "spec_hash": "0e7a6a636c270e7dd38dd6f1d42271fb7dd65c9e236a23497ec6c22f328b7ea4",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:eb28145f tools/approval.py",
-                "note": "Hermes defines the hardline floor; Gormes adapts it to the native tool execution guard before approval UX is wired."
+                "note": "Continuation of the 5.J quarantine split. Defines BlockedResult schema and aggregator that composes DetectHardline with the recoverable table."
               }
             },
             {
@@ -7925,7 +7999,7 @@
                 "The slice prompts on stdin, inherits parent interactive state into child workers implicitly, or changes public delegate_task naming."
               ],
               "blocked_by": [
-                "Dangerous-command detector + blocked-result schema",
+                "Recoverable dangerous patterns + blocked-result schema",
                 "Approval mode config normalization"
               ],
               "acceptance": [
@@ -8013,10 +8087,10 @@
               "note": "TDD: port `tools/debug_helpers.py` as read-mostly diagnostic tools with redaction and no hidden writes before exposing them to production agents."
             },
             {
-              "name": "Planner backend noninteractive stdin failure guard",
+              "name": "Planner audit blank-subphase control-plane bucket",
               "priority": "P2",
               "status": "planned",
-              "contract": "Planner-loop and builder-loop backend launches fail fast with classified backend_failed evidence when Codex-style backends wait for stdin or emit no progress, without producing blank subphase audit rows",
+              "contract": "internal/plannerloop.subphaseFromTask normalizes empty/non-conforming task labels to a sentinel ControlPlaneSubphaseID = 'control-plane/backend' so SummarizeAutoloopAudit toxic_subphases and hot_subphases never use the empty string as a subphase_id",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -8024,75 +8098,50 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Planner status reports backend_waiting_for_stdin, backend_no_progress, backend_killed, and missing-task metadata separately so toxic-subphase analysis does not collapse into blank row IDs.",
-              "fixture": "internal/builderloop/backend_noninteractive_test.go and internal/plannerloop/autoloop_audit_test.go",
+              "degraded_mode": "When a worker fails before claiming a row (no Task value), the audit attributes the event to ControlPlaneSubphaseID instead of '' so reports don't collapse multiple unrelated incidents into a blank bucket.",
+              "fixture": "internal/plannerloop/autoloop_audit_test.go",
               "source_refs": [
                 ".codex/planner-loop/state/runs.jsonl:20260425T210430Z backend_failed Reading additional input from stdin",
-                ".codex/planner-loop/state/runs.jsonl:20260425T233746Z backend_failed signal: killed: Reading additional input from stdin",
-                ".codex/orchestrator/state/runs.jsonl",
-                "internal/builderloop/backend.go",
-                "internal/builderloop/failures.go",
-                "internal/plannerloop/autoloop_audit.go",
-                "internal/plannerloop/run.go"
+                ".codex/planner-loop/state/runs.jsonl:20260425T233746Z backend_failed signal: killed",
+                "internal/plannerloop/autoloop_audit.go:subphaseFromTask",
+                "internal/plannerloop/autoloop_audit.go:SummarizeAutoloopAudit",
+                "internal/builderloop/backend_failure.go:ClassifyBackendFailure"
               ],
               "ready_when": [
-                "The last-7-day audit shows 60 blank-subphase claims with 31 worker/backend failures and repeated backend_failed detail containing `Reading additional input from stdin`.",
-                "The slice can use fake backend commands and fixture JSONL ledgers; no live Codex backend, upstream repo sync, or progress row mutation is required."
+                "internal/builderloop/backend_failure.go already classifies backend_waiting_for_stdin, backend_killed, and backend_no_progress, so the backend-side classifier work is done.",
+                "Audit shows 60 blank-subphase claims with 31 worker/backend failures over the last 7 days because subphaseFromTask returns '' for empty Task strings and SummarizeAutoloopAudit emits that '' as a subphase_id; this row fixes only that bucket attribution.",
+                "The slice can use a synthetic ledger written by the test (no real Codex backend, no progress.json mutation, no roadmap selection change)."
               ],
               "not_ready_when": [
-                "The slice changes roadmap selection, worker prompt content, progress item contracts, or runtime feature code outside builder/planner loop backend failure classification.",
-                "The fix hides backend stdout/stderr or rewrites blank ledger entries instead of preserving evidence and classifying them deterministically."
+                "The slice modifies internal/builderloop/backend.go, builder/planner worker prompts, progress.json contracts, or roadmap selection code.",
+                "The slice changes the on-disk ledger format or drops any existing audit fields.",
+                "The slice introduces a new failure category (those already exist in internal/progress/health.go and internal/builderloop/backend_failure.go)."
               ],
               "acceptance": [
-                "A fake backend that prints `Reading additional input from stdin` exits with a classified backend_waiting_for_stdin failure, non-empty task metadata when the selected row is known, and the original stderr excerpt preserved.",
-                "A killed backend or backend with no progress heartbeat records backend_killed or backend_no_progress without producing an empty subphase_id in planner audit summaries.",
-                "Planner audit fixtures group missing task metadata under an explicit control-plane bucket instead of the empty string and include remediation text for backend infrastructure failures.",
-                "No progress.json health block is created, removed, or modified by this backend failure classification path."
+                "TestSubphaseFromTaskEmptyReturnsControlPlane: subphaseFromTask('') == ControlPlaneSubphaseID; subphaseFromTask('   ') == ControlPlaneSubphaseID; subphaseFromTask('5/5.J/Foo') still returns '5/5.J'.",
+                "TestSummarizeAutoloopAuditBlankBucket: a synthetic JSONL ledger written by the test with three worker_failed events that have empty Task strings (each with a different status) appears in audit.HotSubphases and audit.ToxicSubphases under ControlPlaneSubphaseID, never under ''.",
+                "TestSummarizeAutoloopAuditPreservesNamedRows: ledger events with Task='5/5.J/Foo' continue to bucket under '5/5.J' alongside any control-plane events.",
+                "TestControlPlaneSubphaseIDExported: the constant is exported and documented; consumers can match on it without string-typing 'control-plane/backend'."
               ],
-              "note": "Audit-driven control-plane slice for the repeated blank-subphase backend failures in the last 7 days. This is Gormes-owned automation reliability work; it should be fixed in builder/planner loop backend classification, not by reshaping unrelated implementation rows.",
+              "note": "Replaces the prior quarantined 5.N umbrella. The backend classifier already exists (see internal/builderloop/backend_failure.go and backend_failure_test.go); the actually-missing piece is subphase attribution. Splitting the umbrella to this single audit-side change makes the slice landable in one TDD pass. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
-                "internal/builderloop/backend.go",
-                "internal/builderloop/backend_noninteractive_test.go",
-                "internal/builderloop/failures.go",
                 "internal/plannerloop/autoloop_audit.go",
                 "internal/plannerloop/autoloop_audit_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/builderloop -run 'Test.*Backend.*Noninteractive|Test.*Backend.*Failure|Test.*Backend.*Degraded' -count=1",
-                "go test ./internal/plannerloop -run 'Test.*Autoloop.*Audit|Test.*Blank.*Subphase|Test.*Backend.*Failure' -count=1",
-                "go test ./internal/builderloop ./internal/plannerloop -count=1",
+                "go test ./internal/plannerloop -run 'TestSubphaseFromTaskEmptyReturnsControlPlane|TestSummarizeAutoloopAuditBlankBucket|TestSummarizeAutoloopAuditPreservesNamedRows|TestControlPlaneSubphaseIDExported' -count=1",
+                "go test ./internal/plannerloop -count=1",
+                "go vet ./internal/plannerloop",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Backend/audit fixtures prove stdin-waiting and killed backends are classified with preserved evidence and no blank toxic-subphase buckets."
+                "ControlPlaneSubphaseID is exported from internal/plannerloop and SummarizeAutoloopAudit attributes empty-Task events to it; four named tests pass; backend.go/backend_failure.go are unchanged."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:30:50Z",
-                "last_failure": {
-                  "run_id": "20260426T143037Z-508753512",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.N/Planner backend noninteractive stdin failure guard"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:30:50Z",
-                  "after_run_id": "20260426T143037Z-508753512",
-                  "threshold": 3,
-                  "spec_hash": "f6bf9b4e0429e4f54f9980b768e3832cbbb5e6b67294ae30805fafd4779bd630",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "gormes",
                 "owned_since": "2026-04-26T01:23:57Z",
-                "note": "Planner/backend failure classification is a Gormes autoloop control-plane surface with no upstream Hermes, Honcho, or GBrain analog."
+                "note": "Reshape of the prior quarantined 5.N umbrella. The backend-side classifier landed earlier; this row narrows the remaining scope to audit attribution."
               }
             },
             {
@@ -9240,10 +9289,10 @@
               "note": "Umbrella only: read-mostly diagnostics, log capture, status, backup, and optional support-upload behavior must be split so workers do not mix local redaction and filesystem inventory with network uploads or archive writes."
             },
             {
-              "name": "Doctor custom endpoint provider readiness",
+              "name": "doctorCustomEndpointReadiness check function",
               "priority": "P2",
               "status": "planned",
-              "contract": "gormes doctor accepts custom endpoint/provider-style configuration as operator intent and reports credential/readiness evidence without requiring a named provider registry match",
+              "contract": "cmd/gormes adds a pure function `doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult` that returns Name='Custom endpoint', Status=Pass when Hermes.Endpoint and Hermes.APIKey and Hermes.Model are all non-empty, Status=Warn when any one is missing (with itemized evidence), and Status=Fail when Endpoint is set but Model is empty; doctorCmd RunE invokes this function after the existing Goncho/Slack checks; --offline still skips network probes elsewhere",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -9251,74 +9300,55 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Doctor output reports custom-endpoint configured, missing API key, offline-skip, or provider-registry-unavailable evidence instead of failing bare custom provider settings as unknown.",
+              "degraded_mode": "When endpoint is set but credentials or model are missing, the check emits Status=Warn with item-level notes (api_key=missing, model=missing) instead of exiting non-zero, so operators see precisely which field needs attention.",
               "fixture": "cmd/gormes/doctor_custom_provider_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/doctor.py@b2d3308f",
+                "../hermes-agent/hermes_cli/doctor.py@b2d3308f:_run_doctor",
                 "../hermes-agent/tests/hermes_cli/test_doctor.py@b2d3308f:test_run_doctor_accepts_bare_custom_provider",
                 "cmd/gormes/doctor.go",
-                "internal/config/config.go",
-                "internal/hermes/status.go"
+                "cmd/gormes/goncho_doctor_test.go",
+                "internal/config/config.go:HermesCfg",
+                "internal/doctor/doctor.go:CheckResult"
               ],
               "ready_when": [
-                "Gormes doctor already has --offline, API server health, tool registry, Goncho config, and gateway diagnostics.",
-                "The slice can use temp XDG config and fake endpoint/provider metadata without network calls."
+                "cmd/gormes/doctor.go already calls doctorGonchoConfig(cfg) and doctorSlackGatewayConfig(cfg, runtimeStatus) — adding a third helper alongside them is mechanical.",
+                "internal/config/config.go declares HermesCfg{Endpoint, APIKey, Model} so the check has a stable typed input.",
+                "internal/doctor/doctor.go already exposes CheckResult, ItemInfo, StatusPass/StatusWarn/StatusFail; this row only composes them."
               ],
               "not_ready_when": [
-                "The slice introduces a live provider catalog lookup, reads legacy Hermes config.yaml as authoritative state, or changes non-custom provider routing behavior.",
-                "The slice ports Hermes setup/auth prompts instead of doctor readiness reporting."
+                "The slice changes config schema, adds new HermesCfg fields, modifies provider routing, or introduces a live /v1/models or auth lookup.",
+                "The slice changes any other doctor check's behaviour.",
+                "The slice ports Hermes Python config.yaml reading."
               ],
               "unblocks": [
                 "CLI status summary over native stores"
               ],
               "acceptance": [
-                "A config shaped as a custom endpoint with model and no named provider registry entry does not produce an unknown-provider doctor failure.",
-                "Doctor output distinguishes missing credentials from unknown provider and remains usable in --offline mode.",
-                "Known-provider validation, if present, remains deterministic and local-testdata backed.",
-                "No test opens provider network calls, Hermes config.yaml, or live auth stores."
+                "TestDoctorCustomEndpointAllSet: cfg with Endpoint='https://example.invalid', APIKey='secret', Model='m' returns CheckResult{Name='Custom endpoint', Status=StatusPass, Summary contains 'configured'} and no items are flagged Warn.",
+                "TestDoctorCustomEndpointMissingAPIKey: cfg with Endpoint set, APIKey empty, Model='m' returns Status=StatusWarn with an item Name='api_key' Status=StatusWarn Note='missing'.",
+                "TestDoctorCustomEndpointMissingModel: cfg with Endpoint set, APIKey set, Model empty returns Status=StatusFail with an item Name='model' Status=StatusFail Note='missing' (Hermes considers this a hard error since requests cannot route).",
+                "TestDoctorCustomEndpointAllEmpty: cfg with all three empty returns Status=StatusWarn Summary='disabled' so doctor stays useful even when no endpoint is configured.",
+                "TestDoctorCmdInvokesCustomEndpointReadiness: running doctorCmd.RunE against an in-memory cfg with custom endpoint emits the new check's Format() block to stdout in --offline mode and exits 0 when Status<=Warn."
               ],
-              "note": "Hermes b2d3308f accepts bare `custom` provider in doctor. Gormes has a different TOML/XDG config shape, so this row freezes the equivalent operator contract: custom endpoints are valid intent and doctor should report readiness, not registry-name failure.",
+              "note": "Reshape of the prior quarantined 5.O row. The previous contract pointed at internal/config/ and internal/hermes/status.go without specifying what to add there; the worker had no obvious first edit. This row narrows scope to one named pure function plus its doctorCmd wiring and five named tests. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
                 "cmd/gormes/doctor.go",
                 "cmd/gormes/doctor_custom_provider_test.go",
-                "internal/config/",
-                "internal/hermes/status.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run TestDoctorCustomProvider -count=1",
-                "go test ./cmd/gormes ./internal/config ./internal/hermes -count=1",
+                "go test ./cmd/gormes -run 'TestDoctorCustomEndpoint|TestDoctorCmdInvokesCustomEndpointReadiness' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go vet ./cmd/gormes",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Doctor fixtures prove custom endpoint/provider-style settings are accepted with explicit readiness evidence and no live provider or legacy Hermes config dependency."
+                "doctorCustomEndpointReadiness is a pure function with five named tests; doctorCmd invokes it; no internal/config or internal/hermes files are modified."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:31:50Z",
-                "last_failure": {
-                  "run_id": "20260426T143133Z-783778276",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.O/Doctor custom endpoint provider readiness"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:31:50Z",
-                  "after_run_id": "20260426T143133Z-783778276",
-                  "threshold": 3,
-                  "spec_hash": "9f84a4eec753c414cef103595aa0266e1390214288705335df96a348db30fa86",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b2d3308f hermes_cli/doctor.py",
-                "note": "Hermes fixed doctor false positives for bare custom provider; Gormes must express the equivalent custom-endpoint readiness contract in its native config shape."
+                "note": "Reshape of the prior quarantined 5.O row. Hermes accepts bare custom provider in doctor; Gormes expresses the equivalent contract over HermesCfg via a typed CheckResult, without porting Hermes config.yaml or auth logic."
               }
             },
             {
@@ -9909,80 +9939,59 @@
               }
             },
             {
-              "name": "Native TUI terminal-selection divergence contract",
+              "name": "TUI TerminalNativeSelectionHelp constant + help-string fixture",
               "status": "planned",
-              "contract": "Gormes documents and fixture-locks a terminal-native selection model for the Bubble Tea TUI, with no advertised custom copy hotkey until a Go-native implementation exists",
-              "contract_status": "fixture_ready",
+              "contract": "internal/tui declares an exported string constant TerminalNativeSelectionHelp = 'Selection: use your terminal's native selection (Shift-drag in most terminals; iTerm Cmd-drag, tmux copy-mode). Gormes does not advertise an in-app copy hotkey.' and a pure helper SelectionHelpLine() that returns it; one fixture asserts the constant exists, mentions 'terminal' but not 'Cmd+C'/'Ctrl+C'/'Ctrl-Shift-C'/'OSC 52'/'clipboard hotkey'/'Ink', and another asserts no advertised copy shortcut leaks anywhere else in the package",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "TUI status/help reports terminal-native selection behavior and does not advertise SSH/local copy shortcuts, rendered-space copy, or clipboard semantics that Gormes cannot honor.",
-              "fixture": "internal/tui/selection_copy_test.go",
+              "degraded_mode": "If a future row adds a real Go-native copy mode, it must replace this constant rather than extend it; until then, the help-string fixture prevents accidental advertising of unimplemented Ink shortcuts.",
+              "fixture": "internal/tui/selection_help_test.go",
               "source_refs": [
                 "../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@edc78e25",
-                "../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.test.ts@edc78e25",
-                "../hermes-agent/ui-tui/src/lib/platform.ts@edc78e25",
-                "../hermes-agent/ui-tui/src/app/useInputHandlers.ts@edc78e25",
                 "../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@31d7f195",
-                "internal/tui/",
-                "docs/content/upstream-hermes/user-guide/tui.md"
-              ],
-              "ready_when": [
-                "Gormes native TUI has mouse tracking toggles but no custom selection/copy implementation.",
-                "Upstream Hermes edc78e25 and 31d7f195 fixed SSH copy shortcuts, rendered-space preservation, indentation, and bounds clamping in the Node/Ink TUI."
-              ],
-              "not_ready_when": [
-                "The slice ports Hermes Ink, adds Node/npm dependencies, calls OSC clipboard APIs, changes remote TUI transport, or implements custom selection copying in the same change."
-              ],
-              "acceptance": [
-                "TUI help/status fixtures say selection uses the operator's terminal selection until a native Gormes copy mode is explicitly implemented.",
-                "No fake copy hotkey, SSH copy shortcut, or clipboard command is advertised in help/status output.",
-                "Docs state the divergence from Hermes' custom Ink selection stack and point future parity work at a separate Go-native fixture.",
-                "The solution remains native Go/Bubble Tea with no Hermes Ink bundle, Node, OSC clipboard dependency, or npm runtime requirement."
-              ],
-              "note": "The local TUI currently has mouse tracking but no custom selection/copy stack. Freeze that as an explicit terminal-native divergence now so public docs and status do not imply Hermes Ink parity; a later row can add Go-native copy fixtures if the product decision changes.",
-              "write_scope": [
-                "internal/tui/",
-                "cmd/gormes/",
-                "docs/content/building-gormes/architecture_plan/progress.json",
+                "internal/tui/view.go",
+                "internal/tui/model.go",
+                "internal/tui/mouse_tracking.go",
                 "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
               ],
+              "ready_when": [
+                "internal/tui already exposes Bubble Tea model/view/update files and a mouse tracking config; adding a single new file with one constant compiles cleanly alongside them.",
+                "phase-5-final-purge.md already documents the terminal-native selection divergence, so this row is mechanical: lift that statement into a typed Go constant and a regression test."
+              ],
+              "not_ready_when": [
+                "The slice ports Hermes Ink, calls OSC 52, adds clipboard libraries, modifies internal/tui/update.go input handling, or changes remote TUI transport.",
+                "The slice introduces a Cobra command flag for copy mode or a configuration key.",
+                "The slice modifies cmd/gormes/ files."
+              ],
+              "acceptance": [
+                "TestTerminalNativeSelectionHelpExists: TerminalNativeSelectionHelp is a non-empty string constant exported from internal/tui, contains the substring 'terminal', and SelectionHelpLine() returns the same value.",
+                "TestTerminalNativeSelectionHelpNoFakeShortcuts: TerminalNativeSelectionHelp does not contain any of: 'Cmd+C', 'Ctrl+C', 'Ctrl-Shift-C', 'Cmd-Shift-C', 'OSC 52', 'clipboard hotkey', 'Ink' (case-insensitive).",
+                "TestTUIPackageDoesNotAdvertiseCopyHotkey: walking internal/tui/*.go files, no string literal in the package contains the same forbidden shortcuts above (test reads the package source via os.ReadFile, not a runtime check).",
+                "go vet ./internal/tui passes; no other package is imported by the new file beyond stdlib."
+              ],
+              "note": "Reshape of the prior quarantined 5.Q row. The previous contract said 'docs+fixture-lock' but the worker had no obvious starting edit because the docs already exist (see phase-5-final-purge.md lines 51 and 95). This row narrows scope to a single Go constant + regression test inside internal/tui only, with no docs edits and no cmd/gormes touchpoints. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+              "write_scope": [
+                "internal/tui/selection_help.go",
+                "internal/tui/selection_help_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
               "test_commands": [
-                "go test ./internal/tui ./cmd/gormes -run 'Test.*Selection|Test.*Copy|Test.*TUI.*Help' -count=1",
-                "go test ./internal/tui ./cmd/gormes -count=1",
+                "go test ./internal/tui -run 'TestTerminalNativeSelectionHelpExists|TestTerminalNativeSelectionHelpNoFakeShortcuts|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1",
+                "go test ./internal/tui -count=1",
+                "go vet ./internal/tui",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Native TUI fixtures and docs prove Gormes advertises terminal-native selection honestly and remains independent from Hermes Ink/Node clipboard behavior."
+                "internal/tui/selection_help.go declares TerminalNativeSelectionHelp and SelectionHelpLine; three named tests pass; no other internal/tui or cmd/gormes file is modified."
               ],
-              "health": {
-                "attempt_count": 3,
-                "consecutive_failures": 3,
-                "last_attempt": "2026-04-26T14:31:50Z",
-                "last_failure": {
-                  "run_id": "20260426T143133Z-783778276",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 5/5.Q/Native TUI terminal-selection divergence contract"
-                },
-                "backends_tried": [
-                  "codexu"
-                ],
-                "quarantine": {
-                  "reason": "auto: 3 consecutive failures, last category no_progress",
-                  "since": "2026-04-26T14:31:50Z",
-                  "after_run_id": "20260426T143133Z-783778276",
-                  "threshold": 3,
-                  "spec_hash": "163852a187e6cd3f324727c2f2333a4110ec83788be9127a9e1377f0b66e61ec",
-                  "last_category": "no_progress"
-                }
-              },
               "provenance": {
-                "origin_type": "hybrid",
-                "upstream_ref": "hermes:edc78e25 ui-tui/packages/hermes-ink/src/ink/selection.ts",
-                "note": "Hermes defines custom Ink selection behavior; Gormes currently owns a native Bubble Tea divergence that should be explicit before remote TUI work widens."
+                "origin_type": "gormes",
+                "owned_since": "2026-04-26T15:30:00Z",
+                "note": "Reshape of the prior 5.Q quarantine. The selection divergence is a Gormes-owned UX decision (Bubble Tea, no Ink), so this row is gormes-origin even though its motivation tracks Hermes edc78e25/31d7f195 changes."
               }
             },
             {
