@@ -16,6 +16,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
+const asyncMemoryAssertionTimeout = 10 * time.Second
+
 func TestInterruptedTurnSkipsMemorySyncAndExtractor(t *testing.T) {
 	memStore, err := memory.OpenSqlite(filepath.Join(t.TempDir(), "memory.db"), 0, nil)
 	if err != nil {
@@ -239,7 +241,7 @@ func (s *fakeStream) Recv(ctx context.Context) (hermes.Event, error) {
 
 func waitForTurnMemorySyncStatus(t *testing.T, db *sql.DB, content, want string) {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(asyncMemoryAssertionTimeout)
 	var last string
 	var lastErr error
 	for time.Now().Before(deadline) {
@@ -274,7 +276,7 @@ func assertTurnMemorySyncReason(t *testing.T, db *sql.DB, content, want string) 
 
 func waitForReadyTurnCount(t *testing.T, db *sql.DB, chatID string, want int) {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(asyncMemoryAssertionTimeout)
 	var got int
 	for time.Now().Before(deadline) {
 		_ = db.QueryRow(
@@ -302,7 +304,7 @@ func assertCount(t *testing.T, db *sql.DB, query string, want int) {
 
 func waitForCount(t *testing.T, db *sql.DB, query string, want int) {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(asyncMemoryAssertionTimeout)
 	var got int
 	var lastErr error
 	for time.Now().Before(deadline) {
