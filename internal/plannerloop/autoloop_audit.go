@@ -207,9 +207,13 @@ func subphaseFromTask(task string) string {
 	}
 	parts := strings.SplitN(trimmed, "/", 3)
 	if len(parts) >= 2 {
-		return strings.TrimSpace(parts[0]) + "/" + strings.TrimSpace(parts[1])
+		phaseID := strings.TrimSpace(parts[0])
+		subphaseID := strings.TrimSpace(parts[1])
+		if phaseID != "" && subphaseID != "" {
+			return phaseID + "/" + subphaseID
+		}
 	}
-	return trimmed
+	return ControlPlaneSubphaseID
 }
 
 // ProductivityPercent returns the percentage of claims that landed (promoted)
