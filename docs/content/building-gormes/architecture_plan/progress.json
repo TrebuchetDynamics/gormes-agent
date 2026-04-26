@@ -4808,9 +4808,9 @@
             {
               "name": "Azure Foundry CLI setup/status manual fallback",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Azure Foundry CLI/status surfaces expose probe/runtime evidence and manual api_mode/deployment fallback without running a live setup wizard in tests",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
