@@ -69,6 +69,7 @@ type Config struct {
 	PlannerQuarantineLimit  int      // GORMES_PLANNER_QUARANTINE_LIMIT, default 5 (Task 7)
 	MergeOpenPullRequests   bool     // MERGE_OPEN_PULL_REQUESTS, default true
 	PRConflictAction        string   // PR_INTAKE_CONFLICT_ACTION, default close
+	PRIntakeEmptyBackoff    time.Duration
 	AutoCommitDirtyWorktree bool     // AUTO_COMMIT_DIRTY_WORKTREE, default true for CLI cycles
 
 	PostPromotionVerifyCommands []string // POST_PROMOTION_VERIFY_COMMANDS, default full-suite gate
@@ -170,6 +171,7 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 		PlannerQuarantineLimit:  5,
 		MergeOpenPullRequests:   true,
 		PRConflictAction:        PRConflictActionClose,
+		PRIntakeEmptyBackoff:    5 * time.Minute,
 		AutoCommitDirtyWorktree: true,
 
 		PostPromotionVerifyCommands: defaultPostPromotionVerifyCommands(),
@@ -307,6 +309,16 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 			return Config{}, fmt.Errorf("PR_INTAKE_CONFLICT_ACTION: %w", err)
 		}
 		cfg.PRConflictAction = action
+	}
+	if value := envValue(lookup, "PR_INTAKE_EMPTY_BACKOFF"); value != "" {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PR_INTAKE_EMPTY_BACKOFF must be a Go duration (e.g. \"5m\"): %w", err)
+		}
+		if d < 0 {
+			return Config{}, fmt.Errorf("PR_INTAKE_EMPTY_BACKOFF must be non-negative")
+		}
+		cfg.PRIntakeEmptyBackoff = d
 	}
 	if value := envValue(lookup, "AUTO_COMMIT_DIRTY_WORKTREE"); value != "" {
 		b, err := parseBoolEnv(value)
