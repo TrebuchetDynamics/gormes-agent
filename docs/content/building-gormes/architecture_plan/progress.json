@@ -4742,9 +4742,9 @@
             {
               "name": "Azure Foundry runtime env/config read model",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Azure Foundry runtime resolution combines detected api_mode, deployment/model, redacted env/config evidence, and provider context metadata without contacting Azure or storing plaintext secrets",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
