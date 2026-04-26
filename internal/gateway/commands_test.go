@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 )
 
 func TestCommandRegistryContainsRequiredCommands(t *testing.T) {
@@ -91,6 +93,65 @@ func TestGatewayHelpLinesDerivedFromRegistry(t *testing.T) {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("GatewayHelpLines missing %q in %q", want, joined)
 		}
+	}
+}
+
+func TestSlashCommandPolicyParityWithCLIRegistry(t *testing.T) {
+	if len(CommandRegistry) == 0 {
+		t.Fatal("gateway CommandRegistry empty")
+	}
+	for _, gw := range CommandRegistry {
+		policy, ok := cli.ResolveCommandPolicy(gw.Name)
+		if !ok {
+			t.Errorf("gateway command %q not present in CLI command registry", gw.Name)
+			continue
+		}
+		var want cli.ActiveTurnPolicy
+		switch gw.ActiveTurnPolicy {
+		case CommandActiveTurnPolicyImmediate, CommandActiveTurnPolicyDrain:
+			want = cli.ActiveTurnPolicyBypass
+		case CommandActiveTurnPolicyReject:
+			want = cli.ActiveTurnPolicyBusyReject
+		default:
+			t.Errorf("gateway command %q has unmapped policy %q", gw.Name, gw.ActiveTurnPolicy)
+			continue
+		}
+		if policy.ActiveTurnPolicy != want {
+			t.Errorf("gateway %q policy %q maps to CLI %q, want %q",
+				gw.Name, gw.ActiveTurnPolicy, policy.ActiveTurnPolicy, want)
+		}
+	}
+}
+
+func TestSlashCommandBusyVerdictRejectsKnownMutators(t *testing.T) {
+	v := cli.EvaluateActiveTurnVerdict("/new", true)
+	if !v.Known {
+		t.Fatal("verdict.Known = false for /new, want true")
+	}
+	if v.Allowed {
+		t.Errorf("verdict.Allowed = true for /new during active turn, want busy reject")
+	}
+	if v.Policy != cli.ActiveTurnPolicyBusyReject {
+		t.Errorf("verdict.Policy = %q, want busy_reject", v.Policy)
+	}
+}
+
+func TestSlashCommandUnknownDoesNotEnterModelPrompt(t *testing.T) {
+	if cli.SlashLeaksToModelPrompt("/no-such-command") {
+		t.Error("unknown slash command must not leak into model prompt")
+	}
+	if cli.SlashLeaksToModelPrompt("/help") {
+		t.Error("recognized slash command must not leak into model prompt")
+	}
+	if !cli.SlashLeaksToModelPrompt("hello world") {
+		t.Error("plain text must reach the model prompt as submit text")
+	}
+	kind, body := ParseInboundText("/no-such-command")
+	if kind != EventUnknown {
+		t.Errorf("ParseInboundText(unknown slash) kind = %v, want EventUnknown", kind)
+	}
+	if body != "" {
+		t.Errorf("ParseInboundText(unknown slash) body = %q, want empty", body)
 	}
 }
 
