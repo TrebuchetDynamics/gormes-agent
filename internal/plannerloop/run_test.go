@@ -376,6 +376,45 @@ func TestPlannerFailureDetailIncludesProcessErrorWithStdout(t *testing.T) {
 	}
 }
 
+func TestRunOnceClassifiesKilledBackendWithoutBlamingStdinWait(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Err: errors.New("signal: killed"), Stdout: "Reading additional input from stdin...\n"},
+		},
+	}
+	cfg := mustConfig(t, repoRoot)
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want backend failure")
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1: %#v", len(events), events)
+	}
+	if events[0].Status != "backend_failed" {
+		t.Fatalf("Status = %q, want backend_failed terminal status", events[0].Status)
+	}
+	if events[0].Event != "backend_killed" {
+		t.Fatalf("Event = %q, want backend_killed classification", events[0].Event)
+	}
+	if !strings.Contains(events[0].Detail, "backend_killed") {
+		t.Fatalf("Detail = %q, want backend_killed prefix", events[0].Detail)
+	}
+	if !strings.Contains(events[0].Detail, "Reading additional input from stdin") {
+		t.Fatalf("Detail = %q, want preserved stdin output", events[0].Detail)
+	}
+}
+
 func TestRunOnceAppliesBackendTimeoutAndRecordsErrDetail(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)

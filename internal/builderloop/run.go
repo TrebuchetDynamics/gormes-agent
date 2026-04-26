@@ -1142,6 +1142,7 @@ func runBackendCommand(ctx context.Context, cfg Config, runner Runner, command C
 
 func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName string, runID string, baseBranch string, hasGit bool, worker workerRun) error {
 	if worker.Result.Err != nil {
+		failure := ClassifyBackendFailure(worker.Result.Err, worker.Result.Stdout, worker.Result.Stderr)
 		if err := appendRunLedgerEvent(cfg, LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
@@ -1149,8 +1150,8 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			Worker: worker.ID,
 			Task:   worker.Task,
 			Branch: worker.Branch,
-			Status: "backend_failed",
-			Detail: truncateLedgerDetail(commandFailureDetail(worker.Result)),
+			Status: failure.Status,
+			Detail: truncateLedgerDetail(failure.Detail),
 		}); err != nil {
 			return err
 		}
@@ -2001,13 +2002,10 @@ func valueOrDash(value string) string {
 }
 
 func backendRunError(name string, result Result) error {
-	output := strings.TrimSpace(result.Stderr)
-	if output == "" {
-		output = strings.TrimSpace(result.Stdout)
-	}
-	if output == "" {
+	failure := ClassifyBackendFailure(result.Err, result.Stdout, result.Stderr)
+	if failure.Detail == "" {
 		return fmt.Errorf("%s failed: %w", name, result.Err)
 	}
 
-	return fmt.Errorf("%s failed: %w: %s", name, result.Err, output)
+	return fmt.Errorf("%s failed: %w: %s", name, result.Err, failure.Detail)
 }

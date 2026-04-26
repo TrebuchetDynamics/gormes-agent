@@ -717,8 +717,8 @@ func TestRunOnceAppliesBackendTimeoutAndRecordsDeadlineDetail(t *testing.T) {
 	if len(events) < 3 {
 		t.Fatalf("ledger events = %#v, want worker_failed event", events)
 	}
-	if events[2].Event != "worker_failed" || events[2].Status != "backend_failed" {
-		t.Fatalf("worker failure event = %#v, want backend_failed", events[2])
+	if events[2].Event != "worker_failed" || events[2].Status != "backend_no_progress" {
+		t.Fatalf("worker failure event = %#v, want backend_no_progress", events[2])
 	}
 	if !strings.Contains(events[2].Detail, context.DeadlineExceeded.Error()) {
 		t.Fatalf("worker failure detail = %q, want deadline detail", events[2].Detail)

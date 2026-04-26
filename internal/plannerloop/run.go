@@ -359,13 +359,15 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		if result.Err != nil {
 			// Backend failure short-circuits the retry loop: this is
 			// infrastructure, not an LLM-correctable mistake.
-			detail := plannerFailureDetail(result)
+			failure := plannerBackendFailure(result)
+			detail := failure.Detail
 			attempt.Status = "backend_failed"
 			attempt.Detail = detail
 			attempts = append(attempts, attempt)
 			appendPlannerLedger(ledgerPath, LedgerEvent{
 				TS:            now.UTC().Format(time.RFC3339),
 				RunID:         runID,
+				Event:         failure.Event,
 				Trigger:       trigger,
 				TriggerEvents: triggerEventIDs,
 				Backend:       cfg.Backend,
@@ -683,35 +685,29 @@ func writeState(path string, state stateFile) error {
 }
 
 func commandError(name string, result cmdrunner.Result) error {
-	output := commandFailureOutput(result)
-	if output == "" {
+	detail := plannerFailureDetail(result)
+	if detail == "" {
 		return fmt.Errorf("%s failed: %w", name, result.Err)
 	}
-	return fmt.Errorf("%s failed: %w: %s", name, result.Err, output)
+	return fmt.Errorf("%s failed: %w: %s", name, result.Err, detail)
 }
 
 func plannerFailureDetail(result cmdrunner.Result) string {
-	output := commandFailureOutput(result)
-	if result.Err != nil {
-		errText := result.Err.Error()
-		if output == "" {
-			return errText
-		}
-		if !strings.Contains(output, errText) {
-			return errText + ": " + output
-		}
-	}
-	return output
+	return plannerBackendFailure(result).Detail
 }
 
-func commandFailureOutput(result cmdrunner.Result) string {
-	if output := strings.TrimSpace(result.Stderr); output != "" {
-		return output
+func plannerBackendFailure(result cmdrunner.Result) plannerBackendFailureClassification {
+	failure := builderloop.ClassifyBackendFailure(result.Err, result.Stdout, result.Stderr)
+	event := ""
+	if failure.Status != "backend_failed" {
+		event = failure.Status
 	}
-	if output := strings.TrimSpace(result.Stdout); output != "" {
-		return output
-	}
-	return ""
+	return plannerBackendFailureClassification{Event: event, Detail: failure.Detail}
+}
+
+type plannerBackendFailureClassification struct {
+	Event  string
+	Detail string
 }
 
 type runtimeSourceSnapshot map[string][sha256.Size]byte
