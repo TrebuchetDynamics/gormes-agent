@@ -334,20 +334,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 				select {
 				case <-watchdogTicker.C:
 					elapsed := time.Since(startTime).Round(time.Second)
-					status := "backend_slow"
-					if elapsed > 5*time.Minute {
-						status = "backend_stuck"
-					}
-					appendPlannerLedger(ledgerPath, LedgerEvent{
-						TS:           time.Now().UTC().Format(time.RFC3339),
-						RunID:        runID,
-						Event:        status,
-						Status:       "warning",
-						Detail:       fmt.Sprintf("no_output_for=%s attempt=%d", elapsed, attemptIndex),
-						Backend:      cfg.Backend,
-						Mode:         cfg.Mode,
-						RetryAttempt: attemptIndex,
-					})
+					appendPlannerLedger(ledgerPath, plannerBackendWatchdogEvent(runID, cfg.Backend, cfg.Mode, elapsed, attemptIndex, time.Now()))
 				case <-watchdogDone:
 					return
 				}
@@ -575,6 +562,23 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 func appendPlannerLedger(path string, event LedgerEvent) {
 	if err := AppendLedgerEvent(path, event); err != nil {
 		log.Printf("planner: append ledger failed: %v", err)
+	}
+}
+
+func plannerBackendWatchdogEvent(runID, backend, mode string, elapsed time.Duration, attemptIndex int, now time.Time) LedgerEvent {
+	event := "backend_slow"
+	if elapsed > 5*time.Minute {
+		event = "backend_stuck"
+	}
+	return LedgerEvent{
+		TS:           now.UTC().Format(time.RFC3339),
+		RunID:        runID,
+		Event:        event,
+		Status:       "warning",
+		Detail:       fmt.Sprintf("elapsed=%s attempt=%d", elapsed.Round(time.Second), attemptIndex),
+		Backend:      backend,
+		Mode:         mode,
+		RetryAttempt: attemptIndex,
 	}
 }
 
