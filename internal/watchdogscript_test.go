@@ -107,6 +107,55 @@ func TestOrchestratorWatchdogDoesNotRestartActiveService(t *testing.T) {
 	}
 }
 
+func TestOrchestratorWatchdogRestartsDeadRunLockPID(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	tmpRepo := t.TempDir()
+	copyFile(t,
+		filepath.Join(repoRoot, "scripts", "orchestrator", "watchdog.sh"),
+		filepath.Join(tmpRepo, "scripts", "orchestrator", "watchdog.sh"),
+		0o755,
+	)
+	lockPath := filepath.Join(tmpRepo, ".codex", "planner-loop", "run.lock")
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lockPath, []byte("holder=builder-loop\npid=2147483646\nstarted_utc=2026-04-26T11:28:00Z\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	logDir := filepath.Join(tmpRepo, "logs")
+	binDir := installWatchdogFakeBin(t, tmpRepo)
+	cmd := exec.Command("bash", "scripts/orchestrator/watchdog.sh")
+	cmd.Dir = tmpRepo
+	cmd.Env = overlayEnv(os.Environ(),
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"HOME="+filepath.Join(tmpRepo, "home"),
+		"XDG_RUNTIME_DIR="+filepath.Join(tmpRepo, "runtime"),
+		"WATCHDOG_LOG="+logDir,
+		"WATCHDOG_SERVICE_STATE=active",
+		"WATCHDOG_GIT_DIRTY=",
+	)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("watchdog failed: %v\noutput:\n%s", err, string(out))
+	}
+
+	systemctlLog := readOptionalFile(t, filepath.Join(logDir, "systemctl"))
+	for _, want := range []string{
+		"--user is-active --quiet gormes-orchestrator.service",
+		"--user reset-failed gormes-orchestrator.service",
+		"--user restart gormes-orchestrator.service",
+	} {
+		if !strings.Contains(systemctlLog, want) {
+			t.Fatalf("systemctl log = %q, want %q", systemctlLog, want)
+		}
+	}
+	if !strings.Contains(string(out), "run lock pid 2147483646 is not live") {
+		t.Fatalf("watchdog output = %q, want dead run lock reason", string(out))
+	}
+}
+
 func installWatchdogFakeBin(t *testing.T, repo string) string {
 	t.Helper()
 	binDir := filepath.Join(repo, "bin")
