@@ -5981,13 +5981,68 @@
             {
               "name": "Provider rate guard + budget telemetry",
               "status": "planned",
-              "note": "TDD: port `agent/rate_limit_tracker.py` and `agent/nous_rate_guard.py` as deterministic budget/rate decisions that feed Phase 3 insights without sleeping in unit tests."
+              "contract": "Provider rate guards distinguish true account quota exhaustion from upstream-capacity 429s and expose budget telemetry without sleeping or blocking unrelated models in unit tests",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Provider status reports rate_guard_unavailable, nous_rate_limited, nous_upstream_capacity, budget_header_missing, and reset-window evidence instead of silently tripping a global breaker.",
+              "fixture": "internal/hermes/provider_rate_guard_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/nous_rate_guard.py@192e7eb2",
+                "../hermes-agent/tests/agent/test_nous_rate_guard.py@192e7eb2",
+                "../hermes-agent/run_agent.py@192e7eb2",
+                "internal/hermes/errors.go",
+                "internal/hermes/client.go",
+                "internal/kernel/retry.go"
+              ],
+              "ready_when": [
+                "Provider-side resilience, classified provider-error taxonomy, and Retry-After hint handling are validated, so this row only adds rate-guard/budget decisions and status evidence.",
+                "The worker can use fake headers and fake clock fixtures; no live Nous Portal, provider key, or wall-clock sleep is required."
+              ],
+              "not_ready_when": [
+                "The slice changes retry timing, provider routing, or model fallback policy instead of only classifying rate-guard state and telemetry evidence.",
+                "The slice writes process-global breaker state in unit tests or treats every 429 as account-level quota exhaustion."
+              ],
+              "blocked_by": [
+                "Provider-side resilience",
+                "Classified provider-error taxonomy",
+                "Retry-After header parsing + HTTPError hint"
+              ],
+              "acceptance": [
+                "Headers with remaining=0 and reset window >=60s classify as genuine account rate limit and record redacted reset evidence.",
+                "429 responses with healthy x-ratelimit buckets classify as upstream_capacity and do not trip cross-session/provider-wide breaker state.",
+                "Last-known-good exhausted bucket evidence can classify a bare 429 as genuine, while healthy last-known state keeps a bare 429 as upstream_capacity.",
+                "Malformed or missing budget headers degrade visibly without sleeping, retry amplification, or blocking other provider/model choices."
+              ],
+              "note": "Hermes 192e7eb2 fixed Nous Portal upstream-capacity 429s tripping the cross-session breaker. Gormes should port the decision table as provider-status evidence first, not as a live shared-file breaker.",
+              "write_scope": [
+                "internal/hermes/provider_rate_guard.go",
+                "internal/hermes/provider_rate_guard_test.go",
+                "internal/hermes/errors.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestProviderRateGuard -count=1",
+                "go test ./internal/hermes ./internal/kernel -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Provider rate-guard fixtures prove genuine quota, upstream-capacity, last-known-state, malformed-header, and no-sleep degraded decisions with visible status evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:192e7eb2 agent/nous_rate_guard.py",
+                "note": "Hermes defines the Nous 429 distinction; Gormes adapts it to native provider status and retry/budget telemetry."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-25T17:16:35Z",
-            "origin_decision": "Hermes 7c17accb added a streaming retry interrupt guard after the generic unsupported-parameter work. Gormes has retry/backoff and provider-hint behavior, but this subphase remains upstream-led until the cancel-before-retry fixture, prompt-cache guards, and provider budget telemetry are fixture-backed."
+            "last_upstream_check": "2026-04-26T12:19:33Z",
+            "origin_decision": "Hermes 7c17accb added a streaming retry interrupt guard and Hermes 192e7eb2 sharpened Nous 429 handling so upstream-capacity responses do not trip a cross-session quota breaker. Gormes has retry/backoff and provider-hint behavior, but this subphase remains upstream-led until prompt-cache guards and provider budget/rate telemetry are fixture-backed."
           }
         }
       }
@@ -6994,7 +7049,69 @@
             {
               "name": "Dangerous-command detector + blocked-result schema",
               "status": "planned",
-              "note": "TDD: port upstream dangerous-command pattern detection into a pure Go guard that returns the same blocked tool-result shape agents already understand, without prompting or side effects."
+              "contract": "Dangerous command detection has a pure blocked-result schema plus a hardline floor for unrecoverable host-destructive commands that cannot be bypassed by yolo, approval-off, or cron approve modes",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Tool execution status reports dangerous_command_blocked, hardline_blocked, approval_required, or guard_unavailable before a command reaches a host-impacting backend.",
+              "fixture": "internal/tools/dangerous_command_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/approval.py@eb28145f:HARDLINE_PATTERNS",
+                "../hermes-agent/tests/tools/test_hardline_blocklist.py@eb28145f",
+                "../hermes-agent/tests/tools/test_yolo_mode.py@eb28145f",
+                "../hermes-agent/tests/tools/test_cron_approval_mode.py@eb28145f",
+                "internal/tools/execute_code.go",
+                "internal/tools/registry.go"
+              ],
+              "ready_when": [
+                "Sandboxed exec is complete, so command execution has a central Go boundary where pure guard results can be checked before host-impacting backends run.",
+                "The slice can use table-driven command strings and fake execution backends; no shell command should run in unit tests."
+              ],
+              "not_ready_when": [
+                "The slice prompts for approval, changes approval-mode config, executes shell commands, or adds path/URL/Tirith policy integration in the same change.",
+                "The slice treats containerized backends the same as host-local/ssh backends before backend impact classification is explicit."
+              ],
+              "blocked_by": [
+                "Sandboxed exec"
+              ],
+              "unblocks": [
+                "Approval mode config normalization",
+                "Subagent dangerous-command non-interactive approval policy",
+                "Cron dangerous-command approval mode",
+                "Tirith, path, URL, and website policy integration"
+              ],
+              "acceptance": [
+                "Hardline fixtures block rm -rf /, protected root/home deletes, mkfs, raw block-device writes, fork bombs, kill -1, shutdown/reboot/halt/poweroff/init/telinit/systemctl poweroff regardless of yolo or approval-off flags.",
+                "Recoverable dangerous commands such as rm -rf /tmp/x, chmod -R 777 ., git reset --hard, and git push --force remain regular dangerous detections that yolo can bypass.",
+                "Benign lookalikes such as echo reboot, grep shutdown, mkfs_helper, and systemctl status are not hardline-blocked.",
+                "Blocked results include approved=false, hardline=true when applicable, a stable operator message, command/environment evidence, and no side effects."
+              ],
+              "note": "Hermes eb28145f added an unconditional hardline blocklist below yolo. Gormes should port the pure detector/result contract first so later approval-mode and cron-policy rows do not each invent their own dangerous-command semantics.",
+              "write_scope": [
+                "internal/tools/dangerous_command.go",
+                "internal/tools/dangerous_command_test.go",
+                "internal/tools/execute_code.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'Test.*Dangerous.*Command|Test.*Hardline' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Dangerous-command fixtures prove hardline blocks are unconditional, regular dangerous detections remain yolo-bypassable, benign lookalikes pass, and blocked results are side-effect free."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:eb28145f tools/approval.py",
+                "note": "Hermes defines the hardline floor; Gormes adapts it to the native tool execution guard before approval UX is wired."
+              }
             },
             {
               "name": "Approval mode config normalization",
