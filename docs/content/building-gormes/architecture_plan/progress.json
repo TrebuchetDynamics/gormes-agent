@@ -9896,7 +9896,12 @@
                 "note": "GBrain's Code Cathedral II is donor evidence for code-context retrieval, not a subsystem to embed."
               }
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-26T12:19:33Z",
+            "origin_decision": "GBrain f718c59/172b55b lead the retrieval lessons for hybrid scoring, Code Cathedral II evidence, and source-swamp resistance. Gormes should adapt these as small SQLite/skills evidence contracts with visible degraded modes, not import GBrain's TypeScript chunker, PGLite/Postgres search runtime, or SQL ranking builders."
+          }
         },
         "6.E": {
           "name": "Feedback Loop",
