@@ -84,6 +84,9 @@ func (f *finalizingFakeChannel) EditMessageFinal(ctx context.Context, chatID, ms
 
 func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 	t.Helper()
+	if timeout < time.Second {
+		timeout = time.Second
+	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if cond() {
