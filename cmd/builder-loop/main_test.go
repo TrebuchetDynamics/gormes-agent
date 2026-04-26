@@ -763,6 +763,43 @@ func TestRunAutoloopOneShotDoesNotRunPlanner(t *testing.T) {
 	}
 }
 
+func TestBuilderLoopSleepDefault(t *testing.T) {
+	got, err := builderLoopSleep(func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatalf("builderLoopSleep(default) error = %v", err)
+	}
+	if got != 30*time.Second {
+		t.Fatalf("builderLoopSleep(default) = %v, want 30s", got)
+	}
+}
+
+func TestBuilderLoopSleepFromEnv(t *testing.T) {
+	got, err := builderLoopSleep(func(key string) (string, bool) {
+		if key == "BUILDER_LOOP_SLEEP" {
+			return "2m", true
+		}
+		return "", false
+	})
+	if err != nil {
+		t.Fatalf("builderLoopSleep(2m) error = %v", err)
+	}
+	if got != 2*time.Minute {
+		t.Fatalf("builderLoopSleep(2m) = %v, want 2m", got)
+	}
+}
+
+func TestBuilderLoopSleepRejectsInvalid(t *testing.T) {
+	_, err := builderLoopSleep(func(key string) (string, bool) {
+		if key == "BUILDER_LOOP_SLEEP" {
+			return "soon", true
+		}
+		return "", false
+	})
+	if !errors.Is(err, errParse) {
+		t.Fatalf("builderLoopSleep(invalid) error = %v, want errParse", err)
+	}
+}
+
 func TestParseRunOptions_BackendFlag(t *testing.T) {
 	for _, tc := range []struct {
 		name string

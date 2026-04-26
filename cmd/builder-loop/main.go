@@ -560,7 +560,11 @@ func defaultAutoloopRuntime(deps cliDeps, root string) autoloopRuntime {
 func runAutoloop(ctx context.Context, deps cliDeps, root string, cfg builderloop.Config, opts runOptions) error {
 	interval := time.Duration(0)
 	if opts.loop {
-		interval = 30 * time.Second
+		var err error
+		interval, err = builderLoopSleep(os.LookupEnv)
+		if err != nil {
+			return err
+		}
 	}
 	return runAutoloopWithRuntime(ctx, deps, cfg, opts, interval, defaultAutoloopRuntime(deps, root))
 }
@@ -626,6 +630,19 @@ func sleepContext(ctx context.Context, d time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+func builderLoopSleep(lookup func(string) (string, bool)) (time.Duration, error) {
+	value, ok := lookup("BUILDER_LOOP_SLEEP")
+	value = strings.TrimSpace(value)
+	if !ok || value == "" {
+		return 30 * time.Second, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil || d < 0 {
+		return 0, fmt.Errorf("%w: BUILDER_LOOP_SLEEP must be a non-negative Go duration (got %q)", errParse, value)
+	}
+	return d, nil
 }
 
 func dashIfEmpty(value string) string {
