@@ -7485,9 +7485,9 @@
             },
             {
               "name": "[IMPORTANT:] prompt prefix for cron and skill commands",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) — same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -7523,7 +7523,7 @@
                 "internal/skills/preprocessing_commands_test.go updates its expected golden string to `[IMPORTANT:` for the affected fixtures.",
                 "DetectSilent semantics in internal/cron/heartbeat.go are unchanged (the `[SILENT]` token is independent of the leading marker)."
               ],
-              "note": "Mirror of Hermes commits d7a34682 + 20cb706e (Azure content filter dodge). Workers must NOT rename the historical 2.D row `Heartbeat [SYSTEM:] + [SILENT] delivery contract` — that row is complete and its name reflects the original landing. The runtime constant + tests rename in lockstep. cli.py, gateway/run.py, and tools/process_registry.py do not have direct Gormes analogs that emit this marker today, so this slice covers only the cron + skills constants.",
+              "note": "Complete: cron heartbeat (CronHeartbeatPrefix) and skill-invocation prompt (BuildSkillSlashCommandMessage) now emit `[IMPORTANT:` instead of `[SYSTEM:`, mirroring Hermes commits d7a34682 + 20cb706e. The DELIVERY/SILENT/[SILENT] phrases in the cron prefix and the skill body trimming are byte-identical to the prior version. Tests in internal/cron/heartbeat_test.go and internal/skills/preprocessing_commands_test.go assert the new prefix and the absence of the legacy marker. The historical 2.D row name `Heartbeat [SYSTEM:] + [SILENT] delivery contract` was preserved per the not_ready_when guard. Code change landed previously via commit a8d25ba5; this slice closes the progress entry against the upstream pair.",
               "write_scope": [
                 "internal/cron/heartbeat.go",
                 "internal/cron/heartbeat_test.go",
@@ -7539,6 +7539,11 @@
               "done_signal": [
                 "go test ./internal/cron and ./internal/skills both pass after the marker rename; `grep -rn '\\[SYSTEM:' internal/cron/ internal/skills/` returns no matches in production code; `grep -rn '\\[IMPORTANT:' internal/cron/ internal/skills/` returns at least 4 matches (constant + tests in both packages)."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T19:45:00Z",
+                "last_success": "2026-04-26T19:45:00Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:d7a34682+20cb706e cron/scheduler.py,agent/skill_commands.py",
