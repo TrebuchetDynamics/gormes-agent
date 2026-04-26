@@ -355,7 +355,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Azure Foundry CLI setup/status manual fallback
 - [ ] Bedrock
 - [x] Bedrock Converse payload mapping (no AWS SDK)
-- [ ] Bedrock stream event decoding (SSE fixtures)
+- [x] Bedrock stream event decoding (SSE fixtures)
 - [ ] Bedrock SigV4 + credential seam
 - [ ] Bedrock stale-client eviction + retry classification
 - [ ] Gemini
