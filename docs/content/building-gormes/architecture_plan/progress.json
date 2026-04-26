@@ -4592,9 +4592,9 @@
             {
               "name": "Azure Foundry probe — path sniffing",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "TDD packet for a missing pure helper; create exactly two files and do not edit the already validated /models probe. First add internal/hermes/azure_foundry_path_sniff_test.go in package hermes with TestClassifyAzurePath table subtests named exact_anthropic, trailing_anthropic, nested_anthropic, mixed_case, bare_host_unknown, openai_path_unknown, substring_false_positives, and empty_and_malformed_unknown. Then add internal/hermes/azure_foundry_path_sniff.go exposing ClassifyAzurePath(rawURL string) AzureTransport that reuses the AzureTransport type/constants from internal/hermes/azure_foundry_models_probe.go. Algorithm: url.Parse; empty path or parse error => AzureTransportUnknown; lowercase and strings.TrimRight(parsed.Path, \"/\"); return AzureTransportAnthropic only when the path equals \"/anthropic\", ends with \"/anthropic\", or contains \"/anthropic/\". This slice never returns AzureTransportOpenAI and never opens HTTP, reads env/config, writes files, starts goroutines, or changes ProbeAzureFoundry.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -4645,14 +4645,8 @@
                 "internal/hermes/azure_foundry_models_probe.go remains untouched; ClassifyAzurePath only imports standard URL/string helpers and returns existing AzureTransport constants."
               ],
               "health": {
-                "attempt_count": 3,
-                "last_attempt": "2026-04-26T15:09:01Z",
-                "last_failure": {
-                  "run_id": "20260426T150848Z-251659260",
-                  "category": "no_progress",
-                  "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 4/4.A/Azure Foundry probe — path sniffing"
-                },
+                "attempt_count": 4,
+                "last_attempt": "2026-04-26T18:59:20Z",
                 "backends_tried": [
                   "codexu"
                 ]
@@ -4660,7 +4654,7 @@
               "planner_verdict": {
                 "reshape_count": 11,
                 "last_reshape": "2026-04-26T18:21:26Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "validated"
               },
               "provenance": {
                 "origin_type": "hybrid",
