@@ -8530,7 +8530,7 @@
             },
             {
               "name": "CLI tips/dump/webhook deterministic helpers (deprecated umbrella)",
-              "status": "deprecated",
+              "status": "planned",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -9007,7 +9007,7 @@
             },
             {
               "name": "CLI profile path and active-profile store (deprecated umbrella)",
-              "status": "deprecated",
+              "status": "planned",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [

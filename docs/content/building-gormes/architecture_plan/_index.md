@@ -483,6 +483,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] MCP server config/env resolver
 - [ ] MCP fake-server discovery + tool schema normalization
 - [ ] MCP OAuth state store + noninteractive auth errors
+- [ ] MCP OAuth refresh + 401 session-expired recovery
 - [ ] Managed tool gateway bridge
 
 ### 5.H — ACP Integration ⏳
@@ -536,13 +537,19 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] 49-file CLI tree port
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
-- [ ] CLI tips/dump/webhook deterministic helpers
+- [ ] CLI deterministic tip selector
+- [ ] CLI webhook URL normalizer
+- [ ] CLI dump support-summary helper
+- [ ] CLI tips/dump/webhook deterministic helpers (deprecated umbrella)
 - [x] PTY bridge protocol adapter
 - [ ] CLI command registry parity + active-turn busy policy
 - [ ] Gateway /reasoning session override command
 - [ ] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
-- [ ] CLI profile path and active-profile store
+- [ ] CLI profile name validator
+- [ ] CLI profile root resolver
+- [ ] CLI active-profile store
+- [ ] CLI profile path and active-profile store (deprecated umbrella)
 - [x] Top-level oneshot flag and model/provider resolver
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
