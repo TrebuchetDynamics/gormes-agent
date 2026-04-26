@@ -13,6 +13,25 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/repoctl"
 )
 
+func TestMain(m *testing.M) {
+	for _, entry := range legacyCompanionTestEnvOverrides() {
+		key, value, _ := strings.Cut(entry, "=")
+		if err := os.Setenv(key, value); err != nil {
+			panic(err)
+		}
+	}
+	os.Exit(m.Run())
+}
+
+func TestLegacyOrchestratorTestProcessDisablesInheritedCompanions(t *testing.T) {
+	for _, want := range legacyCompanionTestEnvOverrides() {
+		key, value, _ := strings.Cut(want, "=")
+		if got := os.Getenv(key); got != value {
+			t.Fatalf("%s = %q, want %q", key, got, value)
+		}
+	}
+}
+
 func TestAutoCodexuOrchestratorScriptExistsAndIsExecutable(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
@@ -578,19 +597,27 @@ func legacyOrchestratorLibDir(repoRoot string) string {
 	return filepath.Join(repoRoot, "testdata", "legacy-shell", "scripts", "orchestrator", "lib")
 }
 
+func legacyCompanionTestEnvOverrides() []string {
+	return []string{
+		"DISABLE_COMPANIONS=1",
+		"COMPANION_ON_IDLE=1",
+		"COMPANION_PLANNER_CMD=:",
+		"COMPANION_DOC_IMPROVER_CMD=:",
+		"COMPANION_LANDINGPAGE_CMD=:",
+	}
+}
+
 func legacyOrchestratorTestEnv(base []string, repoRoot, tmpRepo, binDir string, extra ...string) []string {
+	overrides := []string{
+		"PATH=" + binDir + string(os.PathListSeparator) + os.Getenv("PATH"),
+		"REPO_ROOT=" + tmpRepo,
+		"RUN_ROOT=" + filepath.Join(tmpRepo, ".codex", "orchestrator"),
+		"ORCHESTRATOR_LIB_DIR=" + legacyOrchestratorLibDir(repoRoot),
+	}
+	overrides = append(overrides, legacyCompanionTestEnvOverrides()...)
+	overrides = append(overrides, extra...)
 	return overlayEnv(base,
-		append([]string{
-			"PATH=" + binDir + string(os.PathListSeparator) + os.Getenv("PATH"),
-			"REPO_ROOT=" + tmpRepo,
-			"RUN_ROOT=" + filepath.Join(tmpRepo, ".codex", "orchestrator"),
-			"ORCHESTRATOR_LIB_DIR=" + legacyOrchestratorLibDir(repoRoot),
-			"DISABLE_COMPANIONS=1",
-			"COMPANION_ON_IDLE=1",
-			"COMPANION_PLANNER_CMD=:",
-			"COMPANION_DOC_IMPROVER_CMD=:",
-			"COMPANION_LANDINGPAGE_CMD=:",
-		}, extra...)...,
+		overrides...,
 	)
 }
 

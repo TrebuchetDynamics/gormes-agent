@@ -63,12 +63,24 @@ func TestPostPromotionCommandEnvDisablesCompanionsForVerification(t *testing.T) 
 
 	env := postPromotionCommandEnv(cfg)
 
-	for _, got := range env {
-		if got == "DISABLE_COMPANIONS=1" {
-			return
+	for _, want := range []string{
+		"DISABLE_COMPANIONS=1",
+		"COMPANION_ON_IDLE=1",
+		"COMPANION_PLANNER_CMD=:",
+		"COMPANION_DOC_IMPROVER_CMD=:",
+		"COMPANION_LANDINGPAGE_CMD=:",
+	} {
+		var found bool
+		for _, got := range env {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("postPromotionCommandEnv() = %#v, want %q", env, want)
 		}
 	}
-	t.Fatalf("postPromotionCommandEnv() = %#v, want companion scripts disabled during verification", env)
 }
 
 func TestPostPromotionVerificationOverridesInheritedCompanionEnv(t *testing.T) {
