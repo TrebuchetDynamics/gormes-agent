@@ -4253,18 +4253,26 @@
                 "Azure Foundry probe fixtures prove path sniffing, OpenAI /models detection, Anthropic Messages fallback detection, manual-required evidence, and zero config/credential mutation."
               ],
               "health": {
-                "attempt_count": 2,
-                "consecutive_failures": 2,
-                "last_attempt": "2026-04-26T12:48:18Z",
+                "attempt_count": 3,
+                "consecutive_failures": 3,
+                "last_attempt": "2026-04-26T12:49:08Z",
                 "last_failure": {
-                  "run_id": "20260426T124806Z-473506558",
+                  "run_id": "20260426T124900Z-808544274",
                   "category": "no_progress",
                   "backend": "codexu",
                   "stderr_tail": "worker made no changes: 4/4.A/Azure Foundry transport probe read model"
                 },
                 "backends_tried": [
                   "codexu"
-                ]
+                ],
+                "quarantine": {
+                  "reason": "auto: 3 consecutive failures, last category no_progress",
+                  "since": "2026-04-26T12:49:08Z",
+                  "after_run_id": "20260426T124900Z-808544274",
+                  "threshold": 3,
+                  "spec_hash": "bdc6aab158d03e7afc757007b702cd7cb454b1f8f64439b23b6aa7b36e1246e5",
+                  "last_category": "no_progress"
+                }
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -6047,18 +6055,26 @@
                 "Provider rate-guard fixtures prove genuine quota, upstream-capacity, last-known-state, malformed-header, and no-sleep degraded decisions with visible status evidence."
               ],
               "health": {
-                "attempt_count": 2,
-                "consecutive_failures": 2,
-                "last_attempt": "2026-04-26T12:48:18Z",
+                "attempt_count": 3,
+                "consecutive_failures": 3,
+                "last_attempt": "2026-04-26T12:49:08Z",
                 "last_failure": {
-                  "run_id": "20260426T124806Z-473506558",
+                  "run_id": "20260426T124900Z-808544274",
                   "category": "no_progress",
                   "backend": "codexu",
                   "stderr_tail": "worker made no changes: 4/4.H/Provider rate guard + budget telemetry"
                 },
                 "backends_tried": [
                   "codexu"
-                ]
+                ],
+                "quarantine": {
+                  "reason": "auto: 3 consecutive failures, last category no_progress",
+                  "since": "2026-04-26T12:49:08Z",
+                  "after_run_id": "20260426T124900Z-808544274",
+                  "threshold": 3,
+                  "spec_hash": "25b39bdce6d1371988267d060360d7ba63c514dc221dbb2301fa09962fc112d9",
+                  "last_category": "no_progress"
+                }
               },
               "provenance": {
                 "origin_type": "upstream",
