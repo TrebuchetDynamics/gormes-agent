@@ -6,6 +6,88 @@ setup() {
   load_helpers
 }
 
+@test "claudeu ignores codex ephemeral flag and preserves positional prompt" {
+  local ws fakebin final log
+  ws="$(mktmp_workspace)"
+  fakebin="$ws/bin"
+  mkdir -p "$fakebin"
+  final="$ws/final.md"
+  log="$ws/claude-stdin.log"
+
+  cat > "$fakebin/claude" <<'SH'
+#!/usr/bin/env bash
+stdin="$(cat)"
+printf '%s' "$stdin" > "${FAKE_CLAUDE_STDIN_LOG:?}"
+printf '{"type":"result","subtype":"success","result":"claude final","usage":{"input_tokens":1,"output_tokens":1}}\n'
+exit 0
+SH
+  chmod +x "$fakebin/claude"
+
+  run env \
+    PATH="$fakebin:/usr/local/bin:/usr/bin:/bin" \
+    HOME="$ws/home" \
+    CLAUDEU_LOG_DIR="$ws/claudeu-cache" \
+    FAKE_CLAUDE_STDIN_LOG="$log" \
+    "$ORCHESTRATOR_SCRIPTS_DIR/orchestrator/claudeu" \
+    exec --json --ephemeral -c approval_policy=never --sandbox workspace-write \
+    --output-last-message "$final" \
+    "prompt body"
+
+  assert_success
+  grep -Fxq 'prompt body' "$log"
+  grep -Fxq 'claude final' "$final"
+}
+
+@test "claudeu streams claude events before process exit" {
+  local ws fakebin final stdout stderr marker pid
+  ws="$(mktmp_workspace)"
+  fakebin="$ws/bin"
+  mkdir -p "$fakebin"
+  final="$ws/final.md"
+  stdout="$ws/stdout.jsonl"
+  stderr="$ws/stderr.log"
+  marker="$ws/first-event.marker"
+
+  cat > "$fakebin/claude" <<'SH'
+#!/usr/bin/env bash
+cat >/dev/null
+printf '{"type":"assistant","message":{"content":"first"}}\n'
+: > "${FAKE_CLAUDE_FIRST_MARKER:?}"
+sleep 1
+printf '{"type":"result","subtype":"success","result":"stream final","usage":{"input_tokens":1,"output_tokens":1}}\n'
+exit 0
+SH
+  chmod +x "$fakebin/claude"
+
+  env \
+    PATH="$fakebin:/usr/local/bin:/usr/bin:/bin" \
+    HOME="$ws/home" \
+    CLAUDEU_LOG_DIR="$ws/claudeu-cache" \
+    FAKE_CLAUDE_FIRST_MARKER="$marker" \
+    "$ORCHESTRATOR_SCRIPTS_DIR/orchestrator/claudeu" \
+    exec --json --ephemeral -c approval_policy=never --sandbox workspace-write \
+    --output-last-message "$final" \
+    "prompt body" >"$stdout" 2>"$stderr" &
+  pid="$!"
+
+  for _ in {1..50}; do
+    [[ -f "$marker" ]] && break
+    sleep 0.02
+  done
+  [[ -f "$marker" ]] || fail "fake claude did not emit first event"
+
+  for _ in {1..50}; do
+    grep -Fq '"content":"first"' "$stdout" && break
+    sleep 0.02
+  done
+
+  kill -0 "$pid" 2>/dev/null || fail "claudeu exited before streaming assertion"
+  grep -Fq '"content":"first"' "$stdout"
+
+  wait "$pid"
+  grep -Fxq 'stream final' "$final"
+}
+
 @test "claudeu falls back to real codexu on live usage-limit reset message" {
   local ws fakebin final log
   ws="$(mktmp_workspace)"

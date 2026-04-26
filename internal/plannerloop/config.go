@@ -135,6 +135,10 @@ type Config struct {
 	// MergeOpenPullRequests controls whether planner cycles merge all
 	// non-draft open pull requests before collecting context.
 	MergeOpenPullRequests bool
+	// PRIntakeEmptyBackoff skips PR intake when the most recent planner
+	// intake completed with listed=0. This prevents idle planner cycles from
+	// polling GitHub every builder loop iteration.
+	PRIntakeEmptyBackoff time.Duration
 	// PRConflictAction controls DIRTY/conflicted PR handling during planner
 	// PR intake. "close" deletes the branch after closing; "skip" leaves it.
 	PRConflictAction string
@@ -217,6 +221,7 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 		MaxRetries:             DefaultMaxRetries,
 		BackendTimeout:         20 * time.Minute,
 		MergeOpenPullRequests:  true,
+		PRIntakeEmptyBackoff:   5 * time.Minute,
 		PRConflictAction:       builderloop.PRConflictActionClose,
 		EvaluationWindow:       DefaultEvaluationWindow,
 		EscalationThreshold:    DefaultEscalationThreshold,
@@ -309,6 +314,16 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 			return Config{}, fmt.Errorf("MERGE_OPEN_PULL_REQUESTS: %w", err)
 		}
 		cfg.MergeOpenPullRequests = b
+	}
+	if value := envValue(lookup, "PR_INTAKE_EMPTY_BACKOFF"); value != "" {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PR_INTAKE_EMPTY_BACKOFF must be a Go duration (e.g. \"5m\"): %w", err)
+		}
+		if d < 0 {
+			return Config{}, fmt.Errorf("PR_INTAKE_EMPTY_BACKOFF must be non-negative")
+		}
+		cfg.PRIntakeEmptyBackoff = d
 	}
 	if value := envValue(lookup, "PR_INTAKE_CONFLICT_ACTION"); value != "" {
 		action, err := parsePRConflictAction(value)

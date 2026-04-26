@@ -23,6 +23,19 @@ type LedgerEvent struct {
 	// SpecHashAtClaim is the ItemSpecHash snapshot at claim time. Used to
 	// detect spec changes during speculative execution before promotion.
 	SpecHashAtClaim string `json:"spec_hash_at_claim,omitempty"`
+
+	JobID       string `json:"job_id,omitempty"`
+	JobKind     string `json:"job_kind,omitempty"`
+	Attempt     int    `json:"attempt,omitempty"`
+	Command     string `json:"command,omitempty"`
+	Dir         string `json:"dir,omitempty"`
+	StartedAt   string `json:"started_at,omitempty"`
+	DurationMS  int64  `json:"duration_ms,omitempty"`
+	ExitError   string `json:"exit_error,omitempty"`
+	StdoutTail  string `json:"stdout_tail,omitempty"`
+	StderrTail  string `json:"stderr_tail,omitempty"`
+	StdoutBytes int    `json:"stdout_bytes,omitempty"`
+	StderrBytes int    `json:"stderr_bytes,omitempty"`
 }
 
 func (event *LedgerEvent) UnmarshalJSON(data []byte) error {
@@ -38,6 +51,18 @@ func (event *LedgerEvent) UnmarshalJSON(data []byte) error {
 		Detail          json.RawMessage `json:"detail,omitempty"`
 		Speculative     bool            `json:"speculative,omitempty"`
 		SpecHashAtClaim string          `json:"spec_hash_at_claim,omitempty"`
+		JobID           string          `json:"job_id,omitempty"`
+		JobKind         string          `json:"job_kind,omitempty"`
+		Attempt         int             `json:"attempt,omitempty"`
+		Command         string          `json:"command,omitempty"`
+		Dir             string          `json:"dir,omitempty"`
+		StartedAt       string          `json:"started_at,omitempty"`
+		DurationMS      int64           `json:"duration_ms,omitempty"`
+		ExitError       string          `json:"exit_error,omitempty"`
+		StdoutTail      string          `json:"stdout_tail,omitempty"`
+		StderrTail      string          `json:"stderr_tail,omitempty"`
+		StdoutBytes     int             `json:"stdout_bytes,omitempty"`
+		StderrBytes     int             `json:"stderr_bytes,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -54,6 +79,18 @@ func (event *LedgerEvent) UnmarshalJSON(data []byte) error {
 		Status:          raw.Status,
 		Speculative:     raw.Speculative,
 		SpecHashAtClaim: raw.SpecHashAtClaim,
+		JobID:           raw.JobID,
+		JobKind:         raw.JobKind,
+		Attempt:         raw.Attempt,
+		Command:         raw.Command,
+		Dir:             raw.Dir,
+		StartedAt:       raw.StartedAt,
+		DurationMS:      raw.DurationMS,
+		ExitError:       raw.ExitError,
+		StdoutTail:      raw.StdoutTail,
+		StderrTail:      raw.StderrTail,
+		StdoutBytes:     raw.StdoutBytes,
+		StderrBytes:     raw.StderrBytes,
 	}
 	if len(raw.Detail) == 0 || string(raw.Detail) == "null" {
 		return nil

@@ -11,6 +11,14 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
 )
 
+// ControlPlaneSubphaseID is the sentinel subphase_id used by the autoloop audit
+// when a ledger event has no usable Task value (empty or whitespace-only). It
+// keeps worker/backend failures that fire before a row is claimed from
+// collapsing into a blank "" bucket where multiple unrelated incidents look
+// like a single subphase. Consumers should match this constant instead of
+// string-typing "control-plane/backend".
+const ControlPlaneSubphaseID = "control-plane/backend"
+
 // AutoloopAudit summarises recent autoloop ledger activity so the planner can
 // see which subphases keep failing, claiming-without-promoting, or otherwise
 // signalling that a row needs to be split or re-specified.
@@ -193,11 +201,15 @@ func subphaseAccountFor(stats map[string]*subphaseAcc, task string) *subphaseAcc
 }
 
 func subphaseFromTask(task string) string {
-	parts := strings.SplitN(task, "/", 3)
+	trimmed := strings.TrimSpace(task)
+	if trimmed == "" {
+		return ControlPlaneSubphaseID
+	}
+	parts := strings.SplitN(trimmed, "/", 3)
 	if len(parts) >= 2 {
 		return strings.TrimSpace(parts[0]) + "/" + strings.TrimSpace(parts[1])
 	}
-	return strings.TrimSpace(task)
+	return trimmed
 }
 
 // ProductivityPercent returns the percentage of claims that landed (promoted)

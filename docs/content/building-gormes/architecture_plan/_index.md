@@ -37,11 +37,11 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 36/74 subphases shipped · 15 in progress · 23 planned
+**Overall:** 35/74 subphases shipped · 16 in progress · 23 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 3/3 subphases |
+| Phase 1 — The Dashboard | 🔨 | 2/3 subphases |
 | Phase 2 — The Gateway | 🔨 | 16/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 14/14 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
@@ -51,7 +51,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 ---
 
-## Phase 1 — The Dashboard ✅
+## Phase 1 — The Dashboard 🔨
 
 *Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary*
 
@@ -65,7 +65,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Offline tool validation
 
-### 1.C — Automation Reliability ✅
+### 1.C — Automation Reliability 🔨
 
 - [x] Orchestrator failure-row stabilization for 4-8 workers
 - [x] Soft-success-nonzero bats coverage
@@ -73,6 +73,10 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Autoloop row health and quarantine contract
 - [x] Planner self-healing verdict loop
 - [x] Planner divergence and provenance awareness
+- [ ] Watchdog checkpoint coalescing
+- [ ] PR-intake idle backoff
+- [ ] Watchdog dead-process vs slow-progress separation
+- [ ] Builder-loop self-improvement vs user-feature ratio metric
 
 ## Phase 2 — The Gateway 🔨
 
@@ -338,11 +342,15 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Tool-call normalization + continuation contract
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] DeepSeek/Kimi cross-provider reasoning isolation
-- [ ] DeepSeek/Kimi all-assistant reasoning_content replay
+- [x] DeepSeek/Kimi all-assistant reasoning_content replay
 - [x] Anthropic
-- [ ] Azure OpenAI query/default_query transport contract
-- [ ] Azure Anthropic Messages endpoint contract
-- [ ] Azure Foundry endpoint autodetect + model context read model
+- [x] Azure OpenAI query/default_query transport contract
+- [x] Azure Anthropic Messages endpoint contract
+- [ ] Azure Foundry transport probe read model
+- [ ] Azure Foundry probe — path sniffing
+- [ ] Azure Foundry probe — /models classification + Anthropic fallback
+- [ ] Azure Foundry runtime env/config read model
+- [ ] Azure Foundry CLI setup/status manual fallback
 - [ ] Bedrock
 - [x] Bedrock Converse payload mapping (no AWS SDK)
 - [ ] Bedrock stream event decoding (SSE fixtures)
@@ -386,7 +394,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Model pricing/capability registry fixtures
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
-- [ ] Per-turn reasoning effort propagation
+- [x] Per-turn reasoning effort propagation
 
 ### 4.E — Trajectory + Insights ⏳
 
@@ -418,6 +426,8 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Streaming interrupt retry suppression
 - [ ] Prompt-cache capability guard
 - [ ] Provider rate guard + budget telemetry
+- [ ] Provider rate guard — x-ratelimit header classification
+- [ ] Provider rate guard — degraded-state + last-known-good evidence
 
 ## Phase 5 — The Final Purge 🔨
 
@@ -462,16 +472,21 @@ machine-readable queue for developing the full `gormes-agent`.
 
 ### 5.F — Skills System (Remaining) 🔨
 
-- [ ] Skills hub
+- [ ] Skills hub search result types + in-memory registry provider
+- [ ] Skills hub search read-model function over registry providers
 - [ ] Skill registries
 - [x] Skill preprocessing + dynamic slash commands
+- [ ] [IMPORTANT:] prompt prefix for cron and skill commands
 
 ### 5.G — MCP Integration 🔨
 
 - [ ] MCP client
 - [x] MCP server config/env resolver
-- [ ] MCP fake-server discovery + tool schema normalization
+- [ ] MCP stdio transport + tool/list discovery
+- [ ] MCP HTTP transport + tool/list discovery
+- [ ] MCP schema normalization + structured-content adapter
 - [ ] MCP OAuth state store + noninteractive auth errors
+- [ ] MCP OAuth refresh + 401 session-expired recovery
 - [ ] Managed tool gateway bridge
 
 ### 5.H — ACP Integration ⏳
@@ -489,7 +504,8 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 5.J — Approval / Security Guards ⏳
 
 - [ ] Dangerous action gating
-- [ ] Dangerous-command detector + blocked-result schema
+- [ ] Hardline command pattern table + DetectHardline function
+- [ ] Recoverable dangerous patterns + blocked-result schema
 - [ ] Approval mode config normalization
 - [ ] Subagent dangerous-command non-interactive approval policy
 - [ ] Cron dangerous-command approval mode
@@ -513,7 +529,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Clarify
 - [ ] Session search
 - [ ] Debug helpers
-- [ ] Planner backend noninteractive stdin failure guard
+- [ ] Planner audit blank-subphase control-plane bucket
 - [ ] Cronjob tool API + schedule parser parity
 - [ ] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract
@@ -524,24 +540,30 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] 49-file CLI tree port
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
-- [ ] CLI tips/dump/webhook deterministic helpers
+- [ ] CLI deterministic tip selector
+- [ ] CLI webhook URL normalizer
+- [ ] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
 - [ ] CLI command registry parity + active-turn busy policy
 - [ ] Gateway /reasoning session override command
 - [ ] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
-- [ ] CLI profile path and active-profile store
+- [ ] CLI profile name validator
+- [ ] CLI profile root resolver
+- [ ] CLI active-profile store
+- [ ] CLI profile path and active-profile store (deprecated umbrella)
 - [x] Top-level oneshot flag and model/provider resolver
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
 - [x] Effective toolset picker dedupes bundled plugin keys
 - [ ] Gateway, platform, webhook, and cron management CLI
-- [ ] Gateway management CLI read-model closeout
+- [x] Gateway management CLI read-model closeout
+- [ ] Gateway mutating-subcommand unavailability stub
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
-- [ ] Doctor custom endpoint provider readiness
+- [ ] doctorCustomEndpointReadiness check function
 - [ ] Custom provider model-switch credential preservation
 - [ ] CLI log snapshot reader
 
@@ -557,13 +579,17 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
 - [ ] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
-- [ ] TUI gateway progress/completion helpers
+- [ ] TUI gateway tool-progress mode normalizer
+- [ ] TUI gateway completion path normalizer
+- [ ] TUI gateway tool summary formatter
 - [ ] TUI gateway image/personality/platform-event helpers
 - [x] TUI mouse tracking config + slash toggle
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
-- [ ] Native TUI terminal-selection divergence contract
+- [ ] TUI TerminalNativeSelectionHelp constant + help-string fixture
+- [ ] Native TUI slash-command dispatch table
 - [ ] Native TUI /save canonical session export
+- [ ] TUI running-agent placeholder surfaces interrupt + queued slash actions
 - [ ] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [x] Responses API store + run event stream
@@ -599,6 +625,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 6.D — Skill Retrieval + Matching ⏳
 
 - [ ] Hybrid lexical + semantic lookup
+- [ ] Source-aware retrieval damping fixtures
 - [ ] Code Cathedral II code-context retrieval fixtures
 
 ### 6.E — Feedback Loop ⏳

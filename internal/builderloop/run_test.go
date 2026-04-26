@@ -217,8 +217,60 @@ func TestRunOnceMergesOpenPullRequestsBeforeSelectingWork(t *testing.T) {
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	if got := events[1].Event + ":" + events[1].Status; got != "pr_intake_started:started" {
-		t.Fatalf("second ledger event = %q, want pr_intake_started:started", got)
+	if _, ok := findLedgerEvent(events, "pr_intake_started", "started"); !ok {
+		t.Fatalf("ledger missing pr_intake_started:started: %+v", events)
+	}
+	if _, ok := findJobFinished(events, "pr_intake", "ok"); !ok {
+		t.Fatalf("ledger missing successful pr_intake job_finished: %+v", events)
+	}
+}
+
+func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	runRoot := t.TempDir()
+	lastEmpty := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	if err := AppendLedgerEvent(filepath.Join(runRoot, "state", "runs.jsonl"), LedgerEvent{
+		TS:     lastEmpty,
+		RunID:  "previous-run",
+		Event:  "pr_intake_completed",
+		Status: "completed",
+		Detail: "listed=0 merged=0 closed=0 failed=0 skipped=0",
+	}); err != nil {
+		t.Fatalf("seed ledger: %v", err)
+	}
+	runner := &FakeRunner{}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:              repoRoot,
+			ProgressJSON:          progressPath,
+			RunRoot:               runRoot,
+			Backend:               "opencode",
+			Mode:                  "safe",
+			MaxAgents:             1,
+			MergeOpenPullRequests: true,
+			PRIntakeEmptyBackoff:  5 * time.Minute,
+		},
+		Runner: runner,
+		Now:    lastEmpty.Add(2 * time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if len(runner.Commands) != 0 {
+		t.Fatalf("runner commands = %#v, want no gh/git PR intake commands inside empty backoff", runner.Commands)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	event, ok := findLedgerEvent(events, "pr_intake_skipped", "empty_backoff")
+	if !ok {
+		t.Fatalf("ledger missing pr_intake_skipped:empty_backoff: %+v", events)
+	}
+	if !strings.Contains(event.Detail, "last_empty=2026-04-26T12:00:00Z") ||
+		!strings.Contains(event.Detail, "next_after=2026-04-26T12:05:00Z") {
+		t.Fatalf("backoff detail = %q, want last_empty and next_after evidence", event.Detail)
 	}
 }
 
@@ -728,16 +780,71 @@ func TestRunOnceWritesLedgerEvents(t *testing.T) {
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	var got []string
-	for _, event := range events {
-		got = append(got, event.Event)
-	}
+	got := ledgerEventNamesExcludingJobs(events)
 	want := []string{"run_started", "worker_claimed", "worker_success", "run_completed", "health_updated"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
 	}
 	if events[1].Worker != 1 || events[1].Task != "12/12.A/ledger candidate" || events[1].Status != "claimed" {
 		t.Fatalf("claim event = %#v, want worker/task/status detail", events[1])
+	}
+	if _, ok := findJobFinished(events, "worker_backend", "ok"); !ok {
+		t.Fatalf("ledger missing successful worker_backend job_finished: %+v", events)
+	}
+}
+
+func TestRunOnceRecordsSelfImprovementUserFeatureMix(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"5": {
+				"subphases": {
+					"5.A": {
+						"items": [
+							{"name": "builder loop checkpoint coalescing", "status": "planned", "contract": "loop contract", "contract_status": "draft", "write_scope": ["internal/builderloop/run.go"]}
+						]
+					},
+					"5.B": {
+						"items": [
+							{"name": "provider feature surface", "status": "planned", "contract": "provider contract", "contract_status": "draft", "write_scope": ["internal/hermes/client.go"]}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	runRoot := t.TempDir()
+	runner := &FakeRunner{Results: []Result{{}, {}}}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     t.TempDir(),
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "opencode",
+			Mode:         "safe",
+			MaxAgents:    2,
+		},
+		Runner: runner,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	completed, ok := findLedgerEvent(events, "run_completed", "completed")
+	if !ok {
+		t.Fatalf("ledger missing run_completed: %+v", events)
+	}
+	for _, want := range []string{
+		"self_improvement=1",
+		"user_feature=1",
+		"unknown=0",
+		"self_ratio=0.50",
+		"basis=selected",
+	} {
+		if !strings.Contains(completed.Detail, want) {
+			t.Fatalf("run_completed detail = %q, want %q", completed.Detail, want)
+		}
 	}
 }
 
@@ -775,16 +882,21 @@ func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *test
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	var got []string
-	for _, event := range events {
-		got = append(got, event.Event+":"+event.Status)
-	}
+	got := ledgerEventPairsExcludingJobs(events)
 	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:backend_failed", "health_updated:ok"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
 	}
-	if detail := events[2].Detail; !strings.Contains(detail, "backend failed") || !strings.Contains(detail, "backend stderr") {
+	workerFailed, ok := findLedgerEvent(events, "worker_failed", "backend_failed")
+	if !ok {
+		t.Fatalf("ledger missing worker_failed/backend_failed: %+v", events)
+	}
+	if detail := workerFailed.Detail; !strings.Contains(detail, "backend failed") || !strings.Contains(detail, "backend stderr") {
 		t.Fatalf("backend failure detail = %q, want error and stderr", detail)
+	}
+	jobFinished, ok := findJobFinished(events, "worker_backend", "backend_failed")
+	if !ok || !strings.Contains(jobFinished.StderrTail, "backend stderr") {
+		t.Fatalf("ledger missing failed worker_backend job evidence: %+v", events)
 	}
 }
 
@@ -830,14 +942,15 @@ func TestRunOnceAppliesBackendTimeoutAndRecordsDeadlineDetail(t *testing.T) {
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	if len(events) < 3 {
-		t.Fatalf("ledger events = %#v, want worker_failed event", events)
+	workerFailed, ok := findLedgerEvent(events, "worker_failed", "backend_no_progress")
+	if !ok {
+		t.Fatalf("ledger events = %#v, want worker_failed/backend_no_progress", events)
 	}
-	if events[2].Event != "worker_failed" || events[2].Status != "backend_no_progress" {
-		t.Fatalf("worker failure event = %#v, want backend_no_progress", events[2])
+	if !strings.Contains(workerFailed.Detail, context.DeadlineExceeded.Error()) {
+		t.Fatalf("worker failure detail = %q, want deadline detail", workerFailed.Detail)
 	}
-	if !strings.Contains(events[2].Detail, context.DeadlineExceeded.Error()) {
-		t.Fatalf("worker failure detail = %q, want deadline detail", events[2].Detail)
+	if _, ok := findJobFinished(events, "worker_backend", "timeout"); !ok {
+		t.Fatalf("ledger missing timeout worker_backend job_finished: %+v", events)
 	}
 }
 
@@ -848,7 +961,7 @@ func TestRunBackendWorkersAppliesBackendTimeout(t *testing.T) {
 		{ID: 2, RepoRoot: t.TempDir(), Candidate: Candidate{ItemName: "worker two"}},
 	}
 
-	runBackendWorkers(context.Background(), Config{BackendTimeout: time.Minute}, runner, []string{"opencode", "run"}, workers)
+	runBackendWorkers(context.Background(), Config{BackendTimeout: time.Minute}, runner, "run-timeout", []string{"opencode", "run"}, workers)
 
 	deadlines := runner.deadlines()
 	if len(deadlines) != 2 {
@@ -976,6 +1089,39 @@ func TestRunOnceAutoCommitsDirtyRepositoryBeforePreflight(t *testing.T) {
 	}
 }
 
+func TestCheckpointDirtyWorktreeAmendsPreviousCheckpointCommit(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	runRoot := t.TempDir()
+	cfg := Config{RepoRoot: repoRoot, RunRoot: runRoot}
+
+	if err := os.WriteFile(filepath.Join(repoRoot, "first.txt"), []byte("first\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckpointDirtyWorktree(context.Background(), cfg, "loop-checkpoint-20260426T120000Z"); err != nil {
+		t.Fatalf("first CheckpointDirtyWorktree() error = %v", err)
+	}
+	if got := gitCommitCount(t, repoRoot); got != "2" {
+		t.Fatalf("commit count after first checkpoint = %s, want 2", got)
+	}
+
+	if err := os.WriteFile(filepath.Join(repoRoot, "second.txt"), []byte("second\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckpointDirtyWorktree(context.Background(), cfg, "loop-checkpoint-20260426T120030Z"); err != nil {
+		t.Fatalf("second CheckpointDirtyWorktree() error = %v", err)
+	}
+	if got := gitCommitCount(t, repoRoot); got != "2" {
+		t.Fatalf("commit count after second checkpoint = %s, want previous checkpoint amended", got)
+	}
+	if status := gitStatusPorcelain(t, repoRoot); status != "" {
+		t.Fatalf("git status = %q, want clean checkpointed worktree", status)
+	}
+	if subject := gitLogSubject(t, repoRoot); !strings.HasPrefix(subject, "builder-loop: checkpoint dirty worktree loop-checkpoint-") {
+		t.Fatalf("last commit subject = %q, want checkpoint subject", subject)
+	}
+}
+
 func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
@@ -997,7 +1143,10 @@ func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(command.Dir, "worker-dirty.go"), []byte("package dirty\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		return Result{}
+		return Result{
+			Stdout: "worker wrote files but did not commit api_key=sk-secret\n",
+			Stderr: "git commit missing token=secret-value\n",
+		}
 	})
 
 	_, err := RunOnce(context.Background(), RunOptions{
@@ -1019,13 +1168,32 @@ func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	var got []string
-	for _, event := range events {
-		got = append(got, event.Event+":"+event.Status)
-	}
+	got := ledgerEventPairsExcludingJobs(events)
 	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:worktree_dirty", "health_updated:ok"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+	var failed *LedgerEvent
+	for i := range events {
+		if events[i].Event == "worker_failed" && events[i].Status == "worktree_dirty" {
+			failed = &events[i]
+			break
+		}
+	}
+	if failed == nil {
+		t.Fatal("worker_failed:worktree_dirty event not found")
+	}
+	if !strings.Contains(failed.StdoutTail, "worker wrote files but did not commit") {
+		t.Fatalf("dirty worker stdout_tail missing backend evidence: %q", failed.StdoutTail)
+	}
+	if !strings.Contains(failed.StderrTail, "git commit missing") {
+		t.Fatalf("dirty worker stderr_tail missing backend evidence: %q", failed.StderrTail)
+	}
+	if strings.Contains(failed.StdoutTail, "sk-secret") || strings.Contains(failed.StderrTail, "secret-value") {
+		t.Fatalf("dirty worker leaked secret output: stdout=%q stderr=%q", failed.StdoutTail, failed.StderrTail)
+	}
+	if failed.StdoutBytes == 0 || failed.StderrBytes == 0 {
+		t.Fatalf("dirty worker missing byte counts: stdout=%d stderr=%d", failed.StdoutBytes, failed.StderrBytes)
 	}
 }
 
@@ -1173,10 +1341,7 @@ func TestRunOnceFailsWhenWorkerCommitsOutsideWriteScope(t *testing.T) {
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	var got []string
-	for _, event := range events {
-		got = append(got, event.Event+":"+event.Status)
-	}
+	got := ledgerEventPairsExcludingJobs(events)
 	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:write_scope_violation", "health_updated:ok"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
@@ -1230,10 +1395,7 @@ func TestRunOnceFailsWhenWorkerLeavesWorkerBranch(t *testing.T) {
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	var got []string
-	for _, event := range events {
-		got = append(got, event.Event+":"+event.Status)
-	}
+	got := ledgerEventPairsExcludingJobs(events)
 	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:branch_changed", "health_updated:ok"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
@@ -1285,10 +1447,7 @@ func TestRunOnceFailsWhenWorkerLeavesMergeConflicts(t *testing.T) {
 	}
 
 	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
-	var got []string
-	for _, event := range events {
-		got = append(got, event.Event+":"+event.Status)
-	}
+	got := ledgerEventPairsExcludingJobs(events)
 	want := []string{"run_started:started", "worker_claimed:claimed", "worker_failed:worktree_unmerged", "health_updated:ok"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ledger events = %#v, want %#v", got, want)
@@ -1299,6 +1458,54 @@ type runnerFunc func(context.Context, Command) Result
 
 func (fn runnerFunc) Run(ctx context.Context, command Command) Result {
 	return fn(ctx, command)
+}
+
+func ledgerEventPairsExcludingJobs(events []LedgerEvent) []string {
+	pairs := make([]string, 0, len(events))
+	for _, event := range events {
+		if event.Event == "job_started" || event.Event == "job_finished" {
+			continue
+		}
+		pairs = append(pairs, event.Event+":"+event.Status)
+	}
+	return pairs
+}
+
+func ledgerEventNamesExcludingJobs(events []LedgerEvent) []string {
+	names := make([]string, 0, len(events))
+	for _, event := range events {
+		if event.Event == "job_started" || event.Event == "job_finished" {
+			continue
+		}
+		names = append(names, event.Event)
+	}
+	return names
+}
+
+func findLedgerEvent(events []LedgerEvent, eventName, status string) (LedgerEvent, bool) {
+	for _, event := range events {
+		if event.Event != eventName {
+			continue
+		}
+		if status != "" && event.Status != status {
+			continue
+		}
+		return event, true
+	}
+	return LedgerEvent{}, false
+}
+
+func findJobFinished(events []LedgerEvent, kind, status string) (LedgerEvent, bool) {
+	for _, event := range events {
+		if event.Event != "job_finished" || event.JobKind != kind {
+			continue
+		}
+		if status != "" && event.Status != status {
+			continue
+		}
+		return event, true
+	}
+	return LedgerEvent{}, false
 }
 
 type deadlineCaptureRunner struct {
@@ -1389,6 +1596,16 @@ func gitLogSubject(t *testing.T, repoRoot string) string {
 	out, err := exec.Command("git", "-C", repoRoot, "log", "-1", "--pretty=%s").Output()
 	if err != nil {
 		t.Fatalf("git log -1 --pretty=%%s failed: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func gitCommitCount(t *testing.T, repoRoot string) string {
+	t.Helper()
+
+	out, err := exec.Command("git", "-C", repoRoot, "rev-list", "--count", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("git rev-list --count HEAD failed: %v", err)
 	}
 	return strings.TrimSpace(string(out))
 }

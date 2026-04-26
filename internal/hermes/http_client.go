@@ -121,6 +121,7 @@ type orChatRequest struct {
 	MaxTokens           int                `json:"max_tokens,omitempty"`
 	MaxCompletionTokens int                `json:"max_completion_tokens,omitempty"`
 	Temperature         *float64           `json:"temperature,omitempty"`
+	ReasoningEffort     *ReasoningEffort   `json:"reasoning_effort,omitempty"`
 	Tools               []orToolDescriptor `json:"tools,omitempty"`
 }
 
@@ -182,6 +183,10 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 
 func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]byte, []ToolDescriptor, error) {
 	msgs := makeOpenAICompatibleMessages(req.Messages, c.provider, req.Model, c.baseURL)
+	reasoningEffort, err := validateReasoningEffort(req.ReasoningEffort)
+	if err != nil {
+		return nil, nil, err
+	}
 	descriptors := SanitizeToolDescriptors(req.Tools)
 	tools := make([]orToolDescriptor, len(descriptors))
 	for i, t := range descriptors {
@@ -202,12 +207,24 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 		MaxTokens:           maxTokens,
 		MaxCompletionTokens: maxCompletionTokens,
 		Temperature:         req.Temperature,
+		ReasoningEffort:     reasoningEffort,
 		Tools:               tools,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 	return body, descriptors, nil
+}
+
+func validateReasoningEffort(effort *ReasoningEffort) (*ReasoningEffort, error) {
+	if effort == nil {
+		return nil, nil
+	}
+	normalized, ok := NormalizeReasoningEffort(*effort)
+	if !ok {
+		return nil, fmt.Errorf("invalid reasoning_effort %q; valid values are none, minimal, low, medium, high, xhigh", *effort)
+	}
+	return &normalized, nil
 }
 
 func requestBodyHasParameter(body []byte, param string) bool {

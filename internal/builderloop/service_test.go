@@ -26,10 +26,12 @@ func TestRenderServiceUnitInjectsPaths(t *testing.T) {
 		"Environment=DISABLE_COMPANIONS=0",
 		"Environment=COMPANION_ON_IDLE=1",
 		"Environment=MAX_AGENTS=4",
+		"Environment=MAX_PHASE=0",
 		"Environment=MODE=safe",
 		"WorkingDirectory=/srv/gormes",
-		"ExecStart=/opt/gormes/bin/autoloop run",
-		"Restart=on-failure",
+		"ExecStart=/opt/gormes/bin/autoloop run --loop",
+		"Restart=always",
+		"RestartPreventExitStatus=2 30",
 		"RestartSec=30s",
 		"TimeoutStopSec=60s",
 		"KillMode=mixed",
@@ -47,7 +49,7 @@ func TestRenderServiceUnitInjectsPaths(t *testing.T) {
 	})
 	for _, want := range []string{
 		`WorkingDirectory="/tmp/gormes repo/work%%dir\"\\subdir"`,
-		`ExecStart="/tmp/gormes repo/bin/auto%%loop\"\\bin" run`,
+		`ExecStart="/tmp/gormes repo/bin/auto%%loop\"\\bin" run --loop`,
 	} {
 		if !strings.Contains(quoted, want) {
 			t.Fatalf("RenderServiceUnit() = %q, want %q", quoted, want)
@@ -60,7 +62,7 @@ func TestRenderServiceUnitInjectsPaths(t *testing.T) {
 	})
 	for _, want := range []string{
 		`WorkingDirectory="/tmp/gormes\trepo"`,
-		`ExecStart="/tmp/gormes\nrepo/bin/autoloop" run`,
+		`ExecStart="/tmp/gormes\nrepo/bin/autoloop" run --loop`,
 	} {
 		if !strings.Contains(controlEscaped, want) {
 			t.Fatalf("RenderServiceUnit() = %q, want %q", controlEscaped, want)
@@ -116,7 +118,7 @@ func TestInstallServiceWritesUnitAndReloadsSystemd(t *testing.T) {
 	unit := string(raw)
 	for _, want := range []string{
 		"WorkingDirectory=/srv/gormes",
-		"ExecStart=/opt/gormes/bin/autoloop run",
+		"ExecStart=/opt/gormes/bin/autoloop run --loop",
 	} {
 		if !strings.Contains(unit, want) {
 			t.Fatalf("installed unit = %q, want %q", unit, want)
@@ -230,6 +232,70 @@ func TestInstallAuditServiceWritesServiceAndTimerAndEnablesTimer(t *testing.T) {
 	wantCommands := []Command{
 		{Name: "systemctl", Args: []string{"--user", "daemon-reload"}},
 		{Name: "systemctl", Args: []string{"--user", "enable", "--now", "gormes-orchestrator-audit.timer"}},
+	}
+	if !reflect.DeepEqual(runner.Commands, wantCommands) {
+		t.Fatalf("commands = %#v, want %#v", runner.Commands, wantCommands)
+	}
+}
+
+func TestInstallWatchdogServiceWritesServiceAndTenMinuteTimer(t *testing.T) {
+	unitDir := t.TempDir()
+	runner := &FakeRunner{
+		Results: []Result{{}, {}},
+	}
+
+	if err := InstallWatchdogService(context.Background(), WatchdogServiceInstallOptions{
+		Runner:       runner,
+		UnitDir:      unitDir,
+		UnitName:     "gormes-orchestrator-watchdog.service",
+		TimerName:    "gormes-orchestrator-watchdog.timer",
+		WatchdogPath: "/srv/gormes/scripts/orchestrator/watchdog.sh",
+		WorkDir:      "/srv/gormes",
+		AutoStart:    true,
+	}); err != nil {
+		t.Fatalf("InstallWatchdogService() error = %v", err)
+	}
+
+	service, err := os.ReadFile(filepath.Join(unitDir, "gormes-orchestrator-watchdog.service"))
+	if err != nil {
+		t.Fatalf("ReadFile(service) error = %v", err)
+	}
+	for _, want := range []string{
+		"Type=oneshot",
+		"Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin",
+		"Environment=REPO_ROOT=/srv/gormes",
+		"Environment=GORMES_ORCHESTRATOR_SERVICE=gormes-orchestrator.service",
+		"WorkingDirectory=/srv/gormes",
+		"ExecStart=/srv/gormes/scripts/orchestrator/watchdog.sh",
+		"TimeoutStartSec=180s",
+		"Nice=10",
+	} {
+		if !strings.Contains(string(service), want) {
+			t.Fatalf("service unit = %q, want %q", service, want)
+		}
+	}
+
+	timer, err := os.ReadFile(filepath.Join(unitDir, "gormes-orchestrator-watchdog.timer"))
+	if err != nil {
+		t.Fatalf("ReadFile(timer) error = %v", err)
+	}
+	for _, want := range []string{
+		"[Timer]",
+		"OnBootSec=2min",
+		"OnUnitActiveSec=10min",
+		"AccuracySec=30s",
+		"Persistent=true",
+		"Unit=gormes-orchestrator-watchdog.service",
+		"WantedBy=timers.target",
+	} {
+		if !strings.Contains(string(timer), want) {
+			t.Fatalf("timer unit = %q, want %q", timer, want)
+		}
+	}
+
+	wantCommands := []Command{
+		{Name: "systemctl", Args: []string{"--user", "daemon-reload"}},
+		{Name: "systemctl", Args: []string{"--user", "enable", "--now", "gormes-orchestrator-watchdog.timer"}},
 	}
 	if !reflect.DeepEqual(runner.Commands, wantCommands) {
 		t.Fatalf("commands = %#v, want %#v", runner.Commands, wantCommands)

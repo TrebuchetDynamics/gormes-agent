@@ -7,7 +7,8 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=@WORKDIR@
 ExecStart=/bin/bash @ORCHESTRATOR_PATH@
-Restart=on-failure
+Restart=always
+RestartPreventExitStatus=2 30
 RestartSec=30s
 TimeoutStopSec=60s
 KillMode=mixed
@@ -23,6 +24,7 @@ Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=DISABLE_COMPANIONS=0
 Environment=COMPANION_ON_IDLE=1
 Environment=MAX_AGENTS=4
+Environment=MAX_PHASE=0
 Environment=MODE=safe
 
 # stdout/stderr go to journald; tail with:

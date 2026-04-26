@@ -61,6 +61,7 @@ var doctorCmd = &cobra.Command{
 			runtimeStatus = snapshot.Status
 		}
 		fmt.Print(doctorSlackGatewayConfig(cfg, runtimeStatus).Format())
+		fmt.Print(doctorCustomEndpointReadiness(cfg).Format())
 
 		if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled {
 			fmt.Println("[WARN] gateway: no channels configured ([telegram], [discord], or [slack])")
@@ -154,6 +155,63 @@ func slackGatewayTargetDetail(cfg config.SlackCfg) string {
 		detail = "allowed_channel_id=" + cfg.AllowedChannelID
 	}
 	return detail + " coalesce_ms=" + strconv.Itoa(cfg.CoalesceMs)
+}
+
+// doctorCustomEndpointReadiness reports whether the [hermes] custom endpoint
+// triple (endpoint + api_key + model) is configured well enough for Gormes to
+// route requests. It performs no network probe — `--offline` callers see the
+// same verdict as live ones.
+func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
+	h := cfg.Hermes
+	if h.Endpoint == "" && h.APIKey == "" && h.Model == "" {
+		return doctor.CheckResult{
+			Name:    "Custom endpoint",
+			Status:  doctor.StatusWarn,
+			Summary: "disabled",
+		}
+	}
+
+	items := []doctor.ItemInfo{
+		readinessItem("endpoint", h.Endpoint, doctor.StatusWarn),
+		readinessItem("api_key", h.APIKey, doctor.StatusWarn),
+		readinessItem("model", h.Model, doctor.StatusFail),
+	}
+
+	status := doctor.StatusPass
+	missing := 0
+	for _, it := range items {
+		if it.Status == doctor.StatusFail {
+			status = doctor.StatusFail
+			missing++
+			continue
+		}
+		if it.Status == doctor.StatusWarn {
+			if status != doctor.StatusFail {
+				status = doctor.StatusWarn
+			}
+			missing++
+		}
+	}
+
+	summary := fmt.Sprintf("configured endpoint=%s", h.Endpoint)
+	if missing > 0 {
+		summary = fmt.Sprintf("configured endpoint=%s missing=%d", h.Endpoint, missing)
+	}
+	return doctor.CheckResult{
+		Name:    "Custom endpoint",
+		Status:  status,
+		Summary: summary,
+		Items:   items,
+	}
+}
+
+// readinessItem returns a Pass item with note "set" when value is non-empty,
+// or an item at missingStatus with note "missing" when value is empty.
+func readinessItem(name, value string, missingStatus doctor.Status) doctor.ItemInfo {
+	if value == "" {
+		return doctor.ItemInfo{Name: name, Status: missingStatus, Note: "missing"}
+	}
+	return doctor.ItemInfo{Name: name, Status: doctor.StatusPass, Note: "set"}
 }
 
 func doctorGonchoConfig(cfg config.Config) doctor.CheckResult {

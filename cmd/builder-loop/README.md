@@ -26,6 +26,12 @@ Non-dry-run builder cycles take the shared planner-loop `run.lock` before
 checkpointing, PR intake, worker claims, promotions, or health writes. If the
 planner loop is already regenerating the control plane, builder emits
 `run_blocked:control_plane_locked` and exits before touching the queue.
+In `run --loop` mode, each cycle attempts a builder run, releases the shared
+lock, then invokes `go run ./cmd/planner-loop run` before sleeping and starting
+the next builder cycle. Builder or planner failures are logged but do not stop
+loop mode; only cancellation stops the loop. After the planner attempt, loop
+mode checkpoints any dirty control-checkout files so generated planner output
+is committed to `main` before the next cycle.
 
 ## Run Modes
 
@@ -39,6 +45,13 @@ Run the selected work through the configured backend:
 
 ```sh
 go run ./cmd/builder-loop run
+```
+
+Run continuously, scheduling one planner refresh after each completed builder
+cycle:
+
+```sh
+go run ./cmd/builder-loop run --loop
 ```
 
 Validate or regenerate the progress control plane:
@@ -64,13 +77,17 @@ Useful environment variables:
 - `BUILDER_LOOP_BACKEND_TIMEOUT`: cap each worker or repair backend invocation
   so a stuck agent cannot park the infinite loop forever. Defaults to `30m`.
   The legacy `AUTOLOOP_BACKEND_TIMEOUT` is read as a fallback for back-compat.
+- `BUILDER_LOOP_SLEEP`: delay between a successful planner refresh and the next
+  builder cycle in `run --loop` mode. Defaults to `30s`.
 - `MAX_AGENTS`: cap selected rows for one run. If fewer rows are metadata-ready,
   the builder loop runs fewer workers instead of choosing filler or random work. In a
   git checkout, selected workers run concurrently when this is greater than
   one.
 - `MAX_PHASE`: cap eligible roadmap phases. Defaults to `4` so current
   unattended runs include the active Phase 4 queue without opening later
-  phases. Set `0` only for an explicit unbounded run.
+  phases. Set `0` for an explicit unbounded run. The generated production
+  systemd unit sets `MAX_PHASE=0` so the service keeps advancing when the
+  roadmap moves beyond the CLI default.
 - `PRIORITY_BOOST`: comma-separated subphase IDs to pull ahead of equally ready
   work. Defaults to the active priority channels: `2.B.3,2.B.4,2.B.10,2.B.11`.
 - `POST_PROMOTION_VERIFY_COMMANDS`: override the mandatory post-promotion

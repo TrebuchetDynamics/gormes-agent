@@ -13,10 +13,18 @@ Go-native `gormes-agent`.
 ## Study Snapshot
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/gbrain`
-- Upstream commit: `f718c59`
+- Upstream commit: `172b55b`
 - Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
-- Gormes commit: `1747b964`
-- Date: 2026-04-25
+- Date: 2026-04-26
+
+## 2026-04-26 Drift Check
+
+GBrain `172b55b` ships v0.22.0 source-aware search ranking. The new lesson is
+source-swamp resistance: curated sources win over bulky chat/daily/raw imports
+by default, hard-exclude prefixes are applied before ranking, and high-detail or
+temporal lookups can bypass the damping. Gormes should port this as a small
+Phase 6.D source-tier evidence contract for skill and memory retrieval, not as
+GBrain's Postgres/PGLite SQL builders.
 
 ## 2026-04-25 Drift Check
 

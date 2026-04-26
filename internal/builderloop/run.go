@@ -1,7 +1,9 @@
 package builderloop
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -30,6 +32,8 @@ var ErrPostPromotionVerifyFailed = errors.New("post-promotion verify failed")
 // promotions, and health writes, so non-dry-run builder cycles must not
 // overlap planner regeneration.
 var ErrControlPlaneRunInProgress = errors.New("control-plane run already in progress")
+
+var errWorkerNoChanges = errors.New("worker made no changes")
 
 type RunOptions struct {
 	Config Config
@@ -91,7 +95,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			return RunSummary{}, err
 		}
 		if opts.Config.AutoCommitDirtyWorktree {
-			if err := checkpointDirtyWorktree(ctx, opts.Config, runID); err != nil {
+			if err := CheckpointDirtyWorktree(ctx, opts.Config, runID); err != nil {
 				return RunSummary{}, err
 			}
 		}
@@ -99,14 +103,36 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			return RunSummary{}, err
 		}
 		if opts.Config.MergeOpenPullRequests {
-			if _, err := MergeOpenPullRequests(ctx, PullRequestIntakeOptions{
-				Runner:         runner,
-				RepoRoot:       opts.Config.RepoRoot,
-				RunRoot:        opts.Config.RunRoot,
-				RunID:          runID,
-				ConflictAction: opts.Config.PRConflictAction,
-			}); err != nil {
-				return RunSummary{}, err
+			if skip, detail := shouldBackOffPullRequestIntake(opts.Config, now); skip {
+				if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
+					TS:     time.Now().UTC(),
+					RunID:  runID,
+					Event:  "pr_intake_skipped",
+					Status: "empty_backoff",
+					Detail: detail,
+				}); err != nil {
+					return RunSummary{}, err
+				}
+			} else {
+				result := runLoggedOperation(opts.Config, runID, jobSpec{
+					ID:            fmt.Sprintf("%s/pr-intake/1", runID),
+					Kind:          "pr_intake",
+					Command:       "MergeOpenPullRequests",
+					Dir:           opts.Config.RepoRoot,
+					FailureStatus: "pr_intake_failed",
+				}, func() Result {
+					_, err := MergeOpenPullRequests(ctx, PullRequestIntakeOptions{
+						Runner:         runner,
+						RepoRoot:       opts.Config.RepoRoot,
+						RunRoot:        opts.Config.RunRoot,
+						RunID:          runID,
+						ConflictAction: opts.Config.PRConflictAction,
+					})
+					return Result{Err: err}
+				})
+				if result.Err != nil {
+					return RunSummary{}, result.Err
+				}
 			}
 		}
 	}
@@ -298,6 +324,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			RunID:  runID,
 			Event:  "run_completed",
 			Status: "completed",
+			Detail: runHealthMixDetail(selected),
 		}); err != nil {
 			return errors.Join(err, flushHealth())
 		}
@@ -326,11 +353,14 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		for _, sk := range skipped {
 			acc.RecordFailure(sk.Candidate, progress.FailureProgressSummary, degrader.Current(), sk.Reason)
 		}
-		runBackendWorkers(ctx, opts.Config, runner, argv, workers)
+		runBackendWorkers(ctx, opts.Config, runner, runID, argv, workers)
 		for _, worker := range workers {
 			finishErr := finishWorker(ctx, opts.Config, runner, argv[0], runID, baseBranch, hasGit, worker)
 			recordWorkerOutcome(acc, observeOutcome, degrader.Current(), worker, finishErr)
 			if finishErr != nil {
+				if errors.Is(finishErr, errWorkerNoChanges) {
+					continue
+				}
 				return RunSummary{}, errors.Join(finishErr, flushHealth())
 			}
 			completedWork = true
@@ -406,7 +436,16 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 
 		args := append([]string(nil), argv[1:]...)
 		args = append(args, BuildWorkerPromptWithBranch(candidate, worker.Branch))
-		worker.Result = runBackendCommand(ctx, opts.Config, runner, Command{
+		worker.Result = runLoggedBackendCommand(ctx, opts.Config, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/worker/%d/backend", runID, worker.ID),
+			Kind:          "worker_backend",
+			Command:       backendTelemetryCommand(argv),
+			Dir:           worker.RepoRoot,
+			Worker:        worker.ID,
+			Task:          worker.Task,
+			Branch:        worker.Branch,
+			FailureStatus: "backend_failed",
+		}, Command{
 			Name: argv[0],
 			Args: args,
 			Dir:  worker.RepoRoot,
@@ -414,6 +453,9 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		finishErr := finishWorker(ctx, opts.Config, runner, argv[0], runID, baseBranch, hasGit, worker)
 		recordWorkerOutcome(acc, observeOutcome, degrader.Current(), worker, finishErr)
 		if finishErr != nil {
+			if errors.Is(finishErr, errWorkerNoChanges) {
+				continue
+			}
 			return RunSummary{}, errors.Join(finishErr, flushHealth())
 		}
 		completedWork = true
@@ -631,7 +673,17 @@ func runPrePromotionRepair(ctx context.Context, cfg Config, runner Runner, runID
 
 	args := append([]string(nil), argv[1:]...)
 	args = append(args, BuildPrePromotionRepairPrompt(cfg.PrePromotionVerifyCommands, worker, cause))
-	result := runBackendCommand(ctx, cfg, runner, Command{
+	result := runLoggedBackendCommand(ctx, cfg, runner, runID, jobSpec{
+		ID:            fmt.Sprintf("%s/worker/%d/pre-repair/%d", runID, worker.ID, attempt),
+		Kind:          "pre_repair_backend",
+		Attempt:       attempt,
+		Command:       backendTelemetryCommand(argv),
+		Dir:           worker.RepoRoot,
+		Worker:        worker.ID,
+		Task:          worker.Task,
+		Branch:        worker.Branch,
+		FailureStatus: "pre_repair_failed",
+	}, Command{
 		Name: argv[0],
 		Args: args,
 		Dir:  worker.RepoRoot,
@@ -723,7 +775,17 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		failureDetails []string
 	)
 	for i, shellCommand := range cfg.PrePromotionVerifyCommands {
-		result := runner.Run(ctx, Command{
+		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/worker/%d/pre-verify/%d/%d", runID, worker.ID, attempt, i+1),
+			Kind:          "pre_verify_command",
+			Attempt:       attempt,
+			Command:       shellCommand,
+			Dir:           worker.RepoRoot,
+			Worker:        worker.ID,
+			Task:          worker.Task,
+			Branch:        worker.Branch,
+			FailureStatus: "pre_verify_failed",
+		}, Command{
 			Name: "sh",
 			Args: []string{"-lc", shellCommand},
 			Dir:  worker.RepoRoot,
@@ -789,7 +851,16 @@ func runRowEvaluator(ctx context.Context, cfg Config, runner Runner, runID strin
 		failureDetails []string
 	)
 	for i, shellCommand := range commands {
-		result := runner.Run(ctx, Command{
+		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/worker/%d/row-eval/%d", runID, worker.ID, i+1),
+			Kind:          "row_eval_command",
+			Command:       shellCommand,
+			Dir:           worker.RepoRoot,
+			Worker:        worker.ID,
+			Task:          worker.Task,
+			Branch:        worker.Branch,
+			FailureStatus: "row_eval_failed",
+		}, Command{
 			Name: "sh",
 			Args: []string{"-lc", shellCommand},
 			Dir:  worker.RepoRoot,
@@ -851,7 +922,14 @@ func runPostPromotionVerification(ctx context.Context, cfg Config, runner Runner
 		failureDetails []string
 	)
 	for i, shellCommand := range cfg.PostPromotionVerifyCommands {
-		result := runner.Run(ctx, Command{
+		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
+			ID:            fmt.Sprintf("%s/post-verify/%d/%d", runID, attempt, i+1),
+			Kind:          "post_verify_command",
+			Attempt:       attempt,
+			Command:       shellCommand,
+			Dir:           cfg.RepoRoot,
+			FailureStatus: "post_verify_failed",
+		}, Command{
 			Name: "sh",
 			Args: []string{"-lc", shellCommand},
 			Dir:  cfg.RepoRoot,
@@ -933,7 +1011,14 @@ func runPostPromotionRepair(ctx context.Context, cfg Config, runner Runner, runI
 
 	args := append([]string(nil), argv[1:]...)
 	args = append(args, BuildPostPromotionRepairPrompt(cfg.PostPromotionVerifyCommands, cause))
-	result := runBackendCommand(ctx, cfg, runner, Command{
+	result := runLoggedBackendCommand(ctx, cfg, runner, runID, jobSpec{
+		ID:            fmt.Sprintf("%s/post-repair/%d", runID, attempt),
+		Kind:          "post_repair_backend",
+		Attempt:       attempt,
+		Command:       backendTelemetryCommand(argv),
+		Dir:           cfg.RepoRoot,
+		FailureStatus: "post_repair_failed",
+	}, Command{
 		Name: argv[0],
 		Args: args,
 		Dir:  cfg.RepoRoot,
@@ -1005,12 +1090,28 @@ func commandFailureDetail(result Result) string {
 
 func postPromotionCommandEnv(cfg Config) []string {
 	env := []string{
+		"REPO_ROOT=",
 		"PROGRESS_JSON=" + cfg.ProgressJSON,
 		"RUN_ROOT=" + cfg.RunRoot,
 		"BACKEND=" + cfg.Backend,
 		"MODE=" + cfg.Mode,
 		fmt.Sprintf("MAX_AGENTS=%d", cfg.MaxAgents),
 		fmt.Sprintf("MAX_PHASE=%d", cfg.MaxPhase),
+		"DISABLE_COMPANIONS=1",
+		"COMPANION_ON_IDLE=1",
+		"COMPANION_PLANNER_CMD=:",
+		"COMPANION_DOC_IMPROVER_CMD=:",
+		"COMPANION_LANDINGPAGE_CMD=:",
+		"INTEGRATION_BRANCH=",
+		"FAIL_FAST_ON_WORKER_FAILURE=",
+		"PAUSE_ON_RUN_FAILURE=",
+		"SKIP_COMPANIONS_ON_RUN_FAILURE=",
+		"PHASE_FLOOR=",
+		"PHASE_PRIORITY_BOOST=",
+		"PHASE_SKIP_SUBPHASES=",
+		"MAX_RETRIES=",
+		"CANDIDATE_LOW_WATERMARK=",
+		"MIN_MEM_PER_WORKER_MB=",
 	}
 	if len(cfg.PriorityBoost) > 0 {
 		env = append(env, "PRIORITY_BOOST="+strings.Join(cfg.PriorityBoost, ","))
@@ -1091,6 +1192,9 @@ func recordWorkerOutcome(
 func mapFinishErrorToCategory(worker workerRun, err error) progress.FailureCategory {
 	if err == nil {
 		return ""
+	}
+	if errors.Is(err, errWorkerNoChanges) {
+		return progress.FailureNoProgress
 	}
 	// A backend exit error (worker.Result.Err != nil) is always worker_error.
 	if worker.Result.Err != nil {
@@ -1180,7 +1284,7 @@ type skippedCandidate struct {
 	Reason    string
 }
 
-func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, argv []string, workers []workerRun) {
+func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, runID string, argv []string, workers []workerRun) {
 	var wg sync.WaitGroup
 	for i := range workers {
 		worker := &workers[i]
@@ -1189,7 +1293,16 @@ func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, argv []st
 			defer wg.Done()
 			args := append([]string(nil), argv[1:]...)
 			args = append(args, BuildWorkerPromptWithBranch(worker.Candidate, worker.Branch))
-			worker.Result = runBackendCommand(ctx, cfg, runner, Command{
+			worker.Result = runLoggedBackendCommand(ctx, cfg, runner, runID, jobSpec{
+				ID:            fmt.Sprintf("%s/worker/%d/backend", runID, worker.ID),
+				Kind:          "worker_backend",
+				Command:       backendTelemetryCommand(argv),
+				Dir:           worker.RepoRoot,
+				Worker:        worker.ID,
+				Task:          worker.Task,
+				Branch:        worker.Branch,
+				FailureStatus: "backend_failed",
+			}, Command{
 				Name: argv[0],
 				Args: args,
 				Dir:  worker.RepoRoot,
@@ -1199,15 +1312,23 @@ func runBackendWorkers(ctx context.Context, cfg Config, runner Runner, argv []st
 	wg.Wait()
 }
 
-func runBackendCommand(ctx context.Context, cfg Config, runner Runner, command Command) Result {
+func runLoggedBackendCommand(ctx context.Context, cfg Config, runner Runner, runID string, spec jobSpec, command Command) Result {
 	backendCtx := ctx
 	cancel := func() {}
 	if cfg.BackendTimeout > 0 {
 		backendCtx, cancel = context.WithTimeout(ctx, cfg.BackendTimeout)
 	}
-	result := runner.Run(backendCtx, command)
+	result := runLoggedJob(backendCtx, cfg, runner, runID, spec, command)
 	cancel()
 	return result
+}
+
+func backendTelemetryCommand(argv []string) string {
+	if len(argv) == 0 {
+		return "<backend> <prompt>"
+	}
+	base := strings.Join(argv, " ")
+	return base + " <prompt>"
 }
 
 func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName string, runID string, baseBranch string, hasGit bool, worker workerRun) error {
@@ -1260,7 +1381,7 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		return err
 	}
 	if err := ensureWorktreeClean(worker.RepoRoot); err != nil {
-		if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+		event := LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
 			Event:  "worker_failed",
@@ -1269,7 +1390,9 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			Branch: worker.Branch,
 			Status: "worktree_dirty",
 			Detail: err.Error(),
-		}); ledgerErr != nil {
+		}
+		attachWorkerResultEvidence(&event, worker.Result)
+		if ledgerErr := appendRunLedgerEvent(cfg, event); ledgerErr != nil {
 			return ledgerErr
 		}
 		return err
@@ -1333,7 +1456,7 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 				}
 			} else {
 				commitSha = ""
-				if err := appendRunLedgerEvent(cfg, LedgerEvent{
+				event := LedgerEvent{
 					TS:     time.Now().UTC(),
 					RunID:  runID,
 					Event:  "worker_no_changes",
@@ -1341,14 +1464,18 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 					Task:   worker.Task,
 					Branch: worker.Branch,
 					Status: "no_changes",
-				}); err != nil {
+				}
+				attachWorkerResultEvidence(&event, worker.Result)
+				if err := appendRunLedgerEvent(cfg, event); err != nil {
 					return err
 				}
+				removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
+				return fmt.Errorf("%w: %s", errWorkerNoChanges, worker.Task)
 			}
 			removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
 		} else {
 			commitSha = ""
-			if err := appendRunLedgerEvent(cfg, LedgerEvent{
+			event := LedgerEvent{
 				TS:     time.Now().UTC(),
 				RunID:  runID,
 				Event:  "worker_no_changes",
@@ -1356,10 +1483,13 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 				Task:   worker.Task,
 				Branch: worker.Branch,
 				Status: "no_changes",
-			}); err != nil {
+			}
+			attachWorkerResultEvidence(&event, worker.Result)
+			if err := appendRunLedgerEvent(cfg, event); err != nil {
 				return err
 			}
 			removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
+			return fmt.Errorf("%w: %s", errWorkerNoChanges, worker.Task)
 		}
 	}
 
@@ -1373,6 +1503,16 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		Commit: commitSha,
 		Status: "success",
 	})
+}
+
+func attachWorkerResultEvidence(event *LedgerEvent, result Result) {
+	if event == nil {
+		return
+	}
+	event.StdoutBytes = len(result.Stdout)
+	event.StderrBytes = len(result.Stderr)
+	event.StdoutTail = boundedRedactedTail(result.Stdout)
+	event.StderrTail = boundedRedactedTail(result.Stderr)
 }
 
 func ensureWorkerCommitWithinWriteScope(cfg Config, runID string, worker workerRun, commitSha string) error {
@@ -1543,7 +1683,130 @@ func appendRunLedgerEvent(cfg Config, event LedgerEvent) error {
 	return AppendLedgerEvent(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"), event)
 }
 
-func checkpointDirtyWorktree(ctx context.Context, cfg Config, runID string) error {
+func runHealthMixDetail(selected []Candidate) string {
+	var selfImprovement, userFeature, unknown int
+	for _, candidate := range selected {
+		switch classifyRunHealthWork(candidate) {
+		case "self_improvement":
+			selfImprovement++
+		case "user_feature":
+			userFeature++
+		default:
+			unknown++
+		}
+	}
+
+	ratio := 0.0
+	if denom := selfImprovement + userFeature; denom > 0 {
+		ratio = float64(selfImprovement) / float64(denom)
+	}
+	return fmt.Sprintf("self_improvement=%d user_feature=%d unknown=%d self_ratio=%.2f basis=selected",
+		selfImprovement,
+		userFeature,
+		unknown,
+		ratio,
+	)
+}
+
+func classifyRunHealthWork(candidate Candidate) string {
+	if candidateTouchesLoopControlPlane(candidate) {
+		return "self_improvement"
+	}
+	switch strings.ToLower(strings.TrimSpace(candidate.ExecutionOwner)) {
+	case "orchestrator":
+		return "self_improvement"
+	case "":
+		if len(candidate.WriteScope) == 0 {
+			return "unknown"
+		}
+	}
+	return "user_feature"
+}
+
+func candidateTouchesLoopControlPlane(candidate Candidate) bool {
+	values := []string{
+		candidate.ItemName,
+		candidate.Contract,
+		candidate.Fixture,
+		candidate.Note,
+	}
+	values = append(values, candidate.SourceRefs...)
+	values = append(values, candidate.WriteScope...)
+	values = append(values, candidate.TestCommands...)
+
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		switch {
+		case strings.Contains(value, "cmd/builder-loop"),
+			strings.Contains(value, "cmd/planner-loop"),
+			strings.Contains(value, "internal/builderloop"),
+			strings.Contains(value, "internal/plannerloop"),
+			strings.Contains(value, "scripts/orchestrator"),
+			strings.Contains(value, "docs/content/building-gormes/builder-loop"),
+			strings.Contains(value, "docs/content/building-gormes/planner-loop"),
+			strings.Contains(value, "builder-loop"),
+			strings.Contains(value, "planner-loop"):
+			return true
+		}
+	}
+	return false
+}
+
+func shouldBackOffPullRequestIntake(cfg Config, now time.Time) (bool, string) {
+	if cfg.PRIntakeEmptyBackoff <= 0 || strings.TrimSpace(cfg.RunRoot) == "" {
+		return false, ""
+	}
+	latest, ok := latestPullRequestIntakeCompletion(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if !ok || latest.TS.IsZero() || !pullRequestIntakeListedEmpty(latest.Detail) {
+		return false, ""
+	}
+	next := latest.TS.UTC().Add(cfg.PRIntakeEmptyBackoff)
+	if !now.UTC().Before(next) {
+		return false, ""
+	}
+	return true, fmt.Sprintf("last_empty=%s next_after=%s backoff=%s",
+		latest.TS.UTC().Format(time.RFC3339),
+		next.Format(time.RFC3339),
+		cfg.PRIntakeEmptyBackoff,
+	)
+}
+
+func latestPullRequestIntakeCompletion(path string) (LedgerEvent, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return LedgerEvent{}, false
+	}
+	defer file.Close()
+
+	var latest LedgerEvent
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var event LedgerEvent
+		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
+			continue
+		}
+		if event.Event != "pr_intake_completed" || event.Status != "completed" {
+			continue
+		}
+		if latest.TS.IsZero() || event.TS.After(latest.TS) {
+			latest = event
+		}
+	}
+	return latest, !latest.TS.IsZero()
+}
+
+func pullRequestIntakeListedEmpty(detail string) bool {
+	for _, field := range strings.Fields(detail) {
+		if field == "listed=0" {
+			return true
+		}
+	}
+	return false
+}
+
+// CheckpointDirtyWorktree commits dirty control-checkout changes so unattended
+// loop mode can keep moving without losing planner or generated state.
+func CheckpointDirtyWorktree(ctx context.Context, cfg Config, runID string) error {
 	if cfg.RepoRoot == "" || !repoHasGit(cfg.RepoRoot) {
 		return nil
 	}
@@ -1574,12 +1837,18 @@ func checkpointDirtyWorktree(ctx context.Context, cfg Config, runID string) erro
 	}
 
 	message := fmt.Sprintf("builder-loop: checkpoint dirty worktree %s", runID)
-	if _, err := runGitCheckpointCommand(ctx, cfg.RepoRoot,
+	commitArgs := []string{
 		"-c", "user.name=Gormes Builder Loop",
 		"-c", "user.email=builder-loop@gormes.local",
 		"-c", "commit.gpgsign=false",
-		"commit", "-m", message,
-	); err != nil {
+	}
+	amended := lastCommitIsBuilderLoopCheckpoint(ctx, cfg.RepoRoot)
+	if amended {
+		commitArgs = append(commitArgs, "commit", "--amend", "--no-edit")
+	} else {
+		commitArgs = append(commitArgs, "commit", "-m", message)
+	}
+	if _, err := runGitCheckpointCommand(ctx, cfg.RepoRoot, commitArgs...); err != nil {
 		return recordCheckpointFailure(cfg, runID, "commit_failed", err)
 	}
 
@@ -1593,7 +1862,29 @@ func checkpointDirtyWorktree(ctx context.Context, cfg Config, runID string) erro
 		Event:  "worktree_checkpoint_committed",
 		Status: "committed",
 		Commit: sha,
+		Detail: checkpointCommitDetail(amended),
 	})
+}
+
+func lastCommitIsBuilderLoopCheckpoint(ctx context.Context, repoRoot string) bool {
+	subject, err := runGitCheckpointCommand(ctx, repoRoot, "log", "-1", "--pretty=%s")
+	if err != nil {
+		return false
+	}
+	return isBuilderLoopCheckpointSubject(subject)
+}
+
+func isBuilderLoopCheckpointSubject(subject string) bool {
+	subject = strings.TrimSpace(subject)
+	return strings.HasPrefix(subject, "builder-loop: checkpoint dirty worktree ") ||
+		strings.HasPrefix(subject, "builder-loop: watchdog checkpoint ")
+}
+
+func checkpointCommitDetail(amended bool) string {
+	if amended {
+		return "amended=true"
+	}
+	return ""
 }
 
 func recordCheckpointFailure(cfg Config, runID string, status string, err error) error {

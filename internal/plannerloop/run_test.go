@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 )
@@ -203,6 +204,19 @@ func TestRunOnceClearsStaleRawReportBeforeBackend(t *testing.T) {
 	}
 }
 
+func TestPlannerBackendWatchdogEventReportsElapsedNotNoOutput(t *testing.T) {
+	ev := plannerBackendWatchdogEvent("run-1", "codexu", "full", 6*time.Minute, 2, time.Date(2026, 4, 26, 15, 0, 0, 0, time.UTC))
+	if ev.Event != "backend_stuck" {
+		t.Fatalf("Event = %q, want backend_stuck", ev.Event)
+	}
+	if ev.Detail != "elapsed=6m0s attempt=2" {
+		t.Fatalf("Detail = %q, want elapsed detail", ev.Detail)
+	}
+	if strings.Contains(ev.Detail, "no_output_for") {
+		t.Fatalf("Detail falsely reports output silence: %q", ev.Detail)
+	}
+}
+
 func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
@@ -242,6 +256,64 @@ func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	}
 	if got := runner.Commands[:5]; !reflect.DeepEqual(got, wantPrefix) {
 		t.Fatalf("command prefix = %#v, want %#v", got, wantPrefix)
+	}
+}
+
+func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	cfg.MergeOpenPullRequests = true
+	cfg.PRIntakeEmptyBackoff = 5 * time.Minute
+	now := time.Date(2026, 4, 26, 14, 50, 0, 0, time.UTC)
+	if err := builderloop.AppendLedgerEvent(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"), builderloop.LedgerEvent{
+		TS:     now.Add(-2 * time.Minute),
+		RunID:  "previous",
+		Event:  "pr_intake_completed",
+		Status: "completed",
+		Detail: "listed=0 merged=0 closed=0 failed=0 skipped=0",
+	}); err != nil {
+		t.Fatalf("AppendLedgerEvent() error = %v", err)
+	}
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	if _, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+		Now:            now,
+	}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	for _, command := range runner.Commands {
+		if command.Name == "gh" {
+			t.Fatalf("unexpected PR intake command during empty backoff: %#v", command)
+		}
+	}
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	var event LedgerEvent
+	found := false
+	for _, candidate := range events {
+		if candidate.Event == "pr_intake_skipped" && candidate.Status == "empty_backoff" {
+			event = candidate
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("ledger missing pr_intake_skipped:empty_backoff: %+v", events)
+	}
+	for _, want := range []string{"last_empty=", "next_after=", "backoff=5m0s"} {
+		if !strings.Contains(event.Detail, want) {
+			t.Fatalf("skip detail = %q, want %q", event.Detail, want)
+		}
 	}
 }
 

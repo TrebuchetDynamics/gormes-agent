@@ -57,3 +57,133 @@ func TestSummarizeAutoloopAuditMissingLedgerIsEmpty(t *testing.T) {
 		t.Fatalf("audit = %#v, want empty summary", audit)
 	}
 }
+
+func TestControlPlaneSubphaseIDExported(t *testing.T) {
+	if ControlPlaneSubphaseID != "control-plane/backend" {
+		t.Fatalf("ControlPlaneSubphaseID = %q, want %q", ControlPlaneSubphaseID, "control-plane/backend")
+	}
+}
+
+func TestSubphaseFromTaskEmptyReturnsControlPlane(t *testing.T) {
+	cases := []struct {
+		name string
+		task string
+		want string
+	}{
+		{name: "empty string", task: "", want: ControlPlaneSubphaseID},
+		{name: "whitespace only", task: "   ", want: ControlPlaneSubphaseID},
+		{name: "tabs and spaces", task: "\t  \n", want: ControlPlaneSubphaseID},
+		{name: "named row preserved", task: "5/5.J/Foo", want: "5/5.J"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := subphaseFromTask(tc.task); got != tc.want {
+				t.Fatalf("subphaseFromTask(%q) = %q, want %q", tc.task, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSummarizeAutoloopAuditBlankBucket(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "runs.jsonl")
+	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
+	events := []builderloop.LedgerEvent{
+		{TS: now.Add(-3 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_waiting_for_stdin"},
+		{TS: now.Add(-2 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_killed"},
+		{TS: now.Add(-1 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_no_progress"},
+	}
+	for _, event := range events {
+		if err := builderloop.AppendLedgerEvent(path, event); err != nil {
+			t.Fatalf("AppendLedgerEvent() error = %v", err)
+		}
+	}
+
+	audit, err := SummarizeAutoloopAudit(path, 7*24*time.Hour, now)
+	if err != nil {
+		t.Fatalf("SummarizeAutoloopAudit() error = %v", err)
+	}
+
+	for _, row := range audit.ToxicSubphases {
+		if row.SubphaseID == "" {
+			t.Fatalf("ToxicSubphases contains empty subphase_id: %#v", audit.ToxicSubphases)
+		}
+	}
+	for _, row := range audit.HotSubphases {
+		if row.SubphaseID == "" {
+			t.Fatalf("HotSubphases contains empty subphase_id: %#v", audit.HotSubphases)
+		}
+	}
+
+	var toxic *SubphaseAuditRow
+	for i := range audit.ToxicSubphases {
+		if audit.ToxicSubphases[i].SubphaseID == ControlPlaneSubphaseID {
+			toxic = &audit.ToxicSubphases[i]
+			break
+		}
+	}
+	if toxic == nil {
+		t.Fatalf("ToxicSubphases missing ControlPlaneSubphaseID row: %#v", audit.ToxicSubphases)
+	}
+	if toxic.Failed != 3 {
+		t.Fatalf("ControlPlaneSubphaseID toxic.Failed = %d, want 3", toxic.Failed)
+	}
+
+	var hot *SubphaseAuditRow
+	for i := range audit.HotSubphases {
+		if audit.HotSubphases[i].SubphaseID == ControlPlaneSubphaseID {
+			hot = &audit.HotSubphases[i]
+			break
+		}
+	}
+	if hot == nil {
+		t.Fatalf("HotSubphases missing ControlPlaneSubphaseID row: %#v", audit.HotSubphases)
+	}
+
+	for _, row := range audit.RecentFailedTasks {
+		if row.SubphaseID == "" {
+			t.Fatalf("RecentFailedTasks contains empty subphase_id: %#v", audit.RecentFailedTasks)
+		}
+	}
+}
+
+func TestSummarizeAutoloopAuditPreservesNamedRows(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "runs.jsonl")
+	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
+	events := []builderloop.LedgerEvent{
+		{TS: now.Add(-4 * time.Hour), Event: "worker_claimed", Task: "5/5.J/Foo", Status: "claimed"},
+		{TS: now.Add(-3 * time.Hour), Event: "worker_failed", Task: "5/5.J/Foo", Status: "worktree_dirty"},
+		{TS: now.Add(-2 * time.Hour), Event: "worker_failed", Task: "", Status: "backend_killed"},
+	}
+	for _, event := range events {
+		if err := builderloop.AppendLedgerEvent(path, event); err != nil {
+			t.Fatalf("AppendLedgerEvent() error = %v", err)
+		}
+	}
+
+	audit, err := SummarizeAutoloopAudit(path, 7*24*time.Hour, now)
+	if err != nil {
+		t.Fatalf("SummarizeAutoloopAudit() error = %v", err)
+	}
+
+	var named, controlPlane *SubphaseAuditRow
+	for i := range audit.ToxicSubphases {
+		switch audit.ToxicSubphases[i].SubphaseID {
+		case "5/5.J":
+			named = &audit.ToxicSubphases[i]
+		case ControlPlaneSubphaseID:
+			controlPlane = &audit.ToxicSubphases[i]
+		}
+	}
+	if named == nil {
+		t.Fatalf("ToxicSubphases missing 5/5.J row: %#v", audit.ToxicSubphases)
+	}
+	if controlPlane == nil {
+		t.Fatalf("ToxicSubphases missing ControlPlaneSubphaseID row: %#v", audit.ToxicSubphases)
+	}
+	if named.Failed != 1 {
+		t.Fatalf("5/5.J Failed = %d, want 1", named.Failed)
+	}
+	if controlPlane.Failed != 1 {
+		t.Fatalf("ControlPlaneSubphaseID Failed = %d, want 1", controlPlane.Failed)
+	}
+}

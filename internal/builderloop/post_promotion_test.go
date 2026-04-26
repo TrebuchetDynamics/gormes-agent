@@ -51,6 +51,108 @@ func TestTruncateLedgerDetail_ShortStringPassesThrough(t *testing.T) {
 	}
 }
 
+func TestPostPromotionCommandEnvDisablesCompanionsForVerification(t *testing.T) {
+	cfg := Config{
+		ProgressJSON: "/repo/progress.json",
+		RunRoot:      "/repo/.codex/builder-loop",
+		Backend:      "codexu",
+		Mode:         "full",
+		MaxAgents:    8,
+		MaxPhase:     4,
+	}
+
+	env := postPromotionCommandEnv(cfg)
+
+	for _, want := range []string{
+		"REPO_ROOT=",
+		"DISABLE_COMPANIONS=1",
+		"COMPANION_ON_IDLE=1",
+		"COMPANION_PLANNER_CMD=:",
+		"COMPANION_DOC_IMPROVER_CMD=:",
+		"COMPANION_LANDINGPAGE_CMD=:",
+		"INTEGRATION_BRANCH=",
+		"FAIL_FAST_ON_WORKER_FAILURE=",
+		"PAUSE_ON_RUN_FAILURE=",
+		"SKIP_COMPANIONS_ON_RUN_FAILURE=",
+		"PHASE_FLOOR=",
+		"PHASE_PRIORITY_BOOST=",
+		"PHASE_SKIP_SUBPHASES=",
+		"MAX_RETRIES=",
+		"CANDIDATE_LOW_WATERMARK=",
+		"MIN_MEM_PER_WORKER_MB=",
+	} {
+		var found bool
+		for _, got := range env {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("postPromotionCommandEnv() = %#v, want %q", env, want)
+		}
+	}
+}
+
+func TestPostPromotionVerificationOverridesInheritedCompanionEnv(t *testing.T) {
+	t.Setenv("DISABLE_COMPANIONS", "0")
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot:                    dir,
+		RunRoot:                     filepath.Join(dir, "runroot"),
+		PostPromotionVerifyCommands: []string{`test "$DISABLE_COMPANIONS" = 1`},
+	}
+
+	err := runPostPromotionVerification(context.Background(), cfg, ExecRunner{}, "env-run", 1)
+	if err != nil {
+		t.Fatalf("verification should force DISABLE_COMPANIONS=1 over inherited env: %v", err)
+	}
+}
+
+func TestRunPostPromotionVerificationLogsCommandJobs(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot: dir,
+		RunRoot:  filepath.Join(dir, "runroot"),
+		PostPromotionVerifyCommands: []string{
+			"go test ./internal/hermes -count=1",
+			"go run ./cmd/builder-loop progress validate",
+		},
+	}
+	runner := runnerFunc(func(_ context.Context, _ Command) Result {
+		return Result{Stdout: "ok\n"}
+	})
+
+	if err := runPostPromotionVerification(context.Background(), cfg, runner, "run-verify", 2); err != nil {
+		t.Fatalf("runPostPromotionVerification() error = %v", err)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	var finished []LedgerEvent
+	for _, event := range events {
+		if event.Event == "job_finished" {
+			finished = append(finished, event)
+		}
+	}
+	if len(finished) != 2 {
+		t.Fatalf("job_finished events = %d, want 2\nall events: %+v", len(finished), events)
+	}
+	for i, event := range finished {
+		if event.JobKind != "post_verify_command" {
+			t.Fatalf("event %d JobKind = %q, want post_verify_command", i, event.JobKind)
+		}
+		if event.Attempt != 2 {
+			t.Fatalf("event %d Attempt = %d, want 2", i, event.Attempt)
+		}
+		if event.Command != cfg.PostPromotionVerifyCommands[i] {
+			t.Fatalf("event %d Command = %q, want %q", i, event.Command, cfg.PostPromotionVerifyCommands[i])
+		}
+		if event.Status != "ok" {
+			t.Fatalf("event %d Status = %q, want ok", i, event.Status)
+		}
+	}
+}
+
 // TestRunPostPromotionVerification_RunsAllCommandsAndCollectsFailures
 // verifies that the verify gate does NOT abort on the first failed command.
 // Recent ledger evidence shows verify aborts at command 1/5, so the operator
@@ -164,6 +266,14 @@ func TestRunPrePromotionVerify_RunsInWorkerWorktree(t *testing.T) {
 	}
 	if seenDir != worktreePath {
 		t.Fatalf("Command.Dir = %q, want worker.RepoRoot %q (gate must run in worktree, not main)", seenDir, worktreePath)
+	}
+	events := readLedgerEvents(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	job, ok := findJobFinished(events, "pre_verify_command", "ok")
+	if !ok {
+		t.Fatalf("ledger missing pre_verify_command job_finished: %+v", events)
+	}
+	if job.Worker != worker.ID || job.Task != worker.Task || job.Branch != worker.Branch || job.Dir != worktreePath {
+		t.Fatalf("pre-verify job identity = %+v, want worker/task/branch/dir", job)
 	}
 }
 
@@ -293,6 +403,16 @@ func TestRunPrePromotionGate_RepairFixesFailingVerify(t *testing.T) {
 			t.Errorf("ledger missing %q\nfull ledger:\n%s", want, strings.Join(body, "\n"))
 		}
 	}
+	events := readLedgerEvents(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if _, ok := findJobFinished(events, "pre_verify_command", "pre_verify_failed"); !ok {
+		t.Fatalf("ledger missing failed pre_verify_command job_finished: %+v", events)
+	}
+	if _, ok := findJobFinished(events, "pre_repair_backend", "ok"); !ok {
+		t.Fatalf("ledger missing successful pre_repair_backend job_finished: %+v", events)
+	}
+	if _, ok := findJobFinished(events, "pre_verify_command", "ok"); !ok {
+		t.Fatalf("ledger missing successful pre_verify_command job_finished after repair: %+v", events)
+	}
 }
 
 // TestRunPrePromotionGate_RepairDisabledShortCircuits verifies that when
@@ -421,6 +541,14 @@ func TestRunRowEvaluator_RunsOnlyTestCommands(t *testing.T) {
 	}
 	if !started || !succeeded {
 		t.Fatalf("row evaluator ledger missing start/success commands=1:\n%s", strings.Join(body, "\n"))
+	}
+	events := readLedgerEvents(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	job, ok := findJobFinished(events, "row_eval_command", "ok")
+	if !ok {
+		t.Fatalf("ledger missing row_eval_command job_finished: %+v", events)
+	}
+	if job.Worker != worker.ID || job.Task != worker.Task || job.Branch != worker.Branch || job.Command != "echo row-test" {
+		t.Fatalf("row evaluation job identity = %+v, want worker/task/branch/command", job)
 	}
 }
 
