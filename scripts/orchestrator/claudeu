@@ -164,6 +164,7 @@ log_msg "invoking claude --print --output-format stream-json --dangerously-skip-
 # Pipe the prompt via stdin; orchestrator's `exec </dev/null` in the worker
 # subshell closes our inherited stdin so argv-positional doesn't work either.
 set +e
+set +o pipefail
 printf '%s' "$prompt" \
   | claude \
       --print \
@@ -171,9 +172,16 @@ printf '%s' "$prompt" \
       --verbose \
       --dangerously-skip-permissions \
       --add-dir "$(pwd)" \
-  > "$tmp_stdout" 2> "$tmp_stderr"
-rc=$?
+      2> "$tmp_stderr" \
+  | tee "$tmp_stdout"
+pipe_status=("${PIPESTATUS[@]}")
+set -o pipefail
 set -e
+rc="${pipe_status[1]:-1}"
+tee_rc="${pipe_status[2]:-0}"
+if (( rc == 0 && tee_rc != 0 )); then
+  rc="$tee_rc"
+fi
 
 log_msg "claude exited rc=$rc stdout-bytes=$(wc -c <"$tmp_stdout") stderr-bytes=$(wc -c <"$tmp_stderr")"
 
@@ -210,11 +218,8 @@ fi
 thread_id="claudeu-$$-$(date +%s)"
 printf '{"type":"thread.started","thread_id":"%s"}\n' "$thread_id"
 
-# Stream claude's NDJSON events through to our stdout so the orchestrator's
-# per-worker jsonl file captures them (audit.sh's cost_block scans it).
-if [[ -s "$tmp_stdout" ]]; then
-  cat "$tmp_stdout"
-fi
+# Claude's NDJSON events were streamed through tee while the process ran, so
+# the planner/builder output monitor receives progress before command exit.
 
 # Persist stderr content into the log for post-mortem before cleanup trap fires.
 if [[ -s "$tmp_stderr" ]]; then
