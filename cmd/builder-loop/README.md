@@ -29,7 +29,9 @@ planner loop is already regenerating the control plane, builder emits
 In `run --loop` mode, each cycle attempts a builder run, releases the shared
 lock, then invokes `go run ./cmd/planner-loop run` before sleeping and starting
 the next builder cycle. Builder or planner failures are logged but do not stop
-loop mode; only cancellation stops the loop.
+loop mode; only cancellation stops the loop. After the planner attempt, loop
+mode checkpoints any dirty control-checkout files so generated planner output
+is committed to `main` before the next cycle.
 
 ## Run Modes
 

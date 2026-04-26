@@ -91,7 +91,7 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			return RunSummary{}, err
 		}
 		if opts.Config.AutoCommitDirtyWorktree {
-			if err := checkpointDirtyWorktree(ctx, opts.Config, runID); err != nil {
+			if err := CheckpointDirtyWorktree(ctx, opts.Config, runID); err != nil {
 				return RunSummary{}, err
 			}
 		}
@@ -1638,7 +1638,9 @@ func appendRunLedgerEvent(cfg Config, event LedgerEvent) error {
 	return AppendLedgerEvent(filepath.Join(cfg.RunRoot, "state", "runs.jsonl"), event)
 }
 
-func checkpointDirtyWorktree(ctx context.Context, cfg Config, runID string) error {
+// CheckpointDirtyWorktree commits dirty control-checkout changes so unattended
+// loop mode can keep moving without losing planner or generated state.
+func CheckpointDirtyWorktree(ctx context.Context, cfg Config, runID string) error {
 	if cfg.RepoRoot == "" || !repoHasGit(cfg.RepoRoot) {
 		return nil
 	}

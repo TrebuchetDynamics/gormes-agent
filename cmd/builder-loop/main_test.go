@@ -663,10 +663,12 @@ func TestRunCommandBackendFlagSetsBackend(t *testing.T) {
 type fakeAutoloopRuntime struct {
 	builderCalls     int
 	plannerCalls     int
+	checkpointCalls  int
 	sleepCalls       int
 	events           []string
 	builderErr       error
 	plannerErr       error
+	checkpointErr    error
 	cancelAfterSleep context.CancelFunc
 }
 
@@ -687,6 +689,11 @@ func (f *fakeAutoloopRuntime) runtime() autoloopRuntime {
 			f.plannerCalls++
 			f.events = append(f.events, "planner")
 			return f.plannerErr
+		},
+		checkpoint: func(_ context.Context, _ builderloop.Config) error {
+			f.checkpointCalls++
+			f.events = append(f.events, "checkpoint")
+			return f.checkpointErr
 		},
 		sleep: func(ctx context.Context, d time.Duration) error {
 			f.sleepCalls++
@@ -715,12 +722,12 @@ func TestRunAutoloopLoopRunsPlannerAfterBuilder(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("runAutoloopWithRuntime() error = %v, want context.Canceled", err)
 	}
-	wantEvents := []string{"builder:false", "planner", "sleep:1s"}
+	wantEvents := []string{"builder:false", "planner", "checkpoint", "sleep:1s"}
 	if !reflect.DeepEqual(fake.events, wantEvents) {
 		t.Fatalf("events = %#v, want %#v", fake.events, wantEvents)
 	}
-	if fake.builderCalls != 1 || fake.plannerCalls != 1 || fake.sleepCalls != 1 {
-		t.Fatalf("calls builder=%d planner=%d sleep=%d, want 1/1/1", fake.builderCalls, fake.plannerCalls, fake.sleepCalls)
+	if fake.builderCalls != 1 || fake.plannerCalls != 1 || fake.checkpointCalls != 1 || fake.sleepCalls != 1 {
+		t.Fatalf("calls builder=%d planner=%d checkpoint=%d sleep=%d, want 1/1/1/1", fake.builderCalls, fake.plannerCalls, fake.checkpointCalls, fake.sleepCalls)
 	}
 	if !strings.Contains(stdout.String(), "loop candidate") {
 		t.Fatalf("stdout = %q, want builder summary", stdout.String())
@@ -741,12 +748,12 @@ func TestRunAutoloopLoopContinuesOnPlannerFailure(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("runAutoloopWithRuntime() error = %v, want context.Canceled", err)
 	}
-	wantEvents := []string{"builder:false", "planner", "sleep:1s"}
+	wantEvents := []string{"builder:false", "planner", "checkpoint", "sleep:1s"}
 	if !reflect.DeepEqual(fake.events, wantEvents) {
 		t.Fatalf("events = %#v, want %#v", fake.events, wantEvents)
 	}
-	if fake.sleepCalls != 1 {
-		t.Fatalf("sleepCalls = %d, want 1 after planner failure", fake.sleepCalls)
+	if fake.checkpointCalls != 1 || fake.sleepCalls != 1 {
+		t.Fatalf("checkpointCalls=%d sleepCalls=%d, want 1/1 after planner failure", fake.checkpointCalls, fake.sleepCalls)
 	}
 	if !strings.Contains(stderr.String(), "planner failed") {
 		t.Fatalf("stderr = %q, want planner failure evidence", stderr.String())
@@ -767,15 +774,38 @@ func TestRunAutoloopLoopRunsPlannerAfterBuilderFailure(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("runAutoloopWithRuntime() error = %v, want context.Canceled", err)
 	}
-	wantEvents := []string{"builder:false", "planner", "sleep:1s"}
+	wantEvents := []string{"builder:false", "planner", "checkpoint", "sleep:1s"}
 	if !reflect.DeepEqual(fake.events, wantEvents) {
 		t.Fatalf("events = %#v, want %#v", fake.events, wantEvents)
 	}
-	if fake.builderCalls != 1 || fake.plannerCalls != 1 || fake.sleepCalls != 1 {
-		t.Fatalf("calls builder=%d planner=%d sleep=%d, want 1/1/1", fake.builderCalls, fake.plannerCalls, fake.sleepCalls)
+	if fake.builderCalls != 1 || fake.plannerCalls != 1 || fake.checkpointCalls != 1 || fake.sleepCalls != 1 {
+		t.Fatalf("calls builder=%d planner=%d checkpoint=%d sleep=%d, want 1/1/1/1", fake.builderCalls, fake.plannerCalls, fake.checkpointCalls, fake.sleepCalls)
 	}
 	if !strings.Contains(stderr.String(), "builder failed") {
 		t.Fatalf("stderr = %q, want builder failure evidence", stderr.String())
+	}
+}
+
+func TestRunAutoloopLoopContinuesOnCheckpointFailure(t *testing.T) {
+	wantErr := errors.New("checkpoint failed")
+	ctx, cancel := context.WithCancel(context.Background())
+	fake := &fakeAutoloopRuntime{checkpointErr: wantErr, cancelAfterSleep: cancel}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	deps := defaultDeps()
+	deps.stdout = &stdout
+	deps.stderr = &stderr
+
+	err := runAutoloopWithRuntime(ctx, deps, builderloop.Config{}, runOptions{loop: true}, time.Second, fake.runtime())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("runAutoloopWithRuntime() error = %v, want context.Canceled", err)
+	}
+	wantEvents := []string{"builder:false", "planner", "checkpoint", "sleep:1s"}
+	if !reflect.DeepEqual(fake.events, wantEvents) {
+		t.Fatalf("events = %#v, want %#v", fake.events, wantEvents)
+	}
+	if !strings.Contains(stderr.String(), "checkpoint failed") {
+		t.Fatalf("stderr = %q, want checkpoint failure evidence", stderr.String())
 	}
 }
 

@@ -522,6 +522,7 @@ func digestRunRoot(root string) string {
 type autoloopRuntime struct {
 	runBuilder func(context.Context, builderloop.Config, bool) (builderloop.RunSummary, error)
 	runPlanner func(context.Context) error
+	checkpoint func(context.Context, builderloop.Config) error
 	sleep      func(context.Context, time.Duration) error
 }
 
@@ -552,6 +553,9 @@ func defaultAutoloopRuntime(deps cliDeps, root string) autoloopRuntime {
 				return fmt.Errorf("planner command go run ./cmd/planner-loop run failed: %w", result.Err)
 			}
 			return nil
+		},
+		checkpoint: func(ctx context.Context, cfg builderloop.Config) error {
+			return builderloop.CheckpointDirtyWorktree(ctx, cfg, loopCheckpointRunID(time.Now().UTC()))
 		},
 		sleep: sleepContext,
 	}
@@ -589,6 +593,14 @@ func runAutoloopWithRuntime(ctx context.Context, deps cliDeps, cfg builderloop.C
 		if err := runtime.runPlanner(ctx); err != nil {
 			logLoopFailure(deps.stderr, "planner", err)
 		}
+		if runtime.checkpoint != nil {
+			if err := runtime.checkpoint(ctx, cfg); err != nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
+				logLoopFailure(deps.stderr, "checkpoint", err)
+			}
+		}
 		if err := runtime.sleep(ctx, interval); err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return err
@@ -596,6 +608,10 @@ func runAutoloopWithRuntime(ctx context.Context, deps cliDeps, cfg builderloop.C
 			logLoopFailure(deps.stderr, "sleep", err)
 		}
 	}
+}
+
+func loopCheckpointRunID(now time.Time) string {
+	return "loop-checkpoint-" + now.UTC().Format("20060102T150405Z")
 }
 
 func logLoopFailure(w io.Writer, phase string, err error) {
