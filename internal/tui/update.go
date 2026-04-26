@@ -78,6 +78,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.frame.Phase == kernel.PhaseIdle {
 			m.inFlight = false
 		}
+		// Refresh the placeholder AFTER the inFlight transition so the editor
+		// hint reflects the post-frame state (idle prompt vs. busy-time
+		// affordances).
+		m.editor.Placeholder = m.RunningPlaceholder()
 		cmds = append(cmds, m.waitFrame())
 
 	case submittedMsg, cancelledMsg:

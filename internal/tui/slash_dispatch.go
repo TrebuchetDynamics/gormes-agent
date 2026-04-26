@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -30,21 +31,62 @@ type SlashHandler func(input string, model *Model) SlashResult
 // no synchronization is required as long as Register is called before the
 // Bubble Tea program starts.
 type SlashRegistry struct {
-	handlers map[string]SlashHandler
+	handlers map[string]slashEntry
+}
+
+// slashEntry pairs a SlashHandler with its registration metadata. Today the
+// only metadata is BusyAvailable, consumed by Model.RunningPlaceholder when
+// the running-agent placeholder enumerates discoverable busy-time actions.
+type slashEntry struct {
+	handler        SlashHandler
+	busyAvailable  bool
+}
+
+// RegisterOpt mutates a slashEntry at registration time. Used as variadic
+// arguments to Register so most callers can keep their two-argument form
+// while busy-aware commands opt in via WithBusyAvailable().
+type RegisterOpt func(*slashEntry)
+
+// WithBusyAvailable marks a slash command as safe to invoke while a kernel
+// turn is in flight. Model.RunningPlaceholder enumerates these in the
+// in-flight placeholder so operators can discover them without docs.
+func WithBusyAvailable() RegisterOpt {
+	return func(e *slashEntry) {
+		e.busyAvailable = true
+	}
 }
 
 // NewSlashRegistry returns an empty registry. Most callers want
 // NewDefaultSlashRegistry, which pre-registers /mouse, /scroll, and the
 // /save stub.
 func NewSlashRegistry() *SlashRegistry {
-	return &SlashRegistry{handlers: make(map[string]SlashHandler)}
+	return &SlashRegistry{handlers: make(map[string]slashEntry)}
 }
 
 // Register binds a handler to a slash command name. Names are stored
 // case-insensitively and without the leading "/" so callers may pass either
-// "save" or "/save".
-func (r *SlashRegistry) Register(name string, handler SlashHandler) {
-	r.handlers[normalizeSlashName(name)] = handler
+// "save" or "/save". Optional RegisterOpts (e.g. WithBusyAvailable) opt the
+// command into the busy-time placeholder list.
+func (r *SlashRegistry) Register(name string, handler SlashHandler, opts ...RegisterOpt) {
+	entry := slashEntry{handler: handler}
+	for _, opt := range opts {
+		opt(&entry)
+	}
+	r.handlers[normalizeSlashName(name)] = entry
+}
+
+// BusyAvailableSlashes returns the names (without the leading "/") of every
+// slash command registered with WithBusyAvailable, in alphabetical order so
+// the running-agent placeholder is stable across map iteration ordering.
+func (r *SlashRegistry) BusyAvailableSlashes() []string {
+	names := make([]string, 0, len(r.handlers))
+	for name, entry := range r.handlers {
+		if entry.busyAvailable {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 // Dispatch parses the first whitespace-separated token of input. If it
@@ -61,11 +103,11 @@ func (r *SlashRegistry) Dispatch(input string, model *Model) SlashResult {
 	if !strings.HasPrefix(first, "/") {
 		return SlashResult{}
 	}
-	handler, ok := r.handlers[normalizeSlashName(first)]
+	entry, ok := r.handlers[normalizeSlashName(first)]
 	if !ok {
 		return SlashResult{}
 	}
-	return handler(input, model)
+	return entry.handler(input, model)
 }
 
 func normalizeSlashName(name string) string {

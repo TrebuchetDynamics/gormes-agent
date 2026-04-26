@@ -11355,9 +11355,9 @@
             {
               "name": "TUI running-agent placeholder surfaces interrupt + queued slash actions",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui Model.editor.Placeholder switches between an idle placeholder (`Type a message and hit Enter…`) and an in-flight placeholder that lists discoverable busy-time actions — at minimum `msg=interrupt · Ctrl+C cancel`, plus any slash command registered with BusyAvailable=true on the SlashRegistry — so operators can discover the cancel + interrupt UX without reading docs",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
