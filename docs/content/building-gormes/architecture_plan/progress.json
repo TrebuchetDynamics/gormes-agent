@@ -5102,9 +5102,9 @@
             },
             {
               "name": "Bedrock stream event decoding (SSE fixtures)",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/hermes/bedrock_stream.go decodes synthetic Bedrock ConverseStream event maps into the shared hermes.Event model without AWS SDK clients: text deltas emit EventToken, reasoningContent.text deltas emit EventReasoning, contentBlockStart/contentBlockDelta/contentBlockStop toolUse chunks accumulate one ToolCall, messageStop maps stopReason to FinishReason, and metadata.usage maps inputTokens/outputTokens to the final EventDone",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -5142,7 +5142,7 @@
                 "TestDecodeBedrockStream_InterruptStopsBeforeRemainingEvents accepts a callback or limit hook and proves later deltas are not emitted after interruption.",
                 "go test ./internal/hermes -run 'TestDecodeBedrockStream_' -count=1 passes without network, AWS SDK, or credential imports."
               ],
-              "note": "Planner split 2026-04-26T22:45:56Z: prior Bedrock stream row was a note-only blocker, so stale-client work was blocked by a non-executable SigV4 row and workers had no TDD entry point. This row now owns only pure event decoding over synthetic ConverseStream fixtures.",
+              "note": "Complete: TDD added internal/hermes/bedrock_stream_test.go and a pure internal/hermes/bedrock_stream.go decoder over synthetic ConverseStream event maps. Fixtures prove text deltas, reasoningContent.text deltas, split toolUse input accumulation, mixed text+tool streams, empty-stream stop defaults, interrupt callback short-circuiting, and metadata usage propagation through shared Event values with no AWS SDK, network, SigV4, credential, provider registration, or request-mapping changes.",
               "write_scope": [
                 "internal/hermes/bedrock_stream.go",
                 "internal/hermes/bedrock_stream_test.go",
@@ -5157,9 +5157,10 @@
                 "internal/hermes/bedrock_stream_test.go proves text, reasoning, tool-use chunking, empty stream, interrupt stop, and usage propagation through shared hermes.Event values with no AWS SDK import."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-26T22:58:34Z",
+                "attempt_count": 2,
+                "consecutive_failures": 0,
+                "last_attempt": "2026-04-26T23:00:47Z",
+                "last_success": "2026-04-26T23:00:47Z",
                 "last_failure": {
                   "run_id": "20260426T225240Z-480762215",
                   "category": "worker_error",
