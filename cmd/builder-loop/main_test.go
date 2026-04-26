@@ -682,6 +682,26 @@ func TestParseRunOptions_BackendFlag(t *testing.T) {
 	}
 }
 
+func TestParseRunOptions_LoopFlag(t *testing.T) {
+	opts, err := parseRunOptions([]string{"--loop"})
+	if err != nil {
+		t.Fatalf("parseRunOptions(--loop) error = %v", err)
+	}
+	if !opts.loop {
+		t.Fatalf("loop = false, want true")
+	}
+}
+
+func TestParseRunOptions_RejectsLoopDryRunCombination(t *testing.T) {
+	_, err := parseRunOptions([]string{"--loop", "--dry-run"})
+	if !errors.Is(err, errParse) {
+		t.Fatalf("parseRunOptions(--loop --dry-run) error = %v, want errParse", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "--loop cannot be combined with --dry-run") {
+		t.Fatalf("error = %v, want loop/dry-run message", err)
+	}
+}
+
 func TestParseRunOptions_BackendFlagRequiresValue(t *testing.T) {
 	if _, err := parseRunOptions([]string{"--backend"}); err == nil {
 		t.Fatal("parseRunOptions(--backend with no value) error = nil, want error")

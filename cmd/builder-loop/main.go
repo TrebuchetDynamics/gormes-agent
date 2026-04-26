@@ -34,14 +34,14 @@ func defaultDeps() cliDeps {
 	return cliDeps{stdout: os.Stdout, stderr: os.Stderr, runner: cmdrunner.ExecRunner{}}
 }
 
-const usage = "usage: builder-loop [--repo-root <path>] run [--dry-run] [--backend codexu|claudeu|opencode] | progress validate | progress write | repo benchmark record | repo readme update | audit | digest [--output <path>] [--force] | doctor | service install | service install-audit | service disable legacy-timers"
+const usage = "usage: builder-loop [--repo-root <path>] run [--loop] [--dry-run] [--backend codexu|claudeu|opencode] | progress validate | progress write | repo benchmark record | repo readme update | audit | digest [--output <path>] [--force] | doctor | service install | service install-audit | service disable legacy-timers"
 
 // subUsage maps each subcommand to its own help text. --help/-h on a
 // subcommand prints the matching entry instead of the giant top-level usage,
 // so an operator typing `builder-loop digest --help` sees just the digest
 // flags rather than the full builder-loop surface.
 var subUsage = map[string]string{
-	"run":                           "usage: builder-loop run [--dry-run] [--backend codexu|claudeu|opencode]",
+	"run":                           "usage: builder-loop run [--loop] [--dry-run] [--backend codexu|claudeu|opencode]",
 	"progress":                      "usage: builder-loop progress {validate|write}",
 	"progress write":                "usage: builder-loop progress write",
 	"repo":                          "usage: builder-loop repo {benchmark record|readme update}",
@@ -296,6 +296,7 @@ func runService(ctx context.Context, deps cliDeps, root string, args []string) e
 
 type runOptions struct {
 	dryRun  bool
+	loop    bool
 	backend string
 }
 
@@ -306,6 +307,8 @@ func parseRunOptions(args []string) (runOptions, error) {
 		switch arg {
 		case "--dry-run":
 			opts.dryRun = true
+		case "--loop":
+			opts.loop = true
 		case "--backend":
 			if i+1 >= len(args) {
 				return runOptions{}, fmt.Errorf("%w: --backend requires a value\n%s", errParse, subUsage["run"])
@@ -319,6 +322,9 @@ func parseRunOptions(args []string) (runOptions, error) {
 		default:
 			return runOptions{}, fmt.Errorf("%w\n%s", errParse, subUsage["run"])
 		}
+	}
+	if opts.loop && opts.dryRun {
+		return runOptions{}, fmt.Errorf("%w: --loop cannot be combined with --dry-run\n%s", errParse, subUsage["run"])
 	}
 
 	return opts, nil
