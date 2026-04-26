@@ -1067,6 +1067,7 @@ func commandFailureDetail(result Result) string {
 
 func postPromotionCommandEnv(cfg Config) []string {
 	env := []string{
+		"REPO_ROOT=",
 		"PROGRESS_JSON=" + cfg.ProgressJSON,
 		"RUN_ROOT=" + cfg.RunRoot,
 		"BACKEND=" + cfg.Backend,

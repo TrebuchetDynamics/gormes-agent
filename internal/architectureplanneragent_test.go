@@ -643,6 +643,7 @@ func TestDocumentationImproverReportsActiveLockOwner(t *testing.T) {
 
 	cmd := exec.Command("bash", "scripts/"+documentationImproverScript)
 	cmd.Dir = gormesRepo
+	cmd.Env = overlayEnv(os.Environ(), "REPO_ROOT="+gormesRepo)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("documentation improver unexpectedly acquired active lock:\n%s", string(out))
@@ -657,6 +658,42 @@ func TestDocumentationImproverReportsActiveLockOwner(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Fatalf("active-lock output missing %q:\n%s", want, output)
 		}
+	}
+}
+
+func TestRunPlannerTestCommandEnvOverridesInheritedPath(t *testing.T) {
+	t.Setenv("PATH", "/inherited-test-bin")
+	t.Setenv("REPO_ROOT", "/production/repo")
+	tmpRoot := t.TempDir()
+	binDir := filepath.Join(tmpRoot, "bin")
+	writePlannerTestFile(t, filepath.Join(binDir, "planner-env-probe"), []byte("#!/bin/sh\necho fake-probe\n"), 0o755)
+	wantPath := binDir + string(os.PathListSeparator) + "/inherited-test-bin"
+
+	out := runPlannerTestCommandEnv(t, tmpRoot, []string{
+		"PATH=" + wantPath,
+	}, "/bin/sh", "-c", "planner-env-probe")
+	if got := strings.TrimSpace(string(out)); got != "fake-probe" {
+		t.Fatalf("planner-env-probe output = %q, want fake-probe", got)
+	}
+
+	out = runPlannerTestCommandEnv(t, tmpRoot, []string{
+		"PATH=" + wantPath,
+	}, "/usr/bin/env")
+	var pathLines []string
+	var repoRootLines []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.HasPrefix(line, "PATH=") {
+			pathLines = append(pathLines, line)
+		}
+		if strings.HasPrefix(line, "REPO_ROOT=") {
+			repoRootLines = append(repoRootLines, line)
+		}
+	}
+	if len(pathLines) != 1 || pathLines[0] != "PATH="+wantPath {
+		t.Fatalf("PATH env lines = %#v, want exactly PATH=%s", pathLines, wantPath)
+	}
+	if len(repoRootLines) != 1 || repoRootLines[0] != "REPO_ROOT="+tmpRoot {
+		t.Fatalf("REPO_ROOT env lines = %#v, want exactly REPO_ROOT=%s", repoRootLines, tmpRoot)
 	}
 }
 
@@ -703,7 +740,8 @@ func runPlannerTestCommandEnv(t *testing.T, dir string, env []string, name strin
 
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), env...)
+	commandEnv := append([]string{"REPO_ROOT=" + dir}, env...)
+	cmd.Env = overlayEnv(os.Environ(), commandEnv...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("%s %v failed: %v\noutput:\n%s", name, args, err, string(out))

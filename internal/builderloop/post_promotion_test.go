@@ -64,6 +64,7 @@ func TestPostPromotionCommandEnvDisablesCompanionsForVerification(t *testing.T) 
 	env := postPromotionCommandEnv(cfg)
 
 	for _, want := range []string{
+		"REPO_ROOT=",
 		"DISABLE_COMPANIONS=1",
 		"COMPANION_ON_IDLE=1",
 		"COMPANION_PLANNER_CMD=:",
