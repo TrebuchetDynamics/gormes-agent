@@ -37,7 +37,7 @@ slice at a time. Do not maintain a parallel queue outside this docs tree.
 
 - Skip rows with blocked_by until ready_when is satisfied.
 - Skip slice_size=umbrella rows until they are split.
-- Default cmd/builder-loop runs cap eligible roadmap work at Phase 3 unless MAX_PHASE is explicitly overridden.
+- Default cmd/builder-loop CLI runs cap eligible roadmap work at Phase 4 unless MAX_PHASE is explicitly overridden; the production service unit sets MAX_PHASE=0 so the planner-builder loop can keep advancing across phases.
 - MAX_AGENTS is a safety cap: if fewer metadata-ready rows are available, run fewer workers instead of selecting filler or random work.
 - Each worker runs in an isolated git worktree under RUN_ROOT/worktrees and promotion rejects committed paths outside the selected row's write_scope.
 - When git worktrees are available and MAX_AGENTS is greater than 1, cmd/builder-loop launches selected workers concurrently, then validates and promotes each branch through the same ledgered safety gates.
