@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-26T18:14:51Z",
+    "last_updated": "2026-04-26T18:25:41Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -513,7 +513,7 @@
               "name": "Watchdog dead-process vs slow-progress separation",
               "priority": "P1",
               "status": "planned",
-              "contract": "TDD packet for a missing pure helper. First add internal/builderloop/watchdog_state_test.go in package builderloop with a single TestDiagnose table covering these exact cases: zero PID => VerdictDead even when PIDIsLive=true; PIDIsLive=false and now-LastCommitAt >= deadAfter => VerdictDead; PIDIsLive=true and now-LastCommitAt >= slowAfter => VerdictSlow; PIDIsLive=false and both thresholds fire => VerdictDead; otherwise => VerdictHealthy. Then add internal/builderloop/watchdog_state.go exposing type Verdict string with constants VerdictHealthy=\"healthy\", VerdictSlow=\"slow\", VerdictDead=\"dead\"; type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Diagnose always returns one named constant and uses the caller-injected PIDIsLive only; no os.FindProcess, signal delivery, time.Now, goroutines, watchdog wiring, or config validation.",
+              "contract": "TDD packet for a missing pure helper; create exactly two files and do not wire them into the watchdog loop. First add internal/builderloop/watchdog_state_test.go in package builderloop with TestDiagnose table subtests named zero_pid_dead, pid_not_live_after_dead_threshold, live_after_slow_threshold, dead_wins_when_both_thresholds_fire, and healthy_recent_live. Then add internal/builderloop/watchdog_state.go exposing type Verdict string with constants VerdictHealthy=\"healthy\", VerdictSlow=\"slow\", VerdictDead=\"dead\"; type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Verdict precedence is: PID==0 => dead, PIDIsLive==false and elapsed>=deadAfter => dead, PIDIsLive==true and elapsed>=slowAfter => slow, else healthy. The helper uses only caller-injected now and PIDIsLive; no os.FindProcess, signal delivery, time.Now, goroutines, watchdog wiring, or config validation.",
               "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -522,7 +522,7 @@
                 "system"
               ],
               "degraded_mode": "Watchdog status reports worker_state ∈ {alive_progressing, alive_silent, dead, unknown} and the threshold each one tripped; record_run_health carries the worker_state and which threshold (dead_after_seconds, silent_after_seconds) fired.",
-              "fixture": "internal/builderloop/watchdog_state_test.go (new file)::TestDiagnose",
+              "fixture": "internal/builderloop/watchdog_state_test.go (new file)::TestDiagnose/zero_pid_dead+dead_wins_when_both_thresholds_fire",
               "source_refs": [
                 "internal/builderloop/run.go",
                 "internal/builderloop/run_health_test.go"
@@ -530,11 +530,13 @@
               "ready_when": [
                 "Existing watchdog timer (commit f96a5d94) emits stall events at a single threshold; this slice carves the threshold into two independent ones.",
                 "Watchdog checkpoint coalescing is fixture-ready or validated, so the dead-process tick does not amplify the commit storm.",
-                "Both target files are absent on main; the worker's first edit is the focused failing table test, then the helper."
+                "Both target files are absent on main; the worker's first edit is the focused failing table test, then the helper.",
+                "If either target file already exists in the worker checkout, the worker should run the focused test and update this progress row instead of creating a duplicate helper."
               ],
               "not_ready_when": [
                 "The slice changes how worker output is rejected or how dirty worktrees are committed — only worker liveness detection is in scope.",
-                "The slice introduces process-group signal sending or container-aware death detection (those belong to a separate sandboxing row)."
+                "The slice introduces process-group signal sending or container-aware death detection (those belong to a separate sandboxing row).",
+                "The worker needs to edit internal/builderloop/run.go, watchdog timers, backend prompts, ledger writing, or process-kill behavior to make the test pass."
               ],
               "unblocks": [
                 "Builder-loop self-improvement vs user-feature ratio metric"
@@ -548,7 +550,7 @@
                 "TestDiagnose_NotDeadWhenPIDLiveEvenIfSilent: v={PID:1234, LastCommitAt:now-99999s, PIDIsLive:true} returns VerdictSlow (never VerdictDead while the process answers Signal(0)).",
                 "Helper is pure — caller injects the clock (now) and the PIDIsLive result."
               ],
-              "note": "Reshape #5 (2026-04-26T18:14:51Z): converted the no_progress quarantine from API prose into an explicit TDD packet with the required first test file and table cases. The target helper/test files are absent on main, so a worker should add them directly and must not touch watchdog wiring.",
+              "note": "Reshape #6 (2026-04-26T18:25:41Z): tightened the no_progress quarantine into a two-file-only helper with named subtests and explicit verdict precedence. The target helper/test files are absent on main; workers should add them directly and must not touch watchdog wiring.",
               "write_scope": [
                 "internal/builderloop/watchdog_state.go",
                 "internal/builderloop/watchdog_state_test.go",
@@ -560,7 +562,8 @@
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "internal/builderloop/watchdog_state_test.go fixtures prove healthy/slow/dead verdicts including the dead-vs-slow precedence rule with no os.FindProcess or signal calls."
+                "internal/builderloop/watchdog_state_test.go fixtures prove healthy/slow/dead verdicts including the dead-vs-slow precedence rule with no os.FindProcess or signal calls.",
+                "internal/builderloop/watchdog_state.go contains exactly the new Verdict, WorkerVitals, and Diagnose helper API; no existing builderloop runtime file changes are required."
               ],
               "health": {
                 "attempt_count": 3,
@@ -585,8 +588,8 @@
                 }
               },
               "planner_verdict": {
-                "reshape_count": 7,
-                "last_reshape": "2026-04-26T18:11:07Z",
+                "reshape_count": 8,
+                "last_reshape": "2026-04-26T18:25:41Z",
                 "last_outcome": "no_attempts_yet"
               },
               "provenance": {
@@ -599,7 +602,7 @@
               "name": "Builder-loop self-improvement vs user-feature ratio metric",
               "priority": "P2",
               "status": "planned",
-              "contract": "TDD packet for a missing pure helper. First add internal/builderloop/ship_ratio_test.go in package builderloop with two tests: TestClassifySubphase covers exact and slash-prefixed \"1.C\" and \"5.O\", prefix \"control-plane/\", exact/prefix \"4.\", \"6.\", \"7.\", blanks, and unknown values; TestComputeShipRatio covers inclusive window start, future-event exclusion, per-kind counts, and Total. Then add internal/builderloop/ship_ratio.go exposing type RowKind string with constants RowKindSelfImprovement=\"self_improvement\", RowKindUserFeature=\"user_feature\", RowKindUnclassified=\"unclassified\"; type ShippedRowEvent struct{SubphaseID string; ShippedAt time.Time}; type ShipRatio struct{SelfImprovement int; UserFeature int; Unclassified int; Total int}; ClassifySubphase(subphaseID string) RowKind; and ComputeShipRatio(events []ShippedRowEvent, window time.Duration, now time.Time) ShipRatio. No file I/O, ledger parsing, record_run_health emission, goroutines, or live clock.",
+              "contract": "TDD packet for a missing pure helper; create exactly two files and do not parse the live ledger. First add internal/builderloop/ship_ratio_test.go in package builderloop with two tests: TestClassifySubphase covers exact \"1.C\", slash-prefixed \"1/1.C\", exact \"5.O\", slash-prefixed \"5/5.O\", prefix \"control-plane/\", exact/prefix \"4.\", \"6.\", \"7.\", blanks, and unknown values; TestComputeShipRatio covers inclusive window start, future-event exclusion, per-kind counts, and Total. Then add internal/builderloop/ship_ratio.go exposing type RowKind string with constants RowKindSelfImprovement=\"self_improvement\", RowKindUserFeature=\"user_feature\", RowKindUnclassified=\"unclassified\"; type ShippedRowEvent struct{SubphaseID string; ShippedAt time.Time}; type ShipRatio struct{SelfImprovement int; UserFeature int; Unclassified int; Total int}; ClassifySubphase(subphaseID string) RowKind; and ComputeShipRatio(events []ShippedRowEvent, window time.Duration, now time.Time) ShipRatio. ClassifySubphase trims spaces and accepts both bare subphase IDs and phase/subphase paths. No file I/O, ledger parsing, record_run_health emission, goroutines, or live clock.",
               "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -607,7 +610,7 @@
                 "system"
               ],
               "degraded_mode": "When the ship_ratio cannot be computed (insufficient history, classification ambiguous), record_run_health carries ship_ratio=null and reports ship_ratio_evidence with the reason instead of fabricating zero.",
-              "fixture": "internal/builderloop/ship_ratio_test.go (new file)::TestClassifySubphase+TestComputeShipRatio",
+              "fixture": "internal/builderloop/ship_ratio_test.go (new file)::TestClassifySubphase+TestComputeShipRatio/no-ledger-parser",
               "source_refs": [
                 "internal/builderloop/run.go",
                 "internal/builderloop/health_writer.go",
@@ -616,26 +619,27 @@
               ],
               "ready_when": [
                 "record_run_health is the canonical health signal already (commit 2653a7b6 etc.) and runs.jsonl carries shipped row evidence.",
-                "A subphase classifier mapping (e.g., 1.C, 5.* operator-tools, etc. → self_improvement; 4.*, 6.*, 7.* → user_feature) can live in a small in-package table for now.",
-                "internal/builderloop/ship_ratio.go and ship_ratio_test.go are absent on main; the worker's first edit is the focused failing test file."
+                "A subphase classifier mapping (1.C, control-plane/*, and 5.O → self_improvement; 4.*, 6.*, and 7.* → user_feature; blank/unknown → unclassified) can live in a small in-package table for now.",
+                "internal/builderloop/ship_ratio.go and ship_ratio_test.go are absent on main; the worker's first edit is the focused failing test file.",
+                "The dependency on PR-intake idle backoff is already satisfied on main; only Watchdog dead-process vs slow-progress separation remains a live prerequisite."
               ],
               "not_ready_when": [
                 "The slice changes ship-detection or ledger-write semantics — only adds a derived counter.",
-                "The slice depends on a yet-unbuilt classifier service or external store."
+                "The slice depends on a yet-unbuilt classifier service or external store.",
+                "The worker needs to read .codex/builder-loop/state/runs.jsonl or change record_run_health to make the tests pass."
               ],
               "blocked_by": [
-                "Watchdog dead-process vs slow-progress separation",
-                "PR-intake idle backoff"
+                "Watchdog dead-process vs slow-progress separation"
               ],
               "acceptance": [
-                "TestClassifySubphase_KnownSelfImprovement covers '1.C', 'control-plane/backend', '5.O/CLI log snapshot reader' returning RowKindSelfImprovement.",
+                "TestClassifySubphase_KnownSelfImprovement covers '1.C', '1/1.C/Watchdog dead-process vs slow-progress separation', 'control-plane/backend', and '5/5.O/CLI log snapshot reader' returning RowKindSelfImprovement.",
                 "TestClassifySubphase_KnownUserFeature covers '4.A', '4.H', '6.A', '7.B' returning RowKindUserFeature.",
                 "TestClassifySubphase_UnknownReturnsUnclassified (e.g., '99.X') returns RowKindUnclassified.",
                 "TestComputeShipRatio_FiltersByWindow excludes events older than now-window.",
                 "TestComputeShipRatio_CountsAllKinds returns SelfImprovement, UserFeature, Unclassified counts and a Total.",
                 "Helper is a pure function — caller injects the events slice and the clock."
               ],
-              "note": "Reshape #4 (2026-04-26T18:14:51Z): converted the no_progress quarantine into an explicit test-first packet and added the already-complete PR-intake idle backoff as an evidence dependency. The row remains a pure helper; runtime health wiring and ledger parsing stay out of scope.",
+              "note": "Reshape #5 (2026-04-26T18:25:41Z): removed the already-satisfied PR-intake dependency from blocked_by, added exact phase/subphase path cases, and made the no-ledger-parser boundary explicit. The row remains a pure helper; runtime health wiring and ledger parsing stay out of scope.",
               "write_scope": [
                 "internal/builderloop/ship_ratio.go",
                 "internal/builderloop/ship_ratio_test.go",
@@ -672,8 +676,8 @@
                 }
               },
               "planner_verdict": {
-                "reshape_count": 6,
-                "last_reshape": "2026-04-26T18:11:07Z",
+                "reshape_count": 7,
+                "last_reshape": "2026-04-26T18:25:41Z",
                 "last_outcome": "no_attempts_yet"
               },
               "provenance": {
@@ -4595,7 +4599,7 @@
               "name": "Azure Foundry probe — path sniffing",
               "priority": "P2",
               "status": "planned",
-              "contract": "TDD packet for a missing pure helper. First add internal/hermes/azure_foundry_path_sniff_test.go in package hermes with TestClassifyAzurePath covering exact /anthropic, trailing /anthropic/, nested /anthropic/v1, mixed case, bare hosts, /openai/v1, /anthropicx, /anthropic-mirror, empty string, and malformed URL. Then add internal/hermes/azure_foundry_path_sniff.go exposing ClassifyAzurePath(rawURL string) AzureTransport that reuses the AzureTransport type/constants from internal/hermes/azure_foundry_models_probe.go. Algorithm: url.Parse; empty path or parse error => AzureTransportUnknown; lowercase and strings.TrimRight(parsed.Path, \"/\"); return AzureTransportAnthropic only when the path equals \"/anthropic\", ends with \"/anthropic\", or contains \"/anthropic/\". This slice never returns AzureTransportOpenAI and never opens HTTP, reads env/config, writes files, starts goroutines, or changes ProbeAzureFoundry.",
+              "contract": "TDD packet for a missing pure helper; create exactly two files and do not edit the already validated /models probe. First add internal/hermes/azure_foundry_path_sniff_test.go in package hermes with TestClassifyAzurePath table subtests named exact_anthropic, trailing_anthropic, nested_anthropic, mixed_case, bare_host_unknown, openai_path_unknown, substring_false_positives, and empty_and_malformed_unknown. Then add internal/hermes/azure_foundry_path_sniff.go exposing ClassifyAzurePath(rawURL string) AzureTransport that reuses the AzureTransport type/constants from internal/hermes/azure_foundry_models_probe.go. Algorithm: url.Parse; empty path or parse error => AzureTransportUnknown; lowercase and strings.TrimRight(parsed.Path, \"/\"); return AzureTransportAnthropic only when the path equals \"/anthropic\", ends with \"/anthropic\", or contains \"/anthropic/\". This slice never returns AzureTransportOpenAI and never opens HTTP, reads env/config, writes files, starts goroutines, or changes ProbeAzureFoundry.",
               "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -4604,19 +4608,21 @@
                 "system"
               ],
               "degraded_mode": "Probe status reports azure_path_sniff_unknown when no path heuristic matches, and azure_path_sniff_evidence with detected scheme/host/path otherwise.",
-              "fixture": "internal/hermes/azure_foundry_path_sniff_test.go (new file)::TestClassifyAzurePath",
+              "fixture": "internal/hermes/azure_foundry_path_sniff_test.go (new file)::TestClassifyAzurePath/substr_false_positive",
               "source_refs": [
-                "../hermes-agent/hermes_cli/azure_detect.py:_looks_like_anthropic_path:114",
+                "../hermes-agent/hermes_cli/azure_detect.py@9be83728:_looks_like_anthropic_path",
                 "internal/hermes/azure_foundry_models_probe.go:AzureTransport"
               ],
               "ready_when": [
                 "internal/hermes/azure_foundry_models_probe.go is complete and owns the AzureTransport type/constant values; this row only adds a path-sniff helper file plus a sibling _test.go.",
                 "No upstream gating: this is a pure URL inspector with synthetic input.",
-                "internal/hermes/azure_foundry_path_sniff.go and azure_foundry_path_sniff_test.go are absent on main; the worker's first edit is the focused failing test file."
+                "internal/hermes/azure_foundry_path_sniff.go and azure_foundry_path_sniff_test.go are absent on main; the worker's first edit is the focused failing test file.",
+                "If ClassifyAzurePath already exists in the worker checkout, the worker should run the focused test and update this progress row instead of adding a second detector."
               ],
               "not_ready_when": [
                 "The slice opens HTTP connections, performs a /models probe, reads AZURE_FOUNDRY_BASE_URL or AZURE_FOUNDRY_API_KEY, or mutates config.",
-                "The slice introduces detection of any third transport family (Bedrock, Vertex, etc.)."
+                "The slice introduces detection of any third transport family (Bedrock, Vertex, etc.).",
+                "The worker needs to edit internal/hermes/azure_foundry_models_probe.go or any provider request builder to make the path-sniff tests pass."
               ],
               "unblocks": [
                 "Azure Foundry transport probe read model"
@@ -4629,7 +4635,7 @@
                 "TestClassifyAzurePath_MalformedReturnsUnknown: empty string, \"::garbage::\", and rawURL=\"http://%zz\" return AzureTransportUnknown.",
                 "TestClassifyAzurePath_NotASubstringFalsePositive: /anthropicx and /anthropic-mirror return AzureTransportUnknown (substring guard requires \"/anthropic\" with a trailing path separator or end-of-path)."
               ],
-              "note": "Reshape #6 (2026-04-26T18:14:51Z): converted the no_progress quarantine into an explicit test-first packet and named the absent target files. This row only ports Hermes _looks_like_anthropic_path into the existing AzureTransport type; the already-validated /models probe stays untouched.",
+              "note": "Reshape #7 (2026-04-26T18:25:41Z): tightened the no_progress quarantine into a two-file-only path-sniff helper, added named table subtests, and refreshed the upstream source ref against Hermes head 9be83728. This row only ports Hermes _looks_like_anthropic_path into the existing AzureTransport type; the already-validated /models probe stays untouched.",
               "write_scope": [
                 "internal/hermes/azure_foundry_path_sniff.go",
                 "internal/hermes/azure_foundry_path_sniff_test.go",
@@ -4641,7 +4647,8 @@
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "internal/hermes/azure_foundry_path_sniff_test.go fixtures prove anthropic-path classification across suffix, mid-path, and case variants without HTTP."
+                "internal/hermes/azure_foundry_path_sniff_test.go fixtures prove anthropic-path classification across suffix, mid-path, case variants, bare hosts, malformed URLs, and false-positive substrings without HTTP.",
+                "internal/hermes/azure_foundry_models_probe.go remains untouched; ClassifyAzurePath only imports standard URL/string helpers and returns existing AzureTransport constants."
               ],
               "health": {
                 "attempt_count": 3,
@@ -4666,8 +4673,8 @@
                 }
               },
               "planner_verdict": {
-                "reshape_count": 9,
-                "last_reshape": "2026-04-26T18:11:07Z",
+                "reshape_count": 10,
+                "last_reshape": "2026-04-26T18:25:41Z",
                 "last_outcome": "no_attempts_yet"
               },
               "provenance": {
@@ -6616,7 +6623,7 @@
               "name": "Provider rate guard — x-ratelimit header classification",
               "priority": "P2",
               "status": "planned",
-              "contract": "TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics. First add internal/hermes/provider_rate_guard_classification_test.go in package hermes with TestClassify429 covering: remaining=0 with matching x-ratelimit-reset-*-1h >=60s => RateLimitGenuineQuota; remaining=0 with reset <60s => RateLimitUpstreamCapacity when a bucket is present; healthy remaining buckets => RateLimitUpstreamCapacity; no parseable remaining bucket => explicit RateLimitInsufficientEvidence; malformed remaining/reset values are ignored. Then add internal/hermes/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota=\"genuine_quota\", RateLimitUpstreamCapacity=\"upstream_capacity\", RateLimitInsufficientEvidence=\"insufficient_evidence\" and Classify429(headers http.Header) RateLimitClass. Read exactly the four current Hermes Nous bucket tags (requests, requests-1h, tokens, tokens-1h) via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Values, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. No shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes.",
+              "contract": "TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics; create exactly two files and do not wire a provider breaker. First add internal/hermes/provider_rate_guard_classification_test.go in package hermes with TestClassify429 table subtests named genuine_quota_1h_reset, short_reset_upstream_capacity, healthy_remaining_upstream_capacity, missing_headers_insufficient, unknown_headers_ignored, and malformed_values_ignored. Then add internal/hermes/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota=\"genuine_quota\", RateLimitUpstreamCapacity=\"upstream_capacity\", RateLimitInsufficientEvidence=\"insufficient_evidence\" and Classify429(headers http.Header) RateLimitClass. Read exactly the four current Hermes Nous bucket tags (requests, requests-1h, tokens, tokens-1h) via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Values, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. No shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes.",
               "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -6624,20 +6631,23 @@
                 "system"
               ],
               "degraded_mode": "Provider status reports rate_guard_classified as one of {genuine_quota, upstream_capacity, insufficient_evidence}; reset-window evidence is parsed for the decision but detailed budget telemetry waits for the dependent row.",
-              "fixture": "internal/hermes/provider_rate_guard_classification_test.go (new file)::TestClassify429",
+              "fixture": "internal/hermes/provider_rate_guard_classification_test.go (new file)::TestClassify429/genuine_quota_1h_reset",
               "source_refs": [
-                "../hermes-agent/agent/nous_rate_guard.py:_parse_buckets_from_headers:241",
-                "../hermes-agent/agent/nous_rate_guard.py:_has_exhausted_bucket:287",
-                "../hermes-agent/tests/agent/test_nous_rate_guard.py:TestIsGenuineNousRateLimit"
+                "../hermes-agent/agent/nous_rate_guard.py@192e7eb2:_MIN_RESET_FOR_BREAKER_SECONDS",
+                "../hermes-agent/agent/nous_rate_guard.py@192e7eb2:_parse_buckets_from_headers",
+                "../hermes-agent/agent/nous_rate_guard.py@192e7eb2:_has_exhausted_bucket",
+                "../hermes-agent/tests/agent/test_nous_rate_guard.py@192e7eb2:TestIsGenuineNousRateLimit"
               ],
               "ready_when": [
                 "internal/hermes already compiles; the row creates a new file and a sibling _test.go.",
                 "No upstream gate; pure header parsing with synthetic http.Header values.",
-                "internal/hermes/provider_rate_guard.go and provider_rate_guard_classification_test.go are absent on main; the worker's first edit is the focused failing test file."
+                "internal/hermes/provider_rate_guard.go and provider_rate_guard_classification_test.go are absent on main; the worker's first edit is the focused failing test file.",
+                "If Classify429 or RateLimitClass already exists in the worker checkout, the worker should run the focused test and update this row instead of creating duplicate constants."
               ],
               "not_ready_when": [
                 "The slice changes retry timing, provider routing, or model fallback policy.",
-                "The slice writes process-global breaker state in unit tests or sleeps to simulate reset windows."
+                "The slice writes process-global breaker state in unit tests or sleeps to simulate reset windows.",
+                "The worker needs to edit internal/hermes/client.go, internal/hermes/errors.go, internal/kernel/retry.go, or any provider routing code to make the tests pass."
               ],
               "unblocks": [
                 "Provider rate guard — degraded-state + last-known-good evidence"
@@ -6650,7 +6660,7 @@
                 "TestClassify429_IgnoresUnknownHeaders (Retry-After, X-Custom-Foo) preserves the classification driven solely by the four x-ratelimit-remaining-* buckets.",
                 "TestClassify429_UnparseableBucketIsNotPresent (X-RateLimit-Remaining-Tokens=\"abc\") with no other rate headers returns RateLimitInsufficientEvidence rather than treating the malformed value as zero."
               ],
-              "note": "Reshape #6 (2026-04-26T18:14:51Z): corrected the no_progress quarantine to include Hermes 192e7eb2's >=60s reset-window rule instead of classifying zero remaining alone. The target files are absent on main, and this remains a pure helper before shared breaker or budget telemetry wiring.",
+              "note": "Reshape #7 (2026-04-26T18:25:41Z): tightened the no_progress quarantine into a two-file-only header classifier, named the exact table subtests, and added Hermes' _MIN_RESET_FOR_BREAKER_SECONDS source ref. The target files are absent on main, and this remains a pure helper before shared breaker or budget telemetry wiring.",
               "write_scope": [
                 "internal/hermes/provider_rate_guard.go",
                 "internal/hermes/provider_rate_guard_classification_test.go",
@@ -6662,7 +6672,8 @@
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "internal/hermes/provider_rate_guard_classification_test.go fixtures prove genuine_quota / upstream_capacity / insufficient_evidence classification from the four current Hermes Nous bucket tags, including the >=60s reset-window guard."
+                "internal/hermes/provider_rate_guard_classification_test.go fixtures prove genuine_quota / upstream_capacity / insufficient_evidence classification from the four current Hermes Nous bucket tags, including the >=60s reset-window guard.",
+                "internal/hermes/provider_rate_guard.go contains only RateLimitClass constants plus Classify429; no provider client, retry, or routing file changes are required."
               ],
               "health": {
                 "attempt_count": 3,
@@ -6687,8 +6698,8 @@
                 }
               },
               "planner_verdict": {
-                "reshape_count": 9,
-                "last_reshape": "2026-04-26T18:11:07Z",
+                "reshape_count": 10,
+                "last_reshape": "2026-04-26T18:25:41Z",
                 "last_outcome": "no_attempts_yet"
               },
               "provenance": {
@@ -6701,7 +6712,7 @@
               "name": "Provider rate guard — degraded-state + last-known-good evidence",
               "priority": "P2",
               "status": "planned",
-              "contract": "TDD packet for a missing pure state-transition helper. First add internal/hermes/provider_rate_guard_degraded_test.go in package hermes with TestApplyClassification covering preserved last-known-good on RateLimitInsufficientEvidence, unknown/zero RateLimitClass treated as insufficient evidence, fresh RateLimitGenuineQuota and RateLimitUpstreamCapacity clearing Unavailable and stamping now, and input value immutability. Then add internal/hermes/provider_rate_guard_degraded.go exposing type GuardState struct{LastKnownClass RateLimitClass; LastKnownAt time.Time; Unavailable bool} and ApplyClassification(state GuardState, now time.Time, class RateLimitClass) GuardState. The helper returns a new value, treats zero-value state.LastKnownClass as RateLimitInsufficientEvidence in returned values, imports time plus RateLimitClass from provider_rate_guard.go, and performs no bucket parsing, reset-window parsing, breaker mutation, retry timing, time.Now lookup, goroutine, or provider routing.",
+              "contract": "TDD packet for a missing pure state-transition helper; this row is not selectable until the Classify429 row provides RateLimitClass, and workers must not stub duplicate constants. First add internal/hermes/provider_rate_guard_degraded_test.go in package hermes with TestApplyClassification covering preserved last-known-good on RateLimitInsufficientEvidence, unknown/zero RateLimitClass treated as insufficient evidence, fresh RateLimitGenuineQuota and RateLimitUpstreamCapacity clearing Unavailable and stamping now, and input value immutability. Then add internal/hermes/provider_rate_guard_degraded.go exposing type GuardState struct{LastKnownClass RateLimitClass; LastKnownAt time.Time; Unavailable bool} and ApplyClassification(state GuardState, now time.Time, class RateLimitClass) GuardState. The helper returns a new value, treats zero-value state.LastKnownClass as RateLimitInsufficientEvidence in returned values, imports time, and reuses RateLimitClass from provider_rate_guard.go. No bucket parsing, reset-window parsing, breaker mutation, retry timing, time.Now lookup, goroutine, or provider routing.",
               "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -6709,18 +6720,20 @@
                 "system"
               ],
               "degraded_mode": "Provider status reports last_known_good=present|absent, plus rate_guard_unavailable or budget_header_missing when classification is unsafe; no retry amplification.",
-              "fixture": "internal/hermes/provider_rate_guard_degraded_test.go (new file)::TestApplyClassification",
+              "fixture": "internal/hermes/provider_rate_guard_degraded_test.go (new file)::TestApplyClassification/insufficient_preserves_last_known",
               "source_refs": [
-                "../hermes-agent/agent/nous_rate_guard.py:record_nous_rate_limit:70",
-                "../hermes-agent/agent/nous_rate_guard.py:nous_rate_limit_remaining:138"
+                "../hermes-agent/agent/nous_rate_guard.py@192e7eb2:record_nous_rate_limit",
+                "../hermes-agent/agent/nous_rate_guard.py@192e7eb2:nous_rate_limit_remaining",
+                "internal/hermes/provider_rate_guard.go (from prerequisite row)::RateLimitClass"
               ],
               "ready_when": [
-                "Provider rate guard — x-ratelimit header classification is fixture_ready or validated, so this slice can import RateLimitClass.",
+                "Provider rate guard — x-ratelimit header classification is validated on main, so this slice can import RateLimitClass from internal/hermes/provider_rate_guard.go without stubbing it.",
                 "internal/hermes/provider_rate_guard_degraded.go and provider_rate_guard_degraded_test.go are absent on main; the worker's first edit is the focused failing test file."
               ],
               "not_ready_when": [
                 "The slice writes a process-global or cross-session breaker.",
-                "The slice changes retry policy or treats every 429 as account-level quota exhaustion."
+                "The slice changes retry policy or treats every 429 as account-level quota exhaustion.",
+                "RateLimitClass or Classify429 is absent in the worker checkout; do not create duplicate constants in provider_rate_guard_degraded.go."
               ],
               "blocked_by": [
                 "Provider rate guard — x-ratelimit header classification"
@@ -6736,7 +6749,7 @@
                 "TestApplyClassification_TogglesUnavailableBackToFalseOnFreshEvidence: input {RateLimitGenuineQuota, t0, true} with class=RateLimitUpstreamCapacity returns Unavailable=false.",
                 "TestApplyClassification_UnknownClassIsInsufficientEvidence: input {RateLimitUpstreamCapacity, t0, false} with class=RateLimitClass(\"\") preserves LastKnownClass/LastKnownAt and returns Unavailable=true."
               ],
-              "note": "Reshape #6 (2026-04-26T18:14:51Z): converted the no_progress quarantine into an explicit test-first packet and tied it to the reset-window-aware RateLimitClass helper. The row remains independent from budget telemetry, shared breaker state, and retry policy.",
+              "note": "Reshape #7 (2026-04-26T18:25:41Z): tightened the no_progress quarantine by making the RateLimitClass prerequisite explicit and forbidding duplicate constants/stubs. The row remains independent from budget telemetry, shared breaker state, and retry policy.",
               "write_scope": [
                 "internal/hermes/provider_rate_guard_degraded.go",
                 "internal/hermes/provider_rate_guard_degraded_test.go",
@@ -6748,7 +6761,8 @@
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "internal/hermes/provider_rate_guard_degraded_test.go fixtures prove last-known-good preservation and degraded-mode transitions across all three RateLimitClass values."
+                "internal/hermes/provider_rate_guard_degraded_test.go fixtures prove last-known-good preservation and degraded-mode transitions across all three RateLimitClass values.",
+                "internal/hermes/provider_rate_guard_degraded.go contains only GuardState and ApplyClassification, reusing RateLimitClass from provider_rate_guard.go with no duplicated constants."
               ],
               "health": {
                 "attempt_count": 3,
@@ -6773,8 +6787,8 @@
                 }
               },
               "planner_verdict": {
-                "reshape_count": 9,
-                "last_reshape": "2026-04-26T18:11:07Z",
+                "reshape_count": 10,
+                "last_reshape": "2026-04-26T18:25:41Z",
                 "last_outcome": "no_attempts_yet"
               },
               "provenance": {
