@@ -29,7 +29,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Size: `small`
 - Status: `planned`
 - Priority: `P1`
-- Contract: TDD packet for a missing pure helper; create exactly two files and do not wire them into the watchdog loop. First add internal/builderloop/watchdog_state_test.go in package builderloop with TestDiagnose table subtests named zero_pid_dead, pid_not_live_after_dead_threshold, live_after_slow_threshold, dead_wins_when_both_thresholds_fire, and healthy_recent_live. Then add internal/builderloop/watchdog_state.go exposing type Verdict string with constants VerdictHealthy="healthy", VerdictSlow="slow", VerdictDead="dead"; type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Verdict precedence is: PID==0 => dead, PIDIsLive==false and elapsed>=deadAfter => dead, PIDIsLive==true and elapsed>=slowAfter => slow, else healthy. The helper uses only caller-injected now and PIDIsLive; no os.FindProcess, signal delivery, time.Now, goroutines, watchdog wiring, or config validation.
+- Contract: TDD packet for a missing pure helper; create exactly two files and do not wire them into the watchdog loop. STEP 1: cd into the repo root and run `ls internal/builderloop/watchdog_state*.go` — both files must be absent before the worker writes them. STEP 2: write internal/builderloop/watchdog_state_test.go in package builderloop with one TestDiagnose function holding a t.Run-driven table. The subtests are named exactly zero_pid_dead, pid_not_live_after_dead_threshold, live_after_slow_threshold, dead_wins_when_both_thresholds_fire, healthy_recent_live, and pid_live_silent_for_a_year_is_slow_not_dead. Use a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and pass deadAfter=120*time.Second, slowAfter=600*time.Second. STEP 3: write internal/builderloop/watchdog_state.go exposing type Verdict string with constants VerdictHealthy="healthy", VerdictSlow="slow", VerdictDead="dead"; type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and func Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Verdict precedence (evaluate in this order): if v.PID==0 return VerdictDead; let elapsed := now.Sub(v.LastCommitAt); if !v.PIDIsLive && elapsed>=deadAfter return VerdictDead; if v.PIDIsLive && elapsed>=slowAfter return VerdictSlow; otherwise return VerdictHealthy. STEP 4: the helper uses only caller-injected now and PIDIsLive — no os.FindProcess, signal delivery, time.Now, goroutines, watchdog wiring, config validation, or imports beyond `time`.
 - Trust class: operator, system
 - Ready when: Existing watchdog timer (commit f96a5d94) emits stall events at a single threshold; this slice carves the threshold into two independent ones., Watchdog checkpoint coalescing is fixture-ready or validated, so the dead-process tick does not amplify the commit storm., Both target files are absent on main; the worker's first edit is the focused failing table test, then the helper., If either target file already exists in the worker checkout, the worker should run the focused test and update this progress row instead of creating a duplicate helper.
 - Not ready when: The slice changes how worker output is rejected or how dirty worktrees are committed — only worker liveness detection is in scope., The slice introduces process-group signal sending or container-aware death detection (those belong to a separate sandboxing row)., The worker needs to edit internal/builderloop/run.go, watchdog timers, backend prompts, ledger writing, or process-kill behavior to make the test pass.
@@ -38,7 +38,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Write scope: `internal/builderloop/watchdog_state.go`, `internal/builderloop/watchdog_state_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
 - Test commands: `go test ./internal/builderloop -run '^TestDiagnose$' -count=1`, `go test ./internal/builderloop -count=1`, `go run ./cmd/builder-loop progress validate`
 - Done signal: internal/builderloop/watchdog_state_test.go fixtures prove healthy/slow/dead verdicts including the dead-vs-slow precedence rule with no os.FindProcess or signal calls., internal/builderloop/watchdog_state.go contains exactly the new Verdict, WorkerVitals, and Diagnose helper API; no existing builderloop runtime file changes are required.
-- Acceptance: TestDiagnose_HealthyWhenRecentCommitAndAlive: v={PID:1234, LastCommitAt:now-5s, PIDIsLive:true}, deadAfter=120s, slowAfter=600s returns VerdictHealthy., TestDiagnose_SlowWhenAliveButOverSlowThreshold: v={PID:1234, LastCommitAt:now-700s, PIDIsLive:true} returns VerdictSlow., TestDiagnose_DeadWhenPIDNotLiveAndOverDeadThreshold: v={PID:1234, LastCommitAt:now-200s, PIDIsLive:false} returns VerdictDead., TestDiagnose_DeadWhenPIDIsZero: v={PID:0, LastCommitAt:now-1s, PIDIsLive:true} returns VerdictDead (zero PID short-circuits; thresholds and PIDIsLive are ignored)., TestDiagnose_DeadDoesNotDowngradeToSlow: v={PID:1234, LastCommitAt:now-700s, PIDIsLive:false} with deadAfter=120s, slowAfter=600s returns VerdictDead (dead wins over slow when both fire)., TestDiagnose_NotDeadWhenPIDLiveEvenIfSilent: v={PID:1234, LastCommitAt:now-99999s, PIDIsLive:true} returns VerdictSlow (never VerdictDead while the process answers Signal(0))., Helper is pure — caller injects the clock (now) and the PIDIsLive result.
+- Acceptance: TestDiagnose/healthy_recent_live: v={PID:1234, LastCommitAt:now-5*time.Second, PIDIsLive:true}, deadAfter=120s, slowAfter=600s returns VerdictHealthy., TestDiagnose/live_after_slow_threshold: v={PID:1234, LastCommitAt:now-700*time.Second, PIDIsLive:true} returns VerdictSlow., TestDiagnose/pid_not_live_after_dead_threshold: v={PID:1234, LastCommitAt:now-200*time.Second, PIDIsLive:false} returns VerdictDead., TestDiagnose/zero_pid_dead: v={PID:0, LastCommitAt:now-1*time.Second, PIDIsLive:true} returns VerdictDead (zero PID short-circuits; thresholds and PIDIsLive are ignored)., TestDiagnose/dead_wins_when_both_thresholds_fire: v={PID:1234, LastCommitAt:now-700*time.Second, PIDIsLive:false} with deadAfter=120s, slowAfter=600s returns VerdictDead (dead wins over slow when both fire)., TestDiagnose/pid_live_silent_for_a_year_is_slow_not_dead: v={PID:1234, LastCommitAt:now-99999*time.Second, PIDIsLive:true} returns VerdictSlow (never VerdictDead while the process answers Signal(0))., Helper is pure — caller injects the clock (now) and the PIDIsLive result; the test file imports only `testing` and `time` from stdlib.
 - Source refs: internal/builderloop/run.go, internal/builderloop/run_health_test.go
 - Unblocks: Builder-loop self-improvement vs user-feature ratio metric
 - Why now: Unblocks Builder-loop self-improvement vs user-feature ratio metric.
@@ -71,7 +71,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Size: `small`
 - Status: `planned`
 - Priority: `P2`
-- Contract: TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics; create exactly two files and do not wire a provider breaker. First add internal/hermes/provider_rate_guard_classification_test.go in package hermes with TestClassify429 table subtests named genuine_quota_1h_reset, short_reset_upstream_capacity, healthy_remaining_upstream_capacity, missing_headers_insufficient, unknown_headers_ignored, and malformed_values_ignored. Then add internal/hermes/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota="genuine_quota", RateLimitUpstreamCapacity="upstream_capacity", RateLimitInsufficientEvidence="insufficient_evidence" and Classify429(headers http.Header) RateLimitClass. Read exactly the four current Hermes Nous bucket tags (requests, requests-1h, tokens, tokens-1h) via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Values, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. No shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes.
+- Contract: TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics; create exactly two files and do not wire a provider breaker. STEP 1: cd into the repo root and run `ls internal/hermes/provider_rate_guard*.go` — both files must be absent before the worker writes them; if Classify429 already exists, the worker should run the focused test and update this row. STEP 2: write internal/hermes/provider_rate_guard_classification_test.go in package hermes with one TestClassify429 function holding a t.Run-driven table with named subtests genuine_quota_1h_reset, short_reset_upstream_capacity, healthy_remaining_upstream_capacity, missing_headers_insufficient, unknown_headers_ignored, malformed_values_ignored, and three_buckets_with_remaining_one_missing_returns_upstream_capacity. Each subtest builds an http.Header via h := http.Header{}; h.Set(...); h.Set(...). STEP 3: write internal/hermes/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota="genuine_quota", RateLimitUpstreamCapacity="upstream_capacity", RateLimitInsufficientEvidence="insufficient_evidence" and func Classify429(headers http.Header) RateLimitClass. Algorithm: iterate the four Hermes Nous bucket tags ("requests", "requests-1h", "tokens", "tokens-1h") via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Get, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. A bucket is exhausted only if remaining<=0 AND reset>=60 seconds (matches Hermes _MIN_RESET_FOR_BREAKER_SECONDS). If any bucket is exhausted, return RateLimitGenuineQuota. If at least one bucket parsed successfully and none are exhausted, return RateLimitUpstreamCapacity. Otherwise return RateLimitInsufficientEvidence. STEP 4: no shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes; imports are limited to net/http, strconv, and strings (plus testing in the test file).
 - Trust class: system
 - Ready when: internal/hermes already compiles; the row creates a new file and a sibling _test.go., No upstream gate; pure header parsing with synthetic http.Header values., internal/hermes/provider_rate_guard.go and provider_rate_guard_classification_test.go are absent on main; the worker's first edit is the focused failing test file., If Classify429 or RateLimitClass already exists in the worker checkout, the worker should run the focused test and update this row instead of creating duplicate constants.
 - Not ready when: The slice changes retry timing, provider routing, or model fallback policy., The slice writes process-global breaker state in unit tests or sleeps to simulate reset windows., The worker needs to edit internal/hermes/client.go, internal/hermes/errors.go, internal/kernel/retry.go, or any provider routing code to make the tests pass.
@@ -80,54 +80,12 @@ tests, and candidate policy. Keep those control-plane facts in
 - Write scope: `internal/hermes/provider_rate_guard.go`, `internal/hermes/provider_rate_guard_classification_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
 - Test commands: `go test ./internal/hermes -run '^TestClassify429$' -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/builder-loop progress validate`
 - Done signal: internal/hermes/provider_rate_guard_classification_test.go fixtures prove genuine_quota / upstream_capacity / insufficient_evidence classification from the four current Hermes Nous bucket tags, including the >=60s reset-window guard., internal/hermes/provider_rate_guard.go contains only RateLimitClass constants plus Classify429; no provider client, retry, or routing file changes are required.
-- Acceptance: TestClassify429_GenuineQuotaRequiresResetWindow (X-RateLimit-Remaining-Requests-1h=0 and X-RateLimit-Reset-Requests-1h=300) returns RateLimitGenuineQuota even when other present buckets are >0., TestClassify429_ShortResetStaysUpstreamCapacity (remaining=0 and reset=30) returns RateLimitUpstreamCapacity, mirroring Hermes' <60s transient-throttle rule., TestClassify429_UpstreamCapacityWhenAllBucketsHaveRemaining (any subset of the four buckets >0, none missing-and-parsed-as-zero) returns RateLimitUpstreamCapacity., TestClassify429_InsufficientEvidenceWhenNoRateHeaders returns the explicit RateLimitInsufficientEvidence constant and the returned string is non-empty., TestClassify429_IgnoresUnknownHeaders (Retry-After, X-Custom-Foo) preserves the classification driven solely by the four x-ratelimit-remaining-* buckets., TestClassify429_UnparseableBucketIsNotPresent (X-RateLimit-Remaining-Tokens="abc") with no other rate headers returns RateLimitInsufficientEvidence rather than treating the malformed value as zero.
+- Acceptance: TestClassify429/genuine_quota_1h_reset (X-RateLimit-Remaining-Requests-1h=0 and X-RateLimit-Reset-Requests-1h=300) returns RateLimitGenuineQuota even when other present buckets are >0., TestClassify429/short_reset_upstream_capacity (remaining=0 and reset=30) returns RateLimitUpstreamCapacity, mirroring Hermes' <60s transient-throttle rule., TestClassify429/healthy_remaining_upstream_capacity covers any subset of the four buckets with remaining>0 (and none missing-and-parsed-as-zero) returning RateLimitUpstreamCapacity., TestClassify429/missing_headers_insufficient with no x-ratelimit-* headers returns RateLimitInsufficientEvidence and the returned string is non-empty., TestClassify429/unknown_headers_ignored (Retry-After, X-Custom-Foo) preserves the classification driven solely by the four x-ratelimit-remaining-* buckets., TestClassify429/malformed_values_ignored (X-RateLimit-Remaining-Tokens="abc") with no other rate headers returns RateLimitInsufficientEvidence rather than treating the malformed value as zero., TestClassify429/three_buckets_with_remaining_one_missing_returns_upstream_capacity proves a partial header set without any exhausted bucket still classifies as RateLimitUpstreamCapacity (not InsufficientEvidence).
 - Source refs: ../hermes-agent/agent/nous_rate_guard.py@192e7eb2:_MIN_RESET_FOR_BREAKER_SECONDS, ../hermes-agent/agent/nous_rate_guard.py@192e7eb2:_parse_buckets_from_headers, ../hermes-agent/agent/nous_rate_guard.py@192e7eb2:_has_exhausted_bucket, ../hermes-agent/tests/agent/test_nous_rate_guard.py@192e7eb2:TestIsGenuineNousRateLimit
 - Unblocks: Provider rate guard — degraded-state + last-known-good evidence
 - Why now: Unblocks Provider rate guard — degraded-state + last-known-good evidence.
 
-## 4. Docker backend top-level container reuse semantics
-
-- Phase: 5 / 5.B
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Pure helper internal/tools/docker_container_key.go exposes type DockerContainerRequest struct{TaskID string; IsSubagent bool; IsRollout bool} and DockerContainerKey(req DockerContainerRequest) string. The helper trims TaskID, returns "default" for top-level requests with empty TaskID, returns the trimmed TaskID for top-level explicit task IDs, and returns the trimmed TaskID for subagent or rollout requests. If IsSubagent or IsRollout is true and TaskID is empty, it returns "" so callers must generate an isolated task ID before creating a Docker environment. No Docker CLI calls, no filesystem reads, no cleanup, no env config.
-- Trust class: operator, child-agent, system
-- Ready when: internal/tools already exists and can accept a pure helper without the live Docker backend implementation., The worker can prove behavior with table tests only; no docker binary, container runtime, or live filesystem sandbox is required.
-- Not ready when: The slice shells out to docker, creates containers, writes sandbox directories, implements cleanup, or changes execute_code behavior., The slice treats /new, /reset, or TUI session changes as new Docker task IDs for the top-level agent.
-- Degraded mode: Doctor/status reports docker_task_scope_missing when an isolated subagent or rollout request lacks a generated task_id instead of silently falling back to the shared default container.
-- Fixture: `internal/tools/docker_container_key_test.go`
-- Write scope: `internal/tools/docker_container_key.go`, `internal/tools/docker_container_key_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestDockerContainerKey -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: internal/tools/docker_container_key_test.go fixtures prove shared top-level default container keying and isolated subagent/rollout task_id requirements without live Docker.
-- Acceptance: TestDockerContainerKey_TopLevelDefault: empty TaskID with IsSubagent=false and IsRollout=false returns "default"., TestDockerContainerKey_TopLevelExplicitTaskID: TaskID="manual" returns "manual" for top-level requests., TestDockerContainerKey_SubagentRequiresIsolatedTaskID: IsSubagent=true with empty TaskID returns "" and with TaskID="subagent-1" returns "subagent-1"., TestDockerContainerKey_RolloutRequiresIsolatedTaskID: IsRollout=true with empty TaskID returns "" and with TaskID="rollout-1" returns "rollout-1"., TestDockerContainerKey_TrimsWhitespace: surrounding whitespace never creates a distinct container key.
-- Source refs: ../hermes-agent/website/docs/user-guide/configuration.md@9be83728:Docker Backend, ../hermes-agent/tools/terminal_tool.py:1476, ../hermes-agent/tools/terminal_tool.py:1530, ../hermes-agent/tools/delegate_tool.py:1396, ../hermes-agent/environments/tool_context.py:72
-- Unblocks: Docker
-- Why now: Unblocks Docker.
-
-## 5. Browser hybrid private-URL local sidecar routing
-
-- Phase: 5 / 5.C
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Pure routing helper internal/tools/browser_hybrid_routing.go exposes type BrowserRoute struct{SessionKey string; ForceLocal bool; Reason string}, IsPrivateBrowserHost(host string) bool, and RouteBrowserNavigation(taskID, rawURL string, cloudConfigured, autoLocalForPrivateURLs, cdpOverride, camofoxMode bool) BrowserRoute. When cloudConfigured && autoLocalForPrivateURLs && !cdpOverride && !camofoxMode and rawURL's host is localhost, loopback, RFC1918 IPv4, IPv6 loopback, IPv4 link-local, or suffix .local/.lan/.internal, return SessionKey="<taskID-or-default>::local", ForceLocal=true, Reason="private_url_local_sidecar". Public URLs and disabled/override cases return the bare taskID/default, ForceLocal=false. No browser startup, DNS resolution, network calls, chromedp/Rod imports, global session maps, cleanup logic, or config loading in this slice.
-- Trust class: operator, system
-- Ready when: internal/tools is the current home for tool helper contracts, and no native browser runtime has to exist before a pure route decision helper can land., The worker can use synthetic URLs and booleans; no live Chromium, Browserbase, Firecrawl, Camofox, DNS, or network dependency is required.
-- Not ready when: The slice starts a browser, resolves hostnames over DNS, adds browser config loading, stores session state, edits cleanup behavior, or chooses chromedp/Rod., The slice weakens post-redirect SSRF blocking; this row only decides the pre-navigation session key for the initial URL.
-- Degraded mode: Until browser runtime exists, browser status can report hybrid_routing_unavailable; once wired, private URLs must never be sent to cloud providers when auto-local routing is enabled.
-- Fixture: `internal/tools/browser_hybrid_routing_test.go`
-- Write scope: `internal/tools/browser_hybrid_routing.go`, `internal/tools/browser_hybrid_routing_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run '^(TestRouteBrowserNavigation\|TestIsPrivateBrowserHost)' -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: Browser hybrid routing fixtures prove private/LAN hosts select a ::local sidecar only in cloud+auto-local mode, while public and override cases keep the bare session key without starting a browser.
-- Acceptance: TestRouteBrowserNavigation_PrivateHostsUseLocalSidecar covers localhost, 127.0.0.1, 10.x, 172.16-31.x, 192.168.x, 169.254.x, ::1, and *.local/*.lan/*.internal returning default::local or task::local., TestRouteBrowserNavigation_PublicURLsUseCloudKey covers github.com and 8.8.8.8 returning the bare task ID with ForceLocal=false., TestRouteBrowserNavigation_DisabledOrOverrideCases covers no cloud provider, autoLocalForPrivateURLs=false, cdpOverride=true, and camofoxMode=true all returning the bare task ID., TestRouteBrowserNavigation_DefaultTaskID proves empty task IDs normalize to default and local sidecars use default::local., The helper uses net/url, net/netip or net.ParseIP, and strings only; no browser runtime package or network/DNS call appears in the file.
-- Source refs: ../hermes-agent/tools/browser_tool.py@42c076d3:_navigation_session_key, ../hermes-agent/tests/tools/test_browser_hybrid_routing.py@42c076d3, ../hermes-agent/hermes_cli/config.py@42c076d3:browser.auto_local_for_private_urls, ../hermes-agent/website/docs/user-guide/features/browser.md@42c076d3
-- Unblocks: Browser provider bridge + Firecrawl fallback
-- Why now: Unblocks Browser provider bridge + Firecrawl fallback.
-
-## 6. TUI prompt-submit auto-title eligibility helper
+## 4. TUI prompt-submit auto-title eligibility helper
 
 - Phase: 5 / 5.Q
 - Owner: `gateway`
@@ -147,7 +105,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/tui_gateway/server.py@9662e321:prompt.submit, ../hermes-agent/tests/test_tui_gateway_server.py@9662e321:test_prompt_submit_auto_titles_session_on_complete, ../hermes-agent/tests/test_tui_gateway_server.py@9662e321:test_prompt_submit_skips_auto_title_when_interrupted, ../hermes-agent/tests/test_tui_gateway_server.py@9662e321:test_prompt_submit_skips_auto_title_when_response_empty, internal/tui/update.go, internal/session/directory.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. BlueBubbles iMessage bubble formatting parity
+## 5. BlueBubbles iMessage bubble formatting parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -168,7 +126,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: BlueBubbles iMessage session-context prompt guidance
 - Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
 
-## 8. CLI profile name validator
+## 6. CLI profile name validator
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -188,7 +146,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI active-profile store, CLI profile root resolver
 - Why now: Unblocks CLI active-profile store, CLI profile root resolver.
 
-## 9. doctorCustomEndpointReadiness check function
+## 7. doctorCustomEndpointReadiness check function
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -209,7 +167,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI status summary over native stores
 - Why now: Unblocks CLI status summary over native stores.
 
-## 10. Custom provider model-switch credential preservation
+## 8. Custom provider model-switch credential preservation
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -229,5 +187,43 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/hermes_cli/main.py@1fdc31b2:_custom_provider_api_key_config_value, ../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map, ../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8bbeaea6, internal/cli/banner.go, internal/cli/output.go
 - Unblocks: CLI command registry parity + active-turn busy policy
 - Why now: Unblocks CLI command registry parity + active-turn busy policy.
+
+## 9. [IMPORTANT:] prompt prefix for cron and skill commands
+
+- Phase: 5 / 5.F
+- Owner: `skills`
+- Size: `small`
+- Status: `planned`
+- Contract: internal/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) — same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift
+- Trust class: operator, system
+- Ready when: Upstream Hermes shipped this rename across two commits (d7a34682 + 20cb706e) on 2026-04-09 / 2026-04-26 with explicit cause (Azure content filter HTTP 400 on `[SYSTEM:` markers)., Gormes uses the same marker pattern in exactly two production code paths today: internal/cron/heartbeat.go (CronHeartbeatPrefix) and internal/skills/commands.go (BuildSkillSlashCommandMessage).
+- Not ready when: The slice changes the `[SILENT]` token semantics, the skill body trimming, the cron prompt structure beyond the bracketed marker word, or the `Heartbeat [SYSTEM:] + [SILENT] delivery contract` row name in 2.D (that row name is a historical record; only the runtime constant + the byte-match tests change)., The slice introduces a new Azure provider adapter, a content-filter-detection layer, or a configurable marker word — the change is a hardcoded literal rename only., The slice updates internal/progress/progress_test.go literal assertions for the 2.D row name (the row name in progress.json must stay as `Heartbeat [SYSTEM:] + [SILENT] delivery contract` for historical accuracy).
+- Degraded mode: Operator-visible prompt text changes from `[SYSTEM: ...]` to `[IMPORTANT: ...]`; behavior is otherwise identical, including the `[SILENT]` suppression contract and the skill body trimming.
+- Fixture: `internal/cron/heartbeat_test.go`
+- Write scope: `internal/cron/heartbeat.go`, `internal/cron/heartbeat_test.go`, `internal/skills/commands.go`, `internal/skills/preprocessing_commands_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/cron ./internal/skills -count=1`, `go test ./internal/progress -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: go test ./internal/cron and ./internal/skills both pass after the marker rename; `grep -rn '\[SYSTEM:' internal/cron/ internal/skills/` returns no matches in production code; `grep -rn '\[IMPORTANT:' internal/cron/ internal/skills/` returns at least 4 matches (constant + tests in both packages).
+- Acceptance: internal/cron/heartbeat.go:CronHeartbeatPrefix starts with `[IMPORTANT:` (replacing `[SYSTEM:`) and the load-bearing phrases (`DELIVERY:`, `SILENT:`, `[SILENT]`) are byte-identical to the prior version., internal/cron/heartbeat_test.go asserts `strings.HasPrefix(full, "[IMPORTANT:")` (not `[SYSTEM:`); the existing TestHeartbeatPrefix_ContainsLoadBearingPhrases load-bearing phrase set updates only its first member., internal/skills/commands.go:BuildSkillSlashCommandMessage emits `[IMPORTANT: The user has invoked the "<name>" skill, ...` (replacing `[SYSTEM:`)., internal/skills/preprocessing_commands_test.go updates its expected golden string to `[IMPORTANT:` for the affected fixtures., DetectSilent semantics in internal/cron/heartbeat.go are unchanged (the `[SILENT]` token is independent of the leading marker).
+- Source refs: ../hermes-agent/cron/scheduler.py@d7a34682, ../hermes-agent/agent/skill_commands.py@d7a34682, ../hermes-agent/cli.py@20cb706e, ../hermes-agent/gateway/run.py@20cb706e, ../hermes-agent/tools/process_registry.py@20cb706e, internal/cron/heartbeat.go:CronHeartbeatPrefix, internal/cron/heartbeat_test.go, internal/skills/commands.go:BuildSkillSlashCommandMessage, internal/skills/preprocessing_commands_test.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. TUI TerminalNativeSelectionHelp constant + help-string fixture
+
+- Phase: 5 / 5.Q
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Contract: internal/tui declares an exported string constant TerminalNativeSelectionHelp = 'Selection: use your terminal's native selection (Shift-drag in most terminals; iTerm Cmd-drag, tmux copy-mode). Gormes does not advertise an in-app copy hotkey.' and a pure helper SelectionHelpLine() that returns it; one fixture asserts the constant exists, mentions 'terminal' but not 'Cmd+C'/'Ctrl+C'/'Ctrl-Shift-C'/'OSC 52'/'clipboard hotkey'/'Ink', and another asserts no advertised copy shortcut leaks anywhere else in the package
+- Trust class: operator
+- Ready when: internal/tui already exposes Bubble Tea model/view/update files and a mouse tracking config; adding a single new file with one constant compiles cleanly alongside them., phase-5-final-purge.md already documents the terminal-native selection divergence, so this row is mechanical: lift that statement into a typed Go constant and a regression test.
+- Not ready when: The slice ports Hermes Ink, calls OSC 52, adds clipboard libraries, modifies internal/tui/update.go input handling, or changes remote TUI transport., The slice introduces a Cobra command flag for copy mode or a configuration key., The slice modifies cmd/gormes/ files.
+- Degraded mode: If a future row adds a real Go-native copy mode, it must replace this constant rather than extend it; until then, the help-string fixture prevents accidental advertising of unimplemented Ink shortcuts.
+- Fixture: `internal/tui/selection_help_test.go`
+- Write scope: `internal/tui/selection_help.go`, `internal/tui/selection_help_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tui -run 'TestTerminalNativeSelectionHelpExists\|TestTerminalNativeSelectionHelpNoFakeShortcuts\|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1`, `go test ./internal/tui -count=1`, `go vet ./internal/tui`, `go run ./cmd/builder-loop progress validate`
+- Done signal: internal/tui/selection_help.go declares TerminalNativeSelectionHelp and SelectionHelpLine; three named tests pass; no other internal/tui or cmd/gormes file is modified.
+- Acceptance: TestTerminalNativeSelectionHelpExists: TerminalNativeSelectionHelp is a non-empty string constant exported from internal/tui, contains the substring 'terminal', and SelectionHelpLine() returns the same value., TestTerminalNativeSelectionHelpNoFakeShortcuts: TerminalNativeSelectionHelp does not contain any of: 'Cmd+C', 'Ctrl+C', 'Ctrl-Shift-C', 'Cmd-Shift-C', 'OSC 52', 'clipboard hotkey', 'Ink' (case-insensitive)., TestTUIPackageDoesNotAdvertiseCopyHotkey: walking internal/tui/*.go files, no string literal in the package contains the same forbidden shortcuts above (test reads the package source via os.ReadFile, not a runtime check)., go vet ./internal/tui passes; no other package is imported by the new file beyond stdlib.
+- Source refs: ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@edc78e25, ../hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts@31d7f195, internal/tui/view.go, internal/tui/model.go, internal/tui/mouse_tracking.go, docs/content/building-gormes/architecture_plan/phase-5-final-purge.md
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

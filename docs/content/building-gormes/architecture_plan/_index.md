@@ -37,7 +37,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 35/74 subphases shipped · 19 in progress · 20 planned
+**Overall:** 35/74 subphases shipped · 21 in progress · 18 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -444,22 +444,22 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
 
-### 5.B — Sandboxing Backends ⏳
+### 5.B — Sandboxing Backends 🔨
 
 - [ ] Environment interface + file sync contract
 - [ ] Docker
-- [ ] Docker backend top-level container reuse semantics
+- [x] Docker backend top-level container reuse semantics
 - [ ] Modal
 - [ ] Daytona
 - [ ] Singularity
 
-### 5.C — Browser Automation ⏳
+### 5.C — Browser Automation 🔨
 
 - [ ] Browser action contract + event transcript
 - [ ] Chromedp
 - [ ] Rod
 - [ ] Browser provider bridge + Firecrawl fallback
-- [ ] Browser hybrid private-URL local sidecar routing
+- [x] Browser hybrid private-URL local sidecar routing
 
 ### 5.D — Vision + Image Generation ⏳
 
