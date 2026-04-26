@@ -6538,6 +6538,20 @@
               "done_signal": [
                 "Skills hub search fixtures prove read-only fake-registry search, degraded evidence, RPC/command dispatch, and no active-store mutation or prompt injection."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:27:57Z",
+                "last_failure": {
+                  "run_id": "20260426T141709Z-105849682",
+                  "category": "no_progress",
+                  "backend": "codexu",
+                  "stderr_tail": "worker made no changes: 5/5.F/Skills hub search RPC read model"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:91a7a0ac tui_gateway/server.py",
@@ -6804,6 +6818,20 @@
               "done_signal": [
                 "MCP OAuth fixtures prove state persistence, refresh/expiry handling, 401 recovery, secret redaction, and noninteractive auth-required errors."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:27:57Z",
+                "last_failure": {
+                  "run_id": "20260426T141709Z-105849682",
+                  "category": "no_progress",
+                  "backend": "codexu",
+                  "stderr_tail": "worker made no changes: 5/5.G/MCP OAuth state store + noninteractive auth errors"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:edc78e25 tools/mcp_oauth.py",
@@ -7210,6 +7238,20 @@
               "done_signal": [
                 "Dangerous-command fixtures prove hardline blocks are unconditional, regular dangerous detections remain yolo-bypassable, benign lookalikes pass, and blocked results are side-effect free."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:27:57Z",
+                "last_failure": {
+                  "run_id": "20260426T141709Z-105849682",
+                  "category": "worker_error",
+                  "backend": "codexu",
+                  "stderr_tail": "repository has uncommitted changes:\nM docs/content/building-gormes/architecture_plan/progress.json\n M internal/tools/execute_code.go\n?? internal/tools/dangerous_command.go\n?? internal/tools/dangerous_command_test.go"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:eb28145f tools/approval.py",
@@ -8575,6 +8617,20 @@
               "done_signal": [
                 "Custom-provider model-switch fixtures prove named provider resolution, configured-model override, and secret-reference preservation without live provider calls or command UI."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:27:57Z",
+                "last_failure": {
+                  "run_id": "20260426T141709Z-105849682",
+                  "category": "no_progress",
+                  "backend": "codexu",
+                  "stderr_tail": "worker made no changes: 5/5.O/Custom provider model-switch credential preservation"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:8bbeaea6 hermes_cli/main.py",
@@ -9084,6 +9140,20 @@
               "done_signal": [
                 "Native TUI fixtures and docs prove Gormes advertises terminal-native selection honestly and remains independent from Hermes Ink/Node clipboard behavior."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-26T14:27:57Z",
+                "last_failure": {
+                  "run_id": "20260426T141709Z-105849682",
+                  "category": "no_progress",
+                  "backend": "codexu",
+                  "stderr_tail": "worker made no changes: 5/5.Q/Native TUI terminal-selection divergence contract"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 ui-tui/packages/hermes-ink/src/ink/selection.ts",
