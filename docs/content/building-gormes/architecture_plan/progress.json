@@ -10730,9 +10730,9 @@
             },
             {
               "name": "TUI gateway image/personality/platform-event helpers",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pure TUI gateway media, personality, and platform-event helpers expose stable structs and validation without remote transport",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -10766,7 +10766,7 @@
                 "Personality validation/rendering returns deterministic messages for supported, missing, and invalid values.",
                 "PlatformEvent structs round-trip JSON for submit, cancel, resize, progress, and image metadata without starting transport."
               ],
-              "note": "Second pure-helper split; this creates the media/personality/event schema foundation that remote TUI transport can consume later.",
+              "note": "Complete: internal/tuigateway/image.go ports _estimate_image_tokens and _image_meta as EstimateImageTokens(width, height int) int and ReadImageMetadata(path string) (ImageMetadata, error) — the metadata reader caps reads at 64 KiB through io.LimitReader so PNG/JPEG/GIF headers decode in O(header) and a fake 12 MiB pseudo-PNG falls back to name-only without exhausting memory. internal/tuigateway/personality.go ports _render_personality_prompt and _validate_personality as RenderPersonalityPrompt(value any) string and ValidatePersonality(value string, personalities map[string]any) (name, prompt string, err error) with deterministic alias handling (`none`, `default`, `neutral`) and sorted, raw-casing-preserving error messages. internal/tuigateway/platform_event.go declares the PlatformEventKind enum plus SubmitEvent, CancelEvent, ResizeEvent, ProgressEvent, ImageMetadataEvent — each round-trips encoding/json with stable field tags, and ValidPlatformEventKind gives O(1) discriminator validation. Fixtures in internal/tuigateway/media_personality_event_test.go cover tile-math math + zero/negative guard, PNG/JPEG/GIF fixture decode, non-image and missing-file fallbacks, the bounded-read invariant, personality dict assembly + plain-string passthrough + alias clearing + sorted available-list error + raw-casing preservation, and JSON round-trip plus omitempty checks for every event variant. No NewRemoteClient, NewGatewayMux, SSE dialer, JSON-RPC dispatcher, or live image read outside t.TempDir() exists in this slice.",
               "write_scope": [
                 "internal/tuigateway/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -10783,6 +10783,11 @@
                 "reshape_count": 1,
                 "last_reshape": "2026-04-26T16:17:18Z",
                 "last_outcome": "no_attempts_yet"
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T19:51:20Z",
+                "last_success": "2026-04-26T19:51:20Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
