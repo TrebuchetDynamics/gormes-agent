@@ -695,6 +695,72 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 	})
 }
 
+func runRowEvaluator(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun) error {
+	commands := append([]string(nil), worker.Candidate.TestCommands...)
+	if len(commands) == 0 {
+		return nil
+	}
+
+	if err := appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "row_evaluation_started",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "started",
+		Detail: fmt.Sprintf("commands=%d", len(commands)),
+	}); err != nil {
+		return err
+	}
+
+	var (
+		commandErrs    []error
+		failureDetails []string
+	)
+	for i, shellCommand := range commands {
+		result := runner.Run(ctx, Command{
+			Name: "sh",
+			Args: []string{"-lc", shellCommand},
+			Dir:  worker.RepoRoot,
+			Env:  postPromotionCommandEnv(cfg),
+		})
+		if result.Err == nil {
+			continue
+		}
+		commandErrs = append(commandErrs, fmt.Errorf("command %d failed: %w", i+1, result.Err))
+		failureDetails = append(failureDetails,
+			fmt.Sprintf("command=%d/%d %q:\n%s", i+1, len(commands), shellCommand, commandFailureDetail(result)),
+		)
+	}
+	if len(commandErrs) > 0 {
+		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "worker_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Status: "row_evaluation_failed",
+			Detail: truncateLedgerDetail(fmt.Sprintf("failed=%d/%d\n\n%s",
+				len(commandErrs), len(commands),
+				strings.Join(failureDetails, "\n\n---\n\n"))),
+		})
+		return errors.Join(append(commandErrs, ledgerErr)...)
+	}
+
+	return appendRunLedgerEvent(cfg, LedgerEvent{
+		TS:     time.Now().UTC(),
+		RunID:  runID,
+		Event:  "row_evaluation_succeeded",
+		Worker: worker.ID,
+		Task:   worker.Task,
+		Branch: worker.Branch,
+		Status: "ok",
+		Detail: fmt.Sprintf("commands=%d", len(commands)),
+	})
+}
+
 func runPostPromotionVerification(ctx context.Context, cfg Config, runner Runner, runID string, attempt int) error {
 	if err := appendRunLedgerEvent(cfg, LedgerEvent{
 		TS:     time.Now().UTC(),
@@ -1145,20 +1211,7 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			return err
 		}
 		if commitSha != worker.BaseCommit {
-			if err := ensureChangedPathsWithinWriteScope(worker.RepoRoot, worker.BaseCommit, commitSha, worker.Candidate); err != nil {
-				if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
-					TS:     time.Now().UTC(),
-					RunID:  runID,
-					Event:  "worker_failed",
-					Worker: worker.ID,
-					Task:   worker.Task,
-					Branch: worker.Branch,
-					Commit: commitSha,
-					Status: "write_scope_violation",
-					Detail: err.Error(),
-				}); ledgerErr != nil {
-					return ledgerErr
-				}
+			if err := ensureWorkerCommitWithinWriteScope(cfg, runID, worker, commitSha); err != nil {
 				return err
 			}
 			if err := ensureCurrentBranch(cfg.RepoRoot, baseBranch); err != nil {
@@ -1193,8 +1246,33 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			if err := runPrePromotionGate(ctx, cfg, runner, runID, worker); err != nil {
 				return err
 			}
-			if err := promoteWorkerCommit(ctx, cfg, runner, runID, worker.ID, worker.Task, worker.Branch, commitSha); err != nil {
+			commitSha, err = gitHeadSha(worker.RepoRoot)
+			if err != nil {
 				return err
+			}
+			if commitSha != worker.BaseCommit {
+				if err := ensureWorkerCommitWithinWriteScope(cfg, runID, worker, commitSha); err != nil {
+					return err
+				}
+				if err := runRowEvaluator(ctx, cfg, runner, runID, worker); err != nil {
+					return err
+				}
+				if err := promoteWorkerCommit(ctx, cfg, runner, runID, worker.ID, worker.Task, worker.Branch, commitSha); err != nil {
+					return err
+				}
+			} else {
+				commitSha = ""
+				if err := appendRunLedgerEvent(cfg, LedgerEvent{
+					TS:     time.Now().UTC(),
+					RunID:  runID,
+					Event:  "worker_no_changes",
+					Worker: worker.ID,
+					Task:   worker.Task,
+					Branch: worker.Branch,
+					Status: "no_changes",
+				}); err != nil {
+					return err
+				}
 			}
 			removeCleanWorkerWorktree(cfg.RepoRoot, worker.WorktreePath)
 		} else {
@@ -1224,6 +1302,26 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		Commit: commitSha,
 		Status: "success",
 	})
+}
+
+func ensureWorkerCommitWithinWriteScope(cfg Config, runID string, worker workerRun, commitSha string) error {
+	if err := ensureChangedPathsWithinWriteScope(worker.RepoRoot, worker.BaseCommit, commitSha, worker.Candidate); err != nil {
+		if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+			TS:     time.Now().UTC(),
+			RunID:  runID,
+			Event:  "worker_failed",
+			Worker: worker.ID,
+			Task:   worker.Task,
+			Branch: worker.Branch,
+			Commit: commitSha,
+			Status: "write_scope_violation",
+			Detail: err.Error(),
+		}); ledgerErr != nil {
+			return ledgerErr
+		}
+		return err
+	}
+	return nil
 }
 
 // verifySpeculativeWorker checks that a speculative worker can be promoted:

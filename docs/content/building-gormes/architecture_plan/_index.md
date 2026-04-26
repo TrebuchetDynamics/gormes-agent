@@ -510,6 +510,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Clarify
 - [ ] Session search
 - [ ] Debug helpers
+- [ ] Planner backend noninteractive stdin failure guard
 - [ ] Cronjob tool API + schedule parser parity
 - [ ] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract
@@ -538,6 +539,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
 - [ ] Doctor custom endpoint provider readiness
+- [ ] Custom provider model-switch credential preservation
 - [ ] CLI log snapshot reader
 
 ### 5.P — Docker / Packaging ⏳
@@ -558,6 +560,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
 - [ ] Native TUI terminal-selection divergence contract
+- [ ] Native TUI /save canonical session export
 - [ ] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [x] Responses API store + run event stream

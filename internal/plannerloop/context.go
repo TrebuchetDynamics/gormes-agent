@@ -200,15 +200,13 @@ func capExcerpt(s string, max int) string {
 	return s[len(s)-max:]
 }
 
-// corroborateFromAudit would return a short note when SummarizeAutoloopAudit
-// already flagged this row as toxic/hot. AutoloopAudit currently exposes
-// subphase-level aggregates, not row-level, so this returns "" today.
-// Future work can scan audit.RecentFailedTasks for a matching task key.
 func corroborateFromAudit(audit AutoloopAudit, phaseID, subphaseID, itemName string) string {
-	_ = audit
-	_ = phaseID
-	_ = subphaseID
-	_ = itemName
+	key := phaseID + "/" + subphaseID + "/" + itemName
+	for _, task := range audit.RecentFailedTasks {
+		if task.Task == key {
+			return "recent failure: " + task.Status + " [" + task.TS + "]"
+		}
+	}
 	return ""
 }
 

@@ -111,8 +111,14 @@ func FilterContextByKeywords(bundle ContextBundle, keywords []string) ContextBun
 	narrowed.ImplInventory.GormesOriginalPaths = filterStrings(bundle.ImplInventory.GormesOriginalPaths)
 	narrowed.ImplInventory.RecentlyChanged = filterStrings(bundle.ImplInventory.RecentlyChanged)
 	narrowed.ImplInventory.OwnedSubphases = filterStrings(bundle.ImplInventory.OwnedSubphases)
-	// PreviousReshapes is added in Task 10 (L4); when present, narrow it too.
-	// At Task 5 time the field doesn't exist yet — the FilterContextByKeywords
-	// body will gain a matching block when Task 10 lands.
+	if len(bundle.PreviousReshapes) > 0 {
+		filtered := []ReshapeOutcome{}
+		for _, r := range bundle.PreviousReshapes {
+			if matchesAny(r.ItemName) {
+				filtered = append(filtered, r)
+			}
+		}
+		narrowed.PreviousReshapes = filtered
+	}
 	return narrowed
 }

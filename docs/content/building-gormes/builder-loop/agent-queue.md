@@ -163,4 +163,44 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: TUI gateway image/personality/platform-event helpers
 - Why now: Unblocks TUI gateway image/personality/platform-event helpers.
 
+## 8. Planner backend noninteractive stdin failure guard
+
+- Phase: 5 / 5.N
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Planner-loop and builder-loop backend launches fail fast with classified backend_failed evidence when Codex-style backends wait for stdin or emit no progress, without producing blank subphase audit rows
+- Trust class: operator, system
+- Ready when: The last-7-day audit shows 60 blank-subphase claims with 31 worker/backend failures and repeated backend_failed detail containing `Reading additional input from stdin`., The slice can use fake backend commands and fixture JSONL ledgers; no live Codex backend, upstream repo sync, or progress row mutation is required.
+- Not ready when: The slice changes roadmap selection, worker prompt content, progress item contracts, or runtime feature code outside builder/planner loop backend failure classification., The fix hides backend stdout/stderr or rewrites blank ledger entries instead of preserving evidence and classifying them deterministically.
+- Degraded mode: Planner status reports backend_waiting_for_stdin, backend_no_progress, backend_killed, and missing-task metadata separately so toxic-subphase analysis does not collapse into blank row IDs.
+- Fixture: `internal/builderloop/backend_noninteractive_test.go and internal/plannerloop/autoloop_audit_test.go`
+- Write scope: `internal/builderloop/backend.go`, `internal/builderloop/backend_noninteractive_test.go`, `internal/builderloop/failures.go`, `internal/plannerloop/autoloop_audit.go`, `internal/plannerloop/autoloop_audit_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/builderloop -run 'Test.*Backend.*Noninteractive\|Test.*Backend.*Failure\|Test.*Backend.*Degraded' -count=1`, `go test ./internal/plannerloop -run 'Test.*Autoloop.*Audit\|Test.*Blank.*Subphase\|Test.*Backend.*Failure' -count=1`, `go test ./internal/builderloop ./internal/plannerloop -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Backend/audit fixtures prove stdin-waiting and killed backends are classified with preserved evidence and no blank toxic-subphase buckets.
+- Acceptance: A fake backend that prints `Reading additional input from stdin` exits with a classified backend_waiting_for_stdin failure, non-empty task metadata when the selected row is known, and the original stderr excerpt preserved., A killed backend or backend with no progress heartbeat records backend_killed or backend_no_progress without producing an empty subphase_id in planner audit summaries., Planner audit fixtures group missing task metadata under an explicit control-plane bucket instead of the empty string and include remediation text for backend infrastructure failures., No progress.json health block is created, removed, or modified by this backend failure classification path.
+- Source refs: .codex/planner-loop/state/runs.jsonl:20260425T210430Z backend_failed Reading additional input from stdin, .codex/planner-loop/state/runs.jsonl:20260425T233746Z backend_failed signal: killed: Reading additional input from stdin, .codex/orchestrator/state/runs.jsonl, internal/builderloop/backend.go, internal/builderloop/failures.go, internal/plannerloop/autoloop_audit.go, internal/plannerloop/run.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 9. Native TUI /save canonical session export
+
+- Phase: 5 / 5.Q
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Native Bubble Tea /save exports canonical persisted session history through a session-save service instead of serializing UI-shaped in-memory transcript rows
+- Trust class: operator, system
+- Ready when: `gormes session export <id> --format=markdown` and internal/transcript.ExportMarkdown already prove Gormes has a canonical persisted transcript read path., The slice can use a fake TUI model, temp session/transcript store, and injected clock/path generator; no SSE remote client, api_server, provider, or live terminal is required.
+- Not ready when: The slice writes UI-shaped message structs directly, starts remote TUI/SSE transport, changes command registry policy, or treats /save as ordinary model prompt text., The slice exports from transient screen rows instead of the persisted session/transcript store that CLI export and future JSON-RPC save share.
+- Degraded mode: TUI status reports no_conversation, no_active_session, save_failed, or session_store_unavailable instead of sending /save text to the model or writing partial UI-only transcripts.
+- Fixture: `internal/tui/session_save_test.go`
+- Write scope: `internal/tui/`, `internal/tui/session_save_test.go`, `internal/session/`, `internal/transcript/`, `cmd/gormes/session.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tui ./internal/session ./internal/transcript -run 'Test.*Session.*Save\|Test.*Save.*Transcript\|Test.*Slash.*Save' -count=1`, `go test ./cmd/gormes ./internal/tui ./internal/session ./internal/transcript -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Native TUI fixtures prove /save uses canonical persisted session export, handles empty/no-session/failure states, and never submits /save to the model.
+- Acceptance: /save short-circuits before normal prompt submission; empty history returns no_conversation and a missing active session returns no_active_session., An active session invokes exactly one native session-save/export service and returns the written file path to the transcript without starting a provider turn., The saved artifact is produced from persisted session/transcript data, includes session_id and model/source metadata where available, and is deterministic under injected path/clock fixtures., Write failures remove partial files when possible and surface save_failed evidence without corrupting the session store.
+- Source refs: ../hermes-agent/ui-tui/src/app/slash/commands/core.ts@2536a36f:/save, ../hermes-agent/ui-tui/src/gatewayTypes.ts@2536a36f:SessionSaveResponse, ../hermes-agent/tui_gateway/server.py@2536a36f:session.save, cmd/gormes/session.go, internal/transcript/markdown.go, internal/session/
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
 <!-- PROGRESS:END -->

@@ -14,7 +14,8 @@ import (
 type LedgerEvent struct {
 	TS            string        `json:"ts"` // RFC3339
 	RunID         string        `json:"run_id"`
-	Trigger       string        `json:"trigger"` // "scheduled" | "event" | "manual" | "retry"
+	Event         string        `json:"event,omitempty"` // optional non-terminal observation, e.g. PR intake or backend progress
+	Trigger       string        `json:"trigger"`         // "scheduled" | "event" | "manual" | "retry"
 	TriggerEvents []string      `json:"trigger_events,omitempty"`
 	Backend       string        `json:"backend"`
 	Mode          string        `json:"mode"`

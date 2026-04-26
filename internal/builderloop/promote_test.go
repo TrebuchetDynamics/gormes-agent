@@ -246,3 +246,31 @@ func TestPromoteReturnsCherryPickFailure(t *testing.T) {
 		t.Fatalf("PromoteWorker() error = %v, want %v", err, wantErr)
 	}
 }
+
+func TestPromoteReturnsCherryPickFailureWithCommandOutput(t *testing.T) {
+	wantErr := errors.New("exit status 128")
+	runner := &FakeRunner{
+		Results: []Result{
+			{
+				Err:    wantErr,
+				Stderr: "error: your local changes would be overwritten by cherry-pick",
+			},
+		},
+	}
+
+	err := PromoteWorker(context.Background(), PromoteOptions{
+		Runner:        runner,
+		RepoRoot:      "/tmp/repo",
+		WorkerBranch:  "codexu/run/worker1",
+		WorkerCommit:  "abc123",
+		PromotionMode: "cherry-pick",
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("PromoteWorker() error = %v, want wrapping %v", err, wantErr)
+	}
+	for _, want := range []string{"git cherry-pick", "local changes would be overwritten"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("PromoteWorker() error = %q, want containing %q", err, want)
+		}
+	}
+}

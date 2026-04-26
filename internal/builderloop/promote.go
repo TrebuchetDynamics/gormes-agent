@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type PromoteOptions struct {
@@ -70,5 +71,19 @@ func cherryPick(ctx context.Context, runner Runner, repoRoot string, workerCommi
 		Dir:  repoRoot,
 	})
 
-	return result.Err
+	if result.Err == nil {
+		return nil
+	}
+	return promotionCommandError("git cherry-pick", result)
+}
+
+func promotionCommandError(command string, result Result) error {
+	output := strings.TrimSpace(result.Stderr)
+	if output == "" {
+		output = strings.TrimSpace(result.Stdout)
+	}
+	if output == "" {
+		return fmt.Errorf("%s failed: %w", command, result.Err)
+	}
+	return fmt.Errorf("%s failed: %w: %s", command, result.Err, output)
 }

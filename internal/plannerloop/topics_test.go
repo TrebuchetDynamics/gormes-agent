@@ -123,6 +123,20 @@ func TestFilterContextByKeywords_NarrowsBundleSelectively(t *testing.T) {
 	// AutoloopAudit must remain intact (aggregate, not row-level).
 }
 
+func TestFilterContextByKeywords_NarrowsPreviousReshapes(t *testing.T) {
+	bundle := ContextBundle{
+		PreviousReshapes: []ReshapeOutcome{
+			{ItemName: "honcho-integration", Outcome: "still_failing"},
+			{ItemName: "memory-optimization", Outcome: "unstuck"},
+			{ItemName: "other-task", Outcome: "no_attempts_yet"},
+		},
+	}
+	narrowed := FilterContextByKeywords(bundle, []string{"honcho"})
+	if len(narrowed.PreviousReshapes) != 1 || narrowed.PreviousReshapes[0].ItemName != "honcho-integration" {
+		t.Fatalf("PreviousReshapes narrowing failed: %+v", narrowed.PreviousReshapes)
+	}
+}
+
 // docOneItem is a small builder used by topics tests.
 func docOneItem(item progress.Item) *progress.Progress {
 	return &progress.Progress{

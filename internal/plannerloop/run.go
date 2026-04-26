@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -245,6 +246,21 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	if err != nil {
 		return RunSummary{}, fmt.Errorf("planner: load before-doc: %w", err)
 	}
+	if err := validateRuntimeSourcePreflightClean(cfg.RepoRoot); err != nil {
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:            now.UTC().Format(time.RFC3339),
+			RunID:         runID,
+			Trigger:       trigger,
+			TriggerEvents: triggerEventIDs,
+			Backend:       cfg.Backend,
+			Mode:          cfg.Mode,
+			Status:        "validation_rejected",
+			Detail:        err.Error(),
+			BeforeStats:   computeStats(beforeDoc),
+			Keywords:      opts.Keywords,
+		})
+		return RunSummary{}, fmt.Errorf("planner: runtime source preflight rejected: %w", err)
+	}
 	beforeRuntime, err := snapshotRuntimeSources(cfg.RepoRoot)
 	if err != nil {
 		return RunSummary{}, fmt.Errorf("planner: snapshot runtime sources: %w", err)
@@ -279,11 +295,65 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		if cfg.BackendTimeout > 0 {
 			backendCtx, cancelBackend = context.WithTimeout(ctx, cfg.BackendTimeout)
 		}
+		attemptIndex := i
+		startTime := time.Now()
+		progressTicker := time.NewTicker(30 * time.Second)
+		progressDone := make(chan struct{}, 1)
+		go func() {
+			for {
+				select {
+				case <-progressTicker.C:
+					elapsed := time.Since(startTime).Round(time.Second)
+					appendPlannerLedger(ledgerPath, LedgerEvent{
+						TS:           time.Now().UTC().Format(time.RFC3339),
+						RunID:        runID,
+						Event:        "backend_progress",
+						Status:       "running",
+						Detail:       fmt.Sprintf("elapsed=%s attempt=%d", elapsed, attemptIndex),
+						Backend:      cfg.Backend,
+						Mode:         cfg.Mode,
+						RetryAttempt: attemptIndex,
+					})
+				case <-progressDone:
+					return
+				}
+			}
+		}()
+		watchdogTicker := time.NewTicker(2 * time.Minute)
+		watchdogDone := make(chan struct{}, 1)
+		go func() {
+			for {
+				select {
+				case <-watchdogTicker.C:
+					elapsed := time.Since(startTime).Round(time.Second)
+					status := "backend_slow"
+					if elapsed > 5*time.Minute {
+						status = "backend_stuck"
+					}
+					appendPlannerLedger(ledgerPath, LedgerEvent{
+						TS:           time.Now().UTC().Format(time.RFC3339),
+						RunID:        runID,
+						Event:        status,
+						Status:       "warning",
+						Detail:       fmt.Sprintf("no_output_for=%s attempt=%d", elapsed, attemptIndex),
+						Backend:      cfg.Backend,
+						Mode:         cfg.Mode,
+						RetryAttempt: attemptIndex,
+					})
+				case <-watchdogDone:
+					return
+				}
+			}
+		}()
 		result := runner.Run(backendCtx, cmdrunner.Command{
 			Name: argv[0],
 			Args: append(append([]string(nil), argv[1:]...), currentPrompt),
 			Dir:  cfg.RepoRoot,
 		})
+		progressTicker.Stop()
+		watchdogTicker.Stop()
+		close(progressDone)
+		close(watchdogDone)
 		cancelBackend()
 		lastResult = result
 		if result.Err != nil {
@@ -691,6 +761,82 @@ func validateRuntimeSourceScope(before runtimeSourceSnapshot, repoRoot string) e
 		return nil
 	}
 	return fmt.Errorf("planner output modified runtime source files: %s", strings.Join(changes, ", "))
+}
+
+func validateRuntimeSourcePreflightClean(repoRoot string) error {
+	changes, err := dirtyRuntimeSourceChanges(repoRoot)
+	if err != nil {
+		return err
+	}
+	if len(changes) == 0 {
+		return nil
+	}
+	return fmt.Errorf("runtime source files are already dirty: %s", strings.Join(changes, ", "))
+}
+
+func dirtyRuntimeSourceChanges(repoRoot string) ([]string, error) {
+	if repoRoot == "" {
+		return nil, nil
+	}
+	if err := exec.Command("git", "-C", repoRoot, "rev-parse", "--is-inside-work-tree").Run(); err != nil {
+		return nil, nil
+	}
+	topOutput, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return nil, nil
+	}
+	top := filepath.Clean(strings.TrimSpace(string(topOutput)))
+	root := filepath.Clean(repoRoot)
+	if absTop, err := filepath.Abs(top); err == nil {
+		top = absTop
+	}
+	if absRoot, err := filepath.Abs(root); err == nil {
+		root = absRoot
+	}
+	if top != root {
+		return nil, nil
+	}
+	cmd := exec.Command("git", "-C", repoRoot, "status", "--porcelain=v1", "--untracked-files=all", "--", "cmd", "internal")
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("git status runtime sources: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("git status runtime sources: %w", err)
+	}
+	var changes []string
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if line == "" || len(line) < 4 {
+			continue
+		}
+		status := line[:2]
+		path := strings.TrimSpace(line[2:])
+		if idx := strings.LastIndex(path, " -> "); idx >= 0 {
+			path = path[idx+4:]
+		}
+		path = strings.Trim(path, `"`)
+		if filepath.Ext(path) != ".go" {
+			continue
+		}
+		changes = append(changes, runtimeGitStatusLabel(status)+" "+filepath.ToSlash(path))
+	}
+	sort.Strings(changes)
+	return changes, nil
+}
+
+func runtimeGitStatusLabel(status string) string {
+	switch {
+	case strings.Contains(status, "?"):
+		return "untracked"
+	case strings.Contains(status, "D"):
+		return "deleted"
+	case strings.Contains(status, "R"):
+		return "renamed"
+	case strings.Contains(status, "A"):
+		return "added"
+	default:
+		return "modified"
+	}
 }
 
 func diffRuntimeSources(before, after runtimeSourceSnapshot) []string {
