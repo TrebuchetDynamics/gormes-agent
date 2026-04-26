@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-26T18:37:44Z",
+    "last_updated": "2026-04-26T19:02:09Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -10971,9 +10971,9 @@
             {
               "name": "TUI prompt-submit auto-title eligibility helper",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pure helper internal/tui/auto_title.go exposes type AutoTitleInput struct{SessionKey string; FallbackSessionID string; Status string; UserText string; AssistantText string; Interrupted bool; HistoryCount int}, type AutoTitleRequest struct{SessionID string; UserText string; AssistantText string; HistoryCount int}, and BuildAutoTitleRequest(in AutoTitleInput) (AutoTitleRequest, bool). It returns ok=true only when Status==\"complete\", Interrupted is false, strings.TrimSpace(UserText) and strings.TrimSpace(AssistantText) are non-empty, and the resolved session ID is non-empty. Resolution prefers strings.TrimSpace(SessionKey) and falls back to strings.TrimSpace(FallbackSessionID). The returned request preserves the original UserText/AssistantText bytes and HistoryCount. No title generation, provider call, DB write, goroutine, clock lookup, or TUI transport change in this slice.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
