@@ -30,6 +30,35 @@ func TestAutoCodexuOrchestratorScriptExistsAndIsExecutable(t *testing.T) {
 	}
 }
 
+func TestLegacyOrchestratorTestEnvDisablesInheritedCompanions(t *testing.T) {
+	base := []string{
+		"PATH=/bin",
+		"DISABLE_COMPANIONS=0",
+		"COMPANION_ON_IDLE=0",
+		"COMPANION_DOC_IMPROVER_CMD=/real/documentation-improver.sh",
+	}
+
+	env := legacyOrchestratorTestEnv(base, "/repo", "/tmp/repo", "/tmp/repo/bin",
+		"LOOP_SLEEP_SECONDS=5",
+	)
+
+	for _, key := range []string{"DISABLE_COMPANIONS", "COMPANION_ON_IDLE", "COMPANION_DOC_IMPROVER_CMD"} {
+		if got := countEnvKey(env, key); got != 1 {
+			t.Fatalf("%s count = %d in %#v, want exactly one override", key, got, env)
+		}
+	}
+	for _, want := range []string{
+		"DISABLE_COMPANIONS=1",
+		"COMPANION_ON_IDLE=1",
+		"COMPANION_DOC_IMPROVER_CMD=:",
+		"LOOP_SLEEP_SECONDS=5",
+	} {
+		if !envContains(env, want) {
+			t.Fatalf("env missing %q in %#v", want, env)
+		}
+	}
+}
+
 func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
 	if _, err := exec.LookPath("timeout"); err != nil {
 		t.Skip("timeout command not available")
@@ -65,11 +94,7 @@ func TestAutoCodexuOrchestratorLoopsByDefaultWhenBacklogEmpty(t *testing.T) {
 
 	cmd := exec.Command("timeout", "1s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
-	cmd.Env = append(os.Environ(),
-		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"REPO_ROOT="+tmpRepo,
-		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
-		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
+	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"LOOP_SLEEP_SECONDS=5",
 	)
 	out, err := cmd.CombinedOutput()
@@ -118,11 +143,7 @@ func TestAutoCodexuOrchestratorReusesExistingIntegrationWorktree(t *testing.T) {
 
 	cmd := exec.Command("bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
-	cmd.Env = append(os.Environ(),
-		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"REPO_ROOT="+tmpRepo,
-		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
-		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
+	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"ORCHESTRATOR_ONCE=1",
 	)
 	out, err := cmd.CombinedOutput()
@@ -184,11 +205,7 @@ esac
 
 	cmd := exec.Command("bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
-	cmd.Env = append(os.Environ(),
-		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"REPO_ROOT="+tmpRepo,
-		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
-		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
+	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"TEST_REPO_ROOT="+tmpRepo,
 		"ORCHESTRATOR_ONCE=1",
 	)
@@ -305,11 +322,7 @@ EOF
 
 	cmd := exec.Command("timeout", "4s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
-	cmd.Env = append(os.Environ(),
-		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"REPO_ROOT="+tmpRepo,
-		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
-		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
+	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"INTEGRATION_BRANCH=codexu/test-integration",
 		"MAX_AGENTS=1",
 		"HEARTBEAT_SECONDS=1",
@@ -440,11 +453,7 @@ exit 1
 
 	cmd := exec.Command("timeout", "4s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
-	cmd.Env = append(os.Environ(),
-		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"REPO_ROOT="+tmpRepo,
-		"RUN_ROOT="+filepath.Join(tmpRepo, ".codex", "orchestrator"),
-		"ORCHESTRATOR_LIB_DIR="+legacyOrchestratorLibDir(repoRoot),
+	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"INTEGRATION_BRANCH=codexu/test-soft-success",
 		"MAX_AGENTS=1",
 		"HEARTBEAT_SECONDS=1",
@@ -567,6 +576,61 @@ func legacyAutoCodexuOrchestratorPath(repoRoot string) string {
 
 func legacyOrchestratorLibDir(repoRoot string) string {
 	return filepath.Join(repoRoot, "testdata", "legacy-shell", "scripts", "orchestrator", "lib")
+}
+
+func legacyOrchestratorTestEnv(base []string, repoRoot, tmpRepo, binDir string, extra ...string) []string {
+	return overlayEnv(base,
+		append([]string{
+			"PATH=" + binDir + string(os.PathListSeparator) + os.Getenv("PATH"),
+			"REPO_ROOT=" + tmpRepo,
+			"RUN_ROOT=" + filepath.Join(tmpRepo, ".codex", "orchestrator"),
+			"ORCHESTRATOR_LIB_DIR=" + legacyOrchestratorLibDir(repoRoot),
+			"DISABLE_COMPANIONS=1",
+			"COMPANION_ON_IDLE=1",
+			"COMPANION_PLANNER_CMD=:",
+			"COMPANION_DOC_IMPROVER_CMD=:",
+			"COMPANION_LANDINGPAGE_CMD=:",
+		}, extra...)...,
+	)
+}
+
+func overlayEnv(base []string, overrides ...string) []string {
+	keys := make(map[string]bool, len(overrides))
+	for _, entry := range overrides {
+		if key, _, ok := strings.Cut(entry, "="); ok {
+			keys[key] = true
+		}
+	}
+
+	env := make([]string, 0, len(base)+len(overrides))
+	for _, entry := range base {
+		key, _, ok := strings.Cut(entry, "=")
+		if ok && keys[key] {
+			continue
+		}
+		env = append(env, entry)
+	}
+	return append(env, overrides...)
+}
+
+func countEnvKey(env []string, key string) int {
+	prefix := key + "="
+	var count int
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			count++
+		}
+	}
+	return count
+}
+
+func envContains(env []string, want string) bool {
+	for _, entry := range env {
+		if entry == want {
+			return true
+		}
+	}
+	return false
 }
 
 func writeFile(t *testing.T, dst string, data []byte, mode os.FileMode) {
