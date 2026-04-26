@@ -763,6 +763,46 @@ func TestRunAutoloopOneShotDoesNotRunPlanner(t *testing.T) {
 	}
 }
 
+func TestDefaultAutoloopRuntimeRunsPlannerCommandInRepoRoot(t *testing.T) {
+	repoRoot := t.TempDir()
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
+	deps := defaultDeps()
+	deps.runner = runner
+
+	runtime := defaultAutoloopRuntime(deps, repoRoot)
+	if err := runtime.runPlanner(context.Background()); err != nil {
+		t.Fatalf("runPlanner() error = %v", err)
+	}
+
+	want := []cmdrunner.Command{{
+		Name: "go",
+		Args: []string{"run", "./cmd/planner-loop", "run"},
+		Dir:  repoRoot,
+	}}
+	if !reflect.DeepEqual(runner.Commands, want) {
+		t.Fatalf("commands = %#v, want %#v", runner.Commands, want)
+	}
+}
+
+func TestDefaultAutoloopRuntimePlannerFailureIncludesCommand(t *testing.T) {
+	repoRoot := t.TempDir()
+	wantErr := errors.New("exit 1")
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{Err: wantErr, Stderr: "planner stderr\n"}}}
+	deps := defaultDeps()
+	deps.runner = runner
+
+	runtime := defaultAutoloopRuntime(deps, repoRoot)
+	err := runtime.runPlanner(context.Background())
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("runPlanner() error = %v, want %v", err, wantErr)
+	}
+	for _, want := range []string{"go run ./cmd/planner-loop run", "planner stderr"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want %q", err, want)
+		}
+	}
+}
+
 func TestBuilderLoopSleepDefault(t *testing.T) {
 	got, err := builderLoopSleep(func(string) (string, bool) { return "", false })
 	if err != nil {
