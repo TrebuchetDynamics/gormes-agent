@@ -9597,7 +9597,59 @@
             {
               "name": "LLM-assisted pattern distillation",
               "status": "planned",
-              "note": "TDD: define the extraction input bundle and output schema with fake model fixtures, including rejection of secrets, one-off tasks, and implementation-specific noise before live generation."
+              "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, and preserve a clear no-op escape path before any generated draft can be promoted",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Skill review status reports review_prompt_unavailable, overlap_detected, no_skill_to_save, or draft_requires_review instead of auto-promoting narrow one-off skills.",
+              "fixture": "internal/skills/distillation_prompt_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py@76042f58:AIAgent._SKILL_REVIEW_PROMPT",
+                "../hermes-agent/tests/run_agent/test_review_prompt_class_first.py@76042f58",
+                "internal/skills/store.go",
+                "internal/skills/selector.go",
+                "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
+              ],
+              "ready_when": [
+                "Portable SKILL.md format is validated, so generated drafts can carry review state and remain out of prompt injection until approved.",
+                "The row can use fake model/review prompt fixtures; no live provider, skill install, or prompt injection is required."
+              ],
+              "not_ready_when": [
+                "The slice creates active skills directly, calls a live LLM, or changes the skill selector before the prompt/review contract is fixture-locked.",
+                "The slice writes broad skill files without overlap evidence or a class-level task name."
+              ],
+              "blocked_by": [
+                "Portable SKILL.md format"
+              ],
+              "acceptance": [
+                "Prompt fixtures instruct the reviewer to call skills_list and inspect likely existing skills before deciding.",
+                "Prompt fixtures explicitly prefer updating/generalizing an existing skill at the task-class level and gate new skill creation as a last resort.",
+                "Overlap evidence is captured for follow-up review when a draft resembles existing skills.",
+                "The no-op escape phrase `Nothing to save.` remains valid and produces no draft writes."
+              ],
+              "note": "Hermes 76042f58 changed skill review prompts to be class-first and update-over-create. Gormes should fixture-lock that review contract before adding any LLM-backed skill extractor.",
+              "write_scope": [
+                "internal/skills/distillation_prompt.go",
+                "internal/skills/distillation_prompt_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'Test.*Distillation.*Prompt|Test.*Skill.*Review' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Distillation prompt fixtures prove survey-first behavior, class-level generalization, overlap evidence, draft-review gating, and the Nothing-to-save escape path."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:76042f58 run_agent.py",
+                "note": "Hermes defines the class-first review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
+              }
             }
           ]
         },
