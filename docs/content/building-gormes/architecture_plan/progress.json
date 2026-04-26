@@ -9102,9 +9102,9 @@
             },
             {
               "name": "CLI command registry parity + active-turn busy policy",
-              "status": "planned",
+              "status": "complete",
               "contract": "CLI slash/command registry parity declares active-turn policy for every recognized command before handlers can mutate runtime state",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -9141,7 +9141,7 @@
                 "Gateway-safe commands remain invokable during active turns while mutating/long-running commands return busy evidence.",
                 "Unknown commands share the existing gateway unknown-command behavior and do not enter the model prompt as command text."
               ],
-              "note": "TDD: expand the Go command registry toward upstream hermes_cli/commands.py as a policy table first, not as a handler port. This keeps busy-state semantics, gateway bypass, and unavailable evidence testable before config/auth/setup or management commands land.",
+              "note": "Complete: TDD landed the CLI policy table in `internal/cli/command_registry.go` with closed enum `ActiveTurnPolicy{bypass,queue,busy_reject,unavailable}`, `CommandPolicy` entries (name/description/aliases/surface/active-turn policy/ported flag) for every shared and CLI-only slash command from upstream `hermes_cli/commands.py@edc78e25`, plus `ResolveCommandPolicy`, `EvaluateActiveTurnVerdict`, and `SlashLeaksToModelPrompt`. The fixture `internal/cli/command_registry_policy_test.go` proves every entry declares one of the closed policies, names round-trip through the slash/alias normalizer, busy verdicts surface explicit busy/queue/unavailable evidence, idle dispatch is allowed for every ported command, unknown slash text resolves to `ActiveTurnPolicyUnavailable` with operator-facing evidence (so it cannot leak into the model prompt), and gateway parity holds: every entry in `internal/gateway/CommandRegistry` exists in the CLI registry with the corresponding policy mapping (Immediate/Drain → bypass, Reject → busy_reject), aliases included. `internal/gateway/commands_test.go` adds `TestSlashCommandPolicyParityWithCLIRegistry`, `TestSlashCommandBusyVerdictRejectsKnownMutators`, and `TestSlashCommandUnknownDoesNotEnterModelPrompt` to lock the parity from the gateway side. No handler, config, auth, or setup wiring landed — those remain on the unblocked rows.",
               "write_scope": [
                 "internal/cli/",
                 "internal/gateway/commands.go",
@@ -9159,12 +9159,17 @@
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-25T21:04:49Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "promoted"
               },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/commands.py",
                 "note": "Hermes defines the command inventory; Gormes owns the Go policy table and active-turn degradation."
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T19:58:11Z",
+                "last_success": "2026-04-26T19:58:11Z"
               }
             },
             {
