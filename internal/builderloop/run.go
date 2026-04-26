@@ -102,9 +102,53 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 
 	selected := selectAcrossSubphases(candidates, opts.Config.MaxAgents)
+	candidateCount := len(candidates)
+
+	// Speculative execution: if enabled and slots remain, select candidates
+	// whose blocked_by isn't complete but ready_when is satisfied.
+	if opts.Config.SpeculativeExecutionEnabled && len(selected) < opts.Config.MaxAgents {
+		remainingSlots := opts.Config.MaxAgents - len(selected)
+		maxSpeculative := opts.Config.MaxSpeculativeWorkers
+		if maxSpeculative > remainingSlots {
+			maxSpeculative = remainingSlots
+		}
+
+		speculativePool, err := NormalizeCandidates(opts.Config.ProgressJSON, CandidateOptions{
+			ActiveFirst:        true,
+			PriorityBoost:      opts.Config.PriorityBoost,
+			MaxPhase:           opts.Config.MaxPhase,
+			IncludeBlocked:     true,
+			IncludeQuarantined: opts.Config.IncludeQuarantined,
+			IncludeNeedsHuman:  opts.Config.IncludeNeedsHuman,
+		})
+		if err != nil {
+			return RunSummary{}, err
+		}
+		candidateCount = len(speculativePool)
+
+		progressDoc, err := progress.Load(opts.Config.ProgressJSON)
+		if err != nil {
+			return RunSummary{}, err
+		}
+		completed := completedItemSetFromProgress(progressDoc)
+
+		speculative := selectSpeculativeCandidates(speculativePool, completed, func(c Candidate) bool {
+			// ready_when satisfied if no not_ready_when conditions exist
+			// and ready_when conditions are implied by being a candidate
+			return len(c.NotReadyWhen) == 0
+		}, maxSpeculative)
+
+		if len(speculative) > 0 {
+			// Enrich with spec hashes for staleness detection
+			speculative = enrichCandidatesWithSpecHash(speculative, func(c Candidate) string {
+				return itemSpecHashFromProgress(progressDoc, c)
+			})
+			selected = append(selected, speculative...)
+		}
+	}
 
 	summary := RunSummary{
-		Candidates: len(candidates),
+		Candidates: candidateCount,
 		Selected:   append([]Candidate(nil), selected...),
 		RunID:      runID,
 	}
@@ -289,13 +333,15 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			worker.WorktreePath = WorkerWorktreePath(opts.Config, runID, worker.ID)
 		}
 		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
-			TS:     time.Now().UTC(),
-			RunID:  runID,
-			Event:  "worker_claimed",
-			Worker: worker.ID,
-			Task:   worker.Task,
-			Branch: worker.Branch,
-			Status: "claimed",
+			TS:              time.Now().UTC(),
+			RunID:           runID,
+			Event:           "worker_claimed",
+			Worker:          worker.ID,
+			Task:            worker.Task,
+			Branch:          worker.Branch,
+			Status:          "claimed",
+			Speculative:     candidate.Speculative,
+			SpecHashAtClaim: candidate.SpecHashAtClaim,
 		}); err != nil {
 			return RunSummary{}, errors.Join(err, flushHealth())
 		}
@@ -1118,6 +1164,27 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 			if err := ensureCurrentBranch(cfg.RepoRoot, baseBranch); err != nil {
 				return err
 			}
+			// Speculative execution verification: before promoting a speculative
+			// worker, verify that (1) the spec hasn't changed since claim, and
+			// (2) all blocked_by dependencies completed successfully.
+			if worker.Candidate.Speculative {
+				if err := verifySpeculativeWorker(ctx, cfg, worker, runID); err != nil {
+					if ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
+						TS:     time.Now().UTC(),
+						RunID:  runID,
+						Event:  "worker_failed",
+						Worker: worker.ID,
+						Task:   worker.Task,
+						Branch: worker.Branch,
+						Commit: commitSha,
+						Status: "speculative_verify_failed",
+						Detail: err.Error(),
+					}); ledgerErr != nil {
+						return ledgerErr
+					}
+					return err
+				}
+			}
 			// Pre-promotion gate: verify the worker's worktree, optionally
 			// repair on failure, re-verify, and only promote if the gate
 			// passes. A failing gate aborts here as a worker_failed
@@ -1157,6 +1224,121 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 		Commit: commitSha,
 		Status: "success",
 	})
+}
+
+// verifySpeculativeWorker checks that a speculative worker can be promoted:
+// (1) the spec hash hasn't changed since claim, and (2) all blocked_by
+// dependencies completed successfully. Returns an error if either check fails.
+func verifySpeculativeWorker(ctx context.Context, cfg Config, worker workerRun, runID string) error {
+	c := worker.Candidate
+
+	// Check 1: Spec hash unchanged
+	if c.SpecHashAtClaim != "" {
+		currentHash := func() string {
+			prog, err := progress.Load(cfg.ProgressJSON)
+			if err != nil {
+				return ""
+			}
+			phase, ok := prog.Phases[c.PhaseID]
+			if !ok {
+				return ""
+			}
+			sub, ok := phase.Subphases[c.SubphaseID]
+			if !ok {
+				return ""
+			}
+			for i := range sub.Items {
+				if sub.Items[i].Name == c.ItemName {
+					return progress.ItemSpecHash(&sub.Items[i])
+				}
+			}
+			return ""
+		}()
+
+		if currentHash != c.SpecHashAtClaim {
+			return fmt.Errorf("spec changed since claim: was %s, now %s", c.SpecHashAtClaim, currentHash)
+		}
+	}
+
+	// Check 2: All blocked_by dependencies completed successfully
+	if len(c.BlockedByPending) > 0 {
+		// Reload progress to check current status of blockers
+		prog, err := progress.Load(cfg.ProgressJSON)
+		if err != nil {
+			return fmt.Errorf("cannot load progress to verify blockers: %w", err)
+		}
+
+		// Build completed set
+		completed := make(map[string]struct{})
+		for phaseID, phase := range prog.Phases {
+			for subID, sub := range phase.Subphases {
+				for i := range sub.Items {
+					if sub.Items[i].Status == progress.StatusComplete {
+						for _, key := range []string{
+							strings.ToLower(sub.Items[i].Name),
+							strings.ToLower(subID + "/" + sub.Items[i].Name),
+							strings.ToLower(phaseID + "/" + subID + "/" + sub.Items[i].Name),
+						} {
+							completed[key] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+
+		var stillPending []string
+		for _, blocker := range c.BlockedByPending {
+			if _, ok := completed[blocker]; !ok {
+				stillPending = append(stillPending, blocker)
+			}
+		}
+
+		if len(stillPending) > 0 {
+			return fmt.Errorf("blocked_by dependencies still pending: %v", stillPending)
+		}
+	}
+
+	return nil
+}
+
+func completedItemSetFromProgress(progressDoc *progress.Progress) map[string]struct{} {
+	completed := make(map[string]struct{})
+	if progressDoc == nil {
+		return completed
+	}
+	for phaseID, phase := range progressDoc.Phases {
+		for subphaseID, subphase := range phase.Subphases {
+			for i := range subphase.Items {
+				if subphase.Items[i].Status != progress.StatusComplete {
+					continue
+				}
+				for _, key := range blockerKeys(phaseID, subphaseID, subphase.Items[i].Name) {
+					completed[key] = struct{}{}
+				}
+			}
+		}
+	}
+	return completed
+}
+
+func itemSpecHashFromProgress(progressDoc *progress.Progress, candidate Candidate) string {
+	if progressDoc == nil {
+		return ""
+	}
+	phase, ok := progressDoc.Phases[candidate.PhaseID]
+	if !ok {
+		return ""
+	}
+	subphase, ok := phase.Subphases[candidate.SubphaseID]
+	if !ok {
+		return ""
+	}
+	for i := range subphase.Items {
+		if subphase.Items[i].Name == candidate.ItemName {
+			return progress.ItemSpecHash(&subphase.Items[i])
+		}
+	}
+	return ""
 }
 
 // emitPlannerTriggers writes one plannertriggers ledger entry per

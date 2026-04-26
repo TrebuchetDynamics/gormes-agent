@@ -100,6 +100,22 @@ type Config struct {
 	// ReadTriggersSinceCursor. Default lives under .codex so it is
 	// co-located with the planner's other on-disk state.
 	PlannerTriggersPath string // PLANNER_TRIGGERS_PATH
+
+	// Speculative execution enables the builder-loop to start work on rows
+	// whose blocked_by dependencies are not yet complete, if their ready_when
+	// conditions are satisfied. This allows parallel execution of independent
+	// workstreams for 2-3x throughput improvement when rows have serial
+	// dependencies. Speculative workers are verified before promotion to ensure
+	// their spec hasn't changed and their blockers completed successfully.
+	// See Kim et al., ICML 2024: "Plan-and-execute separates planning from
+	// execution" for the theoretical basis.
+	SpeculativeExecutionEnabled bool // GORMES_SPECULATIVE_EXECUTION, default false
+	// MaxSpeculativeWorkers caps how many speculative workers can run
+	// concurrently per run. Independent from MaxAgents. Default: 2.
+	MaxSpeculativeWorkers int // GORMES_MAX_SPECULATIVE_WORKERS
+	// SpeculativeBlockedByGracePeriod is how long to wait for blocked_by
+	// dependencies to complete before aborting speculative work. Default: 1h.
+	SpeculativeBlockedByGracePeriod time.Duration // GORMES_SPECULATIVE_GRACE_PERIOD
 }
 
 // EnvLookup mirrors os.LookupEnv: a function that, given a key, returns the
@@ -164,6 +180,10 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 		PrePromotionRepairAttempts:  1,
 
 		PlannerTriggersPath: defaultPlannerTriggersPath(repoRoot),
+
+		SpeculativeExecutionEnabled:     false,
+		MaxSpeculativeWorkers:           2,
+		SpeculativeBlockedByGracePeriod: 1 * time.Hour,
 	}
 
 	if value := envValue(lookup, "PROGRESS_JSON"); value != "" {
@@ -345,6 +365,33 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 	}
 	if value := envValue(lookup, "PLANNER_TRIGGERS_PATH"); value != "" {
 		cfg.PlannerTriggersPath = value
+	}
+	if value := envValue(lookup, "GORMES_SPECULATIVE_EXECUTION"); value != "" {
+		b, err := parseBoolEnv(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("GORMES_SPECULATIVE_EXECUTION: %w", err)
+		}
+		cfg.SpeculativeExecutionEnabled = b
+	}
+	if value := envValue(lookup, "GORMES_MAX_SPECULATIVE_WORKERS"); value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("GORMES_MAX_SPECULATIVE_WORKERS must be an integer: %w", err)
+		}
+		if n < 0 {
+			return Config{}, fmt.Errorf("GORMES_MAX_SPECULATIVE_WORKERS must be non-negative")
+		}
+		cfg.MaxSpeculativeWorkers = n
+	}
+	if value := envValue(lookup, "GORMES_SPECULATIVE_GRACE_PERIOD"); value != "" {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("GORMES_SPECULATIVE_GRACE_PERIOD must be a Go duration (e.g. \"1h\"): %w", err)
+		}
+		if d <= 0 {
+			return Config{}, fmt.Errorf("GORMES_SPECULATIVE_GRACE_PERIOD must be positive")
+		}
+		cfg.SpeculativeBlockedByGracePeriod = d
 	}
 
 	return cfg, nil

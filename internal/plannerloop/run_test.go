@@ -161,6 +161,47 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 	}
 }
 
+func TestRunOnceClearsStaleRawReportBeforeBackend(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	if err := os.MkdirAll(cfg.RunRoot, 0o755); err != nil {
+		t.Fatalf("MkdirAll(run root) error = %v", err)
+	}
+	rawReportPath := filepath.Join(cfg.RunRoot, "latest_planner_report.raw.md")
+	if err := os.WriteFile(rawReportPath, []byte("stale backend report\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(stale raw report) error = %v", err)
+	}
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "fresh planner stdout\n"},
+		},
+	}
+
+	summary, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	})
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	reportRaw, err := os.ReadFile(summary.ReportPath)
+	if err != nil {
+		t.Fatalf("ReadFile(report) error = %v", err)
+	}
+	report := string(reportRaw)
+	if strings.Contains(report, "stale backend report") {
+		t.Fatalf("report reused stale raw backend output:\n%s", report)
+	}
+	if !strings.Contains(report, "fresh planner stdout") {
+		t.Fatalf("report missing fresh backend stdout:\n%s", report)
+	}
+}
+
 func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
@@ -409,6 +450,82 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 	}
 	if got, want := runner.Commands[8].Dir, filepath.Join(repoRoot, "www.gormes.ai"); got != want {
 		t.Fatalf("landing validation dir = %q, want %q", got, want)
+	}
+}
+
+func TestRunOnce_AppendsLedgerEventOnValidationCommandFailure(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	validationErr := errors.New("signal: killed")
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
+			{Err: validationErr, Stdout: "progress write started\n"},
+		},
+	}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: cfg,
+		Runner: runner,
+	})
+	if err == nil {
+		t.Fatal("RunOnce() error = nil, want validation command failure")
+	}
+	if !strings.Contains(err.Error(), "signal: killed") {
+		t.Fatalf("RunOnce() error = %q, want validation error detail", err)
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if len(events) != 1 {
+		t.Fatalf("ledger entries = %d, want 1: %#v", len(events), events)
+	}
+	ev := events[0]
+	if ev.Status != "validation_failed" {
+		t.Fatalf("Status = %q, want validation_failed", ev.Status)
+	}
+	if !strings.Contains(ev.Detail, "signal: killed") || !strings.Contains(ev.Detail, "progress write started") {
+		t.Fatalf("Detail = %q, want process error and command output", ev.Detail)
+	}
+	if len(ev.Attempts) != 1 || ev.Attempts[0].Status != "ok" {
+		t.Fatalf("Attempts = %#v, want backend attempt recorded as ok", ev.Attempts)
+	}
+}
+
+func TestWriteReportCondensesJSONEventStreamToLastAgentMessage(t *testing.T) {
+	dir := t.TempDir()
+	reportPath := filepath.Join(dir, "latest_planner_report.md")
+	rawPath := filepath.Join(dir, "latest_planner_report.raw.md")
+	result := cmdrunner.Result{Stdout: strings.Join([]string{
+		`{"type":"thread.started","thread_id":"thread-1"}`,
+		`{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"first draft"}}`,
+		`{"type":"item.completed","item":{"id":"item_1","type":"command_execution","aggregated_output":"large command transcript"}}`,
+		`{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"final planner report"}}`,
+	}, "\n")}
+	bundle := ContextBundle{
+		RepoRoot:     "/repo",
+		ProgressJSON: "/repo/progress.json",
+		ProgressStats: ProgressInfo{
+			Items: 1,
+		},
+	}
+
+	if err := writeReport(reportPath, rawPath, result, bundle, time.Date(2026, 4, 25, 23, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("writeReport() error = %v", err)
+	}
+
+	reportRaw, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("ReadFile(report) error = %v", err)
+	}
+	report := string(reportRaw)
+	if !strings.Contains(report, "final planner report") {
+		t.Fatalf("report missing final agent message:\n%s", report)
+	}
+	if strings.Contains(report, "large command transcript") || strings.Contains(report, "thread.started") {
+		t.Fatalf("report included JSON event stream instead of final agent text:\n%s", report)
 	}
 }
 

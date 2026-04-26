@@ -91,6 +91,40 @@ Useful environment variables:
   `builder-loop: checkpoint dirty worktree <run-id>` so the next cycle can keep
   moving. Set to `0` only when you want strict manual dirty-worktree refusal.
 
+## Speculative Execution
+
+The builder loop supports speculative execution for improved throughput when
+rows have serial dependencies. When enabled, the loop can start work on rows
+whose `blocked_by` dependencies are not yet complete, provided their `ready_when`
+conditions are satisfied. This enables 2-3x speedup for dependency chains.
+
+Enable speculative execution:
+
+```sh
+GORMES_SPECULATIVE_EXECUTION=1 go run ./cmd/builder-loop run
+```
+
+Configuration:
+
+- `GORMES_SPECULATIVE_EXECUTION`: enable speculative execution. Default: `0` (disabled).
+- `GORMES_MAX_SPECULATIVE_WORKERS`: max speculative workers per run. Default: `2`.
+- `GORMES_SPECULATIVE_GRACE_PERIOD`: how long to wait for blockers before aborting.
+  Default: `1h`.
+
+Safety guarantees:
+
+1. **Spec hash verification**: Before promoting a speculative worker, the loop
+   verifies the row's spec hash hasn't changed since claim. If the planner
+   modified the row during speculative execution, the worker fails with
+   `speculative_verify_failed`.
+
+2. **Blocker completion check**: All `blocked_by` dependencies must complete
+   successfully before promotion. If a blocker fails, the speculative worker
+   aborts.
+
+3. **Ledger tracking**: Speculative workers are tracked in `runs.jsonl` with
+   `speculative: true` and `spec_hash_at_claim` for auditability.
+
 ## Worker isolation and promotion
 
 Each selected worker runs in its own git worktree under

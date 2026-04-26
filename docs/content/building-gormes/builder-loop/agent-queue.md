@@ -103,27 +103,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: BlueBubbles iMessage session-context prompt guidance
 - Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
 
-## 5. DeepSeek/Kimi cross-provider reasoning isolation
-
-- Phase: 4 / 4.A
-- Owner: `provider`
-- Size: `small`
-- Status: `planned`
-- Contract: DeepSeek and Kimi replay of assistant tool-call turns injects an empty reasoning_content placeholder before promoting generic stored reasoning from another provider
-- Trust class: system
-- Ready when: DeepSeek/Kimi reasoning_content echo for tool-call replay is validated, so provider detection and basic empty-placeholder behavior already exist., The slice can use the existing captureRequestHTTPClient fixture; no live provider credentials or provider adapter rewrites are required.
-- Not ready when: The slice changes non-thinking provider payloads, strips explicit same-provider reasoning_content, or stores hidden reasoning text in ordinary assistant content., The slice attempts OpenRouter, Codex Responses, Bedrock, or generic reasoning-tag sanitization behavior beyond the DeepSeek/Kimi replay ordering bug.
-- Degraded mode: Provider status reports cross-provider reasoning isolation as unavailable until replay fixtures prove prior-provider reasoning is not forwarded to DeepSeek/Kimi tool-call continuations.
-- Fixture: `internal/hermes/reasoning_content_echo_test.go`
-- Write scope: `internal/hermes/http_client.go`, `internal/hermes/reasoning_content_echo_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run 'TestReasoningContentEcho.*Isolation\|TestReasoningContentEcho.*Preserves\|TestReasoningContentEcho.*Untouched' -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: Reasoning echo fixtures prove DeepSeek/Kimi replay sends empty reasoning_content for prior-provider generic reasoning, preserves explicit reasoning_content, and leaves non-thinking payloads untouched.
-- Acceptance: A DeepSeek replay fixture with an assistant tool-call message containing generic Reasoning but no explicit ReasoningContent sends reasoning_content="" instead of the generic reasoning text., The same isolation fixture passes for Kimi/Moonshot provider detection., An explicit ReasoningContent string on the assistant tool-call message is still preserved verbatim., Non-tool assistant turns and non-thinking providers still omit reasoning_content and the storage-only reasoning field from outgoing API payloads.
-- Source refs: ../hermes-agent/run_agent.py@f93d4624:_copy_reasoning_content_for_api, ../hermes-agent/run_agent.py@f93d4624:_needs_deepseek_tool_reasoning, internal/hermes/http_client.go:openAICompatibleReasoningContent, internal/hermes/reasoning_content_echo_test.go, docs/content/upstream-hermes/source-study.md
-- Unblocks: OpenRouter, Cross-provider reasoning-tag sanitization, Codex stream repair + tool-call leak sanitizer
-- Why now: Unblocks OpenRouter, Cross-provider reasoning-tag sanitization, Codex stream repair + tool-call leak sanitizer.
-
-## 6. MCP server config/env resolver
+## 5. MCP server config/env resolver
 
 - Phase: 5 / 5.G
 - Owner: `tools`
@@ -143,7 +123,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: MCP fake-server discovery + tool schema normalization, MCP OAuth state store + noninteractive auth errors
 - Why now: Unblocks MCP fake-server discovery + tool schema normalization, MCP OAuth state store + noninteractive auth errors.
 
-## 7. CLI banner/output formatting helpers
+## 6. CLI banner/output formatting helpers
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -163,7 +143,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI tips/dump/webhook deterministic helpers
 - Why now: Unblocks CLI tips/dump/webhook deterministic helpers.
 
-## 8. CLI profile path and active-profile store
+## 7. CLI profile path and active-profile store
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -183,7 +163,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: CLI auth status read model before provider setup, Setup/uninstall dry-run command contracts
 - Why now: Unblocks CLI auth status read model before provider setup, Setup/uninstall dry-run command contracts.
 
-## 9. Gateway management CLI read-model closeout
+## 8. Gateway management CLI read-model closeout
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -203,7 +183,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Webhook/platform management CLI helpers, Cron management CLI over native store
 - Why now: Unblocks Webhook/platform management CLI helpers, Cron management CLI over native store.
 
-## 10. CLI log snapshot reader
+## 9. CLI log snapshot reader
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -222,5 +202,25 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/hermes_cli/debug.py@edc78e25, ../hermes-agent/hermes_cli/logs.py@edc78e25, ../hermes-agent/tests/hermes_cli/test_debug.py@edc78e25, ../hermes-agent/tests/hermes_cli/test_logs.py@edc78e25, internal/cli/, internal/config/config.go, cmd/gormes/doctor.go
 - Unblocks: CLI status summary over native stores, Backup manifest dry-run contract
 - Why now: Unblocks CLI status summary over native stores, Backup manifest dry-run contract.
+
+## 10. TUI gateway progress/completion helpers
+
+- Phase: 5 / 5.Q
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Contract: Pure TUI gateway helper functions normalize tool-progress mode, completion paths, and tool summary formatting from fixed inputs
+- Trust class: operator, system
+- Ready when: No transport or lifecycle code is required; helpers can be implemented as pure functions under internal/tuigateway with table tests.
+- Not ready when: The slice opens HTTP/SSE connections, starts a Bubble Tea program, adds a remote client, or ports image/personality/platform-event helpers.
+- Degraded mode: Remote TUI streaming remains unavailable while status can report missing progress/completion helper coverage.
+- Fixture: `internal/tuigateway/progress_completion_test.go`
+- Write scope: `internal/tuigateway/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tuigateway -run 'Test.*Progress\|Test.*Completion\|Test.*ToolSummary' -count=1`, `go test ./internal/tuigateway -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Pure internal/tuigateway fixtures prove progress mode, completion path, and tool-summary helpers without transport or Bubble Tea dependencies.
+- Acceptance: Tool-progress mode parsing and enabled/disabled decisions match upstream fixtures., Completion paths normalize consistently for empty, relative, absolute, and home-directory-shaped inputs., Tool duration/count/list summary helpers are deterministic and side-effect free.
+- Source refs: ../hermes-agent/tui_gateway/server.py@edc78e25, ../hermes-agent/tui_gateway/render.py@edc78e25, ../hermes-agent/tests/test_tui_gateway_server.py@edc78e25, internal/tui/
+- Unblocks: TUI gateway image/personality/platform-event helpers
+- Why now: Unblocks TUI gateway image/personality/platform-event helpers.
 
 <!-- PROGRESS:END -->
