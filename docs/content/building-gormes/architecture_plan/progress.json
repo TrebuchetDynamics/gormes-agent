@@ -13699,6 +13699,20 @@
               "done_signal": [
                 "internal/cli custom-provider model-switch fixtures prove key_env-backed providers update default_model without adding api_key, existing inline references/plaintext are preserved without resolution, and resolver tests still pass."
               ],
+              "health": {
+                "attempt_count": 1,
+                "consecutive_failures": 1,
+                "last_attempt": "2026-04-27T05:59:47Z",
+                "last_failure": {
+                  "run_id": "20260427T055937Z-170800848",
+                  "category": "worker_error",
+                  "backend": "codexu",
+                  "stderr_tail": "Reading additional input from stdin...\n"
+                },
+                "backends_tried": [
+                  "codexu"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:8258f4dc hermes_cli/main.py",
