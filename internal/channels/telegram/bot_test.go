@@ -146,6 +146,37 @@ func TestBot_EditMessage_BadMsgID(t *testing.T) {
 	}
 }
 
+func TestBot_DeleteMessage(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	if _, ok := any(b).(gateway.MessageDeleter); !ok {
+		t.Fatal("Bot does not implement gateway.MessageDeleter")
+	}
+
+	if err := b.DeleteMessage(context.Background(), "42", "1234"); err != nil {
+		t.Fatal(err)
+	}
+
+	deletes := mc.deleteRequests()
+	if len(deletes) != 1 {
+		t.Fatalf("delete request count = %d, want 1", len(deletes))
+	}
+	req, ok := deletes[0].(tgbotapi.DeleteMessageConfig)
+	if !ok {
+		t.Fatalf("delete request type = %T, want tgbotapi.DeleteMessageConfig", deletes[0])
+	}
+	if req.ChatID != 42 || req.MessageID != 1234 {
+		t.Fatalf("delete request = %+v, want chat_id=42 message_id=1234", req)
+	}
+
+	if err := b.DeleteMessage(context.Background(), "nope", "1234"); err == nil || !strings.Contains(err.Error(), "invalid chat ID") {
+		t.Fatalf("bad chat id error = %v, want invalid chat ID", err)
+	}
+	if err := b.DeleteMessage(context.Background(), "42", "nope"); err == nil || !strings.Contains(err.Error(), "invalid msgID") {
+		t.Fatalf("bad msg id error = %v, want invalid msgID", err)
+	}
+}
+
 func TestBot_NilMessage_Skipped(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)

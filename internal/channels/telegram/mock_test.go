@@ -10,10 +10,12 @@ type mockClient struct {
 	updatesCh chan tgbotapi.Update
 	mu        sync.Mutex
 	sent      []tgbotapi.Chattable
+	deleted   []tgbotapi.Chattable
 	nextMsgID int
 	stopped   bool
 
-	SendFn func(c tgbotapi.Chattable) (tgbotapi.Message, error)
+	SendFn          func(c tgbotapi.Chattable) (tgbotapi.Message, error)
+	DeleteMessageFn func(chatID int64, messageID int) error
 }
 
 var _ telegramClient = (*mockClient)(nil)
@@ -40,6 +42,18 @@ func (m *mockClient) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 		return m.SendFn(c)
 	}
 	return tgbotapi.Message{MessageID: id}, nil
+}
+
+func (m *mockClient) DeleteMessage(chatID int64, messageID int) error {
+	req := tgbotapi.NewDeleteMessage(chatID, messageID)
+	m.mu.Lock()
+	m.deleted = append(m.deleted, req)
+	m.mu.Unlock()
+
+	if m.DeleteMessageFn != nil {
+		return m.DeleteMessageFn(chatID, messageID)
+	}
+	return nil
 }
 
 func (m *mockClient) StopReceivingUpdates() {
@@ -69,6 +83,14 @@ func (m *mockClient) sentMessages() []tgbotapi.Chattable {
 	defer m.mu.Unlock()
 	out := make([]tgbotapi.Chattable, len(m.sent))
 	copy(out, m.sent)
+	return out
+}
+
+func (m *mockClient) deleteRequests() []tgbotapi.Chattable {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]tgbotapi.Chattable, len(m.deleted))
+	copy(out, m.deleted)
 	return out
 }
 

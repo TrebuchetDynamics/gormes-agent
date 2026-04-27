@@ -20,6 +20,10 @@ type telegramClient interface {
 	// an effectively-ignored Message with the same ID.
 	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 
+	// DeleteMessage removes a bot-posted message through the Bot API
+	// deleteMessage request path.
+	DeleteMessage(chatID int64, messageID int) error
+
 	// StopReceivingUpdates signals the long-poll loop to stop. Called on
 	// graceful shutdown.
 	StopReceivingUpdates()
