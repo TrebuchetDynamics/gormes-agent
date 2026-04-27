@@ -15021,11 +15021,11 @@
                 "Native TUI viewport fixtures prove long histories render a bounded visible tail with omitted-count sentinel, draft/error preservation, small-size clamps, and no kernel/session persistence changes."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-27T06:01:22Z",
+                "attempt_count": 2,
+                "consecutive_failures": 2,
+                "last_attempt": "2026-04-27T06:08:29Z",
                 "last_failure": {
-                  "run_id": "20260427T060112Z-108806334",
+                  "run_id": "20260427T060820Z-121630196",
                   "category": "worker_error",
                   "backend": "codexu",
                   "stderr_tail": "Reading additional input from stdin...\n"
