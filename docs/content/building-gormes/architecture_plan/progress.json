@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-27T05:26:06Z",
+    "last_updated": "2026-04-27T05:46:49Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -1609,9 +1609,9 @@
             {
               "name": "Telegram group bot-command mention gate helper",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Telegram ingress exposes a pure mention-gate helper that treats `/cmd@botname` bot_command entities as direct address when group require-mention policy is enabled, rejects commands addressed to other bots, and keeps bare group slash commands gated",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1648,7 +1648,7 @@
                 "TestTelegramGroupMentionGate_MentionEntityStillAllowsText proves normal text containing an @gormes_bot mention entity is still accepted.",
                 "Existing TestBot_ToInboundEvent_Commands and fresh-final delete tests keep passing; no live Telegram token or network call is required."
               ],
-              "note": "Added after Hermes 3ff3dfb5 fixed Telegram's group command menu path: Telegram emits `/cmd@botname` as a single bot_command entity, not a separate mention. Gormes currently has no group require-mention gate, so the first safe slice is a pure helper before any config or runtime binding.",
+              "note": "TDD landed: Telegram group mention gate now has a pure entity-based helper that accepts `/cmd@gormes_bot` bot_command suffixes for `gormes_bot` or `@gormes_bot`, rejects other-bot command suffixes and bare slash commands when require_mention is enabled, preserves mention-entity matching, and remains unbound from production ingress until the config binding slice.",
               "write_scope": [
                 "internal/channels/telegram/group_mention.go",
                 "internal/channels/telegram/group_mention_test.go",
