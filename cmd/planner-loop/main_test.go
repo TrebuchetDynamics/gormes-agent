@@ -201,6 +201,100 @@ func TestParseRunOptions_PositionalKeywords(t *testing.T) {
 	}
 }
 
+func TestParseRunOptionsLoop(t *testing.T) {
+	opts, err := parseRunOptions([]string{"--loop", "--backend", "codexu", "gom", "memory"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !opts.loop {
+		t.Fatalf("loop = false, want true")
+	}
+	if opts.backend != "codexu" {
+		t.Fatalf("backend = %q, want codexu", opts.backend)
+	}
+	want := []string{"gom", "memory"}
+	if !reflect.DeepEqual(opts.keywords, want) {
+		t.Fatalf("keywords = %#v, want %#v", opts.keywords, want)
+	}
+}
+
+func TestPlannerLoopSleepDefaultAndOverride(t *testing.T) {
+	if got, err := plannerLoopSleep(func(string) (string, bool) { return "", false }); err != nil || got != 5*time.Minute {
+		t.Fatalf("plannerLoopSleep(default) = %s, %v; want 5m", got, err)
+	}
+	got, err := plannerLoopSleep(func(key string) (string, bool) {
+		if key == "PLANNER_LOOP_SLEEP" {
+			return "42s", true
+		}
+		return "", false
+	})
+	if err != nil {
+		t.Fatalf("plannerLoopSleep override error = %v", err)
+	}
+	if got != 42*time.Second {
+		t.Fatalf("plannerLoopSleep override = %s, want 42s", got)
+	}
+	if _, err := plannerLoopSleep(func(key string) (string, bool) {
+		return "0s", true
+	}); err == nil {
+		t.Fatal("plannerLoopSleep(0s) error = nil, want error")
+	}
+}
+
+func TestRunPlannerLoopContinuesAfterFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	deps := defaultDeps()
+	deps.stdout = &stdout
+	deps.stderr = &stderr
+
+	var runCalls int
+	var sleepCalls int
+	runtime := plannerRuntime{
+		runOnce: func(context.Context, plannerloop.RunOptions) (plannerloop.RunSummary, error) {
+			runCalls++
+			if runCalls == 1 {
+				return plannerloop.RunSummary{}, errors.New("temporary planner failure")
+			}
+			return plannerloop.RunSummary{
+				Backend:       "codexu",
+				Mode:          "safe",
+				ProgressJSON:  "progress.json",
+				ProgressItems: 7,
+				RunRoot:       ".codex/planner-loop",
+			}, nil
+		},
+		sleep: func(ctx context.Context, _ time.Duration) error {
+			sleepCalls++
+			if sleepCalls >= 2 {
+				cancel()
+				return ctx.Err()
+			}
+			return nil
+		},
+	}
+
+	err := runPlannerWithRuntime(ctx, deps, plannerloop.Config{}, runOptions{loop: true}, time.Second, runtime)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("runPlannerWithRuntime error = %v, want context.Canceled", err)
+	}
+	if runCalls != 2 {
+		t.Fatalf("run calls = %d, want 2", runCalls)
+	}
+	if sleepCalls != 2 {
+		t.Fatalf("sleep calls = %d, want 2", sleepCalls)
+	}
+	if !strings.Contains(stderr.String(), "planner-loop: run failed; continuing loop") {
+		t.Fatalf("stderr missing loop failure log:\n%s", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "architecture planner run") {
+		t.Fatalf("stdout missing successful summary:\n%s", stdout.String())
+	}
+}
+
 func TestParseRunOptions_BackendFlagRequiresValue(t *testing.T) {
 	if _, err := parseRunOptions([]string{"--backend"}); err == nil {
 		t.Fatal("parseRunOptions(--backend with no value) error = nil, want error")

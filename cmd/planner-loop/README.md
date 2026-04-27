@@ -20,6 +20,7 @@ Run from the repository root:
 go run ./cmd/planner-loop run --dry-run
 go run ./cmd/planner-loop run --backend codexu
 go run ./cmd/planner-loop run --backend claudeu
+go run ./cmd/planner-loop run --loop
 go run ./cmd/planner-loop status
 go run ./cmd/planner-loop show-report
 ```
@@ -57,6 +58,11 @@ controlled local debugging.
 
 Dry-run mode writes planner context and prompt artifacts without pulling
 or cloning external repositories.
+
+`run --loop` keeps planner-loop running in-process forever. Each cycle runs the
+normal planner path, logs failures to stderr, sleeps, and tries again until the
+process is canceled. The default sleep is `5m`; override it with
+`PLANNER_LOOP_SLEEP` using a Go duration such as `30s`, `5m`, or `1h`.
 
 `context.json` records sync results from the latest real run. If Hermes,
 Honcho, or GBrain moved, the planner prompt includes the `git pull`/`git

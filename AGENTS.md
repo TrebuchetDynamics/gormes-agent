@@ -48,6 +48,9 @@ The builder loop lands workers locally by default (`BUILDER_LOOP_PROMOTION_MODE=
 and pushes `HEAD:main` after completed runs/checkpoints unless disabled. The
 planner loop reconciles local main before PR intake and can dispatch a focused
 git-repair backend agent when local/remote sync conflicts block planning.
+For standalone planner-only operation, `cmd/planner-loop run --loop` repeats
+planner cycles forever with `PLANNER_LOOP_SLEEP` between attempts and continues
+after recoverable failures.
 
 ### Two loops, one shared contract
 

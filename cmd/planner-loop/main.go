@@ -36,12 +36,12 @@ func defaultDeps() cliDeps {
 	return cliDeps{stdout: os.Stdout, stderr: os.Stderr, runner: cmdrunner.ExecRunner{}}
 }
 
-const usage = "usage: planner-loop [--repo-root <path>] run [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | trigger <reason> | service install [--force]"
+const usage = "usage: planner-loop [--repo-root <path>] run [--loop] [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | trigger <reason> | service install [--force]"
 
 // subUsage maps each subcommand to its own help text. --help/-h on a
 // subcommand prints the matching entry instead of the full top-level usage.
 var subUsage = map[string]string{
-	"run":             "usage: planner-loop run [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...]",
+	"run":             "usage: planner-loop run [--loop] [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...]",
 	"status":          "usage: planner-loop status [--format text|json]",
 	"show-report":     "usage: planner-loop show-report",
 	"doctor":          "usage: planner-loop doctor",
@@ -137,16 +137,14 @@ func run(ctx context.Context, deps cliDeps, args []string) error {
 		if err != nil {
 			return err
 		}
-		summary, err := plannerloop.RunOnce(ctx, plannerloop.RunOptions{
-			Config:   cfg,
-			Runner:   deps.runner,
-			DryRun:   opts.dryRun,
-			Keywords: opts.keywords,
-		})
-		if err != nil {
-			return err
+		interval := time.Duration(0)
+		if opts.loop {
+			interval, err = plannerLoopSleep(os.LookupEnv)
+			if err != nil {
+				return err
+			}
 		}
-		return printRunSummary(deps, summary, opts.dryRun, opts.keywords)
+		return runPlannerWithRuntime(ctx, deps, cfg, opts, interval, defaultPlannerRuntime(deps))
 	case "status":
 		if wantsHelp(args[1:]) {
 			return printHelp(deps, "status")
@@ -220,6 +218,7 @@ func run(ctx context.Context, deps cliDeps, args []string) error {
 
 type runOptions struct {
 	dryRun   bool
+	loop     bool
 	backend  string
 	mode     string
 	keywords []string
@@ -232,6 +231,8 @@ func parseRunOptions(args []string) (runOptions, error) {
 		switch arg {
 		case "--dry-run":
 			opts.dryRun = true
+		case "--loop":
+			opts.loop = true
 		case "--backend":
 			if i+1 >= len(args) {
 				return runOptions{}, fmt.Errorf("%w: --backend requires a value\n%s", errParse, usage)
@@ -262,6 +263,99 @@ func parseRunOptions(args []string) (runOptions, error) {
 		}
 	}
 	return opts, nil
+}
+
+type plannerRuntime struct {
+	runOnce func(context.Context, plannerloop.RunOptions) (plannerloop.RunSummary, error)
+	sleep   func(context.Context, time.Duration) error
+}
+
+func defaultPlannerRuntime(deps cliDeps) plannerRuntime {
+	return plannerRuntime{
+		runOnce: plannerloop.RunOnce,
+		sleep:   sleepContext,
+	}
+}
+
+func runPlannerWithRuntime(ctx context.Context, deps cliDeps, cfg plannerloop.Config, opts runOptions, interval time.Duration, runtime plannerRuntime) error {
+	if runtime.runOnce == nil {
+		runtime.runOnce = plannerloop.RunOnce
+	}
+	if runtime.sleep == nil {
+		runtime.sleep = sleepContext
+	}
+
+	runOnce := func() error {
+		summary, err := runtime.runOnce(ctx, plannerloop.RunOptions{
+			Config:   cfg,
+			Runner:   deps.runner,
+			DryRun:   opts.dryRun,
+			Keywords: opts.keywords,
+		})
+		if err != nil {
+			return err
+		}
+		return printRunSummary(deps, summary, opts.dryRun, opts.keywords)
+	}
+
+	if !opts.loop {
+		return runOnce()
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := runOnce(); err != nil {
+			logPlannerLoopFailure(deps.stderr, err)
+		}
+		if err := runtime.sleep(ctx, interval); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
+			logPlannerLoopFailure(deps.stderr, err)
+		}
+	}
+}
+
+func logPlannerLoopFailure(w io.Writer, err error) {
+	if w == nil || err == nil {
+		return
+	}
+	fmt.Fprintf(w, "planner-loop: run failed; continuing loop: %v\n", err)
+}
+
+func sleepContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func plannerLoopSleep(lookup func(string) (string, bool)) (time.Duration, error) {
+	value, ok := lookup("PLANNER_LOOP_SLEEP")
+	if !ok || strings.TrimSpace(value) == "" {
+		return 5 * time.Minute, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("%w: PLANNER_LOOP_SLEEP must be a Go duration (e.g. \"5m\"): %v", errParse, err)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("%w: PLANNER_LOOP_SLEEP must be positive", errParse)
+	}
+	return d, nil
 }
 
 func plannerContains(haystack []string, needle string) bool {
