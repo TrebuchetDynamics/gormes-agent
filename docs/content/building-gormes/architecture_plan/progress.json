@@ -1255,9 +1255,9 @@
             {
               "name": "WhatsApp identifier safety predicate",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "WhatsApp identity code exposes one pure predicate/normalizer that accepts only safe ASCII WhatsApp peer identifiers and rejects traversal, path separators, percent-encoded separators, empty values, and Unicode lookalikes before alias graph construction",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1295,7 +1295,7 @@
                 "TestWhatsAppIdentifierSafetyPredicate_RejectsNonASCIILookalikes covers full-width digits and Unicode word characters without first normalizing them into ASCII.",
                 "Existing identity_test.go safe bridge/native DM and group cases continue to pass unchanged."
               ],
-              "note": "Split 2026-04-27 from the broader WhatsApp ASCII identifier guard after report/write-scope failures. This first row is helper-only; it intentionally drops the prior health block because the contract is materially replaced.",
+              "note": "Complete: TDD added `internal/channels/whatsapp/identity_safety_test.go` and `NormalizeSafeWhatsAppIdentifier`, proving allowed ASCII JID forms canonicalize deterministically while empty, path/traversal, percent-encoded separator, and non-ASCII lookalike values return `whatsapp_identifier_unsafe` before alias graph construction. Existing WhatsApp identity fixtures remain unchanged.",
               "write_scope": [
                 "internal/channels/whatsapp/identity.go",
                 "internal/channels/whatsapp/identity_safety_test.go",
@@ -1309,6 +1309,11 @@
               "done_signal": [
                 "WhatsApp identity safety predicate fixtures prove allowed ASCII JID forms, rejected path/traversal values, rejected Unicode lookalikes, and unchanged existing identity fixtures without gateway manager or testdata edits."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T04:45:06Z",
+                "last_success": "2026-04-27T04:45:06Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:6993e566 gateway/whatsapp_identity.py",

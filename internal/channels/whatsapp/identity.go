@@ -9,6 +9,15 @@ import (
 
 const botIdentityUnresolvedReason = "bot_identity_unresolved"
 
+// WhatsAppIdentifierEvidence identifies degraded identity safety outcomes.
+type WhatsAppIdentifierEvidence string
+
+const (
+	// WhatsAppIdentifierUnsafeEvidence is returned when a raw WhatsApp peer ID
+	// is not safe to use for canonical identity or alias graph construction.
+	WhatsAppIdentifierUnsafeEvidence WhatsAppIdentifierEvidence = "whatsapp_identifier_unsafe"
+)
+
 // IdentityContext carries runtime-specific identity inputs that are known
 // before send/reconnect code is wired.
 type IdentityContext struct {
@@ -102,9 +111,34 @@ func (r InboundResult) Routed() bool {
 	return r.Decision == InboundDecisionRoute
 }
 
-// NormalizeWhatsAppIdentifier strips WhatsApp JID/LID/device syntax down to a
-// stable peer identifier suitable for gateway equality checks.
+// NormalizeWhatsAppIdentifier validates and strips WhatsApp JID/LID/device
+// syntax down to a stable peer identifier suitable for gateway equality checks.
 func NormalizeWhatsAppIdentifier(value string) string {
+	normalized, safe, _ := NormalizeSafeWhatsAppIdentifier(value)
+	if !safe {
+		return ""
+	}
+	return normalized
+}
+
+// NormalizeSafeWhatsAppIdentifier accepts only safe ASCII WhatsApp peer
+// identifiers and returns their stable canonical peer ID. Unsafe values return
+// whatsapp_identifier_unsafe evidence instead of being stripped into a
+// plausible ID.
+func NormalizeSafeWhatsAppIdentifier(value string) (string, bool, WhatsAppIdentifierEvidence) {
+	raw := strings.TrimSpace(value)
+	if raw == "" || unsafeWhatsAppIdentifier(raw) {
+		return "", false, WhatsAppIdentifierUnsafeEvidence
+	}
+
+	normalized := normalizeWhatsAppIdentifierSyntax(raw)
+	if normalized == "" || unsafeCanonicalWhatsAppIdentifier(normalized) {
+		return "", false, WhatsAppIdentifierUnsafeEvidence
+	}
+	return normalized, true, ""
+}
+
+func normalizeWhatsAppIdentifierSyntax(value string) string {
 	value = strings.TrimSpace(value)
 	value = strings.TrimPrefix(value, "+")
 	if value == "" {
@@ -117,6 +151,53 @@ func NormalizeWhatsAppIdentifier(value string) string {
 		value = before
 	}
 	return strings.TrimSpace(value)
+}
+
+func unsafeWhatsAppIdentifier(value string) bool {
+	lower := strings.ToLower(value)
+	if strings.Contains(value, "/") ||
+		strings.Contains(value, "\\") ||
+		strings.Contains(value, "..") ||
+		strings.Contains(lower, "%2f") ||
+		strings.Contains(lower, "%5c") {
+		return true
+	}
+	if len(value) > 1 && strings.Contains(value[1:], "+") {
+		return true
+	}
+	for i := 0; i < len(value); i++ {
+		if !safeWhatsAppIdentifierByte(value[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func safeWhatsAppIdentifierByte(c byte) bool {
+	return (c >= '0' && c <= '9') ||
+		(c >= 'A' && c <= 'Z') ||
+		(c >= 'a' && c <= 'z') ||
+		c == '@' ||
+		c == '.' ||
+		c == '+' ||
+		c == '-' ||
+		c == ':'
+}
+
+func unsafeCanonicalWhatsAppIdentifier(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if !safeCanonicalWhatsAppIdentifierByte(value[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func safeCanonicalWhatsAppIdentifierByte(c byte) bool {
+	return (c >= '0' && c <= '9') ||
+		(c >= 'A' && c <= 'Z') ||
+		(c >= 'a' && c <= 'z') ||
+		c == '-'
 }
 
 func resolveBotIdentity(ctx IdentityContext, msg InboundMessage) IdentityStatus {
