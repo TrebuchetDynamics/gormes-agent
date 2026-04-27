@@ -13814,18 +13814,26 @@
                 "internal/cli custom-provider model-switch fixtures prove key_env-backed providers update default_model without adding api_key, existing inline references/plaintext are preserved without resolution, and resolver tests still pass."
               ],
               "health": {
-                "attempt_count": 2,
-                "consecutive_failures": 2,
-                "last_attempt": "2026-04-27T06:06:41Z",
+                "attempt_count": 3,
+                "consecutive_failures": 3,
+                "last_attempt": "2026-04-27T06:20:37Z",
                 "last_failure": {
-                  "run_id": "20260427T060633Z-095717628",
+                  "run_id": "20260427T062023Z-797610060",
                   "category": "worker_error",
                   "backend": "codexu",
                   "stderr_tail": "Reading additional input from stdin...\n"
                 },
                 "backends_tried": [
                   "codexu"
-                ]
+                ],
+                "quarantine": {
+                  "reason": "auto: 3 consecutive failures, last category worker_error",
+                  "since": "2026-04-27T06:20:37Z",
+                  "after_run_id": "20260427T062023Z-797610060",
+                  "threshold": 3,
+                  "spec_hash": "020d3e089c6cad11c963f844412638b2e8abb787d62952ddb59e9da1a6770394",
+                  "last_category": "worker_error"
+                }
               },
               "provenance": {
                 "origin_type": "hybrid",
