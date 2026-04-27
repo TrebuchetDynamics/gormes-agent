@@ -12,17 +12,26 @@ The content below is preserved verbatim from the upstream docs so operators eval
 ## Study Snapshot
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
-- Upstream commit: `b16f9d43`
+- Upstream commit: `cb51baec`
 - Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
 - Date: 2026-04-27
 
 ## 2026-04-27 Drift Check
 
-Hermes `b16f9d43` is current in the synchronized sibling repo. Honcho remains
+Hermes `cb51baec` is current in the synchronized sibling repo. Honcho remains
 at `e659b6b` and GBrain remains at `c78c3d0`; no new Goncho/Honcho memory row
 is needed from this sync, and Gormes keeps the internal `goncho` package name
 while preserving public `honcho_*` compatibility surfaces.
 
+- MCP/cron drift: `930494d6` reaps orphaned MCP stdio subprocesses only after
+  a cron tick has joined all siblings. Gormes now tracks this as a small
+  Phase 5.G row over native MCP stdio and cron seams.
+- Browser security drift: `7317d69f` treats quoted false-like config values as
+  false in SSRF guards. Gormes now tracks this as a pure Phase 5.C browser
+  safety helper before native browser provider wiring.
+- Busy steer drift: `635253b9` adds `steer` as a busy input mode. Gormes
+  already had a steering row; it is now refined to exact source refs and a
+  smaller registry/fallback write scope.
 - Telegram streaming drift: `b16f9d43` ports openclaw#72038 so long-running
   Telegram streamed previews finalize as a fresh message after
   `fresh_final_after_seconds` (default 60s) and best-effort delete the stale

@@ -13,10 +13,48 @@ Hermes hard to shrink.
 ## Study Snapshot
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
-- Upstream commit: `b16f9d43`
+- Upstream commit: `cb51baec`
 - Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
-- Gormes commit: `0950c932`
+- Gormes commit: `f9c4222c`
 - Date: 2026-04-27
+
+## 2026-04-27 (Hermes cb51baec) Drift Check
+
+The synchronized Hermes head is now `cb51baec`, moving beyond the prior
+`b16f9d43` study snapshot. Honcho remains at `e659b6b` and GBrain remains at
+`c78c3d0`; no new Honcho/Goncho naming change is required. Gormes should keep
+the internal `goncho` package direction and preserve public `honcho_*` tool
+contracts where compatibility requires them.
+
+Material deltas in this window:
+
+- `930494d6` fixes leaked MCP stdio subprocesses after cancelled cron ticks by
+  tracking orphan stdio PIDs and sweeping only orphaned children after tick
+  futures join. Gormes now tracks this as Phase 5.G
+  `MCP stdio orphan cleanup after cron ticks`.
+- `7317d69f` treats quoted false-like values as false in browser SSRF guard
+  config. Gormes already has a pure private-URL route helper, so the roadmap
+  now adds Phase 5.C `Browser SSRF quoted-false guard` before browser provider
+  bridges become executable.
+- `635253b9` extends busy input behavior with `steer`. Gormes already had a
+  steering row, but this run refined it with exact source refs, fixture names,
+  and a narrower write scope for registry/fallback behavior before any kernel
+  mid-run injection hook.
+- `e85b7525`, `478444c2`, `a32b325d`, `977d5f56`, `ced8f44c`,
+  `cebf9585`, and `dbe50155` are already represented by the current roadmap
+  rows for ContextEngine boundary notification, checkpoint GC, file-read dedup
+  guards, gateway message deduplication, and session_search lineage exclusion.
+- `c997183f` through `7e3c8a31` are already represented by the bundled
+  Airtable skill contract row.
+
+Additional Slack/session/update deltas (`e818ec52`, `8fb861ea`, `a01e767b`,
+`7eaad06a`, `55f212a7`, `3b60abb6`, `fd474d0f`, `bdaf56a9`, `90c84c6d`) are
+real but were not expanded into more executable rows in this pass because the
+latest autoloop productivity signal favors reducing ambiguity in already-hot
+subphases. They should be split in a follow-up planner run as Slack attachment
+hardening, Slack channel-skill bindings/config transport guards, session file
+cleanup on delete/prune, per-user group mirror isolation, and update-prompt
+slash-bypass rows.
 
 ## 2026-04-27 (Telegram fresh-final streaming) Drift Check
 
