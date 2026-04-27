@@ -13,10 +13,44 @@ Hermes hard to shrink.
 ## Study Snapshot
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
-- Upstream commit: `b288934d`
+- Upstream commit: `3ff3dfb5`
 - Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
-- Gormes commit: `23909ea3`
+- Gormes commit: `81ad5c42`
 - Date: 2026-04-27
+
+## 2026-04-27 (Hermes 3ff3dfb5) Drift Check
+
+The synchronized Hermes head is now `3ff3dfb5`, moving beyond the prior
+`b288934d` study snapshot. Honcho remains at `e659b6b`; GBrain remains at
+`891c28b`. No new Honcho/Goncho memory naming behavior changed. Gormes should
+keep the internal `goncho` package direction and preserve public `honcho_*`
+tool contracts where compatibility requires them.
+
+Material deltas in this window:
+
+- `3ff3dfb5` fixes Telegram group command-menu routing: Telegram emits
+  `/cmd@botname` as one `bot_command` entity, not as a separate mention. Gormes
+  has no group require-mention gate yet, so the roadmap adds Phase 2.B.5
+  `Telegram group bot-command mention gate helper` as a pure helper slice and
+  `Telegram group mention gate config binding` as the dependent runtime/config
+  slice.
+- `8258f4dc` tightens custom-provider model switching so `key_env`-backed
+  provider entries do not gain a synthesized `api_key` field during model
+  changes. Gormes already has `ResolveCustomProviderSecret`; the roadmap now
+  adds Phase 5.O `Custom provider model-switch key_env write guard` as a
+  dependent write-shape helper before CLI/TUI `/model` binding.
+- `af3d5150` hardens Matrix sender filtering against self-case mismatches,
+  unresolved bot identity, and appservice/bridge puppet IDs, preventing the
+  "hall of mirrors" pairing/echo loop. Matrix is still deferred in Gormes, so
+  the roadmap adds Phase 7.C `Matrix self/bridge sender drop helper`, blocked
+  behind the Matrix shared-chassis seam.
+- `8c5d3a99`, `55be5323`, and `7d586ddb` add and clarify the creative design
+  skill trio: `claude-design`, `popular-web-designs`, and `design-md`, with
+  short descriptions and explicit routing guidance. Gormes should preserve the
+  metadata/routing semantics before broadening portable SKILL.md storage, so
+  Phase 6.C now includes `Hermes creative skill metadata compatibility`.
+- `a131c134` only updates release author mapping and does not change the Gormes
+  architecture plan.
 
 ## 2026-04-27 (Hermes b288934d) Drift Check
 

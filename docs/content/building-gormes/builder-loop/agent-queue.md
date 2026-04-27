@@ -22,7 +22,28 @@ tests, and candidate policy. Keep those control-plane facts in
 `meta.builder_loop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Durable worker RSS watchdog policy helper
+## 1. Telegram group bot-command mention gate helper
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Telegram ingress exposes a pure mention-gate helper that treats `/cmd@botname` bot_command entities as direct address when group require-mention policy is enabled, rejects commands addressed to other bots, and keeps bare group slash commands gated
+- Trust class: gateway, operator, system
+- Ready when: Telegram adapter already normalizes Update.Message into gateway.InboundEvent and commands route through gateway.ParseInboundText., This first slice is helper-only: workers add a pure function over text, []tgbotapi.MessageEntity, expected bot username, and a bool requireMention flag; no live Telegram client, pairing store, gateway manager, config migration, or command execution is needed., Table tests can model bot_command and mention entities directly with go-telegram-bot-api/v5 MessageEntity values.
+- Not ready when: The slice wires group gating into Bot.Run/toInboundEvent production flow, changes allowed_chat_id or first_run_discovery policy, or starts responding to groups before the helper is fixture-backed., The helper treats `/status@other_bot` or bare `/status` as addressed when requireMention is true., The slice changes fresh-final streaming, deleteMessage, session keys, pairing approval, or gateway manager behavior.
+- Degraded mode: Until the helper is bound into Telegram group ingress, Gormes cannot safely enable Hermes-style require_mention command gating for Telegram groups; status should report telegram_group_mention_gate_unavailable instead of silently responding to bare group commands.
+- Fixture: `internal/channels/telegram/group_mention_test.go`
+- Write scope: `internal/channels/telegram/group_mention.go`, `internal/channels/telegram/group_mention_test.go`, `internal/channels/telegram/bot_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/channels/telegram -run '^TestTelegramGroupMentionGate_' -count=1`, `go test ./internal/channels/telegram -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Telegram group mention fixtures prove bot_command suffix matching, other-bot rejection, bare-command gating, mention-entity compatibility, and unchanged existing Telegram command tests without production gateway binding.
+- Acceptance: TestTelegramGroupMentionGate_BotCommandWithMatchingSuffixAllowsCommand builds `/status@gormes_bot` with one bot_command entity covering the whole token and returns addressed=true for expected username `gormes_bot` or `@gormes_bot`., TestTelegramGroupMentionGate_OtherBotSuffixRejected proves `/status@other_bot` with a bot_command entity returns addressed=false when expected username is `gormes_bot`., TestTelegramGroupMentionGate_BareCommandStillGated proves `/status` remains rejected when requireMention is true and accepted when requireMention is false., TestTelegramGroupMentionGate_MentionEntityStillAllowsText proves normal text containing an @gormes_bot mention entity is still accepted., Existing TestBot_ToInboundEvent_Commands and fresh-final delete tests keep passing; no live Telegram token or network call is required.
+- Source refs: ../hermes-agent/gateway/platforms/telegram.py@3ff3dfb5:TelegramAdapter._has_direct_mention, ../hermes-agent/tests/gateway/test_telegram_group_gating.py@3ff3dfb5:test_group_messages_can_require_direct_trigger_via_config, internal/channels/telegram/bot.go, internal/channels/telegram/bot_test.go, github.com/go-telegram-bot-api/telegram-bot-api/v5@v5.5.1:MessageEntity
+- Unblocks: Telegram group mention gate config binding
+- Why now: Unblocks Telegram group mention gate config binding.
+
+## 2. Durable worker RSS watchdog policy helper
 
 - Phase: 2 / 2.E.3
 - Owner: `orchestrator`
@@ -43,7 +64,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: Durable worker RSS drain integration
 - Why now: Unblocks Durable worker RSS drain integration.
 
-## 2. Title prompt and truncation contract
+## 3. Title prompt and truncation contract
 
 - Phase: 4 / 4.F
 - Owner: `provider`
@@ -62,7 +83,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/agent/title_generator.py@4a2ee6c1:generate_title, ../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title, ../hermes-agent/tests/agent/test_title_generator.py@4a2ee6c1, internal/tui/auto_title.go, internal/session/, internal/transcript/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Provider timeout config fail-closed helper
+## 4. Provider timeout config fail-closed helper
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -82,89 +103,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/hermes_cli/timeouts.py@16e243e0:get_provider_request_timeout, ../hermes-agent/hermes_cli/timeouts.py@16e243e0:get_provider_stale_timeout, ../hermes-agent/hermes_cli/timeouts.py@366351b9, internal/config/config.go:HermesCfg, internal/hermes/http_client.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Browser SSRF quoted-false guard
-
-- Phase: 5 / 5.C
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Browser and URL safety helpers coerce quoted false-like config values (`"false"`, `'false'`, `0`, `no`, `off`) to disabled booleans before private/local URL SSRF guards decide whether cloud navigation is allowed
-- Trust class: operator, system
-- Ready when: Browser hybrid private-URL local sidecar routing is complete and already classifies private/LAN hosts without DNS or browser startup., The worker can add a pure config coercion and guard decision helper under internal/tools; no browser runtime, network, DNS, Chromedp, Rod, Browserbase, Firecrawl, or Camofox dependency is required.
-- Not ready when: The slice starts a browser, performs DNS resolution, follows redirects, or changes cloud/local routing behavior beyond quoted-false coercion., The slice weakens private host classification already validated by Browser hybrid private-URL local sidecar routing., The slice implements provider bridges or screenshot/navigation actions.
-- Degraded mode: Browser safety status reports ssrf_guard_config_invalid or private_url_blocked instead of treating quoted false as truthy and sending private URLs to a cloud/browser provider.
-- Fixture: `internal/tools/browser_ssrf_guard_test.go`
-- Write scope: `internal/tools/browser_ssrf_guard.go`, `internal/tools/browser_ssrf_guard_test.go`, `internal/tools/browser_hybrid_routing.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run '^TestBrowserSSRFGuard_' -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: Browser SSRF guard fixtures prove quoted false values disable cloud routing guards correctly, private URLs are blocked when they would reach cloud providers, and no browser/network runtime is used.
-- Acceptance: TestBrowserSSRFGuard_CoercesQuotedFalseValues covers `"false"`, `'false'`, `0`, `no`, and `off` as disabled while true/yes/on remain enabled., TestBrowserSSRFGuard_PrivateURLBlockedWhenCloudWouldReceiveIt proves localhost/RFC1918 URLs return private_url_blocked when cloud routing is enabled and auto-local routing is disabled., TestBrowserSSRFGuard_PublicURLAllowed covers a public URL and proves no private_url_blocked evidence is emitted., Tests use synthetic strings only and do not start a browser, resolve DNS, or open network sockets.
-- Source refs: ../hermes-agent/tools/browser_tool.py@7317d69f, ../hermes-agent/tools/url_safety.py@7317d69f, ../hermes-agent/tests/tools/test_browser_ssrf_local.py@7317d69f, ../hermes-agent/tests/tools/test_url_safety.py@7317d69f, internal/tools/browser_hybrid_routing.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Skills hub direct URL candidate parser
-
-- Phase: 5 / 5.F
-- Owner: `skills`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: internal/skills exposes a pure ParseURLSkillCandidate(rawURL string, skillMD []byte) (URLSkillCandidate, error) helper that mirrors Hermes UrlSource.fetch metadata without network or store writes: HTTPS SKILL.md URLs only, source=url, trust=community, files={SKILL.md}, resolved name from valid frontmatter or URL slug, awaiting_name evidence when neither produces a safe install name, and no path traversal in name/category candidates
-- Trust class: operator, system
-- Ready when: internal/skills/parser.go already extracts SKILL.md name/description/body and enforces size limits., The row is pure parsing and validation: tests inject raw SKILL.md bytes and URLs; no HTTP client, CLI command, quarantine directory, scan policy, or active store mutation belongs in this slice., Use Gormes naming in retry hints (`gormes skills install ... --name <your-name>`), while source_refs stay pinned to Hermes behavior.
-- Not ready when: The slice downloads from the network, writes files under active/candidates/.hub, shells out, or changes skill selection/preprocessing., The slice accepts sentinel names such as skill, readme, index, unnamed-skill, absolute paths, drive letters, nested paths, or `..` segments as installable names., The slice implements interactive prompting or cobra command wiring; those belong to the dependent install-binding row.
-- Degraded mode: The helper returns evidence values url_skill_invalid_url, url_skill_missing_name, url_skill_invalid_name, or url_skill_invalid_frontmatter; callers can render actionable retry guidance without writing to the active skill store.
-- Fixture: `internal/skills/url_candidate_test.go`
-- Write scope: `internal/skills/url_candidate.go`, `internal/skills/url_candidate_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/skills -run '^TestURLSkillCandidate_' -count=1`, `go test ./internal/skills -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: URL candidate fixtures prove frontmatter-name, URL-slug, missing-name evidence, unsafe-name rejection, source/trust metadata, and no network/filesystem imports.
-- Acceptance: TestURLSkillCandidate_FromFrontmatter resolves `name: sharethis-chat` to Name=sharethis-chat, AwaitingName=false, Source=url, Trust=community, and Files contains exactly SKILL.md., TestURLSkillCandidate_FromURLSlug resolves `https://example.com/tools/review-bot/SKILL.md` to Name=review-bot when frontmatter name is missing., TestURLSkillCandidate_MissingNameEvidence returns AwaitingName=true plus url_skill_missing_name for `https://example.com/SKILL.md` with no valid frontmatter name., TestURLSkillCandidate_RejectsUnsafeNames rejects sentinel, nested, absolute, drive-letter, and traversal names before any path is returned., The helper imports neither net/http nor internal/cli and performs no filesystem writes.
-- Source refs: ../hermes-agent/tools/skills_hub.py@e63929d4:UrlSource.fetch,_validate_skill_name, ../hermes-agent/hermes_cli/skills_hub.py@e63929d4:_is_valid_installed_skill_name, ../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_actionable_error_on_non_interactive_with_no_name, internal/skills/parser.go, internal/skills/types.go
-- Unblocks: Skills hub direct URL install name/category guard
-- Why now: Unblocks Skills hub direct URL install name/category guard.
-
-## 6. MCP stdio orphan cleanup after cron ticks
-
-- Phase: 5 / 5.G
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Cron and MCP stdio tooling track orphaned stdio server PIDs after cancellation/timeout and sweep only orphaned children after a cron tick joins, without killing active MCP sessions from parallel work
-- Trust class: operator, system
-- Ready when: MCP stdio transport + tool/list discovery and Cronjob tool action envelope over native store are validated on main., The worker can implement this as a pure process-tracker/reaper seam with fake PID liveness and fake kill functions; no real subprocess, cron goroutine, or MCP SDK is required., Cleanup after a cron tick must run only after sibling futures/jobs for that tick have joined.
-- Not ready when: The slice kills every active MCP PID during normal cron ticks instead of orphan-only cleanup., The slice starts real MCP stdio subprocesses or depends on OS-specific process groups in unit tests., The slice changes MCP protocol parsing, OAuth, HTTP transport, managed gateway behavior, or cron schedule parsing.
-- Degraded mode: MCP status reports mcp_orphan_reaped, mcp_orphan_reap_failed, or mcp_active_pid_preserved instead of leaking detached stdio subprocesses or killing active sessions.
-- Fixture: `internal/tools/mcp_orphan_cleanup_test.go`
-- Write scope: `internal/tools/mcp_orphan_cleanup.go`, `internal/tools/mcp_orphan_cleanup_test.go`, `internal/tools/mcp_stdio.go`, `internal/cron/scheduler.go`, `internal/cron/scheduler_mcp_cleanup_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run '^TestMCPOrphanCleanup_' -count=1`, `go test ./internal/cron -run '^TestCronSchedulerRunsMCPOrphanCleanupAfterTickJoin$' -count=1`, `go test ./internal/tools ./internal/cron -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: MCP/cron fixtures prove cancelled stdio PIDs become orphaned, cron tick cleanup reaps only orphans after join, shutdown can include active PIDs, and no real subprocess is spawned.
-- Acceptance: TestMCPOrphanCleanup_MarksAlivePIDOrphanOnSessionExit moves an injected alive PID from active to orphaned when a stdio session exits through cancellation/error., TestMCPOrphanCleanup_ReapsOnlyOrphansAfterCronTick kills orphaned PIDs after a fake cron tick join while preserving active PIDs., TestMCPOrphanCleanup_ShutdownIncludesActive preserves existing shutdown behavior that can reap both active and orphaned PIDs., TestCronSchedulerRunsMCPOrphanCleanupAfterTickJoin proves cleanup is called after all fake tick jobs complete and never while a sibling job is still marked active.
-- Source refs: ../hermes-agent/tools/mcp_tool.py@930494d6:_orphan_stdio_pids, ../hermes-agent/cron/scheduler.py@930494d6:tick cleanup, ../hermes-agent/tests/tools/test_mcp_stability.py@930494d6, internal/tools/mcp_stdio.go, internal/cron/scheduler.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Checkpoint shadow-repo GC policy
-
-- Phase: 5 / 5.L
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Native checkpoint manager prunes orphan and stale shadow repositories at startup using a deterministic policy before any write-capable file tools depend on rollback state
-- Trust class: operator, child-agent, system
-- Ready when: The row can be implemented as pure filesystem fixtures under t.TempDir with fake timestamps and no model/tool execution., internal/tools exists and can own the checkpoint manager contract without exposing write_file or patch tools yet., Rollback state paths are Gormes-owned XDG paths, not upstream ~/.hermes paths.
-- Not ready when: The slice exposes write_file, patch, or checkpoint restore tools before the cleanup/read-model contract is fixture-locked., The slice shells out to git or deletes real repositories outside t.TempDir in tests., The slice copies Hermes home layout instead of documenting the Gormes XDG rollback directory decision.
-- Degraded mode: Checkpoint status reports shadow_gc_unavailable, orphan_shadow_repo, or stale_shadow_repo evidence instead of silently leaving rollback directories to accumulate.
-- Fixture: `internal/tools/checkpoint_manager_test.go`
-- Write scope: `internal/tools/checkpoint_manager.go`, `internal/tools/checkpoint_manager_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run '^TestCheckpointManager' -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: Checkpoint manager fixtures prove startup orphan/stale shadow cleanup, dry-run reporting, fake-clock TTL behavior, and redacted status evidence under t.TempDir only.
-- Acceptance: TestCheckpointManagerPrunesOrphanShadowRepos seeds an active shadow repo and an orphan repo under t.TempDir; startup cleanup removes only the orphan and records evidence., TestCheckpointManagerPrunesStaleShadowRepos uses a fake clock to remove stale shadows older than the configured TTL while preserving fresh active shadows., TestCheckpointManagerDryRunReportsCandidates returns the same orphan/stale candidates without deleting them., Status evidence names counts and paths relative to the checkpoint root, with no absolute home-directory leakage.
-- Source refs: ../hermes-agent/tools/checkpoint_manager.py@478444c2, ../hermes-agent/tests/tools/test_checkpoint_manager.py@478444c2, ../hermes-agent/cli.py@478444c2:startup checkpoint cleanup, ../hermes-agent/gateway/run.py@478444c2:startup checkpoint cleanup, docs/content/building-gormes/architecture_plan/phase-5-final-purge.md
-- Unblocks: File read dedup cache invalidation and wrapper guard
-- Why now: Unblocks File read dedup cache invalidation and wrapper guard.
-
-## 8. Session search
+## 5. Session search
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -183,7 +122,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Source refs: ../hermes-agent/tools/session_search_tool.py@dbe50155, ../hermes-agent/tests/tools/test_session_search.py@dbe50155, internal/memory/session_catalog.go, internal/memory/session_lineage_search_test.go, internal/goncho/service.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. CLI OpenClaw residue onboarding hint
+## 6. CLI OpenClaw residue onboarding hint
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -204,7 +143,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: OpenClaw residue startup banner binding
 - Why now: Unblocks OpenClaw residue startup banner binding.
 
-## 10. CLI bracketed-paste wrapper sanitizer
+## 7. CLI bracketed-paste wrapper sanitizer
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -223,5 +162,66 @@ tests, and candidate policy. Keep those control-plane facts in
 - Acceptance: TestStripLeakedBracketedPasteWrappers_CanonicalEscape strips \u001b[200~hello\u001b[201~ to hello., TestStripLeakedBracketedPasteWrappers_CaretEscape strips ^[[200~hello^[[201~ to hello., TestStripLeakedBracketedPasteWrappers_DegradedBracketBoundaries strips [200~hello[201~ at start/whitespace boundaries while preserving literal[200~tag., TestStripLeakedBracketedPasteWrappers_FragmentBoundaries strips 00~hello01~ at start/whitespace boundaries while preserving build00~tag., TestStripLeakedBracketedPasteWrappers_MultilinePreserved keeps embedded newlines and content bytes after wrapper removal.
 - Source refs: ../hermes-agent/cli.py@a0fe73ba:_strip_leaked_bracketed_paste_wrappers, ../hermes-agent/tests/cli/test_cli_bracketed_paste_sanitizer.py@a0fe73ba, internal/cli/command_registry.go, internal/cli/output.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 8. Native TUI /save XDG file writer binding
+
+- Phase: 5 / 5.Q
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: cmd/gormes binds the native TUI /save SessionExportFunc to the canonical persisted transcript reader and writes markdown exports under the Gormes XDG data directory, never under upstream HERMES_HOME or the process working directory
+- Trust class: operator, system
+- Ready when: Native TUI /save canonical session export is validated on main and exposes SessionExportFunc on Model options., The prior /save handler write-scope issue is closed; slash_dispatch_test.go was already included in the completed handler row and should not be touched here., cmd/gormes/session.go already proves transcript.ExportMarkdown works against config.MemoryDBPath for the CLI export command., Gormes intentionally uses XDG_DATA_HOME/gormes instead of HERMES_HOME; the fixture should assert that divergence.
+- Not ready when: The slice reopens internal/tui slash handler behavior or changes transcript.ExportMarkdown output format., The slice writes exports under HERMES_HOME, the repository root, or the current working directory., The slice starts a provider, API server, remote TUI gateway, or live session browser.
+- Degraded mode: TUI status reports `save: store unavailable` or `save: write failed: <err>` with partial-file cleanup instead of exposing an unwired /save handler or writing to an ambiguous location.
+- Fixture: `cmd/gormes/tui_save_export_test.go`
+- Write scope: `cmd/gormes/main.go`, `cmd/gormes/tui_save_export_test.go`, `internal/tui/slash_save.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes -run '^TestTUISaveExport_' -count=1`, `go test ./cmd/gormes ./internal/tui ./internal/transcript -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: cmd/gormes TUI save-export fixtures prove the real SessionExportFunc writes under XDG_DATA_HOME/gormes/sessions/exports, ignores HERMES_HOME for runtime state, cleans partial files, and returns the exported path to /save.
+- Acceptance: cmd/gormes constructs a SessionExportFunc for the local TUI Model that opens config.MemoryDBPath, calls transcript.ExportMarkdown, and writes `<session-id>.md` or a collision-safe variant under `$XDG_DATA_HOME/gormes/sessions/exports/`., TestTUISaveExport_WritesUnderXDGDataHome sets XDG_DATA_HOME and HERMES_HOME to different temp roots, invokes the bound SessionExportFunc, and proves the file lands under the Gormes XDG export directory only., TestTUISaveExport_RemovesPartialOnFailure injects a write failure after creating a partial file and proves /save removes it through the existing slash handler cleanup path., The status message returned by /save contains the XDG export path and no test opens a network connection or starts the remote TUI gateway.
+- Source refs: ../hermes-agent/tests/cli/test_save_conversation_location.py@5eb6cd82, ../hermes-agent/cli.py@5eb6cd82:save conversation location, ../hermes-agent/tui_gateway/server.py@5eb6cd82:session.save, internal/tui/slash_save.go:SessionExportFunc, cmd/gormes/session.go:sessionExportCmd, internal/config/config.go:MemoryDBPath
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 9. Native TUI bounded conversation viewport
+
+- Phase: 5 / 5.Q
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Native Bubble Tea conversation rendering limits each frame to the visible tail of RenderFrame.History plus DraftText/LastError under a caller-provided height budget, emits a stable omitted-history sentinel when earlier turns are hidden, and avoids rebuilding unbounded conversation strings during long sessions
+- Trust class: operator, system
+- Ready when: internal/tui/view.go currently renders every RenderFrame.History message into one joined string; the worker can add a pure helper and table tests without changing kernel history, persistence, or provider streaming., Synthetic RenderFrame fixtures with 100+ messages are enough; no Bubble Tea program, terminal, Node/Ink runtime, or Hermes profiling script needs to run., The row is a Gormes-native performance guard, not a direct port of Hermes' React/Ink virtualization stack.
+- Not ready when: The slice imports React/Ink concepts, starts Node, changes kernel.RenderFrame shape, truncates stored session/transcript history, or edits internal/kernel/internal/transcript persistence., The slice changes slash-command, remote TUI SSE, API server, or dashboard behavior in the same diff., The slice silently drops DraftText or LastError when history is long.
+- Degraded mode: If height is too small or width is narrow, the helper still renders the latest visible turn/draft/error and a compact omitted-history sentinel rather than panicking or allocating the full history body.
+- Fixture: `internal/tui/viewport_history_test.go`
+- Write scope: `internal/tui/view.go`, `internal/tui/viewport_history_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tui -run '^TestRenderConversationViewport_' -count=1`, `go test ./internal/tui -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Native TUI viewport fixtures prove long histories render a bounded visible tail with omitted-count sentinel, draft/error preservation, small-size clamps, and no kernel/session persistence changes.
+- Acceptance: TestRenderConversationViewport_OmitsEarlierHistory builds 120 alternating user/assistant messages and asserts the rendered output contains the latest turns, excludes the earliest turn body, and includes a deterministic omitted-history sentinel with the hidden count., TestRenderConversationViewport_AlwaysIncludesDraftAndLastError proves DraftText and LastError survive even when history is clipped., TestRenderConversationViewport_HeightAndWidthClamp proves width<4 and tiny height do not panic and still render a compact latest-message view., TestRenderConversationViewport_RenderedLineBudget asserts the helper returns no more than the requested visible budget plus a small sentinel allowance for wrapped content., The implementation stays in internal/tui/view.go plus its test; no kernel/session/transcript files are edited.
+- Source refs: ../hermes-agent/ui-tui/src/hooks/useVirtualHistory.ts@e63929d4, ../hermes-agent/ui-tui/src/lib/virtualHeights.ts@e63929d4, ../hermes-agent/ui-tui/src/__tests__/virtualHeights.test.ts@e63929d4, ../hermes-agent/scripts/profile-tui.py@e63929d4, internal/tui/view.go:renderConv
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. API server detailed health snapshot contract
+
+- Phase: 5 / 5.Q
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Native API server defines a pure detailed-health snapshot model that reports provider, response-store, run-event stream, gateway, and cron availability/degradation without binding HTTP routes or cron mutations
+- Trust class: operator, gateway, system
+- Ready when: OpenAI-compatible chat-completions API server, Responses API store + run event stream, and Gateway proxy mode forwarding contract are validated on main., Cronjob tool action envelope over native store, Cron context_from output chaining, and Cron multi-target delivery + media/live-adapter fallback are validated on main, so cron health can be read without defining admin writes., Tests can instantiate value-only provider/gateway/cron/read-store health inputs; no HTTP request, provider, live gateway, scheduler goroutine, or cron mutation endpoint is required.
+- Not ready when: The slice creates /health/detailed, /api/jobs endpoints, mutates cron jobs, starts a scheduler, changes OpenAI-style error envelopes, or weakens API auth/body-size checks., The slice imports Hermes Python, starts the remote TUI gateway, or changes dashboard client behavior., Health snapshots include plaintext tokens, provider API keys, cron script bodies, or raw request payloads.
+- Degraded mode: The snapshot reports cron_unavailable, response_store_disabled, run_events_unavailable, gateway_unavailable, or provider_unconfigured evidence instead of a flat OK/failed bit.
+- Fixture: `internal/apiserver/detailed_health_snapshot_test.go`
+- Write scope: `internal/apiserver/detailed_health.go`, `internal/apiserver/detailed_health_snapshot_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/apiserver -run '^TestDetailedHealthSnapshot_' -count=1`, `go test ./internal/apiserver -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Detailed-health snapshot fixtures prove section names, degraded evidence, secret redaction, and pure value-model behavior without HTTP routes or cron admin writes.
+- Acceptance: TestDetailedHealthSnapshot_AllSystemsReady returns provider, response_store, run_events, gateway, and cron sections with status=ready and stable JSON field names., TestDetailedHealthSnapshot_DegradedEvidence seeds disabled response store, missing cron store, unavailable gateway status, and unconfigured provider and proves each appears as separate degraded evidence., TestDetailedHealthSnapshot_RedactsSecrets proves provider keys, cron script bodies, gateway tokens, and raw request payloads are absent after JSON marshal., The helper is pure and does not register routes, start schedulers, or mutate cron/response/run stores.
+- Source refs: ../hermes-agent/gateway/platforms/api_server.py@755a2804, internal/apiserver/server.go:handleHealth, internal/apiserver/responses.go:responseHealthStatus, internal/apiserver/runs.go:runHealthStatus
+- Unblocks: API server detailed health endpoint
+- Why now: Unblocks API server detailed health endpoint.
 
 <!-- PROGRESS:END -->

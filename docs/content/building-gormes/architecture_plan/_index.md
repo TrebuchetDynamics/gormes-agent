@@ -37,7 +37,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 35/74 subphases shipped · 22 in progress · 17 planned
+**Overall:** 36/74 subphases shipped · 22 in progress · 16 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -45,7 +45,7 @@ machine-readable queue for developing the full `gormes-agent`.
 | Phase 2 — The Gateway | 🔨 | 15/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 14/14 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
-| Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
+| Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -132,6 +132,8 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Gateway fresh-final eligibility helper
 - [x] Gateway fresh-final send/delete fallback
 - [x] Telegram fresh-final delete and config exposure
+- [ ] Telegram group bot-command mention gate helper
+- [ ] Telegram group mention gate config binding
 - [x] Slack rich-text quotes/lists + link-unfurl ingress
 - [x] Slack thread-parent context + team-scoped cache key
 - [x] Gateway message deduplicator bounded helper
@@ -366,7 +368,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Azure Foundry probe — /models classification + Anthropic fallback
 - [x] Azure Foundry runtime env/config read model
 - [x] Azure Foundry CLI setup/status manual fallback
-- [ ] Azure Foundry Responses-only model-family API mode
+- [x] Azure Foundry Responses-only model-family API mode
 - [ ] Bedrock
 - [x] Bedrock Converse payload mapping (no AWS SDK)
 - [x] Bedrock stream event decoding (SSE fixtures)
@@ -393,7 +395,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Aux compression provider-aware context cap
 - [ ] Tool-result pruning + protected head/tail summary
 - [x] Aux compression single-prompt threshold reconciliation
-- [ ] Compression protected-tail multimodal length estimator
+- [x] Compression protected-tail multimodal length estimator
 - [ ] Manual compression feedback + context references
 - [ ] ContextEngine compression-boundary notification
 
@@ -460,7 +462,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Tool registry inventory + schema parity harness
 - [x] Tool parity manifest refresh for Hermes b35d692f
 - [x] Discord tool split + platform-scoped toolsets
-- [ ] Discord tool limit coercion helper
+- [x] Discord tool limit coercion helper
 - [x] Home Assistant HASS_TOKEN platform-toolset carveout
 - [ ] Pure core tools first
 - [ ] Stateful tool migration queue
@@ -482,7 +484,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Rod
 - [ ] Browser provider bridge + Firecrawl fallback
 - [x] Browser hybrid private-URL local sidecar routing
-- [ ] Browser SSRF quoted-false guard
+- [x] Browser SSRF quoted-false guard
 
 ### 5.D — Vision + Image Generation ⏳
 
@@ -501,14 +503,14 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Skills hub search result types + in-memory registry provider
 - [x] Skills hub search read-model function over registry providers
 - [ ] Skill registries
-- [ ] Skills hub direct URL candidate parser
+- [x] Skills hub direct URL candidate parser
 - [ ] Skills hub direct URL install name/category guard
 - [x] Skill preprocessing + dynamic slash commands
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
 - [ ] Bundled Airtable productivity skill contract
 
-### 5.G — MCP Integration 🔨
+### 5.G — MCP Integration ✅
 
 - [x] MCP client
 - [x] MCP server config/env resolver
@@ -518,7 +520,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] MCP OAuth state store + noninteractive auth errors
 - [x] MCP OAuth refresh + 401 session-expired recovery
 - [x] Managed tool gateway bridge
-- [ ] MCP stdio orphan cleanup after cron ticks
+- [x] MCP stdio orphan cleanup after cron ticks
 
 ### 5.H — ACP Integration ⏳
 
@@ -538,7 +540,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Hardline command pattern table + DetectHardline function
 - [x] Recoverable dangerous patterns + blocked-result schema
 - [ ] Approval mode config normalization
-- [ ] Gateway hook auto-accept strict parser
+- [x] Gateway hook auto-accept strict parser
 - [ ] Subagent dangerous-command non-interactive approval policy
 - [ ] Cron dangerous-command approval mode
 - [ ] Tirith, path, URL, and website policy integration
@@ -547,10 +549,10 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Sandboxed exec
 
-### 5.L — File Ops + Patches ⏳
+### 5.L — File Ops + Patches 🔨
 
 - [ ] Atomic checkpoints
-- [ ] Checkpoint shadow-repo GC policy
+- [x] Checkpoint shadow-repo GC policy
 - [ ] File read dedup cache invalidation and wrapper guard
 
 ### 5.M — Mixture of Agents ⏳
@@ -607,6 +609,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [ ] Diagnostics, backup, logs, and status CLI
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
+- [ ] Custom provider model-switch key_env write guard
 - [x] CLI log redactor for known secret shapes
 - [x] CLI log snapshot reader using shared redactor
 
@@ -671,6 +674,7 @@ machine-readable queue for developing the full `gormes-agent`.
 ### 6.C — Skill Storage Format ⏳
 
 - [ ] SKILL.md frontmatter validation guard
+- [ ] Hermes creative skill metadata compatibility
 - [ ] Portable SKILL.md format
 
 ### 6.D — Skill Retrieval + Matching ⏳
@@ -707,6 +711,7 @@ machine-readable queue for developing the full `gormes-agent`.
 
 - [x] Threaded text adapter contract suite
 - [ ] Matrix shared-chassis bot seam
+- [ ] Matrix self/bridge sender drop helper
 - [ ] Mattermost shared-chassis bot seam
 - [ ] Matrix real client/bootstrap layer
 - [ ] Matrix E2EE device-id crypto-store binding

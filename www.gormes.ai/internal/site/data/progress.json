@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-27T04:52:17Z",
+    "last_updated": "2026-04-27T05:26:06Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -1607,6 +1607,136 @@
               }
             },
             {
+              "name": "Telegram group bot-command mention gate helper",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Telegram ingress exposes a pure mention-gate helper that treats `/cmd@botname` bot_command entities as direct address when group require-mention policy is enabled, rejects commands addressed to other bots, and keeps bare group slash commands gated",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Until the helper is bound into Telegram group ingress, Gormes cannot safely enable Hermes-style require_mention command gating for Telegram groups; status should report telegram_group_mention_gate_unavailable instead of silently responding to bare group commands.",
+              "fixture": "internal/channels/telegram/group_mention_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@3ff3dfb5:TelegramAdapter._has_direct_mention",
+                "../hermes-agent/tests/gateway/test_telegram_group_gating.py@3ff3dfb5:test_group_messages_can_require_direct_trigger_via_config",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "github.com/go-telegram-bot-api/telegram-bot-api/v5@v5.5.1:MessageEntity"
+              ],
+              "ready_when": [
+                "Telegram adapter already normalizes Update.Message into gateway.InboundEvent and commands route through gateway.ParseInboundText.",
+                "This first slice is helper-only: workers add a pure function over text, []tgbotapi.MessageEntity, expected bot username, and a bool requireMention flag; no live Telegram client, pairing store, gateway manager, config migration, or command execution is needed.",
+                "Table tests can model bot_command and mention entities directly with go-telegram-bot-api/v5 MessageEntity values."
+              ],
+              "not_ready_when": [
+                "The slice wires group gating into Bot.Run/toInboundEvent production flow, changes allowed_chat_id or first_run_discovery policy, or starts responding to groups before the helper is fixture-backed.",
+                "The helper treats `/status@other_bot` or bare `/status` as addressed when requireMention is true.",
+                "The slice changes fresh-final streaming, deleteMessage, session keys, pairing approval, or gateway manager behavior."
+              ],
+              "unblocks": [
+                "Telegram group mention gate config binding"
+              ],
+              "acceptance": [
+                "TestTelegramGroupMentionGate_BotCommandWithMatchingSuffixAllowsCommand builds `/status@gormes_bot` with one bot_command entity covering the whole token and returns addressed=true for expected username `gormes_bot` or `@gormes_bot`.",
+                "TestTelegramGroupMentionGate_OtherBotSuffixRejected proves `/status@other_bot` with a bot_command entity returns addressed=false when expected username is `gormes_bot`.",
+                "TestTelegramGroupMentionGate_BareCommandStillGated proves `/status` remains rejected when requireMention is true and accepted when requireMention is false.",
+                "TestTelegramGroupMentionGate_MentionEntityStillAllowsText proves normal text containing an @gormes_bot mention entity is still accepted.",
+                "Existing TestBot_ToInboundEvent_Commands and fresh-final delete tests keep passing; no live Telegram token or network call is required."
+              ],
+              "note": "Added after Hermes 3ff3dfb5 fixed Telegram's group command menu path: Telegram emits `/cmd@botname` as a single bot_command entity, not a separate mention. Gormes currently has no group require-mention gate, so the first safe slice is a pure helper before any config or runtime binding.",
+              "write_scope": [
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/group_mention_test.go",
+                "internal/channels/telegram/bot_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run '^TestTelegramGroupMentionGate_' -count=1",
+                "go test ./internal/channels/telegram -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Telegram group mention fixtures prove bot_command suffix matching, other-bot rejection, bare-command gating, mention-entity compatibility, and unchanged existing Telegram command tests without production gateway binding."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:3ff3dfb5 gateway/platforms/telegram.py",
+                "note": "Direct Hermes Telegram group-gating regression; Gormes keeps it as a helper-first Go slice before enabling runtime group require-mention policy."
+              }
+            },
+            {
+              "name": "Telegram group mention gate config binding",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Telegram runtime can opt into Hermes-style group require-mention policy by using the validated bot-command mention helper to drop unaddressed group text and bare slash commands while leaving DMs, allowed-chat gating, first-run discovery, and fresh-final streaming unchanged",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Telegram status reports telegram_group_mention_gate_disabled, telegram_group_mention_gate_unavailable, or telegram_group_message_unaddressed instead of silently processing unaddressed group traffic.",
+              "fixture": "internal/channels/telegram/group_mention_binding_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@3ff3dfb5:TelegramAdapter._should_process_message",
+                "../hermes-agent/tests/gateway/test_telegram_group_gating.py@3ff3dfb5",
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/bot.go",
+                "internal/config/config.go:TelegramCfg"
+              ],
+              "ready_when": [
+                "Telegram group bot-command mention gate helper is validated on main.",
+                "The binding can be tested through synthetic tgbotapi.Update values and Config fields only; no live Telegram token, BotFather username lookup, gateway.Manager, pairing store, or provider runtime is required.",
+                "The worker should keep group gating opt-in and leave existing allowed_chat_id / first_run_discovery tests unchanged."
+              ],
+              "not_ready_when": [
+                "The slice changes gateway pairing approval, channel session-key generation, fresh-final deleteMessage behavior, Slack/Discord policy, or command registry semantics.",
+                "The slice requires a live getMe call or network-derived bot username in unit tests.",
+                "The slice drops DMs or explicitly mentioned group commands when require_mention is disabled."
+              ],
+              "blocked_by": [
+                "Telegram group bot-command mention gate helper"
+              ],
+              "acceptance": [
+                "TestLoad_TelegramRequireMentionFields proves TelegramCfg parses require_mention and bot_username with safe defaults that preserve current behavior.",
+                "TestBot_ToInboundEvent_GroupBareCommandDroppedWhenRequireMentionEnabled proves a group `/status` command without @botname is dropped when require_mention=true.",
+                "TestBot_ToInboundEvent_GroupBotCommandSuffixAccepted proves `/status@gormes_bot` with a bot_command entity reaches gateway.ParseInboundText when configured bot_username matches.",
+                "TestBot_ToInboundEvent_DMBypassesMentionGate proves private chats still process commands/text without mention.",
+                "Existing Telegram fresh-final delete and command parsing tests keep passing."
+              ],
+              "note": "Dependent runtime binding for the helper row. It stays lower priority and blocked so the first worker can land only the pure entity-classification contract from Hermes 3ff3dfb5.",
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/group_mention_binding_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run TestLoad_TelegramRequireMentionFields -count=1",
+                "go test ./internal/channels/telegram -run '^TestBot_ToInboundEvent_Group|^TestBot_ToInboundEvent_DMBypassesMentionGate' -count=1",
+                "go test ./internal/config ./internal/channels/telegram -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Config and Telegram adapter fixtures prove opt-in group require-mention policy gates bare group commands, accepts `/cmd@botname` bot_command entities, preserves DM behavior, and leaves existing Telegram streaming/command tests green."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:3ff3dfb5 gateway/platforms/telegram.py",
+                "note": "Hermes provides the group require-mention behavior; Gormes adapts it to TOML config and its Go Telegram adapter after the helper fixture lands."
+              }
+            },
+            {
               "name": "Slack rich-text quotes/lists + link-unfurl ingress",
               "priority": "P1",
               "status": "complete",
@@ -1903,8 +2033,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T04:52:17Z",
-            "origin_decision": "Session context and delivery routing remain upstream-led for channel-specific delivery details. Hermes 6087e040/c0d25df3/f414df3a add Slack rich_text, attachment-unfurl, thread-parent, and team-scoped cache behavior; those are tracked here as follow-up context/delivery rows while the 2.B.3 Slack shared-chassis closeout remains complete. Hermes b16f9d43/openclaw#72038 adds Telegram fresh-final streaming for long-lived previews; after a worker_error on the broader row, Gormes tracks it as three dependency-ordered slices. Hermes cebf9585 adds bounded MessageDeduplicator eviction; after a status-field validation failure, Gormes now splits that work into a pure shared helper and a dependent manager wiring row so platform adapters stay thin. Hermes 91512b82/6993e566 adds WhatsApp identifier hardening; after write-scope failures, Gormes now splits that work into a pure identifier safety predicate and a dependent inbound-evidence row so the completed 2.B.4 adapter runtime remains closed."
+            "last_upstream_check": "2026-04-27T05:26:06Z",
+            "origin_decision": "Session context and delivery routing remain upstream-led for channel-specific delivery details. Hermes 6087e040/c0d25df3/f414df3a add Slack rich_text, attachment-unfurl, thread-parent, and team-scoped cache behavior; those are tracked here as follow-up context/delivery rows while the 2.B.3 Slack shared-chassis closeout remains complete. Hermes b16f9d43/openclaw#72038 adds Telegram fresh-final streaming for long-lived previews; after a worker_error on the broader row, Gormes tracks it as three dependency-ordered slices. Hermes 3ff3dfb5 fixes Telegram group command-menu gating for `/cmd@botname` bot_command entities; Gormes splits it into a helper-first row and a blocked config/runtime binding row. Hermes cebf9585 adds bounded MessageDeduplicator eviction; after a status-field validation failure, Gormes now splits that work into a pure shared helper and a dependent manager wiring row so platform adapters stay thin. Hermes 91512b82/6993e566 adds WhatsApp identifier hardening; after write-scope failures, Gormes now splits that work into a pure identifier safety predicate and a dependent inbound-evidence row so the completed 2.B.4 adapter runtime remains closed."
           }
         },
         "2.B.10": {
@@ -3676,7 +3806,8 @@
               },
               "planner_verdict": {
                 "reshape_count": 1,
-                "last_reshape": "2026-04-27T04:18:56Z"
+                "last_reshape": "2026-04-27T04:18:56Z",
+                "last_outcome": "no_attempts_yet"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -5968,9 +6099,9 @@
             {
               "name": "Azure Foundry Responses-only model-family API mode",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Azure Foundry runtime resolution upgrades GPT-5.x, codex, o1, o3, and o4 deployment/model names to codex_responses unless the configured api_mode is anthropic_messages, while leaving GPT-4o, GPT-4.1, Llama, Mistral, Grok, empty names, and explicit non-Anthropic configured modes on their existing mode",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -6023,6 +6154,11 @@
               "done_signal": [
                 "Azure Foundry fixtures prove Responses-only family inference, target-model precedence, non-OpenAI preservation, anthropic_messages guard, and zero live Azure dependency."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:c5781d50 hermes_cli/models.py",
@@ -7028,9 +7164,9 @@
             {
               "name": "Compression protected-tail multimodal length estimator",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Context-compression tail/protect-boundary code uses one pure content-length estimator that counts plain strings by rune length, list/map text blocks by their text field length, bare string list items by their own length, unknown list items by fmt.Sprint length, and image-only blocks as zero text chars; it must never call .get-style assumptions on non-map content and must not mutate message history",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -7057,9 +7193,6 @@
                 "The implementation treats image_url-only blocks as the number of blocks instead of zero text chars plus caller overhead.",
                 "The tests depend on live multimodal provider requests or Python fixtures rather than synthetic Go values."
               ],
-              "blocked_by": [
-                "Aux compression single-prompt threshold reconciliation"
-              ],
               "unblocks": [
                 "Tool-result pruning + protected head/tail summary",
                 "ContextEngine compression-boundary notification"
@@ -7071,7 +7204,7 @@
                 "TestCompressionContentLength_UnknownListItemFallback converts non-map/non-string list items with fmt.Sprint or equivalent deterministic fallback.",
                 "TestCompressionContentLength_ImageOnlyBlockZeroText proves image-only maps contribute zero text chars before the caller adds per-message overhead."
               ],
-              "note": "Added after Hermes cfc8befe/94346523/bda2dbc2 fixed three related compressor crashes/underestimates around multimodal lists and bare strings. Gormes keeps this as a pure estimator first so future head/tail pruning does not rediscover Python's content-shape assumptions.",
+              "note": "Complete: TDD added internal/hermes/context_compressor_content.go and internal/hermes/context_compressor_content_test.go. The pure compressionContentLength helper counts plain strings by rune length, sums text fields in mixed multimodal blocks, counts bare string list items, falls back to fmt.Sprint for unknown non-map/non-string list items, and treats image-only blocks as zero text chars before any caller overhead. The fixtures are synthetic Go values only and do not invoke the kernel, provider clients, summarizer, transcript storage, or live message-history mutation.",
               "write_scope": [
                 "internal/hermes/context_compressor_content.go",
                 "internal/hermes/context_compressor_content_test.go",
@@ -7085,6 +7218,11 @@
               "done_signal": [
                 "Compression content-length fixtures prove plain strings, multimodal text blocks, bare strings in lists, unknown list-item fallback, and image-only zero-text handling without provider or kernel side effects."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:cfc8befe+94346523+bda2dbc2 agent/context_compressor.py",
@@ -7663,6 +7801,10 @@
               "done_signal": [
                 "Title generator fixtures prove bounded prompt construction, candidate cleanup/truncation, empty-history skip, blank-output evidence, and provider-failure evidence with a fake model only."
               ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-27T04:49:49Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:4a2ee6c1 agent/title_generator.py",
@@ -7785,6 +7927,10 @@
               "done_signal": [
                 "Auto-title persistence fixtures prove one-time title writes, manual-title preservation, failure evidence, no retry storm, and transcript immutability."
               ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-27T04:49:49Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:4a2ee6c1 agent/title_generator.py",
@@ -7912,7 +8058,8 @@
               ],
               "planner_verdict": {
                 "reshape_count": 1,
-                "last_reshape": "2026-04-27T04:18:56Z"
+                "last_reshape": "2026-04-27T04:18:56Z",
+                "last_outcome": "no_attempts_yet"
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -8813,9 +8960,9 @@
             {
               "name": "Discord tool limit coercion helper",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Discord tool argument normalization coerces string/float/integer limit inputs for search_members and fetch_messages, applies Hermes-compatible defaults, and clamps model-visible values before any REST handler is ported",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -8855,7 +9002,7 @@
                 "TestDiscordLimitCoercion_ClampsToSchemaBounds proves values below 1 become 1 and values above 100 become 100, matching the Gormes descriptor bounds while preserving Hermes' max-100 behavior.",
                 "Returned evidence distinguishes provided, clamped, and defaulted values so future REST handlers can report degraded input without panics."
               ],
-              "note": "Hermes b288934d fixed Discord runtime handlers that received model-provided string limits and crashed when min() compared str to int. Gormes has only descriptor-level Discord tools today, so the safe next slice is a pure Go argument helper before any REST handler is exposed.",
+              "note": "Complete: TDD landed the pure NormalizeDiscordLimit helper before any Discord REST handler. search_members defaults invalid or missing limits to 20; fetch_messages defaults invalid or missing limits to 50; string, integer, JSON-number, and integral float values normalize without panics; below-minimum and above-maximum values clamp to the descriptor bounds 1..100. Returned evidence distinguishes discord_limit_provided, discord_limit_clamped, and discord_limit_defaulted so future handlers can surface degraded input without live Discord API calls.",
               "write_scope": [
                 "internal/tools/discord_limit.go",
                 "internal/tools/discord_limit_test.go",
@@ -8870,6 +9017,11 @@
               "done_signal": [
                 "Discord limit fixtures prove string, JSON-number, invalid, too-small, and too-large limit inputs normalize with stable evidence and no live Discord API calls."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b288934d tools/discord_tool.py",
@@ -9215,9 +9367,9 @@
             {
               "name": "Browser SSRF quoted-false guard",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Browser and URL safety helpers coerce quoted false-like config values (`\"false\"`, `'false'`, `0`, `no`, `off`) to disabled booleans before private/local URL SSRF guards decide whether cloud navigation is allowed",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -9248,7 +9400,7 @@
                 "TestBrowserSSRFGuard_PublicURLAllowed covers a public URL and proves no private_url_blocked evidence is emitted.",
                 "Tests use synthetic strings only and do not start a browser, resolve DNS, or open network sockets."
               ],
-              "note": "Hermes 7317d69f fixed quoted false handling in browser SSRF guards. Gormes already has private-host routing helpers, so this is a small safety row over config coercion and guard evidence before browser provider bridges become executable.",
+              "note": "Complete: TDD landed pure Browser SSRF guard helpers in internal/tools/browser_ssrf_guard.go. Fixtures prove quoted false-like config values are disabled before guard decisions, localhost/RFC1918 URLs return private_url_blocked when cloud routing would receive them, public URLs pass without private_url_blocked evidence, and tests use only synthetic strings without browser, network, DNS, Chromedp, Rod, Browserbase, Firecrawl, or Camofox runtime dependencies.",
               "write_scope": [
                 "internal/tools/browser_ssrf_guard.go",
                 "internal/tools/browser_ssrf_guard_test.go",
@@ -9263,6 +9415,11 @@
               "done_signal": [
                 "Browser SSRF guard fixtures prove quoted false values disable cloud routing guards correctly, private URLs are blocked when they would reach cloud providers, and no browser/network runtime is used."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:7317d69f tools/url_safety.py",
@@ -9466,9 +9623,9 @@
             {
               "name": "Skills hub direct URL candidate parser",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/skills exposes a pure ParseURLSkillCandidate(rawURL string, skillMD []byte) (URLSkillCandidate, error) helper that mirrors Hermes UrlSource.fetch metadata without network or store writes: HTTPS SKILL.md URLs only, source=url, trust=community, files={SKILL.md}, resolved name from valid frontmatter or URL slug, awaiting_name evidence when neither produces a safe install name, and no path traversal in name/category candidates",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -9504,7 +9661,7 @@
                 "TestURLSkillCandidate_RejectsUnsafeNames rejects sentinel, nested, absolute, drive-letter, and traversal names before any path is returned.",
                 "The helper imports neither net/http nor internal/cli and performs no filesystem writes."
               ],
-              "note": "Added 2026-04-27 after Hermes e63929d4 expanded skills-hub URL installs. This first slice gives Gormes a pure, testable URL candidate contract before any installer or prompt surface touches disk.",
+              "note": "Validated 2026-04-27: ParseURLSkillCandidate is pure and covered by URL candidate fixtures for frontmatter name, URL slug fallback, missing-name evidence/retry hint, unsafe-name rejection, invalid URL/frontmatter evidence, source/trust metadata, and no net/http/internal/cli or filesystem write imports.",
               "write_scope": [
                 "internal/skills/url_candidate.go",
                 "internal/skills/url_candidate_test.go",
@@ -9518,6 +9675,11 @@
               "done_signal": [
                 "URL candidate fixtures prove frontmatter-name, URL-slug, missing-name evidence, unsafe-name rejection, source/trust metadata, and no network/filesystem imports."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:e63929d4 tools/skills_hub.py UrlSource.fetch",
@@ -10344,9 +10506,9 @@
             {
               "name": "MCP stdio orphan cleanup after cron ticks",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Cron and MCP stdio tooling track orphaned stdio server PIDs after cancellation/timeout and sweep only orphaned children after a cron tick joins, without killing active MCP sessions from parallel work",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -10378,7 +10540,7 @@
                 "TestMCPOrphanCleanup_ShutdownIncludesActive preserves existing shutdown behavior that can reap both active and orphaned PIDs.",
                 "TestCronSchedulerRunsMCPOrphanCleanupAfterTickJoin proves cleanup is called after all fake tick jobs complete and never while a sibling job is still marked active."
               ],
-              "note": "Hermes 930494d6 fixed leaked MCP stdio subprocesses after cancelled cron ticks. Gormes has in-process MCP stdio fixtures and native cron execution; this row adds the process-tracker/reaper seam without spawning real processes in tests.",
+              "note": "Complete: TDD landed a pure MCP stdio process tracker/reaper seam with fakeable PID liveness and kill functions, stdio-client PID registration/session-exit orphan marking, and cron tick cleanup after grouped sibling jobs join. Fixtures prove orphan-only cron reaping, active PID preservation, shutdown including active PIDs, and no real subprocess or cron goroutine dependency.",
               "write_scope": [
                 "internal/tools/mcp_orphan_cleanup.go",
                 "internal/tools/mcp_orphan_cleanup_test.go",
@@ -10396,6 +10558,11 @@
               "done_signal": [
                 "MCP/cron fixtures prove cancelled stdio PIDs become orphaned, cron tick cleanup reaps only orphans after join, shutdown can include active PIDs, and no real subprocess is spawned."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:930494d6 tools/mcp_tool.py",
@@ -10822,9 +10989,9 @@
             {
               "name": "Gateway hook auto-accept strict parser",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway hook consent resolves CLI/env/config auto-accept values through a strict bool/string parser so quoted false-like strings and non-bool scalars cannot silently authorize executable hooks",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -10860,7 +11027,7 @@
                 "TestHookAutoAcceptParser_CLIOverride proves an explicit CLI accept flag wins over false-like config.",
                 "The helper returns stable evidence codes for accepted_by_cli, accepted_by_env, accepted_by_config, rejected_default, and hook_auto_accept_invalid without starting a hook process."
               ],
-              "note": "Hermes e19854d8 fixed a security regression where `hooks_auto_accept: \"false\"` became truthy through Python bool() coercion. Gormes hook execution is Go-native, but the same executable-hook consent invariant belongs with approval/security guard work before adding auto-accept config or CLI wiring.",
+              "note": "TDD landed: the pure gateway hook auto-accept parser now accepts only bool true or strict truthy strings `1`, `true`, `yes`, and `on`, rejects quoted false-like strings and non-bool scalars, preserves CLI/env/config evidence codes, and keeps invalid values in explicit-consent-required mode.",
               "write_scope": [
                 "internal/gateway/hook_consent.go",
                 "internal/gateway/hook_consent_test.go",
@@ -10874,6 +11041,11 @@
               "done_signal": [
                 "Hook consent parser fixtures prove quoted false-like strings and non-bool scalars cannot auto-accept executable hooks, while explicit CLI/env truthy values still work."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:e19854d8 agent/shell_hooks.py",
@@ -10973,9 +11145,9 @@
             {
               "name": "Checkpoint shadow-repo GC policy",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native checkpoint manager prunes orphan and stale shadow repositories at startup using a deterministic policy before any write-capable file tools depend on rollback state",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -11011,7 +11183,7 @@
                 "TestCheckpointManagerDryRunReportsCandidates returns the same orphan/stale candidates without deleting them.",
                 "Status evidence names counts and paths relative to the checkpoint root, with no absolute home-directory leakage."
               ],
-              "note": "Hermes 478444c2 added startup pruning for orphan and stale checkpoint shadow repos. Gormes has only an umbrella checkpoint row, so this creates the first landable Go checkpoint-manager slice before broader file write/patch ports.",
+              "note": "Complete: TDD landed a Go-native checkpoint manager startup GC contract under `internal/tools` with Gormes-owned XDG checkpoint roots, `GORMES_WORKDIR` shadow markers, orphan/stale pruning, dry-run candidate reporting, fake-clock TTL fixtures, and redacted status evidence before write/patch/restore tools are exposed.",
               "write_scope": [
                 "internal/tools/checkpoint_manager.go",
                 "internal/tools/checkpoint_manager_test.go",
@@ -11025,6 +11197,11 @@
               "done_signal": [
                 "Checkpoint manager fixtures prove startup orphan/stale shadow cleanup, dry-run reporting, fake-clock TTL behavior, and redacted status evidence under t.TempDir only."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:21:31Z",
+                "last_success": "2026-04-27T05:21:31Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:478444c2 tools/checkpoint_manager.py",
@@ -11183,7 +11360,7 @@
                 "since": "2026-04-27T04:18:56Z",
                 "reshape_count": 4,
                 "last_reshape": "2026-04-27T04:18:56Z",
-                "last_outcome": "still_failing"
+                "last_outcome": "no_attempts_yet"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -13423,6 +13600,69 @@
               }
             },
             {
+              "name": "Custom provider model-switch key_env write guard",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "internal/cli exposes a pure model-switch patch helper that updates a custom provider default_model while preserving original credential storage: providers that relied on key_env and had no inline api_key/api_key_ref must not gain an api_key entry, while providers that already had an inline plaintext or `${VAR}` api_key may keep that existing api_key value without writing resolved plaintext",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Model-switch planning returns credential_write_skipped_key_env, credential_ref_preserved, plaintext_preserved, or credential_missing evidence so setup/status surfaces can explain why api_key was not written.",
+              "fixture": "internal/cli/custom_provider_model_switch_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py@8258f4dc:_model_flow_named_custom",
+                "../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8258f4dc",
+                "../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map",
+                "internal/cli/custom_provider_secret.go",
+                "internal/cli/custom_provider_secret_test.go"
+              ],
+              "ready_when": [
+                "Custom provider model-switch credential preservation is validated on main and provides the resolver vocabulary for env-template, plaintext, key_env, unset, and missing credentials.",
+                "This slice only adds a pure patch/model-switch helper under internal/cli; no config reader, /model command handler, TUI picker, fake /v1/models server, provider routing, or cmd/gormes wiring is required.",
+                "Table tests should construct input provider maps/structs in memory and assert the planned write shape; no process environment, filesystem, or network access is needed."
+              ],
+              "not_ready_when": [
+                "The slice changes internal/config, internal/hermes, provider catalog probing, TUI model picker behavior, or command wiring.",
+                "The helper writes an api_key field for a provider whose original config relied only on key_env.",
+                "The helper writes resolved plaintext when the original provider used `${VAR}` or key_env references."
+              ],
+              "blocked_by": [
+                "Custom provider model-switch credential preservation"
+              ],
+              "acceptance": [
+                "TestCustomProviderModelSwitchPatch_KeyEnvDoesNotSynthesizeAPIKey starts with {default_model:'old', key_env:'ACME_KEY'} and proves the patch sets default_model='new', preserves key_env, omits api_key, and returns credential_write_skipped_key_env evidence.",
+                "TestCustomProviderModelSwitchPatch_InlineEnvRefPreserved starts with {api_key:'${ACME_KEY}'} and proves the patch keeps api_key='${ACME_KEY}' without resolving or overwriting it.",
+                "TestCustomProviderModelSwitchPatch_PlaintextPreserved starts with {api_key:'sk-plain'} and proves plaintext is preserved only because it was already present.",
+                "TestCustomProviderModelSwitchPatch_MissingCredentialStillUpdatesModelWithEvidence proves model changes remain possible while credential_missing evidence is returned for setup/status guidance.",
+                "Existing TestResolveCustomProviderSecret_* fixtures remain green; this row does not redefine resolver semantics."
+              ],
+              "note": "Added after Hermes 8258f4dc tightened named custom-provider model switching: key_env-backed providers should not gain a synthesized api_key entry during model changes. Gormes already landed the pure secret resolver; this dependent row freezes the write-shape helper before command/TUI binding.",
+              "write_scope": [
+                "internal/cli/custom_provider_model_switch.go",
+                "internal/cli/custom_provider_model_switch_test.go",
+                "internal/cli/custom_provider_secret.go",
+                "internal/cli/custom_provider_secret_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run 'TestCustomProviderModelSwitchPatch_|TestResolveCustomProviderSecret_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/cli custom-provider model-switch fixtures prove key_env-backed providers update default_model without adding api_key, existing inline references/plaintext are preserved without resolution, and resolver tests still pass."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:8258f4dc hermes_cli/main.py",
+                "note": "Hermes owns the named custom-provider write-shape regression; Gormes adapts it as a pure internal/cli patch helper before CLI/TUI model-switch command binding."
+              }
+            },
+            {
               "name": "CLI log redactor for known secret shapes",
               "status": "complete",
               "contract": "internal/cli/log_redact.go exposes RedactLine(line []byte) ([]byte, int) where the int is the number of redactions applied. Matches and replaces with \"[REDACTED]\": (1) Bearer XXX in any header line, (2) api_key=VALUE or x-api-key: VALUE, (3) Telegram bot tokens NN:XXXXXXXX (digits + colon + >=20 alnum/_/-), (4) Slack xoxb-/xoxp-/xoxs- tokens, (5) OpenAI sk-* keys longer than 16 chars. Returns input unchanged with count=0 if no match. Pure: only regexp + bytes packages from stdlib.",
@@ -13553,8 +13793,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T04:32:08Z",
-            "origin_decision": "Hermes 25ba6a4a moved /reasoning to session-scoped-by-default gateway state with --global persistence; b2d3308f fixed doctor so bare custom provider config is accepted; and 2c56dce0/1fdc31b2/8bbeaea6 fixed custom-provider model switching so named providers, configured cloud aliases, and env-template secrets survive CLI/TUI model changes. Hermes e63929d4 adds one-time OpenClaw-residue onboarding after migration and a0fe73ba strips leaked bracketed-paste wrappers from CLI buffers; Gormes tracks both as pure internal/cli helper rows before startup or input-loop binding. Gormes has native oneshot/model override and helper rows, but it still lacks typed reasoning-effort propagation, gateway /reasoning session overrides, custom-endpoint doctor readiness fixtures, and a pure custom-provider model-switch resolver, so this CLI/gateway surface remains upstream-led."
+            "last_upstream_check": "2026-04-27T05:26:06Z",
+            "origin_decision": "Hermes 25ba6a4a moved /reasoning to session-scoped-by-default gateway state with --global persistence; b2d3308f fixed doctor so bare custom provider config is accepted; 2c56dce0/1fdc31b2/8bbeaea6 fixed custom-provider model switching so named providers, configured cloud aliases, and env-template secrets survive CLI/TUI model changes; and 8258f4dc adds the key_env write-shape guard so model switches do not synthesize api_key for key_env-backed providers. Hermes e63929d4 adds one-time OpenClaw-residue onboarding after migration and a0fe73ba strips leaked bracketed-paste wrappers from CLI buffers; Gormes tracks both as pure internal/cli helper rows before startup or input-loop binding. Gormes has native oneshot/model override and helper rows, but it still lacks typed reasoning-effort propagation, gateway /reasoning session overrides, and command/TUI binding for the custom-provider model-switch write guards, so this CLI/gateway surface remains upstream-led."
           }
         },
         "5.P": {
@@ -15229,7 +15469,8 @@
               ],
               "planner_verdict": {
                 "reshape_count": 1,
-                "last_reshape": "2026-04-27T04:18:56Z"
+                "last_reshape": "2026-04-27T04:18:56Z",
+                "last_outcome": "no_attempts_yet"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -15481,6 +15722,73 @@
               }
             },
             {
+              "name": "Hermes creative skill metadata compatibility",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Skill storage fixtures preserve Hermes creative SKILL.md routing metadata for claude-design, popular-web-designs, and design-md as distinct reviewed skills, including short descriptions, version/author/license fields, hermes tags, and related_skills, without collapsing them into one generic design skill",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Skill status reports creative_skill_metadata_incomplete or creative_skill_route_ambiguous when design skills cannot be parsed or distinguished, and excludes invalid/unreviewed creative drafts from prompt injection.",
+              "fixture": "internal/skills/creative_design_metadata_test.go",
+              "source_refs": [
+                "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
+                "../hermes-agent/skills/creative/claude-design/SKILL.md@7d586ddb:description",
+                "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+                "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
+                "internal/skills/parser.go",
+                "internal/skills/types.go",
+                "internal/skills/selector.go"
+              ],
+              "ready_when": [
+                "SKILL.md frontmatter validation guard is validated so malformed creative skill files are excluded before compatibility metadata is trusted.",
+                "The row uses embedded string fixtures copied from the upstream frontmatter/body decision table only; no live skill install, image generation, browser artifact build, semantic embedding, or network fetch is required.",
+                "The existing Phase 2.G parser/store and selector tests remain the baseline; this row only expands metadata shape and route evidence."
+              ],
+              "not_ready_when": [
+                "The slice implements the actual claude-design workflow, creates HTML artifacts, imports Hermes skill bodies wholesale into the repo, or changes runtime frontend/design behavior.",
+                "The slice enables unreviewed creative skill drafts in prompt injection or bypasses frontmatter validation.",
+                "The slice treats claude-design, popular-web-designs, and design-md as interchangeable names with one selector route."
+              ],
+              "blocked_by": [
+                "SKILL.md frontmatter validation guard"
+              ],
+              "unblocks": [
+                "Portable SKILL.md format"
+              ],
+              "acceptance": [
+                "TestCreativeSkillMetadata_ParsesClaudeDesignFrontmatter proves name, description <= 60 chars, version, author, license, hermes.tags, and related_skills are preserved from the claude-design fixture.",
+                "TestCreativeSkillMetadata_DistinguishesDesignRoutes proves claude-design, popular-web-designs, and design-md produce distinct selector/route evidence instead of one generic design skill.",
+                "TestCreativeSkillMetadata_InvalidDraftExcluded proves malformed or unreviewed creative skill fixtures are not included in BuildSkillBlock or selection output.",
+                "Existing parser, selector, and active-store fixtures keep passing."
+              ],
+              "note": "Added after Hermes 8c5d3a99 introduced the claude-design HTML artifact skill and 55be5323/7d586ddb clarified routing among claude-design, popular-web-designs, and design-md while keeping descriptions short. Gormes should preserve the metadata/route contract before broadening portable SKILL.md storage.",
+              "write_scope": [
+                "internal/skills/creative_design_metadata_test.go",
+                "internal/skills/parser.go",
+                "internal/skills/types.go",
+                "internal/skills/selector.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestCreativeSkillMetadata_|TestParse|TestSelector' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Creative skill metadata fixtures prove claude-design, popular-web-designs, and design-md remain distinct reviewed skills with preserved frontmatter metadata and invalid/unreviewed drafts excluded."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:8c5d3a99 skills/creative/claude-design/SKILL.md",
+                "note": "Hermes owns the creative skill corpus semantics; Gormes adapts only metadata and routing compatibility into the Go-native skills store."
+              }
+            },
+            {
               "name": "Portable SKILL.md format",
               "status": "planned",
               "contract": "Reviewed skill-as-code storage format",
@@ -15495,11 +15803,15 @@
               "fixture": "internal/skills SKILL.md metadata, provenance, and review-state fixtures",
               "source_refs": [
                 "../gbrain/skills/frontmatter-guard/SKILL.md@891c28b",
+                "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
+                "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+                "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
                 "docs/content/upstream-gbrain/gormes-takeaways.md",
                 "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
               ],
               "ready_when": [
                 "SKILL.md frontmatter validation guard is validated so malformed skill files are excluded before review metadata is interpreted.",
+                "Hermes creative skill metadata compatibility is validated so versioned metadata preserves real upstream skill routing rather than an invented generic design category.",
                 "Phase 2.G skills runtime is complete and the parser/store seam is stable enough for versioned metadata."
               ],
               "not_ready_when": [
@@ -15508,6 +15820,7 @@
               ],
               "blocked_by": [
                 "SKILL.md frontmatter validation guard",
+                "Hermes creative skill metadata compatibility",
                 "Phase 2.G skills runtime"
               ],
               "unblocks": [
@@ -15520,7 +15833,7 @@
                 "Invalid, disabled, or unreviewed drafts never enter prompt injection.",
                 "Atomic writes preserve human-editable skill files and version history."
               ],
-              "note": "Refined after GBrain 891c28b/v0.22.4: first land the SKILL.md frontmatter validation guard, then extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable skill files.",
+              "note": "Refined after GBrain 891c28b/v0.22.4 and Hermes 8c5d3a99/55be5323/7d586ddb: first land the SKILL.md frontmatter validation guard and creative skill metadata compatibility, then extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable skill files.",
               "write_scope": [
                 "internal/skills/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -15545,8 +15858,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T03:55:07Z",
-            "origin_decision": "GBrain 891c28b/v0.22.4 adds shared frontmatter validation, audit, migration, doctor, and hook flows. Gormes should adapt only the validation-code contract to local SKILL.md assets first, then keep broader reviewed skill storage metadata as a dependent row; do not import GBrain's CLI, auto-fix, PGLite/Postgres, or pre-commit workflow."
+            "last_upstream_check": "2026-04-27T05:26:06Z",
+            "origin_decision": "GBrain 891c28b/v0.22.4 adds shared frontmatter validation, audit, migration, doctor, and hook flows. Hermes 8c5d3a99 adds claude-design, while 55be5323/7d586ddb clarify design-skill routing and short descriptions. Gormes should adapt the validation-code contract first, then fixture-lock real creative skill metadata/routing, then keep broader reviewed skill storage metadata as a dependent row; do not import GBrain's CLI, auto-fix, PGLite/Postgres, pre-commit workflow, or Hermes' HTML artifact runtime."
           }
         },
         "6.D": {
@@ -15893,6 +16206,73 @@
               "note": "TDD: land a Matrix-specific bot seam on top of `internal/channels/threadtext` that freezes canonical thread reply targets, root-message thread defaults, and placeholder/edit hooks before auth/sync/E2EE transport work."
             },
             {
+              "name": "Matrix self/bridge sender drop helper",
+              "priority": "P4",
+              "status": "planned",
+              "contract": "Matrix adapter exposes pure sender-classification helpers that drop bot self-events case-insensitively, fail closed when the bot user_id is unresolved, and treat appservice/system bridge senders with empty or leading-underscore localparts as non-user identities before pairing or gateway dispatch",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Matrix status reports matrix_sender_filter_unavailable while the helper is missing; future Matrix runtime must drop self/bridge/system events instead of offering pairing codes or feeding echo-loop messages to the agent.",
+              "fixture": "internal/channels/matrix/sender_filter_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/matrix.py@af3d5150:MatrixAdapter._is_self_sender",
+                "../hermes-agent/gateway/platforms/matrix.py@af3d5150:MatrixAdapter._is_system_or_bridge_sender",
+                "../hermes-agent/tests/gateway/test_matrix.py@af3d5150:TestMatrixSelfSenderFilter",
+                "../hermes-agent/tests/gateway/test_matrix.py@af3d5150:TestMatrixSystemBridgeFilter",
+                "internal/channels/threadtext/",
+                "docs/content/building-gormes/gateway-donor-map/matrix.md"
+              ],
+              "ready_when": [
+                "Matrix shared-chassis bot seam exists so the helper can live under internal/channels/matrix without inventing a parallel gateway adapter.",
+                "The slice is pure string classification plus table tests; no live Matrix sync, login, pairing store, E2EE store, room join, or gateway manager behavior is required.",
+                "Tests should cover sender localpart parsing with Matrix IDs only; no mautrix/nio SDK dependency is needed."
+              ],
+              "not_ready_when": [
+                "The slice starts Matrix sync/login, handles room invites, pairs users, downloads media, or binds E2EE crypto stores.",
+                "The helper allows an empty own user_id to process traffic instead of failing closed.",
+                "The helper treats appservice puppet IDs such as `@_telegram_123:server` as pairable human users."
+              ],
+              "blocked_by": [
+                "Matrix shared-chassis bot seam"
+              ],
+              "unblocks": [
+                "Matrix real client/bootstrap layer"
+              ],
+              "acceptance": [
+                "TestMatrixSelfSenderFilter_CaseInsensitiveAndTrimmed proves own user IDs match after whitespace trim and lowercasing.",
+                "TestMatrixSelfSenderFilter_UnresolvedUserIDDropsAll proves empty configured own user_id returns self/drop for any sender.",
+                "TestMatrixBridgeSenderFilter_RejectsLeadingUnderscoreLocalpart proves `@_telegram_123:bridge.example` and `@_discord_999:example` are classified as bridge/system senders.",
+                "TestMatrixBridgeSenderFilter_AllowsRegularUsers proves `@alice:example` and `@alice_smith:example` remain pairable user senders.",
+                "Existing internal/channels/threadtext tests keep passing; no Matrix SDK or live homeserver is used."
+              ],
+              "note": "Added after Hermes af3d5150 fixed a Matrix hall-of-mirrors pairing/echo loop by filtering self and bridge senders before pairing. Gormes has not started the Matrix runtime yet, so this is blocked behind the Matrix shared-chassis seam and kept helper-only.",
+              "write_scope": [
+                "internal/channels/matrix/sender_filter.go",
+                "internal/channels/matrix/sender_filter_test.go",
+                "internal/channels/threadtext/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/matrix -run '^TestMatrix.*SenderFilter_' -count=1",
+                "go test ./internal/channels/matrix ./internal/channels/threadtext -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Matrix sender-filter fixtures prove self-drop, unresolved-user fail-closed behavior, appservice/bridge rejection, regular-user allowance, and unchanged threadtext behavior without Matrix network dependencies."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:af3d5150 gateway/platforms/matrix.py",
+                "note": "Direct Matrix safety drift from upstream Hermes; Gormes captures it now so future Matrix runtime work cannot reopen the hall-of-mirrors pairing loop."
+              }
+            },
+            {
               "name": "Mattermost shared-chassis bot seam",
               "status": "planned",
               "note": "TDD: land a Mattermost-specific bot seam on top of `internal/channels/threadtext` that freezes canonical reply targets, flat-vs-thread root reply defaults, and placeholder/edit hooks before REST/WS transport work."
@@ -15953,7 +16333,12 @@
               "status": "planned",
               "note": "TDD: freeze auth, websocket reconnect, channel/user lookup, and file upload/edit seams before binding a real Mattermost transport."
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T05:26:06Z",
+            "origin_decision": "Matrix and Mattermost are deferred Phase 7 adapters, but upstream Hermes still contributes safety contracts before implementation starts. Hermes af3d5150 adds Matrix self/bridge sender filtering to prevent pairing and echo loops; Gormes tracks this as a blocked helper row behind the Matrix shared-chassis seam. The prior E2EE device_id binding row remains blocked behind real bootstrap work."
+          }
         },
         "7.D": {
           "name": "Webhook + Trigger Ingress",
