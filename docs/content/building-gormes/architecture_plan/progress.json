@@ -3734,7 +3734,7 @@
               "name": "Steer slash command registry + queue fallback",
               "status": "planned",
               "contract": "Registry-owned active-turn steering command",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3753,6 +3753,7 @@
               ],
               "ready_when": [
                 "Steer slash command parser + preview helper is validated on main.",
+                "The parser helper is already complete on main, so workers should start from internal/gateway/steer_command.go and add only registry/queue behavior in this row.",
                 "This slice only registers /steer and queue fallback behavior; the live between-tool-call injection hook remains in the dependent row.",
                 "Tests can use fake running-agent state and fake command dispatch; no provider, active tool loop, TUI, Slack, or Telegram transport is required."
               ],
@@ -3760,9 +3761,6 @@
                 "The implementation tries to inject mid-run prompts instead of only registering /steer and queue fallback behavior.",
                 "The slice changes /queue, /bg, /busy config persistence, TUI keybindings, or platform adapter code.",
                 "The parser row is not present in the worker checkout."
-              ],
-              "blocked_by": [
-                "Steer slash command parser + preview helper"
               ],
               "unblocks": [
                 "Mid-run steer injection between tool calls",
@@ -3774,7 +3772,7 @@
                 "TestSteerCommandRegistry_RunningAgentFallbackDoesNotInject proves running-agent paths return explicit steer_unavailable/queued evidence until the mid-run hook row lands.",
                 "Existing gateway command parsing and active-session policy tests remain green."
               ],
-              "note": "Second steer slice. It consumes the pure parser and is intentionally queue/fallback only so workers do not mix command registration with kernel tool-loop steering.",
+              "note": "Refined 2026-04-27T05:38Z: the parser prerequisite is complete on main, so this row is now unblocked and fixture-ready. It consumes the pure parser and is intentionally queue/fallback only so workers do not mix command registration with kernel tool-loop steering.",
               "write_scope": [
                 "internal/gateway/commands.go",
                 "internal/gateway/manager.go",
@@ -3805,8 +3803,8 @@
                 ]
               },
               "planner_verdict": {
-                "reshape_count": 1,
-                "last_reshape": "2026-04-27T04:18:56Z",
+                "reshape_count": 2,
+                "last_reshape": "2026-04-27T05:38:23Z",
                 "last_outcome": "no_attempts_yet"
               },
               "provenance": {
