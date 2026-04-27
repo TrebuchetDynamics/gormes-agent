@@ -58,9 +58,10 @@ const (
 type AzureFoundryAPIModeSource string
 
 const (
-	AzureFoundryAPIModeSourceUnset  AzureFoundryAPIModeSource = "unset"
-	AzureFoundryAPIModeSourceConfig AzureFoundryAPIModeSource = "config"
-	AzureFoundryAPIModeSourceProbe  AzureFoundryAPIModeSource = "probe"
+	AzureFoundryAPIModeSourceUnset    AzureFoundryAPIModeSource = "unset"
+	AzureFoundryAPIModeSourceConfig   AzureFoundryAPIModeSource = "config"
+	AzureFoundryAPIModeSourceProbe    AzureFoundryAPIModeSource = "probe"
+	AzureFoundryAPIModeSourceInferred AzureFoundryAPIModeSource = "inferred"
 )
 
 // AzureFoundryRuntimeInput is the deterministic fixture that drives
@@ -69,6 +70,9 @@ const (
 type AzureFoundryRuntimeInput struct {
 	Config   AzureFoundryConfig
 	Explicit AzureFoundryExplicit
+	// TargetModel is the current request's model override. When present,
+	// it wins over Config.Model for runtime mode inference and context lookup.
+	TargetModel string
 	// Env optionally overrides os.LookupEnv. Used by tests to inject
 	// AZURE_FOUNDRY_* values without touching real process env.
 	Env func(string) (string, bool)
@@ -126,7 +130,7 @@ func ResolveAzureFoundryRuntime(in AzureFoundryRuntimeInput) AzureFoundryRuntime
 		APIModeSource: AzureFoundryAPIModeSourceUnset,
 		BaseURLSource: AzureFoundryBaseURLSourceUnset,
 		KeySource:     AzureFoundryKeySourceUnset,
-		Model:         strings.TrimSpace(in.Config.Model),
+		Model:         azureFoundryEffectiveModel(in.Config.Model, in.TargetModel),
 		Probe:         in.Probe,
 	}
 
@@ -157,6 +161,12 @@ func ResolveAzureFoundryRuntime(in AzureFoundryRuntimeInput) AzureFoundryRuntime
 		out.APIModeSource = AzureFoundryAPIModeSourceProbe
 	default:
 		out.APIMode = AzureTransportUnknown
+	}
+	if out.APIMode != AzureTransportAnthropic {
+		if inferred, ok := AzureFoundryAPIModeForModel(out.Model); ok {
+			out.APIMode = inferred
+			out.APIModeSource = AzureFoundryAPIModeSourceInferred
+		}
 	}
 
 	// Anthropic SDK appends /v1/messages itself - strip a trailing
@@ -214,6 +224,13 @@ func normalizeAzureBaseURL(raw string) string {
 	return strings.TrimRight(strings.TrimSpace(raw), "/")
 }
 
+func azureFoundryEffectiveModel(configModel, targetModel string) string {
+	if target := strings.TrimSpace(targetModel); target != "" {
+		return target
+	}
+	return strings.TrimSpace(configModel)
+}
+
 // redactAzureFoundryKey produces a short redacted preview of the API
 // key suitable for status output. The full key never escapes the
 // resolver. The preview shows the first 4 characters followed by a
@@ -247,9 +264,17 @@ func buildAzureFoundryEvidence(rt AzureFoundryRuntime, probe AzureProbeResult) [
 		evidence = append(evidence, "azure_foundry_key_missing")
 	}
 
-	// API mode evidence (config-pinned or probe-supplied)
+	// API mode evidence (config-pinned, probe-supplied, inferred, or unknown)
 	if rt.APIMode != "" && rt.APIMode != AzureTransportUnknown {
 		evidence = append(evidence, fmt.Sprintf("azure_api_mode=%s source=%s", rt.APIMode, rt.APIModeSource))
+	}
+	switch {
+	case rt.APIModeSource == AzureFoundryAPIModeSourceInferred:
+		evidence = append(evidence, fmt.Sprintf("azure_foundry_api_mode_inferred model=%s mode=%s", rt.Model, rt.APIMode))
+	case rt.APIMode != "" && rt.APIMode != AzureTransportUnknown:
+		evidence = append(evidence, fmt.Sprintf("azure_foundry_api_mode_preserved mode=%s source=%s", rt.APIMode, rt.APIModeSource))
+	default:
+		evidence = append(evidence, "azure_foundry_api_mode_unknown")
 	}
 
 	// Probe evidence: forward transport and any advisory model IDs the

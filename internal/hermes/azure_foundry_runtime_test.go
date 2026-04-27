@@ -148,20 +148,21 @@ func TestAzureFoundryRuntime_StripsTrailingV1ForAnthropicMessages(t *testing.T) 
 // TestAzureFoundryRuntime_CombinesProbeResultWithoutChangingBuilders
 // asserts that a typed AzureProbeResult contributes api_mode and
 // advisory evidence into the runtime read model when config does not
-// already pin api_mode. This is acceptance #2: probe + config compose
-// without touching request-builder behavior.
+// already pin api_mode and model-family inference has no override. This is
+// acceptance #2: probe + config compose without touching request-builder
+// behavior.
 func TestAzureFoundryRuntime_CombinesProbeResultWithoutChangingBuilders(t *testing.T) {
 	probe := AzureProbeResult{
 		Transport: AzureTransportOpenAI,
-		Models:    []string{"gpt-5.4", "gpt-5.4-mini"},
+		Models:    []string{"gpt-4.1", "gpt-4o"},
 		Reason:    "GET /models returned 2 model(s) - OpenAI-style endpoint",
-		Evidence:  []string{"GET /models -> 200", "model_id=gpt-5.4", "model_id=gpt-5.4-mini"},
+		Evidence:  []string{"GET /models -> 200", "model_id=gpt-4.1", "model_id=gpt-4o"},
 	}
 
 	got := ResolveAzureFoundryRuntime(AzureFoundryRuntimeInput{
 		Config: AzureFoundryConfig{
 			BaseURL: "https://res.openai.azure.com/openai/v1",
-			Model:   "gpt-5.4",
+			Model:   "gpt-4.1",
 		},
 		Env:   envFunc(map[string]string{"AZURE_FOUNDRY_API_KEY": "key"}),
 		Probe: probe,
@@ -173,14 +174,14 @@ func TestAzureFoundryRuntime_CombinesProbeResultWithoutChangingBuilders(t *testi
 	if got.APIModeSource != AzureFoundryAPIModeSourceProbe {
 		t.Fatalf("APIModeSource = %q, want %q", got.APIModeSource, AzureFoundryAPIModeSourceProbe)
 	}
-	if got.Model != "gpt-5.4" {
+	if got.Model != "gpt-4.1" {
 		t.Fatalf("Model = %q, want config-pinned deployment", got.Model)
 	}
 	joined := joinEvidence(got.Evidence)
 	if !strings.Contains(joined, "azure_probe_transport=openai_chat_completions") {
 		t.Fatalf("Evidence = %v, want a probe transport record", got.Evidence)
 	}
-	if !strings.Contains(joined, "model_id=gpt-5.4") {
+	if !strings.Contains(joined, "model_id=gpt-4.1") {
 		t.Fatalf("Evidence = %v, want probe model evidence forwarded", got.Evidence)
 	}
 }
@@ -410,5 +411,62 @@ func TestAzureFoundryRuntime_DefaultLookupEnvIsOSEnv(t *testing.T) {
 	}
 	if !got.KeyAvailable {
 		t.Fatal("KeyAvailable = false, want true (os env supplied a key)")
+	}
+}
+
+func TestAzureFoundryRuntime_TargetModelOverridesDefault(t *testing.T) {
+	got := ResolveAzureFoundryRuntime(AzureFoundryRuntimeInput{
+		Config: AzureFoundryConfig{
+			BaseURL: "https://res.openai.azure.com/openai/v1",
+			APIMode: AzureTransportOpenAI,
+			Model:   "gpt-4o",
+		},
+		TargetModel: "gpt-5.3-codex",
+		Env:         envFunc(map[string]string{"AZURE_FOUNDRY_API_KEY": "key"}),
+	})
+
+	if got.Model != "gpt-5.3-codex" {
+		t.Fatalf("Model = %q, want target_model to override stale default", got.Model)
+	}
+	if got.APIMode != AzureTransportCodexResponses {
+		t.Fatalf("APIMode = %q, want %q for target_model", got.APIMode, AzureTransportCodexResponses)
+	}
+	if got.APIModeSource != AzureFoundryAPIModeSourceInferred {
+		t.Fatalf("APIModeSource = %q, want %q", got.APIModeSource, AzureFoundryAPIModeSourceInferred)
+	}
+	joined := joinEvidence(got.Evidence)
+	if !strings.Contains(joined, "azure_foundry_api_mode_inferred") {
+		t.Fatalf("Evidence = %v, want azure_foundry_api_mode_inferred", got.Evidence)
+	}
+	if strings.Contains(joined, "azure_foundry_api_mode_unknown") {
+		t.Fatalf("Evidence = %v, must not report unknown after target_model inference", got.Evidence)
+	}
+}
+
+func TestAzureFoundryRuntime_AnthropicMessagesGuard(t *testing.T) {
+	got := ResolveAzureFoundryRuntime(AzureFoundryRuntimeInput{
+		Config: AzureFoundryConfig{
+			BaseURL: "https://res.services.ai.azure.com/anthropic/v1",
+			APIMode: AzureTransportAnthropic,
+			Model:   "gpt-5.3-codex",
+		},
+		Env: envFunc(map[string]string{"AZURE_FOUNDRY_API_KEY": "key"}),
+	})
+
+	if got.APIMode != AzureTransportAnthropic {
+		t.Fatalf("APIMode = %q, want explicit %q preserved", got.APIMode, AzureTransportAnthropic)
+	}
+	if got.APIModeSource != AzureFoundryAPIModeSourceConfig {
+		t.Fatalf("APIModeSource = %q, want %q", got.APIModeSource, AzureFoundryAPIModeSourceConfig)
+	}
+	if got.BaseURL != "https://res.services.ai.azure.com/anthropic" {
+		t.Fatalf("BaseURL = %q, want trailing /v1 stripped for preserved anthropic_messages", got.BaseURL)
+	}
+	joined := joinEvidence(got.Evidence)
+	if !strings.Contains(joined, "azure_foundry_api_mode_preserved") {
+		t.Fatalf("Evidence = %v, want azure_foundry_api_mode_preserved", got.Evidence)
+	}
+	if strings.Contains(joined, "azure_foundry_api_mode_inferred") {
+		t.Fatalf("Evidence = %v, must not infer over explicit anthropic_messages", got.Evidence)
 	}
 }
