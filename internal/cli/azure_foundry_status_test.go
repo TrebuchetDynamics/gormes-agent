@@ -35,6 +35,9 @@ func joinStatusLines(s AzureFoundryStatus) string {
 // TestAzureFoundryStatus_DetectedOpenAIStyle covers acceptance #1
 // (detected OpenAI-style render) and the contract that probe evidence
 // flows into the operator-visible status without a live setup wizard.
+// GPT-5-family deployments may still infer codex_responses for runtime
+// requests; the status must keep the OpenAI-style probe classification
+// visible in that case.
 func TestAzureFoundryStatus_DetectedOpenAIStyle(t *testing.T) {
 	probe := hermes.AzureProbeResult{
 		Transport: hermes.AzureTransportOpenAI,
@@ -52,8 +55,11 @@ func TestAzureFoundryStatus_DetectedOpenAIStyle(t *testing.T) {
 	if !strings.Contains(joined, "Detected: OpenAI-style") {
 		t.Fatalf("status missing OpenAI-style label: %s", joined)
 	}
-	if !strings.Contains(joined, "azure_api_mode=openai_chat_completions") {
+	if !strings.Contains(joined, "azure_api_mode=codex_responses") {
 		t.Fatalf("evidence missing api_mode record: %s", joined)
+	}
+	if !strings.Contains(joined, "azure_probe_transport=openai_chat_completions") {
+		t.Fatalf("evidence missing OpenAI probe transport record: %s", joined)
 	}
 	if !strings.Contains(joined, "model_id=gpt-5.4") {
 		t.Fatalf("evidence missing probe model_id record: %s", joined)

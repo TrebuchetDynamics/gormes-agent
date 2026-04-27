@@ -26,8 +26,8 @@ type AzureFoundryManualOptions struct {
 // CLI status surface. Both fields are pre-resolved read models - the
 // renderer never contacts Azure, never reads files, and never prompts.
 type AzureFoundryStatusInput struct {
-	Runtime hermes.AzureFoundryRuntime
-	Probe   hermes.AzureProbeResult
+	Runtime       hermes.AzureFoundryRuntime
+	Probe         hermes.AzureProbeResult
 	ManualOptions AzureFoundryManualOptions
 }
 
@@ -73,8 +73,12 @@ func RenderAzureFoundryStatus(in AzureFoundryStatusInput) AzureFoundryStatus {
 	// ── Detection banner ────────────────────────────────────────────
 	manualRequired := isManualRequired(in)
 	switch {
+	case manualRequired:
+		out.Lines = append(out.Lines, "Manual entry required: probe could not classify endpoint")
 	case in.Runtime.APIMode == hermes.AzureTransportOpenAI:
 		out.Lines = append(out.Lines, "Detected: OpenAI-style (POST /v1/chat/completions)")
+	case in.Runtime.APIMode == hermes.AzureTransportCodexResponses:
+		out.Lines = append(out.Lines, "Detected: OpenAI-style (POST /v1/responses)")
 	case in.Runtime.APIMode == hermes.AzureTransportAnthropic:
 		out.Lines = append(out.Lines, "Detected: Anthropic-style (POST /v1/messages)")
 	default:
