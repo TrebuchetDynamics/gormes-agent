@@ -1663,6 +1663,11 @@
               "done_signal": [
                 "Telegram group mention fixtures prove bot_command suffix matching, other-bot rejection, bare-command gating, mention-entity compatibility, and unchanged existing Telegram command tests without production gateway binding."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:3ff3dfb5 gateway/platforms/telegram.py",
@@ -2754,9 +2759,9 @@
                 "Durable worker RSS policy fixtures prove disabled mode, threshold evidence, read-failure degradation, and stable watchdog restart classification without runtime drain or doctor/status edits."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-27T05:48:23Z",
-                "last_success": "2026-04-27T05:48:23Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -8516,9 +8521,9 @@
                 "Provider timeout config fixtures prove load failures, missing providers, malformed values, and valid overrides return explicit evidence without wiring live clients or config schema."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-27T05:48:36Z",
-                "last_success": "2026-04-27T05:48:36Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -10019,9 +10024,9 @@
                 "Airtable skill fixtures prove SKILL.md metadata/cookbook parsing, credential-availability evidence, disabled/unavailable prompt exclusion, and secret redaction without live Airtable calls."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-27T05:57:30Z",
-                "last_success": "2026-04-27T05:57:30Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -11288,9 +11293,9 @@
                 "File read guard fixtures prove dedup evidence is separate from content, writes and patches invalidate path-scoped caches, and small wrapper reads remain guarded."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-27T05:51:54Z",
-                "last_success": "2026-04-27T05:51:54Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -11680,9 +11685,9 @@
                 "Cron run-completion fixtures prove recurring next-run failures preserve active jobs with evidence, one-shot/finite-repeat terminal behavior remains distinct, and Executor post-run updates use the helper without scheduler/provider side effects."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-27T05:49:40Z",
-                "last_success": "2026-04-27T05:49:40Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
               },
               "provenance": {
                 "origin_type": "upstream",
@@ -12259,6 +12264,11 @@
               "done_signal": [
                 "Paste sanitizer fixtures prove canonical/caret/degraded wrapper stripping, boundary fragment stripping, normal-text preservation, multiline preservation, and zero TTY/clipboard dependencies."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:a0fe73ba cli.py",
@@ -15379,6 +15389,11 @@
               "done_signal": [
                 "Detailed-health snapshot fixtures prove section names, degraded evidence, secret redaction, and pure value-model behavior without HTTP routes or cron admin writes."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:58:48Z",
+                "last_success": "2026-04-27T05:58:48Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 gateway/platforms/api_server.py",
