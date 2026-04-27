@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-26T23:39:31Z",
+    "last_updated": "2026-04-26T23:57:40Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -662,9 +662,12 @@
                 ]
               },
               "planner_verdict": {
+                "needs_human": true,
+                "reason": "auto: 9 reshapes without unsticking; last category row_evaluation_failed",
+                "since": "2026-04-26T23:34:04Z",
                 "reshape_count": 9,
                 "last_reshape": "2026-04-26T19:00:00Z",
-                "last_outcome": "validated_post_ship"
+                "last_outcome": "still_failing"
               },
               "provenance": {
                 "origin_type": "gormes",
@@ -5626,9 +5629,9 @@
             {
               "name": "Cross-provider reasoning-tag sanitization",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/hermes owns one provider-neutral reasoning-tag sanitizer that strips model-emitted reasoning tags from stored assistant text, visible operator text, and resume recap text without mutating raw stream/transcript evidence",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -5674,7 +5677,7 @@
                 "TestSanitizeReasoningTags_RawAuditTextUnchanged proves callers receive sanitized copies and the original raw string remains byte-identical for stream/transcript audit.",
                 "The implementation imports only strings/regexp-style standard-library packages plus testing in the test file; no provider clients, kernel package imports, or filesystem reads."
               ],
-              "note": "Refined 2026-04-26T23:39:31Z after the builder-loop dry run reported zero selectable candidates. This turns the prior placeholder into one unblocked, fixture-ready 4.A slice over a pure internal/hermes sanitizer, using Hermes ec48ec55, 9489d157, and bd01ec78 as donor evidence while avoiding adapter/kernel/TUI churn.",
+              "note": "Complete: TDD added `internal/hermes/reasoning_tag_sanitizer_test.go` and a shared provider-neutral text sanitizer. Stored assistant text, visible operator text, and resume recap fixtures strip complete and unterminated reasoning tags while raw audit strings remain byte-identical. Verified with `go test ./internal/hermes -run '^TestSanitizeReasoningTags' -count=1`, `go test ./internal/hermes -count=1`, and `go run ./cmd/builder-loop progress validate`.",
               "write_scope": [
                 "internal/hermes/reasoning_tag_sanitizer.go",
                 "internal/hermes/reasoning_tag_sanitizer_test.go",
@@ -5688,10 +5691,24 @@
               "done_signal": [
                 "internal/hermes/reasoning_tag_sanitizer_test.go fixtures prove stored assistant text, visible text, resume recap text, and raw audit text have distinct sanitized/raw behavior with no provider or kernel dependencies."
               ],
+              "health": {
+                "attempt_count": 2,
+                "last_attempt": "2026-04-26T23:52:41Z",
+                "last_success": "2026-04-26T23:52:41Z"
+              },
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-26T23:34:04Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:ec48ec55+9489d157+bd01ec78 run_agent.py,cli.py",
                 "note": "Hermes provides the reasoning-tag sanitization regressions; Gormes centralizes them as a provider-neutral Go text sanitizer before more reasoning-model adapters land."
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-26T23:50:41Z",
+                "last_success": "2026-04-26T23:50:41Z"
               }
             },
             {
@@ -7215,9 +7232,12 @@
                 ]
               },
               "planner_verdict": {
+                "needs_human": true,
+                "reason": "auto: 13 reshapes without unsticking; last category ",
+                "since": "2026-04-26T23:34:04Z",
                 "reshape_count": 13,
                 "last_reshape": "2026-04-26T19:13Z",
-                "last_outcome": "validated_post_ship"
+                "last_outcome": "still_failing"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -9323,7 +9343,217 @@
             {
               "name": "Cronjob tool API + schedule parser parity",
               "status": "planned",
-              "note": "TDD: port `tools/cronjob_tools.py` action/update/list surface plus `cron/jobs.py` once, interval, cron-expression, repeat-count, one-shot recovery, and stale recurring fast-forward behavior as fixtures over the Go cron store."
+              "slice_size": "umbrella",
+              "execution_owner": "tools",
+              "not_ready_when": [
+                "The row is assigned as one combined cronjob tool, schedule parser, safety, context chaining, and delivery-port slice instead of the dependency-ordered rows below."
+              ],
+              "unblocks": [
+                "Cron schedule parser + repeat state fixtures",
+                "Cron prompt/script safety + pre-run script contract",
+                "Cronjob tool action envelope over native store",
+                "Cron context_from output chaining",
+                "Cron multi-target delivery + media/live-adapter fallback"
+              ],
+              "note": "Umbrella only: keep for inventory continuity. Execute the dependency chain through `Cron schedule parser + repeat state fixtures`, `Cron prompt/script safety + pre-run script contract`, `Cronjob tool action envelope over native store`, then the context_from and delivery rows. Do not assign this umbrella directly."
+            },
+            {
+              "name": "Cron schedule parser + repeat state fixtures",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "internal/cron adds a pure Hermes-compatible schedule parser and repeat-state read model before any public cronjob tool handler is exposed. ParseCronSchedule(input string, now time.Time) returns a typed ParsedSchedule for one-shot durations (`30m`, `2h`, `1d`), recurring intervals (`every 30m`, `every 2h`), 5-field cron expressions, and ISO timestamps. CronNextRunDecision(parsed, lastRunUnix, repeatCompleted, now) reports whether a one-shot is still recoverable inside the 120s grace window, whether recurring jobs should fast-forward stale next-run times, and whether finite repeat counts are exhausted.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Invalid schedules and exhausted repeat counters return typed unavailable evidence; the scheduler keeps skipping only the bad job instead of stopping the whole cron loop.",
+              "fixture": "internal/cron/schedule_parser_test.go",
+              "source_refs": [
+                "../hermes-agent/cron/jobs.py@755a2804:parse_duration",
+                "../hermes-agent/cron/jobs.py@755a2804:parse_schedule",
+                "../hermes-agent/cron/jobs.py@755a2804:_recoverable_oneshot_run_at",
+                "../hermes-agent/cron/jobs.py@755a2804:_compute_grace_seconds",
+                "internal/cron/job.go:ValidateSchedule",
+                "internal/cron/scheduler.go:Start"
+              ],
+              "ready_when": [
+                "internal/cron/job.go currently validates only robfig/cron standard expressions; the new parser can be introduced as a sibling pure helper without changing Scheduler.Start in this slice.",
+                "Tests can inject a fixed time anchor `now := time.Date(2026,4,26,12,0,0,0,time.UTC)`; no live clock, goroutine, bbolt store, or kernel is required."
+              ],
+              "not_ready_when": [
+                "The slice exposes a public cronjob tool, edits cmd/gormes, starts scheduler goroutines, or writes bbolt/SQLite rows.",
+                "The slice imports Hermes Python, croniter, or any non-Go runtime instead of using Go parsing and deterministic fixtures."
+              ],
+              "unblocks": [
+                "Cron prompt/script safety + pre-run script contract",
+                "Cronjob tool action envelope over native store"
+              ],
+              "acceptance": [
+                "TestParseCronSchedule_OneShotDuration parses `30m`, `2h`, and `1d` as Kind=once with RunAt=now+duration and Display preserving the operator input.",
+                "TestParseCronSchedule_RecurringInterval parses `every 30m` and `every 2h` as Kind=interval with Minutes=30 and 120.",
+                "TestParseCronSchedule_CronExpression accepts `0 9 * * *`, rejects too-few fields and out-of-range minutes, and returns a typed error containing `invalid schedule`.",
+                "TestParseCronSchedule_ISOTimestamp accepts timezone-aware and naive ISO timestamps; naive values are interpreted through the injected location, not time.Local.",
+                "TestCronNextRunDecision_OneShotGraceAllowsLateTick includes a one-shot that is 119s late and excludes one that is 121s late.",
+                "TestCronNextRunDecision_FiniteRepeatExhaustion marks repeat=1 completed=1 as exhausted while repeat=3 completed=2 remains runnable.",
+                "TestCronNextRunDecision_RecurringFastForward returns a next run after now when the stored next-run time is stale by multiple intervals."
+              ],
+              "note": "Planner split 2026-04-26: the old `Cronjob tool API + schedule parser parity` row bundled schedule parsing, repeat state, tool mutation, context chaining, and delivery. This first executable slice is pure parser/read-model work so workers can TDD it without touching cron stores or public tool wiring.",
+              "write_scope": [
+                "internal/cron/schedule_parser.go",
+                "internal/cron/schedule_parser_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run 'TestParseCronSchedule_|TestCronNextRunDecision_' -count=1",
+                "go test ./internal/cron -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/cron/schedule_parser_test.go proves one-shot, interval, cron-expression, ISO timestamp, one-shot grace, finite repeat, and stale-recurring fast-forward behavior under an injected clock."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:755a2804 cron/jobs.py:parse_schedule",
+                "note": "Hermes defines the operator schedule grammar; Gormes adapts it as a Go-native pure parser before exposing tool mutation."
+              }
+            },
+            {
+              "name": "Cron prompt/script safety + pre-run script contract",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "internal/cron exposes pure safety helpers for cron creation/update: ScanPromptForCronThreat(prompt string) (CronSafetyFinding, bool) blocks Hermes critical prompt-injection/exfiltration patterns plus invisible Unicode controls, and ValidatePreRunScriptPath(script string, scriptsRoot string) returns a clean relative script path only when it stays under the injected scriptsRoot. No script execution or scheduler wiring occurs in this slice.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Cron create/update returns blocked_prompt, invisible_unicode, script_absolute, script_home_relative, or script_traversal evidence before persistence instead of silently storing unsafe jobs.",
+              "fixture": "internal/cron/prompt_script_safety_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/cronjob_tools.py@755a2804:_CRON_THREAT_PATTERNS",
+                "../hermes-agent/tools/cronjob_tools.py@755a2804:_CRON_INVISIBLE_CHARS",
+                "../hermes-agent/tools/cronjob_tools.py@755a2804:_scan_cron_prompt",
+                "../hermes-agent/tools/cronjob_tools.py@755a2804:_validate_cron_script_path",
+                "internal/tools/dangerous_command.go",
+                "internal/cron/heartbeat.go"
+              ],
+              "ready_when": [
+                "Cron schedule parser + repeat state fixtures is complete or fixture-ready, so safe create/update validation can share the same typed error style.",
+                "The helper can use a temporary scriptsRoot in tests; it must not read config, create ~/.gormes, or execute the script."
+              ],
+              "not_ready_when": [
+                "The slice runs Python/shell scripts, starts cron jobs, opens providers, or writes a tool handler.",
+                "The slice broadens dangerous-command policy for all tools; this row only covers cron prompt/script creation boundaries."
+              ],
+              "blocked_by": [
+                "Cron schedule parser + repeat state fixtures"
+              ],
+              "unblocks": [
+                "Cronjob tool action envelope over native store"
+              ],
+              "acceptance": [
+                "TestScanPromptForCronThreat_BlocksInstructionOverride covers `ignore previous instructions`, `do not tell the user`, `system prompt override`, and `disregard your instructions` with stable finding IDs.",
+                "TestScanPromptForCronThreat_BlocksExfilAndBackdoor covers curl/wget secret exfiltration, `.env`/credentials reads, authorized_keys, sudoers, and `rm -rf /` patterns.",
+                "TestScanPromptForCronThreat_BlocksInvisibleUnicode checks U+200B and U+202E and includes the code point in evidence.",
+                "TestScanPromptForCronThreat_AllowsBenignPrompt proves normal cron prompts pass with an empty finding.",
+                "TestValidatePreRunScriptPath_AcceptsRelativeScript returns `daily/fetch.go` unchanged for a scriptsRoot temp dir.",
+                "TestValidatePreRunScriptPath_RejectsAbsoluteHomeAndTraversal rejects `/tmp/x`, `~/x`, `../x`, and `daily/../../x` with distinct evidence codes."
+              ],
+              "note": "Planner split 2026-04-26: this keeps Hermes' cron prompt/script hardening as a pure helper slice. Tool mutation and script execution remain downstream so workers do not mix safety parsing with scheduler effects.",
+              "write_scope": [
+                "internal/cron/prompt_script_safety.go",
+                "internal/cron/prompt_script_safety_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run 'TestScanPromptForCronThreat_|TestValidatePreRunScriptPath_' -count=1",
+                "go test ./internal/cron -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Prompt/script safety fixtures prove critical prompt threat IDs, invisible Unicode evidence, relative script acceptance, and absolute/home/traversal rejection without script execution."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:755a2804 tools/cronjob_tools.py:_scan_cron_prompt",
+                "note": "Hermes defines cron creation hardening; Gormes ports it as Go-native validation helpers before the cronjob tool handler."
+              }
+            },
+            {
+              "name": "Cronjob tool action envelope over native store",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "internal/tools exposes a cronjob action adapter over the native internal/cron Store without starting the scheduler: action=create validates schedule, prompt/script safety, name uniqueness, optional repeat/model/toolsets/workdir fields, then persists a cron.Job; list returns redacted job summaries; update preserves unspecified fields and supports empty-array/string clearing for skills, enabled_toolsets, workdir, script, and context_from; pause/resume flip Paused; remove deletes by ID; run returns a RunNow request object for the caller instead of executing immediately.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "The tool envelope returns JSON-string error fields for missing job IDs, invalid schedule, blocked prompt/script, duplicate name, store-disabled, and run-now unsupported rather than panicking or starting hidden cron turns.",
+              "fixture": "internal/tools/cronjob_tool_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/cronjob_tools.py@755a2804:cronjob",
+                "../hermes-agent/tools/cronjob_tools.py@755a2804:_format_job",
+                "../hermes-agent/cron/jobs.py@755a2804:create_job",
+                "../hermes-agent/cron/jobs.py@755a2804:update_job",
+                "internal/cron/job.go",
+                "internal/cron/store.go",
+                "internal/tools/parity_b35d692f_test.go"
+              ],
+              "ready_when": [
+                "Cron schedule parser + repeat state fixtures is validated, so create/update can reject invalid operator schedules before persistence.",
+                "Cron prompt/script safety + pre-run script contract is validated, so create/update can block unsafe prompt/script inputs before persistence.",
+                "The existing internal/cron Store supports Create/Get/List/Update/Delete over bbolt and can be opened in tests with newTestStore-style fixtures."
+              ],
+              "not_ready_when": [
+                "The slice starts the Scheduler, submits to kernel, delivers messages, calls live providers, or implements HTTP admin endpoints.",
+                "The slice copies Hermes' ~/.hermes/cron/jobs.json/output layout instead of using the Go cron Store and RunStore."
+              ],
+              "blocked_by": [
+                "Cron schedule parser + repeat state fixtures",
+                "Cron prompt/script safety + pre-run script contract"
+              ],
+              "unblocks": [
+                "Cron context_from output chaining",
+                "Cron multi-target delivery + media/live-adapter fallback",
+                "API server health + cron admin endpoints"
+              ],
+              "acceptance": [
+                "TestCronjobTool_CreateListAndRedact creates a job with schedule `every 30m`, prompt, repeat=3, model/provider, enabled_toolsets, workdir, and script; list returns job_id, name, schedule display, repeat evidence, enabled=true, and no secrets.",
+                "TestCronjobTool_UpdatePreservesAndClearsFields updates only prompt and schedule while preserving model/toolsets, then clears skills, enabled_toolsets, workdir, script, and context_from with empty array/string inputs.",
+                "TestCronjobTool_PauseResumeRemove flips Paused through pause/resume and Delete removes the job with ErrJobNotFound on later get.",
+                "TestCronjobTool_RunReturnsRunNowRequest proves action=run returns a typed run-now request containing job_id and prompt hash without calling cron.Executor.Run.",
+                "TestCronjobTool_ErrorsAreJSONStrings covers missing job_id, invalid schedule, duplicate name, blocked prompt, invalid script path, and unknown action."
+              ],
+              "note": "Planner split 2026-04-26: this is the first public-tool-shaped cron slice, but it remains store/adaptor only. Actual scheduler firing, context_from prompt injection, multi-target delivery, and API admin routes are separate rows.",
+              "write_scope": [
+                "internal/tools/cronjob_tool.go",
+                "internal/tools/cronjob_tool_test.go",
+                "internal/cron/job.go",
+                "internal/cron/store.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestCronjobTool_' -count=1",
+                "go test ./internal/cron ./internal/tools -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "internal/tools/cronjob_tool_test.go proves create/list/update/pause/resume/remove/run action envelopes over the native cron store, with safety/parser validation and no scheduler/provider execution."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:755a2804 tools/cronjob_tools.py:cronjob",
+                "note": "Hermes defines the compressed cronjob tool shape; Gormes adapts it to the native bbolt cron Store and keeps execution as an explicit downstream boundary."
+              }
             },
             {
               "name": "Cron context_from output chaining",
@@ -9339,22 +9569,23 @@
               "degraded_mode": "Cron execution skips missing, unreadable, invalid, or not-yet-run context sources with visible evidence while preserving the base prompt.",
               "fixture": "internal/cron/context_from_test.go",
               "source_refs": [
-                "../hermes-agent/cron/jobs.py@b35d692f",
-                "../hermes-agent/cron/scheduler.py@b35d692f",
-                "../hermes-agent/tools/cronjob_tools.py@b35d692f",
-                "../hermes-agent/tests/cron/test_cron_context_from.py@b35d692f",
+                "../hermes-agent/cron/jobs.py@755a2804",
+                "../hermes-agent/cron/scheduler.py@755a2804:_build_job_prompt",
+                "../hermes-agent/tools/cronjob_tools.py@755a2804:cronjob(context_from)",
+                "../hermes-agent/tests/cron/test_cron_context_from.py@755a2804",
                 "internal/cron/job.go",
                 "internal/cron/store.go",
                 "internal/cron/executor.go"
               ],
               "ready_when": [
-                "Cronjob tool API + schedule parser parity has a create/update/list surface over the Go cron store, or this slice owns the minimal ContextFrom field and prompt-builder fixture without exposing a public tool yet."
+                "Cronjob tool action envelope over native store is validated, so create/update/list can persist and clear context_from without inventing a second tool surface.",
+                "internal/cron RunStore already records completed run output previews; this slice can introduce a bounded output read model over existing run audit instead of Hermes' output directory."
               ],
               "not_ready_when": [
                 "The slice waits for upstream referenced jobs to finish in the same scheduler tick, reads arbitrary file paths, or changes Phase 2.D cron run audit semantics."
               ],
               "blocked_by": [
-                "Cronjob tool API + schedule parser parity"
+                "Cronjob tool action envelope over native store"
               ],
               "acceptance": [
                 "Create and update paths normalize context_from as a list of job IDs, preserve it on unrelated updates, and clear it with empty list/string input.",
@@ -9362,7 +9593,7 @@
                 "Prompt assembly injects the most recent completed output from each referenced job before the job prompt, truncates each output at 8000 characters with a marker, and skips missing/deleted/unreadable outputs without failing the run.",
                 "The implementation reuses the Go cron store/run audit or a derived output read model instead of introducing Hermes' Markdown output directory as source of truth."
               ],
-              "note": "Hermes b35d692f added cron job chaining through context_from. Gormes should preserve the behavior over its SQLite/bbolt cron substrate and CRON.md mirror, not by copying Hermes' ~/.hermes/cron/output directory layout.",
+              "note": "Refined 2026-04-26: blocked on the new `Cronjob tool action envelope over native store` row instead of the deprecated umbrella. Hermes b35d692f/755a2804 added cron job chaining through context_from. Gormes should preserve the behavior over its SQLite/bbolt cron substrate and CRON.md mirror, not by copying Hermes' ~/.hermes/cron/output directory layout.",
               "write_scope": [
                 "internal/cron/",
                 "internal/tools/",
@@ -9379,21 +9610,86 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:b35d692f tests/cron/test_cron_context_from.py",
+                "upstream_ref": "hermes:755a2804 tests/cron/test_cron_context_from.py",
                 "note": "Hermes defines the chaining behavior; Gormes maps it onto the native cron store/run audit instead of adopting Hermes' file layout."
               }
             },
             {
-              "name": "Cron prompt/script safety + pre-run script contract",
+              "name": "Cron prompt/script safety + pre-run script contract (deprecated umbrella)",
               "status": "planned",
-              "note": "TDD: port critical prompt threat scanning, invisible Unicode rejection, script-path confinement under the scripts directory, and configurable pre-run script timeout before exposing cron creation to tools."
+              "slice_size": "umbrella",
+              "execution_owner": "tools",
+              "not_ready_when": [
+                "The row is assigned directly instead of the smaller `Cron prompt/script safety + pre-run script contract` helper row above."
+              ],
+              "note": "Deprecated umbrella retained for roadmap continuity; the executable safety helper is the earlier row with the same title and full contract metadata. Do not assign this duplicate note-only row."
             },
             {
               "name": "Cron multi-target delivery + media/live-adapter fallback",
               "status": "planned",
-              "note": "TDD: port comma-separated deliver targets, home-channel/channel-directory resolution, response wrapping, MEDIA tag extraction, and live-adapter-first delivery fallback from `cron/scheduler.py` without changing the Phase 2.D MVP audit store."
+              "contract": "Cron delivery planning supports comma-separated deliver targets, origin/local/platform target normalization, MEDIA tag extraction from final assistant text, and live-adapter-first delivery fallback through the existing cron.DeliverySink abstraction without changing the Phase 2.D run audit store",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Cron delivery evidence reports target_parse_failed, channel_directory_missing, media_ignored, live_adapter_unavailable, and fallback_sink_used without dropping the run audit row.",
+              "fixture": "internal/cron/delivery_plan_test.go",
+              "source_refs": [
+                "../hermes-agent/cron/scheduler.py@755a2804:deliver parsing and MEDIA handling",
+                "../hermes-agent/gateway/run.py@755a2804:live adapter delivery",
+                "internal/cron/executor.go",
+                "internal/cron/sink.go",
+                "internal/gateway/manager.go"
+              ],
+              "ready_when": [
+                "Cronjob tool action envelope over native store is validated, so deliver targets can be stored on jobs without inventing another config format.",
+                "Phase 2.F.4 channel directory rows remain the source of truth for home-channel ownership; this slice can return degraded channel_directory_missing evidence when that directory is unavailable."
+              ],
+              "not_ready_when": [
+                "The slice implements a new channel directory, sends live Telegram/Discord/Slack network messages in unit tests, or changes cron RunStore schema.",
+                "The slice removes the existing cron.DeliverySink path; live adapter delivery must fall back through that abstraction."
+              ],
+              "blocked_by": [
+                "Cronjob tool action envelope over native store"
+              ],
+              "acceptance": [
+                "TestCronDeliveryPlan_ParseTargets covers omitted deliver/origin, local, `telegram:-100123:42`, and comma-separated targets with stable normalized output.",
+                "TestCronDeliveryPlan_InvalidTargetsReturnEvidence covers malformed platform/chat/thread strings without panics.",
+                "TestCronDeliveryPlan_MediaTags extracts `[MEDIA:path]` references into media attachments while leaving text delivery intact and redacting traversal paths.",
+                "TestCronDeliveryPlan_LiveAdapterFallback uses fake live adapter and fake DeliverySink implementations to prove live success bypasses fallback, live unavailable uses fallback, and both failures surface delivery evidence while preserving run status."
+              ],
+              "note": "Refined 2026-04-26: the old note-only row is now a blocked small contract. It tracks Hermes' delivery/media behavior but keeps Gormes on the existing DeliverySink and gateway abstractions.",
+              "write_scope": [
+                "internal/cron/delivery_plan.go",
+                "internal/cron/delivery_plan_test.go",
+                "internal/cron/sink.go",
+                "internal/cron/executor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1",
+                "go test ./internal/cron ./internal/gateway -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Cron delivery-plan fixtures prove target normalization, MEDIA tag extraction, live-adapter fallback, and degraded delivery evidence without live network sends."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:755a2804 cron/scheduler.py",
+                "note": "Hermes defines cron multi-target/media delivery behavior; Gormes adapts it to the native DeliverySink/gateway abstractions and keeps channel-directory creation separate."
+              }
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-26T23:57:40Z",
+            "origin_decision": "Hermes 755a2804 still leads cronjob tool, schedule grammar, prompt/script safety, context_from, and delivery/media behavior. Gormes already owns a Go-native cron Store, Scheduler, Executor, RunStore, durable-ledger audit, and CRON.md mirror; the old umbrella row is now split into one unblocked parser/repeat slice followed by blocked safety, action-envelope, context_from, and delivery-plan rows so autoloop workers can advance Phase 5.N without guessing."
+          }
         },
         "5.O": {
           "name": "Hermes CLI Parity",
@@ -12435,25 +12731,25 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "HTTP health reports cron/admin unavailable until the Phase 5.N cronjob store and parser parity slices are validated.",
+              "degraded_mode": "HTTP health reports cron/admin unavailable until the Phase 5.N cron action, context_from, and delivery-plan slices are validated.",
               "fixture": "internal/apiserver/health_cron_admin_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/api_server.py@edc78e25",
-                "../hermes-agent/cron/scheduler.py@edc78e25",
-                "../hermes-agent/tools/cronjob_tools.py@edc78e25",
+                "../hermes-agent/gateway/platforms/api_server.py@755a2804",
+                "../hermes-agent/cron/scheduler.py@755a2804",
+                "../hermes-agent/tools/cronjob_tools.py@755a2804",
                 "internal/apiserver/",
                 "internal/cron/",
                 "internal/tools/"
               ],
               "ready_when": [
-                "Cronjob tool API + schedule parser parity, Cron prompt/script safety + pre-run script contract, and Cron multi-target delivery + media/live-adapter fallback have stable native store contracts."
+                "Cronjob tool action envelope over native store, Cron context_from output chaining, and Cron multi-target delivery + media/live-adapter fallback have stable native store/delivery contracts."
               ],
               "not_ready_when": [
                 "The slice creates a second cron control plane, bypasses OpenAI-style error envelopes, or exposes admin writes before auth/body-limit fixtures are in place."
               ],
               "blocked_by": [
-                "Cronjob tool API + schedule parser parity",
-                "Cron prompt/script safety + pre-run script contract",
+                "Cronjob tool action envelope over native store",
+                "Cron context_from output chaining",
                 "Cron multi-target delivery + media/live-adapter fallback"
               ],
               "acceptance": [
@@ -12461,7 +12757,7 @@
                 "/api/jobs list/create/update/delete/pause/resume/trigger reuse the native cron store and schedule parser fixtures.",
                 "Auth failures, malformed bodies, missing jobs, and store-disabled states use the same error envelope and request-size limits as the OpenAI-compatible APIs."
               ],
-              "note": "TDD: keep HTTP admin behind the 5.N cron store/parser/delivery rows so API, CLI, and tool control all share one native scheduler/store contract instead of copying Hermes' Python control plane.",
+              "note": "Refined 2026-04-26 after splitting the old 5.N cron umbrella: keep HTTP admin behind the native cron action envelope, context_from output chain, and delivery-plan rows so API, CLI, and tool control share one scheduler/store contract instead of copying Hermes' Python control plane.",
               "write_scope": [
                 "internal/apiserver/",
                 "internal/cron/",

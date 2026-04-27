@@ -367,7 +367,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Codex Responses assistant content role types
 - [ ] Codex OAuth state + stale-token relogin
 - [x] Codex stream repair + tool-call leak sanitizer
-- [ ] Cross-provider reasoning-tag sanitization
+- [x] Cross-provider reasoning-tag sanitization
 - [x] Tool-call argument repair + schema sanitizer
 
 ### 4.B — Context Engine + Compression 🔨
@@ -540,8 +540,11 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
 - [ ] Cronjob tool API + schedule parser parity
-- [ ] Cron context_from output chaining
+- [ ] Cron schedule parser + repeat state fixtures
 - [ ] Cron prompt/script safety + pre-run script contract
+- [ ] Cronjob tool action envelope over native store
+- [ ] Cron context_from output chaining
+- [ ] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [ ] Cron multi-target delivery + media/live-adapter fallback
 
 ### 5.O — Hermes CLI Parity 🔨

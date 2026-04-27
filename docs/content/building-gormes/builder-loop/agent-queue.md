@@ -43,4 +43,25 @@ tests, and candidate policy. Keep those control-plane facts in
 - Unblocks: BlueBubbles iMessage session-context prompt guidance
 - Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
 
+## 2. Cron schedule parser + repeat state fixtures
+
+- Phase: 5 / 5.N
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: internal/cron adds a pure Hermes-compatible schedule parser and repeat-state read model before any public cronjob tool handler is exposed. ParseCronSchedule(input string, now time.Time) returns a typed ParsedSchedule for one-shot durations (`30m`, `2h`, `1d`), recurring intervals (`every 30m`, `every 2h`), 5-field cron expressions, and ISO timestamps. CronNextRunDecision(parsed, lastRunUnix, repeatCompleted, now) reports whether a one-shot is still recoverable inside the 120s grace window, whether recurring jobs should fast-forward stale next-run times, and whether finite repeat counts are exhausted.
+- Trust class: operator, system
+- Ready when: internal/cron/job.go currently validates only robfig/cron standard expressions; the new parser can be introduced as a sibling pure helper without changing Scheduler.Start in this slice., Tests can inject a fixed time anchor `now := time.Date(2026,4,26,12,0,0,0,time.UTC)`; no live clock, goroutine, bbolt store, or kernel is required.
+- Not ready when: The slice exposes a public cronjob tool, edits cmd/gormes, starts scheduler goroutines, or writes bbolt/SQLite rows., The slice imports Hermes Python, croniter, or any non-Go runtime instead of using Go parsing and deterministic fixtures.
+- Degraded mode: Invalid schedules and exhausted repeat counters return typed unavailable evidence; the scheduler keeps skipping only the bad job instead of stopping the whole cron loop.
+- Fixture: `internal/cron/schedule_parser_test.go`
+- Write scope: `internal/cron/schedule_parser.go`, `internal/cron/schedule_parser_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/cron -run 'TestParseCronSchedule_\|TestCronNextRunDecision_' -count=1`, `go test ./internal/cron -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: internal/cron/schedule_parser_test.go proves one-shot, interval, cron-expression, ISO timestamp, one-shot grace, finite repeat, and stale-recurring fast-forward behavior under an injected clock.
+- Acceptance: TestParseCronSchedule_OneShotDuration parses `30m`, `2h`, and `1d` as Kind=once with RunAt=now+duration and Display preserving the operator input., TestParseCronSchedule_RecurringInterval parses `every 30m` and `every 2h` as Kind=interval with Minutes=30 and 120., TestParseCronSchedule_CronExpression accepts `0 9 * * *`, rejects too-few fields and out-of-range minutes, and returns a typed error containing `invalid schedule`., TestParseCronSchedule_ISOTimestamp accepts timezone-aware and naive ISO timestamps; naive values are interpreted through the injected location, not time.Local., TestCronNextRunDecision_OneShotGraceAllowsLateTick includes a one-shot that is 119s late and excludes one that is 121s late., TestCronNextRunDecision_FiniteRepeatExhaustion marks repeat=1 completed=1 as exhausted while repeat=3 completed=2 remains runnable., TestCronNextRunDecision_RecurringFastForward returns a next run after now when the stored next-run time is stale by multiple intervals.
+- Source refs: ../hermes-agent/cron/jobs.py@755a2804:parse_duration, ../hermes-agent/cron/jobs.py@755a2804:parse_schedule, ../hermes-agent/cron/jobs.py@755a2804:_recoverable_oneshot_run_at, ../hermes-agent/cron/jobs.py@755a2804:_compute_grace_seconds, internal/cron/job.go:ValidateSchedule, internal/cron/scheduler.go:Start
+- Unblocks: Cron prompt/script safety + pre-run script contract, Cronjob tool action envelope over native store
+- Why now: Unblocks Cron prompt/script safety + pre-run script contract, Cronjob tool action envelope over native store.
+
 <!-- PROGRESS:END -->
