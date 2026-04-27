@@ -9483,9 +9483,9 @@
             {
               "name": "Skills hub direct URL candidate parser",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/skills exposes a pure ParseURLSkillCandidate(rawURL string, skillMD []byte) (URLSkillCandidate, error) helper that mirrors Hermes UrlSource.fetch metadata without network or store writes: HTTPS SKILL.md URLs only, source=url, trust=community, files={SKILL.md}, resolved name from valid frontmatter or URL slug, awaiting_name evidence when neither produces a safe install name, and no path traversal in name/category candidates",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -9521,7 +9521,7 @@
                 "TestURLSkillCandidate_RejectsUnsafeNames rejects sentinel, nested, absolute, drive-letter, and traversal names before any path is returned.",
                 "The helper imports neither net/http nor internal/cli and performs no filesystem writes."
               ],
-              "note": "Added 2026-04-27 after Hermes e63929d4 expanded skills-hub URL installs. This first slice gives Gormes a pure, testable URL candidate contract before any installer or prompt surface touches disk.",
+              "note": "Validated 2026-04-27: ParseURLSkillCandidate is pure and covered by URL candidate fixtures for frontmatter name, URL slug fallback, missing-name evidence/retry hint, unsafe-name rejection, invalid URL/frontmatter evidence, source/trust metadata, and no net/http/internal/cli or filesystem write imports.",
               "write_scope": [
                 "internal/skills/url_candidate.go",
                 "internal/skills/url_candidate_test.go",
