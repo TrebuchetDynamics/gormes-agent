@@ -70,7 +70,7 @@ tests, and candidate policy. Keep those control-plane facts in
 - Owner: `gateway`
 - Size: `small`
 - Status: `planned`
-- Contract: Registry-owned /steer command accepts operator/gateway text during a busy turn, validates/truncates preview text, and queues visible guidance when no running-agent steer hook is available
+- Contract: Registry-owned active-turn steering command
 - Trust class: operator, gateway
 - Ready when: Concurrent-tool cancellation (2.E.2) and the shared CommandDef registry are complete on main., This slice only registers /steer and queue fallback behavior; the live between-tool-call injection hook remains in the dependent row., Tests can use fake running-agent state and fake command dispatch; no provider, active tool loop, TUI, Slack, or Telegram transport is required.
 - Not ready when: The implementation tries to inject mid-run prompts instead of only registering /steer and queue fallback behavior., The slice changes /queue, /bg, /busy config persistence, TUI keybindings, or platform adapter code., The slice accepts empty/image-bearing steer payloads instead of returning usage/fallback evidence.

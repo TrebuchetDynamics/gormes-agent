@@ -3400,7 +3400,7 @@
             {
               "name": "Steer slash command registry + queue fallback",
               "status": "planned",
-              "contract": "Registry-owned /steer command accepts operator/gateway text during a busy turn, validates/truncates preview text, and queues visible guidance when no running-agent steer hook is available",
+              "contract": "Registry-owned active-turn steering command",
               "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "gateway",
