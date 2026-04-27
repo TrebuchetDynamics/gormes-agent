@@ -44,6 +44,10 @@ each successful builder cycle releases the shared control-plane lock, runs one
 synchronous `cmd/planner-loop run`, then starts the next builder cycle from the
 planner-refreshed `progress.json`. Independent planner timer/path triggers may
 still fire, but the shared `run.lock` prevents concurrent control-plane writes.
+The builder loop lands workers locally by default (`BUILDER_LOOP_PROMOTION_MODE=cherry-pick`)
+and pushes `HEAD:main` after completed runs/checkpoints unless disabled. The
+planner loop reconciles local main before PR intake and can dispatch a focused
+git-repair backend agent when local/remote sync conflicts block planning.
 
 ### Two loops, one shared contract
 

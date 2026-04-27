@@ -120,6 +120,15 @@ for 5 minutes so builder-driven planner cycles do not poll GitHub every
 iteration when no PRs are open. Override with `PR_INTAKE_EMPTY_BACKOFF`
 using a Go duration such as `30s`, `5m`, or `0` to disable the backoff.
 
+Before PR intake, planner-loop reconciles the control checkout against
+`origin/main` with `git fetch origin main`, a fast-forward merge when possible,
+and a normal merge fallback when needed. If local git state or post-intake sync
+conflicts cannot be resolved deterministically, planner-loop dispatches a
+focused git repair backend agent, then requires no unresolved merge paths, a
+clean worktree, and `go run ./cmd/builder-loop progress validate` before the
+planner prompt can continue. Disable this only for controlled debugging with
+`PLANNER_GIT_REPAIR=0`.
+
 ## Builder-Loop Audit Feedback
 
 Every planner run reads the builder-loop ledger

@@ -64,13 +64,13 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	root := filepath.Join("tmp", "repo")
 
 	cfg, err := ConfigFromEnv(root, MapEnv(map[string]string{
-		"RUN_ROOT":                 "/tmp/run",
-		"BACKEND":                  "claudeu",
-		"MODE":                     "full",
-		"MAX_AGENTS":               "7",
-		"MAX_PHASE":                "5",
-		"PRIORITY_BOOST":           "3.E.7, 4.A ",
-		"AUTOLOOP_BACKEND_TIMEOUT": "9m",
+		"RUN_ROOT":                    "/tmp/run",
+		"BACKEND":                     "claudeu",
+		"MODE":                        "full",
+		"MAX_AGENTS":                  "7",
+		"MAX_PHASE":                   "5",
+		"PRIORITY_BOOST":              "3.E.7, 4.A ",
+		"AUTOLOOP_BACKEND_TIMEOUT":    "9m",
 		"BUILDER_LOOP_PROMOTION_MODE": "pr",
 		"BUILDER_LOOP_PUSH_MAIN":      "0",
 	}))

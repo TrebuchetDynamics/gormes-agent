@@ -173,6 +173,10 @@ type Config struct {
 	// event > impl_change > scheduled can resolve correctly. Empty means
 	// the run is scheduled or reactive via the trigger ledger.
 	TriggerReason string
+	// GitRepairEnabled lets planner-loop reconcile local main before PR
+	// intake and dispatch a focused backend repair agent when git conflicts
+	// block planning. Sourced from PLANNER_GIT_REPAIR; default true.
+	GitRepairEnabled bool
 }
 
 // EnvLookup mirrors os.LookupEnv: cmd/ binaries pass os.LookupEnv;
@@ -228,6 +232,7 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 		GormesOriginalPaths:    nil, // ScanImplementation falls back to DefaultGormesOriginalPaths
 		ImplLookback:           24 * time.Hour,
 		TriggerReason:          "",
+		GitRepairEnabled:       true,
 	}
 
 	if value := envValue(lookup, "PROGRESS_JSON"); value != "" {
@@ -367,6 +372,13 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 	}
 	if value := envValue(lookup, "PLANNER_TRIGGER_REASON"); value != "" {
 		cfg.TriggerReason = value
+	}
+	if value := envValue(lookup, "PLANNER_GIT_REPAIR"); value != "" {
+		b, err := parseBoolEnv(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PLANNER_GIT_REPAIR: %w", err)
+		}
+		cfg.GitRepairEnabled = b
 	}
 
 	// TriggersCursorPath derives from the (possibly env-overridden) RunRoot

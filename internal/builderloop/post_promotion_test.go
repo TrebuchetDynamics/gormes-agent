@@ -80,6 +80,8 @@ func TestPostPromotionCommandEnvDisablesCompanionsForVerification(t *testing.T) 
 		"MAX_RETRIES=",
 		"CANDIDATE_LOW_WATERMARK=",
 		"MIN_MEM_PER_WORKER_MB=",
+		"BUILDER_LOOP_PROMOTION_MODE=cherry-pick",
+		"BUILDER_LOOP_PUSH_MAIN=0",
 	} {
 		var found bool
 		for _, got := range env {

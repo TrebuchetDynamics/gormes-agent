@@ -119,6 +119,12 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	}
 	defer runLock.release()
 
+	if cfg.GitRepairEnabled && !opts.DryRun {
+		if err := reconcilePlannerMain(ctx, cfg, runner, ledgerPath, runID, "pre_pr_intake"); err != nil {
+			return RunSummary{}, err
+		}
+	}
+
 	if cfg.MergeOpenPullRequests && !opts.DryRun {
 		if skip, detail := shouldBackOffPullRequestIntake(cfg, now); skip {
 			appendPlannerLedger(ledgerPath, LedgerEvent{
@@ -135,7 +141,13 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			RunID:          runID,
 			ConflictAction: cfg.PRConflictAction,
 		}); err != nil {
-			return RunSummary{}, err
+			if cfg.GitRepairEnabled && plannerPRIntakeErrorIsGitRepairable(err) {
+				if repairErr := runPlannerGitRepairAgent(ctx, cfg, runner, ledgerPath, runID, "pr_intake_sync_failed", err); repairErr != nil {
+					return RunSummary{}, errors.Join(err, repairErr)
+				}
+			} else {
+				return RunSummary{}, err
+			}
 		}
 	}
 
@@ -626,6 +638,286 @@ func pullRequestIntakeListedEmpty(detail string) bool {
 		}
 	}
 	return false
+}
+
+func reconcilePlannerMain(ctx context.Context, cfg Config, runner cmdrunner.Runner, ledgerPath, runID, reason string) error {
+	if !plannerRepoHasGit(cfg.RepoRoot) {
+		return nil
+	}
+	if runner == nil {
+		runner = cmdrunner.ExecRunner{}
+	}
+
+	appendPlannerLedger(ledgerPath, LedgerEvent{
+		TS:      time.Now().UTC().Format(time.RFC3339Nano),
+		RunID:   runID,
+		Event:   "main_reconcile_started",
+		Status:  "started",
+		Detail:  "reason=" + reason,
+		Backend: cfg.Backend,
+		Mode:    cfg.Mode,
+	})
+
+	conflicts, err := plannerGitUnmergedPaths(ctx, cfg, runner)
+	if err != nil {
+		return runPlannerGitRepairAgent(ctx, cfg, runner, ledgerPath, runID, reason, err)
+	}
+	if conflicts != "" {
+		return runPlannerGitRepairAgent(ctx, cfg, runner, ledgerPath, runID, reason, fmt.Errorf("repository has unresolved merge conflicts:\n%s", conflicts))
+	}
+
+	fetch := runner.Run(ctx, cmdrunner.Command{
+		Name: "git",
+		Args: []string{"fetch", "origin", "main"},
+		Dir:  cfg.RepoRoot,
+	})
+	if fetch.Err != nil {
+		return runPlannerGitRepairAgent(ctx, cfg, runner, ledgerPath, runID, reason, commandError("git fetch origin main", fetch))
+	}
+
+	fastForward := runner.Run(ctx, cmdrunner.Command{
+		Name: "git",
+		Args: []string{"merge", "--ff-only", "FETCH_HEAD"},
+		Dir:  cfg.RepoRoot,
+	})
+	if fastForward.Err == nil {
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "main_reconcile_completed",
+			Status:  "fast_forward",
+			Detail:  "reason=" + reason,
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return nil
+	}
+
+	merge := runner.Run(ctx, cmdrunner.Command{
+		Name: "git",
+		Args: []string{"merge", "--no-edit", "FETCH_HEAD"},
+		Dir:  cfg.RepoRoot,
+	})
+	if merge.Err == nil {
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "main_reconcile_completed",
+			Status:  "merged",
+			Detail:  "reason=" + reason,
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return nil
+	}
+
+	_ = runner.Run(ctx, cmdrunner.Command{
+		Name: "git",
+		Args: []string{"merge", "--abort"},
+		Dir:  cfg.RepoRoot,
+	})
+	return runPlannerGitRepairAgent(ctx, cfg, runner, ledgerPath, runID, reason, commandError("git merge FETCH_HEAD", merge))
+}
+
+func plannerRepoHasGit(repoRoot string) bool {
+	if repoRoot == "" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(repoRoot, ".git"))
+	return err == nil
+}
+
+func plannerGitUnmergedPaths(ctx context.Context, cfg Config, runner cmdrunner.Runner) (string, error) {
+	result := runner.Run(ctx, cmdrunner.Command{
+		Name: "git",
+		Args: []string{"diff", "--name-only", "--diff-filter=U"},
+		Dir:  cfg.RepoRoot,
+	})
+	if result.Err != nil {
+		return "", commandError("git diff --name-only --diff-filter=U", result)
+	}
+	return strings.TrimSpace(result.Stdout), nil
+}
+
+func plannerPRIntakeErrorIsGitRepairable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "sync after merging pull requests") ||
+		strings.Contains(msg, "fetch after merging pull requests")
+}
+
+func runPlannerGitRepairAgent(ctx context.Context, cfg Config, runner cmdrunner.Runner, ledgerPath, runID, reason string, cause error) error {
+	if runner == nil {
+		runner = cmdrunner.ExecRunner{}
+	}
+	if cause == nil {
+		cause = errors.New("unknown git issue")
+	}
+
+	appendPlannerLedger(ledgerPath, LedgerEvent{
+		TS:      time.Now().UTC().Format(time.RFC3339Nano),
+		RunID:   runID,
+		Event:   "git_repair_started",
+		Status:  "started",
+		Detail:  fmt.Sprintf("reason=%s error=%s", reason, truncatePlannerDetail(cause.Error())),
+		Backend: cfg.Backend,
+		Mode:    cfg.Mode,
+	})
+
+	rawReportPath := filepath.Join(cfg.RunRoot, "git_repair_report.raw.md")
+	argv, err := plannerBackendCommand(cfg.Backend, cfg.Mode, rawReportPath)
+	if err != nil {
+		return err
+	}
+	repairCtx := ctx
+	cancel := func() {}
+	if cfg.BackendTimeout > 0 {
+		repairCtx, cancel = context.WithTimeout(ctx, cfg.BackendTimeout)
+	}
+	result := runner.Run(repairCtx, cmdrunner.Command{
+		Name: argv[0],
+		Args: append(append([]string(nil), argv[1:]...), buildPlannerGitRepairPrompt(cfg, reason, cause)),
+		Dir:  cfg.RepoRoot,
+	})
+	cancel()
+	if result.Err != nil {
+		err := commandError(argv[0], result)
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "git_repair_failed",
+			Status:  "backend_failed",
+			Detail:  truncatePlannerDetail(err.Error()),
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return err
+	}
+
+	if conflicts, err := plannerGitUnmergedPaths(ctx, cfg, runner); err != nil {
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "git_repair_failed",
+			Status:  "conflict_check_failed",
+			Detail:  truncatePlannerDetail(err.Error()),
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return err
+	} else if conflicts != "" {
+		err := fmt.Errorf("git repair agent left unresolved conflicts:\n%s", conflicts)
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "git_repair_failed",
+			Status:  "unresolved_conflicts",
+			Detail:  truncatePlannerDetail(err.Error()),
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return err
+	}
+
+	status := runner.Run(ctx, cmdrunner.Command{
+		Name: "git",
+		Args: []string{"status", "--porcelain"},
+		Dir:  cfg.RepoRoot,
+	})
+	if status.Err != nil {
+		err := commandError("git status --porcelain", status)
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "git_repair_failed",
+			Status:  "status_failed",
+			Detail:  truncatePlannerDetail(err.Error()),
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return err
+	}
+	if dirty := strings.TrimSpace(status.Stdout); dirty != "" {
+		err := fmt.Errorf("git repair agent left dirty worktree:\n%s", dirty)
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "git_repair_failed",
+			Status:  "dirty_worktree",
+			Detail:  truncatePlannerDetail(err.Error()),
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return err
+	}
+
+	validate := runner.Run(ctx, cmdrunner.Command{
+		Name: "go",
+		Args: []string{"run", "./cmd/builder-loop", "progress", "validate"},
+		Dir:  cfg.RepoRoot,
+	})
+	if validate.Err != nil {
+		err := commandError("go run ./cmd/builder-loop progress validate", validate)
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:      time.Now().UTC().Format(time.RFC3339Nano),
+			RunID:   runID,
+			Event:   "git_repair_failed",
+			Status:  "validation_failed",
+			Detail:  truncatePlannerDetail(err.Error()),
+			Backend: cfg.Backend,
+			Mode:    cfg.Mode,
+		})
+		return err
+	}
+
+	appendPlannerLedger(ledgerPath, LedgerEvent{
+		TS:      time.Now().UTC().Format(time.RFC3339Nano),
+		RunID:   runID,
+		Event:   "git_repair_completed",
+		Status:  "ok",
+		Detail:  "reason=" + reason,
+		Backend: cfg.Backend,
+		Mode:    cfg.Mode,
+	})
+	return nil
+}
+
+func buildPlannerGitRepairPrompt(cfg Config, reason string, cause error) string {
+	return fmt.Sprintf(`You are the planner-loop git repair agent.
+
+Task: resolve the repository git state so planner-loop can continue.
+
+Reason: %s
+Failure:
+%s
+
+Repository: %s
+Canonical progress file: %s
+
+Rules:
+- Fix git state only: fetch/merge conflicts, unresolved conflict markers, dirty merge state, stale local main, or a failed PR-intake sync.
+- Do not implement unrelated Gormes features.
+- If progress.json or generated planning/docs surfaces conflict, preserve newer builder-loop health fields and keep the file valid JSON.
+- If runtime source files under cmd/ or internal/ conflict, resolve the merge conservatively and run the focused tests that prove the resolution still compiles. Do not invent new runtime behavior.
+- Commit the merge or repair if tracked files change; leave the worktree clean.
+- Do not open pull requests and do not create a new queue.
+
+Before returning, run:
+- git diff --name-only --diff-filter=U
+- git status --porcelain
+- go run ./cmd/builder-loop progress validate
+`, reason, cause.Error(), cfg.RepoRoot, cfg.ProgressJSON)
+}
+
+func truncatePlannerDetail(value string) string {
+	value = strings.TrimSpace(value)
+	const maxDetail = 2000
+	if len(value) <= maxDetail {
+		return value
+	}
+	return value[:maxDetail] + " ... [truncated]"
 }
 
 func plannerBackendCommand(backend, mode, rawReportPath string) ([]string, error) {

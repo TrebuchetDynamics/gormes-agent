@@ -116,6 +116,7 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 		"gbrain: pull",
 		"Updating abc123..def456",
 		"Synchronize progress.json with the current Gormes implementation",
+		"complete Gormes architecture surface",
 		"Synchronize landing page, Hugo docs, generated pages, and progress.json",
 		"Autoloop workers should not have to search or guess",
 		"source_refs",
@@ -226,6 +227,9 @@ func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	cfg.MergeOpenPullRequests = true
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
+			{},
+			{},
+			{Stdout: "Already up to date.\n"},
 			{Stdout: "git@github.com:TrebuchetDynamics/gormes-agent.git\n"},
 			{Stdout: `[{"number": 11, "title": "planner fix", "isDraft": false, "mergeStateStatus": "CLEAN", "headRefName": "planner/fix"}]`},
 			{},
@@ -248,14 +252,82 @@ func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 	}
 
 	wantPrefix := []cmdrunner.Command{
+		{Name: "git", Args: []string{"diff", "--name-only", "--diff-filter=U"}, Dir: repoRoot},
+		{Name: "git", Args: []string{"fetch", "origin", "main"}, Dir: repoRoot},
+		{Name: "git", Args: []string{"merge", "--ff-only", "FETCH_HEAD"}, Dir: repoRoot},
 		{Name: "git", Args: []string{"remote", "get-url", "origin"}, Dir: repoRoot},
 		{Name: "gh", Args: []string{"pr", "list", "--repo", "TrebuchetDynamics/gormes-agent", "--state", "open", "--limit", "100", "--json", "number,title,isDraft,mergeStateStatus,headRefName,url"}, Dir: repoRoot},
 		{Name: "gh", Args: []string{"pr", "merge", "11", "--repo", "TrebuchetDynamics/gormes-agent", "--merge", "--delete-branch", "--admin"}, Dir: repoRoot},
 		{Name: "git", Args: []string{"fetch", "origin", "main"}, Dir: repoRoot},
 		{Name: "git", Args: []string{"merge", "--ff-only", "FETCH_HEAD"}, Dir: repoRoot},
 	}
-	if got := runner.Commands[:5]; !reflect.DeepEqual(got, wantPrefix) {
+	if got := runner.Commands[:8]; !reflect.DeepEqual(got, wantPrefix) {
 		t.Fatalf("command prefix = %#v, want %#v", got, wantPrefix)
+	}
+}
+
+func TestRunOnceRunsGitRepairAgentWhenPRIntakeSyncFails(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(.git) error = %v", err)
+	}
+	cfg := mustConfig(t, repoRoot)
+	cfg.MergeOpenPullRequests = true
+	cfg.SyncRepos = false
+	runner := &cmdrunner.FakeRunner{
+		Results: []cmdrunner.Result{
+			{},
+			{},
+			{Stdout: "Already up to date.\n"},
+			{Stdout: "git@github.com:TrebuchetDynamics/gormes-agent.git\n"},
+			{Stdout: `[{"number": 11, "title": "planner fix", "isDraft": false, "mergeStateStatus": "CLEAN", "headRefName": "planner/fix"}]`},
+			{},
+			{},
+			{Err: errors.New("exit status 128"), Stderr: "fatal: Not possible to fast-forward\n"},
+			{Err: errors.New("exit status 1"), Stderr: "CONFLICT (content): progress.json\n"},
+			{},
+			{Stdout: "repair complete\n"},
+			{},
+			{},
+			{},
+			{Stdout: "planner ran ok\n"},
+		},
+	}
+
+	if _, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	var repairPrompt string
+	for _, command := range runner.Commands {
+		if command.Name != "codexu" || len(command.Args) == 0 {
+			continue
+		}
+		prompt := command.Args[len(command.Args)-1]
+		if strings.Contains(prompt, "git repair agent") {
+			repairPrompt = prompt
+			break
+		}
+	}
+	if repairPrompt == "" {
+		t.Fatalf("did not find git repair backend command; commands=%#v", runner.Commands)
+	}
+	for _, want := range []string{"pr_intake_sync_failed", "sync after merging pull requests", "resolve the repository git state"} {
+		if !strings.Contains(repairPrompt, want) {
+			t.Fatalf("repair prompt missing %q:\n%s", want, repairPrompt)
+		}
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if _, ok := findPlannerLedgerEvent(events, "git_repair_started", "started"); !ok {
+		t.Fatalf("ledger missing git_repair_started: %+v", events)
+	}
+	if _, ok := findPlannerLedgerEvent(events, "git_repair_completed", "ok"); !ok {
+		t.Fatalf("ledger missing git_repair_completed: %+v", events)
 	}
 }
 
@@ -276,10 +348,12 @@ func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
 	}
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
+			{},
+			{},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
-			{Stdout: "planner ran ok\n"},
+			{Stdout: "Already up to date.\n"},
 		},
 	}
 
@@ -336,10 +410,12 @@ func TestRunOnceConsumesPlannerTriggersAndRecordsEventLedger(t *testing.T) {
 	}
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
+			{},
+			{},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
-			{Stdout: "planner ran ok\n"},
+			{Stdout: "Already up to date.\n"},
 		},
 	}
 
@@ -894,10 +970,12 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
+			{},
+			{},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
-			{Stdout: "planner ran ok\n"},
+			{Stdout: "Already up to date.\n"},
 		},
 	}
 
@@ -915,19 +993,23 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	if !strings.Contains(err.Error(), "internal/plannerloop/topics_test.go") {
 		t.Fatalf("RunOnce() error = %q, want dirty runtime path", err)
 	}
-	if got := len(runner.Commands); got != 3 {
-		t.Fatalf("runner commands = %d, want only 3 sync commands before backend", got)
+	if got := len(runner.Commands); got != 6 {
+		t.Fatalf("runner commands = %d, want 3 reconcile + 3 sync commands before backend", got)
 	}
 
 	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
-	if len(events) != 1 {
-		t.Fatalf("ledger entries = %d, want 1: %#v", len(events), events)
+	var rejected LedgerEvent
+	for _, event := range events {
+		if event.Status == "validation_rejected" {
+			rejected = event
+			break
+		}
 	}
-	if events[0].Status != "validation_rejected" {
-		t.Fatalf("Status = %q, want validation_rejected", events[0].Status)
+	if rejected.Status != "validation_rejected" {
+		t.Fatalf("ledger missing validation_rejected: %#v", events)
 	}
-	if !strings.Contains(events[0].Detail, "internal/plannerloop/topics_test.go") {
-		t.Fatalf("Detail = %q, want dirty runtime path", events[0].Detail)
+	if !strings.Contains(rejected.Detail, "internal/plannerloop/topics_test.go") {
+		t.Fatalf("Detail = %q, want dirty runtime path", rejected.Detail)
 	}
 }
 
@@ -1001,6 +1083,15 @@ func mustReadLedger(t *testing.T, path string) []LedgerEvent {
 		t.Fatalf("LoadLedger(%s) error = %v", path, err)
 	}
 	return events
+}
+
+func findPlannerLedgerEvent(events []LedgerEvent, eventName, status string) (LedgerEvent, bool) {
+	for _, event := range events {
+		if event.Event == eventName && event.Status == status {
+			return event, true
+		}
+	}
+	return LedgerEvent{}, false
 }
 
 func mustConfig(t *testing.T, repoRoot string) Config {

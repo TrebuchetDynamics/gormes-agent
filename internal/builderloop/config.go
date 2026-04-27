@@ -70,7 +70,7 @@ type Config struct {
 	MergeOpenPullRequests   bool     // MERGE_OPEN_PULL_REQUESTS, default true
 	PRConflictAction        string   // PR_INTAKE_CONFLICT_ACTION, default close
 	PRIntakeEmptyBackoff    time.Duration
-	AutoCommitDirtyWorktree bool // AUTO_COMMIT_DIRTY_WORKTREE, default true for CLI cycles
+	AutoCommitDirtyWorktree bool   // AUTO_COMMIT_DIRTY_WORKTREE, default true for CLI cycles
 	PromotionMode           string // BUILDER_LOOP_PROMOTION_MODE, default cherry-pick; pr is opt-in
 	PushMainOnComplete      bool   // BUILDER_LOOP_PUSH_MAIN, default true for CLI cycles
 

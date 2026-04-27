@@ -190,6 +190,7 @@ Improve the architecture plan for building full Gormes, the Go port of Hermes, w
 
 Long-term operating contract:
 - You are the only long-term prompt agent responsible for architecture planning from now on.
+- Design the complete Gormes architecture surface: CLI, TUI, API/server, gateway, channels, cron/scheduling, provider/tooling integration, Goncho memory, persistence, docs, web, packaging, release, observability, and operations.
 - Every run must detect upstream Hermes, Honcho, and GBrain changes from the synchronized sibling repos.
 - Synchronize progress.json with the current Gormes implementation and the latest upstream behavior.
 - Synchronize landing page, Hugo docs, generated pages, and progress.json whenever roadmap or implementation reality changes.

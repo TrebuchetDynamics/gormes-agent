@@ -31,7 +31,9 @@ lock, then invokes `go run ./cmd/planner-loop run` before sleeping and starting
 the next builder cycle. Builder or planner failures are logged but do not stop
 loop mode; only cancellation stops the loop. After the planner attempt, loop
 mode checkpoints any dirty control-checkout files so generated planner output
-is committed to `main` before the next cycle.
+is committed to `main` before the next cycle. When `BUILDER_LOOP_PUSH_MAIN`
+is enabled, successful completed runs and loop checkpoints push `HEAD:main`
+so local cherry-picks and planner checkpoints do not drift from origin.
 
 ## Run Modes
 
@@ -112,6 +114,12 @@ Useful environment variables:
   unignored changes with `git add -A` and commits them as
   `builder-loop: checkpoint dirty worktree <run-id>` so the next cycle can keep
   moving. Set to `0` only when you want strict manual dirty-worktree refusal.
+- `BUILDER_LOOP_PROMOTION_MODE`: choose worker promotion behavior. Defaults
+  to `cherry-pick`, which lands worker commits directly on local main and
+  avoids duplicate PR merge commits. Set to `pr` to also push worker branches
+  and open review PRs before the local cherry-pick fallback.
+- `BUILDER_LOOP_PUSH_MAIN`: push `HEAD:main` after completed builder runs and
+  loop checkpoints. Defaults to enabled. Set to `0` for local-only testing.
 
 ## Speculative Execution
 
@@ -180,12 +188,13 @@ the clean-worktree preflight. The flow per worker is:
    `worker_failed:pre_promotion_verify_failed`; the repair backend gets the
    full captured failure detail, commits any repair on the worker branch, and
    the gate reruns before main is touched.
-7. From the clean control checkout, call `PromoteWorker`: `git push origin
-   <branch>`, create a review PR with `gh pr create --fill --head <branch>`,
-   then land the worker commit locally with `git cherry-pick -Xtheirs
-   <commit>`. If push or `gh` fails, the builder loop still attempts the same local
-   cherry-pick fallback. Clean successful/no-change worktrees are removed;
-   failed worktrees stay in `$RUN_ROOT/worktrees/` for inspection.
+7. From the clean control checkout, call `PromoteWorker`. The default
+   `BUILDER_LOOP_PROMOTION_MODE=cherry-pick` lands the worker commit locally
+   with `git cherry-pick -Xtheirs <commit>`. In opt-in `pr` mode the builder
+   loop first tries to push the worker branch and open a review PR, then still
+   lands the worker commit locally with the same cherry-pick fallback. Clean
+   successful/no-change worktrees are removed; failed worktrees stay in
+   `$RUN_ROOT/worktrees/` for inspection.
 8. After all worker promotions land, run the mandatory post-promotion full-suite
    gate before emitting `run_completed` or `health_updated`. A gate failure
    emits `post_promotion_verify_failed`, starts one repair backend by default,
