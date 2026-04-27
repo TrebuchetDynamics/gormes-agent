@@ -132,8 +132,11 @@ and a normal merge fallback when needed. If local git state or post-intake sync
 conflicts cannot be resolved deterministically, planner-loop dispatches a
 focused git repair backend agent, then requires no unresolved merge paths, a
 clean worktree, and `go run ./cmd/builder-loop progress validate` before the
-planner prompt can continue. Disable this only for controlled debugging with
-`PLANNER_GIT_REPAIR=0`.
+planner prompt can continue. The same repair path is used when dirty Go
+runtime files under `cmd/` or `internal/` would otherwise block the planner
+preflight; after the repair agent returns, planner-loop rechecks the runtime
+tree and refuses to continue if it is still dirty. Disable this only for
+controlled debugging with `PLANNER_GIT_REPAIR=0`.
 
 ## Builder-Loop Audit Feedback
 
@@ -173,6 +176,17 @@ Operators migrating from the pre-rename units should first run `go run
 `gormes-architecture-planner.{timer,path}` and `gormes-architecture-planner-impl.path`
 in addition to the older companion timers.
 
+Install the standalone infinite planner daemon with:
+
+```sh
+go run ./cmd/planner-loop service install --loop --force
+```
+
+This writes `gormes-planner-loop-infinite.service`, a `Type=simple`
+`Restart=always` unit that runs `scripts/planner-loop.sh --loop`. It does not
+write timer/path units. For boot without an interactive login, enable user
+lingering for the account that owns the service.
+
 ## Backends
 
 The default backend is `codexu`. Use `--backend claudeu` only on hosts
@@ -186,14 +200,14 @@ forever. The default timeout is 20 minutes; override it with
 `codexu` is a thin wrapper that `exec`s `codex --dangerously-bypass-approvals-and-sandbox`,
 so anywhere `codexu` is on `PATH`, `codex` itself must also be resolvable
 from the same `PATH`. The systemd-user unit installed by `service install`
-sets `Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin`, which
-matches an interactive shell only when `codex` is in one of those
-directories.
+sets a production PATH with `%h/.local/go-current/bin`, `%h/.local/bin`,
+the current nvm node bin, `%h/go/bin`, `/snap/bin`, and the standard system
+locations, plus `GOROOT=%h/.local/go-current`.
 
 If `codex` was installed via `npm i -g @openai/codex` under nvm, it lives
-under `~/.nvm/versions/node/<version>/bin/` and will not be on the
-service unit's `PATH`. Either symlink it onto a `PATH`-listed directory
-once:
+under `~/.nvm/versions/node/<version>/bin/`. If that version differs from
+the node bin rendered into the unit, either symlink it onto a `PATH`-listed
+directory once:
 
 ```sh
 ln -sf "$(which codex)" ~/.local/bin/codex

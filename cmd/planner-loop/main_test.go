@@ -187,6 +187,46 @@ func TestServiceInstallWritesUnits(t *testing.T) {
 	}
 }
 
+func TestServiceInstallLoopWritesInfiniteService(t *testing.T) {
+	repoRoot := writeCommandFixture(t)
+	xdg := filepath.Join(repoRoot, ".config")
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("AUTO_START", "0")
+	withWorkingDir(t, repoRoot)
+
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}}}
+	deps := defaultDeps()
+	deps.runner = runner
+
+	if err := run(context.Background(), deps, []string{"service", "install", "--loop"}); err != nil {
+		t.Fatalf("service install --loop error = %v", err)
+	}
+
+	servicePath := filepath.Join(xdg, "systemd", "user", "gormes-planner-loop-infinite.service")
+	body, err := os.ReadFile(servicePath)
+	if err != nil {
+		t.Fatalf("read loop service: %v", err)
+	}
+	for _, want := range []string{
+		"Type=simple",
+		"Restart=always",
+		"ExecStart=" + filepath.Join(repoRoot, "scripts", "planner-loop.sh") + " --loop",
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("loop service missing %q:\n%s", want, body)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(xdg, "systemd", "user", "gormes-planner-loop.timer")); err == nil {
+		t.Fatalf("loop service install should not write timer unit")
+	}
+	if got, want := len(runner.Commands), 1; got != want {
+		t.Fatalf("Commands length = %d, want %d", got, want)
+	}
+	if strings.Join(runner.Commands[0].Args, " ") != "--user daemon-reload" {
+		t.Fatalf("daemon-reload args = %#v", runner.Commands[0].Args)
+	}
+}
+
 func TestParseRunOptions_PositionalKeywords(t *testing.T) {
 	opts, err := parseRunOptions([]string{"--backend", "codexu", "honcho", "memory"})
 	if err != nil {

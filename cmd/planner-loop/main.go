@@ -36,7 +36,7 @@ func defaultDeps() cliDeps {
 	return cliDeps{stdout: os.Stdout, stderr: os.Stderr, runner: cmdrunner.ExecRunner{}}
 }
 
-const usage = "usage: planner-loop [--repo-root <path>] run [--loop] [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | trigger <reason> | service install [--force]"
+const usage = "usage: planner-loop [--repo-root <path>] run [--loop] [--dry-run] [--backend codexu|claudeu] [--mode safe|full|unattended] [keyword ...] | status | show-report | doctor | trigger <reason> | service install [--loop] [--force]"
 
 // subUsage maps each subcommand to its own help text. --help/-h on a
 // subcommand prints the matching entry instead of the full top-level usage.
@@ -46,8 +46,8 @@ var subUsage = map[string]string{
 	"show-report":     "usage: planner-loop show-report",
 	"doctor":          "usage: planner-loop doctor",
 	"trigger":         "usage: planner-loop trigger <reason>",
-	"service":         "usage: planner-loop service install [--force]",
-	"service install": "usage: planner-loop service install [--force]",
+	"service":         "usage: planner-loop service install [--loop] [--force]",
+	"service install": "usage: planner-loop service install [--loop] [--force]",
 }
 
 // supportedPlannerBackends lists the backends the run subcommand accepts via
@@ -198,7 +198,7 @@ func run(ctx context.Context, deps cliDeps, args []string) error {
 			return printHelp(deps, key)
 		}
 		if len(args) >= 2 && args[1] == "install" {
-			force, err := plannerServiceForce(args[2:])
+			serviceOpts, err := parsePlannerServiceInstallOptions(args[2:])
 			if err != nil {
 				return err
 			}
@@ -206,7 +206,7 @@ func run(ctx context.Context, deps cliDeps, args []string) error {
 			if err != nil {
 				return err
 			}
-			return installPlannerService(ctx, deps, root, force, cfg.PlannerTriggersPath)
+			return installPlannerService(ctx, deps, root, serviceOpts, cfg.PlannerTriggersPath)
 		}
 		return fmt.Errorf("%w\n%s", errParse, subUsage["service"])
 	case "--help", "-h", "help":
@@ -454,15 +454,24 @@ func printFile(deps cliDeps, path string) error {
 	return err
 }
 
-func plannerServiceForce(args []string) (bool, error) {
-	force := os.Getenv("FORCE") == "1"
+type plannerServiceInstallOptions struct {
+	force bool
+	loop  bool
+}
+
+func parsePlannerServiceInstallOptions(args []string) (plannerServiceInstallOptions, error) {
+	opts := plannerServiceInstallOptions{force: os.Getenv("FORCE") == "1"}
 	for _, arg := range args {
-		if arg != "--force" {
-			return false, fmt.Errorf("%w\n%s", errParse, usage)
+		switch arg {
+		case "--force":
+			opts.force = true
+		case "--loop":
+			opts.loop = true
+		default:
+			return plannerServiceInstallOptions{}, fmt.Errorf("%w\n%s", errParse, usage)
 		}
-		force = true
 	}
-	return force, nil
+	return opts, nil
 }
 
 // resolveRepoRoot consumes a --repo-root flag (if present) from anywhere in
@@ -492,7 +501,7 @@ func resolveRepoRoot(args []string) ([]string, string, error) {
 	return out, root, nil
 }
 
-func installPlannerService(ctx context.Context, deps cliDeps, root string, force bool, pathToWatch string) error {
+func installPlannerService(ctx context.Context, deps cliDeps, root string, serviceOpts plannerServiceInstallOptions, pathToWatch string) error {
 	unitDir, err := plannerUnitDir()
 	if err != nil {
 		return err
@@ -513,10 +522,14 @@ func installPlannerService(ctx context.Context, deps cliDeps, root string, force
 		implPathName = ""
 	}
 
+	unitName := "gormes-planner-loop.service"
+	if serviceOpts.loop {
+		unitName = "gormes-planner-loop-infinite.service"
+	}
 	return plannerloop.InstallPlannerService(ctx, plannerloop.PlannerServiceInstallOptions{
 		Runner:           deps.runner,
 		UnitDir:          unitDir,
-		UnitName:         "gormes-planner-loop.service",
+		UnitName:         unitName,
 		TimerName:        "gormes-planner-loop.timer",
 		PathName:         "gormes-planner-loop.path",
 		PathToWatch:      pathToWatch,
@@ -526,7 +539,8 @@ func installPlannerService(ctx context.Context, deps cliDeps, root string, force
 		WorkDir:          root,
 		Interval:         interval,
 		AutoStart:        autoStart,
-		Force:            force,
+		Force:            serviceOpts.force,
+		Loop:             serviceOpts.loop,
 	})
 }
 

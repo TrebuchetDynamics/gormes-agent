@@ -19,6 +19,7 @@ func TestRenderPlannerServiceUnitQuotesPaths(t *testing.T) {
 	for _, want := range []string{
 		"Type=oneshot",
 		"Environment=PATH=",
+		"Environment=GOROOT=%h/.local/go-current",
 		`WorkingDirectory="/srv/gormes agent"`,
 		`ExecStart="/opt/gormes/bin/planner \"loop\""`,
 		"TimeoutStartSec=30min",
@@ -26,6 +27,30 @@ func TestRenderPlannerServiceUnitQuotesPaths(t *testing.T) {
 		if !strings.Contains(unit, want) {
 			t.Fatalf("service unit missing %q:\n%s", want, unit)
 		}
+	}
+}
+
+func TestRenderPlannerServiceUnitLoopModeIsPersistent(t *testing.T) {
+	unit := RenderPlannerServiceUnit(PlannerServiceUnitOptions{
+		PlannerPath: "/opt/gormes/bin/planner-loop.sh",
+		WorkDir:     "/srv/gormes",
+		Loop:        true,
+	})
+
+	for _, want := range []string{
+		"Type=simple",
+		"Restart=always",
+		"RestartSec=10s",
+		"Environment=PATH=%h/.local/go-current/bin:",
+		"Environment=GOROOT=%h/.local/go-current",
+		"ExecStart=/opt/gormes/bin/planner-loop.sh --loop",
+	} {
+		if !strings.Contains(unit, want) {
+			t.Fatalf("loop service unit missing %q:\n%s", want, unit)
+		}
+	}
+	if strings.Contains(unit, "Type=oneshot") || strings.Contains(unit, "TimeoutStartSec=30min") {
+		t.Fatalf("loop service should not be oneshot/timer-style:\n%s", unit)
 	}
 }
 
@@ -83,6 +108,47 @@ func TestInstallPlannerServiceWritesUnitsAndEnablesTimer(t *testing.T) {
 	}
 	if strings.Join(runner.Commands[2].Args, " ") != "--user enable --now gormes-planner.path" {
 		t.Fatalf("enable path args = %#v", runner.Commands[2].Args)
+	}
+}
+
+func TestInstallPlannerServiceLoopWritesOnlyServiceAndEnablesIt(t *testing.T) {
+	unitDir := t.TempDir()
+	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{{}, {}}}
+
+	err := InstallPlannerService(context.Background(), PlannerServiceInstallOptions{
+		Runner:      runner,
+		UnitDir:     unitDir,
+		UnitName:    "gormes-planner-loop-infinite.service",
+		PlannerPath: "/opt/gormes/bin/planner-loop",
+		WorkDir:     "/srv/gormes",
+		AutoStart:   true,
+		Loop:        true,
+	})
+	if err != nil {
+		t.Fatalf("InstallPlannerService(loop) error = %v", err)
+	}
+
+	servicePath := filepath.Join(unitDir, "gormes-planner-loop-infinite.service")
+	body, err := os.ReadFile(servicePath)
+	if err != nil {
+		t.Fatalf("service unit missing: %v", err)
+	}
+	if !strings.Contains(string(body), "ExecStart=/opt/gormes/bin/planner-loop --loop") {
+		t.Fatalf("loop service missing --loop ExecStart:\n%s", body)
+	}
+	for _, name := range []string{"gormes-planner.timer", "gormes-planner.path", "gormes-planner-impl.path"} {
+		if _, err := os.Stat(filepath.Join(unitDir, name)); err == nil {
+			t.Fatalf("loop install unexpectedly wrote %s", name)
+		}
+	}
+	if got, want := len(runner.Commands), 2; got != want {
+		t.Fatalf("Commands length = %d, want %d", got, want)
+	}
+	if strings.Join(runner.Commands[0].Args, " ") != "--user daemon-reload" {
+		t.Fatalf("daemon-reload args = %#v", runner.Commands[0].Args)
+	}
+	if strings.Join(runner.Commands[1].Args, " ") != "--user enable --now gormes-planner-loop-infinite.service" {
+		t.Fatalf("enable service args = %#v", runner.Commands[1].Args)
 	}
 }
 

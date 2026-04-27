@@ -963,6 +963,7 @@ func TestRunOnce_RejectsRuntimeSourceEdits(t *testing.T) {
 func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
+	cfg.GitRepairEnabled = false
 	runtimePath := filepath.Join(repoRoot, "internal", "plannerloop", "topics_test.go")
 	writeFile(t, runtimePath, "package plannerloop\n")
 	initPlannerGitRepo(t, repoRoot)
@@ -993,8 +994,8 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	if !strings.Contains(err.Error(), "internal/plannerloop/topics_test.go") {
 		t.Fatalf("RunOnce() error = %q, want dirty runtime path", err)
 	}
-	if got := len(runner.Commands); got != 6 {
-		t.Fatalf("runner commands = %d, want 3 reconcile + 3 sync commands before backend", got)
+	if got := len(runner.Commands); got != 3 {
+		t.Fatalf("runner commands = %d, want 3 sync commands before backend", got)
 	}
 
 	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
@@ -1010,6 +1011,72 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	}
 	if !strings.Contains(rejected.Detail, "internal/plannerloop/topics_test.go") {
 		t.Fatalf("Detail = %q, want dirty runtime path", rejected.Detail)
+	}
+}
+
+func TestRunOnce_RepairsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
+	repoRoot := writePlannerFixture(t)
+	cfg := mustConfig(t, repoRoot)
+	runtimePath := filepath.Join(repoRoot, "internal", "plannerloop", "topics_test.go")
+	writeFile(t, runtimePath, "package plannerloop\n")
+	initPlannerGitRepo(t, repoRoot)
+	writeFile(t, runtimePath, "package plannerloop\n\nfunc dirtyRuntimeFixture() {}\n")
+
+	runner := &runtimePreflightRepairRunner{
+		t:           t,
+		repoRoot:    repoRoot,
+		runtimePath: runtimePath,
+		inner: &cmdrunner.FakeRunner{
+			Results: []cmdrunner.Result{
+				{},
+				{},
+				{Stdout: "Already up to date.\n"},
+				{Stdout: "Already up to date.\n"},
+				{Stdout: "Already up to date.\n"},
+				{Stdout: "Already up to date.\n"},
+				{Stdout: "repair complete\n"},
+				{},
+				{},
+				{},
+				{Stdout: "planner ran ok\n"},
+			},
+		},
+	}
+
+	if _, err := RunOnce(context.Background(), RunOptions{
+		Config:         cfg,
+		Runner:         runner,
+		SkipValidation: true,
+	}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+
+	if !runner.repaired {
+		t.Fatal("repair runner was not invoked")
+	}
+	if runner.repairPrompt == "" {
+		t.Fatal("git repair prompt missing")
+	}
+	for _, want := range []string{
+		"runtime_source_preflight_dirty",
+		"runtime source preflight",
+		"internal/plannerloop/topics_test.go",
+		"resolve the repository git state",
+	} {
+		if !strings.Contains(runner.repairPrompt, want) {
+			t.Fatalf("repair prompt missing %q:\n%s", want, runner.repairPrompt)
+		}
+	}
+
+	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	if _, ok := findPlannerLedgerEvent(events, "git_repair_started", "started"); !ok {
+		t.Fatalf("ledger missing git_repair_started: %+v", events)
+	}
+	if _, ok := findPlannerLedgerEvent(events, "git_repair_completed", "ok"); !ok {
+		t.Fatalf("ledger missing git_repair_completed: %+v", events)
+	}
+	if _, ok := findPlannerLedgerEvent(events, "", "ok"); !ok {
+		t.Fatalf("ledger missing final ok event: %+v", events)
 	}
 }
 
@@ -1461,6 +1528,29 @@ type deadlineCapturingRunner struct {
 	commands           []cmdrunner.Command
 	backendHadDeadline bool
 	backendDeadline    time.Time
+}
+
+type runtimePreflightRepairRunner struct {
+	inner        *cmdrunner.FakeRunner
+	t            *testing.T
+	repoRoot     string
+	runtimePath  string
+	repaired     bool
+	repairPrompt string
+}
+
+func (r *runtimePreflightRepairRunner) Run(ctx context.Context, command cmdrunner.Command) cmdrunner.Result {
+	res := r.inner.Run(ctx, command)
+	if command.Name == "codexu" || command.Name == "claudeu" {
+		prompt := command.Args[len(command.Args)-1]
+		if strings.Contains(prompt, "git repair agent") && strings.Contains(prompt, "runtime_source_preflight_dirty") {
+			r.repaired = true
+			r.repairPrompt = prompt
+			runPlannerGitCommand(r.t, r.repoRoot, "add", filepath.ToSlash(r.runtimePath))
+			runPlannerGitCommand(r.t, r.repoRoot, "commit", "-m", "repair dirty runtime fixture")
+		}
+	}
+	return res
 }
 
 func (r *deadlineCapturingRunner) Run(ctx context.Context, command cmdrunner.Command) cmdrunner.Result {

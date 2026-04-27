@@ -14,9 +14,11 @@ import (
 const (
 	// PlannerInterval is the default cadence between planner timer firings.
 	PlannerInterval = "6h"
-	// plannerEnvironmentPath mirrors autoloop's PATH so the timer-launched
-	// service can find git, go, codexu, etc.
-	plannerEnvironmentPath = "Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+	// plannerEnvironmentPath mirrors the production autoloop PATH and puts
+	// the local Go toolchain first so timer/daemon launches do not accidentally
+	// mix distro Go with the repo's current toolchain.
+	plannerEnvironmentPath   = "Environment=PATH=%h/.local/go-current/bin:%h/.local/bin:%h/.nvm/versions/node/v22.21.1/bin:%h/go/bin:/snap/bin:/usr/local/bin:/usr/bin:/bin"
+	plannerEnvironmentGOROOT = "Environment=GOROOT=%h/.local/go-current"
 )
 
 // PlannerServiceUnitOptions render the systemd .service unit that fires the
@@ -24,20 +26,49 @@ const (
 type PlannerServiceUnitOptions struct {
 	PlannerPath string
 	WorkDir     string
+	Loop        bool
 }
 
 func RenderPlannerServiceUnit(opts PlannerServiceUnitOptions) string {
+	execStart := systemdPathValue(opts.PlannerPath)
+	if opts.Loop {
+		execStart += " --loop"
+		return fmt.Sprintf(`[Unit]
+Description=Gormes architecture planner infinite loop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+%s
+%s
+WorkingDirectory=%s
+ExecStart=%s
+Restart=always
+RestartPreventExitStatus=2
+RestartSec=10s
+TimeoutStopSec=60s
+KillMode=mixed
+KillSignal=SIGTERM
+Nice=10
+
+[Install]
+WantedBy=default.target
+`, plannerEnvironmentPath, plannerEnvironmentGOROOT, systemdPathValue(opts.WorkDir), execStart)
+	}
+
 	return fmt.Sprintf(`[Unit]
 Description=Gormes architecture planner (one-shot, fired by timer)
 
 [Service]
 Type=oneshot
 %s
+%s
 WorkingDirectory=%s
 ExecStart=%s
 TimeoutStartSec=30min
 Nice=10
-`, plannerEnvironmentPath, systemdPathValue(opts.WorkDir), systemdPathValue(opts.PlannerPath))
+`, plannerEnvironmentPath, plannerEnvironmentGOROOT, systemdPathValue(opts.WorkDir), execStart)
 }
 
 // PlannerTimerUnitOptions render the systemd .timer that periodically fires
@@ -168,6 +199,7 @@ type PlannerServiceInstallOptions struct {
 	Interval         string
 	AutoStart        bool
 	Force            bool
+	Loop             bool
 }
 
 func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOptions) error {
@@ -177,7 +209,7 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 	if opts.UnitName == "" {
 		return errors.New("unit name is required")
 	}
-	if opts.TimerName == "" {
+	if !opts.Loop && opts.TimerName == "" {
 		return errors.New("timer name is required")
 	}
 
@@ -194,8 +226,25 @@ func InstallPlannerService(ctx context.Context, opts PlannerServiceInstallOption
 	if err := writePlannerUnit(servicePath, opts.Force, RenderPlannerServiceUnit(PlannerServiceUnitOptions{
 		PlannerPath: opts.PlannerPath,
 		WorkDir:     opts.WorkDir,
+		Loop:        opts.Loop,
 	})); err != nil {
 		return err
+	}
+
+	if opts.Loop {
+		if result := runner.Run(ctx, cmdrunner.Command{Name: "systemctl", Args: []string{"--user", "daemon-reload"}}); result.Err != nil {
+			return result.Err
+		}
+		if opts.AutoStart {
+			result := runner.Run(ctx, cmdrunner.Command{
+				Name: "systemctl",
+				Args: []string{"--user", "enable", "--now", opts.UnitName},
+			})
+			if result.Err != nil {
+				return result.Err
+			}
+		}
+		return nil
 	}
 
 	timerPath := filepath.Join(opts.UnitDir, opts.TimerName)

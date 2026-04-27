@@ -266,7 +266,17 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	if err != nil {
 		return RunSummary{}, fmt.Errorf("planner: load before-doc: %w", err)
 	}
-	if err := validateRuntimeSourcePreflightClean(cfg.RepoRoot); err != nil {
+	runtimePreflightErr := validateRuntimeSourcePreflightClean(cfg.RepoRoot)
+	if runtimePreflightErr != nil {
+		if cfg.GitRepairEnabled && !opts.DryRun {
+			cause := fmt.Errorf("runtime source preflight rejected: %w", runtimePreflightErr)
+			if repairErr := runPlannerGitRepairAgent(ctx, cfg, runner, ledgerPath, runID, "runtime_source_preflight_dirty", cause); repairErr != nil {
+				return RunSummary{}, errors.Join(cause, repairErr)
+			}
+			runtimePreflightErr = validateRuntimeSourcePreflightClean(cfg.RepoRoot)
+		}
+	}
+	if runtimePreflightErr != nil {
 		appendPlannerLedger(ledgerPath, LedgerEvent{
 			TS:            now.UTC().Format(time.RFC3339),
 			RunID:         runID,
@@ -275,11 +285,11 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 			Backend:       cfg.Backend,
 			Mode:          cfg.Mode,
 			Status:        "validation_rejected",
-			Detail:        err.Error(),
+			Detail:        runtimePreflightErr.Error(),
 			BeforeStats:   computeStats(beforeDoc),
 			Keywords:      opts.Keywords,
 		})
-		return RunSummary{}, fmt.Errorf("planner: runtime source preflight rejected: %w", err)
+		return RunSummary{}, fmt.Errorf("planner: runtime source preflight rejected: %w", runtimePreflightErr)
 	}
 	beforeRuntime, err := snapshotRuntimeSources(cfg.RepoRoot)
 	if err != nil {
