@@ -2,6 +2,7 @@ package skills
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -44,10 +45,10 @@ func ListInstalledSkills(opts ListOptions, disabled map[string]struct{}) []Skill
 		}
 		if _, ok := disabledNames[strings.ToLower(strings.TrimSpace(row.Name))]; ok {
 			row.Status = SkillStatusDisabled
-		} else {
+		} else if row.Status == "" {
 			row.Status = SkillStatusEnabled
 		}
-		if opts.EnabledOnly && row.Status == SkillStatusDisabled {
+		if opts.EnabledOnly && row.Status != SkillStatusEnabled {
 			continue
 		}
 		out = append(out, row)
@@ -71,17 +72,126 @@ func installedSkillRows() []SkillRow {
 
 	rows := make([]SkillRow, 0, len(snapshot.Skills))
 	for _, skill := range snapshot.Skills {
-		row := SkillRow{
-			Name: skill.Name,
-			Path: skill.Path,
-		}
+		rows = append(rows, activeSkillRow(store.ActiveDir(), skill))
+	}
+	rows = append(rows, bundledSkillRows()...)
+	return rows
+}
+
+func activeSkillRow(activeDir string, skill Skill) SkillRow {
+	row := baseSkillRow(skill)
+	meta := readSkillListMeta(skill.Path)
+	row.Category = firstNonBlank(meta.Category, categoryFromSkillPath(activeDir, skill.Path))
+	row.Source = normalizeInstalledSource(firstNonBlank(meta.Source, sourceFromSkillPath(activeDir, skill.Path)))
+	row.Trust = firstNonBlank(meta.Trust, defaultTrustForSource(row.Source))
+	return row
+}
+
+func bundledSkillRows() []SkillRow {
+	root := bundledSkillsRoot()
+	if root == "" {
+		return nil
+	}
+	skills, err := loadSkillDocsFromDir(root, DefaultMaxDocumentBytes)
+	if err != nil {
+		return nil
+	}
+
+	rows := make([]SkillRow, 0, len(skills))
+	for _, skill := range skills {
+		row := baseSkillRow(skill)
 		meta := readSkillListMeta(skill.Path)
-		row.Category = firstNonBlank(meta.Category, categoryFromSkillPath(store.ActiveDir(), skill.Path))
-		row.Source = normalizeInstalledSource(firstNonBlank(meta.Source, sourceFromSkillPath(store.ActiveDir(), skill.Path)))
-		row.Trust = firstNonBlank(meta.Trust, defaultTrustForSource(row.Source))
+		row.Category = firstNonBlank(meta.Category, bundledCategoryFromSkillPath(root, skill.Path))
+		row.Source = normalizeInstalledSource(firstNonBlank(meta.Source, "builtin"))
+		row.Trust = firstNonBlank(meta.Trust, "system")
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func baseSkillRow(skill Skill) SkillRow {
+	row := SkillRow{
+		Name: skill.Name,
+		Path: skill.Path,
+	}
+	if len(missingSkillCredentials(skill, nil)) > 0 {
+		row.Status = SkillStatusMissingPrerequisite
+	} else {
+		row.Status = SkillStatusEnabled
+	}
+	return row
+}
+
+func loadSkillDocsFromDir(root string, maxBytes int) ([]Skill, error) {
+	info, err := os.Stat(root)
+	switch {
+	case os.IsNotExist(err):
+		return nil, nil
+	case err != nil:
+		return nil, err
+	case !info.IsDir():
+		return nil, nil
+	}
+
+	var paths []string
+	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == "SKILL.md" {
+			paths = append(paths, path)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	sort.Strings(paths)
+
+	out := make([]Skill, 0, len(paths))
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		skill, err := Parse(raw, maxBytes)
+		if err != nil {
+			return nil, err
+		}
+		skill.Path = path
+		out = append(out, skill)
+	}
+	return out, nil
+}
+
+func bundledSkillsRoot() string {
+	if root := strings.TrimSpace(os.Getenv("GORMES_BUNDLED_SKILLS_ROOT")); root != "" {
+		return root
+	}
+	if strings.TrimSpace(os.Getenv("GORMES_SKILLS_ROOT")) != "" {
+		return ""
+	}
+	return findBundledSkillsRoot()
+}
+
+func findBundledSkillsRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		candidate := filepath.Join(dir, "skills")
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }
 
 func readSkillListMeta(skillPath string) skillListMeta {
@@ -119,6 +229,21 @@ func categoryFromSkillPath(activeDir, skillPath string) string {
 		return ""
 	}
 	parts := splitPath(relDir)
+	if len(parts) <= 1 {
+		return ""
+	}
+	return filepath.Join(parts[:len(parts)-1]...)
+}
+
+func bundledCategoryFromSkillPath(root, skillPath string) string {
+	if root == "" || skillPath == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(root, filepath.Dir(skillPath))
+	if err != nil {
+		return ""
+	}
+	parts := splitPath(rel)
 	if len(parts) <= 1 {
 		return ""
 	}

@@ -190,3 +190,80 @@ func TestLoadDotenvFiles_MissingFilesAreSilentNoop(t *testing.T) {
 	// No .env file exists. Must not error, must not panic.
 	loadDotenvFiles() // expected: silent return
 }
+
+func TestOptionalEnvAnyReportsMissingAirtableCredentialWithoutSecret(t *testing.T) {
+	t.Setenv("AIRTABLE_API_KEY", "")
+	t.Setenv("AIRTABLE_PAT", "")
+
+	got := CheckOptionalEnvAny("AIRTABLE_API_KEY", "AIRTABLE_PAT")
+
+	if got.Available {
+		t.Fatalf("Available = true, want false: %+v", got)
+	}
+	if got.PresentName != "" {
+		t.Fatalf("PresentName = %q, want empty", got.PresentName)
+	}
+	if got.Evidence != "missing optional environment variable: AIRTABLE_API_KEY or AIRTABLE_PAT" {
+		t.Fatalf("Evidence = %q, want missing AIRTABLE_API_KEY/AIRTABLE_PAT", got.Evidence)
+	}
+	if strings.Contains(got.Evidence, "pat_") || strings.Contains(got.Evidence, "key_") {
+		t.Fatalf("Evidence leaked a credential-looking value: %q", got.Evidence)
+	}
+}
+
+func TestOptionalEnvAnyLoadsDotenvAndRedactsPresentSecret(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("HERMES_HOME", "")
+	clearTestEnvVars(t, "AIRTABLE_API_KEY", "AIRTABLE_PAT")
+
+	cfgDir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", cfgDir, err)
+	}
+	secret := "pat_secret_from_dotenv"
+	if err := os.WriteFile(filepath.Join(cfgDir, ".env"), []byte("AIRTABLE_PAT="+secret+"\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(.env): %v", err)
+	}
+
+	got := CheckOptionalEnvAny("AIRTABLE_API_KEY", "AIRTABLE_PAT")
+
+	if !got.Available {
+		t.Fatalf("Available = false, want true: %+v", got)
+	}
+	if got.PresentName != "AIRTABLE_PAT" {
+		t.Fatalf("PresentName = %q, want AIRTABLE_PAT", got.PresentName)
+	}
+	if got.Evidence != "optional environment variable available: AIRTABLE_PAT=[redacted]" {
+		t.Fatalf("Evidence = %q, want redacted AIRTABLE_PAT evidence", got.Evidence)
+	}
+	if strings.Contains(got.Evidence, secret) {
+		t.Fatalf("Evidence leaked secret: %q", got.Evidence)
+	}
+}
+
+func clearTestEnvVars(t *testing.T, names ...string) {
+	t.Helper()
+	type previous struct {
+		name  string
+		value string
+		ok    bool
+	}
+	old := make([]previous, 0, len(names))
+	for _, name := range names {
+		value, ok := os.LookupEnv(name)
+		old = append(old, previous{name: name, value: value, ok: ok})
+		if err := os.Unsetenv(name); err != nil {
+			t.Fatalf("Unsetenv(%q): %v", name, err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, entry := range old {
+			if entry.ok {
+				_ = os.Setenv(entry.name, entry.value)
+			} else {
+				_ = os.Unsetenv(entry.name)
+			}
+		}
+	})
+}

@@ -143,6 +143,61 @@ func loadDotenvFiles() {
 	}
 }
 
+type OptionalEnvEvidence struct {
+	Names       []string
+	Available   bool
+	PresentName string
+	Evidence    string
+}
+
+func CheckOptionalEnvAny(names ...string) OptionalEnvEvidence {
+	loadDotenvFiles()
+	return checkOptionalEnvAnyWithLookup(os.LookupEnv, names...)
+}
+
+func checkOptionalEnvAnyWithLookup(lookup func(string) (string, bool), names ...string) OptionalEnvEvidence {
+	normalized := normalizeOptionalEnvNames(names)
+	out := OptionalEnvEvidence{Names: normalized}
+	for _, name := range normalized {
+		value, ok := lookup(name)
+		if ok && strings.TrimSpace(value) != "" {
+			out.Available = true
+			out.PresentName = name
+			out.Evidence = "optional environment variable available: " + name + "=[redacted]"
+			return out
+		}
+	}
+	out.Evidence = "missing optional environment variable: " + joinEnvNames(normalized)
+	return out
+}
+
+func normalizeOptionalEnvNames(names []string) []string {
+	out := make([]string, 0, len(names))
+	seen := map[string]bool{}
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	return out
+}
+
+func joinEnvNames(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	case 2:
+		return names[0] + " or " + names[1]
+	default:
+		return strings.Join(names[:len(names)-1], ", ") + ", or " + names[len(names)-1]
+	}
+}
+
 func snapshotShellEnv() map[string]struct{} {
 	out := make(map[string]struct{}, len(os.Environ()))
 	for _, kv := range os.Environ() {

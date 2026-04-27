@@ -41,6 +41,10 @@ func Parse(raw []byte, maxBytes int) (Skill, error) {
 	skill.Description = frontmatterString(frontmatter, "description")
 	skill.Platforms = frontmatterStringList(frontmatter["platforms"])
 	skill.RequiredEnvVars = requiredEnvVars(frontmatter)
+	skill.CredentialGroups = credentialGroups(frontmatter)
+	skill.Triggers = frontmatterStringList(frontmatter["triggers"])
+	skill.Exclusions = frontmatterStringList(frontmatter["exclusions"])
+	skill.ReviewState = reviewState(frontmatter)
 
 	skill.Body = strings.Trim(strings.Join(lines[end+1:], "\n"), "\n")
 	if err := skill.Validate(maxBytes); err != nil {
@@ -118,6 +122,93 @@ func requiredEnvVars(frontmatter map[string]any) []string {
 		out = append(out, frontmatterStringList(prereqs["env_vars"])...)
 	}
 	return dedupeStrings(out)
+}
+
+func credentialGroups(frontmatter map[string]any) []CredentialGroup {
+	var out []CredentialGroup
+	out = append(out, parseCredentialGroups(frontmatter["credential_groups"])...)
+	out = append(out, parseCredentialGroups(frontmatter["required_environment_variable_groups"])...)
+	if prereqs, ok := frontmatter["prerequisites"].(map[string]any); ok {
+		out = append(out, parseCredentialGroups(prereqs["credential_groups"])...)
+		out = append(out, parseCredentialGroups(prereqs["env_var_groups"])...)
+	}
+	return dedupeCredentialGroups(out)
+}
+
+func parseCredentialGroups(value any) []CredentialGroup {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case []any:
+		out := make([]CredentialGroup, 0, len(v))
+		for _, item := range v {
+			if group, ok := parseCredentialGroup(item); ok {
+				out = append(out, group)
+			}
+		}
+		return out
+	case []string, string:
+		if group, ok := parseCredentialGroup(v); ok {
+			return []CredentialGroup{group}
+		}
+		return nil
+	default:
+		if group, ok := parseCredentialGroup(v); ok {
+			return []CredentialGroup{group}
+		}
+		return nil
+	}
+}
+
+func parseCredentialGroup(value any) (CredentialGroup, bool) {
+	switch v := value.(type) {
+	case map[string]any:
+		names := frontmatterStringList(v["any_of"])
+		if len(names) == 0 {
+			names = frontmatterStringList(v["anyOf"])
+		}
+		if len(names) == 0 {
+			names = frontmatterStringList(v["env_vars"])
+		}
+		names = dedupeStrings(names)
+		return CredentialGroup{AnyOf: names}, len(names) > 0
+	case []any, []string, string:
+		names := dedupeStrings(frontmatterStringList(v))
+		return CredentialGroup{AnyOf: names}, len(names) > 0
+	default:
+		return CredentialGroup{}, false
+	}
+}
+
+func dedupeCredentialGroups(in []CredentialGroup) []CredentialGroup {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]CredentialGroup, 0, len(in))
+	seen := map[string]bool{}
+	for _, group := range in {
+		group.AnyOf = dedupeStrings(group.AnyOf)
+		if len(group.AnyOf) == 0 {
+			continue
+		}
+		key := strings.Join(group.AnyOf, "\x00")
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, group)
+	}
+	return out
+}
+
+func reviewState(frontmatter map[string]any) string {
+	if state := frontmatterString(frontmatter, "review_state"); state != "" {
+		return state
+	}
+	if review, ok := frontmatter["review"].(map[string]any); ok {
+		return frontmatterString(review, "state")
+	}
+	return ""
 }
 
 func appendStringValue(out []string, value any) []string {
