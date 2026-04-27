@@ -1387,9 +1387,9 @@
             {
               "name": "Telegram fresh-final delete and config exposure",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Telegram gateway streaming exposes fresh_final_after_seconds with a 60 second default and wires the Telegram adapter to best-effort delete stale preview messages via the Bot API deleteMessage call after the shared gateway coalescer successfully sends a fresh final",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1434,7 +1434,7 @@
                 "TestBot_DeleteMessage proves the Telegram bot builds a deleteMessage request for the parsed chat/message IDs and returns parse errors for invalid IDs.",
                 "No live Telegram token, network, or BotFather state is required."
               ],
-              "note": "Blocked follow-up for Hermes b16f9d43/openclaw#72038. It keeps public config aligned with Hermes while preserving Gormes' TOML config and shared gateway boundary: the policy lives in internal/gateway, the SDK delete hook lives in internal/channels/telegram.",
+              "note": "TDD landed: Telegram TOML config now exposes fresh_final_after_seconds with the Hermes-aligned 60 second default and explicit 0 disable path, cmd/gormes wires ManagerConfig.FreshFinalAfter only for configured Telegram runs, and the Telegram adapter implements gateway.MessageDeleter through a deleteMessage request seam backed by BotAPI.Request. Fixtures cover config default/zero/nonzero, Telegram-only manager enablement, and mock deleteMessage Chattable shape without live Telegram calls.",
               "write_scope": [
                 "internal/config/config.go",
                 "internal/config/config_test.go",

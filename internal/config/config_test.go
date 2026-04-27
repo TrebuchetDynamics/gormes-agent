@@ -179,6 +179,65 @@ func TestLoad_TelegramDefaults(t *testing.T) {
 	}
 }
 
+func TestLoad_TelegramFreshFinalAfterSeconds(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.FreshFinalAfterSeconds != 60 {
+			t.Errorf("FreshFinalAfterSeconds default = %v, want 60", cfg.Telegram.FreshFinalAfterSeconds)
+		}
+	})
+
+	t.Run("explicit zero disables", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		dir := filepath.Join(cfgHome, "gormes")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[telegram]
+fresh_final_after_seconds = 0
+`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.FreshFinalAfterSeconds != 0 {
+			t.Errorf("FreshFinalAfterSeconds = %v, want explicit 0", cfg.Telegram.FreshFinalAfterSeconds)
+		}
+	})
+
+	t.Run("nonzero toml", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		dir := filepath.Join(cfgHome, "gormes")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[telegram]
+fresh_final_after_seconds = 12.5
+`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.FreshFinalAfterSeconds != 12.5 {
+			t.Errorf("FreshFinalAfterSeconds = %v, want 12.5", cfg.Telegram.FreshFinalAfterSeconds)
+		}
+	})
+}
+
 func TestLoad_TelegramEnvOverride(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "abc:xyz")

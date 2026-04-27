@@ -44,10 +44,11 @@ type Config struct {
 }
 
 type TelegramCfg struct {
-	BotToken          string `toml:"bot_token"`
-	AllowedChatID     int64  `toml:"allowed_chat_id"`
-	CoalesceMs        int    `toml:"coalesce_ms"`
-	FirstRunDiscovery bool   `toml:"first_run_discovery"`
+	BotToken               string  `toml:"bot_token"`
+	AllowedChatID          int64   `toml:"allowed_chat_id"`
+	CoalesceMs             int     `toml:"coalesce_ms"`
+	FreshFinalAfterSeconds float64 `toml:"fresh_final_after_seconds"`
+	FirstRunDiscovery      bool    `toml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
 	MemoryQueueCap int `toml:"memory_queue_cap"`
@@ -378,6 +379,7 @@ func defaults() Config {
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
 		Telegram: TelegramCfg{
 			CoalesceMs:             1000,
+			FreshFinalAfterSeconds: 60.0,
 			FirstRunDiscovery:      true,
 			MemoryQueueCap:         1024,
 			ExtractorBatchSize:     5,
