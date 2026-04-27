@@ -37,6 +37,8 @@ type ExecutorConfig struct {
 	RunStore      *RunStore
 	DurableLedger *subagent.DurableLedger
 	Sink          DeliverySink
+	LiveDelivery  LiveDeliveryAdapter
+	Directory     DeliveryTargetDirectory
 	CallTimeout   time.Duration // default 60s when zero
 }
 
@@ -188,19 +190,23 @@ func (e *Executor) Run(ctx context.Context, job Job) {
 	}
 
 	// Normal delivery.
-	delivErr := e.cfg.Sink.Deliver(context.Background(), finalText)
+	content := PrepareCronDeliveryContent(finalText)
+	outcome := DeliverCronDeliveryPlan(
+		context.Background(),
+		PlanCronDeliveryForJob(job, e.cfg.Directory),
+		content,
+		e.cfg.LiveDelivery,
+		e.cfg.Sink,
+	)
 	run := Run{
 		JobID:         job.ID,
 		StartedAt:     startedAt,
 		FinishedAt:    finished,
 		PromptHash:    promptHash,
 		Status:        "success",
-		Delivered:     delivErr == nil,
-		OutputPreview: truncate(finalText, 200),
+		OutputPreview: truncate(content.Text, 200),
 	}
-	if delivErr != nil {
-		run.ErrorMsg = fmt.Sprintf("delivery: %v", delivErr)
-	}
+	run = applyDeliveryOutcome(run, outcome)
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 	e.recordAndUpdateJob(ctx, job, run)
 }

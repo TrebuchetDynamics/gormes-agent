@@ -10034,9 +10034,9 @@
             },
             {
               "name": "Cron multi-target delivery + media/live-adapter fallback",
-              "status": "planned",
+              "status": "complete",
               "contract": "Cron delivery planning supports comma-separated deliver targets, origin/local/platform target normalization, MEDIA tag extraction from final assistant text, and live-adapter-first delivery fallback through the existing cron.DeliverySink abstraction without changing the Phase 2.D run audit store",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -10061,16 +10061,13 @@
                 "The slice implements a new channel directory, sends live Telegram/Discord/Slack network messages in unit tests, or changes cron RunStore schema.",
                 "The slice removes the existing cron.DeliverySink path; live adapter delivery must fall back through that abstraction."
               ],
-              "blocked_by": [
-                "Cronjob tool action envelope over native store"
-              ],
               "acceptance": [
                 "TestCronDeliveryPlan_ParseTargets covers omitted deliver/origin, local, `telegram:-100123:42`, and comma-separated targets with stable normalized output.",
                 "TestCronDeliveryPlan_InvalidTargetsReturnEvidence covers malformed platform/chat/thread strings without panics.",
                 "TestCronDeliveryPlan_MediaTags extracts `[MEDIA:path]` references into media attachments while leaving text delivery intact and redacting traversal paths.",
                 "TestCronDeliveryPlan_LiveAdapterFallback uses fake live adapter and fake DeliverySink implementations to prove live success bypasses fallback, live unavailable uses fallback, and both failures surface delivery evidence while preserving run status."
               ],
-              "note": "Refined 2026-04-26: the old note-only row is now a blocked small contract. It tracks Hermes' delivery/media behavior but keeps Gormes on the existing DeliverySink and gateway abstractions.",
+              "note": "Complete: TDD landed internal/cron/delivery_plan_test.go and delivery_plan.go. Cron delivery planning now normalizes omitted/local/origin/explicit/comma-separated targets, reports malformed targets and missing channel-directory homes as degraded evidence, extracts safe [MEDIA:path] attachments while redacting traversal paths, and tries a live adapter before falling back through the existing DeliverySink. Executor success delivery now uses the shared helper without changing the Phase 2.D cron_runs schema.",
               "write_scope": [
                 "internal/cron/delivery_plan.go",
                 "internal/cron/delivery_plan_test.go",
