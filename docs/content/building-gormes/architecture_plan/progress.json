@@ -7832,11 +7832,11 @@
                 "Title generator fixtures prove bounded prompt construction, candidate cleanup/truncation, empty-history skip, blank-output evidence, and provider-failure evidence with a fake model only."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-27T06:04:58Z",
+                "attempt_count": 2,
+                "consecutive_failures": 2,
+                "last_attempt": "2026-04-27T06:12:04Z",
                 "last_failure": {
-                  "run_id": "20260427T060446Z-867562853",
+                  "run_id": "20260427T061154Z-599631763",
                   "category": "worker_error",
                   "backend": "codexu",
                   "stderr_tail": "Reading additional input from stdin...\n"
