@@ -10361,9 +10361,9 @@
             {
               "name": "MCP stdio orphan cleanup after cron ticks",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Cron and MCP stdio tooling track orphaned stdio server PIDs after cancellation/timeout and sweep only orphaned children after a cron tick joins, without killing active MCP sessions from parallel work",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -10395,7 +10395,7 @@
                 "TestMCPOrphanCleanup_ShutdownIncludesActive preserves existing shutdown behavior that can reap both active and orphaned PIDs.",
                 "TestCronSchedulerRunsMCPOrphanCleanupAfterTickJoin proves cleanup is called after all fake tick jobs complete and never while a sibling job is still marked active."
               ],
-              "note": "Hermes 930494d6 fixed leaked MCP stdio subprocesses after cancelled cron ticks. Gormes has in-process MCP stdio fixtures and native cron execution; this row adds the process-tracker/reaper seam without spawning real processes in tests.",
+              "note": "Complete: TDD landed a pure MCP stdio process tracker/reaper seam with fakeable PID liveness and kill functions, stdio-client PID registration/session-exit orphan marking, and cron tick cleanup after grouped sibling jobs join. Fixtures prove orphan-only cron reaping, active PID preservation, shutdown including active PIDs, and no real subprocess or cron goroutine dependency.",
               "write_scope": [
                 "internal/tools/mcp_orphan_cleanup.go",
                 "internal/tools/mcp_orphan_cleanup_test.go",
@@ -10413,6 +10413,11 @@
               "done_signal": [
                 "MCP/cron fixtures prove cancelled stdio PIDs become orphaned, cron tick cleanup reaps only orphans after join, shutdown can include active PIDs, and no real subprocess is spawned."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:11:40Z",
+                "last_success": "2026-04-27T05:11:40Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:930494d6 tools/mcp_tool.py",

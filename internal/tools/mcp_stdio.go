@@ -31,9 +31,11 @@ type MCPRawTool struct {
 // observability hooks. Tests pass an in-process net.Pipe pair so no real
 // subprocess is spawned.
 type StdioClientOpts struct {
-	Conn   io.ReadWriteCloser
-	Logger *slog.Logger
-	Now    func() time.Time
+	Conn           io.ReadWriteCloser
+	Logger         *slog.Logger
+	Now            func() time.Time
+	ProcessPID     int
+	ProcessTracker *MCPStdioProcessTracker
 }
 
 // StdioClient speaks JSON-RPC over a stdio.ReadWriteCloser. It is the minimal
@@ -53,6 +55,10 @@ type StdioClient struct {
 
 	closeMu sync.Mutex
 	closed  bool
+
+	processPID     int
+	processTracker *MCPStdioProcessTracker
+	processExit    sync.Once
 
 	versionMu       sync.RWMutex
 	protocolVersion string
@@ -83,12 +89,21 @@ func NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient
 	if now == nil {
 		now = time.Now
 	}
+	processTracker := opts.ProcessTracker
+	if processTracker == nil && opts.ProcessPID > 0 {
+		processTracker = DefaultMCPStdioProcessTracker
+	}
+	if processTracker != nil && opts.ProcessPID > 0 {
+		processTracker.TrackActivePID(def.Name, opts.ProcessPID)
+	}
 	return &StdioClient{
-		def:    def,
-		conn:   opts.Conn,
-		logger: logger,
-		now:    now,
-		reader: bufio.NewReader(opts.Conn),
+		def:            def,
+		conn:           opts.Conn,
+		logger:         logger,
+		now:            now,
+		reader:         bufio.NewReader(opts.Conn),
+		processPID:     opts.ProcessPID,
+		processTracker: processTracker,
 	}, nil
 }
 
@@ -159,7 +174,17 @@ func (c *StdioClient) Close() error {
 		return nil
 	}
 	c.closed = true
-	return c.conn.Close()
+	err := c.conn.Close()
+	c.markProcessExit()
+	return err
+}
+
+func (c *StdioClient) markProcessExit() {
+	c.processExit.Do(func() {
+		if c.processTracker != nil && c.processPID > 0 {
+			c.processTracker.MarkSessionExit(c.def.Name, c.processPID)
+		}
+	})
 }
 
 // jsonRPCRequest is the minimal client-side JSON-RPC 2.0 envelope for the

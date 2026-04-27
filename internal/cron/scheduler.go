@@ -6,13 +6,15 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	rc "github.com/robfig/cron/v3"
 )
 
 // SchedulerConfig is the set of live dependencies.
 type SchedulerConfig struct {
-	Store    *Store // bbolt job persistence
-	Executor Runner // interface — real *Executor or a test fake
+	Store            *Store // bbolt job persistence
+	Executor         Runner // interface — real *Executor or a test fake
+	MCPOrphanCleanup func()
 }
 
 // Scheduler owns a robfig *cron.Cron instance and the mapping of
@@ -31,6 +33,11 @@ type Scheduler struct {
 func NewScheduler(cfg SchedulerConfig, log *slog.Logger) *Scheduler {
 	if log == nil {
 		log = slog.Default()
+	}
+	if cfg.MCPOrphanCleanup == nil {
+		cfg.MCPOrphanCleanup = func() {
+			tools.ReapMCPStdioOrphans()
+		}
 	}
 	return &Scheduler{
 		cfg:     cfg,
@@ -51,6 +58,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("scheduler: list jobs: %w", err)
 	}
+	jobsBySchedule := make(map[string][]Job)
 	for _, job := range jobs {
 		if job.Paused {
 			continue
@@ -61,8 +69,37 @@ func (s *Scheduler) Start(ctx context.Context) error {
 				"schedule", job.Schedule, "err", vErr)
 			continue
 		}
-		jobCopy := job // capture for closure
-		id, aErr := s.cron.AddFunc(job.Schedule, func() {
+		jobsBySchedule[job.Schedule] = append(jobsBySchedule[job.Schedule], job)
+	}
+	for schedule, scheduleJobs := range jobsBySchedule {
+		tickJobs := append([]Job(nil), scheduleJobs...)
+		id, aErr := s.cron.AddFunc(schedule, func() {
+			s.runTick(ctx, tickJobs)
+		})
+		if aErr != nil {
+			for _, job := range tickJobs {
+				s.log.Warn("cron: AddFunc failed",
+					"job_id", job.ID, "name", job.Name, "err", aErr)
+			}
+			continue
+		}
+		s.mu.Lock()
+		for _, job := range tickJobs {
+			s.entries[job.ID] = id
+		}
+		s.mu.Unlock()
+	}
+	s.cron.Start()
+	return nil
+}
+
+func (s *Scheduler) runTick(ctx context.Context, jobs []Job) {
+	var wg sync.WaitGroup
+	for _, job := range jobs {
+		jobCopy := job
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
 					s.log.Warn("cron: panic in job",
@@ -70,18 +107,10 @@ func (s *Scheduler) Start(ctx context.Context) error {
 				}
 			}()
 			s.cfg.Executor.Run(ctx, jobCopy)
-		})
-		if aErr != nil {
-			s.log.Warn("cron: AddFunc failed",
-				"job_id", job.ID, "name", job.Name, "err", aErr)
-			continue
-		}
-		s.mu.Lock()
-		s.entries[job.ID] = id
-		s.mu.Unlock()
+		}()
 	}
-	s.cron.Start()
-	return nil
+	wg.Wait()
+	s.cfg.MCPOrphanCleanup()
 }
 
 // Stop halts the ticker and waits for any running jobs (bounded by ctx).
