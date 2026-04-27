@@ -10844,9 +10844,9 @@
             {
               "name": "Gateway hook auto-accept strict parser",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway hook consent resolves CLI/env/config auto-accept values through a strict bool/string parser so quoted false-like strings and non-bool scalars cannot silently authorize executable hooks",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -10882,7 +10882,7 @@
                 "TestHookAutoAcceptParser_CLIOverride proves an explicit CLI accept flag wins over false-like config.",
                 "The helper returns stable evidence codes for accepted_by_cli, accepted_by_env, accepted_by_config, rejected_default, and hook_auto_accept_invalid without starting a hook process."
               ],
-              "note": "Hermes e19854d8 fixed a security regression where `hooks_auto_accept: \"false\"` became truthy through Python bool() coercion. Gormes hook execution is Go-native, but the same executable-hook consent invariant belongs with approval/security guard work before adding auto-accept config or CLI wiring.",
+              "note": "TDD landed: the pure gateway hook auto-accept parser now accepts only bool true or strict truthy strings `1`, `true`, `yes`, and `on`, rejects quoted false-like strings and non-bool scalars, preserves CLI/env/config evidence codes, and keeps invalid values in explicit-consent-required mode.",
               "write_scope": [
                 "internal/gateway/hook_consent.go",
                 "internal/gateway/hook_consent_test.go",
