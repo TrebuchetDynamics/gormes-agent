@@ -15,7 +15,7 @@ Hermes hard to shrink.
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
 - Upstream commit: `b16f9d43`
 - Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
-- Gormes commit: `4b408086`
+- Gormes commit: `0950c932`
 - Date: 2026-04-27
 
 ## 2026-04-27 (Telegram fresh-final streaming) Drift Check
@@ -43,9 +43,9 @@ The Hermes delta is narrow but user-visible for gateway streaming:
 Gormes already has `internal/gateway/coalesce.go`, `gateway.MessageEditor`,
 `gateway.FinalizingMessageEditor`, and `internal/channels/telegram.EditMessage`,
 but it has no preview-age threshold, fresh-final fallback, or Telegram delete
-seam. The roadmap now tracks this under Phase 2.B.5 as two worker-sized rows:
-`Gateway fresh-final stream coalescer policy` followed by
-`Telegram fresh-final delete and config exposure`.
+seam. The roadmap now tracks this under Phase 2.B.5 as three worker-sized rows:
+`Gateway fresh-final eligibility helper`, `Gateway fresh-final send/delete
+fallback`, then `Telegram fresh-final delete and config exposure`.
 
 ## 2026-04-26 (auto-title, skills cleanup, Docker docs) Drift Check
 

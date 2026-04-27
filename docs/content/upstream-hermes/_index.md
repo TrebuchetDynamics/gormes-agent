@@ -26,8 +26,9 @@ while preserving public `honcho_*` compatibility surfaces.
 - Telegram streaming drift: `b16f9d43` ports openclaw#72038 so long-running
   Telegram streamed previews finalize as a fresh message after
   `fresh_final_after_seconds` (default 60s) and best-effort delete the stale
-  preview. Gormes now tracks this as two small Phase 2.B.5 rows: a shared
-  gateway coalescer policy seam, then Telegram config + deleteMessage wiring.
+  preview. Gormes now tracks this as three small Phase 2.B.5 rows: a shared
+  gateway eligibility helper, a shared send/delete fallback, then Telegram
+  config + deleteMessage wiring.
 - The upstream configuration mirror now includes the
   `streaming.fresh_final_after_seconds` field so the study docs match the
   synchronized sibling repo.

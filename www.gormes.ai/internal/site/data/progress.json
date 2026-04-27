@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-27T00:40:52Z",
+    "last_updated": "2026-04-27T01:07:49Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -1248,52 +1248,119 @@
               ]
             },
             {
-              "name": "Gateway fresh-final stream coalescer policy",
+              "name": "Gateway fresh-final eligibility helper",
               "priority": "P0",
               "status": "planned",
-              "contract": "Gateway streaming finalization can replace an old editable preview with a fresh final message when the preview age is at or above a configured threshold, while preserving the legacy edit-in-place path when the threshold is zero, the preview is too young, the channel cannot send a fresh final, or the fresh send fails",
+              "contract": "Gateway coalescer exposes a deterministic fresh-final eligibility decision for stale editable previews without changing send/edit behavior yet",
               "contract_status": "fixture_ready",
-              "slice_size": "medium",
+              "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
                 "operator",
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Until this lands, Telegram and other editable channels always finalize by editing the original preview, so long-running Telegram replies keep the first-token visible timestamp.",
-              "fixture": "internal/gateway/coalesce_fresh_final_test.go::TestCoalescerFreshFinal",
+              "degraded_mode": "Until this helper lands, fresh-final cannot be tested with a fake clock and all channels keep the legacy edit-in-place finalization path.",
+              "fixture": "internal/gateway/coalesce_fresh_final_test.go::TestFreshFinalEligibility",
               "source_refs": [
                 "../hermes-agent/gateway/stream_consumer.py@b16f9d43:GatewayStreamConsumer._should_send_fresh_final",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_disabled_by_default_still_edits_in_place",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_short_lived_preview_edits_in_place",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_long_lived_preview_sends_fresh_final",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_no_edit_sentinel_is_not_affected",
+                "internal/gateway/coalesce.go",
+                "internal/gateway/channel.go"
+              ],
+              "ready_when": [
+                "Gateway stream consumer for agent-event fan-out and Non-editable gateway progress/commentary send fallback are complete on main.",
+                "internal/gateway/coalesce.go already owns pending message id, last edit time, final flush, and the editable preview lifecycle.",
+                "The worker can add a fake-clock eligibility helper in internal/gateway without touching manager wiring, Telegram config, SDK delete calls, or provider streaming."
+              ],
+              "not_ready_when": [
+                "The slice changes manager outbound dispatch, adds a Send/Delete path, or edits Telegram/config packages.",
+                "The slice changes provider streaming, kernel.RenderFrame phases, non-editable channel send fallback, or Slack/Discord channel implementations.",
+                "The tests sleep or depend on wall-clock time instead of an injected now function."
+              ],
+              "unblocks": [
+                "Gateway fresh-final send/delete fallback"
+              ],
+              "acceptance": [
+                "Coalescer state records the preview creation time when SendPlaceholder succeeds and keeps zero-value state for no-preview cases.",
+                "A pure helper or coalescer method returns false when the threshold is zero, the preview id is empty, preview creation time is missing, or the preview is younger than the threshold.",
+                "The same helper returns true when the preview age is equal to or greater than the threshold.",
+                "Focused tests use a fake now function and do not sleep.",
+                "Existing coalescer edit/finalize behavior remains unchanged because this row does not add the fresh send path."
+              ],
+              "note": "Split 2026-04-27 from the broader fresh-final row after autoloop hit worker_error. This first slice ports only Hermes b16f9d43 _should_send_fresh_final as fake-clock Go coalescer state so the send/delete behavior can land as a separate worker-sized slice.",
+              "write_scope": [
+                "internal/gateway/coalesce.go",
+                "internal/gateway/coalesce_fresh_final_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestFreshFinalEligibility|TestCoalescer' -count=1",
+                "go run ./cmd/builder-loop progress validate"
+              ],
+              "done_signal": [
+                "Gateway coalescer fixtures prove fresh-final eligibility with a fake clock while all final sends still use the existing edit-in-place path."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b16f9d43 gateway/stream_consumer.py",
+                "note": "Hermes defines the preview-age eligibility rule; Gormes adapts it first as Go-native coalescer state before adding shared send/delete behavior."
+              }
+            },
+            {
+              "name": "Gateway fresh-final send/delete fallback",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gateway streaming finalization can replace an eligible old editable preview with a fresh final message, best-effort delete the old preview when supported, and fall back to the legacy final edit when fresh send fails",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Until this lands, the coalescer can identify stale previews but still finalizes by editing the original preview, so long-running Telegram replies keep the first-token visible timestamp.",
+              "fixture": "internal/gateway/coalesce_fresh_final_test.go::TestCoalescerFreshFinalSendFallback",
+              "source_refs": [
                 "../hermes-agent/gateway/stream_consumer.py@b16f9d43:GatewayStreamConsumer._try_fresh_final",
-                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:TestFreshFinalForLongLivedPreviews",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_long_lived_preview_sends_fresh_final",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_fresh_final_without_delete_support_is_best_effort",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_fresh_final_fallback_to_edit_on_send_failure",
+                "../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_only_finalize_triggers_fresh_final",
                 "internal/gateway/coalesce.go",
                 "internal/gateway/channel.go",
                 "internal/gateway/manager.go"
               ],
               "ready_when": [
-                "Gateway stream consumer for agent-event fan-out and Non-editable gateway progress/commentary send fallback are complete on main.",
-                "internal/gateway/coalesce.go currently owns placeholder send, edit cadence, and final flush; fresh-final should be implemented there with an injected clock in tests, not in Telegram-specific code.",
-                "The worker can use fake gateway.Channel values only; no Telegram SDK, network call, or real provider stream is needed for this row."
+                "Gateway fresh-final eligibility helper is complete and fixture-backed.",
+                "The worker can use fake gateway.Channel values only; no Telegram SDK, network call, or real provider stream is needed for this row.",
+                "ManagerConfig can carry FreshFinalAfter and the coalescer can receive a now function without changing kernel.RenderFrame phases."
               ],
               "not_ready_when": [
-                "The slice changes provider streaming, kernel.RenderFrame phases, non-editable channel send fallback, or Slack/Discord channel implementations.",
-                "The slice adds a Telegram config field or Telegram delete API call; those are in the dependent Telegram row.",
+                "The slice adds Telegram config fields or Telegram deleteMessage SDK calls; those are in the dependent Telegram row.",
+                "The slice modifies Slack/Discord channel implementations, provider streaming, or non-editable send fallback.",
                 "The slice sends duplicate final messages when fresh send fails instead of falling back to the existing edit finalization path."
+              ],
+              "blocked_by": [
+                "Gateway fresh-final eligibility helper"
               ],
               "unblocks": [
                 "Telegram fresh-final delete and config exposure"
               ],
               "acceptance": [
                 "internal/gateway/channel.go adds a small optional MessageDeleter interface with DeleteMessage(ctx, chatID, msgID string) error; existing channels need not implement it.",
-                "ManagerConfig carries FreshFinalAfter time.Duration and the coalescer tracks the placeholder creation time via an injected now function so tests do not sleep.",
-                "TestCoalescerFreshFinal_DisabledThresholdEditsInPlace proves FreshFinalAfter=0 keeps the existing EditMessageFinal path.",
-                "TestCoalescerFreshFinal_YoungPreviewEditsInPlace proves a final flush before the threshold edits the preview and does not call Channel.Send.",
-                "TestCoalescerFreshFinal_OldPreviewSendsFreshAndDeletesOld proves a final flush at or beyond the threshold calls Send for the final text, skips EditMessageFinal for the old preview, adopts the new message id, and best-effort calls DeleteMessage on the old id.",
-                "TestCoalescerFreshFinal_DeleteUnsupportedStillSucceeds proves a channel without MessageDeleter still delivers the fresh final.",
-                "TestCoalescerFreshFinal_FreshSendFailureFallsBackToEdit proves a failed fresh Send falls back to EditMessageFinal and returns success when the edit succeeds.",
+                "ManagerConfig carries FreshFinalAfter time.Duration and passes it to the coalescer with an injected now function so tests do not sleep.",
+                "An eligible final flush calls Channel.Send for the final text, skips EditMessageFinal for the old preview, adopts the new message id, and best-effort calls DeleteMessage on the old id.",
+                "A channel without MessageDeleter still delivers the fresh final and leaves the old preview in place.",
+                "A failed fresh Send falls back to EditMessageFinal and returns success when the edit succeeds.",
+                "Non-final intermediate edits never trigger a fresh final.",
                 "Existing manager outbound tests for non-editable channels and editable streaming remain green."
               ],
-              "note": "New upstream Hermes drift from b16f9d43/openclaw#72038. This row ports the shared policy and coalescer state first, leaving Telegram config/defaults and deleteMessage SDK wiring to the blocked follow-up so workers do not collide in internal/channels/telegram.",
+              "note": "Split 2026-04-27 from the broader fresh-final row after autoloop hit worker_error. This second gateway slice ports Hermes b16f9d43 _try_fresh_final over the shared Go coalescer while still leaving Telegram operator config and SDK deleteMessage wiring to the blocked follow-up.",
               "write_scope": [
                 "internal/gateway/channel.go",
                 "internal/gateway/coalesce.go",
@@ -1304,17 +1371,17 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/gateway -run 'TestCoalescerFreshFinal' -count=1",
+                "go test ./internal/gateway -run 'TestCoalescerFreshFinalSendFallback' -count=1",
                 "go test ./internal/gateway -run 'TestManager_Outbound|TestGatewayStreamConsumer|TestCoalescer' -count=1",
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "Gateway coalescer fixtures prove old-preview fresh finalization, delete best-effort behavior, young-preview edit-in-place behavior, and fresh-send failure fallback without touching Telegram SDK code."
+                "Gateway coalescer and manager fixtures prove old-preview fresh finalization, delete best-effort behavior, non-final edit behavior, and fresh-send failure fallback without touching Telegram SDK code."
               ],
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b16f9d43 gateway/stream_consumer.py",
-                "note": "Hermes defines the fresh-final stream behavior; Gormes adapts it to the Go shared gateway coalescer before Telegram-specific config and delete wiring."
+                "note": "Hermes defines the fresh-final stream send/delete fallback; Gormes adapts it to the Go shared gateway coalescer before Telegram-specific config and SDK wiring."
               }
             },
             {
@@ -1345,7 +1412,7 @@
                 "github.com/go-telegram-bot-api/telegram-bot-api/v5@v5.5.1:NewDeleteMessage"
               ],
               "ready_when": [
-                "Gateway fresh-final stream coalescer policy is complete and exposes ManagerConfig.FreshFinalAfter plus the optional MessageDeleter interface.",
+                "Gateway fresh-final send/delete fallback is complete and exposes ManagerConfig.FreshFinalAfter plus the optional MessageDeleter interface.",
                 "Gormes uses TOML config, so the setting should live on config.TelegramCfg as fresh_final_after_seconds rather than copying Hermes YAML structures.",
                 "go-telegram-bot-api/v5 exposes tgbotapi.NewDeleteMessage and BotAPI.Request for deleteMessage; tests should assert the Chattable shape through the mock client, not call Telegram."
               ],
@@ -1355,7 +1422,7 @@
                 "The slice changes the default coalesce_ms behavior or enables fresh-final for Discord/Slack."
               ],
               "blocked_by": [
-                "Gateway fresh-final stream coalescer policy"
+                "Gateway fresh-final send/delete fallback"
               ],
               "acceptance": [
                 "config.TelegramCfg gains FreshFinalAfterSeconds float64 `toml:\"fresh_final_after_seconds\"`; defaults() sets it to 60.0 and TOML value 0 disables the behavior.",
@@ -1566,8 +1633,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T00:40:52Z",
-            "origin_decision": "Session context and delivery routing remain upstream-led for channel-specific delivery details. Hermes 6087e040/c0d25df3/f414df3a add Slack rich_text, attachment-unfurl, thread-parent, and team-scoped cache behavior; those are tracked here as follow-up context/delivery rows while the 2.B.3 Slack shared-chassis closeout remains complete. Hermes b16f9d43/openclaw#72038 adds Telegram fresh-final streaming for long-lived previews; Gormes now tracks it as a shared gateway coalescer policy row followed by a Telegram-only config/deleteMessage row so workers do not conflate platform SDK wiring with the generic stream finalization contract."
+            "last_upstream_check": "2026-04-27T01:07:49Z",
+            "origin_decision": "Session context and delivery routing remain upstream-led for channel-specific delivery details. Hermes 6087e040/c0d25df3/f414df3a add Slack rich_text, attachment-unfurl, thread-parent, and team-scoped cache behavior; those are tracked here as follow-up context/delivery rows while the 2.B.3 Slack shared-chassis closeout remains complete. Hermes b16f9d43/openclaw#72038 adds Telegram fresh-final streaming for long-lived previews; after a worker_error on the broader row, Gormes now tracks it as three dependency-ordered slices: a pure shared gateway eligibility helper, a shared gateway send/delete fallback, then Telegram-only config/deleteMessage wiring."
           }
         },
         "2.B.10": {

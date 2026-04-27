@@ -15,8 +15,8 @@ Hermes `b16f9d43` adds one new Telegram-specific delivery delta that PicoClaw di
 not cover in this dossier: long-lived streamed previews can finalize as a fresh
 message after `fresh_final_after_seconds` and best-effort delete the stale
 preview. Gormes tracks that behavior in Phase 2.B.5 as a shared gateway
-coalescer policy plus Telegram config/delete wiring; it should not replace the
-existing Telegram adapter base.
+eligibility helper, a shared send/delete fallback, and Telegram config/delete
+wiring; it should not replace the existing Telegram adapter base.
 
 Evidence level:
 

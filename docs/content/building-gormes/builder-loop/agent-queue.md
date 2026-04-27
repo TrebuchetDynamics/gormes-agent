@@ -22,25 +22,25 @@ tests, and candidate policy. Keep those control-plane facts in
 `meta.builder_loop`, and keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Gateway fresh-final stream coalescer policy
+## 1. Gateway fresh-final eligibility helper
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
-- Size: `medium`
+- Size: `small`
 - Status: `planned`
 - Priority: `P0`
-- Contract: Gateway streaming finalization can replace an old editable preview with a fresh final message when the preview age is at or above a configured threshold, while preserving the legacy edit-in-place path when the threshold is zero, the preview is too young, the channel cannot send a fresh final, or the fresh send fails
+- Contract: Gateway coalescer exposes a deterministic fresh-final eligibility decision for stale editable previews without changing send/edit behavior yet
 - Trust class: operator, gateway, system
-- Ready when: Gateway stream consumer for agent-event fan-out and Non-editable gateway progress/commentary send fallback are complete on main., internal/gateway/coalesce.go currently owns placeholder send, edit cadence, and final flush; fresh-final should be implemented there with an injected clock in tests, not in Telegram-specific code., The worker can use fake gateway.Channel values only; no Telegram SDK, network call, or real provider stream is needed for this row.
-- Not ready when: The slice changes provider streaming, kernel.RenderFrame phases, non-editable channel send fallback, or Slack/Discord channel implementations., The slice adds a Telegram config field or Telegram delete API call; those are in the dependent Telegram row., The slice sends duplicate final messages when fresh send fails instead of falling back to the existing edit finalization path.
-- Degraded mode: Until this lands, Telegram and other editable channels always finalize by editing the original preview, so long-running Telegram replies keep the first-token visible timestamp.
-- Fixture: `internal/gateway/coalesce_fresh_final_test.go::TestCoalescerFreshFinal`
-- Write scope: `internal/gateway/channel.go`, `internal/gateway/coalesce.go`, `internal/gateway/coalesce_fresh_final_test.go`, `internal/gateway/manager.go`, `internal/gateway/manager_test.go`, `internal/gateway/fake_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway -run 'TestCoalescerFreshFinal' -count=1`, `go test ./internal/gateway -run 'TestManager_Outbound\|TestGatewayStreamConsumer\|TestCoalescer' -count=1`, `go run ./cmd/builder-loop progress validate`
-- Done signal: Gateway coalescer fixtures prove old-preview fresh finalization, delete best-effort behavior, young-preview edit-in-place behavior, and fresh-send failure fallback without touching Telegram SDK code.
-- Acceptance: internal/gateway/channel.go adds a small optional MessageDeleter interface with DeleteMessage(ctx, chatID, msgID string) error; existing channels need not implement it., ManagerConfig carries FreshFinalAfter time.Duration and the coalescer tracks the placeholder creation time via an injected now function so tests do not sleep., TestCoalescerFreshFinal_DisabledThresholdEditsInPlace proves FreshFinalAfter=0 keeps the existing EditMessageFinal path., TestCoalescerFreshFinal_YoungPreviewEditsInPlace proves a final flush before the threshold edits the preview and does not call Channel.Send., TestCoalescerFreshFinal_OldPreviewSendsFreshAndDeletesOld proves a final flush at or beyond the threshold calls Send for the final text, skips EditMessageFinal for the old preview, adopts the new message id, and best-effort calls DeleteMessage on the old id., TestCoalescerFreshFinal_DeleteUnsupportedStillSucceeds proves a channel without MessageDeleter still delivers the fresh final., TestCoalescerFreshFinal_FreshSendFailureFallsBackToEdit proves a failed fresh Send falls back to EditMessageFinal and returns success when the edit succeeds., Existing manager outbound tests for non-editable channels and editable streaming remain green.
-- Source refs: ../hermes-agent/gateway/stream_consumer.py@b16f9d43:GatewayStreamConsumer._should_send_fresh_final, ../hermes-agent/gateway/stream_consumer.py@b16f9d43:GatewayStreamConsumer._try_fresh_final, ../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:TestFreshFinalForLongLivedPreviews, internal/gateway/coalesce.go, internal/gateway/channel.go, internal/gateway/manager.go
-- Unblocks: Telegram fresh-final delete and config exposure
+- Ready when: Gateway stream consumer for agent-event fan-out and Non-editable gateway progress/commentary send fallback are complete on main., internal/gateway/coalesce.go already owns pending message id, last edit time, final flush, and the editable preview lifecycle., The worker can add a fake-clock eligibility helper in internal/gateway without touching manager wiring, Telegram config, SDK delete calls, or provider streaming.
+- Not ready when: The slice changes manager outbound dispatch, adds a Send/Delete path, or edits Telegram/config packages., The slice changes provider streaming, kernel.RenderFrame phases, non-editable channel send fallback, or Slack/Discord channel implementations., The tests sleep or depend on wall-clock time instead of an injected now function.
+- Degraded mode: Until this helper lands, fresh-final cannot be tested with a fake clock and all channels keep the legacy edit-in-place finalization path.
+- Fixture: `internal/gateway/coalesce_fresh_final_test.go::TestFreshFinalEligibility`
+- Write scope: `internal/gateway/coalesce.go`, `internal/gateway/coalesce_fresh_final_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway -run 'TestFreshFinalEligibility\|TestCoalescer' -count=1`, `go run ./cmd/builder-loop progress validate`
+- Done signal: Gateway coalescer fixtures prove fresh-final eligibility with a fake clock while all final sends still use the existing edit-in-place path.
+- Acceptance: Coalescer state records the preview creation time when SendPlaceholder succeeds and keeps zero-value state for no-preview cases., A pure helper or coalescer method returns false when the threshold is zero, the preview id is empty, preview creation time is missing, or the preview is younger than the threshold., The same helper returns true when the preview age is equal to or greater than the threshold., Focused tests use a fake now function and do not sleep., Existing coalescer edit/finalize behavior remains unchanged because this row does not add the fresh send path.
+- Source refs: ../hermes-agent/gateway/stream_consumer.py@b16f9d43:GatewayStreamConsumer._should_send_fresh_final, ../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_disabled_by_default_still_edits_in_place, ../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_short_lived_preview_edits_in_place, ../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_long_lived_preview_sends_fresh_final, ../hermes-agent/tests/gateway/test_stream_consumer_fresh_final.py@b16f9d43:test_no_edit_sentinel_is_not_affected, internal/gateway/coalesce.go, internal/gateway/channel.go
+- Unblocks: Gateway fresh-final send/delete fallback
 - Why now: P0 handoff; needs contract proof before closeout.
 
 ## 2. BlueBubbles iMessage bubble formatting parity

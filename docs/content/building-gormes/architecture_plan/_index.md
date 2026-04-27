@@ -127,7 +127,8 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
 - [x] Non-editable gateway progress/commentary send fallback
-- [ ] Gateway fresh-final stream coalescer policy
+- [ ] Gateway fresh-final eligibility helper
+- [ ] Gateway fresh-final send/delete fallback
 - [ ] Telegram fresh-final delete and config exposure
 - [x] Slack rich-text quotes/lists + link-unfurl ingress
 - [x] Slack thread-parent context + team-scoped cache key
