@@ -7,6 +7,9 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 type fakeShutdownManager struct {
@@ -18,6 +21,76 @@ func (f *fakeShutdownManager) Shutdown(context.Context) error {
 	close(f.called)
 	<-f.release
 	return nil
+}
+
+func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  config.Config
+		want time.Duration
+	}{
+		{
+			name: "telegram default threshold",
+			cfg: config.Config{
+				Telegram: config.TelegramCfg{
+					BotToken:               "telegram-token",
+					FreshFinalAfterSeconds: 60,
+				},
+			},
+			want: time.Minute,
+		},
+		{
+			name: "telegram explicit zero disables",
+			cfg: config.Config{
+				Telegram: config.TelegramCfg{
+					BotToken:               "telegram-token",
+					FreshFinalAfterSeconds: 0,
+				},
+			},
+			want: 0,
+		},
+		{
+			name: "discord only stays disabled",
+			cfg: config.Config{
+				Telegram: config.TelegramCfg{FreshFinalAfterSeconds: 60},
+				Discord: config.DiscordCfg{
+					Token:            "discord-token",
+					AllowedChannelID: "C123",
+				},
+			},
+			want: 0,
+		},
+		{
+			name: "slack only stays disabled",
+			cfg: config.Config{
+				Telegram: config.TelegramCfg{FreshFinalAfterSeconds: 60},
+				Slack: config.SlackCfg{
+					Enabled:          true,
+					BotToken:         "xoxb-token",
+					AppToken:         "xapp-token",
+					AllowedChannelID: "C123",
+				},
+			},
+			want: 0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mgrCfg := gatewayManagerConfig(
+				tc.cfg,
+				map[string]string{},
+				map[string]bool{},
+				nil,
+				nil,
+				nil,
+				gateway.RestartConfig{},
+			)
+			if mgrCfg.FreshFinalAfter != tc.want {
+				t.Fatalf("FreshFinalAfter = %s, want %s", mgrCfg.FreshFinalAfter, tc.want)
+			}
+		})
+	}
 }
 
 func TestGatewaySignalLoopDrainsBeforeCancel(t *testing.T) {

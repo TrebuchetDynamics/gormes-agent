@@ -29,6 +29,7 @@ type Bot struct {
 
 var _ gateway.Channel = (*Bot)(nil)
 var _ gateway.MessageEditor = (*Bot)(nil)
+var _ gateway.MessageDeleter = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
 
 func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
@@ -118,6 +119,23 @@ func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error
 	}
 	_, err = b.client.Send(tgbotapi.NewEditMessageText(cid, mid, text))
 	return err
+}
+
+func (b *Bot) DeleteMessage(ctx context.Context, chatID, msgID string) error {
+	_ = ctx
+	cid, err := parseChatID(chatID)
+	if err != nil {
+		return err
+	}
+	mid, err := strconv.Atoi(msgID)
+	if err != nil {
+		return fmt.Errorf("telegram: invalid msgID %q: %w", msgID, err)
+	}
+	if err := b.client.DeleteMessage(cid, mid); err != nil {
+		b.log.Debug("telegram delete message failed", "chat_id", cid, "message_id", mid, "err", err)
+		return err
+	}
+	return nil
 }
 
 // SendToChat is retained for the cron delivery sink, which addresses Telegram

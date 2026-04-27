@@ -130,7 +130,6 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 
 	allowedChats := map[string]string{}
 	allowDiscovery := map[string]bool{}
-	coalesceMs := gatewayCoalesceMs(cfg)
 	runtimeStatusPath := config.GatewayRuntimeStatusPath()
 	runtimeStatus := gateway.NewRuntimeStatusStore(runtimeStatusPath)
 	restartMarkerStore := gateway.NewRestartTakeoverStore(gateway.DefaultRestartTakeoverMarkerPath(runtimeStatusPath))
@@ -142,19 +141,12 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		hooks = gateway.NewHooks()
 	}
 
-	mgr := gateway.NewManager(gateway.ManagerConfig{
-		AllowedChats:   allowedChats,
-		AllowDiscovery: allowDiscovery,
-		CoalesceMs:     coalesceMs,
-		SessionMap:     smap,
-		Hooks:          hooks,
-		RuntimeStatus:  runtimeStatus,
-		Restart: gateway.RestartConfig{
-			MarkerStore:             restartMarkerStore,
-			ServiceManagerAvailable: gateway.EnvironmentServiceManagerAvailable,
-			DrainTimeout:            kernel.ShutdownBudget,
-		},
-	}, k, slog.Default())
+	restartCfg := gateway.RestartConfig{
+		MarkerStore:             restartMarkerStore,
+		ServiceManagerAvailable: gateway.EnvironmentServiceManagerAvailable,
+		DrainTimeout:            kernel.ShutdownBudget,
+	}
+	mgr := gateway.NewManager(gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hooks, runtimeStatus, restartCfg), k, slog.Default())
 
 	registeredChannels, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, defaultGatewayChannelFactories(), runtimeStatus, slog.Default())
 	if err != nil {
@@ -219,6 +211,26 @@ func gatewayCoalesceMs(cfg config.Config) int {
 		coalesceMs = cfg.Slack.CoalesceMs
 	}
 	return coalesceMs
+}
+
+func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
+	if cfg.Telegram.BotToken == "" || cfg.Telegram.FreshFinalAfterSeconds <= 0 {
+		return 0
+	}
+	return time.Duration(cfg.Telegram.FreshFinalAfterSeconds * float64(time.Second))
+}
+
+func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, smap session.Map, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+	return gateway.ManagerConfig{
+		AllowedChats:    allowedChats,
+		AllowDiscovery:  allowDiscovery,
+		CoalesceMs:      gatewayCoalesceMs(cfg),
+		FreshFinalAfter: gatewayFreshFinalAfter(cfg),
+		SessionMap:      smap,
+		Hooks:           hooks,
+		RuntimeStatus:   runtimeStatus,
+		Restart:         restart,
+	}
 }
 
 func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, factories gatewayChannelFactories, status gateway.RuntimeStatusWriter, log *slog.Logger) (int, error) {
