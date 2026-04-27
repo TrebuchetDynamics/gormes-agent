@@ -9859,9 +9859,9 @@
             {
               "name": "Cronjob tool action envelope over native store",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tools exposes a cronjob action adapter over the native internal/cron Store without starting the scheduler: action=create validates schedule, prompt/script safety, name uniqueness, optional repeat/model/toolsets/workdir fields, then persists a cron.Job; list returns redacted job summaries; update preserves unspecified fields and supports empty-array/string clearing for skills, enabled_toolsets, workdir, script, and context_from; pause/resume flip Paused; remove deletes by ID; run returns a RunNow request object for the caller instead of executing immediately.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -9905,7 +9905,7 @@
                 "TestCronjobTool_RunReturnsRunNowRequest proves action=run returns a typed run-now request containing job_id and prompt hash without calling cron.Executor.Run.",
                 "TestCronjobTool_ErrorsAreJSONStrings covers missing job_id, invalid schedule, duplicate name, blocked prompt, invalid script path, and unknown action."
               ],
-              "note": "Planner split 2026-04-26: this is the first public-tool-shaped cron slice, but it remains store/adaptor only. Actual scheduler firing, context_from prompt injection, multi-target delivery, and API admin routes are separate rows.",
+              "note": "Complete: TDD landed the store-only cronjob tool adapter over the native bbolt cron Store. The adapter validates operator schedules, prompt/script safety, duplicate names, optional model/repeat/toolset/workdir/script/context_from fields, redacted list summaries, pause/resume/remove, and run-now request envelopes without starting the Scheduler, submitting to kernel, calling providers, delivering messages, or copying Hermes' JSON/output layout.",
               "write_scope": [
                 "internal/tools/cronjob_tool.go",
                 "internal/tools/cronjob_tool_test.go",
@@ -9921,6 +9921,11 @@
               "done_signal": [
                 "internal/tools/cronjob_tool_test.go proves create/list/update/pause/resume/remove/run action envelopes over the native cron store, with safety/parser validation and no scheduler/provider execution."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T01:02:18Z",
+                "last_success": "2026-04-27T01:02:18Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:755a2804 tools/cronjob_tools.py:cronjob",

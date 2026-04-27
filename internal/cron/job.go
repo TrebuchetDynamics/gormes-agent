@@ -16,14 +16,23 @@ import (
 // Job is a scheduled agent prompt. Persisted as a JSON blob under its
 // ID as key in the cron_jobs bbolt bucket.
 type Job struct {
-	ID          string `json:"id"`            // 16-byte random hex — unique within one DB
-	Name        string `json:"name"`          // operator-friendly label; must be unique
-	Schedule    string `json:"schedule"`      // cron expression or @shortcut; validated via ValidateSchedule
-	Prompt      string `json:"prompt"`        // user-facing prompt, WITHOUT the [SYSTEM:] prefix
-	Paused      bool   `json:"paused"`        // default false; if true, scheduler ignores
-	CreatedAt   int64  `json:"created_at"`    // unix seconds
-	LastRunUnix int64  `json:"last_run_unix"` // 0 when never run
-	LastStatus  string `json:"last_status"`   // "success"|"timeout"|"error"|"suppressed"|""
+	ID              string   `json:"id"`                         // 16-byte random hex — unique within one DB
+	Name            string   `json:"name"`                       // operator-friendly label; must be unique
+	Schedule        string   `json:"schedule"`                   // operator schedule string or cron expression
+	Prompt          string   `json:"prompt"`                     // user-facing prompt, WITHOUT the [SYSTEM:] prefix
+	Paused          bool     `json:"paused"`                     // default false; if true, scheduler ignores
+	CreatedAt       int64    `json:"created_at"`                 // unix seconds
+	LastRunUnix     int64    `json:"last_run_unix"`              // 0 when never run
+	LastStatus      string   `json:"last_status"`                // "success"|"timeout"|"error"|"suppressed"|""
+	Repeat          int      `json:"repeat,omitempty"`           // finite repeat limit; 0 means unbounded/default
+	RepeatCompleted int      `json:"repeat_completed,omitempty"` // completed repeat count for summaries
+	Model           string   `json:"model,omitempty"`            // optional per-job model override
+	Provider        string   `json:"provider,omitempty"`         // optional per-job provider override
+	Skills          []string `json:"skills,omitempty"`           // ordered skills loaded before the prompt
+	EnabledToolsets []string `json:"enabled_toolsets,omitempty"` // optional toolset restriction
+	Workdir         string   `json:"workdir,omitempty"`          // optional job working directory
+	Script          string   `json:"script,omitempty"`           // optional pre-run script path
+	ContextFrom     []string `json:"context_from,omitempty"`     // upstream cron job IDs for future context chaining
 }
 
 // NewJob constructs a Job with a fresh random ID and the current time
