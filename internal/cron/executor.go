@@ -283,14 +283,24 @@ func durableCronProgress(job Job, promptHash, phase string) (json.RawMessage, er
 }
 
 func (e *Executor) recordAndUpdateJob(ctx context.Context, job Job, run Run) {
-	if err := e.cfg.RunStore.RecordRun(ctx, run); err != nil {
+	completion := cronRunCompletionForJob(job, run, runCompletionNow(run), CronNextRunDecision)
+	if err := e.cfg.RunStore.RecordRun(ctx, completion.Run); err != nil {
 		e.log.Warn("cron: failed to record run", "job_id", job.ID, "err", err)
 	}
-	job.LastRunUnix = run.StartedAt
-	job.LastStatus = run.Status
-	if err := e.cfg.JobStore.Update(job); err != nil {
+	if err := e.cfg.JobStore.Update(completion.Job); err != nil {
 		e.log.Warn("cron: failed to update job after run", "job_id", job.ID, "err", err)
 	}
+}
+
+func runCompletionNow(run Run) time.Time {
+	at := run.FinishedAt
+	if at == 0 {
+		at = run.StartedAt
+	}
+	if at == 0 {
+		return time.Now()
+	}
+	return time.Unix(at, 0).UTC()
 }
 
 // lastAssistantText walks history backwards and returns the first

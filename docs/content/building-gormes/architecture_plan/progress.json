@@ -11604,9 +11604,9 @@
             {
               "name": "Cron recurring next-run failure preservation",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cron adds a pure run-completion state helper and executor post-run hook that updates LastRunUnix, LastStatus, and RepeatCompleted after every run while preserving recurring cron/interval jobs as active (Paused=false) when next-run computation is unavailable or returns no future time; one-shot or finite-repeat exhaustion may become terminal, but recurring compute failures must produce typed evidence instead of being confused with user pause/completion",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -11648,7 +11648,7 @@
                 "TestCronRunCompletion_FiniteRepeatExhaustionBecomesTerminal proves Repeat=3 and RepeatCompleted=2 transitions to completed after the third run, while RepeatCompleted=1 remains active.",
                 "TestExecutorRecordAndUpdateJob_UsesRunCompletionState proves success, timeout, and suppressed runs all pass through the helper and persist LastStatus/RepeatCompleted without starting Scheduler.Start."
               ],
-              "note": "Added 2026-04-27 after Hermes 7c63c246 fixed recurring jobs being silently disabled when compute_next_run returned None. Gormes uses robfig/cron instead of Python croniter, but the same operator contract applies: recurring schedules should surface compute-state evidence and remain active unless the user pauses them or finite repeat exhaustion is reached.",
+              "note": "Complete: TDD landed internal/cron/run_completion.go as a pure post-run state helper and wired Executor.recordAndUpdateJob through it. Fixtures prove recurring cron/interval next-run failures remain active with cron_next_run_unavailable evidence, one-shot and finite-repeat exhaustion become terminal distinctly, and executor success/timeout/suppressed paths persist LastStatus and RepeatCompleted without scheduler/provider side effects.",
               "write_scope": [
                 "internal/cron/run_completion.go",
                 "internal/cron/run_completion_test.go",
@@ -11664,6 +11664,11 @@
               "done_signal": [
                 "Cron run-completion fixtures prove recurring next-run failures preserve active jobs with evidence, one-shot/finite-repeat terminal behavior remains distinct, and Executor post-run updates use the helper without scheduler/provider side effects."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:49:40Z",
+                "last_success": "2026-04-27T05:49:40Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:7c63c246 cron/jobs.py",

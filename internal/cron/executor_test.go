@@ -217,3 +217,63 @@ func TestExecutor_UpdatesJobLastRunStatus(t *testing.T) {
 		t.Errorf("LastStatus = %q, want success", got.LastStatus)
 	}
 }
+
+func TestExecutorRecordAndUpdateJob_UsesRunCompletionState(t *testing.T) {
+	e, _, cleanup := newTestExecutorEnv(t, newFakeKernel("unused", 0))
+	defer cleanup()
+
+	job := NewJob("completion-test", "every 30m", "p")
+	job.Repeat = 5
+	if err := e.cfg.JobStore.Create(job); err != nil {
+		t.Fatalf("Create job: %v", err)
+	}
+
+	startedAt := time.Date(2026, 4, 27, 8, 0, 0, 0, time.UTC).Unix()
+	for i, status := range []string{"success", "timeout", "suppressed"} {
+		current, err := e.cfg.JobStore.Get(job.ID)
+		if err != nil {
+			t.Fatalf("Get job before %s run: %v", status, err)
+		}
+		run := Run{
+			JobID:      job.ID,
+			StartedAt:  startedAt + int64(i*60),
+			FinishedAt: startedAt + int64(i*60) + 10,
+			PromptHash: "hash",
+			Status:     status,
+		}
+		if status == "timeout" {
+			run.Delivered = true
+			run.ErrorMsg = "context deadline exceeded"
+		}
+		if status == "suppressed" {
+			run.SuppressionReason = "silent"
+		}
+
+		e.recordAndUpdateJob(context.Background(), current, run)
+
+		got, err := e.cfg.JobStore.Get(job.ID)
+		if err != nil {
+			t.Fatalf("Get job after %s run: %v", status, err)
+		}
+		if got.LastRunUnix != run.StartedAt {
+			t.Fatalf("%s LastRunUnix = %d, want %d", status, got.LastRunUnix, run.StartedAt)
+		}
+		if got.LastStatus != status {
+			t.Fatalf("%s LastStatus = %q, want %q", status, got.LastStatus, status)
+		}
+		if got.RepeatCompleted != i+1 {
+			t.Fatalf("%s RepeatCompleted = %d, want %d", status, got.RepeatCompleted, i+1)
+		}
+		if got.Paused {
+			t.Fatalf("%s Paused = true, want recurring job active", status)
+		}
+	}
+
+	runs, err := e.cfg.RunStore.LatestRuns(context.Background(), job.ID, 5)
+	if err != nil {
+		t.Fatalf("LatestRuns: %v", err)
+	}
+	if len(runs) != 3 {
+		t.Fatalf("runs = %d, want 3", len(runs))
+	}
+}
