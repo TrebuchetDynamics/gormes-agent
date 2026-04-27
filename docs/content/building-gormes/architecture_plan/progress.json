@@ -15662,18 +15662,26 @@
                 "API server endpoint fixtures prove /health/detailed and /v1/health/detailed route binding, error-envelope compatibility, redaction, and unchanged flat health routes."
               ],
               "health": {
-                "attempt_count": 2,
-                "consecutive_failures": 2,
-                "last_attempt": "2026-04-27T06:13:51Z",
+                "attempt_count": 3,
+                "consecutive_failures": 3,
+                "last_attempt": "2026-04-27T06:28:35Z",
                 "last_failure": {
-                  "run_id": "20260427T061342Z-096745670",
+                  "run_id": "20260427T062827Z-805776763",
                   "category": "worker_error",
                   "backend": "codexu",
                   "stderr_tail": "Reading additional input from stdin...\n"
                 },
                 "backends_tried": [
                   "codexu"
-                ]
+                ],
+                "quarantine": {
+                  "reason": "auto: 3 consecutive failures, last category worker_error",
+                  "since": "2026-04-27T06:28:35Z",
+                  "after_run_id": "20260427T062827Z-805776763",
+                  "threshold": 3,
+                  "spec_hash": "b58d952665841e0c3f9cd60329c89ca1c2368baaa7153eab8786ffaa6e7622bb",
+                  "last_category": "worker_error"
+                }
               },
               "provenance": {
                 "origin_type": "hybrid",
