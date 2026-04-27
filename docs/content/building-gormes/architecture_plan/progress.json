@@ -1643,9 +1643,9 @@
             {
               "name": "Gateway message deduplicator bounded helper",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Shared gateway exposes a pure in-memory MessageDeduplicator that caps tracked message IDs at max_size, evicts the oldest ID deterministically, and returns duplicate/evicted/disabled evidence without touching manager routing",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1679,7 +1679,7 @@
                 "TestMessageDeduplicator_ZeroMaxSizeDisabled treats max_size=0 as disabled, never rejects messages, and never allocates a seen-ID queue.",
                 "The helper exposes enough evidence for a later manager row to distinguish duplicate_message, deduplicator_evicted, and deduplicator_disabled without importing platform adapters."
               ],
-              "note": "Split 2026-04-27 from the broader `Gateway message deduplicator bounded eviction` row after autoloop produced a status-field validation failure. This first row is helper-only: workers should not edit manager/event code, and completion means status=complete plus contract_status=validated.",
+              "note": "Complete: TDD landed the pure in-memory gateway MessageDeduplicator helper with bounded oldest eviction, duplicate rejection, disabled mode, and stable duplicate_message, deduplicator_evicted, and deduplicator_disabled evidence. This first row is helper-only: workers did not edit manager/event code, add platform-specific state, store history on disk, or wire inbound dispatch.",
               "write_scope": [
                 "internal/gateway/message_deduplicator.go",
                 "internal/gateway/message_deduplicator_test.go",
