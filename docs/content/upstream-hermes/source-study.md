@@ -175,7 +175,10 @@ planner cycle:
   replay; reinforces the existing Phase 4.A fixture rather than needing a
   new row.
 
-For the autoloop the immediate priority remains the 12 quarantined rows.
+For the autoloop the immediate priority is to keep hot rows split and
+metadata-ready; the current planner pass found no active quarantine blocks in
+`progress.json`, but recent failure categories still point to over-broad
+contracts and status-field mistakes.
 Nothing on this drift list is load-bearing for the next several builder
 cycles, so the new rows above stay deferred until quarantine clears.
 
