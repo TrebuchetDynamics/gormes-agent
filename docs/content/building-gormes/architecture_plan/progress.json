@@ -2699,9 +2699,9 @@
             {
               "name": "Durable worker RSS watchdog policy helper",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes durable worker exposes a pure RSS watchdog policy helper that classifies disabled mode, unavailable RSS reads, threshold exceeded evidence, and stable watchdog restart reset without integrating with the worker loop yet",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -2739,7 +2739,7 @@
                 "TestDurableWorkerRSSWatchdog_RSSReadFailure returns rss_watchdog_unavailable evidence and does not request a drain.",
                 "TestDurableWorkerWatchdogRestartPolicy_StableRunReset classifies a watchdog exit after at least five minutes as stable_watchdog_restart and does not increment crash count past one."
               ],
-              "note": "Reshaped 2026-04-27: removed duplicate absolute GBrain source refs that were sending workers into brittle lookup paths, and inlined the exact policy constants. This row is helper-only and fixture-ready; it creates the policy vocabulary before any worker-loop or doctor wiring.",
+              "note": "Complete: TDD landed a helper-only durable worker RSS watchdog policy in internal/subagent/durable_worker_rss_watchdog.go. The policy records rss_watchdog_disabled without reading RSS when max_rss_mb=0, degrades RSS read errors as rss_watchdog_unavailable without requesting drain, emits rss_threshold_exceeded evidence with observed_mb/max_mb/checked_at and a drain request, and classifies watchdog exits after at least five minutes as stable_watchdog_restart with crash count reset to one. This slice did not touch DurableWorker.RunOne, doctor/status, cmd/gormes lifecycle, builder-loop backend watchdogs, delegate_task behavior, cron semantics, process self-termination, Goncho memory service code, or GBrain imports.",
               "write_scope": [
                 "internal/subagent/durable_worker_rss_watchdog.go",
                 "internal/subagent/durable_worker_rss_watchdog_test.go",
@@ -2753,6 +2753,11 @@
               "done_signal": [
                 "Durable worker RSS policy fixtures prove disabled mode, threshold evidence, read-failure degradation, and stable watchdog restart classification without runtime drain or doctor/status edits."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T05:48:23Z",
+                "last_success": "2026-04-27T05:48:23Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:c78c3d0 src/core/minions/worker.ts",
