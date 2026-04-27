@@ -3539,9 +3539,9 @@
           "items": [
             {
               "name": "Steer slash command parser + preview helper",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway exposes a pure /steer parser and preview helper that validates non-empty text guidance, rejects image-bearing or attachment-bearing payloads, and returns deterministic preview/evidence strings without touching active sessions",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3575,7 +3575,7 @@
                 "TestParseSteerCommand_TrimsText preserves internal whitespace but trims leading/trailing spaces.",
                 "TestSteerPreview_TruncatesLongGuidance returns a deterministic preview that does not exceed 80 runes and marks truncation."
               ],
-              "note": "Split 2026-04-27 from the failing registry+queue row. Workers were asked to invent parser, registry, queue, and running-agent fallback behavior at once; this first row lands only the pure vocabulary. The split intentionally drops the prior health block because the contract is materially replaced.",
+              "note": "Complete: TDD landed internal/gateway/steer_command_test.go and internal/gateway/steer_command.go. The pure parser trims text guidance, returns steer_usage for missing guidance, returns steer_payload_unsupported for image or attachment metadata, and produces deterministic <=80-rune previews with an ASCII truncation marker. No registry, manager, session, queue, running-agent, or adapter behavior is touched.",
               "write_scope": [
                 "internal/gateway/steer_command.go",
                 "internal/gateway/steer_command_test.go",
