@@ -12237,11 +12237,11 @@
                 "CLI onboarding fixtures prove directory-only OpenClaw residue detection, Gormes-specific cleanup hint text, in-memory seen-state handling, malformed-config tolerance, and no real HOME/config writes."
               ],
               "health": {
-                "attempt_count": 1,
-                "consecutive_failures": 1,
-                "last_attempt": "2026-04-27T06:02:18Z",
+                "attempt_count": 2,
+                "consecutive_failures": 2,
+                "last_attempt": "2026-04-27T06:09:23Z",
                 "last_failure": {
-                  "run_id": "20260427T060209Z-374485317",
+                  "run_id": "20260427T060912Z-680862707",
                   "category": "worker_error",
                   "backend": "codexu",
                   "stderr_tail": "Reading additional input from stdin...\n"
