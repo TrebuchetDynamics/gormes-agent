@@ -9410,6 +9410,11 @@
               "done_signal": [
                 "internal/cron/schedule_parser_test.go proves one-shot, interval, cron-expression, ISO timestamp, one-shot grace, finite repeat, and stale-recurring fast-forward behavior under an injected clock."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-27T00:15:13Z",
+                "last_success": "2026-04-27T00:15:13Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:755a2804 cron/jobs.py:parse_schedule",
