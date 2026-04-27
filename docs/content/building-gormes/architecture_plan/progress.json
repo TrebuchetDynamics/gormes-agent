@@ -7890,18 +7890,26 @@
                 "Title generator fixtures prove bounded prompt construction, candidate cleanup/truncation, empty-history skip, blank-output evidence, and provider-failure evidence with a fake model only."
               ],
               "health": {
-                "attempt_count": 2,
-                "consecutive_failures": 2,
-                "last_attempt": "2026-04-27T06:12:04Z",
+                "attempt_count": 3,
+                "consecutive_failures": 3,
+                "last_attempt": "2026-04-27T06:26:52Z",
                 "last_failure": {
-                  "run_id": "20260427T061154Z-599631763",
+                  "run_id": "20260427T062642Z-018452477",
                   "category": "worker_error",
                   "backend": "codexu",
                   "stderr_tail": "Reading additional input from stdin...\n"
                 },
                 "backends_tried": [
                   "codexu"
-                ]
+                ],
+                "quarantine": {
+                  "reason": "auto: 3 consecutive failures, last category worker_error",
+                  "since": "2026-04-27T06:26:52Z",
+                  "after_run_id": "20260427T062642Z-018452477",
+                  "threshold": 3,
+                  "spec_hash": "4c0c8489ed60a0316e79d9541c33ed9d1b5f25658f3fd6a25961547b11feecaf",
+                  "last_category": "worker_error"
+                }
               },
               "planner_verdict": {
                 "reshape_count": 1,
