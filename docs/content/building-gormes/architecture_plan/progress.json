@@ -11326,21 +11326,24 @@
                 "Operator-auditable search evidence is validated on main, so this row is unblocked for the tool wrapper only.",
                 "The tool can use seeded SQLite/session.Metadata fixtures and does not need a live gateway, provider, or Goncho cloud service.",
                 "Existing Goncho/Honcho-compatible scope rules remain the authority for user/source widening.",
+                "Implement against the internal/tools.Tool interface in internal/tools/tool.go; this row creates the tool type and tests, not cmd/gormes registry binding.",
                 "This row must wrap existing internal/memory.SearchSessions/SearchMessages and must not change ranking, lineage construction, default same-chat fences, or Goncho persistence."
               ],
               "not_ready_when": [
                 "The slice changes ranking, default same-chat recall fences, or Goncho/Honcho memory persistence instead of wrapping existing search results.",
                 "The slice shells out to Hermes Python or reads ~/.hermes session logs.",
                 "The slice edits internal/memory/session_catalog.go or internal/goncho/service.go; those prerequisites are already validated and should be treated as read-only donor code.",
+                "The slice edits internal/tools/builtin.go, cmd/gormes, gateway runtime registration, or the global toolset manifest; registration is a later row after the wrapper fixtures pass.",
                 "The slice includes todo/debug/clarify tools or cronjob tools in the same change."
               ],
               "acceptance": [
                 "TestSessionSearchTool_SameChatDefault seeds two chats and proves no cross-chat hit appears without explicit scope=user or sources.",
                 "TestSessionSearchTool_UserScopeSourceFilter passes scope=user sources=[telegram] and proves only the allowed source's sessions are returned with source evidence.",
                 "TestSessionSearchTool_RecentModeExcludesCurrentLineageRoot seeds root and compressed child sessions, runs recent mode from the child, and proves the current root is excluded deterministically per Hermes dbe50155.",
-                "TestSessionSearchTool_DegradedEvidence covers missing session directory and denied source widening without panics or hidden fallback widening."
+                "TestSessionSearchTool_DegradedEvidence covers missing session directory and denied source widening without panics or hidden fallback widening.",
+                "TestSessionSearchTool_DescriptorAndSchema proves the wrapper satisfies tools.Tool with Name() == \"session_search\", a JSON schema that exposes query/scope/sources/mode/current_session_id, and a deterministic timeout without registering it globally."
               ],
-              "note": "Reshaped 2026-04-27 after still-failing outcomes: the Phase 3 lineage/search/evidence prerequisites are complete, so this row is now a strict wrapper-only tool slice. Removed internal/memory from write_scope because workers should consume SearchSessions/SearchMessages as stable donor APIs, not reopen catalog semantics.",
+              "note": "Refined 2026-04-27T05:38Z after no-attempts-yet feedback: the Phase 3 lineage/search/evidence prerequisites are complete, so this row is a strict wrapper-only tools.Tool slice. Removed internal/memory from write_scope earlier and now explicitly excludes registry binding so workers consume SearchSessions/SearchMessages as stable donor APIs instead of reopening catalog or Goncho semantics.",
               "write_scope": [
                 "internal/tools/session_search_tool.go",
                 "internal/tools/session_search_tool_test.go",
@@ -11355,11 +11358,8 @@
                 "Session search tool fixtures prove same-chat defaults, opt-in user/source widening, deterministic current-lineage-root exclusion in recent mode, and degraded evidence for unavailable/denied widening."
               ],
               "planner_verdict": {
-                "needs_human": true,
-                "reason": "auto: 4 reshapes without unsticking; last category ",
-                "since": "2026-04-27T04:18:56Z",
-                "reshape_count": 4,
-                "last_reshape": "2026-04-27T04:18:56Z",
+                "reshape_count": 5,
+                "last_reshape": "2026-04-27T05:38:23Z",
                 "last_outcome": "no_attempts_yet"
               },
               "provenance": {
@@ -14646,12 +14646,14 @@
                 "../hermes-agent/tui_gateway/server.py@5eb6cd82:session.save",
                 "internal/tui/slash_save.go:SessionExportFunc",
                 "cmd/gormes/session.go:sessionExportCmd",
+                "cmd/gormes/main.go:runResolvedTUIWithRuntime",
                 "internal/config/config.go:MemoryDBPath"
               ],
               "ready_when": [
                 "Native TUI /save canonical session export is validated on main and exposes SessionExportFunc on Model options.",
                 "The prior /save handler write-scope issue is closed; slash_dispatch_test.go was already included in the completed handler row and should not be touched here.",
                 "cmd/gormes/session.go already proves transcript.ExportMarkdown works against config.MemoryDBPath for the CLI export command.",
+                "internal/tui/slash_save.go already owns partial-file cleanup and should be treated as read-only in this binding slice.",
                 "Gormes intentionally uses XDG_DATA_HOME/gormes instead of HERMES_HOME; the fixture should assert that divergence."
               ],
               "not_ready_when": [
@@ -14660,16 +14662,17 @@
                 "The slice starts a provider, API server, remote TUI gateway, or live session browser."
               ],
               "acceptance": [
-                "cmd/gormes constructs a SessionExportFunc for the local TUI Model that opens config.MemoryDBPath, calls transcript.ExportMarkdown, and writes `<session-id>.md` or a collision-safe variant under `$XDG_DATA_HOME/gormes/sessions/exports/`.",
+                "cmd/gormes constructs a SessionExportFunc for the local TUI Model, preferably through a small helper in cmd/gormes/session.go, that opens config.MemoryDBPath, calls transcript.ExportMarkdown, and writes `<session-id>.md` or a collision-safe variant under `$XDG_DATA_HOME/gormes/sessions/exports/`.",
+                "runResolvedTUIWithRuntime passes that function through tui.Options{SessionExport: ...} only for the local TUI path; remote TUI startup remains unchanged.",
                 "TestTUISaveExport_WritesUnderXDGDataHome sets XDG_DATA_HOME and HERMES_HOME to different temp roots, invokes the bound SessionExportFunc, and proves the file lands under the Gormes XDG export directory only.",
                 "TestTUISaveExport_RemovesPartialOnFailure injects a write failure after creating a partial file and proves /save removes it through the existing slash handler cleanup path.",
                 "The status message returned by /save contains the XDG export path and no test opens a network connection or starts the remote TUI gateway."
               ],
-              "note": "Refined 2026-04-27: the native TUI /save handler is complete on main, so this row is unblocked and limited to cmd/gormes binding plus XDG output-location fixtures. Do not reopen slash dispatch tests or change transcript markdown formatting.",
+              "note": "Refined 2026-04-27T05:38Z: the native TUI /save handler is complete on main, so this row is unblocked and limited to cmd/gormes binding plus XDG output-location fixtures. internal/tui/slash_save.go is now a read-only donor for this slice; do not reopen slash dispatch tests or change transcript markdown formatting.",
               "write_scope": [
                 "cmd/gormes/main.go",
+                "cmd/gormes/session.go",
                 "cmd/gormes/tui_save_export_test.go",
-                "internal/tui/slash_save.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -14678,7 +14681,7 @@
                 "go run ./cmd/builder-loop progress validate"
               ],
               "done_signal": [
-                "cmd/gormes TUI save-export fixtures prove the real SessionExportFunc writes under XDG_DATA_HOME/gormes/sessions/exports, ignores HERMES_HOME for runtime state, cleans partial files, and returns the exported path to /save."
+                "cmd/gormes TUI save-export fixtures prove the real SessionExportFunc writes under XDG_DATA_HOME/gormes/sessions/exports, ignores HERMES_HOME for runtime state, relies on the existing TUI partial-file cleanup path, and returns the exported path to /save without internal/tui edits."
               ],
               "provenance": {
                 "origin_type": "hybrid",
