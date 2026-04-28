@@ -10,6 +10,8 @@ Run AI agents as a single static binary: no Python runtime, no environment drift
 
 **Status: early-stage.** The TUI, offline doctor, and provider-backed one-shots work today; the full agent runtime is still in progress.
 
+![Gormes native TUI running offline](docs/assets/gormes-tui-demo.gif)
+
 <p align="center">
   <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
   <a href="https://github.com/TrebuchetDynamics/gormes-agent"><img src="https://img.shields.io/badge/GitHub-TrebuchetDynamics%2Fgormes--agent-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
@@ -20,16 +22,17 @@ Run AI agents as a single static binary: no Python runtime, no environment drift
 
 ## TL;DR
 
-- Agents should not depend on a fragile Python runtime.
-- One static Go artifact runs the TUI, diagnostics, provider turns, and configured gateways.
-- You can smoke-test the runtime offline before adding credentials or spending tokens.
-- Early-stage means useful now, not production-stable yet.
+- One static Go binary runs the TUI, diagnostics, provider turns, and configured gateways.
+- `gormes --offline` proves the runtime works before credentials, network calls, or token spend.
+- Early-stage: useful today, not production-stable yet.
 
 ---
 
 ## Quick Start
 
 Build from source and open the local UI:
+
+Prerequisites: Git, Go, and Make.
 
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
@@ -66,11 +69,10 @@ Python-stack agents are powerful, but production operation is fragile. Gormes mo
 
 What works today:
 
-- Native CLI and Bubble Tea TUI.
-- Offline smoke test and local doctor diagnostics.
-- Provider-compatible one-shot and TUI startup paths.
-- Shared gateway runtime for configured Telegram, Discord, and Slack channels.
-- Isolated subagent workstreams with durable job metadata.
+- Native CLI, Bubble Tea TUI, offline smoke test, and doctor diagnostics.
+- Provider-compatible one-shots and TUI startup paths.
+- Configured Telegram, Discord, and Slack gateway runtime.
+- Isolated subagents with durable job metadata.
 - Goncho memory diagnostics and Honcho-style local memory tools inside the binary.
 - Progress-driven docs generated from the canonical architecture plan.
 
@@ -158,23 +160,14 @@ Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-sys
 
 Gormes is designed for high-trust environments. Auditability comes from source-first builds, zero-CGO static binaries, local-first SQLite memory, and built-in diagnostic tooling.
 
-- Source build is the recommended install path. Convenience installers remain inspect-first from GitHub raw URLs rather than `curl | sh` or `irm | iex` as the primary path.
-- The current build is ~17.7 MB, stripped, static, zero-CGO, and does not depend on hidden shared libraries.
-- `make test` runs `go test ./...`; `make build` validates `progress.json`, builds `bin/gormes`, records binary metrics, stamps `main.Version`, and regenerates progress-driven docs.
+- Source build is the recommended install path. Convenience installers remain inspect-first from GitHub raw URLs rather than `curl | sh` or `irm | iex`.
+- The current build is ~17.7 MB, stripped, static, zero-CGO, and has no hidden shared library dependency.
 - `gormes doctor --offline` reports local TUI, built-in tools, Goncho, gateway, Slack, and provider-endpoint readiness without contacting a model provider.
-- `gormes goncho doctor --json` reports local Goncho config paths, memory DB paths, schema status, session catalog status, queue status, degraded modes, and provider readiness.
 - Network calls go to configured provider or gateway endpoints; offline diagnostics do not contact a model provider.
 - The runtime is a local binary and does not act as a self-updating dropper.
-- Docs and the public site deploy through GitHub Actions workflows under `.github/workflows/`.
 - Security reporting policy lives in [SECURITY.md](SECURITY.md).
 
-Release-hardening targets before production-stable distribution:
-
-- Homebrew formula for macOS/Linux and Scoop or Winget manifests for Windows.
-- SHA-256 checksums and detached signatures for release artifacts.
-- Windows code signing plus embedded version/company/icon metadata through a resource file.
-- Release-candidate scanning and vendor false-positive submissions for major AV providers when needed.
-- A dedicated `gormes security-audit` command that summarizes filesystem paths, configured endpoints, persistence, and network behavior in one operator-facing report.
+Release integrity details and production-stable hardening targets live in [SECURITY.md](SECURITY.md).
 
 ---
 

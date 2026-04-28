@@ -45,3 +45,8 @@ Current public builds are early-stage and source-first. Production-stable
 release hardening is tracking SHA-256 checksums, detached signatures, Windows
 code signing, embedded binary metadata, package-manager manifests, and
 false-positive submission for major AV vendors when needed.
+
+Docs, the public site, and future release automation are declared in GitHub
+Actions workflows under `.github/workflows/`. A future `gormes security-audit`
+command should summarize filesystem paths, configured endpoints, persistence,
+and network behavior in one operator-facing report.
