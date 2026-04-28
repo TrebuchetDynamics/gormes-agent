@@ -1486,7 +1486,7 @@
             },
             {
               "name": "BlueBubbles iMessage session-context prompt guidance",
-              "priority": "P3",
+              "priority": "P1",
               "status": "planned",
               "contract": "Gateway session-context prompts tell the agent when the origin is BlueBubbles/iMessage and ask for short, blank-line-separated message bubbles",
               "contract_status": "validated",
@@ -6212,10 +6212,10 @@
             },
             {
               "name": "Goncho empty peer-card hint contract",
-              "priority": "P3",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "honcho_profile reads that return an empty Goncho peer card include a structured diagnostic hint explaining likely causes and alternative tools, while populated cards keep the existing card response shape and empty cards remain a non-error state",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -6241,9 +6241,8 @@
                 "The slice implements hosted Honcho SDK client configuration, HTTP timeouts, baseUrl migration, or global ~/.honcho config fallback.",
                 "The slice starts a dialectic worker or changes peer-card storage semantics."
               ],
-              "blocked_by": [
-                "Directional peer cards and representation scopes",
-                "Goncho operator diagnostics contract"
+              "unblocks": [
+                "Goncho Honcho SDK compatibility e2e harness"
               ],
               "acceptance": [
                 "TestHonchoProfileEmptyHint_DefaultEmptyCard includes result, hint, peer, workspace_id, and evidence code peer_card_empty_warmup or peer_card_empty_unknown without returning a tool error.",
@@ -6252,7 +6251,7 @@
                 "TestHonchoProfileEmptyHint_PopulatedCardOmitsHint proves populated cards preserve the existing card array response and do not include hint/evidence noise.",
                 "HonchoProfileTool.Schema description mentions that an empty card can include a hint and is not an error."
               ],
-              "note": "Added after upstream Hermes 894e0b93 improved honcho_profile empty-card diagnostics. Gormes already has a local Goncho peer-card service; this row keeps the public honcho_profile compatibility contract while avoiding hosted Honcho client/baseUrl work in the internal memory package.",
+              "note": "Complete: TDD added internal/gonchotools/honcho_profile_hint_test.go plus typed ProfileHint output on goncho.ProfileResult. honcho_profile now returns non-error empty-card diagnostics with result text, peer/workspace identity, structured hint codes peer_card_empty_unknown or peer_card_disabled, and alternatives to honcho_reasoning and honcho_search. Populated cards preserve the existing card array shape with no hint/result noise, and the tool schema now states that empty cards can include a hint and are not errors.",
               "write_scope": [
                 "internal/goncho/types.go",
                 "internal/goncho/service.go",
@@ -6268,6 +6267,11 @@
               "done_signal": [
                 "honcho_profile fixtures prove empty-card hints are structured, non-error, alternative-tool aware, and omitted for populated cards."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T22:23:19Z",
+                "last_success": "2026-04-28T22:23:19Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:894e0b93 plugins/memory/honcho/__init__.py",
@@ -6395,13 +6399,8 @@
                 "The slice treats queue publication as complete without retry/backoff/failure state and disabled-endpoint evidence.",
                 "The slice changes key/JWT behavior, SDK compatibility, or unrelated Goncho route bindings."
               ],
-              "blocked_by": [
-                "Goncho keys + webhooks compatibility surface"
-              ],
               "unblocks": [
-                "Goncho HTTP route parity over OpenAPI v3",
-                "Self-monitoring telemetry",
-                "Goncho Honcho SDK compatibility e2e harness"
+                "Self-monitoring telemetry"
               ],
               "acceptance": [
                 "WebhookDeliveryWorker consumes WebhookDeliveryStore, WebhookHTTPClient, and WebhookClock seams and returns WebhookDeliveryResult values with attempt, status, retry, and redacted evidence fields.",
@@ -6468,7 +6467,6 @@
                 "The implementation claims broad route coverage from globbed routers without proving each OpenAPI path/method."
               ],
               "unblocks": [
-                "Goncho Honcho SDK compatibility e2e harness",
                 "Goncho CLI command-tree parity",
                 "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
               ],
@@ -6552,7 +6550,6 @@
                 "The implementation claims command parity without reading upstream honcho-cli source files and tests."
               ],
               "unblocks": [
-                "Goncho Honcho SDK compatibility e2e harness",
                 "Gateway, platform, webhook, and cron management CLI",
                 "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
               ],
@@ -6595,9 +6592,9 @@
             {
               "name": "Goncho Honcho SDK compatibility e2e harness",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho exposes a Honcho-compatible local harness that can run the upstream Python and TypeScript SDK session/message/search/context flows against Gormes without a hosted Honcho service.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
@@ -6624,6 +6621,7 @@
                 "internal/gonchotools/honcho_tools.go"
               ],
               "ready_when": [
+                "Goncho empty peer-card hint contract is validated.",
                 "Goncho context representation options, search filter grammar, directional peer cards, queue status, summary context budget, dialectic chat, file import, topology fixtures, diagnostics, streaming persistence, and configuration namespace are validated.",
                 "The worker can run the harness with temp SQLite state and in-process services only; no hosted Honcho, external SDK network, or LLM provider is required.",
                 "Public compatibility names stay honcho_* while internal packages remain named goncho."
@@ -6633,8 +6631,8 @@
                 "The slice hides unsupported Honcho fields by dropping them silently.",
                 "The slice renames internal Goncho packages to Honcho instead of preserving compatibility at public boundaries."
               ],
-              "blocked_by": [
-                "Goncho empty peer-card hint contract"
+              "unblocks": [
+                "Goncho memory integration into normal agent turn"
               ],
               "acceptance": [
                 "TestGonchoHonchoSDKCompatibility_SessionMessageSearch seeds a workspace, peer, session, messages, and search query through the compatibility harness and verifies Honcho-shaped responses.",
@@ -6657,6 +6655,12 @@
               "done_signal": [
                 "A hermetic Go harness proves the required Honcho SDK flows against local Goncho services and reports every unsupported field explicitly."
               ],
+              "note": "Complete: TDD added internal/goncho/compat_harness.go and compat_harness_test.go. The harness seeds Honcho-shaped workspace/peer/session/message flows through local Goncho service calls, verifies SDK response names for messages/search/context preview, proves summary and peer-card mapping from temp SQLite state, and reports unsupported SDK flows as structured sdk_flow_unsupported evidence with method, endpoint, and field names. It does not start hosted Honcho, shell out to Python or TypeScript SDK runners, or require provider credentials.",
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T22:27:00Z",
+                "last_success": "2026-04-28T22:27:00Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "honcho:e659b6b tests/sdk + tests/sdk_typescript + sdks/python/src/honcho + sdks/typescript/src + sdks/typescript/__tests__",
@@ -6666,9 +6670,9 @@
             {
               "name": "Goncho memory integration into normal agent turn",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "A Go-native agent turn reads scoped Goncho memory before prompt assembly, exposes honcho_* tool compatibility during the turn, and persists final user/assistant messages after provider completion without Python or hosted Honcho.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
@@ -6720,6 +6724,12 @@
               "done_signal": [
                 "A normal Go agent turn proves Goncho recall, honcho_* tool exposure, final-message persistence, and degraded-mode evidence with a fake provider and temp state."
               ],
+              "note": "Complete: TDD added internal/kernel/goncho_turn_integration_test.go and internal/gonchotools/turn_integration.go. A kernel-level fake-provider fixture now wires local Goncho recall before prompt assembly, registers honcho_context/honcho_search/honcho_profile tool descriptors, executes a honcho_search continuation, and proves the final assistant message is persisted exactly once in SQLite. A degraded subtest uses a nil Goncho service to report goncho_recall_unavailable and honcho_tools_unavailable while preserving transcript integrity and final persistence.",
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T22:30:21Z",
+                "last_success": "2026-04-28T22:30:21Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes memory/honcho plugin + honcho:e659b6b docs",
@@ -11155,9 +11165,9 @@
             {
               "name": "Provider-tool-memory golden transcript suite",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Golden transcript fixtures capture provider request parts, tool-call continuation, Goncho memory evidence, final assistant message, and audit/status fields for representative Hermes-compatible turns without live credentials.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -11204,6 +11214,12 @@
               "done_signal": [
                 "Golden transcript replay proves text, tool-call, and memory-backed turns with stable diff output and no live provider dependencies."
               ],
+              "note": "Complete: TDD added internal/e2e/golden_transcript_test.go, internal/transcript/golden.go, and stable JSON fixtures for text_only, tool_call, and memory_backed normal turns. The suite replays hermetic fake-provider turns with no credentials, captures provider request messages/tools, tool-call continuation and audit evidence, Goncho recall injection, persisted memory rows, final assistant text, and idle status. Transcript diffs classify fixture_missing, provider_part_mismatch, tool_continuation_mismatch, or memory_evidence_mismatch with the exact JSON field path.",
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T22:21:55Z",
+                "last_success": "2026-04-28T22:21:55Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "Hermes run_agent/tests transcript behavior",

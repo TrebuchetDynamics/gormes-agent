@@ -77,14 +77,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 37/77 subphases shipped · 26 in progress · 14 planned
+**Overall:** 39/77 subphases shipped · 24 in progress · 14 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 16/20 subphases |
-| Phase 3 — The Black Box (Memory) | 🔨 | 13/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 0/9 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 14/15 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 1/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -386,7 +386,7 @@ classification and row-backed implementation queue.
 - [x] Lineage-aware source-filtered search hits
 - [x] Operator-auditable search evidence
 
-### 3.F — Goncho Honcho Memory Parity 🔨
+### 3.F — Goncho Honcho Memory Parity ✅
 
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
@@ -402,7 +402,7 @@ classification and row-backed implementation queue.
 - [x] Goncho configuration namespace
 - [x] Goncho dreaming scheduler contract
 - [x] Goncho CRUD lifecycle invariants
-- [ ] Goncho empty peer-card hint contract
+- [x] Goncho empty peer-card hint contract
 
 ### 3.G — Goncho Drop-In Compatibility Closure 🔨
 
@@ -410,8 +410,8 @@ classification and row-backed implementation queue.
 - [ ] Goncho webhook delivery retry worker contract
 - [x] Goncho HTTP route parity over OpenAPI v3
 - [x] Goncho CLI command-tree parity
-- [ ] Goncho Honcho SDK compatibility e2e harness
-- [ ] Goncho memory integration into normal agent turn
+- [x] Goncho Honcho SDK compatibility e2e harness
+- [x] Goncho memory integration into normal agent turn
 
 ## Phase 4 — The Brain Transplant 🔨
 
@@ -525,10 +525,10 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure 🔨
+### 4.I — Native Agent Turn Closure ✅
 
 - [x] Python-free normal agent turn e2e harness
-- [ ] Provider-tool-memory golden transcript suite
+- [x] Provider-tool-memory golden transcript suite
 - [x] Hermes and Honcho feature parity map to Go implementation plan
 - [x] Upstream source coverage ledger for Hermes/Honcho mapping completeness
 - [x] Swarm feature-level parity audit for Hermes/Honcho map

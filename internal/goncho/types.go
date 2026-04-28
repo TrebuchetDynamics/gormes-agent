@@ -55,6 +55,7 @@ const (
 // construct Config directly instead of going through internal/config.
 func (c Config) Effective() Config {
 	out := c
+	peerCardExplicitlyDisabled := out.Enabled && !out.PeerCardEnabled
 	out.Enabled = true
 	if strings.TrimSpace(out.WorkspaceID) == "" {
 		out.WorkspaceID = DefaultWorkspaceID
@@ -75,7 +76,7 @@ func (c Config) Effective() Config {
 		out.GetContextMaxTokens = DefaultGetContextMaxTokens
 	}
 	out.ReasoningEnabled = true
-	out.PeerCardEnabled = true
+	out.PeerCardEnabled = !peerCardExplicitlyDisabled
 	out.SummaryEnabled = true
 	if out.DreamIdleTimeout <= 0 {
 		out.DreamIdleTimeout = DefaultDreamIdleTimeout
@@ -109,12 +110,22 @@ type SessionDirectory interface {
 
 // ProfileResult is the external shape used by profile reads and updates.
 type ProfileResult struct {
-	WorkspaceID    string   `json:"workspace_id"`
-	Peer           string   `json:"peer"`
-	Target         string   `json:"target,omitempty"`
-	ObserverPeerID string   `json:"observer_peer_id,omitempty"`
-	ObservedPeerID string   `json:"observed_peer_id,omitempty"`
-	Card           []string `json:"card"`
+	WorkspaceID    string       `json:"workspace_id"`
+	Peer           string       `json:"peer"`
+	Target         string       `json:"target,omitempty"`
+	ObserverPeerID string       `json:"observer_peer_id,omitempty"`
+	ObservedPeerID string       `json:"observed_peer_id,omitempty"`
+	Card           []string     `json:"card"`
+	Result         string       `json:"result,omitempty"`
+	Hint           *ProfileHint `json:"hint,omitempty"`
+}
+
+// ProfileHint gives honcho_profile callers actionable guidance when an empty
+// peer card is a valid non-error state.
+type ProfileHint struct {
+	Code         string   `json:"code"`
+	Message      string   `json:"message"`
+	Alternatives []string `json:"alternatives"`
 }
 
 // ConcludeParams controls manual conclusion writes and deletes.

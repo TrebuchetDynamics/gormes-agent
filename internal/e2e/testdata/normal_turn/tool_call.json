@@ -1,0 +1,112 @@
+{
+  "fixture": "tool_call",
+  "user_input": "Inspect the fixture tool and summarize the result.",
+  "final_assistant": "The fixture tool returned a stable observation.",
+  "status": {
+    "phase": "Idle",
+    "status_text": "idle",
+    "session_id": "provider-tool",
+    "history_length": 2
+  },
+  "provider_requests": [
+    {
+      "model": "golden-model",
+      "session_id": "sess-golden-tool",
+      "stream": true,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the fixture tool and summarize the result."
+        }
+      ],
+      "tools": [
+        "golden_echo"
+      ]
+    },
+    {
+      "model": "golden-model",
+      "session_id": "sess-golden-tool",
+      "stream": true,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the fixture tool and summarize the result."
+        },
+        {
+          "role": "assistant",
+          "content": "Inspecting fixture. ",
+          "tool_calls": [
+            {
+              "id": "call_golden_echo",
+              "name": "golden_echo",
+              "arguments": {
+                "query": "fixture observation"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"observation\":\"stable fixture observation\",\"source\":\"golden_echo\"}",
+          "tool_call_id": "call_golden_echo",
+          "name": "golden_echo"
+        }
+      ],
+      "tools": [
+        "golden_echo"
+      ]
+    }
+  ],
+  "tool_execution": [
+    {
+      "id": "call_golden_echo",
+      "name": "golden_echo",
+      "args": {
+        "query": "fixture observation"
+      },
+      "result": {
+        "observation": "stable fixture observation",
+        "source": "golden_echo"
+      },
+      "status": "completed",
+      "audited": true
+    }
+  ],
+  "memory": {
+    "recall_injected": false,
+    "persisted_turns": [
+      {
+        "role": "user",
+        "content": "Inspect the fixture tool and summarize the result.",
+        "memory_sync_status": "ready"
+      },
+      {
+        "role": "assistant",
+        "content": "The fixture tool returned a stable observation.",
+        "memory_sync_status": "ready",
+        "tool_calls": [
+          {
+            "id": "call_golden_echo",
+            "name": "golden_echo",
+            "arguments": {
+              "query": "fixture observation"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "audit": [
+    {
+      "source": "kernel",
+      "session_id": "sess-golden-tool",
+      "tool": "golden_echo",
+      "args": {
+        "query": "fixture observation"
+      },
+      "status": "completed",
+      "result_size_bytes": 67,
+      "error": ""
+    }
+  ]
+}

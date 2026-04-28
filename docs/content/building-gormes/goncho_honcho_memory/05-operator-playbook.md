@@ -161,6 +161,20 @@ before a transport:
 This aligns with the existing interrupted-turn memory sync suppression row in
 Phase 3.E.
 
+## SDK Compatibility Harness
+
+Goncho now has a hermetic Go harness for Honcho SDK-shaped flows. It runs
+against `internal/goncho.Service` with temp SQLite state and proves the local
+workspace, peer, session, message, search, and context-preview response names
+without starting hosted Honcho, shelling out to Python/TypeScript SDK runners,
+or requiring provider credentials.
+
+The harness is a compatibility proof, not an HTTP adapter. Unsupported SDK
+fields or endpoints must be reported as structured `sdk_flow_unsupported`
+evidence with method, endpoint, and field names instead of being silently
+dropped. Future HTTP/OpenAPI binding should consume the same service behavior
+rather than inventing a parallel SDK fixture path.
+
 ## Configuration Map
 
 Honcho config priority is environment > `.env` > `config.toml` > defaults.

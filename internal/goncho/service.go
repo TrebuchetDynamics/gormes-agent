@@ -23,16 +23,17 @@ const (
 // Service is the first in-binary Goncho domain facade. It sits directly on
 // top of the SQLite store used by Gormes today.
 type Service struct {
-	db             *sql.DB
-	workspaceID    string
-	observer       string
-	recentLimit    int
-	maxMessageSize int
-	maxFileSize    int
-	dreamEnabled   bool
-	dreamIdle      time.Duration
-	sessions       SessionDirectory
-	log            *slog.Logger
+	db              *sql.DB
+	workspaceID     string
+	observer        string
+	recentLimit     int
+	maxMessageSize  int
+	maxFileSize     int
+	peerCardEnabled bool
+	dreamEnabled    bool
+	dreamIdle       time.Duration
+	sessions        SessionDirectory
+	log             *slog.Logger
 }
 
 const maxPeerCardFacts = 40
@@ -62,16 +63,17 @@ func NewService(db *sql.DB, cfg Config, log *slog.Logger) *Service {
 		recentLimit = DefaultRecentMessages
 	}
 	return &Service{
-		db:             db,
-		workspaceID:    workspaceID,
-		observer:       observer,
-		recentLimit:    recentLimit,
-		maxMessageSize: cfg.MaxMessageSize,
-		maxFileSize:    cfg.MaxFileSize,
-		dreamEnabled:   cfg.DreamEnabled,
-		dreamIdle:      cfg.DreamIdleTimeout,
-		sessions:       cfg.SessionDirectory,
-		log:            log,
+		db:              db,
+		workspaceID:     workspaceID,
+		observer:        observer,
+		recentLimit:     recentLimit,
+		maxMessageSize:  cfg.MaxMessageSize,
+		maxFileSize:     cfg.MaxFileSize,
+		peerCardEnabled: cfg.PeerCardEnabled,
+		dreamEnabled:    cfg.DreamEnabled,
+		dreamIdle:       cfg.DreamIdleTimeout,
+		sessions:        cfg.SessionDirectory,
+		log:             log,
 	}
 }
 
@@ -138,18 +140,43 @@ func (s *Service) profileForScope(ctx context.Context, scope peerCardScope) (Pro
 	if scope.Observer == "" || scope.Observed == "" {
 		return ProfileResult{}, fmt.Errorf("goncho: peer is required")
 	}
-	card, err := getPeerCard(ctx, s.db, s.workspaceID, scope.Observer, scope.Observed)
-	if err != nil {
-		return ProfileResult{}, err
-	}
-	return ProfileResult{
+	out := ProfileResult{
 		WorkspaceID:    s.workspaceID,
 		Peer:           scope.Observed,
 		Target:         scope.Target,
 		ObserverPeerID: scope.Observer,
 		ObservedPeerID: scope.Observed,
-		Card:           card,
-	}, nil
+		Card:           []string{},
+	}
+	if !s.peerCardEnabled {
+		out.Result = emptyProfileResultText
+		out.Hint = profileHint("peer_card_disabled",
+			"This is not an error. Peer-card support is disabled in Goncho config, so no curated card can be read for this peer.",
+		)
+		return out, nil
+	}
+	card, err := getPeerCard(ctx, s.db, s.workspaceID, scope.Observer, scope.Observed)
+	if err != nil {
+		return ProfileResult{}, err
+	}
+	out.Card = card
+	if len(card) == 0 {
+		out.Result = emptyProfileResultText
+		out.Hint = profileHint("peer_card_empty_unknown",
+			"This is not an error. The peer card has no facts yet; Goncho builds cards over time from observed turns, and local or self-hosted deployments may not have run enough derivation work yet.",
+		)
+	}
+	return out, nil
+}
+
+const emptyProfileResultText = "No profile facts available yet."
+
+func profileHint(code, message string) *ProfileHint {
+	return &ProfileHint{
+		Code:         code,
+		Message:      message + " Try honcho_reasoning for a synthesized answer, or honcho_search to query raw conversation excerpts.",
+		Alternatives: []string{"honcho_reasoning", "honcho_search"},
+	}
 }
 
 func normalizePeerCard(card []string) []string {

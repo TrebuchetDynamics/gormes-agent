@@ -34,10 +34,10 @@ type HonchoProfileTool struct {
 
 func (*HonchoProfileTool) Name() string { return "honcho_profile" }
 func (*HonchoProfileTool) Description() string {
-	return "Read or update the peer card for a peer. Pass card to update; omit it to read."
+	return "Read or update the peer card for a peer. Empty cards can include a diagnostic hint and are not errors."
 }
 func (*HonchoProfileTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"peer":{"type":"string","description":"peer identity"},"target":{"type":"string","description":"optional observed peer for a directional card from peer's perspective"},"card":{"type":"array","items":{"type":"string"},"description":"optional replacement peer card"}},"required":["peer"]}`)
+	return json.RawMessage(`{"type":"object","description":"Read or update a Goncho peer card. If the card is empty, the result can include a structured hint explaining why; an empty card is not an error.","properties":{"peer":{"type":"string","description":"peer identity"},"target":{"type":"string","description":"optional observed peer for a directional card from peer's perspective"},"card":{"type":"array","items":{"type":"string"},"description":"optional replacement peer card"}},"required":["peer"]}`)
 }
 func (*HonchoProfileTool) Timeout() time.Duration { return 5 * time.Second }
 func (t *HonchoProfileTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {

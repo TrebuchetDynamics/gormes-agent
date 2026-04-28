@@ -1,0 +1,51 @@
+{
+  "fixture": "memory_backed",
+  "user_input": "Use Goncho memory to summarize my reporting preference.",
+  "final_assistant": "Goncho memory says the user prefers exact evidence-first reports.",
+  "status": {
+    "phase": "Idle",
+    "status_text": "idle",
+    "session_id": "provider-memory",
+    "history_length": 2
+  },
+  "provider_requests": [
+    {
+      "model": "golden-model",
+      "session_id": "sess-e2e",
+      "stream": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "Goncho memory context:\nProfile facts:\n- Prefers exact evidence-first reports\n\nCurrent conclusions:\n- The user prefers exact evidence-first reports."
+        },
+        {
+          "role": "user",
+          "content": "Use Goncho memory to summarize my reporting preference."
+        }
+      ],
+      "tools": []
+    }
+  ],
+  "tool_execution": [],
+  "memory": {
+    "recall_injected": true,
+    "recall_terms": [
+      "Goncho memory context",
+      "evidence-first",
+      "exact"
+    ],
+    "persisted_turns": [
+      {
+        "role": "user",
+        "content": "Use Goncho memory to summarize my reporting preference.",
+        "memory_sync_status": "ready"
+      },
+      {
+        "role": "assistant",
+        "content": "Goncho memory says the user prefers exact evidence-first reports.",
+        "memory_sync_status": "ready"
+      }
+    ]
+  },
+  "audit": []
+}

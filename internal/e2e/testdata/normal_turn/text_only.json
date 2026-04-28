@@ -1,0 +1,42 @@
+{
+  "fixture": "text_only",
+  "user_input": "Answer with a plain text-only final response.",
+  "final_assistant": "Plain text-only final response.",
+  "status": {
+    "phase": "Idle",
+    "status_text": "idle",
+    "session_id": "provider-text",
+    "history_length": 2
+  },
+  "provider_requests": [
+    {
+      "model": "golden-model",
+      "session_id": "sess-golden-text",
+      "stream": true,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Answer with a plain text-only final response."
+        }
+      ],
+      "tools": []
+    }
+  ],
+  "tool_execution": [],
+  "memory": {
+    "recall_injected": false,
+    "persisted_turns": [
+      {
+        "role": "user",
+        "content": "Answer with a plain text-only final response.",
+        "memory_sync_status": "ready"
+      },
+      {
+        "role": "assistant",
+        "content": "Plain text-only final response.",
+        "memory_sync_status": "ready"
+      }
+    ]
+  },
+  "audit": []
+}
