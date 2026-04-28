@@ -10,7 +10,7 @@ Gormes is for long-running agents that need predictable installs, stable runtime
 
 **Status: early-stage scout release. Not production-stable yet.** Use Gormes today for the native TUI, local diagnostics, provider-backed one-shots, gateway work, and Goncho memory development. Do not treat it as production-ready until the remaining brain/provider slices are complete.
 
-Gormes does **not** require a running Hermes process. It replicated the useful Hermes-Agent architecture in Go; Hermes remains lineage, attribution, and compatibility vocabulary, not a runtime dependency.
+Gormes is a standalone, Go-native rewrite of the Hermes Agent architecture. It requires no Python dependencies and no running Hermes backend.
 
 <p align="center">
   <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
@@ -27,36 +27,43 @@ Gormes does **not** require a running Hermes process. It replicated the useful H
 - `gormes doctor --offline` checks the local runtime surface before you burn tokens.
 - `gormes goncho doctor --json` reports local memory paths and Goncho readiness.
 - Provider-backed turns run directly from Gormes with `GORMES_ENDPOINT`, `GORMES_API_KEY`, and `GORMES_MODEL`.
+- Gateway operators can inspect configured Telegram, Discord, and Slack channels with `gormes gateway status`; deeper connector setup stays in the docs.
 - Signed binary releases, checksums, detached signatures, and package-manager manifests are release-hardening work, not current trust claims.
-- No `hermes gateway start` step is required.
 
 ---
 
 ## Why Gormes
 
-Python-stack agents are powerful, but production operation is fragile:
-
-- Python environments drift between dev, staging, and prod.
-- npm, Nix, and virtualenv setup fails on host skew.
-- Multi-process orchestration crashes or hangs under load.
-- SSE streams drop and kill long-running turns.
-- Debugging crosses Python, Node, shell, and OS runtime boundaries.
-
-Gormes attacks those failure modes directly:
+Python-stack agents are powerful, but production operation is fragile. Gormes moves the runtime surface into one inspectable Go artifact.
 
 | Feature | Python-stack agents | Gormes-Agent (Go) |
 |---|---|---|
-| Deployment | Virtualenvs, Docker, Nix, or host package drift | Single static binary built from source |
-| Stability | Runtime drift is common across hosts | Immutable Go runtime artifact |
-| Recovery | Dropped streams can hard-fail long turns | Route-B reconnect treats drops as recoverable |
-| Memory | Often Redis, vector DBs, or sidecars | In-binary Goncho memory layer |
-| Diagnostics | Crosses Python, Node, shell, and OS state | `gormes doctor` and Goncho diagnostics in one binary |
+| **Deployment** | Virtualenvs, Docker, Nix | **Single static binary** |
+| **Stability** | Runtime drift across hosts | **Immutable Go artifact** |
+| **Recovery** | Dropped streams kill turns | **Route-B reconnect** |
+| **Memory** | Redis, vector DBs, sidecars | **In-binary Goncho SQLite** |
+| **Diagnostics** | Crosses Node/Python/OS bounds | **Built-in `gormes doctor`** |
 
-- **Install once** - ship a Go binary instead of reconstructing a Python stack.
-- **Run the same artifact** - the binary you test is the binary you deploy.
-- **Recover stream drops** - dropped SSE streams become recoverable events.
-- **Validate locally** - `gormes doctor` catches config and tool problems early.
-- **Keep memory in-process** - Goncho memory runs inside Gormes, not as another sidecar.
+## Current State
+
+What works today:
+
+- Native CLI and Bubble Tea TUI.
+- Offline smoke test and local doctor diagnostics.
+- Provider-compatible one-shot and TUI startup paths.
+- Shared gateway runtime for configured Telegram, Discord, and Slack channels.
+- Isolated subagent workstreams with durable job metadata.
+- Goncho memory diagnostics and Honcho-style local memory tools inside the binary.
+- Progress-driven docs generated from the canonical architecture plan.
+
+Current limits:
+
+- Early-stage scout release, not production-stable.
+- Brain/provider runtime is active but not fully hardened.
+- Gateway coverage is partial across all planned channels.
+- WhatsApp, WeChat, and the longer connector backlog are tracked in progress docs, not exposed as production-ready README setup paths.
+- Stable tagged releases and changelog discipline are still pending.
+- Some docs still preserve Hermes/Honcho naming where compatibility or lineage matters.
 
 ---
 
@@ -126,62 +133,33 @@ Use `gormes` without `--oneshot` to open the TUI against the same configured run
 
 ---
 
-## What Works Today
+## Gateway Operator Surface
 
-- Native CLI and Bubble Tea TUI.
-- Offline smoke test and local doctor diagnostics.
-- Provider-compatible one-shot and TUI startup paths.
-- Shared gateway foundation with Telegram and Discord shipped; Slack, WhatsApp, and WeChat are active.
-- Isolated subagent workstreams with durable job metadata.
-- Goncho memory diagnostics and Honcho-style local memory tools inside the binary.
-- Progress-driven docs generated from the canonical architecture plan.
+Gateway setup details stay in the docs. The README-level operator contract is:
 
-## Current Limits
+- `gormes gateway` runs every configured channel through one `gateway.Manager` and the same kernel/tool loop as the TUI.
+- `gormes gateway status` reads configured channels, pairing state, persisted runtime state, and runtime PID validation without starting channel clients.
+- `gormes doctor --offline` reports gateway readiness alongside local tools, provider configuration, and Goncho diagnostics.
+- Telegram, Discord, and Slack are the current `gormes gateway` runtime channels. WhatsApp, WeChat, and the broader connector backlog remain progress-row work until their live transports are exposed through the gateway command.
+- `gateway start`, `stop`, `restart`, `install`, and `uninstall` are intentionally not mutating service-manager commands inside the binary; run `gormes gateway` in the foreground or supervise it externally.
 
-- Early-stage scout release, not production-stable.
-- Brain/provider runtime is active but not fully hardened.
-- Gateway coverage is partial across all planned channels.
-- Stable tagged releases and changelog discipline are still pending.
-- Some docs still preserve Hermes/Honcho naming where compatibility or lineage matters.
+Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-systems/gateway/).
 
 ---
 
-## Core Capabilities
+## Auditability & Security
 
-- **Single static binary** - current Gormes build is ~17.7 MB, stripped, static, and zero-CGO.
-- **No Hermes backend dependency** - the shipped runtime is Gormes.
-- **No runtime drift** - test and deploy the same Go binary.
-- **Recoverable stream behavior** - a dropped connection does not have to kill the agent turn.
-- **Local validation** - diagnose config and tool issues before a live run.
-- **In-binary memory** - peer context, search, profiles, queue status, and diagnostics live in Gormes.
-- **Multi-channel gateway path** - route agent work through chat and messaging adapters as they land.
-
----
-
-## Trust Signals
-
-- `make test` runs `go test ./...`.
-- `make build` validates `progress.json`, builds `bin/gormes`, records binary metrics, and regenerates progress-driven docs.
-- `make build` sets the operator-facing version with Go linker flags so release builds can stamp `main.Version`.
-- The phase table below is generated from `docs/content/building-gormes/architecture_plan/progress.json`.
-- Docs and the public site deploy through GitHub Actions workflows under `.github/workflows/`.
-- Security reporting policy lives in [SECURITY.md](SECURITY.md).
-- `gormes version` reports the current operator-facing line: `0.2.0-scout`.
-- `gormes doctor --offline` reports local TUI, built-in tools, Goncho, gateway, Slack, and provider-endpoint readiness without contacting a model provider.
-- `gormes goncho doctor --json` reports local Goncho config paths, memory DB paths, schema status, session catalog status, queue status, degraded modes, and provider readiness.
-
-## Security & Transparency
-
-Gormes is a statically linked Go runtime that performs network calls, local SQLite I/O, process supervision, and gateway work. Those traits are useful, but they can look suspicious to heuristic scanners when a project is young.
-
-Current posture:
+Gormes is designed for high-trust environments. Auditability comes from source-first builds, zero-CGO static binaries, local-first SQLite memory, and built-in diagnostic tooling.
 
 - Source build is the recommended install path. Convenience installers remain inspect-first from GitHub raw URLs rather than `curl | sh` or `irm | iex` as the primary path.
-- The binary is zero-CGO, statically linked, and does not depend on hidden shared libraries.
-- The runtime is a local binary and does not act as a self-updating dropper.
+- The current build is ~17.7 MB, stripped, static, zero-CGO, and does not depend on hidden shared libraries.
+- `make test` runs `go test ./...`; `make build` validates `progress.json`, builds `bin/gormes`, records binary metrics, stamps `main.Version`, and regenerates progress-driven docs.
+- `gormes doctor --offline` reports local TUI, built-in tools, Goncho, gateway, Slack, and provider-endpoint readiness without contacting a model provider.
+- `gormes goncho doctor --json` reports local Goncho config paths, memory DB paths, schema status, session catalog status, queue status, degraded modes, and provider readiness.
 - Network calls go to configured provider or gateway endpoints; offline diagnostics do not contact a model provider.
-- Local diagnostics expose what is configured before live provider calls: `gormes doctor --offline` checks the runtime surface, and `gormes goncho doctor --json` reports memory paths, schema status, queue status, degraded modes, and provider readiness.
-- Goncho memory is local SQLite-backed state. The exact path is configuration-dependent and is reported by the Goncho doctor command.
+- The runtime is a local binary and does not act as a self-updating dropper.
+- Docs and the public site deploy through GitHub Actions workflows under `.github/workflows/`.
+- Security reporting policy lives in [SECURITY.md](SECURITY.md).
 
 Release-hardening targets before production-stable distribution:
 
@@ -190,6 +168,20 @@ Release-hardening targets before production-stable distribution:
 - Windows code signing plus embedded version/company/icon metadata through a resource file.
 - Release-candidate scanning and vendor false-positive submissions for major AV providers when needed.
 - A dedicated `gormes security-audit` command that summarizes filesystem paths, configured endpoints, persistence, and network behavior in one operator-facing report.
+
+---
+
+## How It Works
+
+Gormes keeps the operator-facing runtime in Go:
+
+- `cmd/gormes` owns the CLI, TUI, doctor, gateway, memory, and Goncho commands.
+- `internal/hermes` owns provider-compatible stream contracts and adapters. The package name is compatibility lineage, not a process dependency.
+- `internal/goncho` and `internal/gonchotools` provide in-binary Honcho-style memory.
+- `internal/gateway` and `internal/channels/*` route events across messaging adapters.
+- `docs/content/building-gormes/architecture_plan/progress.json` is the canonical roadmap.
+
+Architecture depth belongs in the docs: [Core systems](https://docs.gormes.ai/building-gormes/core-systems/) and [Architecture plan](https://docs.gormes.ai/building-gormes/architecture_plan/).
 
 ---
 
@@ -226,20 +218,6 @@ Full progress: [docs.gormes.ai/building-gormes/architecture_plan](https://docs.g
 
 ---
 
-## How It Works
-
-Gormes keeps the operator-facing runtime in Go:
-
-- `cmd/gormes` owns the CLI, TUI, doctor, gateway, memory, and Goncho commands.
-- `internal/hermes` owns provider-compatible stream contracts and adapters. The package name is compatibility lineage, not a process dependency.
-- `internal/goncho` and `internal/gonchotools` provide in-binary Honcho-style memory.
-- `internal/gateway` and `internal/channels/*` route events across messaging adapters.
-- `docs/content/building-gormes/architecture_plan/progress.json` is the canonical roadmap.
-
-Architecture depth belongs in the docs: [Core systems](https://docs.gormes.ai/building-gormes/core-systems/) and [Architecture plan](https://docs.gormes.ai/building-gormes/architecture_plan/).
-
----
-
 ## Developer Workflow
 
 ```bash
@@ -265,6 +243,7 @@ Useful commands:
 - [Quickstart](https://docs.gormes.ai/using-gormes/quickstart/)
 - [Install](https://docs.gormes.ai/using-gormes/install/)
 - [Configuration](https://docs.gormes.ai/using-gormes/configuration/)
+- [Gateway](https://docs.gormes.ai/building-gormes/core-systems/gateway/)
 - [Core systems](https://docs.gormes.ai/building-gormes/core-systems/)
 - [Architecture plan](https://docs.gormes.ai/building-gormes/architecture_plan/)
 - [Goncho Honcho Memory](https://docs.gormes.ai/building-gormes/goncho_honcho_memory/)
