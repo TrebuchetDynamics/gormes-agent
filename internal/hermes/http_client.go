@@ -187,7 +187,7 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 	if err != nil {
 		return nil, nil, err
 	}
-	descriptors := SanitizeToolDescriptors(req.Tools)
+	descriptors := SanitizeToolDescriptorsForModel(req.Model, req.Tools)
 	tools := make([]orToolDescriptor, len(descriptors))
 	for i, t := range descriptors {
 		tools[i] = orToolDescriptor{
