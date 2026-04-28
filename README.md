@@ -4,11 +4,11 @@
 
 # GORMES-AGENT
 
-Stop losing agent runs to broken environments.
+Your agents shouldn't crash because of a broken Python environment.
 
-Gormes runs AI agents as one Go-native runtime: a static binary with a native TUI, local diagnostics, provider-backed turns, and configured gateway channels. No Python runtime. No virtualenv drift. No running Hermes backend.
+Run AI agents as a single static binary: no Python runtime, no environment drift, no running Hermes backend. Gormes gives you a local terminal UI, offline diagnostics, provider-backed turns, and configured gateway channels from one Go-native runtime.
 
-**Status: early-stage scout release. Not production-stable yet.** Use Gormes today for the local TUI, offline doctor, provider-backed one-shots, and configured gateway work.
+**Status: early-stage.** The TUI, offline doctor, and provider-backed one-shots work today; the full agent runtime is still in progress.
 
 <p align="center">
   <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
