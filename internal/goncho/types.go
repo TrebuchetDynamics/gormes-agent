@@ -250,3 +250,53 @@ type ChatParams struct {
 type ChatResult struct {
 	Content string `json:"content"`
 }
+
+// CreateMessagesParams mirrors Honcho's session message creation contract at
+// the local Goncho service boundary.
+type CreateMessagesParams struct {
+	SessionKey string          `json:"session_key"`
+	Messages   []CreateMessage `json:"messages"`
+}
+
+type CreateMessage struct {
+	Peer      string         `json:"peer_id"`
+	Role      string         `json:"role,omitempty"`
+	Content   string         `json:"content"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
+	CreatedAt time.Time      `json:"created_at,omitempty"`
+}
+
+type CreateMessagesResult struct {
+	WorkspaceID string          `json:"workspace_id"`
+	SessionKey  string          `json:"session_key"`
+	Messages    []MessageRecord `json:"messages"`
+}
+
+type MessageRecord struct {
+	ID          int64          `json:"id"`
+	WorkspaceID string         `json:"workspace_id"`
+	SessionKey  string         `json:"session_key"`
+	Peer        string         `json:"peer_id"`
+	Role        string         `json:"role"`
+	Content     string         `json:"content"`
+	Sequence    int            `json:"seq_in_session"`
+	CreatedAt   int64          `json:"created_at"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
+}
+
+type SessionDeletionResult struct {
+	WorkspaceID        string `json:"workspace_id"`
+	SessionKey         string `json:"session_key"`
+	MessagesDeleted    int64  `json:"messages_deleted"`
+	ConclusionsDeleted int64  `json:"conclusions_deleted"`
+	SummariesDeleted   int64  `json:"summaries_deleted"`
+}
+
+type WorkspaceDeletionResult struct {
+	WorkspaceID        string `json:"workspace_id"`
+	MessagesDeleted    int64  `json:"messages_deleted"`
+	PeerCardsDeleted   int64  `json:"peer_cards_deleted"`
+	ConclusionsDeleted int64  `json:"conclusions_deleted"`
+	SummariesDeleted   int64  `json:"summaries_deleted"`
+	DreamsDeleted      int64  `json:"dreams_deleted"`
+}

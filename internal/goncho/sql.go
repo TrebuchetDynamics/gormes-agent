@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+type lifecycleSQL interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 type conclusionRow struct {
 	WorkspaceID    string
 	ObserverPeerID string
@@ -31,6 +37,270 @@ type sessionSummaryRow struct {
 	MessageID   int64
 	CreatedAt   int64
 	TokenCount  int
+}
+
+type lifecycleMessageMeta struct {
+	WorkspaceID string         `json:"workspace_id"`
+	PeerID      string         `json:"peer_id"`
+	Sequence    int            `json:"seq_in_session"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
+}
+
+type lifecycleTurnMeta struct {
+	Goncho lifecycleMessageMeta `json:"goncho"`
+}
+
+func createLifecycleMessages(ctx context.Context, db lifecycleSQL, workspaceID, sessionKey string, maxMessageSize int, inputs []CreateMessage) ([]MessageRecord, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	sessionKey = strings.TrimSpace(sessionKey)
+	if workspaceID == "" {
+		return nil, fmt.Errorf("goncho: workspace_id is required")
+	}
+	if sessionKey == "" {
+		return nil, fmt.Errorf("goncho: session_key is required")
+	}
+	if len(inputs) == 0 {
+		return []MessageRecord{}, nil
+	}
+
+	lastSeq, err := lastLifecycleMessageSequence(ctx, db, workspaceID, sessionKey)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]MessageRecord, 0, len(inputs))
+	for i, input := range inputs {
+		peer := strings.TrimSpace(input.Peer)
+		if peer == "" {
+			return nil, fmt.Errorf("goncho: peer_id is required")
+		}
+		content := strings.TrimSpace(input.Content)
+		if content == "" {
+			return nil, fmt.Errorf("goncho: message content is required")
+		}
+		if maxMessageSize > 0 && len(content) > maxMessageSize {
+			return nil, fmt.Errorf("goncho: message content exceeds max size %d", maxMessageSize)
+		}
+		role := strings.TrimSpace(input.Role)
+		if role == "" {
+			role = "user"
+		}
+		createdAt := input.CreatedAt.UTC()
+		if createdAt.IsZero() {
+			createdAt = time.Now().UTC()
+		}
+		sequence := lastSeq + i + 1
+		meta := lifecycleTurnMeta{
+			Goncho: lifecycleMessageMeta{
+				WorkspaceID: workspaceID,
+				PeerID:      peer,
+				Sequence:    sequence,
+				Metadata:    copyMetadata(input.Metadata),
+			},
+		}
+		metaJSON, err := json.Marshal(meta)
+		if err != nil {
+			return nil, fmt.Errorf("goncho: marshal message metadata: %w", err)
+		}
+		res, err := db.ExecContext(ctx, `
+			INSERT INTO turns(session_id, role, content, ts_unix, chat_id, meta_json, memory_sync_status)
+			VALUES(?, ?, ?, ?, ?, ?, 'ready')
+		`, sessionKey, role, content, createdAt.Unix(), peer, string(metaJSON))
+		if err != nil {
+			return nil, fmt.Errorf("goncho: insert lifecycle message: %w", err)
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return nil, fmt.Errorf("goncho: lifecycle message id: %w", err)
+		}
+		out = append(out, MessageRecord{
+			ID:          id,
+			WorkspaceID: workspaceID,
+			SessionKey:  sessionKey,
+			Peer:        peer,
+			Role:        role,
+			Content:     content,
+			Sequence:    sequence,
+			CreatedAt:   createdAt.Unix(),
+			Metadata:    copyMetadata(input.Metadata),
+		})
+	}
+	return out, nil
+}
+
+func lastLifecycleMessageSequence(ctx context.Context, db lifecycleSQL, workspaceID, sessionKey string) (int, error) {
+	var seq int
+	err := db.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(CAST(
+			CASE
+				WHEN json_valid(COALESCE(meta_json, ''))
+				THEN json_extract(meta_json, '$.goncho.seq_in_session')
+				ELSE NULL
+			END AS INTEGER
+		)), 0)
+		FROM turns
+		WHERE session_id = ?
+		  AND memory_sync_status = 'ready'
+		  AND CASE
+			WHEN json_valid(COALESCE(meta_json, ''))
+			THEN json_extract(meta_json, '$.goncho.workspace_id')
+			ELSE ''
+		  END = ?
+	`, sessionKey, workspaceID).Scan(&seq)
+	if err != nil {
+		return 0, fmt.Errorf("goncho: read last message sequence: %w", err)
+	}
+	return seq, nil
+}
+
+func listLifecycleMessages(ctx context.Context, db lifecycleSQL, workspaceID, sessionKey string) ([]MessageRecord, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, session_id, role, content, ts_unix, COALESCE(chat_id, ''), COALESCE(meta_json, '')
+		FROM turns
+		WHERE session_id = ?
+		  AND memory_sync_status = 'ready'
+		  AND CASE
+			WHEN json_valid(COALESCE(meta_json, ''))
+			THEN json_extract(meta_json, '$.goncho.workspace_id')
+			ELSE ''
+		  END = ?
+		ORDER BY CAST(json_extract(meta_json, '$.goncho.seq_in_session') AS INTEGER) ASC, id ASC
+	`, sessionKey, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("goncho: list lifecycle messages: %w", err)
+	}
+	defer rows.Close()
+
+	var out []MessageRecord
+	for rows.Next() {
+		var msg MessageRecord
+		var metaRaw string
+		if err := rows.Scan(&msg.ID, &msg.SessionKey, &msg.Role, &msg.Content, &msg.CreatedAt, &msg.Peer, &metaRaw); err != nil {
+			return nil, fmt.Errorf("goncho: scan lifecycle message: %w", err)
+		}
+		msg.WorkspaceID = workspaceID
+		meta, err := decodeLifecycleMeta(metaRaw)
+		if err != nil {
+			return nil, err
+		}
+		msg.Sequence = meta.Goncho.Sequence
+		if meta.Goncho.PeerID != "" {
+			msg.Peer = meta.Goncho.PeerID
+		}
+		msg.Metadata = copyMetadata(meta.Goncho.Metadata)
+		out = append(out, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("goncho: iterate lifecycle messages: %w", err)
+	}
+	return out, nil
+}
+
+func deleteLifecycleSession(ctx context.Context, db lifecycleSQL, workspaceID, sessionKey string) (SessionDeletionResult, error) {
+	messagesDeleted, err := execDeleteCount(ctx, db, `
+		DELETE FROM turns
+		WHERE session_id = ?
+		  AND CASE
+			WHEN json_valid(COALESCE(meta_json, ''))
+			THEN json_extract(meta_json, '$.goncho.workspace_id')
+			ELSE ''
+		  END = ?
+	`, sessionKey, workspaceID)
+	if err != nil {
+		return SessionDeletionResult{}, fmt.Errorf("goncho: delete session messages: %w", err)
+	}
+	conclusionsDeleted, err := execDeleteCount(ctx, db, `
+		DELETE FROM goncho_conclusions
+		WHERE workspace_id = ? AND session_key = ?
+	`, workspaceID, sessionKey)
+	if err != nil {
+		return SessionDeletionResult{}, fmt.Errorf("goncho: delete session conclusions: %w", err)
+	}
+	summariesDeleted, err := execDeleteCount(ctx, db, `
+		DELETE FROM goncho_session_summaries
+		WHERE workspace_id = ? AND session_key = ?
+	`, workspaceID, sessionKey)
+	if err != nil {
+		return SessionDeletionResult{}, fmt.Errorf("goncho: delete session summaries: %w", err)
+	}
+	return SessionDeletionResult{
+		WorkspaceID:        workspaceID,
+		SessionKey:         sessionKey,
+		MessagesDeleted:    messagesDeleted,
+		ConclusionsDeleted: conclusionsDeleted,
+		SummariesDeleted:   summariesDeleted,
+	}, nil
+}
+
+func deleteLifecycleWorkspace(ctx context.Context, db lifecycleSQL, workspaceID string) (WorkspaceDeletionResult, error) {
+	messagesDeleted, err := execDeleteCount(ctx, db, `
+		DELETE FROM turns
+		WHERE CASE
+			WHEN json_valid(COALESCE(meta_json, ''))
+			THEN json_extract(meta_json, '$.goncho.workspace_id')
+			ELSE ''
+		END = ?
+	`, workspaceID)
+	if err != nil {
+		return WorkspaceDeletionResult{}, fmt.Errorf("goncho: delete workspace messages: %w", err)
+	}
+	peerCardsDeleted, err := execDeleteCount(ctx, db, `DELETE FROM goncho_peer_cards WHERE workspace_id = ?`, workspaceID)
+	if err != nil {
+		return WorkspaceDeletionResult{}, fmt.Errorf("goncho: delete workspace peer cards: %w", err)
+	}
+	conclusionsDeleted, err := execDeleteCount(ctx, db, `DELETE FROM goncho_conclusions WHERE workspace_id = ?`, workspaceID)
+	if err != nil {
+		return WorkspaceDeletionResult{}, fmt.Errorf("goncho: delete workspace conclusions: %w", err)
+	}
+	summariesDeleted, err := execDeleteCount(ctx, db, `DELETE FROM goncho_session_summaries WHERE workspace_id = ?`, workspaceID)
+	if err != nil {
+		return WorkspaceDeletionResult{}, fmt.Errorf("goncho: delete workspace summaries: %w", err)
+	}
+	dreamsDeleted, err := execDeleteCount(ctx, db, `DELETE FROM goncho_dreams WHERE workspace_id = ?`, workspaceID)
+	if err != nil {
+		return WorkspaceDeletionResult{}, fmt.Errorf("goncho: delete workspace dreams: %w", err)
+	}
+	return WorkspaceDeletionResult{
+		WorkspaceID:        workspaceID,
+		MessagesDeleted:    messagesDeleted,
+		PeerCardsDeleted:   peerCardsDeleted,
+		ConclusionsDeleted: conclusionsDeleted,
+		SummariesDeleted:   summariesDeleted,
+		DreamsDeleted:      dreamsDeleted,
+	}, nil
+}
+
+func decodeLifecycleMeta(raw string) (lifecycleTurnMeta, error) {
+	var meta lifecycleTurnMeta
+	if strings.TrimSpace(raw) == "" {
+		return meta, nil
+	}
+	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
+		return meta, fmt.Errorf("goncho: decode lifecycle metadata: %w", err)
+	}
+	return meta, nil
+}
+
+func execDeleteCount(ctx context.Context, db lifecycleSQL, query string, args ...any) (int64, error) {
+	res, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func copyMetadata(in map[string]any) map[string]any {
+	if len(in) == 0 {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 func upsertPeerCard(ctx context.Context, db *sql.DB, workspaceID, observer, peer string, card []string) error {

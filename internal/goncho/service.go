@@ -425,6 +425,87 @@ func (s *Service) Chat(ctx context.Context, peer string, params ChatParams) (Cha
 	}, nil
 }
 
+func (s *Service) CreateMessages(ctx context.Context, params CreateMessagesParams) (CreateMessagesResult, error) {
+	sessionKey := strings.TrimSpace(params.SessionKey)
+	if sessionKey == "" {
+		return CreateMessagesResult{}, fmt.Errorf("goncho: session_key is required")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return CreateMessagesResult{}, fmt.Errorf("goncho: begin create messages: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	messages, err := createLifecycleMessages(ctx, tx, s.workspaceID, sessionKey, s.maxMessageSize, params.Messages)
+	if err != nil {
+		return CreateMessagesResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return CreateMessagesResult{}, fmt.Errorf("goncho: commit create messages: %w", err)
+	}
+	committed = true
+	return CreateMessagesResult{
+		WorkspaceID: s.workspaceID,
+		SessionKey:  sessionKey,
+		Messages:    messages,
+	}, nil
+}
+
+func (s *Service) DeleteSession(ctx context.Context, sessionKey string) (SessionDeletionResult, error) {
+	sessionKey = strings.TrimSpace(sessionKey)
+	if sessionKey == "" {
+		return SessionDeletionResult{}, fmt.Errorf("goncho: session_key is required")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SessionDeletionResult{}, fmt.Errorf("goncho: begin delete session: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	result, err := deleteLifecycleSession(ctx, tx, s.workspaceID, sessionKey)
+	if err != nil {
+		return SessionDeletionResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return SessionDeletionResult{}, fmt.Errorf("goncho: commit delete session: %w", err)
+	}
+	committed = true
+	return result, nil
+}
+
+func (s *Service) DeleteWorkspace(ctx context.Context) (WorkspaceDeletionResult, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return WorkspaceDeletionResult{}, fmt.Errorf("goncho: begin delete workspace: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	result, err := deleteLifecycleWorkspace(ctx, tx, s.workspaceID)
+	if err != nil {
+		return WorkspaceDeletionResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return WorkspaceDeletionResult{}, fmt.Errorf("goncho: commit delete workspace: %w", err)
+	}
+	committed = true
+	return result, nil
+}
+
 func normalizeReasoningLevel(level string) string {
 	level = strings.ToLower(strings.TrimSpace(level))
 	if level == "" {
