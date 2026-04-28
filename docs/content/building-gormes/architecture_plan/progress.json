@@ -16262,10 +16262,378 @@
                 "CLI profile name validator",
                 "CLI profile root resolver",
                 "CLI active-profile store",
+                "Provider endpoint/API-key root flags + runtime resolution",
+                "Gormes config command surface",
+                "Hermes config migration dry-run manifest",
+                "OpenClaw migration dry-run manifest",
                 "CLI auth status read model before provider setup",
                 "Setup/uninstall dry-run command contracts"
               ],
               "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then auth-status, setup/uninstall. Do not assign this umbrella row directly."
+            },
+            {
+              "name": "Provider endpoint/API-key root flags + runtime resolution",
+              "status": "planned",
+              "contract": "cmd/gormes accepts --endpoint, --api-key, --model, and --provider as invocation-only overrides for oneshot and TUI startup; flag values win over env/config for the current process, --api-key is never persisted, and all status/error evidence redacts the secret value.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If endpoint/model/provider flags are incomplete or ambiguous, startup returns an exit-code-2 operator error before opening a provider client; no config file is modified.",
+              "fixture": "cmd/gormes/provider_flag_resolution_test.go",
+              "source_refs": [
+                "cmd/gormes/main.go:newRootCommandWithRuntime,resolveOneshotInvocation,resolveTUIInvocation",
+                "internal/config/config.go:Load,ResolveInference,HermesCfg",
+                "README.md:Model-Backed Turn",
+                "../hermes-agent/hermes_cli/config.py:set_config_value,config_command",
+                "../hermes-agent/tests/hermes_cli/test_set_config_value.py"
+              ],
+              "ready_when": [
+                "Cobra already owns the root command and model/provider flags.",
+                "internal/config already has a typed HermesCfg and precedence vocabulary for flag, env, and config sources.",
+                "This slice only handles invocation-time overrides; persistent config writes remain in the Gormes config command row."
+              ],
+              "not_ready_when": [
+                "The slice writes config.toml or .env.",
+                "The slice introduces Viper/global config state instead of using the existing internal/config loader contract.",
+                "The slice logs, formats, or stores the raw --api-key value."
+              ],
+              "unblocks": [
+                "Gormes config command surface",
+                "Hermes config migration writer",
+                "OpenClaw migration writer and cleanup command"
+              ],
+              "acceptance": [
+                "Root help exposes --endpoint and --api-key alongside the existing --model and --provider flags.",
+                "A oneshot fixture proves --endpoint, --api-key, and --model build the provider client with flag values even when config/env contain stale values.",
+                "A TUI startup fixture proves the same resolution path is used without mutating persisted config defaults.",
+                "A redaction fixture proves raw API key bytes never appear in returned errors, status evidence, or test logs.",
+                "Provider-without-model ambiguity keeps the existing explicit-model guard."
+              ],
+              "note": "Added by planner pass 2026-04-28 after README review: operator-facing model-backed turns need explicit flags as well as persistent config, but secrets passed through argv must remain invocation-only and redacted.",
+              "write_scope": [
+                "cmd/gormes/main.go",
+                "cmd/gormes/provider_flag_resolution_test.go",
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/config -run 'Test.*Provider.*Flag|Test.*Endpoint|Test.*APIKey|Test.*OneshotInference|Test.*TUI.*Model' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Provider-flag fixtures prove endpoint/model/provider/api-key precedence, redaction, no config mutation, and unchanged ambiguity errors for oneshot and TUI startup."
+              ]
+            },
+            {
+              "name": "Gormes config command surface",
+              "status": "planned",
+              "contract": "cmd/gormes exposes `gormes config show`, `path`, `env-path`, and `set <key> <value>` over the native XDG config surfaces: non-secret dotpaths write config.toml, secret aliases such as api_key and *_API_KEY/*_TOKEN write the Gormes .env file, and show output redacts every secret.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Malformed keys, unknown top-level sections, and invalid boolean/int values return typed operator errors without partially writing either file.",
+              "fixture": "cmd/gormes/config_command_test.go; internal/config/writer_test.go",
+              "source_refs": [
+                "internal/config/config.go:ConfigPath,loadFile,loadEnv,loadFlags,CurrentConfigVersion",
+                "internal/config/dotenv.go:dotenvCandidatePaths,parseDotenv",
+                "../hermes-agent/hermes_cli/config.py:config_command,set_config_value,save_env_value,show_config",
+                "../hermes-agent/tests/hermes_cli/test_set_config_value.py",
+                "../hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+              ],
+              "ready_when": [
+                "The provider endpoint/API-key flag row has established runtime precedence and redaction vocabulary.",
+                "The first implementation can support the current Gormes schema only: hermes.endpoint, hermes.model, gateway.*, tui.*, input.*, telegram.*, discord.*, slack.*, cron.*, skills.*, delegation.*, and goncho.*.",
+                "Config writes may use an internal writer helper; no setup wizard or provider validation prompt is required."
+              ],
+              "not_ready_when": [
+                "The slice attempts to port the full Hermes setup wizard, profile system, OAuth auth stores, or uninstall behavior.",
+                "The slice changes the canonical Gormes config format from TOML/XDG to JSON or ~/.gormes.",
+                "The slice persists raw secrets in config.toml."
+              ],
+              "blocked_by": [
+                "Provider endpoint/API-key root flags + runtime resolution"
+              ],
+              "unblocks": [
+                "Hermes config migration writer",
+                "OpenClaw migration writer and cleanup command"
+              ],
+              "acceptance": [
+                "`gormes config path` prints config.ConfigPath() and `gormes config env-path` prints the Gormes dotenv path under XDG_CONFIG_HOME.",
+                "`gormes config set endpoint https://example.invalid/v1` and `gormes config set model test-model` update the [hermes] TOML fields without writing dotenv.",
+                "`gormes config set api_key sk-test` writes GORMES_API_KEY to the Gormes .env file, not config.toml.",
+                "`gormes config show` prints endpoint/model and redacted credential status without exposing raw secret bytes.",
+                "Empty strings and falsy values behave like Hermes config set: missing value is an error, but an explicit empty string is accepted."
+              ],
+              "note": "Added by planner pass 2026-04-28. This is the native answer to the README's persistent-configuration example. Gormes should keep Cobra plus internal/config for now; Viper is not present in go.mod and is not required for this bounded command surface.",
+              "write_scope": [
+                "cmd/gormes/config.go",
+                "cmd/gormes/config_command_test.go",
+                "cmd/gormes/main.go",
+                "internal/config/writer.go",
+                "internal/config/writer_test.go",
+                "internal/config/dotenv.go",
+                "internal/config/dotenv_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/config -run 'TestConfigCommand|TestConfigWriter|TestLoad_' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Config command fixtures prove XDG paths, TOML writes, dotenv secret routing, redacted show output, explicit-empty handling, and no full-Hermes setup/auth coupling."
+              ]
+            },
+            {
+              "name": "Hermes config migration dry-run manifest",
+              "status": "planned",
+              "contract": "internal/migrate/hermes builds a deterministic dry-run manifest for `gormes migrate hermes` by reading an explicit source directory, $HERMES_HOME, or ~/.hermes, parsing config.yaml and .env, classifying every supported key as importable, skipped, conflict, or archived, and printing a report without writing Gormes state.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing Hermes homes, invalid YAML, unreadable .env files, and newer unknown schema versions produce report items instead of panics or partial imports.",
+              "fixture": "internal/migrate/hermes/manifest_test.go; cmd/gormes/migrate_hermes_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_constants.py:get_hermes_home",
+                "../hermes-agent/hermes_cli/config.py:DEFAULT_CONFIG,load_config,load_env,migrate_config",
+                "../hermes-agent/hermes_state.py",
+                "../hermes-agent/tests/hermes_cli/test_config.py",
+                "../hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
+                "internal/config/config.go:LegacyHermesHome,ConfigPath,MemoryDBPath,SessionDBPath",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Hermes state/config migration command"
+              ],
+              "ready_when": [
+                "The Gormes config command row defines the target config/dotenv write contract.",
+                "This slice can be implemented as read-only manifest generation with temp fixture directories.",
+                "State import for sessions/memory can remain archived/skipped in this dry-run row."
+              ],
+              "not_ready_when": [
+                "The slice writes config.toml, .env, memory.db, sessions.db, or archives.",
+                "The slice tries to port the full Hermes migration chain or setup wizard before the manifest vocabulary is fixture-locked.",
+                "The slice reads ~/.hermes from tests instead of injected temp directories."
+              ],
+              "blocked_by": [
+                "Gormes config command surface"
+              ],
+              "unblocks": [
+                "Hermes config migration writer"
+              ],
+              "acceptance": [
+                "Source discovery prefers --source, then HERMES_HOME, then ~/.hermes, and all paths are represented in the manifest.",
+                "config.yaml model/provider/custom-provider/terminal/display/gateway/memory keys are classified into importable Gormes paths or explicit skipped/archived reasons.",
+                ".env keys are classified into Gormes dotenv targets with redacted values and conflict evidence.",
+                "The dry-run command prints migrated/skipped/conflict/error counts and exits non-zero only for an unreadable or invalid requested source.",
+                "No file under XDG_CONFIG_HOME, XDG_DATA_HOME, or XDG_STATE_HOME changes during dry-run tests."
+              ],
+              "note": "Added by planner pass 2026-04-28 to make the planned `gormes migrate hermes` explicit. Gormes must not silently read HERMES_HOME at runtime; Hermes state is consumed only through this operator-run migration path.",
+              "write_scope": [
+                "cmd/gormes/migrate.go",
+                "cmd/gormes/migrate_hermes_test.go",
+                "internal/migrate/hermes/manifest.go",
+                "internal/migrate/hermes/manifest_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/migrate/hermes ./cmd/gormes -run 'TestHermesMigrationManifest|TestMigrateHermesDryRun' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermes migration manifest fixtures prove source discovery, config/dotenv classification, redacted report output, explicit skip/archive reasons, and zero writes in dry-run mode."
+              ]
+            },
+            {
+              "name": "Hermes config migration writer",
+              "status": "planned",
+              "contract": "`gormes migrate hermes --yes` applies the validated Hermes migration manifest into Gormes config.toml and .env with backups, conflict handling, redaction, and an import report; session and memory imports remain archived/skipped unless their target rows are complete.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Conflicting existing Gormes keys are skipped by default and reported with --overwrite guidance; no partial write is allowed if backup creation fails.",
+              "fixture": "internal/migrate/hermes/apply_test.go; cmd/gormes/migrate_hermes_apply_test.go",
+              "source_refs": [
+                "internal/migrate/hermes/manifest.go",
+                "internal/config/writer.go",
+                "../hermes-agent/hermes_cli/config.py:save_config,save_env_value,migrate_config",
+                "../hermes-agent/tests/hermes_cli/test_set_config_value.py",
+                "../hermes-agent/tests/hermes_cli/test_config_drift.py",
+                "internal/config/config.go:ConfigPath,CurrentConfigVersion"
+              ],
+              "ready_when": [
+                "Hermes config migration dry-run manifest is complete.",
+                "Gormes config command surface is complete and owns target-file writer semantics.",
+                "The first writer slice is allowed to import config/dotenv only; memory/session migration requires dependent rows."
+              ],
+              "not_ready_when": [
+                "The slice imports Hermes SQLite/session state before those import contracts are split.",
+                "The slice overwrites existing Gormes values without --overwrite or backup evidence.",
+                "The slice writes secrets into config.toml."
+              ],
+              "blocked_by": [
+                "Hermes config migration dry-run manifest",
+                "Gormes config command surface"
+              ],
+              "acceptance": [
+                "--yes applies importable config keys into config.toml and importable secrets into Gormes .env.",
+                "Existing conflicting values are skipped unless --overwrite is set, and conflicts appear in the report.",
+                "A backup directory under XDG_STATE_HOME/gormes/migrations/hermes/<timestamp>/ is created before writes.",
+                "The report redacts all secret values and includes counts matching the manifest.",
+                "Session/memory source files are reported as archived/skipped with explicit follow-up row names, not silently copied."
+              ],
+              "note": "Draft until the dry-run manifest row lands and exact manifest structs are known. This keeps writer work bounded and prevents broad Hermes state imports from being smuggled into config migration.",
+              "write_scope": [
+                "cmd/gormes/migrate.go",
+                "cmd/gormes/migrate_hermes_apply_test.go",
+                "internal/migrate/hermes/apply.go",
+                "internal/migrate/hermes/apply_test.go",
+                "internal/config/writer.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/migrate/hermes ./cmd/gormes ./internal/config -run 'TestHermesMigrationApply|TestMigrateHermesApply|TestConfigWriter' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermes migration apply fixtures prove backup-first writes, conflict handling, dotenv secret routing, redacted reports, and explicit state-import deferral."
+              ]
+            },
+            {
+              "name": "OpenClaw migration dry-run manifest",
+              "status": "planned",
+              "contract": "internal/migrate/openclaw builds a deterministic dry-run manifest for `gormes migrate openclaw` by reading ~/.openclaw, ~/.clawdbot, ~/.moltbot, or --source, mapping OpenClaw config, .env, memory, skills, MCP, channels, model providers, TTS, tools, approvals, session reset, and archive-only surfaces into Gormes destinations without writing state.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown OpenClaw keys, SecretRef file/exec sources, running OpenClaw processes, and platform token conflicts are reported as skipped/conflict/warning items instead of being dropped.",
+              "fixture": "internal/migrate/openclaw/manifest_test.go; cmd/gormes/migrate_openclaw_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/claw.py:claw_command,_cmd_migrate,_cmd_cleanup",
+                "../hermes-agent/optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py:Migrator,MIGRATION_OPTION_METADATA,MIGRATION_PRESETS",
+                "../hermes-agent/website/docs/guides/migrate-from-openclaw.md",
+                "internal/cli/openclaw_residue.go",
+                "internal/cli/onboarding_state.go",
+                "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:cli.py, hermes, hermes_cli/**/*.py"
+              ],
+              "ready_when": [
+                "Gormes config command surface defines the target config/dotenv write contract.",
+                "The manifest row is read-only and can use compact JSON fixtures rather than a real OpenClaw install.",
+                "The command name is `gormes migrate openclaw`; the misspelled `ooenclaw` is not accepted except possibly as a user-facing typo suggestion."
+              ],
+              "not_ready_when": [
+                "The slice copies files, writes config, archives directories, or migrates secrets.",
+                "The slice relies on the Python openclaw_to_hermes.py script at runtime instead of porting the mapping to Go.",
+                "The slice treats broad optional-skills coverage as proof without field-level manifest fixtures."
+              ],
+              "blocked_by": [
+                "Gormes config command surface"
+              ],
+              "unblocks": [
+                "OpenClaw migration writer and cleanup command"
+              ],
+              "acceptance": [
+                "Source discovery checks --source, ~/.openclaw, ~/.clawdbot, and ~/.moltbot in Hermes-compatible order.",
+                "Fixtures cover default model, custom providers, provider keys, channel tokens/allowlists, MCP servers, TTS settings, approvals, exec timeout, session reset, memory files, skills, and archive-only surfaces.",
+                "SecretRef env templates are resolved only from OpenClaw .env for manifest evidence; file/exec SecretRefs are reported as manual.",
+                "The dry-run report includes migrated/skipped/conflict/archived/error counts and redacts all secret values.",
+                "No Gormes XDG path changes during dry-run tests."
+              ],
+              "note": "Added by planner pass 2026-04-28. Hermes hides a large OpenClaw migration contract under hermes_cli/claw.py plus optional-skills/migration/openclaw-migration; this row makes that hidden broad-glob surface explicit for Gormes.",
+              "write_scope": [
+                "cmd/gormes/migrate.go",
+                "cmd/gormes/migrate_openclaw_test.go",
+                "internal/migrate/openclaw/manifest.go",
+                "internal/migrate/openclaw/manifest_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/migrate/openclaw ./cmd/gormes -run 'TestOpenClawMigrationManifest|TestMigrateOpenClawDryRun' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OpenClaw dry-run fixtures prove source discovery, field-level mapping coverage, redacted report output, explicit archive/manual reasons, and zero writes."
+              ]
+            },
+            {
+              "name": "OpenClaw migration writer and cleanup command",
+              "status": "planned",
+              "contract": "`gormes migrate openclaw --yes` applies the validated OpenClaw manifest into Gormes config, dotenv, memories, skills, and archive report directories with backups and conflict policies; `gormes migrate openclaw cleanup` archives leftover OpenClaw directories after warning about running processes.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Running OpenClaw or active Gormes gateway channels produce warnings and require --yes before token-bearing migrations; cleanup refuses noninteractive destructive renames without --yes.",
+              "fixture": "internal/migrate/openclaw/apply_test.go; cmd/gormes/migrate_openclaw_apply_test.go",
+              "source_refs": [
+                "internal/migrate/openclaw/manifest.go",
+                "../hermes-agent/hermes_cli/claw.py:_detect_openclaw_processes,_warn_if_openclaw_running,_cmd_cleanup",
+                "../hermes-agent/optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py:Migrator.migrate,generate_migration_notes",
+                "../hermes-agent/website/docs/guides/migrate-from-openclaw.md:After migration,Troubleshooting"
+              ],
+              "ready_when": [
+                "OpenClaw migration dry-run manifest is complete.",
+                "Gormes config command surface is complete and owns target-file writer semantics.",
+                "The writer applies only manifest-backed items; any unmapped OpenClaw surface remains archived/manual with report evidence."
+              ],
+              "not_ready_when": [
+                "The slice shells out to Python or imports Hermes optional skills at runtime.",
+                "The slice renames ~/.openclaw during the import step instead of requiring the explicit cleanup command.",
+                "The slice imports secrets when the manifest says secrets are disabled or unresolved."
+              ],
+              "blocked_by": [
+                "OpenClaw migration dry-run manifest",
+                "Gormes config command surface"
+              ],
+              "acceptance": [
+                "--yes applies config/dotenv/memory/skill items exactly from the manifest and writes a report under XDG_STATE_HOME/gormes/migrations/openclaw/<timestamp>/.",
+                "Conflicts are skipped by default, overwritten only with --overwrite, and all backups are recorded.",
+                "Secrets migrate only with explicit secret opt-in and are redacted in reports.",
+                "cleanup --dry-run previews archive names; cleanup --yes renames .openclaw/.clawdbot/.moltbot to .pre-migration variants without deleting data.",
+                "Running-process warnings are testable through injected detectors, not live pgrep/systemctl calls."
+              ],
+              "note": "Draft until the OpenClaw dry-run manifest structs are fixed. Writer and cleanup stay together because Hermes exposes them as one operator migration family, but cleanup must remain an explicit post-import action.",
+              "write_scope": [
+                "cmd/gormes/migrate.go",
+                "cmd/gormes/migrate_openclaw_apply_test.go",
+                "internal/migrate/openclaw/apply.go",
+                "internal/migrate/openclaw/apply_test.go",
+                "internal/config/writer.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OpenClaw apply/cleanup fixtures prove manifest-only writes, backup/conflict policy, secret opt-in, explicit archive reports, cleanup dry-run/apply behavior, and injected running-process warnings."
+              ]
             },
             {
               "name": "CLI profile name validator",

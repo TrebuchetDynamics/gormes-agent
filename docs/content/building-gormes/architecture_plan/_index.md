@@ -689,6 +689,12 @@ classification and row-backed implementation queue.
 - [x] Gateway /reasoning apply + dispatch
 - [x] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
+- [ ] Provider endpoint/API-key root flags + runtime resolution
+- [ ] Gormes config command surface
+- [ ] Hermes config migration dry-run manifest
+- [ ] Hermes config migration writer
+- [ ] OpenClaw migration dry-run manifest
+- [ ] OpenClaw migration writer and cleanup command
 - [x] CLI profile name validator
 - [x] CLI profile root resolver
 - [x] CLI active-profile store

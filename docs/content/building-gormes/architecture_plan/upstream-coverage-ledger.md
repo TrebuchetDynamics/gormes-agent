@@ -84,6 +84,7 @@ executable when sibling upstream checkouts are present.
 | `cron/*.py` | Cron and scheduled jobs | `internal/cron`, `internal/gateway`, `internal/tools` | Phase 2.D, 5.N | planned |
 | `cli.py`, `hermes`, `hermes_cli/**/*.py` | CLI, config, secrets | `cmd/gormes`, `internal/cli`, `internal/config`, `internal/doctor` | Phase 5.O, 5.P | planned |
 | `cli-config.yaml.example` | CLI/config canonical schema example (51 KB; spec of record for `hermes_cli/config.py`) | `cmd/gormes`, `internal/cli`, `internal/config`, `docs/development-skills` | Phase 5.O | planned |
+| `hermes_cli/claw.py`, `optional-skills/migration/openclaw-migration/**`, `website/docs/guides/migrate-from-openclaw.md` | OpenClaw migration command, mapping matrix, report/archive/cleanup behavior | `cmd/gormes`, `internal/migrate/openclaw`, `internal/config`, `internal/skills`, `internal/memory` | Phase 5.O | planned |
 | `constraints-termux.txt` | Packaging hygiene (Termux/Android pip constraints used by `setup-hermes.sh`) | installers, `Makefile`, `www.gormes.ai` | Phase 5.P | excluded as packaging hygiene |
 | `acp_adapter/**`, `acp_registry/**` | ACP adapter | `internal/plugins`, `internal/apiserver` | Phase 5.H | planned |
 | `mcp_serve.py`, MCP config helpers | MCP tools and managed gateway | `internal/plugins`, `internal/tools`, `internal/apiserver` | Phase 5.G | planned |

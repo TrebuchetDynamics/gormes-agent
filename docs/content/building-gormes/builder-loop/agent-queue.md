@@ -85,7 +85,27 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Image-too-large shrink retry helper
 - Why now: Unblocks Image-too-large shrink retry helper.
 
-## 4. Backup/update opt-in and exclusion policy
+## 4. Provider endpoint/API-key root flags + runtime resolution
+
+- Phase: 5 / 5.O
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Contract: cmd/gormes accepts --endpoint, --api-key, --model, and --provider as invocation-only overrides for oneshot and TUI startup; flag values win over env/config for the current process, --api-key is never persisted, and all status/error evidence redacts the secret value.
+- Trust class: operator, system
+- Ready when: Cobra already owns the root command and model/provider flags., internal/config already has a typed HermesCfg and precedence vocabulary for flag, env, and config sources., This slice only handles invocation-time overrides; persistent config writes remain in the Gormes config command row.
+- Not ready when: The slice writes config.toml or .env., The slice introduces Viper/global config state instead of using the existing internal/config loader contract., The slice logs, formats, or stores the raw --api-key value.
+- Degraded mode: If endpoint/model/provider flags are incomplete or ambiguous, startup returns an exit-code-2 operator error before opening a provider client; no config file is modified.
+- Fixture: `cmd/gormes/provider_flag_resolution_test.go`
+- Write scope: `cmd/gormes/main.go`, `cmd/gormes/provider_flag_resolution_test.go`, `internal/config/config.go`, `internal/config/config_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes ./internal/config -run 'Test.*Provider.*Flag\|Test.*Endpoint\|Test.*APIKey\|Test.*OneshotInference\|Test.*TUI.*Model' -count=1`, `go run ./cmd/progress validate`
+- Done signal: Provider-flag fixtures prove endpoint/model/provider/api-key precedence, redaction, no config mutation, and unchanged ambiguity errors for oneshot and TUI startup.
+- Acceptance: Root help exposes --endpoint and --api-key alongside the existing --model and --provider flags., A oneshot fixture proves --endpoint, --api-key, and --model build the provider client with flag values even when config/env contain stale values., A TUI startup fixture proves the same resolution path is used without mutating persisted config defaults., A redaction fixture proves raw API key bytes never appear in returned errors, status evidence, or test logs., Provider-without-model ambiguity keeps the existing explicit-model guard.
+- Source refs: cmd/gormes/main.go:newRootCommandWithRuntime,resolveOneshotInvocation,resolveTUIInvocation, internal/config/config.go:Load,ResolveInference,HermesCfg, README.md:Model-Backed Turn, ../hermes-agent/hermes_cli/config.py:set_config_value,config_command, ../hermes-agent/tests/hermes_cli/test_set_config_value.py
+- Unblocks: Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command
+- Why now: Unblocks Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command.
+
+## 5. Backup/update opt-in and exclusion policy
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -106,7 +126,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Backup manifest dry-run contract
 - Why now: Unblocks Backup manifest dry-run contract.
 
-## 5. Custom provider model-switch key_env write guard
+## 6. Custom provider model-switch key_env write guard
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -126,7 +146,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/main.py@8258f4dc:_model_flow_named_custom, ../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8258f4dc, ../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map, internal/cli/custom_provider_secret.go:CustomProviderRef,ResolveCustomProviderSecret, internal/cli/custom_provider_secret_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. BlueBubbles iMessage bubble formatting parity
+## 7. BlueBubbles iMessage bubble formatting parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -147,7 +167,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: BlueBubbles iMessage session-context prompt guidance
 - Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
 
-## 7. Yuanbao protocol envelope + markdown fixtures
+## 8. Yuanbao protocol envelope + markdown fixtures
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
