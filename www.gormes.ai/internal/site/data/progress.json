@@ -6369,9 +6369,9 @@
             {
               "name": "Goncho webhook delivery retry worker contract",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho ports Honcho outbound webhook delivery as a local fake-HTTP worker contract through WebhookDeliveryWorker, WebhookDeliveryStore, WebhookHTTPClient, WebhookClock, WebhookDeliveryAttempt, and WebhookDeliveryResult types with queue-empty/test events, HMAC headers, retry/backoff/failure evidence, and workspace endpoint disablement without requiring Redis, hosted Honcho, or live network tests.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -6410,12 +6410,13 @@
                 "Failure evidence records endpoint, workspace, event, status/error class, attempt count, and next retry time with redacted URL/secret details.",
                 "The implementation remains a pure worker/service contract; HTTP route binding, Redis queue wiring, generated SDK clients, and live webhook calls stay row-backed."
               ],
-              "note": "swarm_origin: 2026-04-28/honcho-mapper. The prior completed key/webhook row covered CRUD, test-event construction, and signing only; this row makes `src/webhooks/webhook_delivery.py` explicitly row-backed so outbound delivery and retries no longer hide under broad `src/webhooks/**` coverage.",
+              "note": "Complete: TDD added internal/goncho/webhook_delivery.go and internal/goncho/webhook_delivery_test.go. The pure WebhookDeliveryWorker contract consumes fake store/client/clock seams, builds deterministic Honcho-shaped test.event and queue.empty payloads, signs delivery bodies with the existing HMAC helper, returns redacted success/retry/failure/skipped/disabled evidence, schedules retry backoff, and disables endpoints for permanent failures or max-attempt exhaustion without Redis, hosted Honcho, route binding, generated SDK clients, or live network calls.",
               "write_scope": [
                 "internal/goncho/webhooks.go",
                 "internal/goncho/webhooks_test.go",
                 "internal/goncho/webhook_delivery.go",
                 "internal/goncho/webhook_delivery_test.go",
+                "internal/progress/progress_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -6426,6 +6427,11 @@
               "done_signal": [
                 "Webhook delivery fixtures prove Honcho-compatible event payloads, HMAC headers, success/failure retries, backoff, endpoint disablement, redacted evidence, and no live network dependency."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T22:51:39Z",
+                "last_success": "2026-04-28T22:51:39Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "honcho:src/webhooks/webhook_delivery.py",
@@ -6699,9 +6705,6 @@
                 "The slice changes provider adapter behavior, gateway channel parsing, or hosted Honcho configuration.",
                 "The slice persists partial streaming chunks as final memory.",
                 "The slice bypasses existing memory status/degraded-mode reporting."
-              ],
-              "blocked_by": [
-                "Goncho Honcho SDK compatibility e2e harness"
               ],
               "acceptance": [
                 "The test seeds prior Goncho messages and proves scoped recall is visible to prompt/context assembly.",

@@ -22,28 +22,7 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Goncho webhook delivery retry worker contract
-
-- Phase: 3 / 3.G
-- Owner: `memory`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Goncho ports Honcho outbound webhook delivery as a local fake-HTTP worker contract through WebhookDeliveryWorker, WebhookDeliveryStore, WebhookHTTPClient, WebhookClock, WebhookDeliveryAttempt, and WebhookDeliveryResult types with queue-empty/test events, HMAC headers, retry/backoff/failure evidence, and workspace endpoint disablement without requiring Redis, hosted Honcho, or live network tests.
-- Trust class: operator, system
-- Ready when: `Goncho keys + webhooks compatibility surface` has validated endpoint CRUD, test-event construction, and HMAC signing helpers., The worker can use fake HTTP clients, fake clocks, and in-memory queues; no Redis, Postgres, hosted Honcho, external network, or generated SDK is required.
-- Not ready when: The slice binds OpenAPI routes, starts a background service, performs live HTTP calls, or rewrites the existing webhook endpoint CRUD contract., The slice treats queue publication as complete without retry/backoff/failure state and disabled-endpoint evidence., The slice changes key/JWT behavior, SDK compatibility, or unrelated Goncho route bindings.
-- Degraded mode: Failed or disabled endpoints produce retry/failure evidence and leave local state auditable instead of dropping events silently or blocking core Goncho writes.
-- Fixture: `internal/goncho/webhook_delivery_test.go`
-- Write scope: `internal/goncho/webhooks.go`, `internal/goncho/webhooks_test.go`, `internal/goncho/webhook_delivery.go`, `internal/goncho/webhook_delivery_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/goncho -run 'TestWebhookDelivery' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Webhook delivery fixtures prove Honcho-compatible event payloads, HMAC headers, success/failure retries, backoff, endpoint disablement, redacted evidence, and no live network dependency.
-- Acceptance: WebhookDeliveryWorker consumes WebhookDeliveryStore, WebhookHTTPClient, and WebhookClock seams and returns WebhookDeliveryResult values with attempt, status, retry, and redacted evidence fields., QueueEmptyEvent and TestEvent payload fixtures match Honcho event names, workspace/endpoint scoping, timestamps, and JSON shape needed by downstream SDK/webhook tests., Delivery uses the existing HMAC-SHA256 payload signature helper and includes deterministic headers without exposing webhook secrets., Fake HTTP tests cover success, retryable failure, permanent failure, backoff scheduling, max-attempt exhaustion, and endpoint-disabled behavior., Failure evidence records endpoint, workspace, event, status/error class, attempt count, and next retry time with redacted URL/secret details., The implementation remains a pure worker/service contract; HTTP route binding, Redis queue wiring, generated SDK clients, and live webhook calls stay row-backed.
-- Source refs: ../honcho/src/webhooks/webhook_delivery.py, ../honcho/src/webhooks/events.py:QueueEmptyEvent,TestEvent, ../honcho/src/routers/webhooks.py, ../honcho/tests/webhooks/test_webhook_delivery.py, ../honcho/tests/routes/test_webhooks.py, internal/goncho/webhooks.go, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Webhooks, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Honcho webhooks, keys, telemetry, and deploy divergence matrices
-- Unblocks: Self-monitoring telemetry
-- Why now: Unblocks Self-monitoring telemetry.
-
-## 2. ContextEngine compression-boundary callback vocabulary
+## 1. ContextEngine compression-boundary callback vocabulary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -64,7 +43,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: ContextEngine compression-boundary notification
 - Why now: Unblocks ContextEngine compression-boundary notification.
 
-## 3. Provider account usage read model + renderer
+## 2. Provider account usage read model + renderer
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -84,7 +63,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Provider status command parity, Gateway /usage command binding over provider account usage, Self-monitoring telemetry
 - Why now: Unblocks Provider status command parity, Gateway /usage command binding over provider account usage, Self-monitoring telemetry.
 
-## 4. Environment interface + file sync contract
+## 3. Environment interface + file sync contract
 
 - Phase: 5 / 5.B
 - Owner: `tools`
@@ -104,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard
 - Why now: Unblocks Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard.
 
-## 5. Image input mode router + native content parts
+## 4. Image input mode router + native content parts
 
 - Phase: 5 / 5.D
 - Owner: `provider`
@@ -125,7 +104,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Image-too-large shrink retry helper
 - Why now: Unblocks Image-too-large shrink retry helper.
 
-## 6. ACP server side
+## 5. ACP server side
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -144,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes CLI command-tree parity manifest
+## 6. Hermes CLI command-tree parity manifest
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -164,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Gormes config command surface, Gormes config edit/check/native schema-migrate closeout, Hermes config migration dry-run manifest, OpenClaw migration dry-run manifest, Gateway, platform, webhook, and cron management CLI, Diagnostics, backup, logs, and status CLI
 - Why now: Unblocks Gormes config command surface, Gormes config edit/check/native schema-migrate closeout, Hermes config migration dry-run manifest, OpenClaw migration dry-run manifest, Gateway, platform, webhook, and cron management CLI, Diagnostics, backup, logs, and status CLI.
 
-## 8. Provider endpoint/API-key root flags + runtime resolution
+## 7. Provider endpoint/API-key root flags + runtime resolution
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -184,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command
 - Why now: Unblocks Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command.
 
-## 9. Backup/update opt-in and exclusion policy
+## 8. Backup/update opt-in and exclusion policy
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -205,7 +184,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Backup manifest dry-run contract
 - Why now: Unblocks Backup manifest dry-run contract.
 
-## 10. Custom provider model-switch key_env write guard
+## 9. Custom provider model-switch key_env write guard
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -223,6 +202,25 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: internal/cli custom-provider model-switch fixtures prove key_env-backed providers update default_model without adding api_key, existing inline references/plaintext are preserved without resolution, and resolver tests still pass.
 - Acceptance: TestCustomProviderModelSwitchPatch_KeyEnvDoesNotSynthesizeAPIKey starts with {default_model:'old', key_env:'ACME_KEY'} and proves the patch sets default_model='new', preserves key_env, omits api_key, and returns credential_write_skipped_key_env evidence., TestCustomProviderModelSwitchPatch_InlineEnvRefPreserved starts with {api_key:'${ACME_KEY}'} and proves the patch keeps api_key='${ACME_KEY}' without resolving or overwriting it., TestCustomProviderModelSwitchPatch_PlaintextPreserved starts with {api_key:'sk-plain'} and proves plaintext is preserved only because it was already present., TestCustomProviderModelSwitchPatch_MissingCredentialStillUpdatesModelWithEvidence proves model changes remain possible while credential_missing evidence is returned for setup/status guidance., Existing TestResolveCustomProviderSecret_* fixtures remain green; this row does not redefine resolver semantics.
 - Source refs: ../hermes-agent/hermes_cli/main.py@8258f4dc:_model_flow_named_custom, ../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8258f4dc, ../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map, internal/cli/custom_provider_secret.go:CustomProviderRef,ResolveCustomProviderSecret, internal/cli/custom_provider_secret_test.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. OCI image
+
+- Phase: 5 / 5.P
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Contract: Gormes ships an OCI image contract that mirrors upstream Docker entrypoint/config volume operational behavior while proving the final image contains the Go binary and no required Python runtime path.
+- Trust class: operator, system
+- Ready when: The Go binary build and offline doctor command are stable., The slice can test Dockerfile/entrypoint text and optional local container smoke fixtures without publishing an image.
+- Not ready when: The slice requires live registry access, provider credentials, hosted Honcho Postgres/Redis, or Python package installation to prove Gormes runtime behavior., The slice changes installer policy or release artifact signing in the same pass.
+- Degraded mode: Container smoke tests run offline and report missing binary, missing config volume, or Python-runtime dependency evidence without contacting registries or providers.
+- Fixture: `docs/install/oci_image_test.go`
+- Write scope: `Dockerfile`, `docker/entrypoint.sh`, `docs/install/oci_image_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./docs -run TestOCIImageContract -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: OCI image fixtures prove Go-binary runtime layout, offline doctor command behavior, config volume handling, and explicit hosted Honcho deploy divergence.
+- Acceptance: Dockerfile fixtures prove the image builds or describes a Go-binary runtime path with no Hermes Python runtime dependency., Entrypoint fixtures preserve offline doctor/config-volume behavior and deterministic command forwarding., Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies., A smoke command can run `gormes doctor --offline` with fake config volume inputs.
+- Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

@@ -60,6 +60,14 @@ type WebhookEvent struct {
 	Data        map[string]any   `json:"data,omitempty"`
 }
 
+type QueueEmptyWebhookEventParams struct {
+	WorkspaceID string
+	QueueType   string
+	SessionID   string
+	Observer    string
+	Observed    string
+}
+
 func (s *Service) GetOrCreateWebhookEndpoint(ctx context.Context, params WebhookEndpointCreateParams) (WebhookEndpointCreateResult, error) {
 	workspaceID := strings.TrimSpace(params.WorkspaceID)
 	if workspaceID == "" {
@@ -194,6 +202,35 @@ func NewTestWebhookEvent(workspaceID string) (WebhookEvent, error) {
 		Type:        WebhookEventTest,
 		WorkspaceID: workspaceID,
 		Data:        map[string]any{"workspace_id": workspaceID},
+	}, nil
+}
+
+func NewQueueEmptyWebhookEvent(params QueueEmptyWebhookEventParams) (WebhookEvent, error) {
+	workspaceID := strings.TrimSpace(params.WorkspaceID)
+	if workspaceID == "" {
+		return WebhookEvent{}, ErrWebhookWorkspaceRequired
+	}
+	queueType := strings.TrimSpace(params.QueueType)
+	if queueType == "" {
+		queueType = "default"
+	}
+	data := map[string]any{
+		"workspace_id": workspaceID,
+		"queue_type":   queueType,
+	}
+	if sessionID := strings.TrimSpace(params.SessionID); sessionID != "" {
+		data["session_id"] = sessionID
+	}
+	if observer := strings.TrimSpace(params.Observer); observer != "" {
+		data["observer"] = observer
+	}
+	if observed := strings.TrimSpace(params.Observed); observed != "" {
+		data["observed"] = observed
+	}
+	return WebhookEvent{
+		Type:        WebhookEventQueueEmpty,
+		WorkspaceID: workspaceID,
+		Data:        data,
 	}, nil
 }
 

@@ -77,13 +77,13 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 39/77 subphases shipped · 24 in progress · 14 planned
+**Overall:** 40/77 subphases shipped · 23 in progress · 14 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 16/20 subphases |
-| Phase 3 — The Black Box (Memory) | 🔨 | 14/15 subphases |
+| Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 1/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
@@ -298,7 +298,7 @@ classification and row-backed implementation queue.
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
 
-## Phase 3 — The Black Box (Memory) 🔨
+## Phase 3 — The Black Box (Memory) ✅
 
 *SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries*
 
@@ -404,10 +404,10 @@ classification and row-backed implementation queue.
 - [x] Goncho CRUD lifecycle invariants
 - [x] Goncho empty peer-card hint contract
 
-### 3.G — Goncho Drop-In Compatibility Closure 🔨
+### 3.G — Goncho Drop-In Compatibility Closure ✅
 
 - [x] Goncho keys + webhooks compatibility surface
-- [ ] Goncho webhook delivery retry worker contract
+- [x] Goncho webhook delivery retry worker contract
 - [x] Goncho HTTP route parity over OpenAPI v3
 - [x] Goncho CLI command-tree parity
 - [x] Goncho Honcho SDK compatibility e2e harness
