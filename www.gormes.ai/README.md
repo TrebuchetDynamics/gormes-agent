@@ -27,9 +27,13 @@ The site serves three installer assets, one per supported user shell:
 | `/install.ps1` | `installers/install.ps1` (mirror of `../scripts/install.ps1`) | Windows PowerShell 5.1+ / pwsh 7+ |
 | `/install.cmd` | `installers/install.cmd` (mirror of `../scripts/install.cmd`) | CMD wrapper that launches the PowerShell installer |
 
-All three behave the same way: managed checkout under a Hermes-analogy install
-home, rerun-as-update with autostash, source-backed build, and a stable global
+All three behave the same way: managed checkout under the Gormes install home,
+rerun-as-update with autostash, source-backed build, and a stable global
 `gormes` command published into a user-scoped bin directory.
+
+The landing page should recommend a source build (`git clone`, `make build`)
+until signed binaries, checksums, Homebrew, and Scoop/Winget manifests land.
+The `/install.*` URLs remain convenience aliases, not the primary trust story.
 
 ## Local Development
 

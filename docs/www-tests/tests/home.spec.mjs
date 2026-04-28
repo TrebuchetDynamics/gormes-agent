@@ -11,7 +11,8 @@ test('docs home hero, quickstart, and three enhanced cards render', async ({ pag
   // Quickstart strip
   const qs = page.locator('.docs-home-quickstart');
   await expect(qs).toBeVisible();
-  await expect(qs.locator('code')).toContainText('curl -fsSL https://gormes.ai/install.sh | sh');
+  await expect(qs.locator('code')).toContainText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git');
+  await expect(qs.locator('code')).not.toContainText('curl -fsSL https://gormes.ai/install.sh | sh');
   await expect(qs.locator('code')).not.toContainText('brew install trebuchet/gormes');
 
   // Three enhanced cards with ordinals and mini-TOCs

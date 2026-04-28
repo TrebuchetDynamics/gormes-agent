@@ -5,40 +5,45 @@ weight: 10
 
 # Quickstart
 
-Get Gormes running in 60 seconds.
+Get Gormes running locally from source.
 
-## 1. Install
+## 1. Build
 
 ```bash
-curl -fsSL https://gormes.ai/install.sh | sh
+git clone https://github.com/TrebuchetDynamics/gormes-agent.git
+cd gormes-agent
+make build
 ```
 
-Installs `gormes` into `$HOME/go/bin` via `go install`. Requires Go 1.25+. For other install paths see [Install](../install/).
+Builds `./bin/gormes` from the source tree you inspected. Requires Go 1.25+. For convenience installer paths see [Install](../install/).
 
-## 2. Bring up the Hermes backend
+## 2. Verify the local stack
 
-Gormes is a Go shell that talks to Hermes over HTTP. You need Hermes running on `localhost:8642` first:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
-API_SERVER_ENABLED=true hermes gateway start
-```
-
-## 3. Verify the local stack
+Offline diagnostics do not contact a model provider:
 
 ```bash
-gormes doctor --offline
+./bin/gormes doctor --offline
+./bin/gormes goncho doctor --json
 ```
 
 See [Wire Doctor](../wire-doctor/) for what this checks.
 
+## 3. Optional model-backed turn
+
+```bash
+export GORMES_ENDPOINT="https://your-provider.example/v1"
+export GORMES_API_KEY="..."
+export GORMES_MODEL="your-model"
+./bin/gormes --oneshot "hello from Gormes"
+```
+
 ## 4. Run
 
 ```bash
-gormes
+./bin/gormes --offline
 ```
 
-You're in the TUI. Press `Ctrl+C` to exit.
+You're in the local TUI. Press `Ctrl+C` to exit.
 
 ## Next
 

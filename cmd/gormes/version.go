@@ -8,7 +8,7 @@ import (
 
 // Version marks the current operator-facing release line. The scout series
 // corresponds to the shipped Tool Registry + Telegram Scout + thin resume set.
-const Version = "0.2.0-scout"
+var Version = "0.2.0-scout"
 
 var versionCmd = &cobra.Command{
 	Use:   "version",

@@ -23,7 +23,8 @@
   <div class="install-inner">
     <div class="install-header">
       <p class="kicker">INSTALL</p>
-      <h2 class="section-title">Source-backed installers. One managed checkout.</h2>
+      <h2 class="section-title">Build from source. Smoke test. Audit memory.</h2>
+      <p class="install-intro">{{.InstallIntro}}</p>
     </div>
     <div class="install-grid">
       {{range .InstallSteps}}{{template "install_step" .}}{{end}}
@@ -37,7 +38,7 @@
     <p class="kicker">{{.WhyLabel}}</p>
     <h2 class="section-title">{{.WhyPainHeadline}}</h2>
     <div class="pain-block">
-      <p>Hermes breaks in production because:</p>
+      <p>{{.WhyPainIntro}}</p>
       <ul class="why-pain-list">
         {{range .WhyPainBullets}}<li>{{.}}</li>{{end}}
       </ul>

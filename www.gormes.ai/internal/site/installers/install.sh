@@ -2,8 +2,10 @@
 # install.sh - source-backed Unix installer for Gormes.
 #
 # Usage:
-#   curl -fsSL https://gormes.ai/install.sh | sh
-#   curl -fsSL https://gormes.ai/install.sh | sh -s -- --branch main
+#   curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh
+#   less install.sh
+#   sh install.sh
+#   sh install.sh --branch main
 #
 # Environment overrides:
 #   GORMES_BRANCH        target branch (default: main)
@@ -13,7 +15,9 @@
 #   GORMES_PREFIX        compatibility prefix; publishes into $GORMES_PREFIX/bin
 #
 # Native Windows shells are not supported here. Use:
-#   irm https://gormes.ai/install.ps1 | iex
+#   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+#   Get-Content .\install.ps1
+#   powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 set -eu
 
@@ -114,7 +118,7 @@ check_platform() {
   case "$(platform_name)" in
     Linux*|Darwin*) ;;
     MINGW*|MSYS*|CYGWIN*)
-      fail "native Windows shells are not supported by install.sh; use PowerShell: irm https://gormes.ai/install.ps1 | iex" ;;
+      fail "native Windows shells are not supported by install.sh; download and inspect scripts/install.ps1, then run it with PowerShell" ;;
     *) fail "unsupported OS: $(platform_name)" ;;
   esac
 }

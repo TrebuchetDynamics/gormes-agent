@@ -3,42 +3,59 @@ import { test, expect } from '@playwright/test';
 test('homepage renders the redesigned landing', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page).toHaveTitle('Gormes — One Go Binary. No Python. No Drift.');
-  await expect(page.getByRole('heading', { name: 'One Go Binary. No Python. No Drift.' })).toBeVisible();
-  await expect(page.getByText('Gormes is a Go-native runtime for AI agents.')).toBeVisible();
-  await expect(page.getByText('Built to solve the operations problem')).toBeVisible();
-  await expect(page.getByText('One static binary. No virtualenvs. No dependency hell.')).toBeVisible();
-  await expect(page.getByText('Early-stage.')).toBeVisible();
-  await expect(page.getByText('Reliability-first runtime for developers who ship agents, not demos.')).toBeVisible();
-  await expect(page.locator('.topnav a')).toHaveText(['Roadmap', 'GitHub']);
+  await expect(page).toHaveTitle('Gormes — Run AI Agents as One Go Binary');
+  await expect(page.getByRole('heading', { name: 'Run AI Agents as One Go Binary.' })).toBeVisible();
+  await expect(page.getByText('Gormes is a Go-native runtime for long-running AI agents.')).toBeVisible();
+  await expect(page.getByText('It targets install drift, runtime fragility, and dropped-stream failures.')).toBeVisible();
+  await expect(page.getByText('One static binary. No Python runtime. No Hermes process.')).toBeVisible();
+  await expect(page.getByText('Early-stage scout release.')).toBeVisible();
+  await expect(page.getByText('Not production-stable yet. Use the offline TUI')).toBeVisible();
+  await expect(page.locator('.topnav a')).toHaveText(['Docs', 'Roadmap', 'GitHub']);
   await expect(page.locator('.hero-image')).toHaveCount(0);
   await expect(page.locator('img[src="/static/go-gopher-bear-lowpoly.png"]')).toHaveCount(0);
   await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Install');
-  await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('View Source');
-  await expect(page.getByRole('heading', { name: 'Why Hermes breaks in production' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'How Gormes fixes it' })).toBeVisible();
-  await expect(page.getByText('Hermes breaks in production because:')).toBeVisible();
-  await expect(page.getByText('environments drift')).toBeVisible();
-  await expect(page.getByText('installs fail')).toBeVisible();
-  await expect(page.getByText('agents crash mid-run')).toBeVisible();
-  await expect(page.getByText('streams drop and lose work')).toBeVisible();
-  await expect(page.getByRole('heading', { name: "What works today, and what's still being wired up." })).toBeVisible();
+  await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('Build State');
+  await expect(page.getByRole('heading', { name: 'Why agent runtimes fail in production' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'How Gormes fixes the runtime surface' })).toBeVisible();
+  await expect(page.getByText('Python-stack agents fail operationally when:')).toBeVisible();
+  await expect(page.getByText('dev, staging, and prod stop matching')).toBeVisible();
+  await expect(page.getByText('install scripts depend on host package luck')).toBeVisible();
+  await expect(page.getByText('long turns die on dropped streams')).toBeVisible();
+  await expect(page.getByText('tool wiring fails after tokens are already burning')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Useful today, still early.' })).toBeVisible();
   await expect(page.getByText('Current focus')).toBeVisible();
-  await expect(page.getByText('Gateway stability')).toBeVisible();
-  await expect(page.getByText('Memory system')).toBeVisible();
+  await expect(page.getByText('Offline TUI, local doctor, and provider-backed one-shots')).toBeVisible();
+  await expect(page.getByText('Gateway stability and shared channel contracts')).toBeVisible();
   await expect(page.getByText('Next milestone')).toBeVisible();
-  await expect(page.getByText('Full Go-native runtime, no Hermes')).toBeVisible();
-  await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toBeVisible();
-  await expect(page.getByText('irm https://gormes.ai/install.ps1 | iex')).toBeVisible();
-  await expect(page.getByText('Source-backed for now')).toBeVisible();
+  await expect(page.getByText('Production-stable Go-native runtime, no Hermes process')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build from source. Smoke test. Audit memory.' })).toBeVisible();
+  await expect(page.getByText('Build from source first.')).toBeVisible();
+  await expect(page.getByText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git')).toBeVisible();
+  await expect(page.getByText('cd gormes-agent')).toBeVisible();
+  await expect(page.getByText('make build')).toBeVisible();
+  await expect(page.getByText('./bin/gormes --offline')).toBeVisible();
+  await expect(page.getByText('./bin/gormes doctor --offline', { exact: true })).toBeVisible();
+  await expect(page.getByText('./bin/gormes goncho doctor --json', { exact: true })).toBeVisible();
+  await expect(page.getByText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh')).toBeVisible();
+  await expect(page.getByText('less install.sh')).toBeVisible();
+  await expect(page.getByText('gormes --oneshot "hello from Gormes"')).toBeVisible();
+  await expect(page.getByText('Source-first for now')).toBeVisible();
+  await expect(page.getByText('no Hermes process required')).toBeVisible();
+  await expect(page.getByText('signed releases, checksums, Homebrew, and Scoop/Winget')).toBeVisible();
+  await expect(page.getByText('Transparent Local Memory')).toBeVisible();
+  await expect(page.getByText('Release Trust Roadmap')).toBeVisible();
+  await expect(page.getByText('AV false-positive submission')).toBeVisible();
   await expect(page.getByText('Read the installer source →')).toBeVisible();
   await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toHaveCount(0);
   await expect(page.getByText('Run Hermes Through a Go Operator Console.')).toHaveCount(0);
+  await expect(page.getByText('Why Hermes breaks in production')).toHaveCount(0);
+  await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toHaveCount(0);
+  await expect(page.getByText('irm https://gormes.ai/install.ps1 | iex')).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(1);
   // Copy buttons require a tiny inline clipboard script — bounded to install steps.
-  // Three steps now: Unix install, Windows install, run.
-  await expect(page.locator('button.copy-btn')).toHaveCount(3);
+  // Six steps: source build, offline TUI, doctor, memory audit, convenience installer, model-backed turn.
+  await expect(page.locator('button.copy-btn')).toHaveCount(6);
 });
 
 // Long-term bulletproof: the page must stay readable as content
@@ -57,8 +74,8 @@ for (const vp of MOBILE_VIEWPORTS) {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'One Go Binary. No Python. No Drift.' })).toBeVisible();
-    await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Run AI Agents as One Go Binary.' })).toBeVisible();
+    await expect(page.getByText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git')).toBeVisible();
 
     const heroLayout = await page.evaluate(() => {
       const content = document.querySelector('.hero-content')?.getBoundingClientRect();
@@ -79,10 +96,10 @@ for (const vp of MOBILE_VIEWPORTS) {
     expect(pageOverflow, `page body overflows at ${vp.width}px`).toBeFalsy();
 
     // Copy buttons stay visible + tappable on every supported viewport.
-    // Three install steps: Unix, Windows, run.
+    // Six install steps: source build, offline TUI, doctor, memory audit, convenience installer, model-backed turn.
     const copyButtons = page.locator('button.copy-btn');
-    await expect(copyButtons).toHaveCount(3);
-    for (let i = 0; i < 3; i++) {
+    await expect(copyButtons).toHaveCount(6);
+    for (let i = 0; i < 6; i++) {
       const btn = copyButtons.nth(i);
       await expect(btn).toBeVisible();
       const box = await btn.boundingBox();

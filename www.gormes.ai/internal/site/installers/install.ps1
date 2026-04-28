@@ -1,7 +1,9 @@
 # install.ps1 - source-backed Windows installer for Gormes.
 #
 # Usage:
-#   irm https://gormes.ai/install.ps1 | iex
+#   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+#   Get-Content .\install.ps1
+#   powershell -ExecutionPolicy Bypass -File .\install.ps1
 #
 # Environment overrides:
 #   GORMES_BRANCH        target branch (default: main)
@@ -11,7 +13,7 @@
 #   GORMES_GO_VERSION    managed Go fallback version (default: 1.25.0)
 #
 # This installer mirrors the Unix install.sh contract on Windows:
-#   * managed checkout under a Hermes-analogy install home
+#   * managed checkout under the Gormes install home
 #   * rerun-as-update with autostash for local edits
 #   * stable global gormes.exe under the published bin directory
 #   * winget -> choco -> managed go.dev download fallback for Go

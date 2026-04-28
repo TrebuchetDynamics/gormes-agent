@@ -68,19 +68,20 @@ type RoadmapPhase struct {
 }
 
 type LandingPage struct {
-	Title               string
-	Description         string
-	Nav                 []NavLink
-	HeroKicker          string
-	HeroHeadline        string
-	HeroLines           []string
+	Title        string
+	Description  string
+	Nav          []NavLink
+	HeroKicker   string
+	HeroHeadline string
+	HeroLines    []string
 	// HeroFilterStamp + HeroFilterLine: the stamp ("Early-stage.") reads
 	// as identity in accent-colored mono caps; the body line below
 	// carries the filter caveat in muted body color.
-	HeroFilterStamp string
-	HeroFilterLine  string
+	HeroFilterStamp     string
+	HeroFilterLine      string
 	PrimaryCTA          Link
 	SecondaryCTA        Link
+	InstallIntro        string
 	InstallSteps        []InstallStep
 	InstallFootnote     string
 	InstallFootnoteLink string
@@ -92,6 +93,7 @@ type LandingPage struct {
 	// "Why Gormes" section: pain frame + technical fix cards.
 	WhyLabel        string
 	WhyPainHeadline string
+	WhyPainIntro    string
 	WhyPainBullets  []string
 	// WhyFixSubhead introduces the fix cards as a distinct sub-block
 	// within the Why-Gormes section. v19 split the previous combined
@@ -124,56 +126,64 @@ type LandingPage struct {
 
 func DefaultPage() LandingPage {
 	return LandingPage{
-		Title:       "Gormes — One Go Binary. No Python. No Drift.",
-		Description: "A Go-native runtime for AI agents — one static binary, no Python, no virtualenvs. Built for developers who care about reliability over polish. Under construction.",
+		Title:       "Gormes — Run AI Agents as One Go Binary",
+		Description: "A Go-native runtime for long-running AI agents: one static binary, no Python runtime, no virtualenv drift, and no Hermes process to keep alive. Early-stage and not production-stable yet.",
 		Nav: []NavLink{
+			{Label: "Docs", Href: "https://docs.gormes.ai/"},
 			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		},
-		HeroKicker:   "§ 01 · OPEN SOURCE · MIT LICENSE · UNDER CONSTRUCTION",
-		HeroHeadline: "One Go Binary. No Python. No Drift.",
+		HeroKicker:   "§ 01 · OPEN SOURCE · MIT LICENSE · EARLY SCOUT RELEASE",
+		HeroHeadline: "Run AI Agents as One Go Binary.",
 		HeroLines: []string{
-			"Gormes is a Go-native runtime for AI agents.",
-			"Built to solve the operations problem — not the AI problem.",
-			"One static binary. No virtualenvs. No dependency hell.",
+			"Gormes is a Go-native runtime for long-running AI agents.",
+			"It targets install drift, runtime fragility, and dropped-stream failures.",
+			"One static binary. No Python runtime. No Hermes process.",
 		},
-		HeroFilterStamp: "Early-stage.",
-		HeroFilterLine:  "Reliability-first runtime for developers who ship agents, not demos.",
-		PrimaryCTA:     Link{Label: "Install", Href: "#install"},
-		SecondaryCTA:   Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
+		HeroFilterStamp: "Early-stage scout release.",
+		HeroFilterLine:  "Not production-stable yet. Use the offline TUI, local doctor, provider-backed one-shots, gateway work, and Goncho memory development today.",
+		PrimaryCTA:      Link{Label: "Install", Href: "#install"},
+		SecondaryCTA:    Link{Label: "Build State", Href: "#roadmap"},
+		InstallIntro:    "Build from source first. The installer scripts remain convenience paths while signed binaries and package-manager manifests are still release-hardening work.",
 		InstallSteps: []InstallStep{
-			{Label: "1. UNIX / MACOS / TERMUX", Command: "curl -fsSL https://gormes.ai/install.sh | sh"},
-			{Label: "2. WINDOWS POWERSHELL", Command: "irm https://gormes.ai/install.ps1 | iex"},
-			{Label: "3. RUN", Command: "gormes"},
+			{Label: "1. SOURCE BUILD", Command: "git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build"},
+			{Label: "2. OFFLINE TUI", Command: "./bin/gormes --offline"},
+			{Label: "3. LOCAL DOCTOR", Command: "./bin/gormes doctor --offline"},
+			{Label: "4. MEMORY AUDIT", Command: "./bin/gormes goncho doctor --json"},
+			{Label: "5. REVIEW INSTALLER", Command: "curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh\nless install.sh\nsh install.sh"},
+			{Label: "6. MODEL-BACKED TURN", Command: "GORMES_ENDPOINT=\"https://your-provider.example/v1\" \\\nGORMES_API_KEY=\"...\" \\\nGORMES_MODEL=\"your-model\" \\\ngormes --oneshot \"hello from Gormes\""},
 		},
-		InstallFootnote:     "Source-backed for now. Installers manage a checkout while binary releases settle.",
+		InstallFootnote:     "Source-first for now, with no Hermes process required. Convenience gormes.ai installer aliases remain available, but signed releases, checksums, Homebrew, and Scoop/Winget are still hardening targets.",
 		InstallFootnoteLink: "Read the installer source →",
 		InstallFootnoteHref: "https://github.com/TrebuchetDynamics/gormes-agent/tree/main/scripts",
 		DocsLinkLabel:       "docs.gormes.ai →",
 		DocsLinkHref:        "https://docs.gormes.ai/",
 		WhyLabel:            "§ 02 · WHY GORMES",
-		WhyPainHeadline:     "Why Hermes breaks in production",
-		WhyFixSubhead:       "How Gormes fixes it",
+		WhyPainHeadline:     "Why agent runtimes fail in production",
+		WhyPainIntro:        "Python-stack agents fail operationally when:",
+		WhyFixSubhead:       "How Gormes fixes the runtime surface",
 		WhyPainBullets: []string{
-			"environments drift",
-			"installs fail",
-			"agents crash mid-run",
-			"streams drop and lose work",
+			"dev, staging, and prod stop matching",
+			"install scripts depend on host package luck",
+			"long turns die on dropped streams",
+			"tool wiring fails after tokens are already burning",
 		},
 		FeatureCards: []FeatureCard{
-			{Title: "Single Static Binary", Body: "Zero CGO. ~" + binarySizeMB() + " MB. scp it to Termux, Alpine, a fresh VPS — it runs. No Python, no virtualenv, no Nix."},
-			{Title: "No Runtime Drift", Body: "Pure Go. No runtime Node or npm, no pip, no env activation. The binary you tested is the binary that deploys."},
-			{Title: "Streams That Don't Drop", Body: "Route-B reconnect treats SSE drops as recoverable, not fatal. Your agent doesn't lose work to a flaky network."},
-			{Title: "Local Validation", Body: "gormes doctor --offline checks tool schemas before you burn tokens. Catch bad wiring before a model round-trip."},
+			{Title: "One Binary To Ship", Body: "Zero CGO. ~" + binarySizeMB() + " MB. The same stripped static binary you test is the artifact you deploy."},
+			{Title: "No Runtime Drift", Body: "No runtime Node or npm, no pip, no env activation. Gormes removes the Python-stack failure class from the shipped runtime."},
+			{Title: "Recoverable Streams", Body: "Route-B reconnect treats SSE drops as recoverable events, so a flaky network does not automatically erase a long turn."},
+			{Title: "Local Preflight", Body: "gormes doctor --offline checks the local runtime surface before a model round-trip. Bad wiring fails before tokens burn."},
+			{Title: "Transparent Local Memory", Body: "gormes goncho doctor --json reports memory DB paths, schema state, queue status, degraded modes, and provider readiness for Goncho."},
+			{Title: "Release Trust Roadmap", Body: "Package-manager manifests, checksums, detached signatures, Windows signing, and AV false-positive submission are explicit release-hardening targets."},
 		},
-		RoadmapLabel:    "§ 04 · BUILD STATE",
-		RoadmapHeadline: "What works today, and what's still being wired up.",
+		RoadmapLabel:    "§ 03 · BUILD STATE",
+		RoadmapHeadline: "Useful today, still early.",
 		RoadmapCurrentFocus: []string{
-			"Gateway stability",
-			"Memory system (Goncho/Honcho)",
-			"Subagent safety and native dashboard contracts",
+			"Offline TUI, local doctor, and provider-backed one-shots",
+			"Gateway stability and shared channel contracts",
+			"Goncho memory plus subagent safety",
 		},
-		RoadmapNextMilestone:  "Full Go-native runtime, no Hermes",
+		RoadmapNextMilestone:  "Production-stable Go-native runtime, no Hermes process",
 		RoadmapDetailsSummary: "View full phase-by-phase checklist",
 		ProgressTracker:       progressTrackerLabel(),
 		ProgressTrackerURL:    "https://docs.gormes.ai/building-gormes/architecture_plan/",

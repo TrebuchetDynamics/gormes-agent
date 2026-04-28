@@ -132,8 +132,11 @@ func TestHugoBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	}
 	text := string(body)
 
-	if !strings.Contains(text, "curl -fsSL https://gormes.ai/install.sh | sh") {
+	if !strings.Contains(text, "git clone https://github.com/TrebuchetDynamics/gormes-agent.git") {
 		t.Fatalf("built index.html missing current install command")
+	}
+	if strings.Contains(text, "curl -fsSL https://gormes.ai/install.sh | sh") {
+		t.Fatalf("built index.html still contains curl-pipe install command")
 	}
 	if strings.Contains(text, "brew install trebuchet/gormes") {
 		t.Fatalf("built index.html still contains stale Homebrew install command")
@@ -162,7 +165,8 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		"- 'docs/**'",
 		"workflow_dispatch:",
 		"Verify homepage content",
-		`grep -F "curl -fsSL https://gormes.ai/install.sh | sh" public/index.html >/dev/null`,
+		`grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" public/index.html >/dev/null`,
+		`! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" public/index.html >/dev/null`,
 		`! grep -F "brew install trebuchet/gormes" public/index.html >/dev/null`,
 		"cloudflare/wrangler-action@v3",
 		"command: pages project create gormes-docs --production-branch=main",

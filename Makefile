@@ -1,6 +1,7 @@
 .PHONY: build run test test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
 
-BUILD_FLAGS := -trimpath -ldflags="-s -w"
+VERSION ?= 0.2.0-scout
+BUILD_FLAGS := -trimpath -ldflags="-s -w -X main.Version=$(VERSION)"
 BINARY_PATH := bin/gormes
 
 build: validate-progress $(BINARY_PATH)

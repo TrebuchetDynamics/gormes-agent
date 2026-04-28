@@ -47,7 +47,8 @@ jobs:
       - name: Verify homepage content
         working-directory: docs
         run: |
-          grep -F "curl -fsSL https://gormes.ai/install.sh | sh" public/index.html >/dev/null
+          grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" public/index.html >/dev/null
+          ! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" public/index.html >/dev/null
           ! grep -F "brew install trebuchet/gormes" public/index.html >/dev/null
 
       - name: Ensure Pages project exists

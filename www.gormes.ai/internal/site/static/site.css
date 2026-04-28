@@ -371,8 +371,16 @@ a:focus-visible,
   padding: 72px var(--pad);
 }
 .install-header {
-  max-width: 560px;
+  max-width: 680px;
   margin-bottom: 24px;
+}
+.install-intro {
+  margin: -8px 0 0;
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  overflow-wrap: break-word;
 }
 .install-grid {
   display: grid;
@@ -843,11 +851,8 @@ a:focus-visible,
 }
 
 @media (max-width: 640px) {
-  /* Topbar collapses to a single row on mobile: brand on the left,
-     three nav anchors on the right. With only 3 short uppercase
-     mono items (Install / Roadmap / GitHub), they fit comfortably
-     next to "Gormes" even at 320px viewport. Removes ~30px of
-     vertical space the previous wrap row consumed. */
+  /* Topbar stays single-row on mobile: brand on the left, three
+     short uppercase nav anchors on the right. */
   .topbar-inner {
     flex-wrap: nowrap;
     align-items: baseline;
@@ -930,9 +935,6 @@ a:focus-visible,
   :root {
     --pad: 22px;
   }
-  .cmd {
-    padding-right: 82px;
-  }
   .copy-btn {
     padding: 6px 8px;
   }
@@ -943,12 +945,11 @@ a:focus-visible,
    1024 (hero composition + section rhythm), 1280 (page width). */
 
 @media (min-width: 768px) {
-  /* Install steps as a 3-up grid on desktop — UNIX / WINDOWS /
-     RUN side by side instead of stacked. Biggest single visual
-     upgrade for the desktop view: turns the install section
-     from "list" into "system overview". */
+  /* Install cards flow into as many readable columns as the width
+     supports, which handles the longer smoke-test / doctor path
+     without hardcoding a single desktop count. */
   .install-grid {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 24px;
   }
 }
