@@ -13,7 +13,7 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 - **Shared gateway chassis** (Phase 2.B.2) — one `gormes gateway` runtime owns the manager loop, session mapping, and Telegram/Discord multi-channel boot path
 - **Telegram adapter** (Phase 2.B.1) — long-poll ingress, edit coalescing, session resume
 - **Discord adapter** (Phase 2.B.2) — mention-aware ingress and reply delivery on the shared chassis
-- **Slack Socket Mode bot** (Phase 2.B.3) — `internal/slack` has ingress, threaded reply flow, placeholder updates, and session persistence; shared `gateway.Channel` registration still remains
+- **Slack Socket Mode bot** (Phase 2.B.3) — `internal/slack` has ingress, threaded reply flow, placeholder updates, session persistence, shared `CommandRegistry` parser wiring, the `gateway.Channel` shim, config/doctor loading, and `cmd/gormes gateway` registration
 - **Priority connector wave** (Phase 2.B.4, 2.B.10) — WhatsApp's transport-neutral runtime, identity, send-gate, and reconnect contracts plus WeCom/WeiXin shared-bot seams now freeze ingress/reply behavior ahead of full transports
 - **slash-command registry** (Phase 2.F.1) — one canonical command registry drives parsing, help text, Telegram menus, and Slack subcommands
 - **SessionContext prompt injection + delivery target parsing** (Phase 2.B.5) — stable Current Session Context block, typed `--deliver` parsing, and a deterministic Gateway stream consumer contract
@@ -23,7 +23,7 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 
 ## Planned
 
-- **Remaining priority connector runtime work** — Slack still needs CommandRegistry parser wiring, a `gateway.Channel` shim, and shared `cmd/gormes gateway` registration; WhatsApp's 2.B.4 contracts are closed and any live bridge/native startup or QR UX should be a new small backlog row; WeChat still needs WeCom/WeiXin transport/bootstrap code; Discord Forum Channels still need thread lifecycle plus media/outbound polish. See [§7 Subsystem Inventory](../../architecture_plan/subsystem-inventory/).
+- **Remaining priority connector runtime work** — Slack's 2.B.3 shared-chassis contract is closed; any richer ack UX, deeper thread behavior, or media/attachment polish should be a new small backlog row. WhatsApp's 2.B.4 contracts are closed and any live bridge/native startup or QR UX should be a new small backlog row; WeChat still needs WeCom/WeiXin transport/bootstrap code; Discord Forum Channels still need thread lifecycle plus media/outbound polish. See [§7 Subsystem Inventory](../../architecture_plan/subsystem-inventory/).
 - **Paused Phase 7 connector backlog** — Signal, Email/SMS, Matrix/Mattermost, Webhook, BlueBubbles/HomeAssistant, Feishu, DingTalk, and QQ remain tracked but are no longer Phase 2 execution priorities.
 - **Phase 2.F.3–2.F.4** — adapter startup cleanup, active-turn follow-up/late-arrival drain policy, drain-timeout resume recovery, pairing persistence, approval/rate-limit semantics, status JSON/PID validation, token-scoped credential locks, `/restart` takeover/dedup markers, channel lifecycle writers, home-channel routing, channel/contact directory refresh, mirror surfaces, and sticker-cache equivalents.
 - **Telegram fresh-final streaming** — Hermes `b16f9d43` sends a fresh final Telegram message for long-lived streamed previews so visible timestamps reflect completion time. Gormes tracks this as a shared gateway eligibility helper, a shared send/delete fallback, then Telegram config + deleteMessage wiring under Phase 2.B.5.

@@ -30,11 +30,11 @@ or TypeScript database gravity.
 
 | Need | Start with | Then use |
 |---|---|---|
-| Understand the finish line | [Gormes Completion Plan](./architecture_plan/completion-plan/) | [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Agent Operating Model](./architecture_plan/agent-operating-model/) |
+| Understand the finish line | [Gormes Completion Plan](./architecture_plan/completion-plan/) | [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Agent Operating Model](./architecture_plan/agent-operating-model/) |
 | Understand the runtime shape | [Core Systems](./core-systems/) | [Architecture Plan](./architecture_plan/), [Why Go](./architecture_plan/why-go/) |
 | Choose implementation work | [Agent Queue](./builder-loop/agent-queue/) | [Next Slices](./builder-loop/next-slices/), [Blocked Slices](./builder-loop/blocked-slices/), [Umbrella Cleanup](./builder-loop/umbrella-cleanup/) |
 | Prepare a skill-builder handoff | [Contract Readiness](./contract-readiness/) | [Progress Schema](./builder-loop/progress-schema/), [Skill Builder Handoff](./builder-loop/builder-loop-handoff/) |
-| Port an upstream subsystem | [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/) | [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Porting a Subsystem](./porting-a-subsystem/), [Upstream Lessons](./upstream-lessons/), [Testing](./testing/) |
+| Port an upstream subsystem | [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/) | [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Porting a Subsystem](./porting-a-subsystem/), [Upstream Lessons](./upstream-lessons/), [Testing](./testing/) |
 | Reuse gateway adapter ideas | [Gateway Donor Map](./gateway-donor-map/) | [Shared Adapter Patterns](./gateway-donor-map/shared-adapter-patterns/), then the channel dossier |
 | Continue Goncho/Honcho memory work | [Goncho Honcho Memory](./goncho_honcho_memory/) | [Prompts](./goncho_honcho_memory/01-prompts/), [Tool Schemas](./goncho_honcho_memory/02-tool-schemas/) |
 
@@ -99,7 +99,7 @@ Use the planning docs in this order:
 
 ## Reference groups
 
-**Architecture:** [Architecture Plan](./architecture_plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Core Systems](./core-systems/), [What Hermes Gets Wrong](./what-hermes-gets-wrong/), [Upstream Lessons](./upstream-lessons/).
+**Architecture:** [Architecture Plan](./architecture_plan/), [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Core Systems](./core-systems/), [What Hermes Gets Wrong](./what-hermes-gets-wrong/), [Upstream Lessons](./upstream-lessons/).
 
 **Execution queue:** [Contract Readiness](./contract-readiness/), [Skill Builder Handoff](./builder-loop/builder-loop-handoff/), [Agent Queue](./builder-loop/agent-queue/), [Next Slices](./builder-loop/next-slices/), [Blocked Slices](./builder-loop/blocked-slices/), [Umbrella Cleanup](./builder-loop/umbrella-cleanup/), [Progress Schema](./builder-loop/progress-schema/).
 

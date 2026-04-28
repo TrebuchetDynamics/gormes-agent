@@ -34,10 +34,18 @@ passes.
 maps upstream Hermes and Honcho feature families to Go packages, implementation
 strategy, proof gates, and `progress.json` anchors.
 
+**Runtime plan:** [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
+reconciles the feature map, source-class ledger, swarm audit, nested coverage
+matrix, and progress rows into one implementation-ready subsystem plan.
+
 **Completeness audit:** [Upstream Coverage Ledger](./upstream-coverage-ledger/)
 lists the upstream source classes that must be represented in the feature map,
 so a planner pass can tell whether Hermes/Honcho mapping is complete or has
 drifted.
+
+**Feature-level swarm audit:** [Swarm Feature Parity Audit](./swarm-feature-parity-audit/)
+records the raw sub-agent parity findings that feed the runtime plan's
+classification and row-backed implementation queue.
 
 ## How To Read This Roadmap
 
@@ -49,8 +57,13 @@ drifted.
   exact pass workflow.
 - Use [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/) when
   mapping upstream capabilities or deciding where a feature belongs in Go.
+- Use [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
+  when turning mapped upstream capabilities into Go package targets,
+  classifications, dependency order, and builder-ready row splits.
 - Use [Upstream Coverage Ledger](./upstream-coverage-ledger/) to verify that no
   feature-bearing Hermes/Honcho source class is unmapped.
+- Use [Swarm Feature Parity Audit](./swarm-feature-parity-audit/) to find broad
+  source classes that still hide missing or vague feature-level rows.
 - Use the phase pages for design intent and boundaries, then use
   [Contract Readiness](../contract-readiness/) and [Agent Queue](../builder-loop/agent-queue/)
   for assignable work.
@@ -64,12 +77,12 @@ drifted.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 36/77 subphases shipped · 25 in progress · 16 planned
+**Overall:** 37/77 subphases shipped · 25 in progress · 15 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 15/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 16/20 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 13/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 0/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
@@ -136,14 +149,14 @@ drifted.
 - [x] gormes gateway multi-channel entrypoint
 - [x] Discord
 
-### 2.B.3 — Slack on Shared Chassis 🔨
+### 2.B.3 — Slack on Shared Chassis ✅
 
 - [x] Slack Socket Mode adapter
 - [x] Thread routing + coalesced reply flow
 - [x] Slack CommandRegistry parser wiring
 - [x] Slack gateway.Channel adapter shim
 - [x] Slack config + cmd/gormes gateway registration
-- [ ] Slack env-token enabled-state preservation
+- [x] Slack env-token enabled-state preservation
 
 ### 2.B.4 — WhatsApp Adapter ✅
 
@@ -377,6 +390,7 @@ drifted.
 
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
+- [x] Vector store + reconciler divergence proof
 - [x] Directional peer cards and representation scopes
 - [x] Goncho queue status read model
 - [x] Goncho summary context budget
@@ -387,6 +401,7 @@ drifted.
 - [x] Goncho streaming chat persistence contract
 - [x] Goncho configuration namespace
 - [x] Goncho dreaming scheduler contract
+- [x] Goncho CRUD lifecycle invariants
 - [ ] Goncho empty peer-card hint contract
 
 ### 3.G — Goncho Drop-In Compatibility Closure ⏳
@@ -405,6 +420,7 @@ drifted.
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] DeepSeek/Kimi cross-provider reasoning isolation
 - [x] DeepSeek/Kimi all-assistant reasoning_content replay
+- [x] Moonshot/Kimi tool-schema sanitizer
 - [x] Anthropic
 - [x] Azure OpenAI query/default_query transport contract
 - [x] Azure Anthropic Messages endpoint contract
@@ -442,6 +458,7 @@ drifted.
 - [x] Aux compression single-prompt threshold reconciliation
 - [x] Compression protected-tail multimodal length estimator
 - [ ] Context compressor image-token budget charge
+- [x] Context references stable-handle store
 - [ ] Manual compression feedback + context references
 - [ ] ContextEngine compression-boundary callback vocabulary
 - [ ] Kernel compression-boundary callback binding
@@ -465,9 +482,10 @@ drifted.
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
 
-### 4.E — Trajectory + Insights ⏳
+### 4.E — Trajectory + Insights 🔨
 
 - [ ] Trajectory writer + redaction gates
+- [x] Trajectory compressor + compressed-evidence lineage
 - [ ] Self-monitoring telemetry
 
 ### 4.F — Title Generation 🔨
@@ -507,6 +525,9 @@ drifted.
 - [ ] Provider-tool-memory golden transcript suite
 - [x] Hermes and Honcho feature parity map to Go implementation plan
 - [x] Upstream source coverage ledger for Hermes/Honcho mapping completeness
+- [x] Swarm feature-level parity audit for Hermes/Honcho map
+- [x] Hermes/Honcho Go runtime plan second-wave reconciliation
+- [x] Nested feature-level coverage test matrix for swarm gaps
 
 ## Phase 5 — The Final Purge 🔨
 
@@ -572,6 +593,7 @@ drifted.
 ### 5.G — MCP Integration ✅
 
 - [x] MCP client
+- [x] Goncho MCP tool catalog
 - [x] MCP server config/env resolver
 - [x] MCP stdio transport + tool/list discovery
 - [x] MCP HTTP transport + tool/list discovery

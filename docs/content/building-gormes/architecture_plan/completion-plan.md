@@ -20,9 +20,14 @@ Use this page with:
   lane-specific gates.
 - [Hermes And Honcho Feature Map](../hermes-honcho-feature-map/) for the
   upstream feature-to-Go package map.
+- [Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/)
+  for the reconciled implementation plan, subsystem classification, nested
+  coverage matrix, and Go package dependency order.
 - [Upstream Coverage Ledger](../upstream-coverage-ledger/) for the audit rule
   that tells us whether every feature-bearing Hermes/Honcho source class has
   been mapped.
+- [Swarm Feature Parity Audit](../swarm-feature-parity-audit/) for the
+  feature-level gap register found by parallel sub-agent parity audits.
 - [Agent Operating Model](../agent-operating-model/) for exactly how Codex,
   Claude, claudeu, and codexu should run planner, builder, parity, TDD, and
   interface-design passes.
@@ -86,7 +91,9 @@ CLI/API/gateway input
 | Overall finish line | This page |
 | Phase-to-lane ownership and gates | [Completion Lane Roadmap](../lane-roadmap/) |
 | Upstream feature-to-Go package map | [Hermes And Honcho Feature Map](../hermes-honcho-feature-map/) |
+| Reconciled Go implementation plan | [Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/) |
 | Completeness audit for upstream mapping | [Upstream Coverage Ledger](../upstream-coverage-ledger/) |
+| Feature-level swarm gap register | [Swarm Feature Parity Audit](../swarm-feature-parity-audit/) |
 | How agents should run each pass | [Agent Operating Model](../agent-operating-model/) |
 | Current generated roadmap | [Architecture Plan](../) |
 | Upstream feature inventory | [Subsystem Inventory](../subsystem-inventory/) |

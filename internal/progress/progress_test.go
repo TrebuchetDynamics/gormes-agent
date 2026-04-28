@@ -253,8 +253,8 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 	}
 
 	slack := p.Phases["2"].Subphases["2.B.3"]
-	if got := slack.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.3 = %q, want in_progress", got)
+	if got := slack.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.3 = %q, want complete", got)
 	}
 	slackItems := itemStatusByName(slack.Items)
 	for name, want := range map[string]Status{
@@ -263,7 +263,7 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		"Slack CommandRegistry parser wiring":            StatusComplete,
 		"Slack gateway.Channel adapter shim":             StatusComplete,
 		"Slack config + cmd/gormes gateway registration": StatusComplete,
-		"Slack env-token enabled-state preservation":     StatusPlanned,
+		"Slack env-token enabled-state preservation":     StatusComplete,
 	} {
 		if got := slackItems[name]; got != want {
 			t.Errorf("Phase 2.B.3 item %q = %q, want %q", name, got, want)

@@ -790,7 +790,7 @@ The port is intentionally staged so that each slice lands behind a flag and can 
 **Tasks:**
 
 - Once 13.1–13.6 are stable, promote the `internal/goncho/http/` adapter to v3 wire parity.
-- Run the upstream SDKs against it as integration tests (see `sdks/python/tests/` and `sdks/typescript/tests/` in the Honcho repo for expected flows).
+- Run the upstream SDKs against it as integration tests (see `tests/sdk/`, `tests/sdk_typescript/`, `sdks/python/src/honcho/`, `sdks/typescript/src/`, and `sdks/typescript/__tests__/` in the Honcho repo for expected flows).
 - This is the point at which we can honestly claim "drop-in self-host" parity.
 
 ### 13.10 Docs-driven planner cutlines

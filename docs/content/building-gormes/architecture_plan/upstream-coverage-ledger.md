@@ -62,6 +62,15 @@ top-level source class is neither represented in this ledger nor explicitly
 classified as repo hygiene. It skips a missing sibling checkout so normal docs
 CI does not require cloning upstream repos.
 
+This is necessary but not sufficient for feature parity. Use
+[Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/)
+for the reconciled subsystem classification and Go implementation order. Use
+[Swarm Feature Parity Audit](../swarm-feature-parity-audit/) for nested
+feature-level gaps found inside broad source classes such as `agent/**`,
+`tools/**`, `gateway/**`, `src/**`, `sdks/**`, `mcp/**`, and `tests/**`.
+Use `TestNestedUpstreamFeatureCoverage` to make representative nested paths
+executable when sibling upstream checkouts are present.
+
 ## Hermes Source Coverage
 
 | Upstream source class | Feature-map anchor | Go target | Progress anchor | Coverage |
@@ -74,12 +83,15 @@ CI does not require cloning upstream repos.
 | `gateway/**/*.py` | Gateway, Channels, Cron, API, TUI, CLI | `internal/gateway`, `internal/channels/*`, `internal/slack`, `internal/discord` | Phase 2.B-2.F, 7 | planned |
 | `cron/*.py` | Cron and scheduled jobs | `internal/cron`, `internal/gateway`, `internal/tools` | Phase 2.D, 5.N | planned |
 | `cli.py`, `hermes`, `hermes_cli/**/*.py` | CLI, config, secrets | `cmd/gormes`, `internal/cli`, `internal/config`, `internal/doctor` | Phase 5.O, 5.P | planned |
+| `cli-config.yaml.example` | CLI/config canonical schema example (51 KB; spec of record for `hermes_cli/config.py`) | `cmd/gormes`, `internal/cli`, `internal/config`, `docs/development-skills` | Phase 5.O | planned |
+| `constraints-termux.txt` | Packaging hygiene (Termux/Android pip constraints used by `setup-hermes.sh`) | installers, `Makefile`, `www.gormes.ai` | Phase 5.P | excluded as packaging hygiene |
 | `acp_adapter/**`, `acp_registry/**` | ACP adapter | `internal/plugins`, `internal/apiserver` | Phase 5.H | planned |
 | `mcp_serve.py`, MCP config helpers | MCP tools and managed gateway | `internal/plugins`, `internal/tools`, `internal/apiserver` | Phase 5.G | planned |
 | `plugins/**` | Plugins, memory plugins, specialized modes | `internal/plugins`, `internal/tools`, `internal/goncho`, `internal/gonchotools` | Phase 3.G, 5.I | planned |
 | `skills/**`, `optional-skills/**` | Skill manager, slash skills, learning loop | `internal/skills`, `docs/development-skills`, `cmd/gormes` | Phase 5.F, 6 | planned |
 | `tui_gateway/**`, `ui-tui/**`, `web/**`, `website/**` | TUI, API, public web surfaces | `internal/tui`, `internal/tuigateway`, `internal/apiserver`, `www.gormes.ai` | Phase 5.Q, 5.P | planned |
 | `batch_runner.py`, `mini_swe_runner.py`, `rl_cli.py`, `datagen-config-examples/**` | Batch, mini-SWE, RL, datagen | future research packages, `internal/subagent`, `internal/tools` | Phase 5.M/5.O | planned |
+| `tinker-atropos/**` | RL tinker submodule placeholder (currently empty; reserves slot for atropos environment integration) | future research packages, `internal/subagent` | Phase 5.M | owned (excluded until populated) |
 | `Dockerfile`, `docker-compose.yml`, `docker/**`, `packaging/**`, `nix/**`, `flake.*`, `setup-hermes.sh`, `package.json`, `package-lock.json`, `pyproject.toml`, `uv.lock`, `scripts/**` | Packaging and release | installers, service units, OCI image, `Makefile`, `cmd/gormes` | Phase 5.P | planned |
 | `tests/**`, `.plans/**`, `plans/**`, release notes, `AGENTS.md`, README/SECURITY/CONTRIBUTING, `hermes-already-has-routines.md` | Fixture and documentation donors | docs, fixtures, progress source refs | Rows that cite the fixture | covered as evidence |
 
@@ -98,6 +110,7 @@ CI does not require cloning upstream repos.
 | `docs/v1/**`, `docs/v2/**`, `docs/v3/**` | Honcho public API and guide contracts | Goncho compatibility docs and fixtures | Phase 3.G | planned |
 | `sdks/python/**`, `sdks/typescript/**`, `mcp/**` | SDKs and MCP | `internal/goncho`, future local compatibility adapter | Phase 3.G | planned |
 | `honcho-cli/**`, `config.toml.example`, `alembic.ini` | CLI/self-hosting docs | `cmd/gormes`, `internal/config`, `internal/doctor` | Phase 3.G, 5.O | planned |
+| `database/init.sql` | Hosted Postgres bootstrap (`CREATE EXTENSION IF NOT EXISTS vector;`) | `cmd/gormes`, `internal/config`, `internal/doctor`, release docs | Phase 3.G, 5.P | owned (hosted-only divergence; replacement is local SQLite goncho store) |
 | `Dockerfile`, `docker-compose.yml.example`, `docker/**`, `fly.toml`, `pyproject.toml`, `uv.lock`, `scripts/**` | Self-hosting, deploy, and maintenance tooling | `cmd/gormes`, `internal/doctor`, installer/release docs | Phase 3.G, 5.P | planned |
 | `examples/**`, `tests/**`, `CHANGELOG.md`, README/CLAUDE/CONTRIBUTING | Compatibility fixture and documentation donors | Goncho testdata and progress refs | Phase 3.G, 6 | covered as evidence |
 | `.claude/skills/**` | Development workflow donor | `docs/development-skills` when useful | Phase 1.D/6 | owned |

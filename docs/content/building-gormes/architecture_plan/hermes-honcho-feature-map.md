@@ -19,6 +19,18 @@ completeness. The map is complete only when every feature-bearing Hermes and
 Honcho source class is represented there with a feature-map anchor, Go target,
 and progress or owned/excluded decision.
 
+Use [Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/)
+when a mapped feature needs concrete Go package ownership, subsystem
+classification, dependency order, nested upstream evidence, and row-splitting
+guidance for builders. That plan is the reconciled answer to whether a surface
+is `mapped-by-symbol`, `mapped-by-contract`, `owned`, `excluded`,
+`still row-backed`, or still an `unknown/gap`.
+
+Use [Swarm Feature Parity Audit](../swarm-feature-parity-audit/) for the
+feature-level gap register. The source-class ledger can pass while individual
+provider, tool, gateway, SDK, MCP, CLI, webhook, queue, or release behavior is
+still too vague for builder work.
+
 ## Reading Rules
 
 - **Covered** means Gormes has repository evidence and tests.
@@ -63,12 +75,13 @@ builder-sized row. Builder passes should not rediscover this map.
 
 | Hermes feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
 |---|---|---|---|---|
+| Provider transport abstraction | `agent/transports/base.py`, `agent/transports/types.py`, `agent/transports/{chat_completions,anthropic,bedrock,codex}.py`, `tests/agent/transports/test_transport.py` | `internal/hermes.ProviderTransport` | Shipped as a Go-native provider request and fixture replay contract for Chat-Completions, Anthropic Messages, Bedrock Converse, and Codex Responses. Keep live credentials, retries, and provider-specific routing outside this contract. | Phase 4.A covered |
 | Anthropic adapter | `agent/anthropic_adapter.py` | `internal/hermes` | Keep the completed adapter as the reference provider and add transcript fixtures for future normal-turn replay. | Phase 4.A covered |
 | Bedrock adapter | `agent/bedrock_adapter.py` | `internal/hermes` | Finish in narrow slices: stream events, SigV4/credentials, stale-client eviction, retry/error taxonomy. | Phase 4.A |
 | Gemini native and Cloud Code | `agent/gemini_native_adapter.py`, `agent/gemini_cloudcode_adapter.py`, `agent/gemini_schema.py` | `internal/hermes` | Add request/stream transcript fixtures, then model capability and tool-call translation. Keep OAuth separate. | Phase 4.A, 4.G |
 | OpenRouter/OpenAI-compatible models | `tools/openrouter_client.py`, `agent/model_metadata.py`, `agent/usage_pricing.py` | `internal/hermes`, `internal/config`, `internal/cli` | Use one OpenAI-compatible request path with attribution headers, model family detection, usage/cost metadata, and provider-specific error mapping. | Phase 4.A, 4.D, 4.H |
-| Codex Responses and ChatGPT/Codex OAuth | `agent/codex_responses_adapter.py`, `agent/google_oauth.py`, tests under `tests/run_agent/` | `internal/hermes`, `internal/config`, `internal/cli` | Keep pure Responses conversion separate from OAuth/token vault. Add assistant content roles, stale-token relogin, and multi-account state as their own rows. | Phase 4.A, 4.G |
-| Google Code Assist and Copilot ACP | `agent/google_code_assist.py`, `agent/copilot_acp_client.py` | `internal/hermes`, `internal/plugins` | Treat as provider/backchannel adapters with fake transport fixtures before any live auth. | Phase 4.A, 5.H |
+| Codex Responses and ChatGPT/Codex OAuth | `agent/codex_responses_adapter.py`, `hermes_cli/auth.py`, `agent/auxiliary_client.py`, tests under `tests/run_agent/` | `internal/hermes`, `internal/config`, `internal/cli` | Keep pure Responses conversion separate from OAuth/token vault. Add assistant content roles, stale-token relogin, and multi-account state as their own rows. | Phase 4.A, 4.G |
+| Google/Gemini OAuth, Google Code Assist, and Copilot ACP | `agent/google_oauth.py`, `agent/google_code_assist.py`, `agent/gemini_cloudcode_adapter.py`, `agent/copilot_acp_client.py` | `internal/hermes`, `internal/config`, `internal/plugins` | Treat Google OAuth as Gemini/Google provider auth, not Codex auth. Treat Code Assist and Copilot ACP as provider/backchannel adapters with fake transport fixtures before any live auth. | Phase 4.A, 4.G, 5.H |
 | Auxiliary clients | `agent/auxiliary_client.py`, `tools/xai_http.py` | `internal/hermes` | Define a small auxiliary-completion interface for title, compression, and helper calls. Bind provider-specific clients behind it. | Phase 4.A, 4.F |
 | Model metadata, pricing, capabilities | `agent/model_metadata.py`, `agent/models_dev.py`, `agent/usage_pricing.py`, `model_tools.py` | `internal/hermes`, `internal/cli` | One registry feeds routing, context limits, vision support, pricing, and CLI model pickers. Unknown models degrade visibly. | Phase 4.D, 5.O |
 | Credential pool and token vault | `agent/credential_pool.py`, `agent/credential_sources.py`, `hermes_cli/auth*.py`, `tools/credential_files.py` | `internal/config`, `internal/cli`, `internal/hermes` | Store credential source metadata without writing resolved plaintext. Provider rows consume a token-vault interface. | Phase 4.G, 5.O |
@@ -82,7 +95,7 @@ builder-sized row. Builder passes should not rediscover this map.
 | Prompt builder | `agent/prompt_builder.py`, `run_agent.py` | `internal/hermes`, `internal/kernel` | Split into system/developer layers, project instructions, tool schemas, memory guidance, skill snapshots, and model-specific role guidance. | Phase 4.C |
 | Context engine and status | `agent/context_engine.py` | `internal/hermes` | Keep status and tool boundary typed; add callback vocabulary, kernel binding, pressure evidence, and context reference handles. | Phase 4.B |
 | Context compression | `agent/context_compressor.py`, `agent/manual_compression_feedback.py` | `internal/hermes`, `internal/kernel` | Build helper rows first: token budget, protected head/tail, multimodal length, image charge, tool-result pruning, summary lineage, manual feedback. Bind to kernel only after fixtures pass. | Phase 4.B |
-| Context references | `agent/context_references.py` | `internal/hermes`, `internal/transcript` | Allocate stable reference handles for compressed or cited context and expose them through status/audit. | Phase 4.B |
+| Context references | `agent/context_references.py` | `internal/hermes`, `internal/contextrefs`, `internal/transcript` | Stable parser and pending-handle store are shipped; remaining rows attach or block file/folder/git/url content, budget warnings, and status/audit exposure. | Phase 4.B |
 | Subdirectory/project hints | `agent/subdirectory_hints.py`, `hermes_cli/config.py` | `internal/hermes`, `internal/cli` | Resolve project hints before prompt assembly with path safety and deterministic test fixtures. | Phase 4.B/4.C |
 | Skill preprocessing and slash skills | `agent/skill_preprocessing.py`, `agent/skill_commands.py`, `agent/skill_utils.py` | `internal/skills`, `internal/hermes`, `internal/cli` | Reuse the Gormes skill store; produce prompt snapshots and slash-command exposure from one reviewed skill registry. | Phase 5.F, 6.C |
 | Redaction and evidence filtering | `agent/redact.py`, `hermes_logging.py` | `internal/audit`, `internal/telemetry`, `internal/hermes` | Apply redaction before audit, debug bundles, logs, and prompt-visible references. | Phase 4.E, 5.O |
@@ -140,8 +153,8 @@ flows, or users depend on them.
 |---|---|---|---|---|
 | Workspaces/apps | `src/models.py`, `src/routers/workspaces.py`, `docs/v3/api-reference/endpoint/workspaces/*` | `internal/goncho`, `internal/config` | Represent workspace identity in SQLite with config defaults and explicit missing-workspace diagnostics. Do not require hosted app keys for local use. | Phase 3.F/3.G |
 | Peers and peer config | `src/routers/peers.py`, `src/crud/peer.py`, `src/crud/peer_card.py` | `internal/goncho`, `internal/gonchotools` | Preserve peer identity, cards, representation scopes, and empty-card hints behind `honcho_profile` compatibility tools. | Phase 3.F, 3.G |
-| Sessions and session peers | `src/routers/sessions.py`, `src/crud/session.py`, docs `sessions/*` | `internal/goncho`, `internal/session`, `internal/memory` | Store sessions and peer membership locally, support clone/update/delete semantics where required by Gormes, and map to normal agent turn sessions. | Phase 3.F/3.G |
-| Messages and file-backed messages | `src/routers/messages.py`, `src/crud/message.py`, `docs/v3/api-reference/endpoint/messages/*` | `internal/goncho`, `internal/memory` | Persist user/assistant/tool messages with source, peer, session, sequence, metadata, and file-import records. Store final streamed responses once. | Phase 3.F/3.G |
+| Sessions and session peers | `src/routers/sessions.py`, `src/crud/session.py`, docs `sessions/*` | `internal/goncho`, `internal/session`, `internal/memory` | Local session delete cascades and workspace isolation are shipped; clone/update/session-peer HTTP compatibility remains row-backed. | Phase 3.F complete row `Goncho CRUD lifecycle invariants`; Phase 3.G |
+| Messages and file-backed messages | `src/routers/messages.py`, `src/crud/message.py`, `docs/v3/api-reference/endpoint/messages/*` | `internal/goncho`, `internal/memory` | Local message creation now stores workspace/session/peer sequence metadata; file-backed message upload/import and route pagination/filter/update/delete compatibility remain row-backed. | Phase 3.F complete row `Goncho CRUD lifecycle invariants`; Phase 3.G |
 | Conclusions and facts | `src/routers/conclusions.py`, `src/crud/deriver.py`, `src/deriver/*` | `internal/goncho`, `internal/memory` | Map conclusions to Gormes facts/entities/relationships with provenance and queue evidence. Keep derivation async and auditable. | Phase 3.F, 6 |
 | Representations | `src/crud/representation.py`, docs `representation.mdx`, `representation-scopes.mdx` | `internal/goncho`, `internal/memory` | Store representation cards by scope and peer/session context; expose deterministic context options and diagnostics. | Phase 3.F |
 | Search and filters | `src/utils/filter.py`, `src/utils/search.py`, docs `search.mdx`, `using-filters.mdx` | `internal/goncho`, `internal/memory` | Parse Honcho-compatible filter grammar into safe SQL/FTS/graph queries, rejecting unsupported filters visibly. | Phase 3.F |

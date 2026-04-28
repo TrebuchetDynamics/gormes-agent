@@ -1229,9 +1229,9 @@
             {
               "name": "Slack env-token enabled-state preservation",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Slack gateway config treats SLACK_BOT_TOKEN as enabling Slack unless config.yaml explicitly sets slack.enabled=false or platforms.slack.enabled=false; top-level Slack settings such as require_mention, strict_mention, free_response_channels, channel prompts, and reply policy must not create a disabled Slack platform that shadows the env token",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -4384,7 +4384,7 @@
               "name": "Steer slash command registry + queue fallback",
               "status": "planned",
               "contract": "Registry-owned active-turn steering command",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -5383,6 +5383,68 @@
               ]
             },
             {
+              "name": "Vector store + reconciler divergence proof",
+              "priority": "P3",
+              "status": "complete",
+              "contract": "Gormes explicitly owns local SQLite semantic recall as a divergence from Honcho's LanceDB/Turbopuffer external vector-store and sync-vector reconciler model.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "No external vector API key, LanceDB path, namespace delete, or sync-vector worker is required for local semantic recall; unsupported external sync semantics are visible as excluded divergence rows.",
+              "fixture": "internal/memory/divergence_test.go::TestVectorStoreDivergenceRowsClassifyExternalStoresAndReconciler",
+              "source_refs": [
+                "../honcho/src/vector_store/lancedb.py:LanceDBVectorStore",
+                "../honcho/src/vector_store/turbopuffer.py:TurbopufferVectorStore",
+                "../honcho/src/reconciler/sync_vectors.py:ReconciliationMetrics",
+                "internal/memory/vector_divergence.go:VectorStoreDivergenceRows",
+                "internal/memory/semantic_sql.go:semanticSeeds",
+                "internal/memory/schema.go:migration3cTo3d"
+              ],
+              "ready_when": [
+                "The local SQLite entity_embeddings schema and semanticSeeds query path are validated on main.",
+                "The slice can prove divergence with temp SQLite state and no external vector database, API key, network call, or background reconciler.",
+                "The row updates classification evidence only after Go fixtures prove the local query path and omitted sync-state columns."
+              ],
+              "not_ready_when": [
+                "The slice introduces a LanceDB/Turbopuffer adapter, external namespace cleanup, retry worker, or remote sync state in the local memory package.",
+                "The slice changes Goncho search behavior, embedding generation, provider calls, or cross-chat recall semantics.",
+                "The slice claims Honcho vector-store parity instead of an owned/excluded divergence contract."
+              ],
+              "acceptance": [
+                "VectorStoreDivergenceRows classifies LanceDB and Turbopuffer adapters as excluded and the SQLite semantic query contract as owned.",
+                "ValidateVectorStoreDivergence rejects unknown statuses and rows without upstream/Gormes evidence.",
+                "TestVectorStoreDivergenceProof_LocalSemanticCacheHasNoExternalSyncState proves entity_embeddings has no sync_state/sync_attempts/last_sync_at columns and semanticSeeds still returns local SQLite results.",
+                "Existing semantic_sql fixtures continue to prove model filtering, cache invalidation, corrupt-row tolerance, and Top-K cosine behavior."
+              ],
+              "note": "Complete: added `internal/memory/vector_divergence.go` and `internal/memory/divergence_test.go`. The row records the intentional split from Honcho's external LanceDB/Turbopuffer plus sync-vector reconciler path and proves Gormes local semantic recall works from SQLite entity_embeddings without external sync columns, credentials, namespaces, or workers.",
+              "write_scope": [
+                "internal/memory/vector_divergence.go",
+                "internal/memory/divergence_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./internal/memory -run Divergence -count=1",
+                "go test ./internal/memory -count=1",
+                "go test ./...",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Divergence fixtures prove local SQLite semantic recall replaces external vector-store synchronization and records every excluded Honcho vector/reconciler surface explicitly."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "honcho:e659b6b src/vector_store/** src/reconciler/sync_vectors.py",
+                "note": "Honcho supplies external vector-store and reconciliation contracts; Gormes owns the local SQLite semantic-memory divergence inside the single binary."
+              }
+            },
+            {
               "name": "Directional peer cards and representation scopes",
               "priority": "P3",
               "status": "complete",
@@ -5972,6 +6034,89 @@
               }
             },
             {
+              "name": "Goncho CRUD lifecycle invariants",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Goncho service methods preserve Honcho's core workspace/session/message lifecycle invariants over local SQLite: message creation assigns session-local sequence numbers with workspace/session/peer metadata, session deletion cascades session-scoped messages/conclusions/summaries while preserving cross-session peer state, and workspace deletion cascades only that workspace's local Goncho rows.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Goncho records lifecycle identity in turn metadata instead of introducing a parallel hosted Honcho schema; OpenAPI route shapes, SDK pagination, webhooks, vector embeddings, documents, and queue workers remain separate rows.",
+              "fixture": "internal/goncho/crud_invariants_test.go",
+              "source_refs": [
+                "../honcho/src/models.py:Workspace",
+                "../honcho/src/models.py:Peer",
+                "../honcho/src/models.py:Session",
+                "../honcho/src/models.py:Message",
+                "../honcho/src/crud/message.py:create_messages",
+                "../honcho/src/crud/session.py:delete_session",
+                "../honcho/src/crud/workspace.py:delete_workspace",
+                "../honcho/tests/crud/test_workspace.py",
+                "../honcho/tests/crud/test_session.py",
+                "../honcho/tests/routes/test_messages.py",
+                "internal/goncho/service.go",
+                "internal/goncho/sql.go",
+                "internal/goncho/types.go"
+              ],
+              "ready_when": [
+                "Goncho topology design fixtures, summary context budget, conclusions, peer-card storage, and dream scheduler tables are validated on main.",
+                "The slice can remain inside internal/goncho service/sql code and tests without adding HTTP route handlers, CLI commands, hosted Honcho SDK clients, vector adapters, webhook delivery, or background workers.",
+                "Workspace identity is enforced through Goncho metadata and existing workspace_id columns so same session keys in different workspaces do not collide."
+              ],
+              "not_ready_when": [
+                "The slice implements OpenAPI v3 routes, SDK compatibility, webhook endpoints, document/vector storage, queue workers, or hosted Honcho auth instead of local lifecycle invariants.",
+                "The slice creates a second persistence queue outside the existing SQLite memory store.",
+                "The tests require Postgres, Redis, vector stores, external Honcho, network calls, or generated SDK clients."
+              ],
+              "unblocks": [
+                "Goncho HTTP route parity over OpenAPI v3",
+                "Goncho CLI command-tree parity",
+                "Goncho Honcho SDK compatibility e2e harness",
+                "Vector store + reconciler divergence proof"
+              ],
+              "acceptance": [
+                "CreateMessages stores a batch as ready turns with workspace/session/peer metadata and monotonically increasing seq_in_session values per workspace/session.",
+                "A second CreateMessages call for the same workspace/session continues from the last sequence number instead of restarting at one.",
+                "DeleteSession deletes only session-scoped messages, conclusions, and summaries for the workspace/session while preserving peer cards and global peer conclusions.",
+                "DeleteWorkspace deletes local Goncho messages, peer cards, conclusions, summaries, and dream rows for one workspace without deleting rows for another workspace using the same session key.",
+                "Focused tests prove the invariants over SQLite without OpenAPI, CLI, SDK, hosted Honcho, Postgres, Redis, vector store, webhook, or worker dependencies."
+              ],
+              "note": "Complete: TDD added internal/goncho/crud_invariants_test.go and Go-native lifecycle methods Service.CreateMessages, Service.DeleteSession, and Service.DeleteWorkspace backed by internal/goncho/sql.go helpers. CreateMessages stores Honcho-compatible workspace/session/peer/seq metadata on turns, session delete cascades session messages/conclusions/summaries while preserving cross-session peer state, and workspace delete cascades only that workspace's local Goncho rows even when another workspace shares the same session key. Verified with `go test ./internal/goncho -run CRUDInvariants -count=1` and `go test ./internal/goncho -count=1`.",
+              "write_scope": [
+                "internal/goncho/crud_invariants_test.go",
+                "internal/goncho/service.go",
+                "internal/goncho/sql.go",
+                "internal/goncho/types.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run CRUDInvariants -count=1",
+                "go test ./internal/goncho -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "CRUD lifecycle fixtures prove create-message sequencing, session-scoped cascade deletion, and workspace-scoped cascade deletion over local SQLite with no hosted Honcho dependencies."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T14:11:16Z",
+                "last_success": "2026-04-28T14:11:16Z"
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "honcho:src/crud/{workspace,session,message}.py + src/models.py",
+                "note": "Honcho defines the workspace/session/message lifecycle and deletion cascade semantics; Gormes adapts them to its local SQLite turn/conclusion/summary/dream tables before HTTP, CLI, SDK, vector, or webhook compatibility rows."
+              }
+            },
+            {
               "name": "Goncho empty peer-card hint contract",
               "priority": "P3",
               "status": "planned",
@@ -6061,8 +6206,11 @@
               "degraded_mode": "If a Honcho SDK flow is not supported locally, the harness reports sdk_flow_unsupported with the exact endpoint or field instead of silently diverging from Honcho.",
               "fixture": "internal/goncho/compat_harness_test.go::TestGonchoHonchoSDKCompatibility",
               "source_refs": [
-                "../honcho/sdks/python/tests/",
-                "../honcho/sdks/typescript/tests/",
+                "../honcho/tests/sdk/",
+                "../honcho/tests/sdk_typescript/",
+                "../honcho/sdks/python/src/honcho/",
+                "../honcho/sdks/typescript/src/",
+                "../honcho/sdks/typescript/__tests__/",
                 "../honcho/docs/v3/documentation/features/chat.mdx",
                 "../honcho/docs/v3/documentation/features/search.mdx",
                 "internal/goncho/service.go",
@@ -6105,7 +6253,7 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "honcho:e659b6b sdks/python/tests + sdks/typescript/tests",
+                "upstream_ref": "honcho:e659b6b tests/sdk + tests/sdk_typescript + sdks/python/src/honcho + sdks/typescript/src + sdks/typescript/__tests__",
                 "note": "Honcho supplies the public SDK contract; Gormes owns the in-process compatibility harness and local persistence."
               }
             },
@@ -6203,6 +6351,13 @@
               "degraded_mode": "Provider status reports missing fixture coverage or unavailable adapters before kernel routing can select them.",
               "fixture": "internal/hermes provider transcript fixtures",
               "source_refs": [
+                "../hermes-agent/agent/transports/base.py",
+                "../hermes-agent/agent/transports/types.py",
+                "../hermes-agent/agent/transports/chat_completions.py",
+                "../hermes-agent/agent/transports/anthropic.py",
+                "../hermes-agent/agent/transports/bedrock.py",
+                "../hermes-agent/agent/transports/codex.py",
+                "../hermes-agent/tests/agent/transports/test_transport.py",
                 "docs/content/upstream-hermes/source-study.md",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
@@ -6223,12 +6378,13 @@
                 "EOF after partial tool_call surfaces pending calls instead of dropping them.",
                 "Duplicate tool-name deltas cannot concatenate into invented names."
               ],
-              "note": "Complete: TDD landed `internal/hermes/provider_transcript_test.go` plus reusable fixtures under `internal/hermes/testdata/provider_transcripts/`. The harness replays request bodies and SSE transcripts without live credentials, covers Anthropic request shaping, reasoning/text stream events, finish_reason mapping, usage, and tool-call accumulation, and locks the upstream #12072/#0f778f77 regressions by flushing pending OpenAI-compatible and Anthropic tool calls on EOF while proving repeated tool-name deltas do not concatenate into invented names.",
+              "note": "Complete: TDD landed `internal/hermes/provider_transport.go`, `internal/hermes/provider_transport_contract_test.go`, `internal/hermes/provider_transcript_test.go`, and reusable fixtures under `internal/hermes/testdata/provider_transcripts/`. `internal/hermes.ProviderTransport` now exposes the provider-neutral request/fixture contract for `chat_completions`, `anthropic_messages`, `bedrock_converse`, and `codex_responses`; the harness replays request bodies and stream/response fixtures without live credentials, covers Anthropic request shaping, Bedrock Converse event decoding, Codex Responses normalization, reasoning/text stream events, finish_reason mapping, usage, and tool-call accumulation, and locks the upstream #12072/#0f778f77 regressions by flushing pending OpenAI-compatible and Anthropic tool calls on EOF while proving repeated tool-name deltas do not concatenate into invented names.",
               "write_scope": [
                 "internal/hermes/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
+                "go test ./internal/hermes -run ProviderTransport -count=1",
                 "go test ./internal/hermes -count=1"
               ],
               "done_signal": [
@@ -6467,6 +6623,75 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:ad0ac894 run_agent.py",
                 "note": "Upstream widened thinking-provider replay padding from assistant tool-call turns to all assistant turns."
+              }
+            },
+            {
+              "name": "Moonshot/Kimi tool-schema sanitizer",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Moonshot/Kimi OpenAI-compatible requests rewrite advertised tool schemas to Moonshot's stricter flavored JSON Schema subset only when the model slug targets Kimi/Moonshot",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Non-Moonshot OpenAI-compatible providers keep the generic tool schema sanitizer; Moonshot/Kimi requests get deterministic synthetic types and anyOf parent-type repair before the request leaves internal/hermes.",
+              "fixture": "internal/hermes/moonshot_schema_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/moonshot_schema.py",
+                "../hermes-agent/agent/transports/chat_completions.py:is_moonshot_model",
+                "../hermes-agent/tests/agent/test_moonshot_schema.py",
+                "../hermes-agent/tests/agent/transports/test_chat_completions.py:TestChatCompletionsKimi",
+                "internal/hermes/moonshot_schema.go",
+                "internal/hermes/moonshot_schema_test.go",
+                "internal/hermes/http_client.go"
+              ],
+              "ready_when": [
+                "Provider interface + stream fixture harness and generic tool-call schema sanitizer are validated, so the slice can be tested at the OpenAI-compatible request boundary without live Moonshot credentials."
+              ],
+              "not_ready_when": [
+                "The slice changes generic provider schemas, live credentials, response parsing, reasoning_content replay, or Kimi thinking/reasoning defaults instead of only porting the Moonshot tool-schema request repair."
+              ],
+              "blocked_by": [
+                "Provider interface + stream fixture harness",
+                "Tool-call argument repair + schema sanitizer"
+              ],
+              "unblocks": [
+                "Gemini",
+                "OpenRouter",
+                "Google Code Assist",
+                "Raw tool-call parser fixture matrix"
+              ],
+              "acceptance": [
+                "IsMoonshotModel detects bare, vendor-prefixed, and aggregator-prefixed Kimi/Moonshot model slugs and rejects unrelated model families.",
+                "SanitizeMoonshotToolParameters fills missing schema types, infers enum/object/array types, strips parent type when anyOf is present, preserves $ref nodes without synthetic types, traverses schema maps/lists/nodes, handles invalid inputs as empty object schemas, and does not mutate the input raw schema.",
+                "OpenAI-compatible request building applies the Moonshot sanitizer for aggregator-routed Moonshot models such as openrouter/moonshotai/kimi-k2-thinking.",
+                "Non-Moonshot OpenAI-compatible request building does not receive Moonshot-only synthetic missing-property types."
+              ],
+              "note": "Complete: TDD added `internal/hermes/moonshot_schema.go` and `internal/hermes/moonshot_schema_test.go`, then wired `internal/hermes/http_client.go` so only Moonshot/Kimi model slugs run the extra tool-parameter repair. The fixtures port upstream `agent/moonshot_schema.py` detection and schema rules: aggregator-prefixed Moonshot slugs match by model name, property/item/enum schemas without `type` receive deterministic types, anyOf parent `type` is stripped while children remain typed, `$ref` nodes are left untyped, top-level parameters are coerced to object schemas, invalid/non-object schemas return an empty object schema, schema-map/list/node containers (`patternProperties`, `definitions`, `prefixItems`, `contains`, `not`, `additionalProperties`, `propertyNames`) are traversed, and the input raw schema is not mutated. Request-boundary fixtures prove OpenRouter/aggregator Moonshot models send repaired tool schemas while unrelated OpenAI-compatible models keep the generic schema shape.",
+              "write_scope": [
+                "internal/hermes/moonshot_schema.go",
+                "internal/hermes/moonshot_schema_test.go",
+                "internal/hermes/http_client.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run Moonshot -count=1",
+                "go test ./internal/hermes -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Moonshot/Kimi schema fixtures and request-boundary tests prove the upstream flavored-JSON-Schema sanitizer is ported without changing non-Moonshot provider behavior."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:agent/moonshot_schema.py",
+                "note": "Hermes ports Moonshot's stricter tool-parameter validator repair into chat-completions request construction; Gormes keeps it inside internal/hermes with hermetic fixtures."
               }
             },
             {
@@ -8172,9 +8397,87 @@
               }
             },
             {
+              "name": "Context references stable-handle store",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes parses Hermes-compatible @ context references and allocates deterministic pending handles through a Go-native context-reference store without expanding files, running git, fetching URLs, or mutating kernel message history",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Reference handles remain pending until a later context-injection row attaches, blocks, or expands source content; handle allocation requires no provider, filesystem, git, URL, or kernel side effect.",
+              "fixture": "internal/hermes/context_references_test.go; internal/transcript/refs_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/context_references.py",
+                "../hermes-agent/tests/agent/test_context_references.py",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Context references",
+                "internal/hermes/context_references.go",
+                "internal/contextrefs/refs.go",
+                "internal/transcript/refs.go"
+              ],
+              "ready_when": [
+                "ContextEngine interface + status tool contract is validated on main.",
+                "The slice can be implemented as pure parser and handle-store behavior with no filesystem reads, git subprocesses, URL fetches, provider calls, summarizer calls, or kernel transcript mutation.",
+                "Manual compression feedback and live context expansion remain separate follow-up rows."
+              ],
+              "not_ready_when": [
+                "The slice expands @file, @folder, @diff, @staged, @git, or @url content instead of allocating stable handles.",
+                "The slice rewrites kernel message history, invokes summarization, changes provider routing, or binds context injection into the runtime loop.",
+                "The tests depend on live git repositories, network fetches, provider credentials, or local workspace files."
+              ],
+              "unblocks": [
+                "Manual compression feedback + context references",
+                "ContextEngine compression-boundary callback vocabulary",
+                "Prompt builder and skill prompt snapshots"
+              ],
+              "acceptance": [
+                "ParseContextReferences ignores email addresses and plain @handles while recognizing @file, @folder, @diff, @staged, @git, and @url references.",
+                "File references preserve quoted paths with spaces, Windows-style paths, and optional line ranges while stripping trailing punctuation from targets.",
+                "AttachContextReferenceHandles returns stripped user text, original text, parsed references, and pending deterministic handles without expanding source content.",
+                "ParseContextReferences ignores path-prefixed @ tokens such as `/@file:secret.txt` or `docs/@folder:src` so filesystem-looking strings do not become implicit attachments.",
+                "The transcript/contextrefs store coalesces equivalent references by kind, target, and line range rather than prompt position, and Snapshot returns a defensive copy.",
+                "Focused Go tests prove the parser and store behavior without provider, filesystem, git, URL, summarizer, or kernel dependencies."
+              ],
+              "note": "Complete: TDD added internal/hermes/context_references_test.go, internal/hermes/context_references.go, internal/contextrefs/refs.go, internal/transcript/refs.go, and internal/transcript/refs_test.go. The parser recognizes Hermes @ reference forms, ignores emails/plain handles, strips trailing punctuation, preserves quoted paths and line ranges, removes reference tokens from prompt text, and allocates deterministic pending handles through a store that coalesces equivalent references independently of prompt position. This slice intentionally does not expand file/folder/git/url content or bind context injection into the kernel. Verified with `go test ./internal/hermes -run ContextReferences -count=1`, `go test ./internal/transcript -run ContextReference -count=1`, and `go test ./internal/contextrefs ./internal/hermes ./internal/transcript -count=1`.",
+              "write_scope": [
+                "internal/hermes/context_references.go",
+                "internal/hermes/context_references_test.go",
+                "internal/contextrefs/refs.go",
+                "internal/transcript/refs.go",
+                "internal/transcript/refs_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run ContextReferences -count=1",
+                "go test ./internal/transcript -run ContextReference -count=1",
+                "go test ./internal/contextrefs ./internal/hermes ./internal/transcript -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermes-compatible @ reference parser fixtures and transcript handle-store fixtures prove deterministic pending handles for file/folder/git/url/diff/staged references without context expansion or runtime side effects."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T14:03:00Z",
+                "last_success": "2026-04-28T14:03:00Z"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:agent/context_references.py",
+                "note": "Hermes defines @ reference parsing, target cleanup, and context attachment semantics; Gormes first locks the Go parser and stable handle allocation before implementing live source expansion."
+              }
+            },
+            {
               "name": "Manual compression feedback + context references",
               "status": "planned",
-              "note": "TDD: port `manual_compression_feedback.py` and `context_references.py` as separate read/write contracts so user-visible compression feedback and reference handles are testable without a provider call."
+              "note": "TDD: port `manual_compression_feedback.py` and the remaining `context_references.py` live expansion/injection contracts as separate read/write contracts. The pure context-reference parser and stable handle store shipped in `Context references stable-handle store`; do not reopen that scope for manual feedback."
             },
             {
               "name": "ContextEngine compression-boundary callback vocabulary",
@@ -8839,6 +9142,78 @@
               "name": "Trajectory writer + redaction gates",
               "status": "planned",
               "note": "TDD: port `agent/trajectory.py` as an opt-in writer with deterministic message/tool snapshots, secret redaction, and failure-is-nonfatal behavior before broad telemetry capture."
+            },
+            {
+              "name": "Trajectory compressor + compressed-evidence lineage",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "internal/transcript owns the pure Hermes trajectory compression decision and metrics algorithm, while internal/audit owns redacted compressed-lineage evidence that hashes summary text instead of storing it",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "This slice does not call a live summarizer or process directories; callers must supply summary text and can still record lineage without leaking summary contents into audit JSONL.",
+              "fixture": "internal/transcript/trajectory_compressor_test.go",
+              "source_refs": [
+                "../hermes-agent/trajectory_compressor.py:_find_protected_indices",
+                "../hermes-agent/trajectory_compressor.py:_extract_turn_content_for_summary",
+                "../hermes-agent/trajectory_compressor.py:_ensure_summary_prefix",
+                "../hermes-agent/trajectory_compressor.py:compress_trajectory",
+                "../hermes-agent/tests/test_trajectory_compressor.py",
+                "internal/transcript/trajectory_compressor.go",
+                "internal/audit/trajectory_link.go"
+              ],
+              "ready_when": [
+                "Session lineage rows are validated, so this slice can stay pure and avoid mutating transcript history.",
+                "The worker can inject a deterministic token counter and summary string; no live OpenRouter/Moonshot credential, tokenizer, async batch worker, or filesystem traversal is required."
+              ],
+              "not_ready_when": [
+                "The slice opens provider connections, summarizes through an LLM, rewrites existing persisted sessions, processes JSONL directories, or implements CLI flags instead of the pure compression core and audit envelope."
+              ],
+              "blocked_by": [
+                "parent_session_id lineage for compression splits"
+              ],
+              "unblocks": [
+                "Trajectory writer + redaction gates",
+                "Kernel compression-boundary callback binding",
+                "Self-monitoring telemetry"
+              ],
+              "acceptance": [
+                "Protected-index fixtures preserve first system/human/gpt/tool turns and the last N turns while making only the middle region compressible.",
+                "Summary-content extraction formats `[Turn N - ROLE]` blocks, treats the end index as exclusive, and truncates long values with the Hermes marker.",
+                "Compression replaces the selected middle turns with one human `[CONTEXT SUMMARY]:` turn, appends the configured system notice, preserves the tail, does not mutate input turns, and reports original/compressed tokens, turns removed, region indexes, and over-limit status.",
+                "Under-target or all-protected trajectories return unchanged copies with skipped or over-limit metrics.",
+                "Audit lineage records parent/child session IDs, compressed region, token/turn counts, timestamp, and summary SHA-256 without writing raw summary text."
+              ],
+              "note": "Complete: TDD added internal/transcript/trajectory_compressor.go plus fixtures for Hermes protected-turn selection, config knobs, summary-content extraction, summary-prefix normalization, middle-turn replacement, input immutability, skip-under-target behavior, and metrics. internal/audit/trajectory_link.go adds a redacted compressed-evidence envelope and audit record helper that trims session ids and stores only a SHA-256 of the summary. This ports the deterministic core of trajectory_compressor.py; live summarization, async directory processing, provider temperature selection, and CLI/batch IO remain separate future rows.",
+              "write_scope": [
+                "internal/transcript/trajectory_compressor.go",
+                "internal/transcript/trajectory_compressor_test.go",
+                "internal/audit/trajectory_link.go",
+                "internal/audit/trajectory_link_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./internal/transcript -run TrajectoryCompressor -count=1",
+                "go test ./internal/audit -run Trajectory -count=1",
+                "go test ./internal/transcript ./internal/audit -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Trajectory compressor fixtures prove protected-middle compression metrics and redacted lineage audit evidence without live provider calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:trajectory_compressor.py",
+                "note": "Hermes provides the protected-region and metrics algorithm; Gormes ports the pure core first so persisted compression execution and CLI/batch processing can build on a tested Go boundary."
+              }
             },
             {
               "name": "Self-monitoring telemetry",
@@ -10077,7 +10452,7 @@
               "name": "Hermes and Honcho feature parity map to Go implementation plan",
               "priority": "P1",
               "status": "complete",
-              "contract": "A planner pass maps Hermes agent loop, provider routing, prompt assembly, tool continuation, memory plugin, skills/plugins, API, CLI, operator commands, and Honcho memory/server/SDK concepts into Go package targets, implementation strategy, proof gates, and progress.json anchors.",
+              "contract": "A planner pass maps Hermes agent loop, provider routing, prompt assembly, tool continuation, memory plugin, skills/plugins, API, CLI, operator commands, and Honcho memory/server/SDK concepts into Go package targets, implementation strategy, proof gates, subsystem classifications, dependency order, and progress.json anchors.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
@@ -10086,7 +10461,7 @@
                 "system"
               ],
               "degraded_mode": "Unmapped upstream behavior is reported as parity_unmapped with upstream path, Gormes package, and proposed row instead of being hidden in prose.",
-              "fixture": "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+              "fixture": "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
               "source_refs": [
                 "../hermes-agent/run_agent.py",
                 "../hermes-agent/agent/",
@@ -10098,6 +10473,8 @@
                 "../honcho/src/",
                 "../honcho/docs/v3/",
                 "../honcho/sdks/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "ready_when": [
@@ -10113,12 +10490,15 @@
               ],
               "acceptance": [
                 "Hermes And Honcho Feature Map names all major Hermes feature families and Honcho concepts with upstream refs, Go targets, implementation strategy, and progress anchors.",
+                "Hermes/Honcho To Gormes Go Runtime Plan classifies every broad subsystem as owned, mapped-by-symbol, mapped-by-contract, excluded, still row-backed, or a gap that must be converted into a row or divergence decision.",
+                "The runtime plan records row-splitting candidates for nested Hermes and Honcho surfaces including provider transports, ACP/MCP, tool parsers, Yuanbao, Honcho OpenAPI, SDKs, MCP, CLI, queue, document tree, webhooks, telemetry, deploy divergence, and live-LLM exclusions.",
                 "The map calls out broad umbrella rows that must not be selected by builder skills.",
                 "Completion Plan, Lane Roadmap, Architecture Plan, and Building Gormes overview link to the map.",
                 "Generated Hugo pages reflect the updated rows after go run ./cmd/progress write."
               ],
-              "note": "Complete in the 2026-04-28 gormes-planner pass: added hermes-honcho-feature-map.md, linked it from the planning spine, and mapped Hermes runtime/providers/tools/gateway/CLI/plugins plus Honcho workspaces/peers/sessions/messages/conclusions/representations/search/context/dreams/queue/files/SDKs into Go package targets and proof gates.",
+              "note": "Updated in the 2026-04-28 gormes-planner swarm pass: hermes-honcho-go-runtime-plan.md now reconciles the feature map, source-class ledger, swarm audit, nested coverage matrix, package ownership, classifications, dependency order, and row split candidates for Hermes/Honcho-to-Go implementation.",
               "write_scope": [
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
                 "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
                 "docs/content/building-gormes/architecture_plan/subsystem-inventory.md",
                 "docs/content/building-gormes/architecture_plan/progress.json",
@@ -10130,10 +10510,11 @@
               "test_commands": [
                 "go run ./cmd/progress write",
                 "go run ./cmd/progress validate",
+                "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
                 "go test ./docs -count=1"
               ],
               "done_signal": [
-                "Hermes/Honcho feature map docs make the remaining normal-turn, provider, CLI/API, tool, gateway, plugin, Goncho memory, SDK, and operator-command gaps visible with Go targets and proof gates."
+                "Hermes/Honcho runtime-plan docs make the remaining normal-turn, provider, CLI/API, tool, gateway, plugin, Goncho memory, SDK, and operator-command gaps visible with Go targets, classifications, proof gates, and row split candidates."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -10216,6 +10597,247 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes-agent current tree + honcho current tree",
                 "note": "Turns full-parity mapping into an auditable source-class coverage contract."
+              }
+            },
+            {
+              "name": "Swarm feature-level parity audit for Hermes/Honcho map",
+              "priority": "P0",
+              "status": "complete",
+              "contract": "A five-lane sub-agent parity audit checks the Hermes/Honcho feature map beyond top-level source classes, records missing or vague feature-level surfaces, and maps every finding to a Go package target and progress action without implementing runtime code.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If any swarm lane reports missing or vague behavior, Gormes reports source_class_mapped_but_feature_level_incomplete and records the gap in Swarm Feature Parity Audit instead of claiming full feature parity.",
+              "fixture": "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+              "source_refs": [
+                "../hermes-agent/run_agent.py",
+                "../hermes-agent/agent/",
+                "../hermes-agent/agent/transports/",
+                "../hermes-agent/trajectory_compressor.py",
+                "../hermes-agent/tools/",
+                "../hermes-agent/gateway/",
+                "../hermes-agent/hermes_cli/",
+                "../hermes-agent/plugins/",
+                "../hermes-agent/skills/",
+                "../hermes-agent/acp_adapter/",
+                "../hermes-agent/mcp_serve.py",
+                "../honcho/src/",
+                "../honcho/docs/v3/openapi.json",
+                "../honcho/tests/sdk/",
+                "../honcho/sdks/typescript/__tests__/",
+                "../honcho/mcp/src/tools/",
+                "../honcho/honcho-cli/src/honcho_cli/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+                "docs/upstream_coverage_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "ready_when": [
+                "The planner can spawn read-only sub-agents over independent Hermes/Honcho surfaces.",
+                "Sibling hermes-agent and honcho checkouts are available or the audit records missing upstream sources.",
+                "The pass edits only docs, progress rows, or tests for planning proof."
+              ],
+              "not_ready_when": [
+                "The pass uses sub-agents to implement runtime feature code.",
+                "The pass claims full feature parity when any swarm lane reports missing or vague behavior.",
+                "The pass creates a side backlog outside progress.json."
+              ],
+              "acceptance": [
+                "Swarm Feature Parity Audit records the five audit lanes: Hermes runtime/providers, Hermes tools/security/plugins, Hermes gateway/CLI/release, Honcho core/Goncho, and Honcho SDK/docs/MCP/CLI/deploy.",
+                "Each reported missing or vague surface is mapped to upstream refs, a Go target, and a progress action.",
+                "The audit distinguishes source-class completeness from feature-level completeness.",
+                "The planning spine links to the swarm audit so future planner and builder skills cannot treat broad source-class coverage as full feature parity."
+              ],
+              "note": "Complete in the 2026-04-28 gormes-planner swarm pass: five read-only sub-agents audited independent Hermes/Honcho surfaces and found source-class coverage is proven but feature-level mapping remains incomplete until the swarm gap register is resolved into builder-ready rows.",
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+                "docs/content/building-gormes/architecture_plan/_index.md",
+                "docs/content/building-gormes/architecture_plan/completion-plan.md",
+                "docs/content/building-gormes/_index.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go run ./cmd/progress write",
+                "go run ./cmd/progress validate",
+                "go test ./docs -run TestUpstreamCoverageLedgerMatchesSourceClasses -count=1",
+                "go test ./docs -count=1"
+              ],
+              "done_signal": [
+                "The docs now answer that source-class coverage is executable but full feature-level mapping is not complete until the swarm gap register is empty or every gap has a builder-ready row."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "swarm audit over hermes-agent current tree + honcho current tree",
+                "note": "Turns user-requested sub-agent swarm review into a durable planning artifact."
+              }
+            },
+            {
+              "name": "Hermes/Honcho Go runtime plan second-wave reconciliation",
+              "priority": "P0",
+              "status": "complete",
+              "contract": "A second-wave sub-agent reconciliation turns the raw Hermes/Honcho swarm findings into one canonical Go runtime implementation plan, classifying every subsystem as owned, mapped-by-symbol, mapped-by-contract, excluded, or still row-backed, with no subsystem-level unknown/gap remaining.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If a future parity pass finds an unclassified subsystem, Gormes reports unknown_gap_in_runtime_plan and requires gormes-planner to update the runtime plan, feature map, swarm audit, upstream ledger, progress rows, and nested coverage test before builder selection.",
+              "fixture": "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+              "source_refs": [
+                "../hermes-agent/run_agent.py",
+                "../hermes-agent/agent/",
+                "../hermes-agent/tools/",
+                "../hermes-agent/gateway/",
+                "../hermes-agent/hermes_cli/",
+                "../hermes-agent/acp_adapter/",
+                "../hermes-agent/mcp_serve.py",
+                "../hermes-agent/plugins/",
+                "../hermes-agent/skills/",
+                "../hermes-agent/optional-skills/",
+                "../honcho/src/",
+                "../honcho/docs/v3/openapi.json",
+                "../honcho/tests/",
+                "../honcho/sdks/python/src/",
+                "../honcho/sdks/typescript/src/",
+                "../honcho/sdks/typescript/__tests__/",
+                "../honcho/mcp/src/tools/",
+                "../honcho/honcho-cli/src/honcho_cli/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/development-skills/gormes-planner/references/parity-map.md",
+                "docs/development-skills/gormes-planner/references/progress-row-contract.md",
+                "docs/upstream_coverage_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "ready_when": [
+                "The source-lane swarm findings for Hermes runtime/providers, Hermes tools/security/plugins, Hermes gateway/CLI/release, Honcho core/Goncho, and Honcho SDK/MCP/CLI/deploy are available.",
+                "Second-wave reconciliation can classify large surfaces without implementing runtime code.",
+                "The pass updates only docs, planner references, tests, and progress rows."
+              ],
+              "not_ready_when": [
+                "The pass tries to implement runtime code under cmd or internal.",
+                "Any subsystem remains unknown/gap without an owned, excluded, mapped, or row-backed decision.",
+                "The pass creates a side backlog outside progress.json."
+              ],
+              "acceptance": [
+                "Hermes/Honcho To Gormes Go Runtime Plan has the required sections: Evidence Corpus, Classification Vocabulary, Hermes Feature Map, Honcho Feature Map, Go Implementation Order, Nested Feature-Level Coverage Matrix, Swarm Gap Matrix, and Progress Register Actions.",
+                "Every broad Hermes and Honcho subsystem is classified as owned, mapped-by-symbol, mapped-by-contract, excluded, or still row-backed.",
+                "The runtime plan states that no subsystem-level unknown/gap remains after the two-wave swarm pass.",
+                "The architecture index, building index, completion plan, feature map, upstream ledger, and swarm audit link to the runtime plan.",
+                "Planner reference docs explain the full-map classification vocabulary and exact nested-ref requirement."
+              ],
+              "note": "Complete in the 2026-04-28 gormes-planner second-wave swarm pass: source mappers fed architecture, runtime-contract, test-matrix, docs/register, and gap-classifier agents, producing a canonical Go runtime plan that maps all Hermes/Honcho subsystems without claiming implementation parity.",
+              "unblocks": [
+                "Nested feature-level coverage test matrix for swarm gaps"
+              ],
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/_index.md",
+                "docs/content/building-gormes/architecture_plan/completion-plan.md",
+                "docs/content/building-gormes/_index.md",
+                "docs/development-skills/gormes-planner/references/parity-map.md",
+                "docs/development-skills/gormes-planner/references/progress-row-contract.md",
+                "docs/upstream_coverage_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go run ./cmd/progress write",
+                "go run ./cmd/progress validate",
+                "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
+                "go test ./docs -count=1"
+              ],
+              "done_signal": [
+                "The runtime plan is the canonical Hermes/Honcho-to-Gormes Go implementation map, with zero subsystem-level unknown/gap items and nested coverage protected by docs tests."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "two-wave swarm audit over hermes-agent current tree + honcho current tree",
+                "note": "Turns full-map swarm output into an implementation-ready planning register without adding runtime code."
+              }
+            },
+            {
+              "name": "Nested feature-level coverage test matrix for swarm gaps",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Docs tests verify selected nested upstream feature classes from the swarm audit, including Hermes provider transports/tools/plugins/skills/ACP/MCP and Honcho SDK/MCP/CLI/OpenAPI/deploy/test fixtures, so broad top-level source-class globs cannot hide unmapped behavior.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If a nested upstream path is not represented in the feature map, swarm audit, or progress row, the test reports nested_feature_unmapped with the upstream path and expected ledger evidence.",
+              "fixture": "docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
+              "source_refs": [
+                "docs/upstream_coverage_test.go",
+                "docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "../hermes-agent/agent/transports/",
+                "../hermes-agent/tools/yuanbao_tools.py",
+                "../hermes-agent/acp_adapter/",
+                "../hermes-agent/mcp_serve.py",
+                "../hermes-agent/plugins/",
+                "../hermes-agent/skills/",
+                "../honcho/docs/v3/openapi.json",
+                "../honcho/src/routers/",
+                "../honcho/src/deriver/queue_manager.py",
+                "../honcho/mcp/src/tools/",
+                "../honcho/honcho-cli/src/honcho_cli/",
+                "../honcho/tests/sdk/",
+                "../honcho/sdks/typescript/__tests__/",
+                "../honcho/tests/live_llm/README.md"
+              ],
+              "ready_when": [
+                "Swarm Feature Parity Audit exists and names nested paths that broad source-class coverage missed.",
+                "The test can skip absent sibling upstream repos while failing when present repos have unmapped nested feature paths.",
+                "The pass updates docs/progress only."
+              ],
+              "not_ready_when": [
+                "The test requires implementing runtime parity before it can detect docs coverage drift.",
+                "The test uses broad top-level globs instead of named nested feature paths.",
+                "The pass marks feature parity complete without resolving missing or vague swarm findings."
+              ],
+              "acceptance": [
+                "A focused docs test fails when named nested upstream paths from the swarm audit have no feature-map, swarm-audit, runtime-plan, or progress evidence.",
+                "The nested matrix includes Hermes transports, runtime, Yuanbao tools, ACP, MCP, plugins, skills, and Honcho SDK/OpenAPI/routes/MCP/CLI/deriver/vector/live-LLM/deploy/test paths.",
+                "The test rejects broad-only evidence such as tests/**, agent/**, tools/**, src/**, sdks/**, and mcp/**.",
+                "The test verifies key docs progress rows have source_refs, write_scope, acceptance, done_signal, and test_commands or no_test_required.",
+                "The test preserves normal CI behavior by skipping absent sibling upstream repos."
+              ],
+              "note": "Complete in the 2026-04-28 gormes-planner swarm pass: TestNestedUpstreamFeatureCoverage now checks representative nested Hermes/Honcho paths against the feature map, runtime plan, swarm audit, upstream ledger, and progress.json, rejecting broad-only evidence and proving the nested matrix is executable.",
+              "write_scope": [
+                "docs/upstream_coverage_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
+                "go run ./cmd/progress validate",
+                "go test ./docs -count=1"
+              ],
+              "done_signal": [
+                "Nested upstream feature paths from the swarm audit are protected by docs tests, making feature-level mapping drift visible before builder selection."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "swarm feature-level parity audit gaps",
+                "note": "Follows up on the top-level ledger test, which intentionally cannot prove nested feature-level coverage by itself."
               }
             }
           ],
@@ -11831,6 +12453,78 @@
                 "Managed tool gateway bridge"
               ],
               "note": "Complete as an umbrella closeout: the dependency-ordered rows below now validate config/env parsing, stdio and HTTP tool/list discovery, schema normalization/structured content, OAuth state and refresh recovery, and the managed gateway bridge. Future Hermes MCP drift should become new small rows rather than reopening this inventory row."
+            },
+            {
+              "name": "Goncho MCP tool catalog",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "internal/gonchotools exposes a source-backed catalog for every upstream Honcho MCP tool name, classifying each row as mapped, partially mapped with field-level degradation, or unsupported with rationale.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported and partial Honcho MCP tools remain visible as catalog rows with source path, input contract, unsupported input names, and reasons instead of silently disappearing from parity planning.",
+              "fixture": "internal/gonchotools/honcho_mcp_catalog_test.go",
+              "source_refs": [
+                "../honcho/mcp/src/server.ts",
+                "../honcho/mcp/src/tools/workspace.ts",
+                "../honcho/mcp/src/tools/peers.ts",
+                "../honcho/mcp/src/tools/sessions.ts",
+                "../honcho/mcp/src/tools/conclusions.ts",
+                "../honcho/mcp/src/tools/system.ts",
+                "internal/gonchotools/honcho_mcp_catalog.go",
+                "internal/gonchotools/honcho_tools.go"
+              ],
+              "ready_when": [
+                "Existing Goncho tool descriptors are registered in internal/gonchotools, so mapped rows can be verified without implementing a live MCP server.",
+                "The slice can remain a pure catalog and must not open transports, modify MCP clients, or add runtime HTTP handlers."
+              ],
+              "not_ready_when": [
+                "The slice starts a live MCP server, rewrites Goncho tool execution, adds HTTP routes, or marks broad upstream modules covered without per-tool rows."
+              ],
+              "blocked_by": [
+                "Goncho context representation options",
+                "Goncho dialectic chat contract",
+                "MCP schema normalization + structured-content adapter"
+              ],
+              "unblocks": [
+                "Goncho HTTP route parity over OpenAPI v3",
+                "Goncho CLI command-tree parity",
+                "Honcho API validation limits and metadata sanitizer"
+              ],
+              "acceptance": [
+                "HonchoMCPToolCatalog returns exactly the 30 upstream tool names registered from workspace, peers, sessions, conclusions, and system modules in server.ts order.",
+                "Mapped entries point at registered Goncho descriptors such as honcho_chat, honcho_profile, and honcho_context.",
+                "Partial entries point at registered Goncho descriptors but list unsupported upstream inputs such as target_peer_id and max_conclusions with field-level reasons.",
+                "Unsupported entries include a source path, input contract, and unsupported reason so future builders can split them without rediscovering upstream.",
+                "The catalog returns defensive copies so callers cannot mutate canonical parity rows or unsupported-input maps."
+              ],
+              "note": "Complete: TDD added internal/gonchotools/honcho_mcp_catalog.go and internal/gonchotools/honcho_mcp_catalog_test.go. The catalog enumerates all 30 tools registered by Honcho MCP server.ts across workspace, peers, sessions, conclusions, and system modules; maps fully covered peer-card surfaces to existing Goncho descriptors; records partial compatibility for chat.target_peer_id, get_peer_context.target_peer_id, and get_peer_context.max_conclusions; and marks workspace metadata, session CRUD/message surfaces, representation string reads, conclusion object query/top_k, target-scoped bulk conclusions, dreams, and queue status as explicit unsupported rows with source and input evidence. Fixtures prove exact upstream name coverage, mapped/partial rows resolve against the registered Goncho tool registry, unsupported rows carry reasons, representative input contracts and field-level degraded inputs are preserved, and returned catalog slices/maps are defensive copies.",
+              "write_scope": [
+                "internal/gonchotools/honcho_mcp_catalog.go",
+                "internal/gonchotools/honcho_mcp_catalog_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./internal/gonchotools -run HonchoMCPCatalog -count=1",
+                "go test ./internal/gonchotools -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Honcho MCP catalog fixtures prove every upstream MCP tool name is mapped, partially mapped with unsupported input evidence, or explicitly unsupported."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "honcho:mcp/src/server.ts + mcp/src/tools/*.ts",
+                "note": "Honcho MCP contributes the tool-name and input-contract source of truth; Gormes owns a Go catalog that keeps missing surfaces visible before implementing a live MCP compatibility server."
+              }
             },
             {
               "name": "MCP server config/env resolver",
