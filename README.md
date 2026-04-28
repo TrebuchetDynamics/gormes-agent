@@ -14,6 +14,8 @@ Gormes is built for agents that need to stay running across restarts, machines, 
 
 ![Gormes native TUI running offline](docs/assets/gormes-tui-demo.gif)
 
+The offline TUI starts without credentials, provider calls, Python, Node, Docker, or a Hermes process.
+
 <p align="center">
   <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
   <a href="https://github.com/TrebuchetDynamics/gormes-agent"><img src="https://img.shields.io/badge/GitHub-TrebuchetDynamics%2Fgormes--agent-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
@@ -25,8 +27,7 @@ Gormes is built for agents that need to stay running across restarts, machines, 
 ## TL;DR
 
 - One static Go binary runs the TUI, diagnostics, provider turns, and configured gateways.
-- `gormes --offline` proves the runtime works before credentials, network calls, or token spend.
-- Early-stage: useful today, not production-stable yet.
+- `./bin/gormes --offline` proves the runtime works before credentials, network calls, or token spend.
 
 ---
 
@@ -91,19 +92,25 @@ It also means memory can stay boring and local. Goncho keeps session history, pe
 
 - Run a local agent UI without installing Python, Node, or Docker at runtime.
 - Send one-shot prompts to any provider-compatible endpoint from one binary.
-- Validate your runtime before spending tokens with `gormes doctor --offline`.
+- Validate your runtime before spending tokens with `./bin/gormes doctor --offline`.
 - Operate Telegram, Discord, or Slack agents through one gateway runtime.
-- Develop and debug Goncho memory entirely offline with `gormes goncho doctor`.
+- Develop and debug Goncho memory entirely offline with `./bin/gormes goncho doctor`.
 
 ## Example: Run A One-Shot Turn
 
-Configure a provider-compatible endpoint and run one prompt:
+Configure a provider-compatible endpoint in your local config:
+
+```toml
+# ~/.config/gormes/config.toml
+[hermes]
+endpoint = "https://your-provider.example/v1"
+api_key = "..."
+model = "your-model"
+```
+
+Then run one prompt:
 
 ```bash
-export GORMES_ENDPOINT="https://your-provider.example/v1"
-export GORMES_API_KEY="..."
-export GORMES_MODEL="your-model"
-
 ./bin/gormes --oneshot "Summarize this repo in one sentence"
 ```
 
@@ -113,7 +120,7 @@ Example output:
 Gormes runs AI agents as a single static Go runtime with no Python backend.
 ```
 
-Use `./bin/gormes` without `--oneshot` to open the TUI against the same configured runtime. If your provider needs an explicit route, pass `--provider <name>` or set `GORMES_INFERENCE_PROVIDER`.
+Use `./bin/gormes` without `--oneshot` to open the TUI against the same configured runtime. If your provider needs an explicit route, pass `--provider <name>` with an explicit `--model <model>`.
 
 ## Current State
 
@@ -179,30 +186,18 @@ Pre-compiled binaries are not the primary trust path yet. The release target is 
 
 Gateway setup details stay in the docs. The README-level operator contract is:
 
-- `gormes gateway` runs every configured channel through one `gateway.Manager` and the same kernel/tool loop as the TUI.
-- `gormes gateway status` reads configured channels, pairing state, persisted runtime state, and runtime PID validation without starting channel clients.
-- `gormes doctor --offline` reports gateway readiness alongside local tools, provider configuration, and Goncho diagnostics.
-- Telegram, Discord, and Slack are the current `gormes gateway` runtime channels. WhatsApp, WeChat, and the broader connector backlog remain progress-row work until their live transports are exposed through the gateway command.
-- `gateway start`, `stop`, `restart`, `install`, and `uninstall` are intentionally not mutating service-manager commands inside the binary; run `gormes gateway` in the foreground or supervise it externally.
+- `./bin/gormes gateway` runs configured Telegram, Discord, and Slack channels through the same kernel/tool loop as the TUI.
+- `./bin/gormes gateway status` reads configured channel state without starting channel clients.
+- `./bin/gormes doctor --offline` reports gateway readiness alongside local tools, provider configuration, and Goncho diagnostics.
 
 | Action | Native CLI / TUI | Configured gateway |
 |---|---|---|
 | **Start chatting** | `./bin/gormes` | Send a message to the paired bot |
-| **Run offline diagnostics** | `gormes doctor --offline` | CLI only |
-| **Inspect Goncho memory** | `gormes goncho doctor --json` | Planned |
+| **Run offline diagnostics** | `./bin/gormes doctor --offline` | CLI only |
+| **Inspect Goncho memory** | `./bin/gormes goncho doctor --json` | Planned |
 | **Persist subagent jobs** | Native execution | Routed through gateway |
 
 Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-systems/gateway/).
-
----
-
-## Coming From Python Hermes
-
-Gormes is a standalone Go-native rewrite of the Hermes Agent architecture. It does not require a running Hermes process, and it does not read `~/.hermes` state on startup.
-
-- Use Gormes-scoped provider variables such as `GORMES_ENDPOINT`, `GORMES_API_KEY`, and `GORMES_MODEL`.
-- Hermes config migration is tracked under Phase 5.O; dry-run manifest work exists, but automatic state import is not a production README path yet.
-- SOUL.md, context-file, plugin, MCP, and ACP compatibility remain deeper roadmap surfaces until their operator docs say otherwise.
 
 ---
 
@@ -212,7 +207,7 @@ Gormes is designed for high-trust environments. Auditability comes from source-f
 
 - Source build is the recommended install path. Convenience installers remain inspect-first from GitHub raw URLs rather than `curl | sh` or `irm | iex`.
 - The current build is ~17.7 MB, stripped, static, zero-CGO, and has no hidden shared library dependency.
-- `gormes doctor --offline` reports local TUI, built-in tools, Goncho, gateway, Slack, and provider-endpoint readiness without contacting a model provider.
+- `./bin/gormes doctor --offline` reports local TUI, built-in tools, Goncho, gateway, Slack, and provider-endpoint readiness without contacting a model provider.
 - Network calls go to configured provider or gateway endpoints; offline diagnostics do not contact a model provider.
 - The runtime is a local binary and does not act as a self-updating dropper.
 - Security reporting policy lives in [SECURITY.md](SECURITY.md).
@@ -232,6 +227,16 @@ Gormes keeps the operator-facing runtime in Go:
 - `docs/content/building-gormes/architecture_plan/progress.json` is the canonical roadmap.
 
 Architecture depth belongs in the docs: [Core systems](https://docs.gormes.ai/building-gormes/core-systems/) and [Architecture plan](https://docs.gormes.ai/building-gormes/architecture_plan/).
+
+---
+
+## Coming From Python Hermes
+
+Gormes is a standalone Go-native rewrite of the Hermes Agent architecture. It does not require a running Hermes process, and it does not read `~/.hermes` state on startup.
+
+- Use Gormes' own `config.toml` with `[hermes]` provider settings for endpoint, API key, and model.
+- Hermes config migration is tracked under Phase 5.O; dry-run manifest work exists, but automatic state import is not a production README path yet.
+- SOUL.md, context-file, plugin, MCP, and ACP compatibility remain deeper roadmap surfaces until their operator docs say otherwise.
 
 ---
 
