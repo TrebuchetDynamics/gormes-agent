@@ -6344,6 +6344,85 @@
               }
             },
             {
+              "name": "Goncho CLI command-tree parity",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes owns a source-backed Honcho CLI command-tree manifest that enumerates upstream honcho-cli commands, global flags, command groups, JSON/exit/confirm contracts, and classifies each command as implemented or still row-backed.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "This slice does not implement the missing Honcho CLI commands. Only `cmd/gormes goncho doctor` is marked implemented; every other upstream command/global flag remains row-backed with residual behavior for future CLI adapter rows.",
+              "fixture": "cmd/gormes/goncho_cli_parity_test.go",
+              "source_refs": [
+                "../honcho/honcho-cli/src/honcho_cli/main.py",
+                "../honcho/honcho-cli/src/honcho_cli/commands/setup.py",
+                "../honcho/honcho-cli/src/honcho_cli/commands/workspace.py",
+                "../honcho/honcho-cli/src/honcho_cli/commands/peer.py",
+                "../honcho/honcho-cli/src/honcho_cli/commands/session.py",
+                "../honcho/honcho-cli/src/honcho_cli/commands/message.py",
+                "../honcho/honcho-cli/src/honcho_cli/commands/conclusion.py",
+                "../honcho/honcho-cli/src/honcho_cli/commands/config_cmd.py",
+                "../honcho/honcho-cli/tests/test_commands.py",
+                "../honcho/honcho-cli/tests/test_config.py",
+                "../honcho/honcho-cli/tests/test_validation.py",
+                "cmd/gormes/goncho_cli_parity.go",
+                "cmd/gormes/goncho_cli_parity_test.go",
+                "cmd/gormes/goncho.go"
+              ],
+              "ready_when": [
+                "Goncho HTTP route manifest and local doctor diagnostics are validated.",
+                "The slice can remain a command-tree manifest/classification package and must not add hosted Honcho SDK clients, live network calls, destructive command execution, or broad CLI command binding."
+              ],
+              "not_ready_when": [
+                "The slice attempts to implement all Honcho CLI commands, generated clients, API mutation commands, or interactive setup flows in one pass.",
+                "The implementation claims command parity without reading upstream honcho-cli source files and tests."
+              ],
+              "unblocks": [
+                "Goncho Honcho SDK compatibility e2e harness",
+                "Gateway, platform, webhook, and cron management CLI",
+                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+              ],
+              "acceptance": [
+                "gonchoCLICompatibilityManifest enumerates upstream global flags, top-level commands, command groups, and subcommands from honcho-cli.",
+                "A test reads upstream honcho-cli source files and fails if the command tree changes without updating the manifest.",
+                "Only `doctor` is classified as implemented and is checked against the current Cobra `goncho doctor` surface.",
+                "Every row-backed command has a residual contract for missing JSON/table output, config preservation, ID validation, destructive confirmation, exit-code, or command execution behavior.",
+                "The manifest returns defensive copies so future command wiring cannot mutate canonical parity rows."
+              ],
+              "note": "Complete: added `cmd/gormes/goncho_cli_parity.go` and `cmd/gormes/goncho_cli_parity_test.go`. The manifest maps Honcho CLI global `--json`/`--version`, top-level `init`, `doctor`, `help`, the `workspace`, `peer`, `session`, `message`, `conclusion`, and `config` groups, plus every upstream subcommand. Tests read `../honcho/honcho-cli/src/honcho_cli/**`, compare command paths, prove only `cmd/gormes goncho doctor` is currently implemented, require residual row-backed evidence for the rest, and lock defensive-copy behavior. No hosted Honcho SDK client, destructive command, interactive setup flow, or broad command binding was implemented.",
+              "write_scope": [
+                "cmd/gormes/goncho_cli_parity.go",
+                "cmd/gormes/goncho_cli_parity_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run GonchoCLIParity -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "CLI command-tree fixtures prove every upstream Honcho CLI command/global flag is classified, current `goncho doctor` support is real, and all missing command behavior remains explicitly row-backed."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T15:52:00Z",
+                "last_success": "2026-04-28T15:52:00Z"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "honcho:honcho-cli/src/honcho_cli/** + honcho-cli/tests/**",
+                "note": "Honcho CLI source and tests define the compatibility command tree; Gormes owns a local manifest and leaves command execution parity to future bounded command rows."
+              }
+            },
+            {
               "name": "Goncho Honcho SDK compatibility e2e harness",
               "priority": "P1",
               "status": "planned",

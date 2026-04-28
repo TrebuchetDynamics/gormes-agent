@@ -408,6 +408,7 @@ classification and row-backed implementation queue.
 
 - [x] Goncho keys + webhooks compatibility surface
 - [x] Goncho HTTP route parity over OpenAPI v3
+- [x] Goncho CLI command-tree parity
 - [ ] Goncho Honcho SDK compatibility e2e harness
 - [ ] Goncho memory integration into normal agent turn
 
