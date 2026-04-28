@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
 func TestExportMarkdown_Golden(t *testing.T) {
@@ -94,14 +94,42 @@ type transcriptRow struct {
 	MetaJSON  string
 }
 
-func openTranscriptStore(t *testing.T) *memory.SqliteStore {
+type transcriptTestStore struct {
+	db *sql.DB
+}
+
+func (s *transcriptTestStore) DB() *sql.DB {
+	return s.db
+}
+
+func (s *transcriptTestStore) Close(context.Context) error {
+	return s.db.Close()
+}
+
+func openTranscriptStore(t *testing.T) *transcriptTestStore {
 	t.Helper()
 
-	store, err := memory.OpenSqlite(t.TempDir()+"/memory.db", 8, nil)
+	db, err := sql.Open("sqlite3", t.TempDir()+"/memory.db")
 	if err != nil {
-		t.Fatalf("OpenSqlite: %v", err)
+		t.Fatalf("open sqlite: %v", err)
 	}
-	return store
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+	if _, err := db.Exec(`
+		CREATE TABLE turns (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT NOT NULL,
+			role       TEXT NOT NULL,
+			content    TEXT NOT NULL,
+			ts_unix    INTEGER NOT NULL,
+			chat_id    TEXT,
+			meta_json  TEXT
+		);
+	`); err != nil {
+		t.Fatalf("create turns table: %v", err)
+	}
+	return &transcriptTestStore{db: db}
 }
 
 func mustInsertTurn(t *testing.T, db *sql.DB, row transcriptRow) {
