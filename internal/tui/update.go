@@ -3,6 +3,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -77,6 +78,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if text != "" && !m.inFlight {
 				m.editor.Reset()
+				if m.offlineSmoke {
+					m.applyOfflineSmokeTurn(text)
+					return m, tea.Batch(cmds...)
+				}
 				m.inFlight = true
 				cmds = append(cmds, m.submitCmd(text))
 			}
@@ -87,9 +92,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case frameMsg:
 		m.frame = kernel.RenderFrame(msg)
-		// Authoritative inFlight reset: the kernel reports PhaseIdle once
-		// the turn is fully finalized.
-		if m.frame.Phase == kernel.PhaseIdle {
+		// Authoritative inFlight reset: the kernel reports PhaseIdle on
+		// success and PhaseFailed on terminal failure.
+		if m.frame.Phase == kernel.PhaseIdle || m.frame.Phase == kernel.PhaseFailed {
 			m.inFlight = false
 		}
 		// Refresh the placeholder AFTER the inFlight transition so the editor
@@ -118,6 +123,22 @@ func (m Model) submitCmd(text string) tea.Cmd {
 		submit(text)
 		return submittedMsg{}
 	}
+}
+
+func (m *Model) applyOfflineSmokeTurn(text string) {
+	if m.frame.Model == "" {
+		m.frame.Model = "offline-smoke"
+		m.frame.Telemetry.Model = "offline-smoke"
+	}
+	m.frame.Phase = kernel.PhaseIdle
+	m.frame.DraftText = ""
+	m.frame.LastError = ""
+	m.frame.History = append(m.frame.History,
+		hermes.Message{Role: "user", Content: text},
+		hermes.Message{Role: "assistant", Content: "Offline smoke test received your message locally. No provider call was made."},
+	)
+	m.inFlight = false
+	m.statusMessage = "offline smoke: no provider call made"
 }
 
 // cancelCmd wraps the cancel callback as a tea.Cmd.

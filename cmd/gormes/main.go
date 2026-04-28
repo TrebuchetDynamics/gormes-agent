@@ -110,7 +110,7 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	root.Flags().StringP("oneshot", "z", "", "one-shot mode: send a single prompt and resolve model/provider selection without starting the TUI")
 	root.Flags().StringP("model", "m", "", "model override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_MODEL")
 	root.Flags().String("provider", "", "provider override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_PROVIDER")
-	root.Flags().Bool("offline", false, "skip startup api_server health check (dev only — turns the TUI into a cosmetic smoke-tester)")
+	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses api_server, kernel, and provider setup)")
 	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd)
@@ -379,7 +379,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		if err := c.Health(healthCtx); err != nil {
 			healthCancel()
 			fmt.Fprintf(os.Stderr,
-				"api_server not reachable at %s: %v\n\nStart it with:\n  API_SERVER_ENABLED=true hermes gateway start\n\nOr pass --offline to render the TUI without a live server (dev only).\n",
+				"provider endpoint not reachable at %s: %v\n\nConfigure [hermes] endpoint/api_key/model for a live turn, or pass --offline to run the local TUI smoke path without network submits.\n",
 				cfg.Hermes.Endpoint, err)
 			return err
 		}
@@ -466,6 +466,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tui.Options{
 		MouseTracking: cfg.TUI.MouseTracking,
 		SessionExport: newTUISaveExportFunc(),
+		OfflineSmoke:  offline,
 	})
 	programOptions := []tea.ProgramOption{tea.WithAltScreen()}
 	if cfg.TUI.MouseTracking {

@@ -30,10 +30,15 @@ See [Wire Doctor](../wire-doctor/) for what this checks.
 
 ## 3. Optional model-backed turn
 
+```toml
+# ~/.config/gormes/config.toml
+[hermes]
+endpoint = "https://your-provider.example/v1"
+api_key = "..."
+model = "your-model"
+```
+
 ```bash
-export GORMES_ENDPOINT="https://your-provider.example/v1"
-export GORMES_API_KEY="..."
-export GORMES_MODEL="your-model"
 ./bin/gormes --oneshot "hello from Gormes"
 ```
 
@@ -43,7 +48,7 @@ export GORMES_MODEL="your-model"
 ./bin/gormes --offline
 ```
 
-You're in the local TUI. Press `Ctrl+C` to exit.
+You're in the local TUI. Offline mode keeps typed messages local and does not call a provider. Press `Ctrl+C` to exit.
 
 ## Next
 

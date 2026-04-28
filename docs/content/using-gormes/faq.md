@@ -7,11 +7,11 @@ weight: 70
 
 ### Do I need Hermes running?
 
-Yes. Gormes is a Go frontend that talks to Hermes's `api_server` over HTTP. Without Hermes, only `--offline` mode (cosmetic smoke-tester) works.
+No running Hermes process is required for the local smoke path. `gormes --offline` boots the native TUI and keeps typed messages local so you can verify the runtime without credentials, provider calls, Python, Node, or Docker.
 
 ### Can I use it without Python?
 
-Not yet. Phase 4 makes Hermes optional; Phase 5 removes Python entirely. See the [Roadmap](../../building-gormes/architecture_plan/).
+Yes for the native TUI, doctor diagnostics, Goncho diagnostics, and provider-compatible one-shot/TUI startup paths. Some deeper Hermes parity surfaces are still active roadmap work; see the [Roadmap](../../building-gormes/architecture_plan/).
 
 ### Where does memory live?
 

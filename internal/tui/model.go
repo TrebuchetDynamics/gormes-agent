@@ -45,6 +45,10 @@ type Options struct {
 	// MemoryDBPath-backed implementation in main.go so the TUI never
 	// opens a SQLite handle itself.
 	SessionExport SessionExportFunc
+	// OfflineSmoke keeps plain-text submits inside the TUI. It is used by
+	// `gormes --offline` so the demo path proves the native UI without
+	// contacting a provider or enqueueing a kernel turn.
+	OfflineSmoke bool
 }
 
 // BusyInputVerdict mirrors the cli.BusyInputVerdict shape for callers that
@@ -81,12 +85,13 @@ type Model struct {
 	frames   <-chan kernel.RenderFrame
 	submit   Submitter
 	cancel   Canceller
-	inFlight bool // true between a user submit and the next PhaseIdle frame
+	inFlight bool // true between a user submit and the next terminal frame
 
 	mouseTracking bool
 	mouseModeCmd  func(enabled bool) tea.Cmd
 	statusMessage string
 	busyGuard     BusyInputEvaluator
+	offlineSmoke  bool
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over
@@ -124,6 +129,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		sessionBranch: opts.SessionBranch,
 		busyGuard:     opts.BusyGuard,
 		sessionExport: opts.SessionExport,
+		offlineSmoke:  opts.OfflineSmoke,
 		slashRegistry: NewDefaultSlashRegistry(),
 	}
 }
