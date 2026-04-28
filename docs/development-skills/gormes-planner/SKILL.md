@@ -32,6 +32,11 @@ If the task might instead be parity audit, implementation, TDD, interface design
 7. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
 8. Read `references/parity-map.md` as a quick trigger checklist when deciding whether a subsystem is fully mapped.
 9. Read `references/progress-row-contract.md` before editing progress rows.
+10. For CLI/config/migration parity, inspect `../hermes-agent/hermes_cli/main.py`,
+    `../hermes-agent/hermes_cli/commands.py`,
+    `../hermes-agent/hermes_cli/config.py`, `../hermes-agent/hermes_cli/claw.py`,
+    `../hermes-agent/gateway/run.py`, and the matching Gormes `cmd/gormes`
+    and `internal/cli` surfaces before changing rows.
 
 ## Workflow
 
@@ -87,6 +92,25 @@ For each subsystem in scope:
 Do not mark a row shipped unless repository evidence proves the behavior exists and tests cover it.
 
 For large areas, design vertical slices. Each row should deliver one narrow behavior through all required layers rather than one horizontal layer of a future system.
+
+### CLI, Config, And Migration Parity
+
+When planning Hermes command or config parity:
+
+- Treat `Hermes CLI command-tree parity manifest` as the gate before claiming
+  broad command parity or assigning handler ports.
+- Separate native config lifecycle from cross-product imports:
+  `gormes config migrate` updates Gormes' own schema, while
+  `gormes migrate hermes` and `gormes migrate openclaw` import external state.
+- Classify Gormes-owned additions such as `goncho`, `--offline`, `--remote`,
+  and XDG/TOML config as `owned` with source-backed rationale. Hermes-owned
+  `-z/--oneshot` is parity/covered, not a Gormes-owned divergence.
+- Do not accept broad globs (`hermes_cli/**`, `gateway/**`, `_handle_*`) as
+  sole evidence. Pair them with exact commands, symbols, fixtures, or tests.
+- Preserve the public command spelling `openclaw`; typo-like requests such as
+  `ooenclaw` should be planned as deterministic suggestions to
+  `gormes migrate openclaw`, not silent aliases, unless a dedicated
+  compatibility row explicitly changes that API policy.
 
 ### 4. Rewrite Rows For Builders
 

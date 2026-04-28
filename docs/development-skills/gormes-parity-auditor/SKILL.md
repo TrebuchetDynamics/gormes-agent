@@ -13,7 +13,7 @@ Find what prevents Gormes from being Hermes in Go, with Goncho as the Honcho-com
 
 ### 1. Bound The Audit
 
-Choose one surface: provider routing, tools, prompt/context, sessions, Goncho memory, gateway/API, TUI, channels, cron, plugins/skills, config/secrets, observability, or packaging.
+Choose one surface: provider routing, tools, prompt/context, sessions, Goncho memory, gateway/API, TUI, channels, cron, plugins/skills, CLI command tree, config/secrets/migration, observability, or packaging.
 
 If the user asks for "everything", do one pass that produces a subsystem map and the next three audit passes.
 
@@ -30,6 +30,12 @@ List:
 
 Use `rg`, `find`, and `jq`. Do not infer parity from package names alone.
 
+For CLI/config/migration audits, include these exact upstream anchors when in
+scope: `hermes_cli/main.py` parser commands, `hermes_cli/commands.py` slash
+registry, `gateway/run.py` command handlers, `hermes_cli/config.py` config
+subcommands, and `hermes_cli/claw.py` plus
+`optional-skills/migration/openclaw-migration/**` for OpenClaw migration.
+
 ### 3. Classify Gaps
 
 For each upstream behavior:
@@ -45,6 +51,17 @@ If upstream has a feature-bearing source class that the ledger or feature map
 does not mention, the audit output must include a ledger update, feature-map
 update, and progress-row proposal. If the map mentions behavior but the row is
 vague, propose the smallest builder-ready split.
+
+When the user asks for all Hermes commands or functions, do not jump straight
+to handler implementation. First require a source-backed command-tree manifest
+that classifies every top-level command, nested command, slash command, alias,
+and Gormes-owned divergence as covered, planned, row-backed, owned, excluded,
+or missing.
+
+When a request misspells OpenClaw as `ooenclaw`, audit it as an operator typo
+path. The parity plan should require a deterministic suggestion to
+`gormes migrate openclaw`; do not count the typo as a Hermes/OpenClaw command
+or propose it as a silent alias without a dedicated compatibility row.
 
 For whole-repo coverage claims, run:
 

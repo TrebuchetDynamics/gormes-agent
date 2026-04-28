@@ -22,28 +22,7 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Python-free normal agent turn e2e harness
-
-- Phase: 4 / 4.I
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: A normal CLI/API/gateway agent turn can execute entirely in Go from input through prompt/context assembly, fake provider tool call, Go tool execution, Goncho memory recall/persistence, and final response/audit evidence, with no Python bridge or hosted Honcho dependency.
-- Trust class: operator, gateway, system
-- Ready when: The worker can create a hermetic e2e package with fake provider events and temp state., Provider adapters, kernel tool loop, in-process tool registry, Goncho service, and audit/status packages are importable from Go tests., The test can assert absence of Python bridge usage without shelling out to Python.
-- Not ready when: The slice calls live providers, live gateways, hosted Honcho, Python scripts, or external network services., The slice only tests a helper function and does not cross provider, tool, memory, and final-response boundaries., The slice treats missing Goncho recall/persistence as success without explicit degraded evidence.
-- Degraded mode: The e2e harness reports python_bridge_used, provider_step_missing, tool_loop_missing, goncho_step_missing, or audit_evidence_missing instead of passing a partial Go turn as complete.
-- Fixture: `internal/e2e/normal_turn_test.go::TestPythonFreeNormalAgentTurn`
-- Write scope: `internal/e2e/`, `internal/kernel/`, `internal/hermes/`, `internal/goncho/`, `internal/gonchotools/`, `internal/memory/`, `internal/tools/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/e2e -run '^TestPythonFreeNormalAgentTurn$' -count=1`, `go test ./internal/e2e ./internal/kernel ./internal/hermes ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/tools -count=1`, `go run ./cmd/progress validate`
-- Done signal: A hermetic e2e test proves the first Python-free normal Gormes agent turn across provider, tool, Goncho memory, final response, and audit/status evidence.
-- Acceptance: TestPythonFreeNormalAgentTurn seeds temp Goncho/memory state, sends one user input, consumes a fake provider tool-call event, executes a Go tool, resumes the fake provider, and returns a final assistant response., The test proves no internal/pybridge path, Python executable, or hosted Honcho client was invoked., The test records recall, tool execution, persistence, final response, and audit/status evidence with stable field names., A degraded subtest disables Goncho and proves the turn reports explicit goncho_step_missing evidence while preserving transcript integrity.
-- Source refs: ../hermes-agent/run_agent.py, ../hermes-agent/agent/, ../hermes-agent/plugins/memory/honcho/__init__.py, internal/hermes/, internal/kernel/, internal/tools/, internal/goncho/, internal/gonchotools/, internal/memory/
-- Unblocks: Goncho memory integration into normal agent turn, Provider-tool-memory golden transcript suite, Release readiness e2e gate
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. ContextEngine compression-boundary callback vocabulary
+## 1. ContextEngine compression-boundary callback vocabulary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -64,7 +43,47 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: ContextEngine compression-boundary notification
 - Why now: Unblocks ContextEngine compression-boundary notification.
 
-## 3. Image input mode router + native content parts
+## 2. Provider account usage read model + renderer
+
+- Phase: 4 / 4.H
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Contract: Gormes exposes a Hermes-compatible provider account-usage read model with internal/hermes.AccountUsageSnapshot and AccountUsageWindow, fakeable Codex/Anthropic/OpenRouter fetchers, and a shared redacted renderer that later CLI/status and gateway `/usage` command rows can bind without rediscovering provider payload semantics.
+- Trust class: operator, gateway, system
+- Ready when: Provider rate-guard and budget telemetry rows already define the status/evidence vocabulary for provider quota and degradation., The slice can use injected HTTP clients, fake clocks, and static provider fixtures; no live Codex, Anthropic, or OpenRouter credentials are required., The row is limited to read-model and renderer behavior; token-vault writes, OAuth refresh, Cobra command binding, and gateway slash-command dispatch remain separate rows.
+- Not ready when: The slice performs live network calls in tests or requires real provider credentials., The slice changes provider routing, retry timing, token-vault storage, or normal-turn execution., The slice binds Cobra commands, gateway slash dispatch, or session-history lookup instead of exposing reusable read-model and render helpers., The slice logs, renders, or persists raw API tokens while building account-usage evidence.
+- Degraded mode: Missing credentials, unsupported providers, upstream 401/429/5xx responses, malformed usage payloads, and unavailable account-usage endpoints produce typed unavailable/unsupported/degraded evidence instead of blocking normal provider turns or command dispatch.
+- Fixture: `internal/hermes/account_usage_test.go`
+- Write scope: `internal/hermes/account_usage.go`, `internal/hermes/account_usage_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run 'TestAccountUsage' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Account-usage fixtures prove Codex, Anthropic, and OpenRouter normalization, unsupported/missing/degraded evidence, shared rendering, redaction, fake HTTP/clock seams, and read-only behavior.
+- Acceptance: The public Go API exposes AccountUsageSnapshot, AccountUsageWindow, AccountUsageFetcher, and renderer helpers under internal/hermes with injected HTTP client and fake clock seams., Codex, Anthropic, and OpenRouter fixture payloads normalize into one AccountUsageSnapshot shape with provider, account label, usage windows, reset times, remaining/used limits when available, and source evidence., Unsupported providers and missing credentials preserve upstream's nonfatal None-result contract while returning Gormes-owned typed unsupported or credential-missing evidence without contacting a provider client., Malformed JSON and upstream HTTP failures produce degraded evidence with redacted endpoint/account details and no raw credential bytes., The shared renderer produces stable text/JSON fixtures that include provider/account/window/quota evidence but do not require Cobra, gateway manager, running-agent, cached-agent, or transcript-history integration., The implementation stays read-only: no config, token vault, memory, transcript, or provider client state is modified.
+- Source refs: ../hermes-agent/agent/account_usage.py:AccountUsageSnapshot,AccountUsageWindow,render_account_usage_lines,fetch_account_usage,_fetch_codex_account_usage,_fetch_anthropic_account_usage,_fetch_openrouter_account_usage, ../hermes-agent/tests/test_account_usage.py, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting
+- Unblocks: Provider status command parity, Gateway /usage command binding over provider account usage, Self-monitoring telemetry
+- Why now: Unblocks Provider status command parity, Gateway /usage command binding over provider account usage, Self-monitoring telemetry.
+
+## 3. Environment interface + file sync contract
+
+- Phase: 5 / 5.B
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Contract: Gormes ports Hermes sandbox environment and file-sync contracts into a Go Environment interface with path mapping, upload/download, timeout, cleanup, and parser-family inventory fixtures before backend-specific Docker/SSH/Modal/Daytona/Singularity execution lands.
+- Trust class: operator, child-agent, system
+- Ready when: Tool execution descriptor and command-runner seams are validated enough to define an interface without starting real backends., The first slice can use fake filesystem and fake parser fixtures; no Docker daemon, SSH server, Modal account, browser, or provider credential is required.
+- Not ready when: The slice implements a real Docker, SSH, Modal, Daytona, Singularity, or browser environment backend instead of the shared interface and file-sync contract., The slice executes model-generated commands or parses live LLM output instead of using hermetic parser fixtures., The slice treats broad `environments/**` coverage as complete without exact parser-family rows.
+- Degraded mode: Unavailable or unsupported environment backends return environment_backend_unavailable or parser_family_row_backed evidence without shelling out, starting containers, or dropping file-sync intent.
+- Fixture: `internal/tools/environment_contract_test.go; internal/hermes/tool_call_parser_manifest_test.go`
+- Write scope: `internal/tools/environment_contract.go`, `internal/tools/environment_contract_test.go`, `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tools ./internal/hermes -run 'TestEnvironmentContract\|TestToolCallParserManifest' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Environment contract fixtures prove fake backend path/file-sync/timeout/cleanup behavior and parser-family manifest coverage without real sandbox backends.
+- Acceptance: Environment interface fixtures prove path mapping, upload/download intent, timeout propagation, cleanup ordering, and unsupported-backend evidence over fake backends., File-sync fixtures prove checksum/delete intent and host/container path normalization without touching real remote filesystems., Parser manifest fixtures classify hermes_parser.py, deepseek_v3_1_parser.py, and the remaining parser family as implemented, row-backed, or excluded before raw parser execution parity is claimed., No test starts Docker, SSH, Modal, Daytona, Singularity, browsers, or provider clients.
+- Source refs: ../hermes-agent/tools/environments/base.py:BaseEnvironment, ../hermes-agent/tools/environments/file_sync.py, ../hermes-agent/environments/hermes_base_env.py, ../hermes-agent/environments/agentic_opd_env.py, ../hermes-agent/environments/web_research_env.py, ../hermes-agent/environments/tool_call_parsers/hermes_parser.py, ../hermes-agent/environments/tool_call_parsers/deepseek_v3_1_parser.py, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Sandbox/environments, docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Per-model tool-call parsers
+- Unblocks: Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard
+- Why now: Unblocks Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard.
+
+## 4. Image input mode router + native content parts
 
 - Phase: 5 / 5.D
 - Owner: `provider`
@@ -85,7 +104,46 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Image-too-large shrink retry helper
 - Why now: Unblocks Image-too-large shrink retry helper.
 
-## 4. Provider endpoint/API-key root flags + runtime resolution
+## 5. ACP server side
+
+- Phase: 5 / 5.H
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Contract: Gormes maps Hermes ACP adapter entry/auth/session/tools/permissions/events into a Go-native manifest and stdio/server protocol fixture before editor integrations are advertised.
+- Trust class: operator, system
+- Ready when: MCP schema normalization and managed gateway bridge rows are validated enough to reuse tool/permission descriptors., This slice can remain a manifest/protocol fixture package without starting an editor or spawning subprocesses.
+- Not ready when: The slice starts a live ACP server, shells out to Hermes/Python, or registers editor integrations before auth/session/tool/permission event shapes are fixture-backed., The slice claims ACP parity from broad acp_adapter/** coverage without exact auth, entry, session, tool, permission, and event refs.
+- Degraded mode: Unsupported ACP provider detection, missing auth, and permission prompt paths return explicit acp_row_backed evidence instead of silently registering an incomplete editor bridge.
+- Fixture: `internal/acp/server_manifest_test.go`
+- Write scope: `internal/acp/server_manifest.go`, `internal/acp/server_manifest_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `docs/upstream_coverage_test.go`
+- Test commands: `go test ./internal/acp -run TestACPServerManifest -count=1`, `go test ./docs -run TestNestedUpstreamFeatureCoverage -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: ACP manifest fixtures prove exact upstream auth, entry, session, tool, permission, event, and registry surfaces are classified before live ACP server work starts.
+- Acceptance: ACP manifest fixtures classify auth provider detection, stdio entry startup, session lifecycle, tool rendering, permission prompts, and event streaming as implemented, row-backed, owned, or excluded., The Go target names future internal/acp package boundaries and adapter event structs without importing Python., Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification., Editor integration docs remain row-backed until protocol fixtures exist.
+- Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 6. Hermes CLI command-tree parity manifest
+
+- Phase: 5 / 5.O
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Contract: cmd/gormes owns a source-backed Hermes CLI compatibility manifest that enumerates every upstream top-level command, nested subcommand, global/root flag, slash command, gateway command handler, dynamic plugin-provided command, and Gormes-owned addition, then classifies each path as implemented, row-backed, owned, excluded, or not-yet-applicable before any handler work claims CLI parity.
+- Trust class: operator, gateway, system
+- Ready when: The Phase 5.O CLI umbrella remains inventory-only, so a manifest row can be added without reopening global planning., internal/cli CommandRegistry already locks Hermes slash-command names and active-turn policy., cmd/gormes uses Cobra and exposes root, gateway, session, memory, goncho, doctor, telegram, and version command surfaces that can be classified without executing live services.
+- Not ready when: The slice implements missing command handlers, provider auth, setup wizard prompts, migration writes, backup archives, service-manager calls, or dashboard routes., The slice generates classifications solely from upstream at runtime instead of maintaining a reviewed manifest plus a drift test against upstream parser/registry surfaces., Any upstream command, subcommand, flag, alias, or slash command is left unclassified.
+- Degraded mode: Unknown or unclassified Hermes command paths, including dynamic plugin command registrations, fail the parity test; unsupported-but-known commands must carry row-backed or owned evidence instead of disappearing from help, docs, or migration plans.
+- Fixture: `cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifest`
+- Write scope: `cmd/gormes/hermes_cli_parity.go`, `cmd/gormes/hermes_cli_parity_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes -run 'TestHermesCLIParityManifest\|TestHermesCLIParityManifestNoUnknowns' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Hermes CLI parity manifest fixtures prove every top-level command, nested command, static slash command, dynamic plugin command, alias, gateway handler, and Gormes-owned divergence has a non-unknown classification with source refs and residual rows.
+- Acceptance: A manifest entry exists for every top-level Hermes parser command: chat, model, fallback, gateway, setup, whatsapp, slack, login, logout, auth, status, cron, webhook, hooks, doctor, dump, debug, backup, import, config, pairing, skills, plugins, memory, tools, mcp, sessions, insights, claw, version, update, uninstall, acp, profile, completion, dashboard, and logs., Nested parser groups are covered for gateway, fallback, auth, cron, webhook, hooks, debug, config, pairing, skills including tap and snapshot, plugins, memory, tools, mcp, sessions, claw, and profile., Every slash command and alias in hermes_cli/commands.py is cross-linked to internal/cli.CommandRegistry status or a named row-backed residual., Dynamic plugin CLI and slash-command surfaces discovered through active memory plugins and PluginContext.register_command entries are classified as implemented, row-backed, owned, excluded, or not-yet-applicable., Plugin manager and plugin command surfaces from hermes_cli/plugins.py and hermes_cli/plugins_cmd.py are classified as manifest-only, implemented, row-backed, owned, or excluded before any plugin runtime execution is claimed., Gormes-owned surfaces such as goncho, --offline, --remote, and XDG/TOML config paths are classified as owned with rationale, not counted as Hermes gaps; Hermes-owned `-z/--oneshot` is classified as implemented parity, not owned divergence., Typo-like requested paths such as `gormes migrate ooenclaw` are classified explicitly: they must return a deterministic suggestion for `gormes migrate openclaw` and must not become silent import aliases without a dedicated compatibility row., Destructive or secret-bearing command paths carry explicit evidence flags for confirmation, dry-run, redaction, or credential routing.
+- Source refs: ../hermes-agent/hermes_cli/main.py:subparsers.add_parser, ../hermes-agent/hermes_cli/main.py:discover_plugin_cli_commands, ../hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY,GATEWAY_KNOWN_COMMANDS, ../hermes-agent/hermes_cli/plugins.py:PluginManager, ../hermes-agent/hermes_cli/plugins_cmd.py:plugins_command, ../hermes-agent/gateway/run.py:_handle_status_command,_handle_restart_command,_handle_reset_command,_handle_help_command,_handle_model_command,_handle_profile_command,_handle_update_command,_handle_approve_command,_handle_deny_command,_handle_voice_command,_handle_usage_command, ../hermes-agent/plugins/memory/__init__.py:discover_plugin_cli_commands, ../hermes-agent/plugins/disk-cleanup/__init__.py:PluginContext.register_command, ../hermes-agent/hermes_cli/config.py:config_command,set_config_value,check_config_version,migrate_config, ../hermes-agent/hermes_cli/claw.py:claw_command,_cmd_migrate,_cmd_cleanup, cmd/gormes/main.go:newRootCommandWithRuntime, internal/cli/command_registry.go:CommandRegistry, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree
+- Unblocks: Gormes config command surface, Gormes config edit/check/native schema-migrate closeout, Hermes config migration dry-run manifest, OpenClaw migration dry-run manifest, Gateway, platform, webhook, and cron management CLI, Diagnostics, backup, logs, and status CLI
+- Why now: Unblocks Gormes config command surface, Gormes config edit/check/native schema-migrate closeout, Hermes config migration dry-run manifest, OpenClaw migration dry-run manifest, Gateway, platform, webhook, and cron management CLI, Diagnostics, backup, logs, and status CLI.
+
+## 7. Provider endpoint/API-key root flags + runtime resolution
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -105,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command
 - Why now: Unblocks Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command.
 
-## 5. Backup/update opt-in and exclusion policy
+## 8. Backup/update opt-in and exclusion policy
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -126,7 +184,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Backup manifest dry-run contract
 - Why now: Unblocks Backup manifest dry-run contract.
 
-## 6. Custom provider model-switch key_env write guard
+## 9. Custom provider model-switch key_env write guard
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -146,46 +204,23 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/main.py@8258f4dc:_model_flow_named_custom, ../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8258f4dc, ../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map, internal/cli/custom_provider_secret.go:CustomProviderRef,ResolveCustomProviderSecret, internal/cli/custom_provider_secret_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. BlueBubbles iMessage bubble formatting parity
+## 10. OCI image
 
-- Phase: 7 / 7.E
-- Owner: `gateway`
+- Phase: 5 / 5.P
+- Owner: `docs`
 - Size: `small`
 - Status: `planned`
-- Priority: `P3`
-- Contract: BlueBubbles outbound iMessage sends are non-editable, markdown-stripped, paragraph-split bubbles without pagination suffixes
-- Trust class: gateway, system
-- Ready when: The first-pass BlueBubbles adapter already owns Send, markdown stripping, cached GUID resolution, and home-channel fallback in internal/channels/bluebubbles.
-- Not ready when: The slice attempts to add live BlueBubbles HTTP/webhook registration, attachment download, reactions, typing indicators, or edit-message support.
-- Degraded mode: BlueBubbles remains a usable first-pass adapter, but long replies may still arrive as one stripped text send until paragraph splitting and suffix-free chunking are fixture-locked.
-- Fixture: `internal/channels/bluebubbles/bot_test.go`
-- Write scope: `internal/channels/bluebubbles/bot.go`, `internal/channels/bluebubbles/bot_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels/bluebubbles -count=1`
-- Done signal: BlueBubbles adapter tests prove paragraph-to-bubble sends, suffix-free chunking, and no edit/placeholder capability.
-- Acceptance: Send splits blank-line-separated paragraphs into separate SendText calls while preserving existing chat GUID resolution and home-channel fallback., Long paragraph chunks omit `(n/m)` pagination suffixes and concatenate back to the stripped original text., Bot does not implement gateway.MessageEditor or gateway.PlaceholderCapable, preserving non-editable iMessage semantics.
-- Source refs: ../hermes-agent/gateway/platforms/bluebubbles.py@f731c2c2, ../hermes-agent/tests/gateway/test_bluebubbles.py@f731c2c2, internal/channels/bluebubbles/bot.go, internal/gateway/channel.go
-- Unblocks: BlueBubbles iMessage session-context prompt guidance
-- Why now: Unblocks BlueBubbles iMessage session-context prompt guidance.
-
-## 8. Yuanbao protocol envelope + markdown fixtures
-
-- Phase: 7 / 7.E
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P4`
-- Contract: Gormes parses Yuanbao websocket/protobuf-style envelopes and Markdown message fragments into gateway-neutral events using fixture data only
-- Trust class: gateway, system
-- Ready when: The Phase 2 shared gateway event shape and Regional + Device Adapter Backlog are available; this row does not need a live Yuanbao account., Workers can start with captured JSON/proto/markdown testdata under internal/channels/yuanbao/testdata copied or minimized from upstream fixtures., No send loop, login flow, tool registration, media download, or sticker parsing is required for this first slice.
-- Not ready when: The slice opens a websocket, performs login, calls Tencent/Yuanbao endpoints, downloads media, or registers user-visible tools., The slice stores credentials or changes shared gateway session policy., The slice combines protocol parsing with send/reply runtime behavior.
-- Degraded mode: Yuanbao adapter status reports protocol_unavailable or markdown_parse_failed evidence instead of starting a live session with unparsed payloads.
-- Fixture: `internal/channels/yuanbao/proto_test.go`
-- Write scope: `internal/channels/yuanbao/proto.go`, `internal/channels/yuanbao/proto_test.go`, `internal/channels/yuanbao/markdown.go`, `internal/channels/yuanbao/markdown_test.go`, `internal/channels/yuanbao/testdata/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels/yuanbao -run 'TestYuanbao(Proto\|Markdown)' -count=1`, `go test ./internal/channels/yuanbao -count=1`, `go run ./cmd/progress validate`
-- Done signal: Yuanbao protocol/markdown fixtures prove inbound text event normalization and degraded parse evidence with no live Yuanbao network call.
-- Acceptance: TestYuanbaoProto_DecodesInboundTextFixture loads a captured fixture and returns source, conversation id, message id, author role, and text content., TestYuanbaoMarkdown_RendersCodeAndLinks proves code blocks, links, mentions, and list fragments are normalized into plain prompt-safe text without losing URLs., Malformed/unknown envelope fixtures return typed degraded evidence and do not panic., No test imports a generated protobuf runtime unless a local generated fixture file is checked in under internal/channels/yuanbao.
-- Source refs: ../hermes-agent/gateway/platforms/yuanbao_proto.py@ab687963, ../hermes-agent/gateway/platforms/yuanbao.py@ab687963, ../hermes-agent/tests/test_yuanbao_proto.py@ab687963, ../hermes-agent/tests/test_yuanbao_markdown.py@ab687963, ../hermes-agent/website/docs/user-guide/messaging/yuanbao.md@ab687963
-- Unblocks: Yuanbao media/sticker attachment normalization, Yuanbao gateway runtime + toolset registration
-- Why now: Unblocks Yuanbao media/sticker attachment normalization, Yuanbao gateway runtime + toolset registration.
+- Contract: Gormes ships an OCI image contract that mirrors upstream Docker entrypoint/config volume operational behavior while proving the final image contains the Go binary and no required Python runtime path.
+- Trust class: operator, system
+- Ready when: The Go binary build and offline doctor command are stable., The slice can test Dockerfile/entrypoint text and optional local container smoke fixtures without publishing an image.
+- Not ready when: The slice requires live registry access, provider credentials, hosted Honcho Postgres/Redis, or Python package installation to prove Gormes runtime behavior., The slice changes installer policy or release artifact signing in the same pass.
+- Degraded mode: Container smoke tests run offline and report missing binary, missing config volume, or Python-runtime dependency evidence without contacting registries or providers.
+- Fixture: `docs/install/oci_image_test.go`
+- Write scope: `Dockerfile`, `docker/entrypoint.sh`, `docs/install/oci_image_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./docs -run TestOCIImageContract -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: OCI image fixtures prove Go-binary runtime layout, offline doctor command behavior, config volume handling, and explicit hosted Honcho deploy divergence.
+- Acceptance: Dockerfile fixtures prove the image builds or describes a Go-binary runtime path with no Hermes Python runtime dependency., Entrypoint fixtures preserve offline doctor/config-volume behavior and deterministic command forwarding., Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies., A smoke command can run `gormes doctor --offline` with fake config volume inputs.
+- Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

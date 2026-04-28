@@ -27,6 +27,11 @@ Pick the primary intent:
 - **Decide direction**: use `grill-me` and optionally `gormes-planner`.
 - **Map upstream parity**: use `gormes-parity-auditor`, then `gormes-planner` if rows need edits.
 - **Plan roadmap rows**: use `gormes-planner`.
+- **Plan Hermes CLI/config/migration parity**: use `gormes-parity-auditor`
+  then `gormes-planner`; require the command-tree manifest before handler
+  implementation and keep `config migrate` separate from `migrate hermes` /
+  `migrate openclaw`. Treat `ooenclaw` as an OpenClaw typo-suggestion path,
+  not a second migration command, unless a compatibility row exists.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.

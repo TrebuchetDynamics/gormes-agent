@@ -76,6 +76,15 @@ Before editing, build a short builder packet:
 - degraded mode;
 - done signal.
 
+For CLI/config/migration rows, confirm the command-tree manifest dependency
+first. Do not implement broad Hermes command parity, config import, or
+OpenClaw migration from globs alone. `gormes config migrate` is native schema
+maintenance; `gormes migrate hermes` and `gormes migrate openclaw` are
+cross-product imports. Preserve the `openclaw` spelling unless a dedicated
+compatibility row adds typo aliases. If a row mentions `ooenclaw`, implement it
+as an unknown-command suggestion to `gormes migrate openclaw`, not as a second
+import command, unless that row explicitly says otherwise.
+
 ### 2. Write Or Confirm A Failing Test
 
 Use TDD unless the row is explicitly `no_test_required`.

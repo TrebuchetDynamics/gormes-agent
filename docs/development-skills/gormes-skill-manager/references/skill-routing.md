@@ -15,6 +15,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 |---|---|---|
 | User wants to stress-test direction or make a hard decision | `grill-me` | `gormes-planner` after decision |
 | Need to compare Hermes/Honcho/GBrain against Gormes | `gormes-parity-auditor` | `gormes-planner` to update rows |
+| Need Hermes CLI/config/migration parity, including `migrate hermes`, `migrate openclaw`, or typo requests like `migrate ooenclaw` | `gormes-parity-auditor` | `gormes-planner` updates manifest/config/migration rows and keeps typos as suggestions unless a compatibility row exists |
 | Need to update roadmap/progress rows | `gormes-planner` | `gormes-builder` for selected row |
 | Need Go API/package shape before coding | `gormes-interface-designer` | `gormes-planner` row or `gormes-builder` implementation |
 | Need to implement one progress row | `gormes-builder` | `gormes-tdd-slice` inside implementation |
@@ -43,6 +44,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | 3.G Goncho/Honcho compatibility | `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-goncho-compat` only after SDK-style fixtures repeat across multiple rows. |
 | 4.I normal-turn e2e | `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-e2e-operator` when service orchestration or Playwright-style harnesses repeat. |
 | Provider transcript parity | `gormes-parity-auditor` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-provider-parity` when transcript fixtures span multiple providers. |
+| Hermes CLI/config/migration parity | `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` | Covered by planner/auditor/builder updates; add a dedicated CLI parity skill only if command-manifest and handler rows repeat across many passes. |
 | Gateway/channels | `gormes-parity-auditor` -> `gormes-interface-designer` -> `gormes-builder` | Add `gormes-channel-adapter` after at least two channel adapters need the same contract gates. |
 | README/public repo messaging | `gormes-readme` | Covered by the periodic README evidence workflow. |
 | Landing page content/UI | `gormes-landing-web` | Covered by the focused public homepage workflow. |

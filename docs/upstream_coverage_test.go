@@ -34,7 +34,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"Dockerfile":                     "`Dockerfile`",
 				"README.md":                      "README",
 				"SECURITY.md":                    "SECURITY",
-				"acp_adapter":                    "`acp_adapter/**`",
+				"acp_adapter":                    "`acp_adapter/auth.py:detect_provider`",
 				"acp_registry":                   "`acp_registry/**`",
 				"agent":                          "`agent/*.py`",
 				"batch_runner.py":                "`batch_runner.py`",
@@ -105,21 +105,22 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 				"database":                   "`database/init.sql`",
 				"docker":                     "`docker/**`",
 				"docker-compose.yml.example": "`docker-compose.yml.example`",
-				"docs":                       "`docs/v1/**`",
+				".env.template":              "`.env.template`",
+				"docs":                       "`docs/v3/**`",
 				"examples":                   "`examples/**`",
 				"fly.toml":                   "`fly.toml`",
-				"honcho-cli":                 "`honcho-cli/**`",
+				"honcho-cli":                 "`honcho-cli/src/honcho_cli/{main,config,output,validation,_help,branding}.py`",
 				"mcp":                        "`mcp/**`",
 				"migrations":                 "`migrations/**`",
 				"pyproject.toml":             "`pyproject.toml`",
 				"scripts":                    "`scripts/**`",
-				"sdks":                       "`sdks/python/**`",
-				"src":                        "`src/models.py`",
+				"sdks":                       "`sdks/python/src/honcho/{client,aio,api_types,mixins}.py`",
+				"src":                        "`src/models.py:MessageEmbedding,Collection,Document,QueueItem,ActiveQueueSession,WebhookEndpoint,SessionPeer`",
 				"tests":                      "`tests/**`",
 				"uv.lock":                    "`uv.lock`",
 			},
 			ignored: ignoredCoverageClasses(
-				".dockerignore", ".env.template", ".github", ".gitignore",
+				".dockerignore", ".github", ".gitignore",
 				".markdownlint.json", ".pre-commit-config.yaml", ".python-version",
 				".vscode", "LICENSE", "assets",
 			),
@@ -164,14 +165,16 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 	corpus := readNestedCoverageCorpus(t)
 
-	checks := []struct {
+	type nestedFeatureCheck struct {
 		name           string
 		repo           string
 		root           string
 		path           string
 		classification string
 		evidence       []string
-	}{
+	}
+
+	checks := []nestedFeatureCheck{
 		{
 			name:           "Hermes provider transports",
 			repo:           "Hermes",
@@ -203,6 +206,62 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			path:           "run_agent.py",
 			classification: "still row-backed",
 			evidence:       []string{"run_agent.py", "Normal agent loop", "Python-free normal agent turn e2e harness"},
+		},
+		{
+			name:           "Hermes environment agent loop",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "environments/agent_loop.py",
+			classification: "still row-backed",
+			evidence:       []string{"environments/agent_loop.py", "Normal agent loop", "Phase 4.I"},
+		},
+		{
+			name:           "Hermes prompt builder",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "agent/prompt_builder.py",
+			classification: "still row-backed",
+			evidence:       []string{"agent/prompt_builder.py", "Prompt/context/compression", "Phase 4.C"},
+		},
+		{
+			name:           "Hermes context compressor",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "agent/context_compressor.py",
+			classification: "still row-backed",
+			evidence:       []string{"agent/context_compressor.py", "Prompt/context/compression", "Phase 4.B"},
+		},
+		{
+			name:           "Hermes context engine",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "agent/context_engine.py",
+			classification: "still row-backed",
+			evidence:       []string{"agent/context_engine.py", "Context engine and status", "Phase 4.B"},
+		},
+		{
+			name:           "Hermes account usage read model",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "agent/account_usage.py",
+			classification: "still row-backed",
+			evidence:       []string{"agent/account_usage.py", "render_account_usage_lines", "Provider account usage read model + renderer"},
+		},
+		{
+			name:           "Hermes account usage fixtures",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "tests/test_account_usage.py",
+			classification: "still row-backed",
+			evidence:       []string{"tests/test_account_usage.py", "Provider account usage reporting"},
+		},
+		{
+			name:           "Hermes gateway usage command fixtures",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "tests/gateway/test_usage_command.py",
+			classification: "still row-backed",
+			evidence:       []string{"tests/gateway/test_usage_command.py", "Gateway /usage command binding over provider account usage"},
 		},
 		{
 			name:           "Hermes ACP adapter",
@@ -245,6 +304,22 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			evidence:       []string{"plugins/memory/honcho/client.py", "Plugins and memory plugins"},
 		},
 		{
+			name:           "Hermes memory plugin CLI discovery",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "plugins/memory/__init__.py",
+			classification: "still row-backed",
+			evidence:       []string{"plugins/memory/__init__.py", "discover_plugin_cli_commands", "Hermes CLI command-tree parity manifest"},
+		},
+		{
+			name:           "Hermes plugin slash command registration",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "plugins/disk-cleanup/__init__.py",
+			classification: "still row-backed",
+			evidence:       []string{"plugins/disk-cleanup/__init__.py", "PluginContext.register_command", "Hermes CLI command-tree parity manifest"},
+		},
+		{
 			name:           "Hermes skill catalog",
 			repo:           "Hermes",
 			root:           filepath.Join("..", "..", "hermes-agent"),
@@ -259,6 +334,70 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			path:           "scripts/release.py",
 			classification: "still row-backed",
 			evidence:       []string{"scripts/release.py", "Packaging/release/install", "Phase 5.P"},
+		},
+		{
+			name:           "Hermes CLI main parser",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "hermes_cli/main.py",
+			classification: "still row-backed",
+			evidence:       []string{"hermes_cli/main.py", "Hermes CLI command-tree parity manifest", "Phase 5.O"},
+		},
+		{
+			name:           "Hermes CLI slash command registry",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "hermes_cli/commands.py",
+			classification: "still row-backed",
+			evidence:       []string{"hermes_cli/commands.py", "Hermes CLI command-tree parity manifest", "Phase 5.O"},
+		},
+		{
+			name:           "Hermes gateway command handlers",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "gateway/run.py",
+			classification: "still row-backed",
+			evidence:       []string{"gateway/run.py", "Hermes CLI command-tree parity manifest", "Phase 5.O"},
+		},
+		{
+			name:           "Hermes config command",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "hermes_cli/config.py",
+			classification: "still row-backed",
+			evidence:       []string{"hermes_cli/config.py", "Gormes config command surface", "Phase 5.O"},
+		},
+		{
+			name:           "Hermes config home resolver",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "hermes_constants.py",
+			classification: "still row-backed",
+			evidence:       []string{"hermes_constants.py", "Hermes config migration dry-run manifest", "Phase 5.O"},
+		},
+		{
+			name:           "Hermes state migration source",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "hermes_state.py",
+			classification: "still row-backed",
+			evidence:       []string{"hermes_state.py", "Hermes config migration dry-run manifest", "Phase 5.O"},
+		},
+		{
+			name:           "Hermes OpenClaw CLI migration command",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "hermes_cli/claw.py",
+			classification: "still row-backed",
+			evidence:       []string{"hermes_cli/claw.py", "OpenClaw migration dry-run manifest", "Phase 5.O"},
+		},
+		{
+			name:           "Hermes OpenClaw migration script",
+			repo:           "Hermes",
+			root:           filepath.Join("..", "..", "hermes-agent"),
+			path:           "optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py",
+			classification: "still row-backed",
+			evidence:       []string{"openclaw_to_hermes.py", "OpenClaw migration dry-run manifest", "Phase 5.O"},
 		},
 		{
 			name:           "Hermes Nix flake",
@@ -277,6 +416,22 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			evidence:       []string{"docs/v3/openapi.json", "OpenAPI v3 route manifest", "Phase 3.G, 5.Q"},
 		},
 		{
+			name:           "Honcho models",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/models.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/models.py", "Data model, migrations, CRUD invariants"},
+		},
+		{
+			name:           "Honcho workspace router",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/routers/workspaces.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/routers/workspaces.py", "Workspaces and API keys"},
+		},
+		{
 			name:           "Honcho router surface",
 			repo:           "Honcho",
 			root:           filepath.Join("..", "..", "honcho"),
@@ -291,6 +446,22 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			path:           "tests/crud/test_session.py",
 			classification: "still row-backed",
 			evidence:       []string{"tests/crud/**", "Data model, migrations, CRUD invariants"},
+		},
+		{
+			name:           "Honcho session CRUD",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/crud/session.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/crud/session.py", "Data model, migrations, CRUD invariants"},
+		},
+		{
+			name:           "Honcho representation CRUD",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/crud/representation.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/crud/representation.py", "Conclusions, observations, representations"},
 		},
 		{
 			name:           "Honcho SDK compatibility",
@@ -341,6 +512,14 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			evidence:       []string{"honcho-cli/src/honcho_cli/main.py", "Honcho CLI"},
 		},
 		{
+			name:           "Honcho CLI command fixtures",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "honcho-cli/tests/test_commands.py",
+			classification: "mapped-by-contract",
+			evidence:       []string{"honcho-cli/tests/test_commands.py", "Honcho CLI"},
+		},
+		{
 			name:           "Honcho webhook route fixture",
 			repo:           "Honcho",
 			root:           filepath.Join("..", "..", "honcho"),
@@ -349,12 +528,52 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			evidence:       []string{"tests/routes/test_webhooks.py", "Webhooks"},
 		},
 		{
+			name:           "Honcho webhook delivery worker",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/webhooks/webhook_delivery.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/webhooks/webhook_delivery.py", "Goncho webhook delivery retry worker contract"},
+		},
+		{
 			name:           "Honcho deriver queue",
 			repo:           "Honcho",
 			root:           filepath.Join("..", "..", "honcho"),
 			path:           "src/deriver/queue_manager.py",
 			classification: "still row-backed",
 			evidence:       []string{"src/deriver/queue_manager.py", "Queue/deriver/reconciler lifecycle"},
+		},
+		{
+			name:           "Honcho dialectic chat",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/dialectic/chat.py",
+			classification: "mapped-by-contract",
+			evidence:       []string{"src/dialectic/chat.py", "Dialectic chat and tool loop"},
+		},
+		{
+			name:           "Honcho dream scheduler",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/dreamer/dream_scheduler.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/dreamer/dream_scheduler.py", "Dreaming"},
+		},
+		{
+			name:           "Honcho dream orchestrator",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/dreamer/orchestrator.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/dreamer/orchestrator.py", "Dreaming"},
+		},
+		{
+			name:           "Honcho reasoning traces",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "src/telemetry/reasoning_traces.py",
+			classification: "still row-backed",
+			evidence:       []string{"src/telemetry/reasoning_traces.py", "Self-monitoring telemetry"},
 		},
 		{
 			name:           "Honcho vector divergence",
@@ -389,6 +608,14 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			evidence:       []string{"database/init.sql", "Hosted deploy/config"},
 		},
 		{
+			name:           "Honcho Dockerfile deploy surface",
+			repo:           "Honcho",
+			root:           filepath.Join("..", "..", "honcho"),
+			path:           "Dockerfile",
+			classification: "owned",
+			evidence:       []string{"Dockerfile", "Hosted deploy/config"},
+		},
+		{
 			name:           "Honcho conclusions MCP tool",
 			repo:           "Honcho",
 			root:           filepath.Join("..", "..", "honcho"),
@@ -421,6 +648,143 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 			evidence:       []string{"cli-config.yaml.example", "CLI/config/status/doctor/backup"},
 		},
 	}
+
+	addChecks := func(namePrefix, repo, root, classification string, evidence []string, paths ...string) {
+		for _, path := range paths {
+			checks = append(checks, nestedFeatureCheck{
+				name:           namePrefix + " " + path,
+				repo:           repo,
+				root:           root,
+				path:           path,
+				classification: classification,
+				evidence:       append([]string{path}, evidence...),
+			})
+		}
+	}
+
+	hermesRoot := filepath.Join("..", "..", "hermes-agent")
+	honchoRoot := filepath.Join("..", "..", "honcho")
+
+	addChecks("Hermes model metadata", "Hermes", hermesRoot, "still row-backed",
+		[]string{"Model metadata, pricing, capabilities", "Phase 4.D"},
+		"agent/model_metadata.py",
+		"agent/models_dev.py",
+		"model_tools.py",
+	)
+	addChecks("Hermes environment runtime", "Hermes", hermesRoot, "still row-backed",
+		[]string{"Environment interface + file sync contract", "Phase 5.B"},
+		"environments/hermes_base_env.py",
+		"environments/agentic_opd_env.py",
+		"environments/web_research_env.py",
+	)
+	addChecks("Hermes raw parser", "Hermes", hermesRoot, "still row-backed",
+		[]string{"Raw tool-call parser fixture matrix", "Phase 5.M"},
+		"environments/tool_call_parsers/hermes_parser.py",
+		"environments/tool_call_parsers/deepseek_v3_1_parser.py",
+	)
+	addChecks("Hermes ACP entry", "Hermes", hermesRoot, "mapped-by-contract",
+		[]string{"ACP server side", "Phase 5.H"},
+		"acp_adapter/auth.py",
+		"acp_adapter/entry.py",
+	)
+	addChecks("Hermes plugin CLI", "Hermes", hermesRoot, "still row-backed",
+		[]string{"Hermes CLI command-tree parity manifest", "Phase 5.O"},
+		"hermes_cli/plugins.py",
+		"hermes_cli/plugins_cmd.py",
+	)
+	addChecks("Hermes release exact", "Hermes", hermesRoot, "still row-backed",
+		[]string{"OCI image", "Homebrew", "Phase 5.P"},
+		"docker/entrypoint.sh",
+		"packaging/homebrew/hermes-agent.rb",
+	)
+
+	addChecks("Honcho router", "Honcho", honchoRoot, "still row-backed",
+		[]string{"OpenAPI v3 route manifest", "Phase 3.G"},
+		"src/routers/sessions.py",
+		"src/routers/peers.py",
+		"src/routers/conclusions.py",
+		"src/routers/keys.py",
+		"src/routers/webhooks.py",
+	)
+	addChecks("Honcho CRUD", "Honcho", honchoRoot, "still row-backed",
+		[]string{"Data model, migrations, CRUD invariants", "Goncho CRUD lifecycle invariants"},
+		"src/crud/workspace.py",
+		"src/crud/peer.py",
+		"src/crud/message.py",
+		"src/crud/document.py",
+		"src/crud/webhook.py",
+		"src/crud/peer_card.py",
+		"src/crud/deriver.py",
+	)
+	addChecks("Honcho collection CRUD", "Honcho", honchoRoot, "still row-backed",
+		[]string{"collection_cache_key", "Goncho CRUD lifecycle invariants"},
+		"src/crud/collection.py",
+	)
+	addChecks("Honcho model symbols", "Honcho", honchoRoot, "still row-backed",
+		[]string{"MessageEmbedding", "Collection", "Document", "QueueItem", "ActiveQueueSession", "WebhookEndpoint", "SessionPeer"},
+		"src/models.py",
+	)
+	addChecks("Honcho dreamer", "Honcho", honchoRoot, "still row-backed",
+		[]string{"Dreaming", "Phase 3.F"},
+		"src/dreamer/surprisal.py",
+		"src/dreamer/trees/base.py",
+		"src/dreamer/trees/covertree.py",
+		"src/dreamer/trees/graph.py",
+		"src/dreamer/trees/lsh.py",
+		"src/dreamer/trees/prototype.py",
+		"src/dreamer/trees/rptree.py",
+		"src/dreamer/trees/sklearn_wrapper.py",
+	)
+	addChecks("Honcho dialectic", "Honcho", honchoRoot, "mapped-by-contract",
+		[]string{"Dialectic chat and tool loop", "Phase 3.F"},
+		"src/dialectic/core.py",
+		"src/dialectic/prompts.py",
+	)
+	addChecks("Honcho webhook adjunct", "Honcho", honchoRoot, "still row-backed",
+		[]string{"Goncho webhook delivery retry worker contract", "Webhooks"},
+		"src/webhooks/events.py",
+		"tests/webhooks/test_webhook_delivery.py",
+	)
+	addChecks("Honcho telemetry", "Honcho", honchoRoot, "still row-backed",
+		[]string{"Self-monitoring telemetry", "Phase 4.E"},
+		"src/telemetry/metrics_collector.py",
+		"src/telemetry/sentry.py",
+		"src/telemetry/events/deletion.py",
+	)
+	addChecks("Honcho CLI command module", "Honcho", honchoRoot, "mapped-by-contract",
+		[]string{"Goncho CLI command-tree parity", "Honcho CLI"},
+		"honcho-cli/src/honcho_cli/commands/workspace.py",
+		"honcho-cli/src/honcho_cli/commands/peer.py",
+		"honcho-cli/src/honcho_cli/commands/session.py",
+		"honcho-cli/src/honcho_cli/commands/message.py",
+		"honcho-cli/src/honcho_cli/commands/conclusion.py",
+		"honcho-cli/src/honcho_cli/commands/config_cmd.py",
+		"honcho-cli/src/honcho_cli/commands/setup.py",
+	)
+	addChecks("Honcho CLI helper", "Honcho", honchoRoot, "mapped-by-contract",
+		[]string{"Goncho CLI command-tree parity", "Honcho CLI"},
+		"honcho-cli/src/honcho_cli/config.py",
+		"honcho-cli/src/honcho_cli/output.py",
+		"honcho-cli/src/honcho_cli/validation.py",
+		"honcho-cli/src/honcho_cli/_help.py",
+		"honcho-cli/src/honcho_cli/branding.py",
+	)
+	addChecks("Honcho SDK exact", "Honcho", honchoRoot, "mapped-by-contract",
+		[]string{"Goncho Honcho SDK compatibility e2e harness", "Python SDK", "TypeScript SDK"},
+		"sdks/python/src/honcho/aio.py",
+		"sdks/python/src/honcho/api_types.py",
+		"sdks/python/src/honcho/mixins.py",
+		"sdks/typescript/src/validation.ts",
+		"sdks/typescript/src/http/streaming.ts",
+	)
+	addChecks("Honcho deploy exact", "Honcho", honchoRoot, "owned",
+		[]string{"Hosted deploy/config", "owned/excluded"},
+		"config.toml.example",
+		"docker-compose.yml.example",
+		"docker/entrypoint.sh",
+		"docker/prometheus.yml",
+		"docker/grafana-datasource.yml",
+	)
 
 	for _, check := range checks {
 		t.Run(check.repo+"/"+check.name, func(t *testing.T) {
@@ -466,6 +830,19 @@ func TestNestedUpstreamFeatureCoverage(t *testing.T) {
 		requireBuilderReadyProgressRow(t, "Nested feature-level coverage test matrix for swarm gaps")
 		requireBuilderReadyProgressRow(t, "Hermes and Honcho feature parity map to Go implementation plan")
 		requireBuilderReadyProgressRow(t, "Hermes/Honcho Go runtime plan second-wave reconciliation")
+		requireBuilderReadyProgressRow(t, "Provider account usage read model + renderer")
+		requireBuilderReadyProgressRow(t, "Gateway /usage command binding over provider account usage")
+		requireBuilderReadyProgressRow(t, "Goncho webhook delivery retry worker contract")
+		requireBuilderReadyProgressRow(t, "Self-monitoring telemetry")
+		requireBuilderReadyProgressRow(t, "Environment interface + file sync contract")
+		requireBuilderReadyProgressRow(t, "Raw tool-call parser fixture matrix")
+		requireBuilderReadyProgressRow(t, "ACP server side")
+		requireBuilderReadyProgressRow(t, "Hermes CLI command-tree parity manifest")
+		requireBuilderReadyProgressRow(t, "Goncho Honcho SDK compatibility e2e harness")
+		requireBuilderReadyProgressRow(t, "Goncho CLI command-tree parity")
+		requireBuilderReadyProgressRow(t, "Goncho CRUD lifecycle invariants")
+		requireBuilderReadyProgressRow(t, "OCI image")
+		requireBuilderReadyProgressRow(t, "Homebrew")
 	})
 }
 
@@ -575,7 +952,11 @@ func hasOnlyBroadNestedEvidence(evidence []string) bool {
 	}
 	for _, item := range evidence {
 		switch item {
-		case "tests/**", "agent/**", "tools/**", "src/**", "sdks/**", "mcp/**":
+		case "tests/**", "agent/**", "tools/**", "gateway/**", "hermes_cli/**",
+			"plugins/**", "skills/**", "optional-skills/**", "acp_adapter/**",
+			"docs/**", "src/**", "sdks/**", "mcp/**", "honcho-cli/**",
+			"migrations/**", "examples/**", "scripts/**", "docker/**",
+			"packaging/**", "nix/**":
 			continue
 		default:
 			return false

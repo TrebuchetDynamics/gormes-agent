@@ -2761,7 +2761,16 @@
               "blocked_by": [
                 "Discord forum channel ingress + thread lifecycle"
               ],
-              "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green — attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress."
+              "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green — attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -4284,32 +4293,86 @@
             {
               "name": "Home channel ownership rules",
               "status": "planned",
-              "note": "TDD: define home-channel selection, explicit override precedence, and per-platform fallback rules before cross-platform delivery code."
+              "note": "TDD: define home-channel selection, explicit override precedence, and per-platform fallback rules before cross-platform delivery code.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Notify-to delivery routing",
               "status": "planned",
-              "note": "TDD: prove delivery-target expansion from notify-to and home-channel settings before adapter dispatch starts consulting directory state."
+              "note": "TDD: prove delivery-target expansion from notify-to and home-channel settings before adapter dispatch starts consulting directory state.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Channel directory atomic persistence + lookup",
               "status": "planned",
-              "note": "TDD: port upstream `gateway/channel_directory.py` as an atomic `channel_directory.json` read model with composite `chat_id:thread_id` keys and human name/type lookup before periodic refresh or operator UX."
+              "note": "TDD: port upstream `gateway/channel_directory.py` as an atomic `channel_directory.json` read model with composite `chat_id:thread_id` keys and human name/type lookup before periodic refresh or operator UX.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Channel directory refresh + stale-target invalidation",
               "status": "planned",
-              "note": "TDD: add deterministic refresh/stale-target behavior after manager-source persistence exists, so send-target resolution never depends on adapter-specific cache side effects."
+              "note": "TDD: add deterministic refresh/stale-target behavior after manager-source persistence exists, so send-target resolution never depends on adapter-specific cache side effects.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Manager remember-source hook",
               "status": "planned",
-              "note": "TDD: persist allowed inbound SessionSource records through gateway.Manager before periodic refresh or send-target resolution starts depending on the directory."
+              "note": "TDD: persist allowed inbound SessionSource records through gateway.Manager before periodic refresh or send-target resolution starts depending on the directory.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Mirror + sticker cache surfaces",
               "status": "planned",
-              "note": "TDD: prove cache key and mirror-write contracts before adapter-specific caches land."
+              "note": "TDD: prove cache key and mirror-write contracts before adapter-specific caches land.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -4472,12 +4535,30 @@
             {
               "name": "Mid-run steer injection between tool calls",
               "status": "planned",
-              "note": "TDD: expose a running-agent steer hook on the kernel so `/steer <prompt>` lands BETWEEN tool calls (not at turn boundary) via a single deterministic callback; prove ordering against concurrent-tool fan-out and the 2.E.2 cancellation contract. Must fall back to the 2.F.5 queue slice when the kernel has no live tool-call iteration in flight, and must refuse to duplicate prompts already routed through that fallback."
+              "note": "TDD: expose a running-agent steer hook on the kernel so `/steer <prompt>` lands BETWEEN tool calls (not at turn boundary) via a single deterministic callback; prove ordering against concurrent-tool fan-out and the 2.E.2 cancellation contract. Must fall back to the 2.F.5 queue slice when the kernel has no live tool-call iteration in flight, and must refuse to duplicate prompts already routed through that fallback.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Gateway-handled slash commands bypass active-session guard",
               "status": "planned",
-              "note": "TDD: mirror upstream PRs #12334 and #511ed4da — registry-resolved gateway slash commands must execute even while an agent is running for that session, without interrupting the running turn and without queuing discardable command text. Keep non-gateway/unknown commands behind the existing busy-state response so only the safe registry surface bypasses the guard; cover both allowed and denied paths with fixture tests before shipping."
+              "note": "TDD: mirror upstream PRs #12334 and #511ed4da — registry-resolved gateway slash commands must execute even while an agent is running for that session, without interrupting the running turn and without queuing discardable command text. Keep non-gateway/unknown commands behind the existing busy-state response so only the safe registry surface bypasses the guard; cover both allowed and denied paths with fixture tests before shipping.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ],
           "drift_state": {
@@ -6051,10 +6132,23 @@
                 "../honcho/src/models.py:Workspace",
                 "../honcho/src/models.py:Peer",
                 "../honcho/src/models.py:Session",
+                "../honcho/src/models.py:SessionPeer",
                 "../honcho/src/models.py:Message",
+                "../honcho/src/models.py:MessageEmbedding",
+                "../honcho/src/models.py:Collection",
+                "../honcho/src/models.py:Document",
+                "../honcho/src/models.py:QueueItem",
+                "../honcho/src/models.py:ActiveQueueSession",
+                "../honcho/src/models.py:WebhookEndpoint",
                 "../honcho/src/crud/message.py:create_messages",
                 "../honcho/src/crud/session.py:delete_session",
                 "../honcho/src/crud/workspace.py:delete_workspace",
+                "../honcho/src/crud/peer.py",
+                "../honcho/src/crud/peer_card.py",
+                "../honcho/src/crud/document.py",
+                "../honcho/src/crud/webhook.py",
+                "../honcho/src/crud/deriver.py",
+                "../honcho/src/crud/collection.py:collection_cache_key,get_collection,get_or_create_collection,update_collection_internal_metadata",
                 "../honcho/tests/crud/test_workspace.py",
                 "../honcho/tests/crud/test_session.py",
                 "../honcho/tests/routes/test_messages.py",
@@ -6212,9 +6306,7 @@
                 "../honcho/src/routers/webhooks.py",
                 "../honcho/src/crud/webhook.py",
                 "../honcho/src/webhooks/events.py",
-                "../honcho/src/webhooks/webhook_delivery.py",
                 "../honcho/tests/routes/test_webhooks.py",
-                "../honcho/tests/webhooks/test_webhook_delivery.py",
                 "internal/goncho/keys.go",
                 "internal/goncho/webhooks.go"
               ],
@@ -6228,6 +6320,7 @@
               ],
               "unblocks": [
                 "Goncho HTTP route parity over OpenAPI v3",
+                "Goncho webhook delivery retry worker contract",
                 "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
               ],
               "acceptance": [
@@ -6265,8 +6358,79 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "honcho:src/routers/{keys,webhooks}.py + src/security.py + src/crud/webhook.py + src/webhooks/**",
+                "upstream_ref": "honcho:src/routers/{keys,webhooks}.py + src/security.py + src/crud/webhook.py + src/webhooks/events.py",
                 "note": "Honcho supplies the public key/webhook behavior; Gormes owns a local Go compatibility surface and leaves route/worker binding to dedicated rows."
+              }
+            },
+            {
+              "name": "Goncho webhook delivery retry worker contract",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Goncho ports Honcho outbound webhook delivery as a local fake-HTTP worker contract through WebhookDeliveryWorker, WebhookDeliveryStore, WebhookHTTPClient, WebhookClock, WebhookDeliveryAttempt, and WebhookDeliveryResult types with queue-empty/test events, HMAC headers, retry/backoff/failure evidence, and workspace endpoint disablement without requiring Redis, hosted Honcho, or live network tests.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Failed or disabled endpoints produce retry/failure evidence and leave local state auditable instead of dropping events silently or blocking core Goncho writes.",
+              "fixture": "internal/goncho/webhook_delivery_test.go",
+              "source_refs": [
+                "../honcho/src/webhooks/webhook_delivery.py",
+                "../honcho/src/webhooks/events.py:QueueEmptyEvent,TestEvent",
+                "../honcho/src/routers/webhooks.py",
+                "../honcho/tests/webhooks/test_webhook_delivery.py",
+                "../honcho/tests/routes/test_webhooks.py",
+                "internal/goncho/webhooks.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Webhooks",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+              ],
+              "ready_when": [
+                "`Goncho keys + webhooks compatibility surface` has validated endpoint CRUD, test-event construction, and HMAC signing helpers.",
+                "The worker can use fake HTTP clients, fake clocks, and in-memory queues; no Redis, Postgres, hosted Honcho, external network, or generated SDK is required."
+              ],
+              "not_ready_when": [
+                "The slice binds OpenAPI routes, starts a background service, performs live HTTP calls, or rewrites the existing webhook endpoint CRUD contract.",
+                "The slice treats queue publication as complete without retry/backoff/failure state and disabled-endpoint evidence.",
+                "The slice changes key/JWT behavior, SDK compatibility, or unrelated Goncho route bindings."
+              ],
+              "blocked_by": [
+                "Goncho keys + webhooks compatibility surface"
+              ],
+              "unblocks": [
+                "Goncho HTTP route parity over OpenAPI v3",
+                "Self-monitoring telemetry",
+                "Goncho Honcho SDK compatibility e2e harness"
+              ],
+              "acceptance": [
+                "WebhookDeliveryWorker consumes WebhookDeliveryStore, WebhookHTTPClient, and WebhookClock seams and returns WebhookDeliveryResult values with attempt, status, retry, and redacted evidence fields.",
+                "QueueEmptyEvent and TestEvent payload fixtures match Honcho event names, workspace/endpoint scoping, timestamps, and JSON shape needed by downstream SDK/webhook tests.",
+                "Delivery uses the existing HMAC-SHA256 payload signature helper and includes deterministic headers without exposing webhook secrets.",
+                "Fake HTTP tests cover success, retryable failure, permanent failure, backoff scheduling, max-attempt exhaustion, and endpoint-disabled behavior.",
+                "Failure evidence records endpoint, workspace, event, status/error class, attempt count, and next retry time with redacted URL/secret details.",
+                "The implementation remains a pure worker/service contract; HTTP route binding, Redis queue wiring, generated SDK clients, and live webhook calls stay row-backed."
+              ],
+              "note": "swarm_origin: 2026-04-28/honcho-mapper. The prior completed key/webhook row covered CRUD, test-event construction, and signing only; this row makes `src/webhooks/webhook_delivery.py` explicitly row-backed so outbound delivery and retries no longer hide under broad `src/webhooks/**` coverage.",
+              "write_scope": [
+                "internal/goncho/webhooks.go",
+                "internal/goncho/webhooks_test.go",
+                "internal/goncho/webhook_delivery.go",
+                "internal/goncho/webhook_delivery_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run 'TestWebhookDelivery' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Webhook delivery fixtures prove Honcho-compatible event payloads, HMAC headers, success/failure retries, backoff, endpoint disablement, redacted evidence, and no live network dependency."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "honcho:src/webhooks/webhook_delivery.py",
+                "note": "Honcho owns the delivery/retry semantics; Gormes ports them as a local worker contract behind fake HTTP and clock seams."
               }
             },
             {
@@ -6359,6 +6523,11 @@
               "fixture": "cmd/gormes/goncho_cli_parity_test.go",
               "source_refs": [
                 "../honcho/honcho-cli/src/honcho_cli/main.py",
+                "../honcho/honcho-cli/src/honcho_cli/config.py",
+                "../honcho/honcho-cli/src/honcho_cli/output.py",
+                "../honcho/honcho-cli/src/honcho_cli/validation.py",
+                "../honcho/honcho-cli/src/honcho_cli/_help.py",
+                "../honcho/honcho-cli/src/honcho_cli/branding.py",
                 "../honcho/honcho-cli/src/honcho_cli/common.py",
                 "../honcho/honcho-cli/src/honcho_cli/commands/setup.py",
                 "../honcho/honcho-cli/src/honcho_cli/commands/workspace.py",
@@ -6438,10 +6607,15 @@
               "degraded_mode": "If a Honcho SDK flow is not supported locally, the harness reports sdk_flow_unsupported with the exact endpoint or field instead of silently diverging from Honcho.",
               "fixture": "internal/goncho/compat_harness_test.go::TestGonchoHonchoSDKCompatibility",
               "source_refs": [
-                "../honcho/tests/sdk/",
+                "../honcho/tests/sdk/test_client.py",
                 "../honcho/tests/sdk_typescript/",
-                "../honcho/sdks/python/src/honcho/",
-                "../honcho/sdks/typescript/src/",
+                "../honcho/sdks/python/src/honcho/client.py",
+                "../honcho/sdks/python/src/honcho/aio.py",
+                "../honcho/sdks/python/src/honcho/api_types.py",
+                "../honcho/sdks/python/src/honcho/mixins.py",
+                "../honcho/sdks/typescript/src/client.ts",
+                "../honcho/sdks/typescript/src/validation.ts",
+                "../honcho/sdks/typescript/src/http/streaming.ts",
                 "../honcho/sdks/typescript/__tests__/",
                 "../honcho/docs/v3/documentation/features/chat.mdx",
                 "../honcho/docs/v3/documentation/features/search.mdx",
@@ -6514,7 +6688,7 @@
               ],
               "ready_when": [
                 "Goncho Honcho SDK compatibility e2e harness is fixture-ready or validated.",
-                "Native agent turn e2e harness exists or is being built in the same dependency lane.",
+                "Python-free normal agent turn e2e harness is validated.",
                 "The worker can inject fake provider output and temp Goncho state without live credentials."
               ],
               "not_ready_when": [
@@ -6523,8 +6697,7 @@
                 "The slice bypasses existing memory status/degraded-mode reporting."
               ],
               "blocked_by": [
-                "Goncho Honcho SDK compatibility e2e harness",
-                "Python-free normal agent turn e2e harness"
+                "Goncho Honcho SDK compatibility e2e harness"
               ],
               "acceptance": [
                 "The test seeds prior Goncho messages and proves scoped recall is visible to prompt/context assembly.",
@@ -7488,7 +7661,16 @@
             {
               "name": "Bedrock",
               "status": "planned",
-              "note": "Umbrella only: do not assign directly. Five codexu/* worker attempts on 2026-04-23 produced broad Bedrock adapters that did not merge, but the pure request-body mapping has since landed as internal/hermes/bedrock_converse.go and internal/hermes/bedrock_converse_mapping_test.go. Remaining work is dependency-ordered: stream event decoding -> SigV4/credential seam -> stale-client eviction/retry classification. No worker should attempt a full Bedrock adapter until those three rows are validated."
+              "note": "Umbrella only: do not assign directly. Five codexu/* worker attempts on 2026-04-23 produced broad Bedrock adapters that did not merge, but the pure request-body mapping has since landed as internal/hermes/bedrock_converse.go and internal/hermes/bedrock_converse_mapping_test.go. Remaining work is dependency-ordered: stream event decoding -> SigV4/credential seam -> stale-client eviction/retry classification. No worker should attempt a full Bedrock adapter until those three rows are validated.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Bedrock Converse payload mapping (no AWS SDK)",
@@ -7756,17 +7938,44 @@
             {
               "name": "Gemini",
               "status": "planned",
-              "note": "TDD: port `agent/gemini_cloudcode_adapter.py` with content-part normalization, tool-call mapping, safety/error payload handling, and no live Google credential dependency in unit tests."
+              "note": "TDD: port `agent/gemini_cloudcode_adapter.py` with content-part normalization, tool-call mapping, safety/error payload handling, and no live Google credential dependency in unit tests.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "OpenRouter",
               "status": "planned",
-              "note": "Not landed on main. Five codexu/* worker attempts on 2026-04-23 (`343ec085` / `c009045d` / `e7b271a7` / `f00010b1` / `b3b0c366`) produced candidate OpenRouter adapters but none merged — no `openrouter_*.go` file is tracked in `internal/hermes/` and `grep -i openrouter` over that package returns zero matches. Prior planner note incorrectly cited `agent/openrouter_client.py`, which does not exist upstream: `tools/openrouter_client.py` is only a 33-line async-client getter that delegates to `agent/auxiliary_client.py`. TDD scope: OpenRouter is not a standalone adapter upstream — it is one of several OpenAI-compatible providers routed through the shared provider resolver. Pin the behavior by porting against the real upstream surfaces: `agent/auxiliary_client.py:815 _try_openrouter`, `agent/auxiliary_client.py:2069 _is_openrouter_client`, the `X-OpenRouter-Title` / `X-OpenRouter-Categories` / `HTTP-Referer` app-attribution headers around `agent/auxiliary_client.py:170`, `agent/model_metadata.py:214 _is_openrouter_base_url`, `agent/usage_pricing.py:411 _openrouter_pricing_entry`, and `hermes_cli/runtime_provider.py:429 _resolve_openrouter_runtime`. Fixture-only unit tests must prove (a) base URL and model-family selection over the OpenAI-compatible client seam, (b) attribution-header emission, (c) retryable vs fatal error mapping through `internal/hermes/errors.go`, and (d) usage/pricing accounting against captured response fixtures — no live `OPENROUTER_API_KEY` in tests. Land after `Provider interface + stream fixture harness` and `Tool-call normalization + continuation contract` closeout so this slice reuses the shared transcript harness rather than inventing its own."
+              "note": "Not landed on main. Five codexu/* worker attempts on 2026-04-23 (`343ec085` / `c009045d` / `e7b271a7` / `f00010b1` / `b3b0c366`) produced candidate OpenRouter adapters but none merged — no `openrouter_*.go` file is tracked in `internal/hermes/` and `grep -i openrouter` over that package returns zero matches. Prior planner note incorrectly cited `agent/openrouter_client.py`, which does not exist upstream: `tools/openrouter_client.py` is only a 33-line async-client getter that delegates to `agent/auxiliary_client.py`. TDD scope: OpenRouter is not a standalone adapter upstream — it is one of several OpenAI-compatible providers routed through the shared provider resolver. Pin the behavior by porting against the real upstream surfaces: `agent/auxiliary_client.py:815 _try_openrouter`, `agent/auxiliary_client.py:2069 _is_openrouter_client`, the `X-OpenRouter-Title` / `X-OpenRouter-Categories` / `HTTP-Referer` app-attribution headers around `agent/auxiliary_client.py:170`, `agent/model_metadata.py:214 _is_openrouter_base_url`, `agent/usage_pricing.py:411 _openrouter_pricing_entry`, and `hermes_cli/runtime_provider.py:429 _resolve_openrouter_runtime`. Fixture-only unit tests must prove (a) base URL and model-family selection over the OpenAI-compatible client seam, (b) attribution-header emission, (c) retryable vs fatal error mapping through `internal/hermes/errors.go`, and (d) usage/pricing accounting against captured response fixtures — no live `OPENROUTER_API_KEY` in tests. Land after `Provider interface + stream fixture harness` and `Tool-call normalization + continuation contract` closeout so this slice reuses the shared transcript harness rather than inventing its own.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Google Code Assist",
               "status": "planned",
-              "note": "TDD: port `agent/google_code_assist.py` only after OAuth/token-store seams are testable; freeze request shaping, quota/error handling, and credential refresh behavior with fake token providers."
+              "note": "TDD: port `agent/google_code_assist.py` only after OAuth/token-store seams are testable; freeze request shaping, quota/error handling, and credential refresh behavior with fake token providers.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Codex",
@@ -8159,7 +8368,16 @@
             {
               "name": "Context compression",
               "status": "planned",
-              "note": "Umbrella only: do not execute as one slice. Preserve cache-safe history semantics while the smaller compressor tasks land."
+              "note": "Umbrella only: do not execute as one slice. Preserve cache-safe history semantics while the smaller compressor tasks land.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "ContextEngine interface + status tool contract",
@@ -8413,7 +8631,16 @@
             {
               "name": "Tool-result pruning + protected head/tail summary",
               "status": "planned",
-              "note": "TDD: freeze old tool-output pruning, protected system/first-turn head messages, recent-tail preservation, and summary prefix compatibility before mutating live message history. Must keep tool-call arguments JSON valid when shrinking per upstream PR #3128d9fc — a pruning pass that truncates an argument string mid-JSON breaks the continuation payload on the next turn, so the head/tail contract has to respect tool-call argument boundaries and never emit partial JSON values."
+              "note": "TDD: freeze old tool-output pruning, protected system/first-turn head messages, recent-tail preservation, and summary prefix compatibility before mutating live message history. Must keep tool-call arguments JSON valid when shrinking per upstream PR #3128d9fc — a pruning pass that truncates an argument string mid-JSON breaks the continuation payload on the next turn, so the head/tail contract has to respect tool-call argument boundaries and never emit partial JSON values.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Aux compression single-prompt threshold reconciliation",
@@ -8709,7 +8936,16 @@
             {
               "name": "Manual compression feedback + context references",
               "status": "planned",
-              "note": "TDD: port `manual_compression_feedback.py` and the remaining `context_references.py` live expansion/injection contracts as separate read/write contracts. The pure context-reference parser and stable handle store shipped in `Context references stable-handle store`; do not reopen that scope for manual feedback."
+              "note": "TDD: port `manual_compression_feedback.py` and the remaining `context_references.py` live expansion/injection contracts as separate read/write contracts. The pure context-reference parser and stable handle store shipped in `Context references stable-handle store`; do not reopen that scope for manual feedback.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "ContextEngine compression-boundary callback vocabulary",
@@ -8892,27 +9128,72 @@
             {
               "name": "System + memory + tools + history assembly",
               "status": "planned",
-              "note": "Umbrella only: execute through the context-file, role/model guidance, skills snapshot, and memory/session-search prompt slices before replacing the Python bridge."
+              "note": "Umbrella only: execute through the context-file, role/model guidance, skills snapshot, and memory/session-search prompt slices before replacing the Python bridge.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Context-file discovery + injection scan",
               "status": "planned",
-              "note": "TDD: port SOUL/HERMES/AGENTS/CLAUDE/.cursorrules discovery order, 20k-character truncation, YAML frontmatter stripping, and prompt-injection/invisible-character scan behavior from `agent/prompt_builder.py`."
+              "note": "TDD: port SOUL/HERMES/AGENTS/CLAUDE/.cursorrules discovery order, 20k-character truncation, YAML frontmatter stripping, and prompt-injection/invisible-character scan behavior from `agent/prompt_builder.py`.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Model-specific role and tool-use guidance",
               "status": "planned",
-              "note": "TDD: freeze developer-vs-system role selection plus OpenAI/Codex/Gemini/Google operational guidance blocks so provider adapters receive stable prompt roles."
+              "note": "TDD: freeze developer-vs-system role selection plus OpenAI/Codex/Gemini/Google operational guidance blocks so provider adapters receive stable prompt roles.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Toolset-aware skills prompt snapshot",
               "status": "planned",
-              "note": "TDD: port skill manifest hashing, in-process/disk snapshot cache, tool/toolset condition filtering, and deterministic ordering before dynamic skills enter native prompt assembly."
+              "note": "TDD: port skill manifest hashing, in-process/disk snapshot cache, tool/toolset condition filtering, and deterministic ordering before dynamic skills enter native prompt assembly.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Memory and session-search guidance assembly",
               "status": "planned",
-              "note": "TDD: assemble memory guidance, session-search guidance, available tool-name gates, and environment/platform hints without changing existing Phase 3 GONCHO recall semantics."
+              "note": "TDD: assemble memory guidance, session-search guidance, available tool-name gates, and environment/platform hints without changing existing Phase 3 GONCHO recall semantics.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Gormes self-help skill/docs prompt guidance",
@@ -9373,7 +9654,16 @@
             {
               "name": "Trajectory writer + redaction gates",
               "status": "planned",
-              "note": "TDD: port `agent/trajectory.py` as an opt-in writer with deterministic message/tool snapshots, secret redaction, and failure-is-nonfatal behavior before broad telemetry capture."
+              "note": "TDD: port `agent/trajectory.py` as an opt-in writer with deterministic message/tool snapshots, secret redaction, and failure-is-nonfatal behavior before broad telemetry capture.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Trajectory compressor + compressed-evidence lineage",
@@ -9450,7 +9740,84 @@
             {
               "name": "Self-monitoring telemetry",
               "status": "planned",
-              "note": "TDD: bridge native turn/provider/tool metrics into the existing Phase 3 insights rollup without changing the local `usage.jsonl` schema until compatibility tests pass."
+              "contract": "Gormes bridges Hermes turn/provider/tool telemetry and Honcho telemetry/reasoning traces into local redacted telemetry, audit, and insights evidence through SelfMonitoringBridge, TelemetryEventMatrix, ReasoningTraceRecord, TelemetrySink, AuditSink, and InsightsRecorder interfaces without changing the local usage.jsonl schema until compatibility tests pass.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Telemetry emission failures, unavailable metrics exporters, and unsupported hosted Honcho tracing fields produce nonfatal local evidence instead of blocking turns, memory writes, or queue processing.",
+              "fixture": "internal/telemetry/self_monitoring_test.go; internal/goncho/telemetry_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/trajectory.py",
+                "../hermes-agent/agent/usage_pricing.py:CanonicalUsage,normalize_usage,estimate_usage_cost",
+                "../hermes-agent/tests/agent/test_usage_pricing.py",
+                "../honcho/src/telemetry/emitter.py",
+                "../honcho/src/telemetry/reasoning_traces.py",
+                "../honcho/src/telemetry/events/agent.py",
+                "../honcho/src/telemetry/events/deletion.py",
+                "../honcho/src/telemetry/events/dream.py",
+                "../honcho/src/telemetry/events/reconciliation.py",
+                "../honcho/src/telemetry/events/representation.py",
+                "../honcho/src/telemetry/metrics_collector.py",
+                "../honcho/src/telemetry/sentry.py",
+                "../honcho/src/telemetry/prometheus/metrics.py",
+                "../honcho/tests/telemetry/test_events.py",
+                "../honcho/tests/telemetry/test_emitter.py",
+                "../honcho/tests/integration/test_telemetry.py",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Telemetry and reasoning traces",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces"
+              ],
+              "ready_when": [
+                "Trajectory compression, provider usage, and Phase 3 insights rows define local usage/status vocabulary.",
+                "Goncho memory and queue rows expose deterministic event inputs that can be fixture-tested without live providers, Prometheus, Sentry, Redis, or hosted Honcho.",
+                "The slice can keep external exporters as owned/excluded divergence while preserving the event names, trace IDs, queue/dream/reconciliation evidence, and redaction semantics needed by local Gormes diagnostics."
+              ],
+              "not_ready_when": [
+                "The slice changes the persisted usage.jsonl schema, starts Prometheus/Sentry/OpenTelemetry exporters, or sends telemetry over the network.",
+                "The slice blocks kernel turns, provider calls, memory writes, or dream/reconciliation jobs when telemetry recording fails.",
+                "The slice collapses Honcho reasoning traces into generic log lines without preserving event name, reasoning tree ID, level, parent/child relationship, and redaction evidence."
+              ],
+              "blocked_by": [
+                "Trajectory compressor + compressed-evidence lineage",
+                "Provider account usage read model + renderer",
+                "Goncho webhook delivery retry worker contract"
+              ],
+              "acceptance": [
+                "SelfMonitoringBridge accepts injected TelemetrySink, AuditSink, and InsightsRecorder implementations so telemetry, audit, and insights behavior can be tested without global state.",
+                "A local event matrix maps Hermes turn/provider/tool usage and Honcho agent, dream, reconciliation, representation, and reasoning-trace events into Gormes telemetry/audit event names with owned/excluded exporter rationale.",
+                "ReasoningTrace fixtures preserve trace ID, tree node ID, parent ID, level, event type, timing, and redacted payload summaries without raw prompts, secrets, or provider tokens.",
+                "Provider/account usage and tool metrics bridge into the existing insights rollup as additive evidence without altering existing usage.jsonl field names.",
+                "Telemetry failures return nonfatal degraded evidence and do not interrupt turns, memory writes, webhook delivery, queue processing, or dream scheduling.",
+                "Tests classify hosted Prometheus/Sentry/exporter-only behavior as owned/excluded divergence and prove local event emission remains deterministic."
+              ],
+              "note": "swarm_origin: 2026-04-28/honcho-mapper. This enriches the prior bare `Self-monitoring telemetry` note into a builder-ready row-backed classification for Honcho `src/telemetry/reasoning_traces.py` and Hermes usage/trajectory telemetry. External hosted metrics exporters remain owned/excluded; local reasoning/event evidence is required.",
+              "write_scope": [
+                "internal/telemetry/self_monitoring.go",
+                "internal/telemetry/self_monitoring_test.go",
+                "internal/audit/self_monitoring.go",
+                "internal/audit/self_monitoring_test.go",
+                "internal/insights/self_monitoring.go",
+                "internal/insights/self_monitoring_test.go",
+                "internal/goncho/telemetry.go",
+                "internal/goncho/telemetry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/telemetry ./internal/audit ./internal/insights ./internal/goncho -run 'TestSelfMonitoring|TestGonchoTelemetry|TestReasoningTrace' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telemetry fixtures prove Hermes usage metrics and Honcho reasoning/event traces map into deterministic redacted local evidence with nonfatal failure behavior and explicit hosted-exporter divergence."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:agent/usage_pricing.py + honcho:src/telemetry/reasoning_traces.py",
+                "note": "Hermes and Honcho supply telemetry semantics; Gormes owns local redacted evidence and excludes hosted exporter dependencies unless later rows add them."
+              }
             }
           ]
         },
@@ -9678,7 +10045,16 @@
             {
               "name": "Token vault",
               "status": "planned",
-              "note": "TDD: port credential-file discovery and storage from `tools/credential_files.py` into XDG-scoped paths with permission, missing-file, and profile-isolation tests before providers read tokens."
+              "note": "TDD: port credential-file discovery and storage from `tools/credential_files.py` into XDG-scoped paths with permission, missing-file, and profile-isolation tests before providers read tokens.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Anthropic OAuth/keychain credential discovery",
@@ -9729,7 +10105,16 @@
             {
               "name": "Multi-account auth",
               "status": "planned",
-              "note": "TDD: port `agent/credential_pool.py` account selection and rotation semantics with fake credential records before any provider adapter relies on account pools."
+              "note": "TDD: port `agent/credential_pool.py` account selection and rotation semantics with fake credential records before any provider adapter relies on account pools.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Google OAuth flow + refresh seam",
@@ -10309,7 +10694,155 @@
             {
               "name": "Prompt-cache capability guard",
               "status": "planned",
-              "note": "TDD: port `agent/prompt_caching.py` model/provider capability checks so cache-control metadata is attached only when the selected provider supports it."
+              "note": "TDD: port `agent/prompt_caching.py` model/provider capability checks so cache-control metadata is attached only when the selected provider supports it.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
+            },
+            {
+              "name": "Provider account usage read model + renderer",
+              "status": "planned",
+              "contract": "Gormes exposes a Hermes-compatible provider account-usage read model with internal/hermes.AccountUsageSnapshot and AccountUsageWindow, fakeable Codex/Anthropic/OpenRouter fetchers, and a shared redacted renderer that later CLI/status and gateway `/usage` command rows can bind without rediscovering provider payload semantics.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing credentials, unsupported providers, upstream 401/429/5xx responses, malformed usage payloads, and unavailable account-usage endpoints produce typed unavailable/unsupported/degraded evidence instead of blocking normal provider turns or command dispatch.",
+              "fixture": "internal/hermes/account_usage_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/account_usage.py:AccountUsageSnapshot,AccountUsageWindow,render_account_usage_lines,fetch_account_usage,_fetch_codex_account_usage,_fetch_anthropic_account_usage,_fetch_openrouter_account_usage",
+                "../hermes-agent/tests/test_account_usage.py",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting"
+              ],
+              "ready_when": [
+                "Provider rate-guard and budget telemetry rows already define the status/evidence vocabulary for provider quota and degradation.",
+                "The slice can use injected HTTP clients, fake clocks, and static provider fixtures; no live Codex, Anthropic, or OpenRouter credentials are required.",
+                "The row is limited to read-model and renderer behavior; token-vault writes, OAuth refresh, Cobra command binding, and gateway slash-command dispatch remain separate rows."
+              ],
+              "not_ready_when": [
+                "The slice performs live network calls in tests or requires real provider credentials.",
+                "The slice changes provider routing, retry timing, token-vault storage, or normal-turn execution.",
+                "The slice binds Cobra commands, gateway slash dispatch, or session-history lookup instead of exposing reusable read-model and render helpers.",
+                "The slice logs, renders, or persists raw API tokens while building account-usage evidence."
+              ],
+              "unblocks": [
+                "Provider status command parity",
+                "Gateway /usage command binding over provider account usage",
+                "Self-monitoring telemetry"
+              ],
+              "acceptance": [
+                "The public Go API exposes AccountUsageSnapshot, AccountUsageWindow, AccountUsageFetcher, and renderer helpers under internal/hermes with injected HTTP client and fake clock seams.",
+                "Codex, Anthropic, and OpenRouter fixture payloads normalize into one AccountUsageSnapshot shape with provider, account label, usage windows, reset times, remaining/used limits when available, and source evidence.",
+                "Unsupported providers and missing credentials preserve upstream's nonfatal None-result contract while returning Gormes-owned typed unsupported or credential-missing evidence without contacting a provider client.",
+                "Malformed JSON and upstream HTTP failures produce degraded evidence with redacted endpoint/account details and no raw credential bytes.",
+                "The shared renderer produces stable text/JSON fixtures that include provider/account/window/quota evidence but do not require Cobra, gateway manager, running-agent, cached-agent, or transcript-history integration.",
+                "The implementation stays read-only: no config, token vault, memory, transcript, or provider client state is modified."
+              ],
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. The mapper found `agent/account_usage.py` hidden under broad `agent/*.py` coverage; this row converts that feature-level unknown into an explicit Phase 4.H row-backed read-model and renderer contract. Upstream `fetch_account_usage` returns None for unsupported providers and caught failures; Gormes keeps the nonfatal behavior but owns typed unsupported/degraded evidence as a Go-native improvement. Command dispatch stays row-backed: upstream CLI `/usage` and gateway `/usage` running-agent vs cached-agent precedence, session token/cost/context output, history fallback, and account-limits rendering bind this read model in `Gateway /usage command binding over provider account usage`.",
+              "write_scope": [
+                "internal/hermes/account_usage.go",
+                "internal/hermes/account_usage_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestAccountUsage' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Account-usage fixtures prove Codex, Anthropic, and OpenRouter normalization, unsupported/missing/degraded evidence, shared rendering, redaction, fake HTTP/clock seams, and read-only behavior."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:agent/account_usage.py",
+                "note": "Hermes defines provider account-usage fetch and render behavior; Gormes ports it as a Go-native read model with hermetic provider fixtures."
+              }
+            },
+            {
+              "name": "Gateway /usage command binding over provider account usage",
+              "status": "planned",
+              "contract": "Gormes binds Hermes CLI and gateway `/usage` behavior to the provider account-usage read model, preserving running-agent versus cached-agent precedence, transcript usage fallback, account-limit rendering, and redacted unavailable output without adding provider-client state.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "No active agent, missing cached usage, unsupported providers, and provider-account failures render explicit unavailable/unsupported evidence instead of panics, raw tokens, or live network requirements in command tests.",
+              "fixture": "internal/gateway/usage_command_test.go; cmd/gormes/usage_command_test.go",
+              "source_refs": [
+                "../hermes-agent/cli.py:/usage",
+                "../hermes-agent/gateway/run.py:_handle_usage_command",
+                "../hermes-agent/tests/gateway/test_usage_command.py",
+                "../hermes-agent/agent/account_usage.py:render_account_usage_lines,fetch_account_usage",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Provider account usage reporting",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting"
+              ],
+              "ready_when": [
+                "`Provider account usage read model + renderer` exposes AccountUsageSnapshot, AccountUsageFetcher, fake clock/client seams, and stable text/JSON rendering.",
+                "Gateway command tests can fake running-agent usage, cached-agent usage, and transcript usage history without starting channel transports or live providers.",
+                "The slice can route command output through existing gateway and Cobra command boundaries without modifying token-vault, provider routing, or normal turn execution."
+              ],
+              "not_ready_when": [
+                "The slice reimplements provider account-usage fetching instead of consuming the internal/hermes read model.",
+                "The tests require live providers, real credentials, channel adapters, or a running gateway service.",
+                "The slice expands into unrelated status/model/profile command handling or broad CLI parity work."
+              ],
+              "blocked_by": [
+                "Provider account usage read model + renderer"
+              ],
+              "unblocks": [
+                "Provider status command parity",
+                "Hermes CLI command-tree parity manifest",
+                "Self-monitoring telemetry"
+              ],
+              "acceptance": [
+                "Gateway `/usage` chooses running-agent usage evidence over cached-agent evidence, then falls back to session/transcript token, cost, and context history when no live account snapshot is present.",
+                "CLI `/usage` and gateway `/usage` share the same account-limit renderer and redaction behavior rather than duplicating provider payload parsing.",
+                "The CLI and gateway registries route `/usage` through the new binding instead of returning unavailable or unknown-command evidence.",
+                "Output includes provider/account/window/quota sections when account usage is available and an explicit unavailable/unsupported section when provider usage is absent.",
+                "Tests cover no-agent, running-agent, cached-agent, history-only, unsupported-provider, and degraded-provider cases with no live network calls.",
+                "The command binding does not mutate token vaults, config files, transcripts, memory, provider clients, or gateway channel state."
+              ],
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. This row holds the command-dispatch behavior intentionally removed from `Provider account usage read model + renderer`; it cites `cli.py` and `gateway/run.py` exact command sources so the read-model row no longer overclaims Cobra/gateway scope.",
+              "write_scope": [
+                "internal/gateway/usage_command.go",
+                "internal/gateway/usage_command_test.go",
+                "internal/gateway/commands.go",
+                "internal/gateway/event.go",
+                "internal/gateway/manager.go",
+                "internal/cli/command_registry.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/usage_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestGatewayUsageCommand' -count=1",
+                "go test ./cmd/gormes -run 'TestUsageCommand' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Usage-command fixtures prove running-agent, cached-agent, transcript-history, account-limit, unsupported, degraded, and redacted output behavior through CLI/gateway command bindings backed by the shared account-usage read model."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:cli.py /usage and gateway/run.py _handle_usage_command",
+                "note": "Hermes defines user-visible usage command precedence and rendering; Gormes binds it to the Go-native account-usage read model without live provider dependencies."
+              }
             },
             {
               "name": "Provider rate guard + budget telemetry",
@@ -10551,9 +11084,9 @@
             {
               "name": "Python-free normal agent turn e2e harness",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "A normal CLI/API/gateway agent turn can execute entirely in Go from input through prompt/context assembly, fake provider tool call, Go tool execution, Goncho memory recall/persistence, and final response/audit evidence, with no Python bridge or hosted Honcho dependency.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -10641,7 +11174,7 @@
                 "internal/e2e/"
               ],
               "ready_when": [
-                "Python-free normal agent turn e2e harness exists.",
+                "Python-free normal agent turn e2e harness is validated.",
                 "At least one provider adapter has request/stream fixture support.",
                 "The worker can replay fixtures without live provider credentials."
               ],
@@ -10649,9 +11182,6 @@
                 "The slice rewrites provider adapters to satisfy a brittle fixture instead of normalizing the fixture contract.",
                 "The slice stores secrets, live responses, or environment-specific paths in fixtures.",
                 "The slice omits Goncho memory or tool continuation from the transcript."
-              ],
-              "blocked_by": [
-                "Python-free normal agent turn e2e harness"
               ],
               "acceptance": [
                 "A baseline text-only turn fixture proves prompt/context, provider request, final response, and audit evidence.",
@@ -11428,12 +11958,30 @@
             {
               "name": "Pure core tools first",
               "status": "planned",
-              "note": "TDD: port side-effect-light tools such as todo, clarify, debug helpers, and local formatting helpers before network/browser/sandbox tools so the native registry can grow without external credentials."
+              "note": "TDD: port side-effect-light tools such as todo, clarify, debug helpers, and local formatting helpers before network/browser/sandbox tools so the native registry can grow without external credentials.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Stateful tool migration queue",
               "status": "planned",
-              "note": "TDD: group file/session/checkpoint/process tools by shared state contracts and prove XDG/path isolation plus rollback semantics before exposing write-capable tools to the native agent loop."
+              "note": "TDD: group file/session/checkpoint/process tools by shared state contracts and prove XDG/path isolation plus rollback semantics before exposing write-capable tools to the native agent loop.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Terminal process watch notification throttle contract",
@@ -11515,7 +12063,72 @@
             {
               "name": "Environment interface + file sync contract",
               "status": "planned",
-              "note": "TDD: port `tools/environments/base.py` and `file_sync.py` into one Go interface with path mapping, upload/download, timeout, and cleanup fixtures before backend-specific code lands."
+              "contract": "Gormes ports Hermes sandbox environment and file-sync contracts into a Go Environment interface with path mapping, upload/download, timeout, cleanup, and parser-family inventory fixtures before backend-specific Docker/SSH/Modal/Daytona/Singularity execution lands.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Unavailable or unsupported environment backends return environment_backend_unavailable or parser_family_row_backed evidence without shelling out, starting containers, or dropping file-sync intent.",
+              "fixture": "internal/tools/environment_contract_test.go; internal/hermes/tool_call_parser_manifest_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/environments/base.py:BaseEnvironment",
+                "../hermes-agent/tools/environments/file_sync.py",
+                "../hermes-agent/environments/hermes_base_env.py",
+                "../hermes-agent/environments/agentic_opd_env.py",
+                "../hermes-agent/environments/web_research_env.py",
+                "../hermes-agent/environments/tool_call_parsers/hermes_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/deepseek_v3_1_parser.py",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Sandbox/environments",
+                "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Per-model tool-call parsers"
+              ],
+              "ready_when": [
+                "Tool execution descriptor and command-runner seams are validated enough to define an interface without starting real backends.",
+                "The first slice can use fake filesystem and fake parser fixtures; no Docker daemon, SSH server, Modal account, browser, or provider credential is required."
+              ],
+              "not_ready_when": [
+                "The slice implements a real Docker, SSH, Modal, Daytona, Singularity, or browser environment backend instead of the shared interface and file-sync contract.",
+                "The slice executes model-generated commands or parses live LLM output instead of using hermetic parser fixtures.",
+                "The slice treats broad `environments/**` coverage as complete without exact parser-family rows."
+              ],
+              "unblocks": [
+                "Docker",
+                "Modal",
+                "Daytona",
+                "Singularity",
+                "Raw tool-call parser fixture matrix",
+                "Terminal snapshot source stdout suppression guard"
+              ],
+              "acceptance": [
+                "Environment interface fixtures prove path mapping, upload/download intent, timeout propagation, cleanup ordering, and unsupported-backend evidence over fake backends.",
+                "File-sync fixtures prove checksum/delete intent and host/container path normalization without touching real remote filesystems.",
+                "Parser manifest fixtures classify hermes_parser.py, deepseek_v3_1_parser.py, and the remaining parser family as implemented, row-backed, or excluded before raw parser execution parity is claimed.",
+                "No test starts Docker, SSH, Modal, Daytona, Singularity, browsers, or provider clients."
+              ],
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces the prior note-only row so `tools/environments/*`, root `environments/*`, and nested `environments/tool_call_parsers/*` no longer hide behind broad glob coverage.",
+              "write_scope": [
+                "internal/tools/environment_contract.go",
+                "internal/tools/environment_contract_test.go",
+                "internal/hermes/tool_call_parser_manifest.go",
+                "internal/hermes/tool_call_parser_manifest_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools ./internal/hermes -run 'TestEnvironmentContract|TestToolCallParserManifest' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Environment contract fixtures prove fake backend path/file-sync/timeout/cleanup behavior and parser-family manifest coverage without real sandbox backends."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:tools/environments/base.py + environments/tool_call_parsers",
+                "note": "Hermes defines both sandbox backend and root eval/parser environment surfaces; Gormes ports the shared contracts first."
+              }
             },
             {
               "name": "Terminal snapshot source stdout suppression guard",
@@ -11577,9 +12190,87 @@
               }
             },
             {
+              "name": "Raw tool-call parser fixture matrix",
+              "status": "planned",
+              "contract": "Gormes owns a source-backed manifest and fake-output fixture matrix for every Hermes root `environments/tool_call_parsers/*.py` parser before claiming raw model-output tool-call parity.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Unknown parser files or unsupported parser families remain row-backed with explicit evidence instead of silently falling back to generic parsing.",
+              "fixture": "internal/hermes/tool_call_parser_manifest_test.go",
+              "source_refs": [
+                "../hermes-agent/environments/tool_call_parsers/hermes_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/deepseek_v3_1_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/deepseek_v3_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/glm45_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/glm47_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/kimi_k2_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/llama_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/longcat_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/mistral_parser.py",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Raw tool-call parser fixture matrix"
+              ],
+              "ready_when": [
+                "Environment interface + file sync contract has established the parser-family inventory and fake fixture harness.",
+                "The first parser row can remain a manifest and golden-output fixture package with no live provider calls."
+              ],
+              "not_ready_when": [
+                "The slice tries to parse every raw provider transcript without first locking parser identities and unsupported-family evidence.",
+                "The slice calls live providers or runs Python parser code at runtime."
+              ],
+              "blocked_by": [
+                "Environment interface + file sync contract"
+              ],
+              "unblocks": [
+                "OpenRouter",
+                "Gemini",
+                "Google Code Assist"
+              ],
+              "acceptance": [
+                "The manifest lists every upstream parser file with model family, expected input style, mapped/row-backed status, and target Go parser package.",
+                "Golden fixtures cover at least Hermes XML-style parser and DeepSeek v3.1 parser edge cases with malformed-call degraded evidence.",
+                "The docs test fails if a new upstream parser file appears without a classification.",
+                "No runtime Python parser invocation or live model output is required."
+              ],
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Splits the parser-specific hidden surface from broad root `environments/**` coverage.",
+              "write_scope": [
+                "internal/hermes/tool_call_parser_manifest.go",
+                "internal/hermes/tool_call_parser_manifest_test.go",
+                "internal/hermes/testdata/tool_call_parsers/",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/upstream_coverage_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestToolCallParserManifest|TestRawToolCallParser' -count=1",
+                "go test ./docs -run TestNestedUpstreamFeatureCoverage -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Parser manifest fixtures prove every upstream tool_call_parsers file is classified with golden raw-output behavior or explicit row-backed unsupported evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:environments/tool_call_parsers/*.py",
+                "note": "Hermes keeps per-model raw tool-call parsers outside the sandbox package; Gormes maps them to Go-native parser fixtures before provider adapter parity claims."
+              }
+            },
+            {
               "name": "Docker",
               "status": "planned",
-              "note": "TDD: port Docker execution after the environment interface is green, covering image selection, mount policy, env passthrough allowlists, timeout cleanup, and blocked dangerous mounts."
+              "note": "TDD: port Docker execution after the environment interface is green, covering image selection, mount policy, env passthrough allowlists, timeout cleanup, and blocked dangerous mounts.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Docker backend top-level container reuse semantics",
@@ -11649,17 +12340,44 @@
             {
               "name": "Modal",
               "status": "planned",
-              "note": "TDD: freeze Modal request/job lifecycle, upload/download mapping, and unavailable-credential behavior as fixtures before any cloud execution path is enabled."
+              "note": "TDD: freeze Modal request/job lifecycle, upload/download mapping, and unavailable-credential behavior as fixtures before any cloud execution path is enabled.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Daytona",
               "status": "planned",
-              "note": "TDD: port Daytona workspace lifecycle with fake API clients, proving create/reuse/delete decisions and workspace path mapping before live credentials are required."
+              "note": "TDD: port Daytona workspace lifecycle with fake API clients, proving create/reuse/delete decisions and workspace path mapping before live credentials are required.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Singularity",
               "status": "planned",
-              "note": "TDD: port Singularity command construction, bind mounts, and timeout cleanup as a local command builder first; live runtime tests stay opt-in."
+              "note": "TDD: port Singularity command construction, bind mounts, and timeout cleanup as a local command builder first; live runtime tests stay opt-in.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ],
           "drift_state": {
@@ -11674,22 +12392,58 @@
             {
               "name": "Browser action contract + event transcript",
               "status": "planned",
-              "note": "TDD: port the `tools/browser_tool.py` action schema, page-state transcript, screenshot/result envelopes, and unavailable-backend errors before choosing Chromedp or Rod."
+              "note": "TDD: port the `tools/browser_tool.py` action schema, page-state transcript, screenshot/result envelopes, and unavailable-backend errors before choosing Chromedp or Rod.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Chromedp",
               "status": "planned",
-              "note": "TDD: bind Chromedp behind the browser action contract with fake page fixtures for navigation, click/type, screenshot, and timeout behavior before live browser smoke tests."
+              "note": "TDD: bind Chromedp behind the browser action contract with fake page fixtures for navigation, click/type, screenshot, and timeout behavior before live browser smoke tests.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Rod",
               "status": "planned",
-              "note": "TDD: keep Rod as a second backend only after the shared contract is stable, proving backend selection and parity for core actions without diverging schemas."
+              "note": "TDD: keep Rod as a second backend only after the shared contract is stable, proving backend selection and parity for core actions without diverging schemas.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Browser provider bridge + Firecrawl fallback",
               "status": "planned",
-              "note": "TDD: port `tools/browser_providers/{browserbase,firecrawl}.py` as optional provider adapters with credential gating and deterministic fallback/error results before network-backed browsing is default."
+              "note": "TDD: port `tools/browser_providers/{browserbase,firecrawl}.py` as optional provider adapters with credential gating and deterministic fallback/error results before network-backed browsing is default.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Browser hybrid private-URL local sidecar routing",
@@ -12041,17 +12795,44 @@
             {
               "name": "Voice mode port",
               "status": "planned",
-              "note": "Umbrella only: split voice-mode state, transcription ingestion, TTS synthesis, and platform delivery hooks before enabling voice across gateways."
+              "note": "Umbrella only: split voice-mode state, transcription ingestion, TTS synthesis, and platform delivery hooks before enabling voice across gateways.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Transcription tool contract",
               "status": "planned",
-              "note": "TDD: port `tools/transcription_tools.py` input validation, provider selection, and text/error result shape with local audio fixtures before gateway media hooks call it."
+              "note": "TDD: port `tools/transcription_tools.py` input validation, provider selection, and text/error result shape with local audio fixtures before gateway media hooks call it.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "TTS synthesis + voice-mode state",
               "status": "planned",
-              "note": "TDD: port `tools/tts_tool.py`, `tools/voice_mode.py`, and `tools/neutts_synth.py` behind a sidecar-friendly interface with cached samples and nonfatal missing-dependency behavior."
+              "note": "TDD: port `tools/tts_tool.py`, `tools/voice_mode.py`, and `tools/neutts_synth.py` behind a sidecar-friendly interface with cached samples and nonfatal missing-dependency behavior.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -12200,7 +12981,16 @@
             {
               "name": "Skill registries",
               "status": "planned",
-              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows."
+              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Skills hub direct URL candidate parser",
@@ -13306,7 +14096,63 @@
             {
               "name": "ACP server side",
               "status": "planned",
-              "note": "TDD: port `acp_adapter/` as a protocol server with auth, session lifecycle, tool permission prompts, and event streaming fixtures before editor integrations are advertised."
+              "contract": "Gormes maps Hermes ACP adapter entry/auth/session/tools/permissions/events into a Go-native manifest and stdio/server protocol fixture before editor integrations are advertised.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported ACP provider detection, missing auth, and permission prompt paths return explicit acp_row_backed evidence instead of silently registering an incomplete editor bridge.",
+              "fixture": "internal/acp/server_manifest_test.go",
+              "source_refs": [
+                "../hermes-agent/acp_adapter/auth.py:detect_provider",
+                "../hermes-agent/acp_adapter/entry.py:main",
+                "../hermes-agent/acp_adapter/server.py",
+                "../hermes-agent/acp_adapter/session.py",
+                "../hermes-agent/acp_adapter/tools.py",
+                "../hermes-agent/acp_adapter/permissions.py",
+                "../hermes-agent/acp_adapter/events.py",
+                "../hermes-agent/acp_registry/agent.json",
+                "../hermes-agent/tests/acp/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix"
+              ],
+              "ready_when": [
+                "MCP schema normalization and managed gateway bridge rows are validated enough to reuse tool/permission descriptors.",
+                "This slice can remain a manifest/protocol fixture package without starting an editor or spawning subprocesses."
+              ],
+              "not_ready_when": [
+                "The slice starts a live ACP server, shells out to Hermes/Python, or registers editor integrations before auth/session/tool/permission event shapes are fixture-backed.",
+                "The slice claims ACP parity from broad acp_adapter/** coverage without exact auth, entry, session, tool, permission, and event refs."
+              ],
+              "acceptance": [
+                "ACP manifest fixtures classify auth provider detection, stdio entry startup, session lifecycle, tool rendering, permission prompts, and event streaming as implemented, row-backed, owned, or excluded.",
+                "The Go target names future internal/acp package boundaries and adapter event structs without importing Python.",
+                "Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification.",
+                "Editor integration docs remain row-backed until protocol fixtures exist."
+              ],
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad `acp_adapter/**` planning with exact adapter files and protocol-fixture boundaries.",
+              "write_scope": [
+                "internal/acp/server_manifest.go",
+                "internal/acp/server_manifest_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/upstream_coverage_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/acp -run TestACPServerManifest -count=1",
+                "go test ./docs -run TestNestedUpstreamFeatureCoverage -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "ACP manifest fixtures prove exact upstream auth, entry, session, tool, permission, event, and registry surfaces are classified before live ACP server work starts."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:acp_adapter",
+                "note": "Hermes provides the ACP protocol bridge; Gormes starts with a Go-native manifest and protocol fixture boundary."
+              }
             }
           ]
         },
@@ -13502,7 +14348,16 @@
             {
               "name": "Third-party extensions",
               "status": "planned",
-              "note": "TDD: add extension install/enable/disable flows only after the SDK contract is stable, with fixture plugins proving failure containment and no implicit runtime code execution."
+              "note": "TDD: add extension install/enable/disable flows only after the SDK contract is stable, with fixture plugins proving failure containment and no implicit runtime code execution.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "First-party Spotify plugin fixture",
@@ -13698,7 +14553,16 @@
             {
               "name": "Dangerous action gating",
               "status": "planned",
-              "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, and policy-integration tasks below before dangerous terminal/file/code tools become available."
+              "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, and policy-integration tasks below before dangerous terminal/file/code tools become available.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Hardline command pattern table + DetectHardline function",
@@ -13837,7 +14701,16 @@
             {
               "name": "Approval mode config normalization",
               "status": "planned",
-              "note": "TDD: add config parsing for manual/smart/off approval modes, including YAML/TOML boolean edge cases such as bare off, before wiring prompts or smart auxiliary review."
+              "note": "TDD: add config parsing for manual/smart/off approval modes, including YAML/TOML boolean edge cases such as bare off, before wiring prompts or smart auxiliary review.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Gateway hook auto-accept strict parser",
@@ -14091,12 +14964,30 @@
             {
               "name": "Cron dangerous-command approval mode",
               "status": "planned",
-              "note": "TDD: track upstream approvals.cron_mode drift by marking cron-fired turns as non-interactive and default-denying dangerous commands with an adaptive blocked message, while allowing an explicit approve mode to preserve old auto-approve behavior."
+              "note": "TDD: track upstream approvals.cron_mode drift by marking cron-fired turns as non-interactive and default-denying dangerous commands with an adaptive blocked message, while allowing an explicit approve mode to preserve old auto-approve behavior.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Tirith, path, URL, and website policy integration",
               "status": "planned",
-              "note": "TDD: compose external security findings with dangerous-command warnings into one guard decision so gateway/cron/CLI replays cannot bypass one check after only another was approved."
+              "note": "TDD: compose external security findings with dangerous-command warnings into one guard decision so gateway/cron/CLI replays cannot bypass one check after only another was approved.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -14338,7 +15229,16 @@
             {
               "name": "Multi-model coordination",
               "status": "planned",
-              "note": "TDD: port `tools/mixture_of_agents_tool.py` only after provider routing and subagent envelopes are stable, using fake child model outputs to prove fan-out, aggregation, and failure isolation."
+              "note": "TDD: port `tools/mixture_of_agents_tool.py` only after provider routing and subagent envelopes are stable, using fake child model outputs to prove fan-out, aggregation, and failure isolation.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -14348,12 +15248,30 @@
             {
               "name": "Todo",
               "status": "planned",
-              "note": "TDD: port `tools/todo_tool.py` as a small stateful tool with schema/result parity, deterministic persistence, and no dependency on the full file-tools port."
+              "note": "TDD: port `tools/todo_tool.py` as a small stateful tool with schema/result parity, deterministic persistence, and no dependency on the full file-tools port.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Clarify",
               "status": "planned",
-              "note": "TDD: port `tools/clarify_tool.py` as an interruptible prompt contract that preserves gateway/TUI response routing and times out safely in non-interactive cron turns."
+              "note": "TDD: port `tools/clarify_tool.py` as an interruptible prompt contract that preserves gateway/TUI response routing and times out safely in non-interactive cron turns.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Session search tool schema and argument validation",
@@ -14562,7 +15480,16 @@
             {
               "name": "Debug helpers",
               "status": "planned",
-              "note": "TDD: port `tools/debug_helpers.py` as read-mostly diagnostic tools with redaction and no hidden writes before exposing them to production agents."
+              "note": "TDD: port `tools/debug_helpers.py` as read-mostly diagnostic tools with redaction and no hidden writes before exposing them to production agents.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Debug share paste sweep scheduler contract",
@@ -15433,6 +16360,7 @@
                 "The row is assigned as a whole hermes_cli tree migration instead of command-group slices."
               ],
               "unblocks": [
+                "Hermes CLI command-tree parity manifest",
                 "Deterministic helper-file ports (banner/output/tips/webhook/dump)",
                 "CLI command registry parity + active-turn busy policy",
                 "Config, profile, auth, and setup command surfaces",
@@ -15440,6 +16368,83 @@
                 "Diagnostics, backup, logs, and status CLI"
               ],
               "note": "Umbrella only: keep for inventory continuity, but execution should use smaller command/config/platform/diagnostic slices rather than attempting the whole hermes_cli tree at once."
+            },
+            {
+              "name": "Hermes CLI command-tree parity manifest",
+              "status": "planned",
+              "contract": "cmd/gormes owns a source-backed Hermes CLI compatibility manifest that enumerates every upstream top-level command, nested subcommand, global/root flag, slash command, gateway command handler, dynamic plugin-provided command, and Gormes-owned addition, then classifies each path as implemented, row-backed, owned, excluded, or not-yet-applicable before any handler work claims CLI parity.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unknown or unclassified Hermes command paths, including dynamic plugin command registrations, fail the parity test; unsupported-but-known commands must carry row-backed or owned evidence instead of disappearing from help, docs, or migration plans.",
+              "fixture": "cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifest",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:subparsers.add_parser",
+                "../hermes-agent/hermes_cli/main.py:discover_plugin_cli_commands",
+                "../hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY,GATEWAY_KNOWN_COMMANDS",
+                "../hermes-agent/hermes_cli/plugins.py:PluginManager",
+                "../hermes-agent/hermes_cli/plugins_cmd.py:plugins_command",
+                "../hermes-agent/gateway/run.py:_handle_status_command,_handle_restart_command,_handle_reset_command,_handle_help_command,_handle_model_command,_handle_profile_command,_handle_update_command,_handle_approve_command,_handle_deny_command,_handle_voice_command,_handle_usage_command",
+                "../hermes-agent/plugins/memory/__init__.py:discover_plugin_cli_commands",
+                "../hermes-agent/plugins/disk-cleanup/__init__.py:PluginContext.register_command",
+                "../hermes-agent/hermes_cli/config.py:config_command,set_config_value,check_config_version,migrate_config",
+                "../hermes-agent/hermes_cli/claw.py:claw_command,_cmd_migrate,_cmd_cleanup",
+                "cmd/gormes/main.go:newRootCommandWithRuntime",
+                "internal/cli/command_registry.go:CommandRegistry",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+              ],
+              "ready_when": [
+                "The Phase 5.O CLI umbrella remains inventory-only, so a manifest row can be added without reopening global planning.",
+                "internal/cli CommandRegistry already locks Hermes slash-command names and active-turn policy.",
+                "cmd/gormes uses Cobra and exposes root, gateway, session, memory, goncho, doctor, telegram, and version command surfaces that can be classified without executing live services."
+              ],
+              "not_ready_when": [
+                "The slice implements missing command handlers, provider auth, setup wizard prompts, migration writes, backup archives, service-manager calls, or dashboard routes.",
+                "The slice generates classifications solely from upstream at runtime instead of maintaining a reviewed manifest plus a drift test against upstream parser/registry surfaces.",
+                "Any upstream command, subcommand, flag, alias, or slash command is left unclassified."
+              ],
+              "unblocks": [
+                "Gormes config command surface",
+                "Gormes config edit/check/native schema-migrate closeout",
+                "Hermes config migration dry-run manifest",
+                "OpenClaw migration dry-run manifest",
+                "Gateway, platform, webhook, and cron management CLI",
+                "Diagnostics, backup, logs, and status CLI"
+              ],
+              "acceptance": [
+                "A manifest entry exists for every top-level Hermes parser command: chat, model, fallback, gateway, setup, whatsapp, slack, login, logout, auth, status, cron, webhook, hooks, doctor, dump, debug, backup, import, config, pairing, skills, plugins, memory, tools, mcp, sessions, insights, claw, version, update, uninstall, acp, profile, completion, dashboard, and logs.",
+                "Nested parser groups are covered for gateway, fallback, auth, cron, webhook, hooks, debug, config, pairing, skills including tap and snapshot, plugins, memory, tools, mcp, sessions, claw, and profile.",
+                "Every slash command and alias in hermes_cli/commands.py is cross-linked to internal/cli.CommandRegistry status or a named row-backed residual.",
+                "Dynamic plugin CLI and slash-command surfaces discovered through active memory plugins and PluginContext.register_command entries are classified as implemented, row-backed, owned, excluded, or not-yet-applicable.",
+                "Plugin manager and plugin command surfaces from hermes_cli/plugins.py and hermes_cli/plugins_cmd.py are classified as manifest-only, implemented, row-backed, owned, or excluded before any plugin runtime execution is claimed.",
+                "Gormes-owned surfaces such as goncho, --offline, --remote, and XDG/TOML config paths are classified as owned with rationale, not counted as Hermes gaps; Hermes-owned `-z/--oneshot` is classified as implemented parity, not owned divergence.",
+                "Typo-like requested paths such as `gormes migrate ooenclaw` are classified explicitly: they must return a deterministic suggestion for `gormes migrate openclaw` and must not become silent import aliases without a dedicated compatibility row.",
+                "Destructive or secret-bearing command paths carry explicit evidence flags for confirmation, dry-run, redaction, or credential routing."
+              ],
+              "note": "Added 2026-04-28 after the config/migration parity pass and tightened by the Hermes mapper verifier to include dynamic plugin-discovered commands. This is the command-level gate the prior `49-file CLI tree port` umbrella was missing; it must stay manifest-only so builders do not mix inventory with handler ports.",
+              "write_scope": [
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestHermesCLIParityManifest|TestHermesCLIParityManifestNoUnknowns' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermes CLI parity manifest fixtures prove every top-level command, nested command, static slash command, dynamic plugin command, alias, gateway handler, and Gormes-owned divergence has a non-unknown classification with source refs and residual rows."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/main.py and hermes_cli/commands.py",
+                "note": "Hermes defines the command inventory; Gormes owns the manifest/classification and Go-native command implementation order."
+              }
             },
             {
               "name": "Deterministic helper-file ports (banner/output/tips/webhook/dump)",
@@ -16361,9 +17366,11 @@
                 "The slice persists raw secrets in config.toml."
               ],
               "blocked_by": [
+                "Hermes CLI command-tree parity manifest",
                 "Provider endpoint/API-key root flags + runtime resolution"
               ],
               "unblocks": [
+                "Gormes config edit/check/native schema-migrate closeout",
                 "Hermes config migration writer",
                 "OpenClaw migration writer and cleanup command"
               ],
@@ -16393,6 +17400,76 @@
               "done_signal": [
                 "Config command fixtures prove XDG paths, TOML writes, dotenv secret routing, redacted show output, explicit-empty handling, and no full-Hermes setup/auth coupling."
               ]
+            },
+            {
+              "name": "Gormes config edit/check/native schema-migrate closeout",
+              "status": "planned",
+              "contract": "cmd/gormes completes Hermes config-command parity for the native Gormes config surface by adding `gormes config edit`, `gormes config check`, and `gormes config migrate` over XDG TOML/dotenv files, while keeping `gormes migrate hermes` and `gormes migrate openclaw` as the only cross-product import commands.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing editor binaries, malformed config files, future _config_version values, and invalid dotenv entries produce typed operator evidence without mutating files unless the migrate subcommand can write atomically.",
+              "fixture": "cmd/gormes/config_closeout_test.go; internal/config/check_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/config.py:edit_config,config_command",
+                "../hermes-agent/hermes_cli/config.py:check_config_version,validate_config_structure,migrate_config",
+                "../hermes-agent/tests/hermes_cli/test_config.py",
+                "../hermes-agent/tests/hermes_cli/test_config_validation.py",
+                "../hermes-agent/tests/hermes_cli/test_config_drift.py",
+                "internal/config/config.go:CurrentConfigVersion,migrateConfig,validateConfig,ConfigPath",
+                "cmd/gormes/main.go:newRootCommandWithRuntime"
+              ],
+              "ready_when": [
+                "Gormes config command surface is complete for show/path/env-path/set and owns the writer helpers.",
+                "The Hermes CLI command-tree parity manifest classifies config edit/check/migrate as row-backed until this closeout lands.",
+                "The first native migrate implementation may be a no-op when CurrentConfigVersion is already current, but it must still report version and missing/default status deterministically."
+              ],
+              "not_ready_when": [
+                "The slice imports ~/.hermes or ~/.openclaw state; those are handled only by `gormes migrate hermes` and `gormes migrate openclaw` rows.",
+                "The slice launches a real editor in tests instead of using an injected command runner.",
+                "The slice writes default values over user-specified config or stores secrets in config.toml."
+              ],
+              "blocked_by": [
+                "Gormes config command surface",
+                "Hermes CLI command-tree parity manifest"
+              ],
+              "unblocks": [
+                "Hermes config migration writer",
+                "OpenClaw migration writer and cleanup command"
+              ],
+              "acceptance": [
+                "`gormes config edit` creates the native config file if missing, chooses EDITOR/VISUAL or common editor fallback through an injected runner, and reports no-editor with the config path when unavailable.",
+                "`gormes config check` reports native _config_version, missing required provider fields, optional dotenv availability, and future-version errors without writing files.",
+                "`gormes config migrate` applies only Gormes-native schema/default migrations with atomic writes and reports no-op when the file is current.",
+                "The command help distinguishes `config migrate` (native schema update) from `migrate hermes` and `migrate openclaw` (cross-product imports).",
+                "All output redacts dotenv/API-key values and keeps explicit-empty values visible as configured-but-empty evidence."
+              ],
+              "note": "Added 2026-04-28 after the explicit config parity pass. Hermes exposes config show/edit/set/path/env-path/check/migrate; the prior Gormes config row covers the first four operator-critical pieces, and this row closes the remaining native config lifecycle without mixing in Hermes/OpenClaw imports.",
+              "write_scope": [
+                "cmd/gormes/config.go",
+                "cmd/gormes/config_closeout_test.go",
+                "internal/config/check.go",
+                "internal/config/check_test.go",
+                "internal/config/writer.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/config -run 'TestConfig(Edit|Check|Migrate|Closeout)|TestConfigCheck' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Config closeout fixtures prove edit/check/native schema-migrate parity, redaction, atomic/no-op behavior, and clear separation from `gormes migrate hermes/openclaw`."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/config.py config_command",
+                "note": "Hermes defines the config subcommand set; Gormes owns the XDG TOML/dotenv schema and separates native schema migration from product-state imports."
+              }
             },
             {
               "name": "Hermes config migration dry-run manifest",
@@ -16427,7 +17504,8 @@
                 "The slice reads ~/.hermes from tests instead of injected temp directories."
               ],
               "blocked_by": [
-                "Gormes config command surface"
+                "Gormes config command surface",
+                "Hermes CLI command-tree parity manifest"
               ],
               "unblocks": [
                 "Hermes config migration writer"
@@ -16489,7 +17567,8 @@
               ],
               "blocked_by": [
                 "Hermes config migration dry-run manifest",
-                "Gormes config command surface"
+                "Gormes config command surface",
+                "Gormes config edit/check/native schema-migrate closeout"
               ],
               "acceptance": [
                 "--yes applies importable config keys into config.toml and importable secrets into Gormes .env.",
@@ -16535,12 +17614,12 @@
                 "../hermes-agent/website/docs/guides/migrate-from-openclaw.md",
                 "internal/cli/openclaw_residue.go",
                 "internal/cli/onboarding_state.go",
-                "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:cli.py, hermes, hermes_cli/**/*.py"
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:OpenClaw migration command"
               ],
               "ready_when": [
                 "Gormes config command surface defines the target config/dotenv write contract.",
                 "The manifest row is read-only and can use compact JSON fixtures rather than a real OpenClaw install.",
-                "The command name is `gormes migrate openclaw`; the misspelled `ooenclaw` is not accepted except possibly as a user-facing typo suggestion."
+                "The command name is `gormes migrate openclaw`; the misspelled `ooenclaw` is not accepted as an alias and must produce a user-facing suggestion for `gormes migrate openclaw`."
               ],
               "not_ready_when": [
                 "The slice copies files, writes config, archives directories, or migrates secrets.",
@@ -16548,7 +17627,8 @@
                 "The slice treats broad optional-skills coverage as proof without field-level manifest fixtures."
               ],
               "blocked_by": [
-                "Gormes config command surface"
+                "Gormes config command surface",
+                "Hermes CLI command-tree parity manifest"
               ],
               "unblocks": [
                 "OpenClaw migration writer and cleanup command"
@@ -16558,6 +17638,7 @@
                 "Fixtures cover default model, custom providers, provider keys, channel tokens/allowlists, MCP servers, TTS settings, approvals, exec timeout, session reset, memory files, skills, and archive-only surfaces.",
                 "SecretRef env templates are resolved only from OpenClaw .env for manifest evidence; file/exec SecretRefs are reported as manual.",
                 "The dry-run report includes migrated/skipped/conflict/archived/error counts and redacts all secret values.",
+                "`gormes migrate ooenclaw --dry-run` exits through the unknown-command path with a deterministic `gormes migrate openclaw` suggestion and no source/config probing.",
                 "No Gormes XDG path changes during dry-run tests."
               ],
               "note": "Added by planner pass 2026-04-28. Hermes hides a large OpenClaw migration contract under hermes_cli/claw.py plus optional-skills/migration/openclaw-migration; this row makes that hidden broad-glob surface explicit for Gormes.",
@@ -16608,7 +17689,8 @@
               ],
               "blocked_by": [
                 "OpenClaw migration dry-run manifest",
-                "Gormes config command surface"
+                "Gormes config command surface",
+                "Gormes config edit/check/native schema-migrate closeout"
               ],
               "acceptance": [
                 "--yes applies config/dotenv/memory/skill items exactly from the manifest and writes a report under XDG_STATE_HOME/gormes/migrations/openclaw/<timestamp>/.",
@@ -17844,17 +18926,127 @@
             {
               "name": "OCI image",
               "status": "planned",
-              "note": "TDD: mirror upstream Docker entrypoint/config volume behavior with container smoke tests that run `gormes doctor --offline` and avoid bundling Python runtime paths."
+              "contract": "Gormes ships an OCI image contract that mirrors upstream Docker entrypoint/config volume operational behavior while proving the final image contains the Go binary and no required Python runtime path.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Container smoke tests run offline and report missing binary, missing config volume, or Python-runtime dependency evidence without contacting registries or providers.",
+              "fixture": "docs/install/oci_image_test.go",
+              "source_refs": [
+                "../hermes-agent/Dockerfile",
+                "../hermes-agent/docker/entrypoint.sh",
+                "../hermes-agent/docker-compose.yml",
+                "../honcho/Dockerfile",
+                "../honcho/docker-compose.yml.example",
+                "../honcho/docker/entrypoint.sh",
+                "../honcho/docker/prometheus.yml",
+                "../honcho/docker/grafana-datasource.yml",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install"
+              ],
+              "ready_when": [
+                "The Go binary build and offline doctor command are stable.",
+                "The slice can test Dockerfile/entrypoint text and optional local container smoke fixtures without publishing an image."
+              ],
+              "not_ready_when": [
+                "The slice requires live registry access, provider credentials, hosted Honcho Postgres/Redis, or Python package installation to prove Gormes runtime behavior.",
+                "The slice changes installer policy or release artifact signing in the same pass."
+              ],
+              "acceptance": [
+                "Dockerfile fixtures prove the image builds or describes a Go-binary runtime path with no Hermes Python runtime dependency.",
+                "Entrypoint fixtures preserve offline doctor/config-volume behavior and deterministic command forwarding.",
+                "Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies.",
+                "A smoke command can run `gormes doctor --offline` with fake config volume inputs."
+              ],
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad Docker/packaging evidence with exact Dockerfile and entrypoint/config refs for Hermes and Honcho.",
+              "write_scope": [
+                "Dockerfile",
+                "docker/entrypoint.sh",
+                "docs/install/oci_image_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./docs -run TestOCIImageContract -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OCI image fixtures prove Go-binary runtime layout, offline doctor command behavior, config volume handling, and explicit hosted Honcho deploy divergence."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:Dockerfile + honcho:Dockerfile/docker",
+                "note": "Hermes/Honcho provide operational packaging donors; Gormes owns a Go-native image and excludes hosted Python service dependencies."
+              }
             },
             {
               "name": "Homebrew",
               "status": "planned",
-              "note": "TDD: add formula/release artifact checks after the static binary and docs install paths are stable, with version, checksum, and install layout fixtures."
+              "contract": "Gormes ports Hermes Homebrew/release artifact expectations into a Go-native formula fixture with version, checksum, binary install layout, and doctor smoke contract.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Formula validation reports missing artifact, checksum, binary layout, or doctor smoke evidence instead of publishing an untestable tap update.",
+              "fixture": "docs/install/homebrew_formula_test.go",
+              "source_refs": [
+                "../hermes-agent/packaging/homebrew/hermes-agent.rb",
+                "../hermes-agent/scripts/release.py",
+                "../hermes-agent/flake.nix",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix"
+              ],
+              "ready_when": [
+                "Static binary artifact naming and version output are stable enough for formula fixtures.",
+                "The first slice can validate formula text and fake artifact metadata without pushing a tap."
+              ],
+              "not_ready_when": [
+                "The slice publishes release artifacts, mutates a live Homebrew tap, or requires network downloads in tests.",
+                "The slice mixes Homebrew with OCI, Nix, service units, or installer shell scripts."
+              ],
+              "acceptance": [
+                "Formula fixtures prove class name, version, URL, checksum, binary install path, and doctor smoke command are present.",
+                "Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths.",
+                "Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row."
+              ],
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad packaging/homebrew coverage with the exact upstream formula and release script references.",
+              "write_scope": [
+                "packaging/homebrew/gormes-agent.rb",
+                "docs/install/homebrew_formula_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./docs -run TestHomebrewFormulaContract -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Homebrew formula fixtures prove version/checksum/artifact/install-layout behavior without live tap publication or network downloads."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:packaging/homebrew/hermes-agent.rb + scripts/release.py",
+                "note": "Hermes provides the formula/release donor; Gormes owns Go binary artifact layout."
+              }
             },
             {
               "name": "Unix installer (install.sh) source-backed update flow",
               "status": "planned",
-              "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into canonical `scripts/install.sh`, with the site embedding a synced `www.gormes.ai/internal/site/installers/install.sh` copy. The installer uses user-scoped PATH publication, a managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain — no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them."
+              "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into canonical `scripts/install.sh`, with the site embedding a synced `www.gormes.ai/internal/site/installers/install.sh` copy. The installer uses user-scoped PATH publication, a managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain — no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Unix installer root/FHS layout policy",
@@ -17917,12 +19109,30 @@
             {
               "name": "Windows installer (install.ps1 + install.cmd) parity",
               "status": "planned",
-              "note": "TDD slice 2 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): add `www.gormes.ai/internal/site/install.ps1` (native PowerShell) plus `install.cmd` wrapper that launches it, matching the Unix contract (user-scoped PATH, managed checkout, rerun-as-update, source-backed). Cover content/smoke assertions — PATH publication, managed checkout layout, release branch handling, and stable global command publication — via `install_windows_test.go` over fake toolchains; no live network calls in unit tests."
+              "note": "TDD slice 2 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): add `www.gormes.ai/internal/site/install.ps1` (native PowerShell) plus `install.cmd` wrapper that launches it, matching the Unix contract (user-scoped PATH, managed checkout, rerun-as-update, source-backed). Cover content/smoke assertions — PATH publication, managed checkout layout, release branch handling, and stable global command publication — via `install_windows_test.go` over fake toolchains; no live network calls in unit tests.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Installer site asset/route coverage",
               "status": "planned",
-              "note": "TDD slice 3 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): extend `www.gormes.ai/internal/site/{assets,server,content,static_export}.go` and matching `assets_test.go`/`static_export_test.go` coverage so `/install.sh`, `/install.ps1`, and `/install.cmd` all embed, load, serve, and static-export with the correct MIME and cache behavior. Update landing-page install copy (`content.go` + `home.spec.mjs`) and the top-level `README.md` / `www.gormes.ai/README.md` install guidance only after the script slices land. This slice freezes the public install-surface contract so downstream docs/site builds do not regress."
+              "note": "TDD slice 3 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): extend `www.gormes.ai/internal/site/{assets,server,content,static_export}.go` and matching `assets_test.go`/`static_export_test.go` coverage so `/install.sh`, `/install.ps1`, and `/install.cmd` all embed, load, serve, and static-export with the correct MIME and cache behavior. Update landing-page install copy (`content.go` + `home.spec.mjs`) and the top-level `README.md` / `www.gormes.ai/README.md` install guidance only after the script slices land. This slice freezes the public install-surface contract so downstream docs/site builds do not regress.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -19153,6 +20363,408 @@
               }
             },
             {
+              "name": "Native TUI Hermes skin token renderer",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "internal/tui exposes a HermesSkin value model and renderer tokens that mirror Hermes prompt_toolkit skin defaults for the interactive TUI: prompt symbol, response label, status bar colors, input-rule color, placeholder style, and width-aware minimal-chrome thresholds. This is a pure helper slice; it does not change Bubble Tea runtime layout yet.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
+              "fixture": "internal/tui/hermes_skin_test.go::TestHermesSkin_*",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/skin_engine.py:_BUILTIN_SKINS default/mono/slate",
+                "../hermes-agent/hermes_cli/skin_engine.py:get_active_prompt_symbol",
+                "../hermes-agent/hermes_cli/skin_engine.py:get_prompt_toolkit_style_overrides",
+                "../hermes-agent/cli.py:_get_tui_prompt_symbols",
+                "../hermes-agent/cli.py:_use_minimal_tui_chrome",
+                "internal/tui/view.go",
+                "internal/tui/model.go"
+              ],
+              "ready_when": [
+                "The worker can add a pure helper under internal/tui with table tests only; no Bubble Tea program or terminal is required.",
+                "The first slice should lock default Hermes tokens before wider layout changes so later rows do not invent a Gormes-only palette."
+              ],
+              "not_ready_when": [
+                "The slice changes cmd/gormes startup, View layout, Update keybindings, config persistence, or the kernel frame shape.",
+                "The slice attempts to port user YAML skin loading; start with built-in Hermes-compatible default tokens and an extension point."
+              ],
+              "acceptance": [
+                "TestHermesSkin_DefaultTokens proves the default prompt symbol is `❯ `, response label contains `Hermes`, input-rule color matches Hermes bronze, and status-bar background/text/strong/dim tokens are stable.",
+                "TestHermesSkin_MinimalChromeThreshold proves width < 64 uses minimal chrome and width >= 64 keeps the full input/status chrome, matching cli.py.",
+                "TestHermesSkin_ProfilePromptPrefix proves a non-default profile name prepends the prompt symbol without changing the state suffix.",
+                "Helper has no filesystem, config, terminal, or provider side effects."
+              ],
+              "note": "Complete: TDD landed internal/tui/hermes_skin.go and hermes_skin_test.go. Fixtures prove the default Hermes prompt symbol, response label, bronze input rule, status-bar token fallbacks, width <64 minimal-chrome breakpoint, and profile-prefixed prompt suffix behavior without changing Bubble Tea runtime layout, config persistence, kernel frames, or provider behavior.",
+              "write_scope": [
+                "internal/tui/hermes_skin.go",
+                "internal/tui/hermes_skin_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesSkin_' -count=1",
+                "go test ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Hermes skin token fixtures pass and no runtime layout/keybinding behavior changes in this slice."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
+                "note": "Hermes defines the operator-visible TUI tokens; Gormes ports them as Go-native renderer data before applying them to Bubble Tea."
+              },
+              "unblocks": [
+                "Native TUI Hermes status bar renderer",
+                "Native TUI Hermes bottom-pinned chrome layout"
+              ]
+            },
+            {
+              "name": "Native TUI Hermes status bar renderer",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "internal/tui renders a Hermes-compatible single-line footer/status bar from the latest RenderFrame plus local timing state: short model name, context used/total, context percentage with threshold styles, session duration, per-prompt elapsed timer, width-aware collapse at <52 and <76 columns, and no wrapping or duplicated ghost rows.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
+              "fixture": "internal/tui/hermes_status_bar_test.go::TestHermesStatusBar_*",
+              "source_refs": [
+                "../hermes-agent/cli.py:_get_status_bar_snapshot",
+                "../hermes-agent/cli.py:_build_status_bar_text",
+                "../hermes-agent/cli.py:_get_status_bar_fragments",
+                "../hermes-agent/cli.py:_status_bar_context_style",
+                "../hermes-agent/tests/cli/test_cli_status_bar.py",
+                "internal/kernel/frame.go:RenderFrame",
+                "internal/tui/view.go"
+              ],
+              "ready_when": [
+                "Native TUI Hermes skin token renderer is complete so status bar style tokens are available.",
+                "Tests can construct synthetic kernel.RenderFrame values and fixed timestamps; no Bubble Tea program, provider, or real terminal is needed."
+              ],
+              "not_ready_when": [
+                "The slice rewrites the full TUI layout, toggles alt-screen behavior, or changes kernel.RenderFrame persistence.",
+                "The slice adds live provider usage/account calls; status reads only existing frame/timing data."
+              ],
+              "acceptance": [
+                "TestHermesStatusBar_WideTerminal renders model, context token fraction, percentage bar, session duration, and prompt elapsed in one line.",
+                "TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration matches Hermes <76-column collapse.",
+                "TestHermesStatusBar_NarrowWidthCollapsesToModelDuration matches Hermes <52-column collapse.",
+                "TestHermesStatusBar_TrimsToWidth proves long model names and wide glyphs never wrap past the announced width.",
+                "TestHermesStatusBar_ContextThresholdStyles proves >=95 critical, >80 bad, >=50 warn, and lower good classifications."
+              ],
+              "note": "Second exact-look slice. Gormes currently shows `phase/model/session/mouse`; Hermes shows a compact model/context/duration footer. Keep this renderer isolated before replacing View chrome.",
+              "write_scope": [
+                "internal/tui/hermes_status_bar.go",
+                "internal/tui/hermes_status_bar_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesStatusBar_' -count=1",
+                "go test ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Status bar fixtures prove Hermes width tiers, context thresholds, timing labels, and no-wrap trimming without changing full layout yet."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
+                "note": "Hermes status bar behavior is ported as a pure Go renderer before Bubble Tea layout integration."
+              },
+              "blocked_by": [
+                "Native TUI Hermes skin token renderer"
+              ],
+              "unblocks": [
+                "Native TUI Hermes bottom-pinned chrome layout"
+              ]
+            },
+            {
+              "name": "Native TUI Hermes bottom-pinned chrome layout",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: scrollback/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, and no Telemetry/Soul side pane. The TUI should run in normal terminal scrollback like Hermes prompt_toolkit, not as a full-screen dashboard, while preserving Go-native RenderFrame consumption.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
+              "fixture": "internal/tui/hermes_chrome_test.go::TestHermesChrome_*",
+              "source_refs": [
+                "../hermes-agent/cli.py:HermesCLI.run bottom-pinned prompt_toolkit Application(full_screen=False)",
+                "../hermes-agent/cli.py:_build_tui_layout_children",
+                "../hermes-agent/cli.py:_tui_input_rule_height",
+                "../hermes-agent/cli.py:_spinner_widget_height",
+                "../hermes-agent/cli.py:_get_tui_prompt_fragments",
+                "../hermes-agent/tests/cli/test_cli_status_bar.py",
+                "internal/tui/view.go:View,renderConv,conversationViewportTail",
+                "cmd/gormes/main.go:runResolvedTUIWithRuntime"
+              ],
+              "ready_when": [
+                "Native TUI renderConv viewport budget binding is complete so conversation tail rendering is bounded.",
+                "Native TUI Hermes skin token renderer and status bar renderer are complete.",
+                "The worker may edit cmd/gormes/main.go only to remove/adjust alt-screen program options and must keep --offline local-smoke behavior intact."
+              ],
+              "not_ready_when": [
+                "The slice imports prompt_toolkit, Python, Node/Ink, or Hermes runtime code.",
+                "The slice changes provider/kernel turn semantics, slash command handlers, session persistence, remote TUI SSE, or gateway behavior.",
+                "The implementation keeps the right-hand Telemetry/Soul sidebar as the default local TUI chrome."
+              ],
+              "acceptance": [
+                "TestHermesChrome_NoSidebar proves View output for a 120x32 frame does not include `Telemetry`, `Soul Monitor`, or side-pane borders.",
+                "TestHermesChrome_BottomPinnedOrder proves output order is conversation, optional spinner/hint, status bar, input rule, prompt/input area, optional voice/image/completion rows.",
+                "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Hermes response label/border, not `gormes:` dashboard tags, while user previews remain visible.",
+                "TestHermesChrome_MinimalWidthDropsBottomRule proves narrow widths keep prompt/status usable and hide low-value chrome like Hermes.",
+                "A cmd/gormes test proves local TUI startup no longer forces alt-screen when running the Hermes-compatible local chrome, unless a future explicit config flag opts back in."
+              ],
+              "note": "This is the visual pivot the user asked for: exact Hermes operator feel means bottom-pinned chat, not the current Bubble Tea dashboard. Keep it as one medium integration row after pure renderer fixtures land.",
+              "write_scope": [
+                "internal/tui/view.go",
+                "internal/tui/model.go",
+                "internal/tui/hermes_chrome_test.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/tui_*_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesChrome_' -count=1",
+                "go test ./cmd/gormes -run 'Test.*TUI' -count=1",
+                "go test ./cmd/gormes ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Hermes chrome fixtures prove bottom-pinned, no-sidebar local TUI output; cmd/gormes tests prove --offline still boots locally without provider calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
+                "note": "Hermes owns the visual/operator contract; Gormes implements it with Bubble Tea and Go renderer helpers, not Python prompt_toolkit."
+              },
+              "blocked_by": [
+                "Native TUI renderConv viewport budget binding",
+                "Native TUI Hermes skin token renderer",
+                "Native TUI Hermes status bar renderer"
+              ],
+              "unblocks": [
+                "Native TUI Hermes input keybinding semantics",
+                "Native TUI Hermes tool progress + modal panel renderers"
+              ]
+            },
+            {
+              "name": "Native TUI Hermes input keybinding semantics",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes TUI key handling matches Hermes prompt_toolkit behavior for normal input and active turns: Enter submits/reroutes by state, Alt+Enter and Ctrl+J insert newlines, Up/Down browse history only at line boundaries, Ctrl+C cancels modal/active turn or clears idle draft before exiting on empty input, Ctrl+D deletes under cursor and exits only when input is empty, Ctrl+L forces a clean redraw, and running-agent text honors busy_input_mode interrupt/queue/steer semantics.",
+              "contract_status": "fixture_ready",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
+              "fixture": "internal/tui/hermes_keybindings_test.go::TestHermesKeybindings_*",
+              "source_refs": [
+                "../hermes-agent/cli.py:HermesCLI.run handle_enter",
+                "../hermes-agent/cli.py:HermesCLI.run handle_ctrl_c,handle_ctrl_d,handle_ctrl_l,handle_alt_enter,handle_ctrl_enter",
+                "../hermes-agent/cli.py:_get_placeholder",
+                "../hermes-agent/tests/cli/test_cli_prefix_matching.py",
+                "../hermes-agent/tests/cli/test_cli_steer_busy_path.py",
+                "../hermes-agent/tests/cli/test_fast_command.py",
+                "internal/tui/update.go",
+                "internal/cli/command_registry.go"
+              ],
+              "ready_when": [
+                "Native TUI Hermes bottom-pinned chrome layout is complete or the worker can test key handling independently without depending on exact view order.",
+                "internal/cli.CommandRegistry active-turn policy remains the source of slash known/unavailable/queue/bypass behavior.",
+                "Queued-message helper may be incomplete; this row should return explicit unavailable evidence for unported queue/steer behavior unless those dependent rows have landed."
+              ],
+              "not_ready_when": [
+                "The slice implements full /queue, /bg, /steer handler bodies, model picker, voice recording, external editor, or clipboard image attachment in the same change.",
+                "The slice changes kernel.RenderFrame shape or provider submit semantics.",
+                "The slice treats Ctrl+C as immediate process exit when a draft is present, because Hermes clears draft/images first."
+              ],
+              "acceptance": [
+                "TestHermesKeybindings_AltEnterAndCtrlJInsertNewline proves multi-line input works without submit.",
+                "TestHermesKeybindings_CtrlCClearsIdleDraftThenSecondCtrlCQuits proves idle draft clearing matches Hermes.",
+                "TestHermesKeybindings_CtrlCActiveTurnCancelsThenDoublePressForceQuit proves active-turn interrupt and force-exit timing behavior.",
+                "TestHermesKeybindings_CtrlDDeletesCharOrExitsOnlyWhenEmpty proves readline-style EOF behavior.",
+                "TestHermesKeybindings_BusyModeUnavailableDoesNotSubmitSlash proves unported busy slash text is consumed with evidence and never reaches kernel.Submit."
+              ],
+              "note": "Exact behavior is not just rendering. Hermes input routing is rich and stateful; this row keeps key semantics separate from visual chrome and from actual slash handler ports.",
+              "write_scope": [
+                "internal/tui/update.go",
+                "internal/tui/model.go",
+                "internal/tui/history.go",
+                "internal/tui/hermes_keybindings_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesKeybindings_' -count=1",
+                "go test ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Keybinding fixtures prove Hermes Enter/newline/history/Ctrl+C/Ctrl+D/Ctrl+L/busy-mode semantics without widening slash handler implementation."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
+                "note": "Hermes defines the keyboard contract; Gormes ports it onto Bubble Tea Update."
+              },
+              "blocked_by": [
+                "Native TUI Hermes bottom-pinned chrome layout"
+              ],
+              "unblocks": [
+                "Native TUI queued-message delete/cancel binding",
+                "TUI queued submit dispatch while in-flight",
+                "Native TUI Hermes slash completion helpers"
+              ]
+            },
+            {
+              "name": "Native TUI Hermes slash completion helpers",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "internal/tui exposes pure completion and autosuggest helpers backed by internal/cli.CommandRegistry so the local TUI can complete Hermes-compatible slash commands, aliases, subcommands, and unavailable-but-recognized commands without submitting unknown slash text to the model. Runtime completion-menu binding remains a dependent visual row.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
+              "fixture": "internal/tui/slash_completion_test.go::TestHermesSlashCompletion_*",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY",
+                "../hermes-agent/hermes_cli/commands.py:SlashCommandCompleter",
+                "../hermes-agent/hermes_cli/commands.py:SlashCommandAutoSuggest",
+                "../hermes-agent/tests/hermes_cli/test_commands.py:TestCommandRegistry,TestResolveCommand",
+                "internal/cli/command_registry.go",
+                "internal/tui/slash_dispatch.go"
+              ],
+              "ready_when": [
+                "internal/cli.CommandRegistry is validated against Hermes slash command inventory or carries explicit unavailable rows for missing commands.",
+                "Pure helper tests can run without a Bubble Tea Program or terminal."
+              ],
+              "not_ready_when": [
+                "The slice implements the Bubble Tea completion menu UI, plugin dynamic commands, skills install/search behavior, or handler bodies for unported commands.",
+                "The slice adds a second slash command registry outside internal/cli/internal/tui."
+              ],
+              "acceptance": [
+                "TestHermesSlashCompletion_CommandPrefix returns matching canonical commands and aliases for typed prefixes according to CommandRegistry policy.",
+                "TestHermesSlashCompletion_SubcommandPrefix returns reasoning subcommands in Hermes order for `/reasoning ` and `/reasoning sh`.",
+                "TestHermesSlashCompletion_UnavailableCommandsStillComplete proves recognized-but-unported commands can complete while still yielding unavailable evidence on dispatch.",
+                "TestHermesSlashCompletion_AutoSuggest returns the suffix Hermes would ghost for a unique command or subcommand prefix.",
+                "Helper is deterministic and has no provider/config/plugin filesystem dependency."
+              ],
+              "note": "Hermes prompt_toolkit surface proves feature richness through completion before commands are read. Gormes should match that feel without using prompt_toolkit or duplicating registries.",
+              "write_scope": [
+                "internal/tui/slash_completion.go",
+                "internal/tui/slash_completion_test.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesSlashCompletion_' -count=1",
+                "go test ./internal/cli ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Completion helper fixtures prove command, alias, subcommand, unavailable-command, and autosuggest behavior from the shared registry."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
+                "note": "Hermes defines slash completion behavior; Gormes adapts it to Go helper functions before UI menu binding."
+              },
+              "blocked_by": [
+                "Native TUI Hermes input keybinding semantics"
+              ],
+              "unblocks": [
+                "Native TUI Hermes completion menu binding"
+              ]
+            },
+            {
+              "name": "Native TUI Hermes tool progress + modal panel renderers",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "internal/tui adds Hermes-compatible renderer primitives for tool progress and interactive modal panels: live spinner text with elapsed timer, stacked tool-completion scrollback lines for all/new modes, dangerous-command approval panels with once/session/always/deny/view choices, clarify question panels with numbered options and Other, and sudo/secret panels with countdown/hint text. This row renders state injected by tests; live tool/approval/clarify wiring remains dependent work.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
+              "fixture": "internal/tui/hermes_panels_test.go::TestHermesPanels_*",
+              "source_refs": [
+                "../hermes-agent/cli.py:_render_spinner_text",
+                "../hermes-agent/cli.py:_on_tool_progress",
+                "../hermes-agent/cli.py:_get_approval_display_fragments",
+                "../hermes-agent/cli.py:_clarify_callback and _get_clarify_display",
+                "../hermes-agent/cli.py:_sudo_password_callback and _secret_capture_callback",
+                "../hermes-agent/tests/cli/test_tool_progress_scrollback.py",
+                "../hermes-agent/tests/cli/test_cli_approval_ui.py",
+                "internal/kernel/tool_metadata_test.go",
+                "internal/tools/dangerous_command_test.go"
+              ],
+              "ready_when": [
+                "Native TUI Hermes bottom-pinned chrome layout is complete so panel placement has a target stack.",
+                "At least synthetic panel state types can be added under internal/tui without requiring live terminal callbacks, tool execution, provider calls, or dangerous-command approval plumbing.",
+                "If kernel/tool event state is insufficient for runtime wiring, this row should remain renderer-only and add a follow-up interface-design row."
+              ],
+              "not_ready_when": [
+                "The slice implements live dangerous-command approvals, executes tools, changes tool safety policy, adds audio/voice recording, or starts provider/network work.",
+                "The slice mixes modal renderers with slash command handler ports or gateway channel approvals.",
+                "The slice stores raw commands, secrets, or prompt payloads in status/panel snapshots without redaction."
+              ],
+              "acceptance": [
+                "TestHermesPanels_ToolSpinnerShowsElapsed proves tool.started style text includes the preview and live elapsed timer format.",
+                "TestHermesPanels_ToolScrollbackAllNewModes proves completed tools render stacked lines, new mode suppresses consecutive duplicates, and errors append `[error]`.",
+                "TestHermesPanels_ApprovalPanelPreservesCommandAndChoices proves command + choices remain visible under long descriptions and `view` expands the command in place.",
+                "TestHermesPanels_ClarifyPanelRendersNumberedChoicesAndOther proves numbered choices, selected marker, Other option, and timeout hint fit the available height.",
+                "TestHermesPanels_SecretAndSudoPanelsNeverRenderSecretValue proves hidden input panels show prompts/countdowns but no secret contents."
+              ],
+              "note": "Marked draft because runtime event interfaces may need a gormes-interface-designer pass after renderer fixtures. It is still important to pin exact Hermes panel shapes so later tool/approval work does not invent a separate TUI language.",
+              "write_scope": [
+                "internal/tui/hermes_panels.go",
+                "internal/tui/hermes_panels_test.go",
+                "internal/tui/model.go",
+                "internal/tui/view.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesPanels_' -count=1",
+                "go test ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Panel renderer fixtures prove Hermes spinner/tool-progress/approval/clarify/sudo/secret shapes with synthetic state and no live side effects."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
+                "note": "Hermes defines modal/tool progress UI; Gormes should port renderer contracts before live approval/tool wiring."
+              },
+              "blocked_by": [
+                "Native TUI Hermes bottom-pinned chrome layout"
+              ]
+            },
+            {
               "name": "SSE streaming to Bubble Tea TUI",
               "status": "complete",
               "contract": "Remote Bubble Tea clients can consume native Gormes turn events over SSE without the Python tui_gateway process",
@@ -19818,8 +21430,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-28T01:55:00Z",
-            "origin_decision": "Hermes 755a2804, 5eb6cd82, and e63929d4 remain the donor set for API/TUI health, save-export, and long-history TUI behavior. Hermes ea1012f5 adds queued-message delete/cancel edit UX; Gormes lacks the Node/Ink queue runtime, so the first Go row is a pure queued-message helper before keybinding or kernel dispatch changes. The quarantined local TUI /save and bounded-viewport rows are now split into helper-first and runtime-binding rows with disjoint acceptance so backend/stdin failures or write-scope collisions do not keep broad rows quarantined. The API server detailed health endpoint remains a small binding row after the snapshot contract."
+            "last_upstream_check": "2026-04-28T21:10:00Z",
+            "origin_decision": "Hermes prompt_toolkit TUI parity now treats ../hermes-agent/cli.py as the source of truth for local interactive behavior, not only tui_gateway/ui-tui donor files. Exact Gormes TUI parity is split into skin tokens, status bar, bottom-pinned chrome, input keybindings, slash completion, and tool/modal renderer rows. Gormes keeps the Go-native Bubble Tea/kernel boundary but should remove the default dashboard/sidebar chrome when these rows land."
           }
         },
         "5.R": {
@@ -19828,22 +21440,58 @@
             {
               "name": "Execution-mode resolver + config precedence",
               "status": "planned",
-              "note": "TDD slice 1 of 4: pure helper in `internal/tools/execute_code.go` that returns `off`/`project`/`strict` from (a) env var (e.g. `GORMES_EXECUTE_CODE_MODE`), then (b) config key, then (c) default, with unknown values falling back to default and emitting a warning. Table tests only — no sandbox coupling, no CWD/interpreter behavior yet. Freeze the token set here so later slices cannot silently add modes."
+              "note": "TDD slice 1 of 4: pure helper in `internal/tools/execute_code.go` that returns `off`/`project`/`strict` from (a) env var (e.g. `GORMES_EXECUTE_CODE_MODE`), then (b) config key, then (c) default, with unknown values falling back to default and emitting a warning. Table tests only — no sandbox coupling, no CWD/interpreter behavior yet. Freeze the token set here so later slices cannot silently add modes.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Strict-mode CWD + interpreter parity",
               "status": "planned",
-              "note": "TDD slice 2 of 4: strict mode keeps today's behavior frozen — isolated tmpdir CWD plus the canonical interpreter resolved via `LocalCodeSandbox.resolveRuntime`. Fixtures must prove the 5.K blocked-result envelope (status, error, filesystem_access, network_access) is unchanged and that relative imports/filesystem access outside the tmpdir continue to fail. This slice exists only to pin the reference behavior before project-mode lands."
+              "note": "TDD slice 2 of 4: strict mode keeps today's behavior frozen — isolated tmpdir CWD plus the canonical interpreter resolved via `LocalCodeSandbox.resolveRuntime`. Fixtures must prove the 5.K blocked-result envelope (status, error, filesystem_access, network_access) is unchanged and that relative imports/filesystem access outside the tmpdir continue to fail. This slice exists only to pin the reference behavior before project-mode lands.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Project-mode CWD + active venv detection",
               "status": "planned",
-              "note": "TDD slice 3 of 4: port upstream `_resolve_python_binary`/`_resolve_cwd` project semantics — session's working directory for CWD and the active virtualenv/conda python when present, falling back to the resolved system interpreter. Unit tests must drive resolution via injected env (`VIRTUAL_ENV`, `CONDA_PREFIX`), not the real host. Do not widen the 5.K filesystem/network blocking contract — project mode still flows through the same `sandboxGuardReason` gate."
+              "note": "TDD slice 3 of 4: port upstream `_resolve_python_binary`/`_resolve_cwd` project semantics — session's working directory for CWD and the active virtualenv/conda python when present, falling back to the resolved system interpreter. Unit tests must drive resolution via injected env (`VIRTUAL_ENV`, `CONDA_PREFIX`), not the real host. Do not widen the 5.K filesystem/network blocking contract — project mode still flows through the same `sandboxGuardReason` gate.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Default mode selection + config cut-over",
               "status": "planned",
-              "note": "TDD slice 4 of 4: pick and document Gormes' default mode (recommend `strict` given the self-hosted security-first posture, with `project` opt-in via config). Wire the resolver into `NewExecuteCodeTool` so callers get the right mode without per-call arguments, add a regression test that the 5.K `Sandboxed exec` blocked-result envelope is byte-identical across modes, and update the rationale in `docs/content/building-gormes/core-systems/tool-execution.md` so operators understand the trade-off before flipping the default."
+              "note": "TDD slice 4 of 4: pick and document Gormes' default mode (recommend `strict` given the self-hosted security-first posture, with `project` opt-in via config). Wire the resolver into `NewExecuteCodeTool` so callers get the right mode without per-call arguments, add a regression test that the 5.K `Sandboxed exec` blocked-result envelope is byte-identical across modes, and update the rationale in `docs/content/building-gormes/core-systems/tool-execution.md` so operators understand the trade-off before flipping the default.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         }
@@ -19859,7 +21507,16 @@
             {
               "name": "Heuristic or LLM-scored signal",
               "status": "planned",
-              "note": "TDD: start with deterministic local signals from transcript length, tool-call count, retries, edits, and operator feedback before adding any LLM scorer, so learning-loop triggers are explainable."
+              "note": "TDD: start with deterministic local signals from transcript length, tool-call count, retries, edits, and operator feedback before adding any LLM scorer, so learning-loop triggers are explainable.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -20414,7 +22071,16 @@
             {
               "name": "Skill effectiveness scoring",
               "status": "planned",
-              "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior."
+              "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -20424,7 +22090,16 @@
             {
               "name": "TUI + Telegram browsing",
               "status": "planned",
-              "note": "TDD: expose browse/edit/disable/review flows through TUI and gateway commands after the store and feedback records are stable, with permission and active-turn behavior pinned by tests."
+              "note": "TDD: expose browse/edit/disable/review flows through TUI and gateway commands after the store and feedback records are stable, with permission and active-turn behavior pinned by tests.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         }
@@ -20451,7 +22126,16 @@
             {
               "name": "Signal transport/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze signal-cli or bridge client lifecycle, receive-loop reconnect/error handling, and outbound attachment/send seams before binding a real transport."
+              "note": "TDD: freeze signal-cli or bridge client lifecycle, receive-loop reconnect/error handling, and outbound attachment/send seams before binding a real transport.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ]
         },
@@ -20483,7 +22167,16 @@
             {
               "name": "Matrix shared-chassis bot seam",
               "status": "planned",
-              "note": "TDD: land a Matrix-specific bot seam on top of `internal/channels/threadtext` that freezes canonical thread reply targets, root-message thread defaults, and placeholder/edit hooks before auth/sync/E2EE transport work."
+              "note": "TDD: land a Matrix-specific bot seam on top of `internal/channels/threadtext` that freezes canonical thread reply targets, root-message thread defaults, and placeholder/edit hooks before auth/sync/E2EE transport work.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Matrix self/bridge sender drop helper",
@@ -20555,12 +22248,30 @@
             {
               "name": "Mattermost shared-chassis bot seam",
               "status": "planned",
-              "note": "TDD: land a Mattermost-specific bot seam on top of `internal/channels/threadtext` that freezes canonical reply targets, flat-vs-thread root reply defaults, and placeholder/edit hooks before REST/WS transport work."
+              "note": "TDD: land a Mattermost-specific bot seam on top of `internal/channels/threadtext` that freezes canonical reply targets, flat-vs-thread root reply defaults, and placeholder/edit hooks before REST/WS transport work.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Matrix real client/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze auth, sync/invite handling, room-kind and mention policy, and media/E2EE bootstrap seams before binding a real Matrix client."
+              "note": "TDD: freeze auth, sync/invite handling, room-kind and mention policy, and media/E2EE bootstrap seams before binding a real Matrix client.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Matrix E2EE device-id crypto-store binding",
@@ -20611,7 +22322,16 @@
             {
               "name": "Mattermost REST/WS bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze auth, websocket reconnect, channel/user lookup, and file upload/edit seams before binding a real Mattermost transport."
+              "note": "TDD: freeze auth, websocket reconnect, channel/user lookup, and file upload/edit seams before binding a real Mattermost transport.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ],
           "drift_state": {
@@ -20710,17 +22430,44 @@
             {
               "name": "Feishu transport/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze webhook and websocket client lifecycle, credential validation, and rich-text send failure modes before binding a real Feishu transport."
+              "note": "TDD: freeze webhook and websocket client lifecycle, credential validation, and rich-text send failure modes before binding a real Feishu transport.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Feishu drive-comment rule + pairing seam",
               "status": "planned",
-              "note": "TDD: port the upstream `gateway/platforms/feishu_comment_rules.py` contract as a Go rule resolver with exact document, wildcard, and top-level fallback plus allowlist/pairing decisions before comment replies can invoke an agent."
+              "note": "TDD: port the upstream `gateway/platforms/feishu_comment_rules.py` contract as a Go rule resolver with exact document, wildcard, and top-level fallback plus allowlist/pairing decisions before comment replies can invoke an agent.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Feishu drive-comment reply workflow",
               "status": "planned",
-              "note": "TDD: freeze `drive.notice.comment_add_v1` parsing, OK-reaction behavior, whole-document vs local-thread prompt construction, and reply fallback semantics from `gateway/platforms/feishu_comment.py` before real SDK binding."
+              "note": "TDD: freeze `drive.notice.comment_add_v1` parsing, OK-reaction behavior, whole-document vs local-thread prompt construction, and reply fallback semantics from `gateway/platforms/feishu_comment.py` before real SDK binding.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "DingTalk transport/bootstrap layer",
@@ -20730,7 +22477,16 @@
             {
               "name": "DingTalk real SDK binding",
               "status": "planned",
-              "note": "TDD: bind the frozen Stream Mode/runtime contract to the real DingTalk SDK, credential checks, receive loop, and send lifecycle without widening the already-tested session-webhook retry seam."
+              "note": "TDD: bind the frozen Stream Mode/runtime contract to the real DingTalk SDK, credential checks, receive loop, and send lifecycle without widening the already-tested session-webhook retry seam.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "DingTalk AI Cards streaming-update contract",
@@ -20951,7 +22707,16 @@
             {
               "name": "QQ Bot transport/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze gateway/event receive loops, passive-reply lifecycle, and platform-specific send failure handling before binding a real QQ transport."
+              "note": "TDD: freeze gateway/event receive loops, passive-reply lifecycle, and platform-specific send failure handling before binding a real QQ transport.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "done_signal": [
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             }
           ],
           "drift_state": {

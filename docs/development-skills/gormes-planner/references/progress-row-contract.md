@@ -27,6 +27,21 @@ When a row comes from the Hermes/Honcho feature map, include the map section or
 anchor in `source_refs`, `fixture`, or `note`; `feature_map_anchor` is a useful
 planning term but is not a schema field unless the schema adds it.
 
+Do not use broad wildcards such as `agent/**`, `tools/**`, `gateway/**`,
+`hermes_cli/**`, `src/**`, `sdks/**`, `mcp/**`, or `_handle_*_command` as the
+only evidence for a feature-bearing row. Broad source classes are acceptable as
+companion context only when the row also cites exact files, symbols, commands,
+fixtures, or tests.
+
+For CLI/config/migration rows, keep the contracts distinct:
+`Hermes CLI command-tree parity manifest` inventories commands,
+`gormes config migrate` updates only native Gormes schema/defaults, and
+`gormes migrate hermes` / `gormes migrate openclaw` import external state.
+Do not merge these into one broad config row. If `ooenclaw` appears in a
+request, represent it as a tested typo-suggestion path for
+`gormes migrate openclaw`, not a second migration command, unless a dedicated
+compatibility row explicitly owns that alias.
+
 For full-map or parity-register rows, cite exact nested upstream refs when
 symbol-level mapping is feasible. If the subsystem is too large for symbol
 proof, explicitly classify it as `mapped-by-contract`, `owned`, `excluded`, or

@@ -13,10 +13,11 @@ row with exact nested refs.
 
 Map every Hermes feature group to Go code, docs, fixtures, and progress rows:
 
-- CLI lifecycle: install, configure, auth/status, run, chat, resume, inspect, doctor.
+- CLI lifecycle: install, configure, auth/status, run, chat, resume, inspect, doctor, and a source-backed manifest for every top-level command, nested subcommand, root/global flag, slash command, dynamic plugin command, alias, and gateway handler before claiming command parity. Hermes-owned `-z/--oneshot` is parity/covered, not a Gormes-owned divergence.
 - Session model: session IDs, transcript persistence, replay/resume, title generation, metadata, search.
 - Provider routing: model selection, streaming, structured outputs, retries, degraded modes, provider-specific errors, token accounting.
 - Provider transports: shared `ProviderTransport` interface and normalized response/event/tool-call/error contracts across Anthropic, Bedrock, Codex Responses, Chat Completions, Gemini native and Cloud Code, OpenRouter, Moonshot/Kimi sanitizer, and auxiliary clients.
+- Provider account usage: Codex, Anthropic, and OpenRouter account-usage fetchers, quota-window normalization, shared renderer, separate CLI/status and gateway `/usage` command binding, running-agent/cached-agent/history fallback, and redacted degraded evidence.
 - Credentials and OAuth: credential pool/sources, multi-account vault, Google/Codex/Copilot OAuth refresh, redaction at error and audit boundaries, token-vault interface separate from provider clients.
 - Tool execution: typed tool registry, schema exposure, trust classes, approvals, shell execution, file edits, search, web/doc helpers, MCP-like extension points where applicable.
 - Sandboxes and environments: local, Docker, Modal/managed Modal, Daytona, SSH, Singularity, file_sync, env scrubbing, credential mounts, env passthrough.
@@ -31,10 +32,10 @@ Map every Hermes feature group to Go code, docs, fixtures, and progress rows:
 - Channel bootstrap registry: per-platform manifest, transport, identity/self-filter, inbound normalization, outbound delivery, sticker/mirror/directory cache.
 - Cron/scheduling: durable jobs, triggers, retries, idempotence, status, context_from chaining.
 - ACP and MCP catalogs: ACP auth/session/events/tools/permissions registry; MCP server/runtime, sampling, conversation bridge, prompt/resource wrappers, OAuth state machines, managed gateway clients.
-- Webhooks: outbound webhook delivery, HMAC, retries, queue-empty events.
+- Webhooks: endpoint CRUD/test/signature, outbound webhook delivery, HMAC, retries/backoff/failure state, disabled endpoints, and queue-empty events.
 - Dreaming and learning loop: scheduled dream execution, observations, peer-card side effects, skill candidate extraction, review/promotion.
 - Plugins/skills: discovery, parsing, installation, invocation, lockfiles, provenance.
-- Config/secrets: config files (incl. `cli-config.yaml.example` schema parity), env overrides, credential redaction, doctor checks.
+- Config/secrets: config files (incl. `cli-config.yaml.example` schema parity), env overrides, credential redaction, doctor checks, native `config edit/check/migrate`, explicit `gormes migrate hermes` / `gormes migrate openclaw` import commands, and typo-suggestion behavior for requests like `gormes migrate ooenclaw`.
 - Observability: structured logs, audit ledger, telemetry, metrics, debug bundles, redaction-before-emit.
 - Packaging/release: binaries, service units, install docs, version surfaces, OCI/Docker, Homebrew, Nix/flake/NixOS, public installer/site.
 

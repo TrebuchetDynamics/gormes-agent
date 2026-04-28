@@ -407,6 +407,7 @@ classification and row-backed implementation queue.
 ### 3.G — Goncho Drop-In Compatibility Closure 🔨
 
 - [x] Goncho keys + webhooks compatibility surface
+- [ ] Goncho webhook delivery retry worker contract
 - [x] Goncho HTTP route parity over OpenAPI v3
 - [x] Goncho CLI command-tree parity
 - [ ] Goncho Honcho SDK compatibility e2e harness
@@ -518,13 +519,15 @@ classification and row-backed implementation queue.
 - [x] Streaming interrupt retry suppression
 - [x] Provider timeout config fail-closed helper
 - [ ] Prompt-cache capability guard
+- [ ] Provider account usage read model + renderer
+- [ ] Gateway /usage command binding over provider account usage
 - [x] Provider rate guard + budget telemetry
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
 ### 4.I — Native Agent Turn Closure 🔨
 
-- [ ] Python-free normal agent turn e2e harness
+- [x] Python-free normal agent turn e2e harness
 - [ ] Provider-tool-memory golden transcript suite
 - [x] Hermes and Honcho feature parity map to Go implementation plan
 - [x] Upstream source coverage ledger for Hermes/Honcho mapping completeness
@@ -552,6 +555,7 @@ classification and row-backed implementation queue.
 
 - [ ] Environment interface + file sync contract
 - [ ] Terminal snapshot source stdout suppression guard
+- [ ] Raw tool-call parser fixture matrix
 - [ ] Docker
 - [x] Docker backend top-level container reuse semantics
 - [ ] Modal
@@ -674,6 +678,7 @@ classification and row-backed implementation queue.
 ### 5.O — Hermes CLI Parity 🔨
 
 - [ ] 49-file CLI tree port
+- [ ] Hermes CLI command-tree parity manifest
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
 - [x] CLI deterministic tip selector
@@ -691,6 +696,7 @@ classification and row-backed implementation queue.
 - [ ] Config, profile, auth, and setup command surfaces
 - [ ] Provider endpoint/API-key root flags + runtime resolution
 - [ ] Gormes config command surface
+- [ ] Gormes config edit/check/native schema-migrate closeout
 - [ ] Hermes config migration dry-run manifest
 - [ ] Hermes config migration writer
 - [ ] OpenClaw migration dry-run manifest
@@ -747,6 +753,12 @@ classification and row-backed implementation queue.
 - [x] Native TUI conversation viewport tail helper
 - [ ] Native TUI queued-message edit helper
 - [ ] Native TUI renderConv viewport budget binding
+- [x] Native TUI Hermes skin token renderer
+- [ ] Native TUI Hermes status bar renderer
+- [ ] Native TUI Hermes bottom-pinned chrome layout
+- [ ] Native TUI Hermes input keybinding semantics
+- [ ] Native TUI Hermes slash completion helpers
+- [ ] Native TUI Hermes tool progress + modal panel renderers
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [x] Responses API store + run event stream
