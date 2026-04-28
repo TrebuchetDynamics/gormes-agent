@@ -110,7 +110,7 @@ type openAPIOperation struct {
 
 func readUpstreamOpenAPIRoutes(t *testing.T) []Route {
 	t.Helper()
-	path := filepath.Clean("../../../../../honcho/docs/v3/openapi.json")
+	path := filepath.Clean("../../../../honcho/docs/v3/openapi.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
