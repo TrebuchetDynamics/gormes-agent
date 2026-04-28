@@ -20,7 +20,7 @@ func writeNamedProgressJSON(t *testing.T, body string) string {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "progress.json")
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(completeProgressFixture(t, body)), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	return path
@@ -66,7 +66,7 @@ const baseNamedProgress = `{
         "12.A": {
           "name": "S",
           "items": [
-            {"name": "row-1", "status": "planned", "contract": "do x", "contract_status": "draft"}
+            {"name": "row-1", "status": "planned", "contract": "do x", "contract_status": "draft", "no_test_required": "health fixture"}
           ]
         }
       }
@@ -187,7 +187,12 @@ func TestRunOnce_NoChangeWorkerCountsAsNoProgressAndSkipsPostVerify(t *testing.T
               "status": "planned",
               "contract": "make a real code change",
               "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "ready_when": ["health fixture is ready"],
               "write_scope": ["internal/goncho/"],
+              "no_test_required": "quarantine fixture",
+              "done_signal": ["health fixture done"],
               "health": {"attempt_count": 2, "consecutive_failures": 2}
             }
           ]
@@ -454,7 +459,12 @@ func TestRunOnce_CommitsRunHealthAfterPromotedWorker(t *testing.T) {
               "status": "planned",
               "contract": "land worker and health",
               "contract_status": "draft",
-              "write_scope": ["internal/goncho/"]
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "ready_when": ["health fixture is ready"],
+              "write_scope": ["internal/goncho/"],
+              "no_test_required": "health success fixture",
+              "done_signal": ["health fixture done"]
             }
           ]
         }
@@ -549,7 +559,12 @@ func TestRunOnce_PushesMainAfterCompletedRun(t *testing.T) {
               "status": "planned",
               "contract": "land worker and push main",
               "contract_status": "draft",
-              "write_scope": ["internal/goncho/"]
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "ready_when": ["push fixture is ready"],
+              "write_scope": ["internal/goncho/"],
+              "no_test_required": "push fixture",
+              "done_signal": ["push fixture done"]
             }
           ]
         }
@@ -634,13 +649,13 @@ func TestRunOnce_PreflightFailureSoftSkipsAndContinues(t *testing.T) {
         "12.A": {
           "name": "SA",
           "items": [
-            {"name": "row-skip", "status": "planned", "contract": "do x", "contract_status": "draft"}
+            {"name": "row-skip", "status": "planned", "contract": "do x", "contract_status": "draft", "no_test_required": "soft skip fixture"}
           ]
         },
         "12.B": {
           "name": "SB",
           "items": [
-            {"name": "row-ok", "status": "planned", "contract": "do y", "contract_status": "draft", "write_scope": ["soft-skip-success.txt"]}
+            {"name": "row-ok", "status": "planned", "contract": "do y", "contract_status": "draft", "write_scope": ["soft-skip-success.txt"], "no_test_required": "soft skip fixture"}
           ]
         }
       }

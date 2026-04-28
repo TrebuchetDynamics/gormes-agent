@@ -9,6 +9,12 @@ weight: 40
 
 **Deliverable:** SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes auditability, decay, cross-chat synthesis, and the GONCHO-shaped session/user boundaries the future plugin layer will depend on while preserving Honcho-compatible interfaces.
 
+**Completion lane:** Phase 3 is the base of [Lane 2 — Goncho Memory And Honcho Compatibility](../lane-roadmap/#lane-2--goncho-memory-and-honcho-compatibility).
+It is not complete until Goncho can cover the Honcho-compatible public memory
+contracts Gormes needs: sessions, messages, scoped search, provenance,
+lineage, updates/deletes, and fixture-backed `honcho_*` tool/MCP names where
+external compatibility requires them.
+
 Phase 3 (The Black Box) is substantially delivered as of 2026-04-25: the SQLite + FTS5 lattice (3.A), ontological graph with async LLM extraction (3.B), lexical/FTS5 recall with `<memory-context>` fence injection (3.C), semantic fusion via Ollama embeddings with cosine similarity recall (3.D), and the operator-facing memory mirror (3.D.5) are all implemented. The 3.E closeout queue is now mixed: session index mirror (3.E.1), tool audit (3.E.2), transcript export (3.E.3), extraction visibility (3.E.4), the lightweight insights writer (3.E.5), the `last_seen`-based memory-decay closeout (3.E.6), interrupted-turn sync suppression, Honcho-compatible scope/source schemas, deny-path fixtures, and baseline host-integration fixtures are shipped; canonical `user_id > chat_id > session_id` metadata is landed for 3.E.7, and the core source-filtered session/message search path is landed for 3.E.8. New Honcho drift adds a narrower SillyTavern mapping gate for peer modes, session naming, enrichment modes, and group-chat participants before operator evidence can close 3.E.7. `parent_session_id` lineage remains the last explicit donor seam in this area. Architecturally, this is the phase where Gormes finishes the memory substrate that a GONCHO-style integration would stand on, without yet claiming full Honcho provider or plugin parity.
 
 ## Phase 3 sub-status (as of 2026-04-25)

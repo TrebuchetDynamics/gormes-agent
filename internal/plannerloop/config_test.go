@@ -94,7 +94,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		"MERGE_OPEN_PULL_REQUESTS":      "0",
 		"PR_INTAKE_EMPTY_BACKOFF":       "2m30s",
 		"PR_INTAKE_CONFLICT_ACTION":     "skip",
-		"PLANNER_GORMES_ORIGINAL_PATHS": "cmd/builder-loop/,internal/progress/",
+		"PLANNER_GORMES_ORIGINAL_PATHS": "cmd/progress/,internal/progress/",
 		"PLANNER_IMPL_LOOKBACK":         "48h",
 		"PLANNER_TRIGGER_REASON":        "impl_change",
 		"PLANNER_BACKEND_TIMEOUT":       "7m",
@@ -137,7 +137,7 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	if cfg.PRConflictAction != builderloop.PRConflictActionSkip {
 		t.Fatalf("PRConflictAction = %q, want %q", cfg.PRConflictAction, builderloop.PRConflictActionSkip)
 	}
-	if !reflect.DeepEqual(cfg.GormesOriginalPaths, []string{"cmd/builder-loop/", "internal/progress/"}) {
+	if !reflect.DeepEqual(cfg.GormesOriginalPaths, []string{"cmd/progress/", "internal/progress/"}) {
 		t.Fatalf("GormesOriginalPaths = %#v", cfg.GormesOriginalPaths)
 	}
 	if cfg.ImplLookback != 48*time.Hour {

@@ -7,6 +7,15 @@ weight: 40
 
 The contribution path. Use this when you want to port a piece of Hermes into Gormes.
 
+Start with the [Gormes Completion Plan](../architecture_plan/completion-plan/)
+and [Completion Lane Roadmap](../architecture_plan/lane-roadmap/).
+Every porting pass must route through a repo-local skill:
+
+- `gormes-parity-auditor` to compare upstream behavior against current Gormes.
+- `gormes-planner` to create or refine builder-ready rows.
+- `gormes-interface-designer` when the Go package/API shape is not obvious.
+- `gormes-builder` and `gormes-tdd-slice` to implement one row.
+
 ## 1. Pick your target
 
 Open [Subsystem Inventory](../architecture_plan/subsystem-inventory/). Every row is a Hermes subsystem with a target Gormes sub-phase. Pick one that:
@@ -36,17 +45,46 @@ Useful donor study pages:
 - [Upstream GBrain Architecture](../../upstream-gbrain/architecture/)
 - [Upstream Lessons](../upstream-lessons/)
 
-## 3. Write a spec
+## 3. Decide the row shape
 
-`docs/superpowers/specs/YYYY-MM-DD-<subsystem>-design.md`. Use the brainstorming skill if you want guided design; otherwise mirror the shape of an existing spec. Get maintainer approval before writing the plan.
+Before implementation, the work must exist as one or more rows in
+`progress.json`. Specs and plans are useful for larger changes, but they are
+not the queue. A row must name the contract, source refs, write scope, tests,
+acceptance, ready/not-ready conditions, and done signal.
 
-## 4. Write a plan
+If the row would require several independent commits, split it before builder
+execution. Use tracer-bullet rows that cut through the public interface and
+tests end to end.
 
-`docs/superpowers/plans/YYYY-MM-DD-<subsystem>.md`. Break into tasks small enough for subagent-driven execution (5–10 tasks, 2–5 minute steps). See existing plans under `docs/superpowers/plans/` for examples.
+Use this packet when adding or refining rows:
+
+| Packet field | Required answer |
+|---|---|
+| Upstream behavior | Exact files, symbols, docs, or commits. |
+| Gormes target | Package, command, tool, API, or doc surface. |
+| Public contract | What the operator, gateway, tool caller, or kernel observes. |
+| Degraded mode | How unavailable/partial behavior is reported. |
+| Fixture | Local testdata, fake provider, SQLite fixture, or transcript. |
+| Write scope | Narrow list of paths the builder may edit. |
+| Gate | Row-local test plus focused package gate. |
+| Done signal | Exact evidence to report when complete. |
+
+## 4. Write a spec or plan when needed
+
+For broad or high-risk subsystems, write:
+
+- `docs/superpowers/specs/YYYY-MM-DD-<subsystem>-design.md`
+- `docs/superpowers/plans/YYYY-MM-DD-<subsystem>.md`
+
+Use them to explain architecture and dependency order, then copy the actual
+execution slices into `progress.json`.
 
 ## 5. Implement
 
-Bite-sized commits. Tests first (TDD). Mirror the existing Go package layout under `internal/`.
+Use `gormes-builder` and `gormes-tdd-slice`. Bite-sized commits. Tests first
+where feasible. Mirror existing Go package layout under `internal/`, but do
+not copy Python monolith boundaries when a deeper Go module hides the same
+behavior behind a smaller interface.
 
 ## 6. Open a PR
 

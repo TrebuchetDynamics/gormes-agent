@@ -1,92 +1,19 @@
 # Command Entry Points
 
-This directory contains runnable command folders for Gormes. You do not need to
-know Go to run them, but you do need the `go` tool installed.
+This directory contains the remaining runnable command folders for Gormes.
+Run commands from the repository root.
 
-Run every command below from the repository root:
-
-```sh
-cd /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent
-```
-
-If you are already inside this `cmd/` directory, run:
-
-```sh
-cd ..
-```
-
-## Start Here
-
-Check that Go is available:
-
-```sh
-go version
-```
-
-This repo declares Go `1.25.0` in `go.mod`.
-
-To run the main app UI without starting the backend:
-
-```sh
-go run ./cmd/gormes --offline
-```
-
-To preview what the builder loop would select without starting worker agents:
-
-```sh
-go run ./cmd/builder-loop run --dry-run
-```
-
-To preview the architecture planner context without starting a planner agent:
-
-```sh
-go run ./cmd/planner-loop run --dry-run
-```
-
-Optional repo health checks:
-
-```sh
-make validate-progress
-go run ./cmd/builder-loop progress validate
-```
-
-`make validate-progress` is not required to run Gormes. It is a read-only check
-for this repository's roadmap/progress data. The Makefile expands it to:
-
-```sh
-go run ./cmd/builder-loop progress validate
-```
-
-The shape of a Go command is:
-
-```sh
-go run ./cmd/builder-loop progress write
-```
-
-Read it as: "compile and run the command in `./cmd/builder-loop`, then pass it the
-arguments `progress write`." `go run` uses a temporary build; it does not
-install anything.
-
-To build real binaries instead:
-
-```sh
-go build -o bin/gormes ./cmd/gormes
-go build -o bin/builder-loop ./cmd/builder-loop
-go build -o bin/planner-loop ./cmd/planner-loop
-
-./bin/gormes --offline
-./bin/builder-loop run --dry-run
-./bin/builder-loop progress validate
-./bin/planner-loop run --dry-run
-```
-
-## Commands
+## Active Commands
 
 | Command | Role | Typical invocation |
 |---|---|---|
-| `gormes` | User-facing runtime and TUI. Use `--offline` when you only want to see the UI without a running API server. | `go run ./cmd/gormes --offline` |
-| `builder-loop` | Executor side of the Planner-Builder Loop. Runs roadmap phase work in isolated worktrees, audits/digests runs, validates/regenerates progress docs, and records repo benchmark/readme metadata. | `go run ./cmd/builder-loop run --dry-run` |
-| `planner-loop` | Planner side of the Planner-Builder Loop. Studies local Hermes/GBrain/Honcho sources plus upstream and building-gormes docs, then asks `codexu` or `claudeu` to refine the architecture plan and progress rows. Dry-run mode only writes planner context and prompt artifacts. | `go run ./cmd/planner-loop run --dry-run` |
+| `gormes` | User-facing runtime and TUI. | `go run ./cmd/gormes --offline` |
+| `progress` | Validates `progress.json` and regenerates progress-driven docs/site data. | `go run ./cmd/progress validate` |
+| `repoctl` | Updates repo metadata such as benchmark and README data. | `go run ./cmd/repoctl benchmark record` |
+
+The old autonomous `builder-loop` and `planner-loop` command directories were
+removed. Planning and building now happen through repo-local skills under
+`.agents/skills/`, with `progress.json` as the only backlog.
 
 ## Common Recipes
 
@@ -112,58 +39,18 @@ make build
 Update README benchmark text from `benchmarks.json`:
 
 ```sh
-go run ./cmd/builder-loop repo readme update
+go run ./cmd/repoctl readme update
 ```
-
-Preview what the builder loop would select:
-
-```sh
-go run ./cmd/builder-loop run --dry-run
-```
-
-Preview what the architecture planner would study:
-
-```sh
-go run ./cmd/planner-loop run --dry-run
-```
-
-## How They Fit Together
-
-`gormes` is the product runtime. The other commands support the repository and
-the self-development loop; they should not add behavior to the user-facing
-runtime unless that behavior belongs in the shipped Gormes binary.
-
-`builder-loop` is the executor side of the Planner-Builder Loop (see
-`AGENTS.md` at the repo root). It uses
-`docs/content/building-gormes/architecture_plan/progress.json` as the canonical
-candidate queue and the generated `docs/content/building-gormes/` pages as the
-operator-facing handoff for developing the full `gormes-agent`. See
-[`cmd/builder-loop/README.md`](./builder-loop/README.md) for the command-specific
-contract. It also owns progress validation/regeneration and repo-maintenance
-helpers so the root `cmd/` surface stays small: `builder-loop progress validate`,
-`builder-loop progress write`, `builder-loop repo benchmark record`, and
-`builder-loop repo readme update`.
-
-`planner-loop` is the planner side of the Planner-Builder Loop. It does not
-execute roadmap implementation rows. Instead it builds a context bundle from
-`hermes-agent`, `gbrain`, `honcho`, `docs/content/upstream-hermes`,
-`docs/content/upstream-gbrain`, and `docs/content/building-gormes`, then asks a
-planner backend to refine the architecture plan and progress rows that the
-builder loop will later execute. See
-[`cmd/planner-loop/README.md`](./planner-loop/README.md) for the
-command-specific contract.
 
 ## Build Integration
 
 The root `Makefile` wires these commands into normal contributor workflows:
 
 ```sh
-make validate-progress  # go run ./cmd/builder-loop progress validate
-make generate-progress  # go run ./cmd/builder-loop progress write
+make validate-progress  # go run ./cmd/progress validate
+make generate-progress  # go run ./cmd/progress write
 make build              # build gormes, record repo metrics, refresh generated docs
 ```
 
-Compatibility wrapper scripts under `scripts/` and `scripts/orchestrator/` exec
-`builder-loop` during the transition. New repo-maintenance or orchestrator
-behavior should be implemented in Go here first, with shell kept as a thin
-wrapper only when an existing entrypoint must be preserved.
+Use `.agents/skills/gormes-skill-manager/SKILL.md` to route planner, builder,
+TDD, parity-audit, and interface-design work.

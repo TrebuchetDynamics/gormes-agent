@@ -57,7 +57,8 @@ func TestLoad_RealFile(t *testing.T) {
 	if err := Validate(p); err != nil {
 		t.Fatalf("Validate() = %v, want nil", err)
 	}
-	// Phase 1 loop-reliability rows have all shipped.
+	// Phase 1 is complete once the legacy loop replacement, skill routing,
+	// and generated docs/control-plane rows are all validated.
 	if got := p.Phases["1"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 1 = %q, want complete", got)
 	}
@@ -65,10 +66,10 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
 		t.Errorf("Phase 2 = %q, want in_progress", got)
 	}
-	// Phase 3 memory rows are shipped, including the local Goncho dream
-	// scheduler/status evidence row.
-	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 3 = %q, want complete", got)
+	// Phase 3 has the core memory rows shipped while the Goncho peer-card
+	// hint contract remains planned.
+	if got := p.Phases["3"].DerivedStatus(); got != StatusInProgress {
+		t.Errorf("Phase 3 = %q, want in_progress", got)
 	}
 	// Phase 4 has the Anthropic adapter landed while the rest stays planned.
 	if got := p.Phases["4"].DerivedStatus(); got != StatusInProgress {
@@ -252,8 +253,8 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 	}
 
 	slack := p.Phases["2"].Subphases["2.B.3"]
-	if got := slack.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.B.3 = %q, want complete", got)
+	if got := slack.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.B.3 = %q, want in_progress", got)
 	}
 	slackItems := itemStatusByName(slack.Items)
 	for name, want := range map[string]Status{
@@ -262,6 +263,7 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		"Slack CommandRegistry parser wiring":            StatusComplete,
 		"Slack gateway.Channel adapter shim":             StatusComplete,
 		"Slack config + cmd/gormes gateway registration": StatusComplete,
+		"Slack env-token enabled-state preservation":     StatusPlanned,
 	} {
 		if got := slackItems[name]; got != want {
 			t.Errorf("Phase 2.B.3 item %q = %q, want %q", name, got, want)

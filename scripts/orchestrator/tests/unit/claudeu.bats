@@ -189,6 +189,7 @@ SH
 
   run env \
     PATH="$fakebin:/usr/local/bin:/usr/bin:/bin" \
+    BASH_ENV= \
     HOME="$ws/home" \
     CLAUDEU_LOG_DIR="$ws/claudeu-cache" \
     FAKE_CODEX_BIN_LOG="$log" \

@@ -98,26 +98,31 @@ type DriftState struct {
 // and other run-state metadata so a quarantine survives cosmetic edits but
 // clears when the planner materially reshapes the contract.
 //
-// BlockedBy and WriteScope are sorted before hashing so reorderings don't
+// BlockedBy, WriteScope, and TestCommands are sorted before hashing so reorderings don't
 // invalidate quarantine. The view is JSON-encoded with omitempty so absent
 // optional fields contribute nothing to the digest.
 func ItemSpecHash(item *Item) string {
 	type specView struct {
-		Contract       string         `json:"contract,omitempty"`
-		ContractStatus ContractStatus `json:"contract_status,omitempty"`
-		BlockedBy      []string       `json:"blocked_by,omitempty"`
-		WriteScope     []string       `json:"write_scope,omitempty"`
-		Fixture        string         `json:"fixture,omitempty"`
+		Contract             string         `json:"contract,omitempty"`
+		ContractStatus       ContractStatus `json:"contract_status,omitempty"`
+		BlockedBy            []string       `json:"blocked_by,omitempty"`
+		WriteScope           []string       `json:"write_scope,omitempty"`
+		TestCommands         []string       `json:"test_commands,omitempty"`
+		NoTestRequiredReason string         `json:"no_test_required,omitempty"`
+		Fixture              string         `json:"fixture,omitempty"`
 	}
 	view := specView{
-		Contract:       item.Contract,
-		ContractStatus: item.ContractStatus,
-		BlockedBy:      append([]string(nil), item.BlockedBy...),
-		WriteScope:     append([]string(nil), item.WriteScope...),
-		Fixture:        item.Fixture,
+		Contract:             item.Contract,
+		ContractStatus:       item.ContractStatus,
+		BlockedBy:            append([]string(nil), item.BlockedBy...),
+		WriteScope:           append([]string(nil), item.WriteScope...),
+		TestCommands:         append([]string(nil), item.TestCommands...),
+		NoTestRequiredReason: item.NoTestRequiredReason,
+		Fixture:              item.Fixture,
 	}
 	sort.Strings(view.BlockedBy)
 	sort.Strings(view.WriteScope)
+	sort.Strings(view.TestCommands)
 
 	body, _ := json.Marshal(view)
 	sum := sha256.Sum256(body)

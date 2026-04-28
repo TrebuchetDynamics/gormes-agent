@@ -115,7 +115,12 @@ type Item struct {
 	Note           string         `json:"note,omitempty"`
 	WriteScope     []string       `json:"write_scope,omitempty"`
 	TestCommands   []string       `json:"test_commands,omitempty"`
-	DoneSignal     []string       `json:"done_signal,omitempty"`
+	// NoTestRequiredReason is an explicit planner-owned exception for rows
+	// whose work is documentation-only or otherwise cannot be proven by a
+	// focused row-local command. Builder selection treats rows without
+	// test_commands as unready unless this reason is present.
+	NoTestRequiredReason string   `json:"no_test_required,omitempty"`
+	DoneSignal           []string `json:"done_signal,omitempty"`
 	// Optional, reserved, not rendered yet.
 	PR    string `json:"pr,omitempty"`
 	Owner string `json:"owner,omitempty"`

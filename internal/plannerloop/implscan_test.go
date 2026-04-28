@@ -13,7 +13,7 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 	dir := t.TempDir()
 	// Synth an impl tree.
 	for _, p := range []string{
-		"cmd/builder-loop/main.go",
+		"cmd/progress/main.go",
 		"internal/plannerloop/run.go",
 		"internal/plannertriggers/triggers.go",
 		"cmd/gormes/main.go",         // NOT original (not in deny list)
@@ -29,7 +29,7 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 	}
 
 	denyList := []string{
-		"cmd/builder-loop/",
+		"cmd/progress/",
 		"internal/plannerloop/",
 		"internal/plannertriggers/",
 	}
@@ -40,8 +40,8 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 
 	// All deny-listed prefixes should appear in GormesOriginalPaths inventory.
 	wantGormes := map[string]bool{
-		"cmd/builder-loop/main.go":                 true,
-		"internal/plannerloop/run.go":  true,
+		"cmd/progress/main.go":                 true,
+		"internal/plannerloop/run.go":          true,
 		"internal/plannertriggers/triggers.go": true,
 	}
 	gotGormes := map[string]bool{}
@@ -66,8 +66,8 @@ func TestScanImplementation_RecentlyChangedHonorsLookback(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 4, 25, 12, 0, 0, 0, time.UTC)
 
-	recent := filepath.Join(dir, "cmd/builder-loop/recent.go")
-	old := filepath.Join(dir, "cmd/builder-loop/old.go")
+	recent := filepath.Join(dir, "cmd/progress/recent.go")
+	old := filepath.Join(dir, "cmd/progress/old.go")
 	for _, p := range []string{recent, old} {
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
@@ -83,11 +83,11 @@ func TestScanImplementation_RecentlyChangedHonorsLookback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	inv, err := ScanImplementation(dir, []string{"cmd/builder-loop/"}, 24*time.Hour, now)
+	inv, err := ScanImplementation(dir, []string{"cmd/progress/"}, 24*time.Hour, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"cmd/builder-loop/recent.go": true}
+	want := map[string]bool{"cmd/progress/recent.go": true}
 	for _, p := range inv.RecentlyChanged {
 		if !want[p] {
 			t.Errorf("RecentlyChanged includes %q (older than lookback)", p)
@@ -116,7 +116,7 @@ func TestComputeOwnedSubphases_AllWriteScopesUnderOriginalPrefixes(t *testing.T)
 					"5.O": {
 						Items: []progress.Item{
 							{Name: "planner", WriteScope: []string{"internal/plannerloop/run.go"}},
-							{Name: "autoloop", WriteScope: []string{"cmd/builder-loop/main.go"}},
+							{Name: "autoloop", WriteScope: []string{"cmd/progress/main.go"}},
 						},
 					},
 					"5.P": {
@@ -132,7 +132,7 @@ func TestComputeOwnedSubphases_AllWriteScopesUnderOriginalPrefixes(t *testing.T)
 		},
 	}
 
-	got := computeOwnedSubphases(prog, []string{"internal/plannerloop/", "cmd/builder-loop/"})
+	got := computeOwnedSubphases(prog, []string{"internal/plannerloop/", "cmd/progress/"})
 	if len(got) != 1 || got[0] != "5.O" {
 		t.Fatalf("computeOwnedSubphases() = %v, want [5.O]", got)
 	}

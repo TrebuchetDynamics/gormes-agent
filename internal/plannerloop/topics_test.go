@@ -102,19 +102,19 @@ func TestFilterContextByKeywords_NarrowsBundleSelectively(t *testing.T) {
 		},
 		ImplInventory: ImplInventory{
 			GormesOriginalPaths: []string{"internal/plannerloop/run.go", "internal/gateway/server.go"},
-			RecentlyChanged:     []string{"cmd/builder-loop/main.go", "cmd/gormes/main.go"},
+			RecentlyChanged:     []string{"cmd/progress/main.go", "cmd/gormes/main.go"},
 			OwnedSubphases:      []string{"5.O", "2.B"},
 		},
 		AutoloopAudit: AutoloopAudit{}, // would be aggregate-only
 	}
-	narrowed := FilterContextByKeywords(bundle, []string{"honcho", "builder-loop", "5.O"})
+	narrowed := FilterContextByKeywords(bundle, []string{"honcho", "progress", "5.O"})
 	if len(narrowed.QuarantinedRows) != 1 || narrowed.QuarantinedRows[0].ItemName != "honcho-row" {
 		t.Fatalf("QuarantinedRows narrowing failed: %+v", narrowed.QuarantinedRows)
 	}
 	if len(narrowed.ImplInventory.GormesOriginalPaths) != 0 {
 		t.Fatalf("GormesOriginalPaths narrowing failed: %+v", narrowed.ImplInventory.GormesOriginalPaths)
 	}
-	if len(narrowed.ImplInventory.RecentlyChanged) != 1 || narrowed.ImplInventory.RecentlyChanged[0] != "cmd/builder-loop/main.go" {
+	if len(narrowed.ImplInventory.RecentlyChanged) != 1 || narrowed.ImplInventory.RecentlyChanged[0] != "cmd/progress/main.go" {
 		t.Fatalf("RecentlyChanged narrowing failed: %+v", narrowed.ImplInventory.RecentlyChanged)
 	}
 	if len(narrowed.ImplInventory.OwnedSubphases) != 1 || narrowed.ImplInventory.OwnedSubphases[0] != "5.O" {

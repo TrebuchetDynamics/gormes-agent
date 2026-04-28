@@ -797,13 +797,15 @@ The port is intentionally staged so that each slice lands behind a flag and can 
 
 The Honcho v3 docs study split the next Goncho work into smaller rows in
 `architecture_plan/progress.json` under `3.F - Goncho Honcho Memory Parity`.
-Those rows are the current autoloop entry points:
+Those rows are the current skill-builder entry points:
 
 1. `Goncho context representation options`
 2. `Goncho search filter grammar`
 3. `Directional peer cards and representation scopes`
 4. `Goncho queue status read model`
 5. `Goncho summary context budget`
+6. `Goncho Honcho SDK compatibility e2e harness`
+7. `Goncho memory integration into normal agent turn`
 
 Keep these rows synchronized with [Honcho Docs Study Plan](./03-honcho-docs-study/). If upstream docs add a new public parameter, add it to the study page first, then either refine one of these rows or add a new row with source refs, fixtures, write scope, tests, and done signal.
 

@@ -1,0 +1,237 @@
+---
+title: "Hermes And Honcho Feature Map"
+weight: 18
+---
+
+# Hermes And Honcho Feature Map
+
+This is the planner map for finishing Gormes as Hermes in Go, with Goncho as
+the Honcho-compatible Go memory port inside the same runtime.
+
+Use this page before splitting or building rows. It maps upstream feature
+families to the Go packages, implementation strategy, proof gates, and
+`progress.json` anchors that should own the work. It is not a side backlog:
+missing implementation work still becomes or refines rows in
+`architecture_plan/progress.json`.
+
+Use [Upstream Coverage Ledger](../upstream-coverage-ledger/) to verify map
+completeness. The map is complete only when every feature-bearing Hermes and
+Honcho source class is represented there with a feature-map anchor, Go target,
+and progress or owned/excluded decision.
+
+## Reading Rules
+
+- **Covered** means Gormes has repository evidence and tests.
+- **Planned** means there is a specific progress row with source refs, write
+  scope, tests, and done signal.
+- **Vague** means the feature is represented only by an umbrella row or prose
+  and must be split before a builder skill takes it.
+- **Missing** means no useful Go surface or progress row was found.
+- **Owned** means Gormes intentionally diverges with a Go-native contract.
+
+Planner passes should convert vague or missing P0/P1 behavior into one
+builder-sized row. Builder passes should not rediscover this map.
+
+## Go Architecture Target
+
+| Runtime concern | Go package target | Proof gate |
+|---|---|---|
+| Normal agent turn | `internal/kernel`, `internal/hermes`, future `internal/e2e` | `Python-free normal agent turn e2e harness` |
+| Provider adapters and routing | `internal/hermes`, `internal/config`, `internal/cli` | Provider transcript and error-classification fixtures |
+| Prompt, context, compression | `internal/hermes`, `internal/kernel`, `internal/transcript` | Context status, compression, prompt snapshot fixtures |
+| Tool registry and execution | `internal/tools`, `internal/doctor`, `internal/plugins` | Descriptor, trust-class, audit, and handler fixtures |
+| Goncho/Honcho memory | `internal/goncho`, `internal/gonchotools`, `internal/memory`, `internal/session` | Goncho SDK-style harness and normal-turn memory fixtures |
+| Gateway and channels | `internal/gateway`, `internal/channels/*`, `internal/cron` | Fake-adapter channel, delivery, pairing, cron fixtures |
+| API and TUI | `internal/apiserver`, `internal/tui`, `internal/tuigateway`, `cmd/gormes` | OpenAI-compatible API, SSE, health, and TUI fixture gates |
+| CLI, config, secrets | `cmd/gormes`, `internal/cli`, `internal/config`, `internal/doctor` | Command parser, profile, auth, doctor, backup, and status tests |
+| Skills and plugins | `internal/skills`, `internal/plugins`, `docs/development-skills` | Skill metadata, source, guard, plugin manifest, and docs gates |
+| Observability and release | `internal/audit`, `internal/telemetry`, `www.gormes.ai`, installers | Audit/status, docs, site, installer, and package tests |
+
+## Hermes Feature Map
+
+### Agent Runtime
+
+| Hermes feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
+|---|---|---|---|---|
+| `AIAgent` normal loop | `../hermes-agent/run_agent.py`, `../hermes-agent/environments/agent_loop.py` | `internal/kernel`, `internal/hermes`, future `internal/e2e` | Build a Go turn runner that owns prompt assembly, provider stream, tool-call continuation, memory hooks, final response, and audit evidence behind small interfaces. Prove it with fake providers and temp state, not live credentials. | `4.I / Python-free normal agent turn e2e harness` |
+| Iteration budget, cancellation, interrupt recovery | `run_agent.py`, `tools/interrupt.py`, `tests/run_agent/test_stream_interrupt_retry.py` | `internal/kernel`, `internal/gateway`, `internal/tools` | Represent each turn as a cancellable context with explicit retry budget and interrupt status. Interrupts must stop retry before provider replay. | Phase 4.H retry rows, Phase 2.F.5 steering rows |
+| Transcript and session continuity | `hermes_state.py`, `gateway/session.py`, `run_agent.py` | `internal/session`, `internal/memory`, `internal/transcript`, `internal/store` | Store canonical turns in SQLite/FTS and keep gateway-to-session mapping separate. Preserve parent lineage for compression splits and source-filtered search. | Phase 3.E.8, Phase 4.I |
+| Auto title and session naming | `agent/title_generator.py`, `hermes_cli/main.py` | `internal/hermes`, `cmd/gormes`, `internal/cli` | Make title generation an auxiliary provider call with truncation, failure visibility, and no dependency on the main turn completing. | Phase 4.F |
+| Trajectory and local edit evidence | `agent/trajectory.py`, local edit snapshot references | `internal/transcript`, `internal/audit`, `internal/tools` | Append turn trajectory and redacted local-change evidence as structured records; never require Python checkpoint code. | Phase 4.E, Phase 5.L |
+
+### Providers, Models, And Credentials
+
+| Hermes feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
+|---|---|---|---|---|
+| Anthropic adapter | `agent/anthropic_adapter.py` | `internal/hermes` | Keep the completed adapter as the reference provider and add transcript fixtures for future normal-turn replay. | Phase 4.A covered |
+| Bedrock adapter | `agent/bedrock_adapter.py` | `internal/hermes` | Finish in narrow slices: stream events, SigV4/credentials, stale-client eviction, retry/error taxonomy. | Phase 4.A |
+| Gemini native and Cloud Code | `agent/gemini_native_adapter.py`, `agent/gemini_cloudcode_adapter.py`, `agent/gemini_schema.py` | `internal/hermes` | Add request/stream transcript fixtures, then model capability and tool-call translation. Keep OAuth separate. | Phase 4.A, 4.G |
+| OpenRouter/OpenAI-compatible models | `tools/openrouter_client.py`, `agent/model_metadata.py`, `agent/usage_pricing.py` | `internal/hermes`, `internal/config`, `internal/cli` | Use one OpenAI-compatible request path with attribution headers, model family detection, usage/cost metadata, and provider-specific error mapping. | Phase 4.A, 4.D, 4.H |
+| Codex Responses and ChatGPT/Codex OAuth | `agent/codex_responses_adapter.py`, `agent/google_oauth.py`, tests under `tests/run_agent/` | `internal/hermes`, `internal/config`, `internal/cli` | Keep pure Responses conversion separate from OAuth/token vault. Add assistant content roles, stale-token relogin, and multi-account state as their own rows. | Phase 4.A, 4.G |
+| Google Code Assist and Copilot ACP | `agent/google_code_assist.py`, `agent/copilot_acp_client.py` | `internal/hermes`, `internal/plugins` | Treat as provider/backchannel adapters with fake transport fixtures before any live auth. | Phase 4.A, 5.H |
+| Auxiliary clients | `agent/auxiliary_client.py`, `tools/xai_http.py` | `internal/hermes` | Define a small auxiliary-completion interface for title, compression, and helper calls. Bind provider-specific clients behind it. | Phase 4.A, 4.F |
+| Model metadata, pricing, capabilities | `agent/model_metadata.py`, `agent/models_dev.py`, `agent/usage_pricing.py`, `model_tools.py` | `internal/hermes`, `internal/cli` | One registry feeds routing, context limits, vision support, pricing, and CLI model pickers. Unknown models degrade visibly. | Phase 4.D, 5.O |
+| Credential pool and token vault | `agent/credential_pool.py`, `agent/credential_sources.py`, `hermes_cli/auth*.py`, `tools/credential_files.py` | `internal/config`, `internal/cli`, `internal/hermes` | Store credential source metadata without writing resolved plaintext. Provider rows consume a token-vault interface. | Phase 4.G, 5.O |
+| Retry, rate limits, prompt cache, errors | `agent/retry_utils.py`, `agent/rate_limit_tracker.py`, `agent/nous_rate_guard.py`, `agent/prompt_caching.py`, `agent/error_classifier.py` | `internal/kernel`, `internal/hermes`, `internal/telemetry` | Classify errors before retry, preserve provider hints, guard retries on cancellation, and surface budget/rate/prompt-cache evidence. | Phase 4.H |
+| Multimodal input/output and image generation | `agent/image_routing.py`, `agent/image_gen_provider.py`, `agent/image_gen_registry.py`, `tools/image_generation_tool.py`, `tools/vision_tools.py` | `internal/hermes`, `internal/tools` | Route image inputs by model capability, build native content parts, classify too-large errors, then add image generation result envelopes. | Phase 5.D |
+
+### Prompt, Context, Compression, And Skills-In-Prompt
+
+| Hermes feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
+|---|---|---|---|---|
+| Prompt builder | `agent/prompt_builder.py`, `run_agent.py` | `internal/hermes`, `internal/kernel` | Split into system/developer layers, project instructions, tool schemas, memory guidance, skill snapshots, and model-specific role guidance. | Phase 4.C |
+| Context engine and status | `agent/context_engine.py` | `internal/hermes` | Keep status and tool boundary typed; add callback vocabulary, kernel binding, pressure evidence, and context reference handles. | Phase 4.B |
+| Context compression | `agent/context_compressor.py`, `agent/manual_compression_feedback.py` | `internal/hermes`, `internal/kernel` | Build helper rows first: token budget, protected head/tail, multimodal length, image charge, tool-result pruning, summary lineage, manual feedback. Bind to kernel only after fixtures pass. | Phase 4.B |
+| Context references | `agent/context_references.py` | `internal/hermes`, `internal/transcript` | Allocate stable reference handles for compressed or cited context and expose them through status/audit. | Phase 4.B |
+| Subdirectory/project hints | `agent/subdirectory_hints.py`, `hermes_cli/config.py` | `internal/hermes`, `internal/cli` | Resolve project hints before prompt assembly with path safety and deterministic test fixtures. | Phase 4.B/4.C |
+| Skill preprocessing and slash skills | `agent/skill_preprocessing.py`, `agent/skill_commands.py`, `agent/skill_utils.py` | `internal/skills`, `internal/hermes`, `internal/cli` | Reuse the Gormes skill store; produce prompt snapshots and slash-command exposure from one reviewed skill registry. | Phase 5.F, 6.C |
+| Redaction and evidence filtering | `agent/redact.py`, `hermes_logging.py` | `internal/audit`, `internal/telemetry`, `internal/hermes` | Apply redaction before audit, debug bundles, logs, and prompt-visible references. | Phase 4.E, 5.O |
+
+### Tools, Sandboxes, And Security
+
+| Hermes feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
+|---|---|---|---|---|
+| Tool registry and toolsets | `tools/registry.py`, `model_tools.py`, `toolsets.py`, `toolset_distributions.py` | `internal/tools`, `internal/doctor`, `internal/cli` | One descriptor registry must drive schemas, availability, trust classes, doctor checks, gateway/API exposure, and prompt-visible toolsets. | Phase 2.A, 5.A |
+| Code execution | `tools/code_execution_tool.py`, `tools/process_registry.py` | `internal/tools`, `internal/cmdrunner` | Keep shipped guarded local execution; add process/session registry and backend sandbox rows separately. | Phase 5.K, 5.B |
+| File operations and checkpoints | `tools/file_operations.py`, `tools/file_tools.py`, `tools/checkpoint_manager.py`, `tools/patch_parser.py` | `internal/tools`, `internal/transcript` | Port read/search/edit/patch/lint/checkpoint as separate descriptor-backed handlers with path policy and binary guards. | Phase 5.L |
+| Sandboxes and environments | `tools/environments/*.py`, `environments/*.py` | `internal/tools`, `internal/cmdrunner` | Define an environment interface, then add local, Docker, Modal, Daytona, SSH, Singularity, and file-sync adapters behind capability checks. | Phase 5.B |
+| Browser and web research | `tools/browser_*.py`, `tools/browser_providers/*.py`, `tools/web_tools.py` | `internal/tools`, future browser package | First freeze action/event transcripts; then wire chromedp/rod/provider bridges and Firecrawl fallback. | Phase 5.C |
+| Voice, TTS, transcription | `tools/tts_tool.py`, `tools/voice_mode.py`, `tools/transcription_tools.py`, `tools/neutts_synth.py` | `internal/tools`, `internal/cli` | Port result envelopes and state machines before live audio backends. | Phase 5.E |
+| Operator tools | `tools/todo_tool.py`, `tools/clarify_tool.py`, `tools/session_search_tool.py`, `tools/send_message_tool.py`, `tools/debug_helpers.py`, `tools/interrupt.py` | `internal/tools`, `internal/sessionsearchtool`, `internal/gateway` | Keep each operator-visible contract separate: todo state, clarify prompts, session search, send-message routing, debug share cleanup, interrupt handling. | Phase 5.N |
+| Delegate/subagents | `tools/delegate_tool.py` | `internal/subagent`, `internal/tools` | Preserve shipped deterministic runtime and add policy/security rows around long-running workers and approval behavior. | Phase 2.E, 5.J |
+| MCP tools and managed gateway | `tools/mcp_tool.py`, `tools/mcp_oauth*.py`, `tools/managed_tool_gateway.py`, `mcp_serve.py` | `internal/plugins`, `internal/tools`, `internal/apiserver` | Start with manifest/config and OAuth state machines; then add stdio/HTTP tool bridge, sampling, and managed provider clients. | Phase 5.G |
+| ACP adapter | `acp_adapter/*.py`, `acp_registry/agent.json` | `internal/plugins`, `internal/apiserver` | Port auth/session/events/tool permission contracts with fake client fixtures before IDE-specific integration. | Phase 5.H |
+| Approval and security policy | `tools/approval.py`, `tools/path_security.py`, `tools/url_safety.py`, `tools/tirith_security.py`, `tools/website_policy.py`, `tools/osv_check.py` | `internal/tools`, `internal/doctor`, `internal/config` | Normalize approval modes, classify dangerous commands, enforce path/URL/site policies, and make non-interactive denial explicit. | Phase 5.J |
+
+### Gateway, Channels, Cron, API, TUI, And CLI
+
+| Hermes feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
+|---|---|---|---|---|
+| Gateway runtime | `gateway/run.py`, `gateway/config.py` | `internal/gateway`, `cmd/gormes` | One manager owns channel lifecycle, command dispatch, active-turn policy, session mapping, delivery, status, and restart. | Phase 2.B, 2.F |
+| Session context and delivery | `gateway/session_context.py`, `gateway/delivery.py`, `gateway/session.py` | `internal/gateway`, `internal/session` | Keep session context prompt injection typed; add home-channel ownership, contact directory, cross-channel delivery resolution. | Phase 2.F.4 |
+| Stream consumer and UI fanout | `gateway/stream_consumer.py`, `gateway/display_config.py` | `internal/gateway`, `internal/tuigateway`, `internal/tui` | Emit normalized frames once; let channels/TUI render them without owning kernel behavior. | Phase 2.F, 5.Q |
+| Hooks, boot, pairing, restart, status | `gateway/hooks.py`, `gateway/builtin_hooks/boot_md.py`, `gateway/pairing.py`, `gateway/restart.py`, `gateway/status.py` | `internal/gateway`, `cmd/gormes` | Keep hook loading, pairing approval, restart markers, PID validation, and status JSON as separate fixtures. | Phase 2.F |
+| Channels | `gateway/platforms/*.py` | `internal/channels/*`, `internal/slack`, `internal/discord` | Port each channel as fake-adapter slices: inbound normalization, command passthrough, outbound delivery, identity/self-filter, bootstrap, then optional live smoke docs. | Phase 2.B, 7 |
+| Cron and scheduled jobs | `cron/scheduler.py`, `cron/jobs.py`, `tools/cronjob_tools.py` | `internal/cron`, `internal/gateway`, `internal/tools` | Store durable jobs/runs in Go, support schedule parser, context_from chaining, prompt/script safety, resource release, and multi-target delivery. | Phase 2.D, 5.N |
+| OpenAI-compatible API | `gateway/platforms/api_server.py`, `.plans/openai-api-server.md` | `internal/apiserver` | Implement `/v1/chat/completions`, Responses, Runs, detailed health, cron admin, proxy mode, disconnect snapshots, and dashboard contracts as independent rows. | Phase 5.Q |
+| TUI gateway and interactive UI | `tui_gateway/*`, `hermes_cli/curses_ui.py`, `hermes_cli/skin_engine.py` | `internal/tui`, `internal/tuigateway`, `cmd/gormes` | Keep Bubble Tea native; port stream shapes, slash dispatch, save/branch/interrupt/edit helpers, model override, and skin/personality contracts. | Phase 1, 5.Q |
+| CLI command tree | `cli.py`, `hermes_cli/*.py` | `cmd/gormes`, `internal/cli`, `internal/config`, `internal/doctor` | Port command groups by public behavior: setup/auth/profile/model/provider, gateway/cron/webhook, backup/logs/status/doctor, output and completion helpers. | Phase 5.O |
+| Packaging and release | `scripts/release.py`, `Dockerfile`, `docker-compose.yml`, installer docs | `Makefile`, `cmd/gormes`, `www.gormes.ai`, package scripts | Ship one Go binary with installers, service units, OCI image, Homebrew/Windows/Unix flows, version surfaces, and docs matching runtime behavior. | Phase 5.P |
+
+### Plugins, Skills, Learning, And Specialized Modes
+
+| Hermes feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
+|---|---|---|---|---|
+| Skill manager/hub/sync/guard | `tools/skill_manager_tool.py`, `tools/skills_hub.py`, `tools/skills_sync.py`, `tools/skills_guard.py`, `skills/`, `optional-skills/` | `internal/skills`, `docs/development-skills`, `internal/cli` | Preserve portable `SKILL.md` metadata, source lockfiles, readiness/guard state, review status, retrieval, and prompt snapshots. | Phase 5.F, 6 |
+| Plugin SDK and first-party plugins | `plugins/*`, `plugins/spotify`, `plugins/google_meet`, image-gen plugins | `internal/plugins`, `internal/tools`, `internal/apiserver` | Start with manifest/capability loader, then add one first-party plugin fixture, dashboard assets, and tool registration. | Phase 5.I |
+| Memory plugins | `plugins/memory/*`, especially `plugins/memory/honcho` | `internal/goncho`, `internal/gonchotools`, `internal/plugins` | External compatibility names stay `honcho_*`; internal memory implementation remains Goncho. Other memory plugins become adapter rows after generic plugin contract. | Phase 3.G, 5.I |
+| Batch, mini-SWE, RL, datagen | `batch_runner.py`, `mini_swe_runner.py`, `rl_cli.py`, `datagen-config-examples/` | `internal/tools`, `internal/subagent`, future research packages | Defer research modes until normal turn, tools, and release lanes are stable. Port only hermetic runner contracts first. | Phase 5.M/5.O |
+| Learning loop | skill and memory rows plus Gormes Phase 6 docs | `internal/skills`, `internal/memory`, `internal/kernel` | Detect complex tasks, extract candidate skills, review/promote them, retrieve by hybrid search, and score effectiveness against outcomes. | Phase 6 |
+
+## Honcho Feature Map For Goncho
+
+Goncho is not a hosted Honcho clone. It is the in-process Go memory system that
+must preserve Honcho-compatible public contracts where Gormes tools, SDK-style
+flows, or users depend on them.
+
+### Honcho Concepts And APIs
+
+| Honcho feature | Upstream refs | Gormes target | Implementation plan | Progress anchor |
+|---|---|---|---|---|
+| Workspaces/apps | `src/models.py`, `src/routers/workspaces.py`, `docs/v3/api-reference/endpoint/workspaces/*` | `internal/goncho`, `internal/config` | Represent workspace identity in SQLite with config defaults and explicit missing-workspace diagnostics. Do not require hosted app keys for local use. | Phase 3.F/3.G |
+| Peers and peer config | `src/routers/peers.py`, `src/crud/peer.py`, `src/crud/peer_card.py` | `internal/goncho`, `internal/gonchotools` | Preserve peer identity, cards, representation scopes, and empty-card hints behind `honcho_profile` compatibility tools. | Phase 3.F, 3.G |
+| Sessions and session peers | `src/routers/sessions.py`, `src/crud/session.py`, docs `sessions/*` | `internal/goncho`, `internal/session`, `internal/memory` | Store sessions and peer membership locally, support clone/update/delete semantics where required by Gormes, and map to normal agent turn sessions. | Phase 3.F/3.G |
+| Messages and file-backed messages | `src/routers/messages.py`, `src/crud/message.py`, `docs/v3/api-reference/endpoint/messages/*` | `internal/goncho`, `internal/memory` | Persist user/assistant/tool messages with source, peer, session, sequence, metadata, and file-import records. Store final streamed responses once. | Phase 3.F/3.G |
+| Conclusions and facts | `src/routers/conclusions.py`, `src/crud/deriver.py`, `src/deriver/*` | `internal/goncho`, `internal/memory` | Map conclusions to Gormes facts/entities/relationships with provenance and queue evidence. Keep derivation async and auditable. | Phase 3.F, 6 |
+| Representations | `src/crud/representation.py`, docs `representation.mdx`, `representation-scopes.mdx` | `internal/goncho`, `internal/memory` | Store representation cards by scope and peer/session context; expose deterministic context options and diagnostics. | Phase 3.F |
+| Search and filters | `src/utils/filter.py`, `src/utils/search.py`, docs `search.mdx`, `using-filters.mdx` | `internal/goncho`, `internal/memory` | Parse Honcho-compatible filter grammar into safe SQL/FTS/graph queries, rejecting unsupported filters visibly. | Phase 3.F |
+| Context retrieval | docs `get-context.mdx`, `src/utils/summarizer.py`, `src/utils/representation.py` | `internal/goncho`, `internal/gonchotools`, `internal/hermes` | Build scoped context from session, user, peer cards, summaries, and observations within a bounded prompt budget. | Phase 3.F, 4.C |
+| Dialectic chat | `src/dialectic/chat.py`, `src/dialectic/core.py`, docs `chat.mdx` | `internal/goncho`, `internal/kernel` | Provide a local dialectic chat contract first, then integrate with normal agent turn using fake provider fixtures. | Phase 3.F/3.G |
+| Streaming chat persistence | docs `streaming-response.mdx`, dialectic chat tests | `internal/goncho`, `internal/memory` | Buffer stream chunks and persist only the final assistant message; interruptions produce evidence without memory pollution. | Phase 3.F covered |
+| Summaries | docs `summarizer.mdx`, `src/utils/summarizer.py` | `internal/goncho`, `internal/memory`, `internal/hermes` | Store summary context separately from raw messages, with prompt-budget accounting and stale summary evidence. | Phase 3.F |
+| Dreaming | `src/dreamer/*`, docs `dreaming.mdx` | `internal/goncho`, `internal/memory`, `internal/cron` | Keep scheduler and queue state local; add LLM-backed dream execution only after provider and queue fixtures. | Phase 3.F, 6 |
+| Queue status | docs `queue-status.mdx`, `src/deriver/queue_manager.py`, `src/reconciler/*` | `internal/goncho`, `internal/doctor`, `cmd/gormes` | Expose queue depth, failures, stale work, and degraded derivation state in `gormes goncho doctor` and JSON status. | Phase 3.F |
+| File uploads | docs `file-uploads.mdx`, `src/routers/messages.py`, `src/utils/files.py` | `internal/goncho`, `internal/memory` | Import files into local observations/documents with content-type, provenance, and safe size limits. | Phase 3.F |
+| Keys/auth | `src/routers/keys.py`, `src/security.py`, docs key endpoints | `internal/config`, `internal/apiserver`, `internal/goncho` | Local Goncho should not need hosted Honcho auth; any compatibility HTTP adapter must validate local operator/API keys. | Phase 3.G/5.Q |
+| Webhooks | `src/routers/webhooks.py`, `src/webhooks/*` | `internal/apiserver`, `internal/gateway`, `internal/goncho` | Treat webhooks as optional local event subscriptions after core SDK-style harness exists. | Phase 3.G/5.Q |
+| SDKs and MCP | `sdks/python`, `sdks/typescript`, `mcp/src/*` | `internal/goncho`, future local compatibility adapter | Build a hermetic SDK-style harness in Go that covers request/response shape before claiming drop-in compatibility. | `3.G / Goncho Honcho SDK compatibility e2e harness` |
+| CLI/self-hosting docs | `honcho-cli/*`, docs `self-hosting.mdx`, `configuration.mdx` | `cmd/gormes`, `internal/config`, `internal/doctor` | Map required config knobs into `[goncho]`; expose local doctor/status instead of copying Honcho service deployment. | Phase 3.F/3.G |
+| Vector stores and reconciler | `src/vector_store/*`, `src/reconciler/*`, migrations | `internal/memory`, `internal/store` | Prefer SQLite/FTS/graph first; only add vector-store adapters if a compatibility row proves local embeddings are insufficient. | Phase 3.D/3.G |
+| Telemetry and reasoning traces | `src/telemetry/*`, docs reasoning | `internal/telemetry`, `internal/audit`, `internal/goncho` | Emit local reasoning/queue/context evidence without external metrics dependencies. | Phase 3.F, 4.E |
+
+## Implementation Order
+
+The feature map collapses into this order:
+
+1. **Prove the normal Go turn.** Build `Python-free normal agent turn e2e
+   harness` before expanding broad provider or tool ports. It is the first
+   product-level proof that Gormes is replacing Hermes, not wrapping it.
+2. **Prove Goncho drop-in behavior.** Build `Goncho Honcho SDK compatibility
+   e2e harness`, then bind Goncho into the normal turn. That is the point at
+   which Goncho can be evaluated as Honcho-in-Go.
+3. **Split Phase 4 broad rows.** Provider adapters, context compression,
+   prompt assembly, model metadata, credentials, retry, and prompt cache should
+   be small transcript-backed rows.
+4. **Descriptor-first tools.** Do not port 61 tools by hand. Port the registry,
+   toolset, trust, availability, audit, and doctor contract first; then port
+   handlers by category.
+5. **Expose through API/TUI/gateway only after the core turn is stable.**
+   Channels and UI should consume typed turn events, not recreate agent logic.
+6. **Release and learning loop last.** Public install promises and automatic
+   skill generation must wait for normal-turn, memory, tool, and release gates.
+
+## Rows That Must Stay Near The Top
+
+| Row | Why |
+|---|---|
+| `Python-free normal agent turn e2e harness` | Product-level proof for Hermes-in-Go. |
+| `Goncho Honcho SDK compatibility e2e harness` | Product-level proof for Honcho-in-Go memory compatibility. |
+| `Goncho memory integration into normal agent turn` | Binds memory to the real agent spine. |
+| `Provider-tool-memory golden transcript suite` | Keeps future provider/tool/memory changes from drifting. |
+| `Skill-manager selection matrix hardening` | Keeps future agents on the skill-driven control plane. |
+| `ContextEngine compression-boundary callback vocabulary` | Unblocks compression/kernel binding with a narrow fixture. |
+
+## Builder Packet Contract
+
+Every feature-map-derived progress row should give the builder skill a complete
+packet before runtime edits start:
+
+- upstream feature or Honcho concept from this map;
+- target Go package and public interface under test;
+- fixture or fake transport to avoid live providers and hosted services;
+- degraded mode for unsupported, missing, or credential-gated behavior;
+- row-local acceptance and done signal;
+- narrow write scope;
+- focused test commands.
+
+Builder passes should read this map, the selected `progress.json` row, and the
+row's upstream refs before editing. If the row and the map disagree, the next
+move is a planner update, not an implementation guess.
+
+## Skill Consumption Contract
+
+The Gormes skills consume this map in a fixed order:
+
+- `gormes-skill-manager` routes the task by feature-map area, progress row, and
+  whether the work is planning, auditing, interface design, building, TDD, or
+  skill creation.
+- `gormes-parity-auditor` classifies map entries as covered, planned, vague,
+  missing, or owned against current code and `progress.json`.
+- `gormes-planner` updates this map and `progress.json` when upstream behavior
+  is unmapped, too broad, or out of order.
+- `gormes-interface-designer` shapes the Go package boundary when the map names
+  a target package but the row lacks a stable public contract.
+- `gormes-builder` selects one builder-ready row, builds a packet from this map
+  and the row fields, then implements only that slice.
+- `gormes-tdd-slice` turns the packet into red-green-refactor tests for one
+  observable behavior at a time.
+
+## Planner Duties After This Map
+
+- When adding a row, cite exact upstream paths from the tables above.
+- When a row is broad, split it before builder selection.
+- When a feature is intentionally Go-native, mark it `owned` and state why.
+- When live credentials would be required, write a fake-transport fixture row
+  first.
+- When the docs map and `progress.json` disagree, fix `progress.json` and
+  regenerate generated docs with `go run ./cmd/progress write`.

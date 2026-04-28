@@ -9,6 +9,12 @@ weight: 30
 
 **Deliverable:** Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout.
 
+**Completion lane:** Phase 2 is primarily [Lane 4 — Gateway, Channels, Cron, And Delivery](../lane-roadmap/#lane-4--gateway-channels-cron-and-delivery),
+with Lane 0 control-plane pieces in 1.C/2.E and Lane 3 skill/tool substrate in
+2.A and 2.G. The phase is not done by adding more adapters; it is done when
+shared gateway policy owns session context, delivery routing, active-turn
+behavior, pairing, home channel, status, restart, hooks, and cron handoff.
+
 ## Phase 2 Ledger
 
 | Subphase | Status | Priority | Deliverable |

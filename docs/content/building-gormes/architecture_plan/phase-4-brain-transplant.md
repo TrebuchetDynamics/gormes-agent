@@ -9,6 +9,12 @@ weight: 50
 
 **Deliverable:** Native Go agent orchestrator + prompt builder.
 
+**Completion lane:** Phase 4 is [Lane 1 — Native Agent Spine](../lane-roadmap/#lane-1--native-agent-spine).
+It is the critical path for removing the Python agent turn. Do not build a Go
+`run_agent.py`; split provider, prompt/context, compression, retry,
+tool-call repair, credentials, model routing, telemetry, and kernel behavior
+into public-interface fixtures that can ship independently.
+
 Phase 4 is when Hermes becomes optional. Each sub-phase is a separable spec.
 
 ## Phase 4 Sub-phase Outline

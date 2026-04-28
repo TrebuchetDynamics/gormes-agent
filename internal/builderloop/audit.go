@@ -18,9 +18,8 @@ func DigestLedger(path string) (string, error) {
 }
 
 // DigestLedgerCounts returns the per-event counts that DigestLedger
-// formats as text. Exposed so callers (notably cmd/builder-loop digest
-// --format json) can emit the structured shape directly without
-// re-parsing prose. A missing ledger file returns an empty map and nil
+// formats as text. Exposed so callers can emit the structured shape directly
+// without re-parsing prose. A missing ledger file returns an empty map and nil
 // error to match DigestLedger.
 func DigestLedgerCounts(path string) (map[string]int, error) {
 	file, err := os.Open(path)

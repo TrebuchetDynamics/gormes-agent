@@ -220,6 +220,26 @@ func TestConfigFromEnvReactiveDefaults(t *testing.T) {
 	}
 }
 
+func TestDefaultPostPromotionVerifyCommandsIncludeLocalE2ESurfaces(t *testing.T) {
+	commands := defaultPostPromotionVerifyCommands()
+	for _, want := range []string{
+		"go run ./cmd/progress validate",
+		"(cd docs/www-tests && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
+		"(cd www.gormes.ai && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
+	} {
+		var found bool
+		for _, got := range commands {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("defaultPostPromotionVerifyCommands() = %#v, want %q", commands, want)
+		}
+	}
+}
+
 func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 	cfg, err := ConfigFromEnv("repo", MapEnv(map[string]string{
 		"QUARANTINE_THRESHOLD":            "7",
@@ -233,7 +253,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 		"PR_INTAKE_CONFLICT_ACTION":       "skip",
 		"PR_INTAKE_EMPTY_BACKOFF":         "2m30s",
 		"AUTO_COMMIT_DIRTY_WORKTREE":      "false",
-		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/builderloop -count=1;;go run ./cmd/builder-loop progress validate",
+		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/builderloop -count=1;;go run ./cmd/progress validate",
 		"POST_PROMOTION_REPAIR":           "off",
 		"POST_PROMOTION_REPAIR_ATTEMPTS":  "2",
 	}))
@@ -274,7 +294,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 	if cfg.AutoCommitDirtyWorktree != false {
 		t.Fatalf("AutoCommitDirtyWorktree = %v, want false", cfg.AutoCommitDirtyWorktree)
 	}
-	verifyWant := []string{"go test ./internal/builderloop -count=1", "go run ./cmd/builder-loop progress validate"}
+	verifyWant := []string{"go test ./internal/builderloop -count=1", "go run ./cmd/progress validate"}
 	if !reflect.DeepEqual(cfg.PostPromotionVerifyCommands, verifyWant) {
 		t.Fatalf("PostPromotionVerifyCommands = %#v, want %#v", cfg.PostPromotionVerifyCommands, verifyWant)
 	}

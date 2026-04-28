@@ -26,8 +26,8 @@ type ImplInventory struct {
 // Gormes-original (no upstream Hermes/GBrain/Honcho analog). Tunable via
 // Config.GormesOriginalPaths and the PLANNER_GORMES_ORIGINAL_PATHS env var.
 var DefaultGormesOriginalPaths = []string{
-	"cmd/builder-loop/",
-	"cmd/planner-loop/",
+	"cmd/progress/",
+	"cmd/repoctl/",
 	"internal/builderloop/",
 	"internal/plannerloop/",
 	"internal/plannertriggers/",

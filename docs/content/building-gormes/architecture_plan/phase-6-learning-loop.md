@@ -7,6 +7,11 @@ weight: 70
 
 **Status:** ⏳ planned · 0/6 sub-phases
 
+**Completion lane:** Phase 6 is [Lane 6 — Learning Loop](../lane-roadmap/#lane-6--learning-loop).
+It depends on the Phase 5.F skills substrate and should not begin with live LLM
+skill extraction. Ship detector, storage, extractor schema, retrieval,
+feedback, and operator surfaces as separate fixture-backed rows.
+
 The Learning Loop is the first Gormes-original core system — not a port. It detects when a task is complex enough to be worth learning from, distills the solution into a reusable skill, stores it, and improves the skill over successive runs. Upstream Hermes alludes to self-improvement; Gormes implements it as a dedicated subsystem.
 
 > "Agents are not prompts. They are systems. Memory + skills > raw model intelligence."

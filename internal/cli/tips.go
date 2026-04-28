@@ -29,7 +29,7 @@ var Tips = []string{
 	"The CLI banner is pure text — wire it through FormatBannerVersionLabel rather than reformatting at call sites.",
 	"`go test ./internal/cli -count=1` is the canonical local check before committing CLI helper changes.",
 	"`go vet ./internal/cli` catches the printf and shadowing mistakes that slip past compilation.",
-	"`go run ./cmd/builder-loop progress validate` keeps the architecture progress file honest.",
+	"`go run ./cmd/progress validate` keeps the architecture progress file honest.",
 	"Use FormatInfo, FormatSuccess, FormatWarning, and FormatError so operators see consistent line prefixes.",
 	"Reach for FormatYesNoPrompt and ResolveYesNoAnswer instead of hand-rolling boolean prompt parsing.",
 	"FormatPrompt renders an optional default in brackets; ResolvePromptInput trims and falls back for you.",

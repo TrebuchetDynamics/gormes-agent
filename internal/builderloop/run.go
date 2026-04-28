@@ -33,6 +33,11 @@ var ErrPostPromotionVerifyFailed = errors.New("post-promotion verify failed")
 // overlap planner regeneration.
 var ErrControlPlaneRunInProgress = errors.New("control-plane run already in progress")
 
+// ErrInvalidProgress marks a builder run blocked by an invalid canonical
+// progress.json. Workers must not be claimed from a control-plane file that
+// fails the shared progress schema.
+var ErrInvalidProgress = errors.New("invalid progress control plane")
+
 var errWorkerNoChanges = errors.New("worker made no changes")
 
 type RunOptions struct {
@@ -87,6 +92,20 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		}
 		defer controlLock.release()
 
+		if err := validateRunProgress(opts.Config.ProgressJSON); err != nil {
+			wrapped := fmt.Errorf("%w: %v", ErrInvalidProgress, err)
+			detail := truncateLedgerDetail(wrapped.Error())
+			_ = appendRunLedgerEvent(opts.Config, LedgerEvent{
+				TS:     time.Now().UTC(),
+				RunID:  runID,
+				Event:  "run_blocked",
+				Status: "invalid_progress",
+				Detail: detail,
+			})
+			emitPlannerInvalidProgressTrigger(opts.Config.PlannerTriggersPath, runID, detail)
+			return RunSummary{}, wrapped
+		}
+
 		if err := appendRunLedgerEvent(opts.Config, LedgerEvent{
 			TS:     time.Now().UTC(),
 			RunID:  runID,
@@ -135,6 +154,12 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 					return RunSummary{}, result.Err
 				}
 			}
+		}
+	}
+
+	if opts.DryRun {
+		if err := validateRunProgress(opts.Config.ProgressJSON); err != nil {
+			return RunSummary{}, fmt.Errorf("%w: %v", ErrInvalidProgress, err)
 		}
 	}
 
@@ -478,6 +503,17 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 	return summary, nil
 }
 
+func validateRunProgress(path string) error {
+	prog, err := progress.Load(path)
+	if err != nil {
+		return err
+	}
+	if err := progress.Validate(prog); err != nil {
+		return err
+	}
+	return nil
+}
+
 type controlPlaneRunLock struct {
 	file *os.File
 }
@@ -609,16 +645,17 @@ func runPostPromotionGate(ctx context.Context, cfg Config, runner Runner, runID 
 }
 
 // runPrePromotionGate orchestrates the pre-promotion verify-repair-verify
-// loop. Empty PrePromotionVerifyCommands → no-op. On verify failure: when
-// PrePromotionRepairEnabled and PrePromotionRepairAttempts > 0, dispatch the
-// LLM-driven repair against the worker's worktree, then re-verify. Loop up
-// to PrePromotionRepairAttempts times. If the gate ultimately fails, the
-// final ledger event is a worker_failed/pre_promotion_verify_failed (or
-// pre_promotion_repair_failed if repair itself errored), main is never
-// touched, and the error propagates up so finishWorker bails before
-// promoteWorkerCommit.
+// loop. The command set is the selected row's test_commands plus any
+// configured PrePromotionVerifyCommands. Empty combined command list → no-op.
+// On verify failure: when PrePromotionRepairEnabled and
+// PrePromotionRepairAttempts > 0, dispatch the LLM-driven repair against the
+// worker's worktree, then re-verify. Loop up to PrePromotionRepairAttempts
+// times. If the gate ultimately fails, the final ledger event is a
+// worker_failed/pre_promotion_verify_failed (or pre_promotion_repair_failed if
+// repair itself errored), main is never touched, and the error propagates up so
+// finishWorker bails before promoteWorkerCommit.
 func runPrePromotionGate(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun) error {
-	if len(cfg.PrePromotionVerifyCommands) == 0 {
+	if len(prePromotionVerifyCommands(cfg, worker)) == 0 {
 		return nil
 	}
 
@@ -683,7 +720,7 @@ func runPrePromotionRepair(ctx context.Context, cfg Config, runner Runner, runID
 	}
 
 	args := append([]string(nil), argv[1:]...)
-	args = append(args, BuildPrePromotionRepairPrompt(cfg.PrePromotionVerifyCommands, worker, cause))
+	args = append(args, BuildPrePromotionRepairPrompt(prePromotionVerifyCommands(cfg, worker), worker, cause))
 	result := runLoggedBackendCommand(ctx, cfg, runner, runID, jobSpec{
 		ID:            fmt.Sprintf("%s/worker/%d/pre-repair/%d", runID, worker.ID, attempt),
 		Kind:          "pre_repair_backend",
@@ -753,10 +790,10 @@ func runPrePromotionRepair(ctx context.Context, cfg Config, runner Runner, runID
 	})
 }
 
-// runPrePromotionVerify runs cfg.PrePromotionVerifyCommands inside the
-// worker's worktree before the worker's commit is cherry-picked onto main.
-// Empty command list is a no-op (default — preserves the post-promotion-only
-// behavior). On failure, emits a worker_failed ledger event with status
+// runPrePromotionVerify runs the selected row's test_commands plus
+// cfg.PrePromotionVerifyCommands inside the worker's worktree before the
+// worker's commit is cherry-picked onto main. Empty command list is a no-op.
+// On failure, emits a worker_failed ledger event with status
 // pre_promotion_verify_failed and returns the error so finishWorker bails
 // before promoteWorkerCommit runs. Main is therefore never touched when a
 // worker's branch fails its own verify gate.
@@ -765,7 +802,8 @@ func runPrePromotionRepair(ctx context.Context, cfg Config, runner Runner, runID
 // post-promotion gate's behavior so the operator (and any future repair
 // hook) sees a complete failure picture in one ledger entry.
 func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun, attempt int) error {
-	if len(cfg.PrePromotionVerifyCommands) == 0 {
+	commands := prePromotionVerifyCommands(cfg, worker)
+	if len(commands) == 0 {
 		return nil
 	}
 	if err := appendRunLedgerEvent(cfg, LedgerEvent{
@@ -776,7 +814,7 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		Task:   worker.Task,
 		Branch: worker.Branch,
 		Status: "started",
-		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(cfg.PrePromotionVerifyCommands)),
+		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(commands)),
 	}); err != nil {
 		return err
 	}
@@ -785,7 +823,7 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		commandErrs    []error
 		failureDetails []string
 	)
-	for i, shellCommand := range cfg.PrePromotionVerifyCommands {
+	for i, shellCommand := range commands {
 		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
 			ID:            fmt.Sprintf("%s/worker/%d/pre-verify/%d/%d", runID, worker.ID, attempt, i+1),
 			Kind:          "pre_verify_command",
@@ -807,7 +845,7 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		}
 		commandErrs = append(commandErrs, postPromotionCommandError("pre-promotion verification", shellCommand, result))
 		failureDetails = append(failureDetails,
-			fmt.Sprintf("command=%d/%d %q:\n%s", i+1, len(cfg.PrePromotionVerifyCommands), shellCommand, commandFailureDetail(result)),
+			fmt.Sprintf("command=%d/%d %q:\n%s", i+1, len(commands), shellCommand, commandFailureDetail(result)),
 		)
 	}
 	if len(commandErrs) > 0 {
@@ -820,7 +858,7 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 			Branch: worker.Branch,
 			Status: "pre_promotion_verify_failed",
 			Detail: truncateLedgerDetail(fmt.Sprintf("attempt=%d failed=%d/%d\n\n%s",
-				attempt, len(commandErrs), len(cfg.PrePromotionVerifyCommands),
+				attempt, len(commandErrs), len(commands),
 				strings.Join(failureDetails, "\n\n---\n\n"))),
 		})
 		return errors.Join(append(commandErrs, ledgerErr)...)
@@ -834,83 +872,26 @@ func runPrePromotionVerify(ctx context.Context, cfg Config, runner Runner, runID
 		Task:   worker.Task,
 		Branch: worker.Branch,
 		Status: "ok",
-		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(cfg.PrePromotionVerifyCommands)),
+		Detail: fmt.Sprintf("attempt=%d commands=%d", attempt, len(commands)),
 	})
 }
 
-func runRowEvaluator(ctx context.Context, cfg Config, runner Runner, runID string, worker workerRun) error {
-	commands := append([]string(nil), worker.Candidate.TestCommands...)
-	if len(commands) == 0 {
-		return nil
-	}
-
-	if err := appendRunLedgerEvent(cfg, LedgerEvent{
-		TS:     time.Now().UTC(),
-		RunID:  runID,
-		Event:  "row_evaluation_started",
-		Worker: worker.ID,
-		Task:   worker.Task,
-		Branch: worker.Branch,
-		Status: "started",
-		Detail: fmt.Sprintf("commands=%d", len(commands)),
-	}); err != nil {
-		return err
-	}
-
-	var (
-		commandErrs    []error
-		failureDetails []string
-	)
-	for i, shellCommand := range commands {
-		result := runLoggedJob(ctx, cfg, runner, runID, jobSpec{
-			ID:            fmt.Sprintf("%s/worker/%d/row-eval/%d", runID, worker.ID, i+1),
-			Kind:          "row_eval_command",
-			Command:       shellCommand,
-			Dir:           worker.RepoRoot,
-			Worker:        worker.ID,
-			Task:          worker.Task,
-			Branch:        worker.Branch,
-			FailureStatus: "row_eval_failed",
-		}, Command{
-			Name: "sh",
-			Args: []string{"-lc", shellCommand},
-			Dir:  worker.RepoRoot,
-			Env:  postPromotionCommandEnv(cfg),
-		})
-		if result.Err == nil {
-			continue
+func prePromotionVerifyCommands(cfg Config, worker workerRun) []string {
+	var out []string
+	appendCommand := func(command string) {
+		command = strings.TrimSpace(command)
+		if command == "" {
+			return
 		}
-		commandErrs = append(commandErrs, fmt.Errorf("command %d failed: %w", i+1, result.Err))
-		failureDetails = append(failureDetails,
-			fmt.Sprintf("command=%d/%d %q:\n%s", i+1, len(commands), shellCommand, commandFailureDetail(result)),
-		)
+		out = append(out, command)
 	}
-	if len(commandErrs) > 0 {
-		ledgerErr := appendRunLedgerEvent(cfg, LedgerEvent{
-			TS:     time.Now().UTC(),
-			RunID:  runID,
-			Event:  "worker_failed",
-			Worker: worker.ID,
-			Task:   worker.Task,
-			Branch: worker.Branch,
-			Status: "row_evaluation_failed",
-			Detail: truncateLedgerDetail(fmt.Sprintf("failed=%d/%d\n\n%s",
-				len(commandErrs), len(commands),
-				strings.Join(failureDetails, "\n\n---\n\n"))),
-		})
-		return errors.Join(append(commandErrs, ledgerErr)...)
+	for _, command := range worker.Candidate.TestCommands {
+		appendCommand(command)
 	}
-
-	return appendRunLedgerEvent(cfg, LedgerEvent{
-		TS:     time.Now().UTC(),
-		RunID:  runID,
-		Event:  "row_evaluation_succeeded",
-		Worker: worker.ID,
-		Task:   worker.Task,
-		Branch: worker.Branch,
-		Status: "ok",
-		Detail: fmt.Sprintf("commands=%d", len(commands)),
-	})
+	for _, command := range cfg.PrePromotionVerifyCommands {
+		appendCommand(command)
+	}
+	return out
 }
 
 func runPostPromotionVerification(ctx context.Context, cfg Config, runner Runner, runID string, attempt int) error {
@@ -1503,9 +1484,6 @@ func finishWorker(ctx context.Context, cfg Config, runner Runner, backendName st
 				if err := ensureWorkerCommitWithinWriteScope(cfg, runID, worker, commitSha); err != nil {
 					return err
 				}
-				if err := runRowEvaluator(ctx, cfg, runner, runID, worker); err != nil {
-					return err
-				}
 				if err := promoteWorkerCommit(ctx, cfg, runner, runID, worker.ID, worker.Task, worker.Branch, commitSha); err != nil {
 					return err
 				}
@@ -1716,7 +1694,7 @@ func emitPlannerTriggers(path string, events []FlushedTriggerEvent) {
 		return
 	}
 	for _, ev := range events {
-		entry := plannertriggers.TriggerEvent{
+		emitPlannerTriggerEvent(path, plannertriggers.TriggerEvent{
 			Source:        "builder-loop",
 			Kind:          ev.Kind,
 			PhaseID:       ev.PhaseID,
@@ -1724,10 +1702,25 @@ func emitPlannerTriggers(path string, events []FlushedTriggerEvent) {
 			ItemName:      ev.ItemName,
 			Reason:        ev.Reason,
 			AutoloopRunID: ev.AutoloopRunID,
-		}
-		if err := plannertriggers.AppendTriggerEvent(path, entry); err != nil {
-			log.Printf("builder-loop: append planner trigger failed: %v", err)
-		}
+		})
+	}
+}
+
+func emitPlannerInvalidProgressTrigger(path, runID, reason string) {
+	if path == "" {
+		return
+	}
+	emitPlannerTriggerEvent(path, plannertriggers.TriggerEvent{
+		Source:        "builder-loop",
+		Kind:          "invalid_progress",
+		Reason:        reason,
+		AutoloopRunID: runID,
+	})
+}
+
+func emitPlannerTriggerEvent(path string, entry plannertriggers.TriggerEvent) {
+	if err := plannertriggers.AppendTriggerEvent(path, entry); err != nil {
+		log.Printf("builder-loop: append planner trigger failed: %v", err)
 	}
 }
 
@@ -1792,8 +1785,8 @@ func candidateTouchesLoopControlPlane(candidate Candidate) bool {
 	for _, value := range values {
 		value = strings.ToLower(strings.TrimSpace(value))
 		switch {
-		case strings.Contains(value, "cmd/builder-loop"),
-			strings.Contains(value, "cmd/planner-loop"),
+		case strings.Contains(value, "cmd/progress"),
+			strings.Contains(value, "cmd/repoctl"),
 			strings.Contains(value, "internal/builderloop"),
 			strings.Contains(value, "internal/plannerloop"),
 			strings.Contains(value, "scripts/orchestrator"),
@@ -2443,6 +2436,9 @@ func BuildWorkerPromptWithBranch(candidate Candidate, branch string) string {
 	writePromptList(&prompt, candidate.WriteScope)
 	prompt.WriteString("- Required test commands:\n")
 	writePromptList(&prompt, candidate.TestCommands)
+	if strings.TrimSpace(candidate.NoTestRequired) != "" {
+		fmt.Fprintf(&prompt, "- No test required: %s\n", candidate.NoTestRequired)
+	}
 	prompt.WriteString("\n")
 
 	prompt.WriteString("Completion evidence:\n")
@@ -2461,7 +2457,7 @@ func BuildWorkerPromptWithBranch(candidate Candidate, branch string) string {
 	prompt.WriteString("Requirements:\n")
 	prompt.WriteString("- Read the repository context before editing.\n")
 	prompt.WriteString("- Keep changes scoped to the selected task and its allowed write scope.\n")
-	prompt.WriteString("- Run the required test commands before reporting completion.\n")
+	prompt.WriteString("- Run the required test commands before reporting completion; if the row has no_test_required, report the concrete non-command evidence you checked.\n")
 	prompt.WriteString("- Report against the done signal and acceptance criteria.\n")
 
 	if strings.TrimSpace(branch) != "" {

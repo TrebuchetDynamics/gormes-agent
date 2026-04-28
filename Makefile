@@ -13,20 +13,20 @@ $(BINARY_PATH):
 
 validate-progress:
 	@echo "Validating progress.json..."
-	@go run ./cmd/builder-loop progress validate
+	@go run ./cmd/progress validate
 
 generate-progress:
 	@echo "Regenerating progress-driven markdown..."
-	@go run ./cmd/builder-loop progress write
+	@go run ./cmd/progress write
 
 define record-benchmark
 	@echo "Recording benchmark..."
-	@go run ./cmd/builder-loop repo benchmark record
+	@go run ./cmd/repoctl benchmark record
 endef
 
 define update-readme
 	@echo "Updating README.md..."
-	@go run ./cmd/builder-loop repo readme update
+	@go run ./cmd/repoctl readme update
 endef
 
 update-readme:

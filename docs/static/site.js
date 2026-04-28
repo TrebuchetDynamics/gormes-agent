@@ -113,17 +113,22 @@
       if (idToLink[id]) idToLink[id].classList.add('active');
     }
 
-    var observer = new IntersectionObserver(function (entries) {
-      // Pick the entry closest to the top of the viewport that is intersecting.
-      var best = null;
-      entries.forEach(function (e) {
-        if (!e.isIntersecting) return;
-        if (!best || e.boundingClientRect.top < best.boundingClientRect.top) best = e;
+    function syncActive() {
+      var current = headings[0];
+      headings.forEach(function (h) {
+        if (h.getBoundingClientRect().top <= 120) current = h;
       });
-      if (best) setActive(best.target.id);
+      if (current) setActive(current.id);
+    }
+
+    var observer = new IntersectionObserver(function () {
+      syncActive();
     }, { rootMargin: '-80px 0px -65% 0px', threshold: [0, 1.0] });
 
     headings.forEach(function (h) { observer.observe(h); });
+    window.addEventListener('scroll', syncActive, { passive: true });
+    window.addEventListener('resize', syncActive);
+    syncActive();
   }
 
   onReady(function () {

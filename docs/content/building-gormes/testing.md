@@ -5,7 +5,30 @@ weight: 50
 
 # Testing
 
-Three layers.
+Testing is the proof that a `progress.json` row is complete. The default is
+hermetic fixture evidence; live providers and live platforms are optional smoke
+checks, not row-local proof.
+
+Use the [Completion Lane Roadmap](../architecture_plan/lane-roadmap/) to choose
+the lane gate for broad changes.
+
+## Row-local TDD
+
+Use `gormes-tdd-slice` for implementation rows:
+
+1. Write one failing public-behavior test.
+2. Make the smallest implementation pass.
+3. Repeat vertically inside the same row.
+4. Refactor only while green.
+5. Run the row's `test_commands`.
+
+Tests should verify behavior through public interfaces: CLI output, HTTP
+responses, gateway events, tool schemas/results, memory recall, provider
+transcripts, or package APIs meant for callers. Avoid tests that only prove a
+private helper's current shape unless the row explicitly defines that helper as
+the public contract.
+
+## Baseline layers
 
 ## Go tests
 
@@ -47,7 +70,40 @@ Borrow these fixture classes from the Hermes and GBrain studies:
   completed, failed, cancelled, retried, and inspected after restart.
 - **Skill resolver conformance:** prove triggers, exclusions, disabled state,
   review state, and confusing phrases route to the expected skill or no skill.
+- **Normal-turn e2e:** prove a Python-free Go agent turn crosses provider,
+  tool execution, Goncho memory recall/persistence, final response, and
+  audit/status evidence with fake providers and temp state.
 
 ## Discipline
 
-Every PR must keep all three layers green. The `deploy-gormes-landing.yml` and `deploy-gormes-docs.yml` workflows run the Go + Playwright subsets on every push to `main`.
+Every PR must keep the relevant row-local, package, docs, and lane gates green.
+The `deploy-gormes-landing.yml` and `deploy-gormes-docs.yml` workflows run the
+Go + Playwright subsets on every push to `main`.
+
+Minimum completion proof for runtime rows:
+
+```bash
+go run ./cmd/progress validate
+go test ./... -count=1
+```
+
+Planner/doc-only rows normally run:
+
+```bash
+go run ./cmd/progress validate
+go test ./docs -count=1
+```
+
+## Lane Gate Cheat Sheet
+
+| Lane | Focused gate |
+|---|---|
+| Native agent spine | `go test ./internal/hermes ./internal/kernel ./internal/gateway ./internal/telemetry -count=1` plus `go test ./internal/e2e -count=1` after Phase 4.I creates it |
+| Goncho/memory | `go test ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/session ./internal/store -count=1` |
+| Tools/security/skills | `go test ./internal/tools ./internal/plugins ./internal/skills ./internal/doctor -count=1` |
+| Gateway/channels/cron | `go test ./internal/gateway ./internal/cron ./internal/channels/... ./internal/slack ./internal/discord -count=1` |
+| CLI/API/TUI/release | `go test ./cmd/gormes ./internal/cli ./internal/apiserver ./internal/tui ./internal/tuigateway -count=1` |
+| Docs/progress | `go run ./cmd/progress validate && go test ./internal/progress ./docs -count=1` |
+
+When a row touches more than one lane, run all relevant focused gates before
+the broad `go test ./... -count=1`.

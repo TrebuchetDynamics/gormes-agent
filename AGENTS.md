@@ -5,93 +5,81 @@ any future backend) that runs against this repository. Read it before
 touching code or docs in `cmd/`, `internal/`, `docs/content/building-gormes/`,
 or `progress.json`.
 
-## Planner-Builder Loop (the core architecture)
+## Mandatory repo-local skill routing
 
-Gormes' self-development is a **dual-loop autonomous delivery
-architecture**. Two coordinated loops run continuously and inform each
-other in real time through a shared progress representation.
+Before doing any substantive work in this repository, every agent must select
+and use at least one repo-local skill. The canonical skill source is
+`docs/development-skills/<name>/SKILL.md`; `.agents/skills/`,
+`.claude/skills/`, and `.codex/skills/` are symlink loader views for different
+agents. If the right skill is not obvious, start with `gormes-skill-manager`
+and let it route the task. Do not proceed "skill-less" on planning, building,
+parity analysis, interface design, TDD implementation, or skill maintenance.
 
-> Planner-Builder Loop is a recursive, closed-loop architecture for
-> autonomous software delivery in which an outer **Planner** continuously
-> maintains a prioritized project trajectory, while an inner **Builder**
-> continuously executes the highest-value feasible task from that
-> trajectory, validates outcomes, and feeds structured results back into
-> planning. The system converges through repeated
-> plan → build → evaluate → replan cycles, enabling adaptive execution,
-> stable progress, and long-running autonomy without separating strategy
-> from implementation.
+Use these skills as the default routing surface:
 
+| Work type | Required skill |
+|---|---|
+| Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
+| Mapping Hermes/Honcho/GBrain parity gaps | `gormes-parity-auditor` |
+| Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
+| Implementing one `progress.json` row | `gormes-builder` |
+| Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
+| Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
+| Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
+| Stress-testing a plan or decision tree with the user | `grill-me` |
+
+If none of these skills fits repeated Gormes work, use
+`gormes-skill-manager` plus the system `skill-creator` workflow to create or
+refine a repo-local skill under `docs/development-skills/`. Keep the new skill
+bounded, validate it, and do not use skill creation as a substitute for
+shipping Gormes. Recreate symlinks into `.agents/skills/`, `.claude/skills/`,
+and `.codex/skills/` instead of copying skill files.
+
+`gormes-planner` and `gormes-builder` are manual skill-routed workflows. The
+old autonomous command binaries were intentionally removed: do not recreate
+`cmd/planner-loop` or `cmd/builder-loop` as part of Gormes delivery. If a
+future orchestrator is needed, plan it as a fresh subsystem with new names,
+interfaces, and progress rows.
+
+## Skill-Driven Delivery Architecture
+
+Gormes' self-development now runs through repo-local skills plus one shared
+progress representation. Agents do bounded passes:
+
+```text
+gormes-skill-manager -> gormes-planner / gormes-builder / gormes-tdd-slice
+                     -> progress.json evidence -> tests -> handoff
 ```
-                +---------------------+
-                |   Planner Loop      |
-                |  cmd/planner-loop/  |
-                +----------+----------+
-                           |
-                  refines  |  reads ledger
-                           v
-   progress.json  <---> runs.jsonl + triggers.jsonl
-                           ^
-                  selects  |  emits events
-                           |
-                +----------+----------+
-                |   Builder Loop      |
-                |  cmd/builder-loop/  |
-                +---------------------+
-```
 
-In steady-state service mode, `cmd/builder-loop run --loop` owns the cadence:
-each successful builder cycle releases the shared control-plane lock, runs one
-synchronous `cmd/planner-loop run`, then starts the next builder cycle from the
-planner-refreshed `progress.json`. Independent planner timer/path triggers may
-still fire, but the shared `run.lock` prevents concurrent control-plane writes.
-The builder loop lands workers locally by default (`BUILDER_LOOP_PROMOTION_MODE=cherry-pick`)
-and pushes `HEAD:main` after completed runs/checkpoints unless disabled. The
-planner loop reconciles local main before PR intake and can dispatch a focused
-git-repair backend agent when local/remote sync conflicts block planning.
-For standalone planner-only operation, `cmd/planner-loop run --loop` repeats
-planner cycles forever with `PLANNER_LOOP_SLEEP` between attempts and continues
-after recoverable failures.
+The rule is simple: planning edits roadmap rows and docs; building implements
+one row with tests; both use `progress.json` as the only backlog. Skills
+replace the deleted autonomous loop executables.
 
-### Two loops, one shared contract
+### Shared Progress Representation
 
-| Loop | Command | Internal package | Owns |
-|---|---|---|---|
-| **Planner Loop** (outer) | `cmd/planner-loop` | `internal/plannerloop` | `progress.json` priorities and trajectory; reads upstream sources, current implementation, and the builder-loop ledger; refines roadmap rows. |
-| **Builder Loop** (inner) | `cmd/builder-loop` | `internal/builderloop` | Selecting ready rows from `progress.json`, running backend workers in isolated worktrees, validating, promoting, and emitting ledger events. |
-
-### Shared progress representation
-
-Both loops talk through these files. **Do not bypass them.**
+All planner and builder skills talk through these files. **Do not bypass them.**
 
 - `docs/content/building-gormes/architecture_plan/progress.json` — canonical
-  prioritized trajectory. Planner writes; builder reads to select work.
-  Schema lives at `internal/progress/`; rendered surfaces under
-  `docs/content/building-gormes/builder-loop/`.
-- `.codex/builder-loop/state/runs.jsonl` — builder-loop ledger of every
-  worker claim, promotion, failure, and post-promotion gate. Planner reads
-  the last 7 days each run to surface toxic / hot subphases.
-- `.codex/planner-loop/triggers.jsonl` — builder → planner reactive signal
-  ledger (e.g., quarantine state changes). Planner consumes via cursor.
-- Path defaults fall back to legacy `.codex/orchestrator/` and
-  `.codex/architecture-planner/` for back-compat; environment overrides
-  are `BUILDER_LOOP_RUN_ROOT` and `RUN_ROOT`.
+  prioritized trajectory. Planner skills write; builder skills read to select
+  one row. Schema lives at `internal/progress/`; rendered surfaces live under
+  `docs/content/building-gormes/`.
+- `cmd/progress` — focused command for validating `progress.json` and
+  regenerating progress-driven docs.
+- `cmd/repoctl` — focused command for repo metadata updates such as benchmark
+  and README refreshes.
+- Historical `.codex/builder-loop/` and `.codex/planner-loop/` ledgers may
+  exist as evidence, but they are no longer active control-plane queues.
 
 ## Standing directive for any agent working here
 
-1. **Preserve the contract.** When extending either loop, do not break the
-   shared progress representation. New fields must round-trip through the
-   typed structs in `internal/progress/`. New ledger event kinds must be
-   accepted by the planner's evaluation logic.
-2. **Use the right loop.** Implementation work goes through the builder
-   loop. Roadmap shape, row priorities, source references, ready-when /
-   not-ready-when conditions, and trajectory go through the planner loop.
-   The planner does not implement runtime feature code; the builder does
-   not invent its own backlog.
-3. **Improve the loop pattern itself.** When you notice a feedback gap
-   (planner can't see something it needs, builder repeats a class of
-   failure, gate produces ambiguous signals, audit metric misleads),
-   propose a loop-level change. Update this file when the architecture
-   changes, not just the code.
+1. **Preserve the contract.** New progress fields must round-trip through the
+   typed structs in `internal/progress/`.
+2. **Use the right skill.** Roadmap shape, row priorities, source references,
+   ready-when / not-ready-when conditions, and trajectory go through
+   `gormes-planner`. Runtime implementation goes through `gormes-builder` and
+   `gormes-tdd-slice`.
+3. **Keep passes bounded.** One planner pass sharpens a lane or row group. One
+   builder pass ships one row. Stop with validation and handoff evidence.
 4. **Don't introduce a parallel queue.** Side-channel TODO files,
    private prompt instructions, or hand-curated row lists outside
    `progress.json` are explicitly out of bounds. Fix the canonical row
@@ -101,8 +89,10 @@ Both loops talk through these files. **Do not bypass them.**
 
 | If you're … | Read this first |
 |---|---|
-| Adding worker behavior, promotion gates, ledger events | `cmd/builder-loop/README.md` |
-| Adding planner heuristics, audit feedback, divergence handling | `cmd/planner-loop/README.md` |
+| Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
+| Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
+| Refreshing README.md or public repository claims from current evidence | `docs/development-skills/gormes-readme/SKILL.md` |
+| Implementing one row | `docs/development-skills/gormes-builder/SKILL.md` |
+| Driving red-green-refactor | `docs/development-skills/gormes-tdd-slice/SKILL.md` |
 | Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `docs/content/building-gormes/builder-loop/progress-schema.md` |
-| Wiring agents into the system from a new backend | both READMEs above plus `internal/builderloop/backend.go` |
 | Onboarding to the architecture with no prior context | this file, then `docs/content/building-gormes/_index.md` |

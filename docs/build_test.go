@@ -15,12 +15,7 @@ import (
 //   - Missing content files (section landing without children)
 func TestHugoBuild(t *testing.T) {
 	tmp := t.TempDir()
-	cmd := exec.Command("hugo", "--minify", "-d", tmp)
-	cmd.Dir = "."
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("hugo build failed: %v\noutput:\n%s", err, string(out))
-	}
+	runDocsHugoBuild(t, tmp)
 
 	wantPages := []string{
 		"index.html",
@@ -104,11 +99,7 @@ func TestHugoBuild(t *testing.T) {
 // expected root section links.
 func TestHugoBuild_IndexHasSidebarSections(t *testing.T) {
 	tmp := t.TempDir()
-	cmd := exec.Command("hugo", "--minify", "-d", tmp)
-	cmd.Dir = "."
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("hugo build failed: %v\n%s", err, string(out))
-	}
+	runDocsHugoBuild(t, tmp)
 	body, err := os.ReadFile(filepath.Join(tmp, "index.html"))
 	if err != nil {
 		t.Fatal(err)
@@ -133,11 +124,7 @@ func TestHugoBuild_IndexHasSidebarSections(t *testing.T) {
 
 func TestHugoBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	tmp := t.TempDir()
-	cmd := exec.Command("hugo", "--minify", "-d", tmp)
-	cmd.Dir = "."
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("hugo build failed: %v\n%s", err, string(out))
-	}
+	runDocsHugoBuild(t, tmp)
 
 	body, err := os.ReadFile(filepath.Join(tmp, "index.html"))
 	if err != nil {
@@ -150,6 +137,15 @@ func TestHugoBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	}
 	if strings.Contains(text, "brew install trebuchet/gormes") {
 		t.Fatalf("built index.html still contains stale Homebrew install command")
+	}
+}
+
+func runDocsHugoBuild(t *testing.T, dest string) {
+	t.Helper()
+	cmd := exec.Command("go", "run", "github.com/gohugoio/hugo@v0.160.1", "--minify", "-d", dest)
+	cmd.Dir = "."
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("hugo build failed: %v\noutput:\n%s", err, string(out))
 	}
 }
 

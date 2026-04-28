@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# codexu: compatibility wrapper for the Codex CLI.
+#
+# The Go planner/builder loops historically invoke a `codexu` binary with the
+# same argv shape as `codex exec`. Keep that stable while allowing a checkout
+# to run on machines that only have the upstream `codex` command installed.
+set -Eeuo pipefail
+
+if ! command -v codex >/dev/null 2>&1; then
+  for candidate in \
+    "$HOME"/.nvm/versions/node/*/bin/codex \
+    "$HOME"/.volta/bin/codex \
+    "$HOME"/.npm-global/bin/codex \
+    "$HOME"/.local/bin/codex; do
+    [[ -x "$candidate" ]] || continue
+    PATH="$(dirname "$candidate"):$PATH"
+    export PATH
+    break
+  done
+fi
+
+if ! command -v codex >/dev/null 2>&1; then
+  echo "codexu: codex CLI not found on PATH" >&2
+  exit 127
+fi
+
+exec codex "$@"

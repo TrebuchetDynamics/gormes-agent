@@ -113,9 +113,12 @@ func BuildBackendCommandWithRepoRoot(backend, mode, repoRoot string) ([]string, 
 	backendBinary := backend
 	switch backend {
 	case "codexu":
-		return []string{"codexu", "exec", "--json", "--ephemeral", "-m", "gpt-5.5", "-c", "approval_policy=never", "--sandbox", sandbox}, nil
+		if shim := resolveRepoShim(repoRoot, "codexu"); shim != "" {
+			backendBinary = shim
+		}
+		return []string{backendBinary, "exec", "--json", "--ephemeral", "-m", "gpt-5.5", "-c", "approval_policy=never", "--sandbox", sandbox}, nil
 	case "claudeu":
-		if shim := resolveClaudeuShim(repoRoot); shim != "" {
+		if shim := resolveRepoShim(repoRoot, "claudeu"); shim != "" {
 			backendBinary = shim
 		}
 		return []string{backendBinary, "exec", "--json", "-m", "gpt-5.5", "-c", "approval_policy=never", "--sandbox", sandbox}, nil
@@ -126,11 +129,11 @@ func BuildBackendCommandWithRepoRoot(backend, mode, repoRoot string) ([]string, 
 	}
 }
 
-func resolveClaudeuShim(repoRoot string) string {
+func resolveRepoShim(repoRoot, name string) string {
 	if repoRoot == "" {
 		return ""
 	}
-	candidate := filepath.Join(repoRoot, "scripts", "orchestrator", "claudeu")
+	candidate := filepath.Join(repoRoot, "scripts", "orchestrator", name)
 	info, err := os.Stat(candidate)
 	if err != nil || info.IsDir() {
 		return ""

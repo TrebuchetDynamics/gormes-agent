@@ -6,7 +6,7 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:1313',
   },
   webServer: {
-    command: 'hugo server -D --bind 127.0.0.1 --port 1313',
+    command: 'go run github.com/gohugoio/hugo@v0.160.1 server -D --bind 127.0.0.1 --port 1313',
     port: 1313,
     cwd: '..',
     reuseExistingServer: !process.env.CI,

@@ -49,9 +49,7 @@ func TestOrchestratorWatchdogRestartsInactiveServiceAndRunsChecks(t *testing.T) 
 
 	goLog := readOptionalFile(t, filepath.Join(logDir, "go"))
 	for _, want := range []string{
-		"run ./cmd/builder-loop doctor",
-		"run ./cmd/planner-loop doctor",
-		"run ./cmd/builder-loop audit",
+		"run ./cmd/progress validate",
 	} {
 		if !strings.Contains(goLog, want) {
 			t.Fatalf("go log = %q, want %q", goLog, want)

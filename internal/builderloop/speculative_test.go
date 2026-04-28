@@ -344,20 +344,23 @@ func TestNormalizeCandidates_WithBlockedBy(t *testing.T) {
 							{
 								"name": "blocker-task",
 								"status": "complete",
-								"contract": "Blocker contract"
+								"contract": "Blocker contract",
+								"no_test_required": "speculative selection fixture"
 							},
 							{
 								"name": "pending-blocker",
 								"status": "planned",
 								"contract": "Pending blocker contract",
-								"contract_status": "fixture_ready"
+								"contract_status": "fixture_ready",
+								"no_test_required": "speculative selection fixture"
 							},
 							{
 								"name": "speculative-task",
 								"status": "planned",
 								"contract": "Speculative contract",
 								"contract_status": "fixture_ready",
-								"blocked_by": ["pending-blocker"]
+								"blocked_by": ["pending-blocker"],
+								"no_test_required": "speculative selection fixture"
 							}
 						]
 					}
@@ -440,14 +443,16 @@ func TestSpeculativeExecution_Integration(t *testing.T) {
 								"name": "blocker",
 								"status": "planned",
 								"contract": "Blocker contract",
-								"contract_status": "fixture_ready"
+								"contract_status": "fixture_ready",
+								"no_test_required": "speculative integration fixture"
 							},
 							{
 								"name": "dependent",
 								"status": "planned",
 								"contract": "Dependent contract",
 								"contract_status": "fixture_ready",
-								"blocked_by": ["blocker"]
+								"blocked_by": ["blocker"],
+								"no_test_required": "speculative integration fixture"
 							}
 						]
 					}
@@ -518,7 +523,7 @@ func TestSpeculativeExecution_Integration(t *testing.T) {
 }
 
 func TestRunOnceDryRunSelectsBlockedRowsWhenSpeculativeExecutionEnabled(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"1": {
 				"subphases": {
@@ -528,7 +533,8 @@ func TestRunOnceDryRunSelectsBlockedRowsWhenSpeculativeExecutionEnabled(t *testi
 								"name": "base-ready",
 								"status": "planned",
 								"contract": "Base contract",
-								"contract_status": "draft"
+								"contract_status": "draft",
+								"no_test_required": "speculative dry-run fixture"
 							},
 							{
 								"name": "blocked-ready",
@@ -536,7 +542,8 @@ func TestRunOnceDryRunSelectsBlockedRowsWhenSpeculativeExecutionEnabled(t *testi
 								"contract": "Blocked contract",
 								"contract_status": "draft",
 								"blocked_by": ["base-ready"],
-								"ready_when": ["base-ready is claimed this run"]
+								"ready_when": ["base-ready is claimed this run"],
+								"no_test_required": "speculative dry-run fixture"
 							}
 						]
 					}

@@ -77,6 +77,7 @@ The handler can remain ordinary Go.
 | v0.22.1 worker abort and slot recovery | durable worker loop and builder/autoloop health | Propagate cancellation through every long phase and free claimed worker slots with auditable timeout evidence when a handler ignores cancellation. |
 | v0.22.2 RSS watchdog and stable-run reset | future durable worker loop only | Add opt-in worker RSS/capacity watchdog evidence after a Go durable worker exists; do not self-terminate the main Gormes process or make Goncho memory depend on supervised workers. |
 | v0.22.1 incremental extract + embed-stale filters | learning-loop skill and memory maintenance passes | Carry changed-source IDs through extract/index/embed phases and prove stale-only work avoids whole-corpus scans. |
+| v0.22.5 per-source sync anchor | learning-loop source maintenance evidence | Resolve maintenance work against a source-scoped last-commit anchor and make any global-anchor fallback explicit before a whole-corpus scan can run. |
 | v0.22.4 frontmatter guard | SKILL.md validation and skill status evidence | Add structured frontmatter validation before reviewed skill storage; exclude malformed skills from prompt injection with visible codes. |
 | `subagent_messages` and tool ledger | run logs and transcript export | Persist child-agent messages/tool calls enough to resume or replay. |
 | skills resolver and checks | `internal/skills` active/inactive store | Add resolver conformance, routing evals, conflict checks, and promotion evidence. |
@@ -168,6 +169,13 @@ The same GBrain release retries transient Postgres/Supabase startup connection
 errors. Gormes should only reuse that pattern if an optional remote database
 connector is added later. The default SQLite-first runtime does not need a
 database-network retry layer.
+
+GBrain `e734937` adds a separate maintenance lesson: long-running cycles must
+not depend on one global repository anchor when the system already knows the
+source being synced. Gormes should carry source IDs through future learning-loop
+maintenance plans and expose whether the plan used a source-scoped anchor or
+fell back to a global/full-scan path. Do not import GBrain's `sources` table or
+cycle runner; freeze the evidence shape first.
 
 ### 3. Strengthen Memory Provenance Before More Recall Magic
 

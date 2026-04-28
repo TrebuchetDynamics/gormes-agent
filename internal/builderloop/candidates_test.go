@@ -15,9 +15,9 @@ func TestNormalizeCandidatesSkipsCompleteAndSortsActiveFirst(t *testing.T) {
 					"subphases": {
 					"3.E.6": {
 							"items": [
-								{"item_name": "planned candidate", "status": "planned", "contract": "planned contract", "contract_status": "draft"},
+								{"item_name": "planned candidate", "status": "planned", "contract": "planned contract", "contract_status": "draft", "no_test_required": "candidate ranking fixture"},
 								{"item_name": "complete candidate", "status": "complete", "contract": "complete contract", "contract_status": "draft"},
-								{"item_name": "active candidate", "status": "IN_PROGRESS", "contract": "active contract"}
+								{"item_name": "active candidate", "status": "IN_PROGRESS", "contract": "active contract", "no_test_required": "candidate ranking fixture"}
 							]
 						}
 					}
@@ -43,12 +43,12 @@ func TestNormalizeCandidatesPriorityBoostWins(t *testing.T) {
 					"subphases": {
 					"3.E.7": {
 							"items": [
-								{"name": "boosted planned candidate", "status": "planned", "contract": "boosted contract", "contract_status": "draft"}
+								{"name": "boosted planned candidate", "status": "planned", "contract": "boosted contract", "contract_status": "draft", "no_test_required": "candidate ranking fixture"}
 							]
 						},
 					"3.E.6": {
 							"items": [
-								{"name": "normal active candidate", "status": "in_progress", "contract": "active contract"}
+								{"name": "normal active candidate", "status": "in_progress", "contract": "active contract", "no_test_required": "candidate ranking fixture"}
 							]
 						}
 					}
@@ -172,9 +172,9 @@ func TestNormalizeCandidatesUsesAgentQueueEligibility(t *testing.T) {
 				"subphases": {
 					"3.E.6": {
 						"items": [
-							{"item_name": "p0 contract row", "status": "planned", "priority": "P0", "contract": "p0 handoff", "contract_status": "draft", "slice_size": "small"},
-							{"item_name": "active contract row", "status": "in_progress", "contract": "active handoff", "contract_status": "draft", "slice_size": "small"},
-							{"item_name": "draft contract row", "status": "planned", "contract": "draft handoff", "contract_status": "draft", "slice_size": "small"},
+							{"item_name": "p0 contract row", "status": "planned", "priority": "P0", "contract": "p0 handoff", "contract_status": "draft", "slice_size": "small", "no_test_required": "candidate eligibility fixture"},
+							{"item_name": "active contract row", "status": "in_progress", "contract": "active handoff", "contract_status": "draft", "slice_size": "small", "no_test_required": "candidate eligibility fixture"},
+							{"item_name": "draft contract row", "status": "planned", "contract": "draft handoff", "contract_status": "draft", "slice_size": "small", "no_test_required": "candidate eligibility fixture"},
 							{"item_name": "missing contract row", "status": "planned", "priority": "P0", "contract_status": "draft", "slice_size": "small"},
 							{"item_name": "generic contract row", "status": "planned", "contract": "generic handoff", "slice_size": "small"},
 							{"item_name": "blocked contract row", "status": "planned", "priority": "P0", "contract": "blocked handoff", "contract_status": "draft", "slice_size": "small", "blocked_by": ["dependency"]},
@@ -198,6 +198,37 @@ func TestNormalizeCandidatesUsesAgentQueueEligibility(t *testing.T) {
 	}
 }
 
+func TestNormalizeCandidatesRequiresTestCommandsOrNoTestReason(t *testing.T) {
+	path := writeProgressJSON(t, `{
+		"phases": {
+			"3": {
+				"subphases": {
+					"3.E.6": {
+						"items": [
+							{"item_name": "missing test proof", "status": "planned", "contract": "draft handoff", "contract_status": "draft", "slice_size": "small"},
+							{"item_name": "row-local test", "status": "planned", "contract": "tested handoff", "contract_status": "draft", "slice_size": "small", "test_commands": ["go test ./internal/goncho -count=1"]},
+							{"item_name": "explicit testless row", "status": "planned", "contract": "docs handoff", "contract_status": "draft", "slice_size": "small", "no_test_required": "docs-only row; progress validate covers it"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+
+	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates() error = %v", err)
+	}
+
+	wantNames := []string{"explicit testless row", "row-local test"}
+	if gotNames := candidateNames(got); !reflect.DeepEqual(gotNames, wantNames) {
+		t.Fatalf("candidate names = %#v, want %#v", gotNames, wantNames)
+	}
+	if got[0].NoTestRequired != "docs-only row; progress validate covers it" {
+		t.Fatalf("NoTestRequired = %q, want explicit reason", got[0].NoTestRequired)
+	}
+}
+
 func TestNormalizeCandidatesUsesExecutionBucketsWithItemNameRows(t *testing.T) {
 	path := writeProgressJSON(t, `{
 		"phases": {
@@ -205,11 +236,11 @@ func TestNormalizeCandidatesUsesExecutionBucketsWithItemNameRows(t *testing.T) {
 					"subphases": {
 					"3.E.6": {
 							"items": [
-								{"item_name": "draft candidate", "status": "planned", "contract": "draft contract", "contract_status": "draft", "fixture": "draft.json"},
-								{"item_name": "fixture candidate", "status": "planned", "contract": "fixture contract", "contract_status": "fixture_ready", "fixture": "ready.json"},
-								{"item_name": "active candidate", "status": "in_progress", "contract": "active contract"},
-								{"item_name": "p0 candidate", "status": "planned", "priority": "P0", "contract": "p0 contract", "contract_status": "draft"},
-								{"item_name": "unblocking candidate", "status": "planned", "contract": "unblocking contract", "unblocks": ["task 4"]}
+								{"item_name": "draft candidate", "status": "planned", "contract": "draft contract", "contract_status": "draft", "fixture": "draft.json", "no_test_required": "candidate bucket fixture"},
+								{"item_name": "fixture candidate", "status": "planned", "contract": "fixture contract", "contract_status": "fixture_ready", "fixture": "ready.json", "no_test_required": "candidate bucket fixture"},
+								{"item_name": "active candidate", "status": "in_progress", "contract": "active contract", "no_test_required": "candidate bucket fixture"},
+								{"item_name": "p0 candidate", "status": "planned", "priority": "P0", "contract": "p0 contract", "contract_status": "draft", "no_test_required": "candidate bucket fixture"},
+								{"item_name": "unblocking candidate", "status": "planned", "contract": "unblocking contract", "unblocks": ["task 4"], "no_test_required": "candidate bucket fixture"}
 							]
 						}
 					}
@@ -238,13 +269,13 @@ func TestNormalizeCandidatesActiveFirstFalseStillUsesPriorityTieAfterPriorityBoo
 					"subphases": {
 					"3.E.6": {
 							"items": [
-								{"item_name": "a draft candidate", "status": "planned", "contract": "draft contract", "contract_status": "draft"},
-								{"item_name": "z p0 candidate", "status": "planned", "priority": "P0", "contract": "p0 contract", "contract_status": "draft"}
+								{"item_name": "a draft candidate", "status": "planned", "contract": "draft contract", "contract_status": "draft", "no_test_required": "candidate ordering fixture"},
+								{"item_name": "z p0 candidate", "status": "planned", "priority": "P0", "contract": "p0 contract", "contract_status": "draft", "no_test_required": "candidate ordering fixture"}
 							]
 						},
 					"3.E.7": {
 							"items": [
-								{"item_name": "boosted planned candidate", "status": "planned", "contract": "boosted contract", "contract_status": "draft"}
+								{"item_name": "boosted planned candidate", "status": "planned", "contract": "boosted contract", "contract_status": "draft", "no_test_required": "candidate ordering fixture"}
 							]
 						}
 					}
@@ -273,7 +304,7 @@ func TestNormalizeCandidatesHonorsMaxPhase(t *testing.T) {
 					"subphases": {
 					"3.E": {
 							"items": [
-								{"name": "phase 3 candidate", "status": "planned", "contract": "phase 3 contract", "contract_status": "draft"}
+								{"name": "phase 3 candidate", "status": "planned", "contract": "phase 3 contract", "contract_status": "draft", "no_test_required": "max phase fixture"}
 							]
 						}
 					}
@@ -308,7 +339,7 @@ func TestNormalizeCandidatesSkipsPausedPhaseSevenByDefault(t *testing.T) {
 				"subphases": {
 					"2.B.3": {
 						"items": [
-							{"name": "Slack parser wiring", "status": "planned", "priority": "P1", "contract": "Slack handoff", "contract_status": "draft"}
+							{"name": "Slack parser wiring", "status": "planned", "priority": "P1", "contract": "Slack handoff", "contract_status": "draft", "no_test_required": "paused phase fixture"}
 						]
 					}
 				}
@@ -343,7 +374,7 @@ func TestNormalizeCandidatesUsesSubPhasesFallback(t *testing.T) {
 					"sub_phases": {
 					"4.A.1": {
 							"items": [
-								{"item_name": "fallback candidate", "status": "planned", "contract": "fallback contract", "contract_status": "draft"}
+								{"item_name": "fallback candidate", "status": "planned", "contract": "fallback contract", "contract_status": "draft", "no_test_required": "sub_phases fixture"}
 							]
 						}
 					}
@@ -369,7 +400,7 @@ func TestNormalizeCandidatesPrefersSubphasesWhenBothKeysExist(t *testing.T) {
 					"subphases": {
 					"4.A.1": {
 							"items": [
-								{"item_name": "preferred candidate", "status": "planned", "contract": "preferred contract", "contract_status": "draft"}
+								{"item_name": "preferred candidate", "status": "planned", "contract": "preferred contract", "contract_status": "draft", "no_test_required": "subphases fixture"}
 							]
 						}
 					},
@@ -402,10 +433,10 @@ func TestNormalizeCandidatesItemNameFallbacksAndUnknownStatus(t *testing.T) {
 					"subphases": {
 					"5.B.1": {
 							"items": [
-								{"item_name": "item-name candidate", "name": "ignored name", "status": "planned", "contract": "item-name contract", "contract_status": "draft"},
-								{"item_name": " ", "name": "name candidate", "title": "ignored title", "status": "planned", "contract": "name contract", "contract_status": "draft"},
-								{"name": " ", "title": "title candidate", "id": "ignored id", "status": "planned", "contract": "title contract", "contract_status": "draft"},
-								{"title": " ", "id": "id candidate", "contract": "id contract", "contract_status": "draft"},
+								{"item_name": "item-name candidate", "name": "ignored name", "status": "planned", "contract": "item-name contract", "contract_status": "draft", "no_test_required": "name fallback fixture"},
+								{"item_name": " ", "name": "name candidate", "title": "ignored title", "status": "planned", "contract": "name contract", "contract_status": "draft", "no_test_required": "name fallback fixture"},
+								{"name": " ", "title": "title candidate", "id": "ignored id", "status": "planned", "contract": "title contract", "contract_status": "draft", "no_test_required": "name fallback fixture"},
+								{"title": " ", "id": "id candidate", "contract": "id contract", "contract_status": "draft", "no_test_required": "name fallback fixture"},
 								{"item_name": " "}
 							]
 						}
@@ -435,8 +466,8 @@ func TestNormalizeCandidatesDeduplicatesByPhaseSubphaseAndItemName(t *testing.T)
 					"subphases": {
 					"6.C.1": {
 							"items": [
-								{"item_name": "duplicate candidate", "status": "planned", "contract": "planned contract", "contract_status": "draft"},
-								{"item_name": "duplicate candidate", "status": "in_progress", "contract": "active contract"}
+								{"item_name": "duplicate candidate", "status": "planned", "contract": "planned contract", "contract_status": "draft", "no_test_required": "dedupe fixture"},
+								{"item_name": "duplicate candidate", "status": "in_progress", "contract": "active contract", "no_test_required": "dedupe fixture"}
 							]
 						}
 					}
@@ -582,11 +613,11 @@ func TestNormalizeCandidatesUsesExecutionBuckets(t *testing.T) {
 				"subphases": {
 					"8.A": {
 						"items": [
-							{"name": "draft candidate", "status": "planned", "contract": "draft", "contract_status": "draft", "slice_size": "small"},
-							{"name": "fixture candidate", "status": "planned", "contract": "fixture", "contract_status": "fixture_ready", "slice_size": "small"},
-							{"name": "active candidate", "status": "in_progress", "contract": "active", "contract_status": "draft", "slice_size": "small"},
-							{"name": "p0 candidate", "status": "planned", "priority": "P0", "contract": "p0", "contract_status": "draft", "slice_size": "small"},
-							{"name": "unblocking candidate", "status": "planned", "contract": "unblock", "contract_status": "missing", "slice_size": "small", "unblocks": ["next row"]}
+							{"name": "draft candidate", "status": "planned", "contract": "draft", "contract_status": "draft", "slice_size": "small", "no_test_required": "bucket fixture"},
+							{"name": "fixture candidate", "status": "planned", "contract": "fixture", "contract_status": "fixture_ready", "slice_size": "small", "no_test_required": "bucket fixture"},
+							{"name": "active candidate", "status": "in_progress", "contract": "active", "contract_status": "draft", "slice_size": "small", "no_test_required": "bucket fixture"},
+							{"name": "p0 candidate", "status": "planned", "priority": "P0", "contract": "p0", "contract_status": "draft", "slice_size": "small", "no_test_required": "bucket fixture"},
+							{"name": "unblocking candidate", "status": "planned", "contract": "unblock", "contract_status": "missing", "slice_size": "small", "unblocks": ["next row"], "no_test_required": "bucket fixture"}
 						]
 					}
 				}
@@ -623,13 +654,13 @@ func TestNormalizeCandidatesUsesSubphasePriorityAsTieBreak(t *testing.T) {
 					"2.B.11": {
 						"priority": "P3",
 						"items": [
-							{"name": "discord forum follow-up", "status": "planned", "contract": "discord forum contract", "contract_status": "draft"}
+							{"name": "discord forum follow-up", "status": "planned", "contract": "discord forum contract", "contract_status": "draft", "no_test_required": "priority fixture"}
 						]
 					},
 					"2.B.4": {
 						"priority": "P1",
 						"items": [
-							{"name": "whatsapp runtime closeout", "status": "planned", "contract": "whatsapp runtime contract", "contract_status": "draft"}
+							{"name": "whatsapp runtime closeout", "status": "planned", "contract": "whatsapp runtime contract", "contract_status": "draft", "no_test_required": "priority fixture"}
 						]
 					}
 				}
@@ -664,7 +695,7 @@ func TestNormalizeCandidatesIncludesRowsWhenBlockersAreComplete(t *testing.T) {
 					"2.B.3": {
 						"items": [
 							{"name": "parser wiring", "status": "complete", "contract": "parser contract", "contract_status": "validated"},
-							{"name": "channel shim", "status": "planned", "contract": "channel contract", "contract_status": "draft", "blocked_by": ["parser wiring"]},
+							{"name": "channel shim", "status": "planned", "contract": "channel contract", "contract_status": "draft", "blocked_by": ["parser wiring"], "no_test_required": "blocker fixture"},
 							{"name": "config registration", "status": "planned", "contract": "config contract", "contract_status": "draft", "blocked_by": ["channel shim"]}
 						]
 					}

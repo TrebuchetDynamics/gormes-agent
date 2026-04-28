@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -118,7 +119,7 @@ func TestRunPostPromotionVerificationLogsCommandJobs(t *testing.T) {
 		RunRoot:  filepath.Join(dir, "runroot"),
 		PostPromotionVerifyCommands: []string{
 			"go test ./internal/hermes -count=1",
-			"go run ./cmd/builder-loop progress validate",
+			"go run ./cmd/progress validate",
 		},
 	}
 	runner := runnerFunc(func(_ context.Context, _ Command) Result {
@@ -276,6 +277,67 @@ func TestRunPrePromotionVerify_RunsInWorkerWorktree(t *testing.T) {
 	}
 	if job.Worker != worker.ID || job.Task != worker.Task || job.Branch != worker.Branch || job.Dir != worktreePath {
 		t.Fatalf("pre-verify job identity = %+v, want worker/task/branch/dir", job)
+	}
+}
+
+func TestRunPrePromotionVerify_RunsCandidateTestCommandsByDefault(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		RepoRoot: filepath.Join(dir, "main"),
+		RunRoot:  filepath.Join(dir, "runroot"),
+	}
+	worktreePath := filepath.Join(dir, "worktree-1")
+	worker := workerRun{
+		ID:       2,
+		Task:     "3/3.F/goncho-row",
+		Branch:   "builder-loop/run/w2/goncho-row",
+		RepoRoot: worktreePath,
+		Candidate: Candidate{
+			TestCommands: []string{"go test ./internal/goncho -count=1"},
+		},
+	}
+
+	var commands []Command
+	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
+		commands = append(commands, cmd)
+		return Result{}
+	})
+
+	if err := runPrePromotionVerify(context.Background(), cfg, runner, "run-A", worker, 1); err != nil {
+		t.Fatalf("verify should pass: %v", err)
+	}
+	if len(commands) != 1 {
+		t.Fatalf("runner called %d times, want row test command only", len(commands))
+	}
+	if commands[0].Dir != worktreePath {
+		t.Fatalf("Command.Dir = %q, want worker worktree %q", commands[0].Dir, worktreePath)
+	}
+	if got := strings.Join(commands[0].Args, " "); !strings.Contains(got, "go test ./internal/goncho -count=1") {
+		t.Fatalf("runner command = %q, want candidate test command", got)
+	}
+
+	events := readLedgerEvents(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
+	job, ok := findJobFinished(events, "pre_verify_command", "ok")
+	if !ok {
+		t.Fatalf("ledger missing pre_verify_command job_finished: %+v", events)
+	}
+	if job.Command != "go test ./internal/goncho -count=1" {
+		t.Fatalf("job command = %q, want candidate test command", job.Command)
+	}
+}
+
+func TestPrePromotionVerifyCommandsCombineRowAndConfiguredCommands(t *testing.T) {
+	cfg := Config{PrePromotionVerifyCommands: []string{"go test ./...", "go vet ./..."}}
+	worker := workerRun{
+		Candidate: Candidate{
+			TestCommands: []string{"go test ./internal/goncho -count=1", "go test ./..."},
+		},
+	}
+
+	got := prePromotionVerifyCommands(cfg, worker)
+	want := []string{"go test ./internal/goncho -count=1", "go test ./...", "go test ./...", "go vet ./..."}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("prePromotionVerifyCommands = %#v, want %#v", got, want)
 	}
 }
 
@@ -491,66 +553,81 @@ func TestRunPrePromotionGate_RepairAttemptsExhausted(t *testing.T) {
 	}
 }
 
-func TestRunRowEvaluator_RunsOnlyTestCommands(t *testing.T) {
-	dir := t.TempDir()
+func TestFinishWorkerRunsCandidateTestCommandsBeforePromotion(t *testing.T) {
+	repoRoot := t.TempDir()
+	initCleanRepo(t, repoRoot)
+	baseCommit, err := gitHeadSha(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseBranch := mustGitCurrentBranch(t, repoRoot)
+	workerDir := filepath.Join(t.TempDir(), "worker")
+	workerBranch := "builder-loop/test/w8"
+	runGitCommand(t, repoRoot, "worktree", "add", "-b", workerBranch, workerDir)
+	writeAndCommitTestFile(t, workerDir, "allowed/initial.txt", "initial\n", "initial worker change")
+
 	cfg := Config{
-		RepoRoot: filepath.Join(dir, "main"),
-		RunRoot:  filepath.Join(dir, "runroot"),
+		RepoRoot: repoRoot,
+		RunRoot:  filepath.Join(t.TempDir(), "runroot"),
 	}
 	worker := workerRun{
-		ID:       5,
-		Task:     "4/4.A/replay",
-		Branch:   "autoloop/test/w5",
-		RepoRoot: filepath.Join(dir, "worktree-5"),
+		ID:           8,
+		Task:         "3/3.F/goncho-row",
+		Branch:       workerBranch,
+		RepoRoot:     workerDir,
+		WorktreePath: workerDir,
+		BaseCommit:   baseCommit,
 		Candidate: Candidate{
-			TestCommands: []string{"echo row-test"},
-			Acceptance:   []string{"reasoning replay is visible in the transcript"},
+			WriteScope:   []string{"allowed/"},
+			TestCommands: []string{"go test ./internal/goncho -count=1"},
 		},
 	}
 
-	var commands []Command
+	var testCommandSeen bool
+	var promoteCalls int
 	runner := runnerFunc(func(_ context.Context, cmd Command) Result {
-		commands = append(commands, cmd)
-		return Result{}
+		switch cmd.Name {
+		case "sh":
+			if strings.Contains(strings.Join(cmd.Args, " "), "go test ./internal/goncho -count=1") {
+				testCommandSeen = true
+			}
+			return Result{Err: errors.New("exit status 1"), Stderr: "row test failed"}
+		case "git":
+			if len(cmd.Args) >= 3 && cmd.Args[0] == "cherry-pick" {
+				promoteCalls++
+			}
+			return Result{}
+		case "gh":
+			return Result{}
+		default:
+			return Result{Err: ErrUnexpectedCommand}
+		}
 	})
 
-	if err := runRowEvaluator(context.Background(), cfg, runner, "run-A", worker); err != nil {
-		t.Fatalf("row evaluator should pass: %v", err)
+	err = finishWorker(context.Background(), cfg, runner, "codexu", "run-A", baseBranch, true, worker)
+	if err == nil {
+		t.Fatal("finishWorker error = nil, want candidate test command failure")
 	}
-	if len(commands) != 1 {
-		t.Fatalf("runner called %d times, want 1 test command only", len(commands))
+	if !testCommandSeen {
+		t.Fatalf("candidate test command was not run before promotion")
 	}
-	gotCommand := strings.Join(commands[0].Args, " ")
-	if !strings.Contains(gotCommand, "echo row-test") {
-		t.Fatalf("runner command = %q, want row test command", gotCommand)
-	}
-	if strings.Contains(gotCommand, "reasoning replay") {
-		t.Fatalf("runner command includes acceptance prose as shell: %q", gotCommand)
-	}
-	if commands[0].Dir != worker.RepoRoot {
-		t.Fatalf("row evaluator Dir = %q, want worker repo %q", commands[0].Dir, worker.RepoRoot)
+	if promoteCalls != 0 {
+		t.Fatalf("promote called %d times, want 0 after candidate test failure", promoteCalls)
 	}
 
-	body := readLedgerLines(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
-	var started, succeeded bool
-	for _, line := range body {
-		if strings.Contains(line, `"event":"row_evaluation_started"`) && strings.Contains(line, "commands=1") {
-			started = true
-		}
-		if strings.Contains(line, `"event":"row_evaluation_succeeded"`) && strings.Contains(line, "commands=1") {
-			succeeded = true
-		}
-	}
-	if !started || !succeeded {
-		t.Fatalf("row evaluator ledger missing start/success commands=1:\n%s", strings.Join(body, "\n"))
-	}
 	events := readLedgerEvents(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
-	job, ok := findJobFinished(events, "row_eval_command", "ok")
-	if !ok {
-		t.Fatalf("ledger missing row_eval_command job_finished: %+v", events)
+	var failed LedgerEvent
+	for _, event := range events {
+		if event.Event == "worker_failed" && event.Status == "pre_promotion_verify_failed" {
+			failed = event
+			break
+		}
 	}
-	if job.Worker != worker.ID || job.Task != worker.Task || job.Branch != worker.Branch || job.Command != "echo row-test" {
-		t.Fatalf("row evaluation job identity = %+v, want worker/task/branch/command", job)
+	if failed.Event == "" {
+		t.Fatalf("missing worker_failed/pre_promotion_verify_failed event:\n%#v", events)
+	}
+	if !strings.Contains(failed.Detail, "go test ./internal/goncho -count=1") {
+		t.Fatalf("failure detail = %q, want candidate test command", failed.Detail)
 	}
 }
 

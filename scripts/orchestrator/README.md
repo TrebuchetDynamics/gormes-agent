@@ -1,15 +1,16 @@
-# Builder Loop Internals
+# Retired Orchestrator Internals
 
-The orchestrator wrapper and CLI implementation now live in Go under
-`cmd/builder-loop` and `internal/builderloop`. This directory contains
-transitional wrappers, systemd templates, and historical notes for the old
-shell entrypoints. Full runtime parity remains staged follow-up work.
+The old autonomous builder/planner loop command binaries have been removed.
+This directory now contains retired wrappers, watchdog compatibility checks,
+systemd templates kept for historical cleanup, and notes for the old shell
+entrypoints.
 
 ## Layout
 
-- `*.sh` — tiny compatibility wrappers that exec `go run ./cmd/builder-loop ...`
-  for implemented Go commands.
-- `systemd/` — templates rendered or installed by `builder-loop service ...`.
+- `*.sh` — retired compatibility wrappers. They now fail fast with guidance
+  instead of invoking deleted loop binaries.
+- `systemd/` — historical templates retained so old installed units can be
+  identified and removed.
 - `FROZEN.md` — freeze policy and the active Go-port exception.
 
 ## Watchdog
@@ -20,23 +21,23 @@ Install the 10-minute production watchdog with:
 scripts/orchestrator/install-watchdog.sh --force
 ```
 
-The watchdog is intentionally repair-oriented: every tick checkpoints dirty
-loop output, restarts `gormes-orchestrator.service` if inactive, runs
-`builder-loop doctor` and `planner-loop doctor`, writes the existing audit
-report, and exits zero so the timer keeps firing after recoverable failures.
+The watchdog is now compatibility-oriented: every tick checkpoints dirty
+output, restarts `gormes-orchestrator.service` if inactive, runs
+`go run ./cmd/progress validate`, and exits zero so the timer keeps firing
+after recoverable failures.
 
 ## Running tests
 
 ```sh
-go test ./internal/builderloop ./cmd/builder-loop -count=1
+go test ./internal/progress -count=1
 ```
 
 ## Legacy shell
 
 Long-form frozen shell retained for parity lives under
 `testdata/legacy-shell/scripts/` and is marked vendored for language reporting.
-The root `scripts/gormes-auto-codexu-orchestrator.sh` wrapper runs the Go port
-for default execution, backend flags, help, and implemented Go subcommands.
+The root `scripts/gormes-auto-codexu-orchestrator.sh` wrapper no longer runs
+the Go port because the loop command was removed.
 Legacy management/resume invocations (`status`, `tail`, `abort`, `cleanup`,
 `promote-commit`, `verify-gh-auth`, and `--resume`) temporarily exec the
 vendored shell with the original arguments until full runtime parity lands.
@@ -45,19 +46,12 @@ The live companion scripts `scripts/gormes-architecture-planner-tasks-manager.sh
 `scripts/documentation-improver.sh`, and `scripts/landingpage-improver.sh`
 remain shell outside this cutover.
 
-## Backends
+## Skill Replacement
 
-`internal/builderloop` owns backend adapters. `BACKEND` (env var) or the equivalent
-CLI flag selects which agent CLI drives workers. The worker contract is
-unchanged across backends; each backend only translates argv.
-
-| Backend | Binary | CLI flag | Notes |
-|---|---|---|---|
-| `codexu` (default) | `codexu` | `--backend codexu` | Native codex-cli non-interactive mode. |
-| `claudeu` | `claudeu` shim (PATH) | `--backend claudeu` | Shim translates codexu-style argv to `claude --print`. |
-| `opencode` | `opencode` | `--backend opencode` | Uses `opencode run --no-interactive`; shape approximate (builder-loop only). |
-
-Switch via env (`BACKEND=claudeu $0`) or flag (`$0 --backend claudeu`). CLI flag wins.
+Use `.agents/skills/gormes-skill-manager/SKILL.md` to route work, then
+`gormes-planner`, `gormes-builder`, and `gormes-tdd-slice` for bounded passes.
+Use `go run ./cmd/progress validate` for roadmap validation and
+`go run ./cmd/progress write` for generated progress docs.
 
 ## Companion scheduling
 

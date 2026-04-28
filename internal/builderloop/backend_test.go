@@ -118,6 +118,32 @@ func TestBuildBackendCommandWithRepoRootUsesRepoClaudeuShim(t *testing.T) {
 	}
 }
 
+func TestBuildBackendCommandWithRepoRootUsesRepoCodexuShim(t *testing.T) {
+	repoRoot := t.TempDir()
+	scriptPath := filepath.Join(repoRoot, "scripts", "orchestrator", "codexu")
+	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(scriptPath, []byte("#!/usr/bin/env bash\necho test\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got, err := BuildBackendCommandWithRepoRoot("codexu", "safe", repoRoot)
+	if err != nil {
+		t.Fatalf("BuildBackendCommandWithRepoRoot() error = %v", err)
+	}
+
+	want := []string{scriptPath, "exec", "--json", "--ephemeral", "-m", "gpt-5.5", "-c", "approval_policy=never", "--sandbox", "workspace-write"}
+	if abs, err := filepath.Abs(want[0]); err == nil {
+		want[0] = abs
+	} else {
+		t.Fatalf("filepath.Abs(%q) error = %v", want[0], err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("BuildBackendCommandWithRepoRoot() = %#v, want %#v", got, want)
+	}
+}
+
 func TestBuildBackendCommandRejectsInvalidMode(t *testing.T) {
 	_, err := BuildBackendCommand("codexu", "turbo")
 	if err == nil {

@@ -133,13 +133,12 @@ fi
 
 check_dead_run_lock
 
-run_repair_check "builder-loop doctor" go run ./cmd/builder-loop doctor
-run_repair_check "planner-loop doctor" go run ./cmd/planner-loop doctor
+run_repair_check "progress validate" go run ./cmd/progress validate
 
-if go run ./cmd/builder-loop audit; then
-  log "builder-loop audit ok"
+if go test ./internal/progress -count=1 >/dev/null; then
+  log "progress package tests ok"
 else
-  log "builder-loop audit failed"
+  log "progress package tests failed"
 fi
 
 checkpoint_dirty

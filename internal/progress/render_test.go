@@ -171,12 +171,13 @@ func TestRenderNextSlicesOrdersUnblockedP0ThenActiveAndSkipsBlockedUmbrella(t *t
 	p := &Progress{Phases: map[string]Phase{
 		"1": {Name: "Phase 1", Subphases: map[string]Subphase{
 			"1.A": {Name: "Alpha", Items: []Item{
-				{Name: "planned", Status: StatusPlanned, Contract: "planned contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f"},
-				{Name: "active", Status: StatusInProgress, Contract: "active contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f"},
-				{Name: "p0", Status: StatusPlanned, Priority: "P0", Contract: "p0 contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"operator"}, Fixture: "f"},
-				{Name: "blocked", Status: StatusPlanned, Contract: "blocked contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f", BlockedBy: []string{"dependency"}},
-				{Name: "umbrella", Status: StatusPlanned, Contract: "umbrella contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeUmbrella, TrustClass: []string{"system"}, Fixture: "f"},
-				{Name: "complete", Status: StatusComplete, Contract: "complete contract", ContractStatus: ContractStatusValidated, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f"},
+				{Name: "planned", Status: StatusPlanned, Contract: "planned contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f", TestCommands: []string{"go test ./planned"}},
+				{Name: "active", Status: StatusInProgress, Contract: "active contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f", TestCommands: []string{"go test ./active"}},
+				{Name: "p0", Status: StatusPlanned, Priority: "P0", Contract: "p0 contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"operator"}, Fixture: "f", TestCommands: []string{"go test ./p0"}},
+				{Name: "blocked", Status: StatusPlanned, Contract: "blocked contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f", BlockedBy: []string{"dependency"}, TestCommands: []string{"go test ./blocked"}},
+				{Name: "umbrella", Status: StatusPlanned, Contract: "umbrella contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeUmbrella, TrustClass: []string{"system"}, Fixture: "f", TestCommands: []string{"go test ./umbrella"}},
+				{Name: "missing tests", Status: StatusPlanned, Contract: "missing test contract", ContractStatus: ContractStatusDraft, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f"},
+				{Name: "complete", Status: StatusComplete, Contract: "complete contract", ContractStatus: ContractStatusValidated, SliceSize: SliceSizeSmall, TrustClass: []string{"system"}, Fixture: "f", TestCommands: []string{"go test ./complete"}},
 			}},
 		}},
 	}}
@@ -188,11 +189,33 @@ func TestRenderNextSlicesOrdersUnblockedP0ThenActiveAndSkipsBlockedUmbrella(t *t
 	if active < 0 || p0 < 0 || planned < 0 {
 		t.Fatalf("next slices missing expected rows:\n%s", got)
 	}
-	if strings.Contains(got, "blocked contract") || strings.Contains(got, "umbrella contract") || strings.Contains(got, "complete contract") {
-		t.Fatalf("next slices included blocked, umbrella, or complete row:\n%s", got)
+	if strings.Contains(got, "blocked contract") || strings.Contains(got, "umbrella contract") || strings.Contains(got, "missing test contract") || strings.Contains(got, "complete contract") {
+		t.Fatalf("next slices included blocked, umbrella, missing-test, or complete row:\n%s", got)
 	}
 	if !(p0 < active && active < planned) {
 		t.Fatalf("next slices order wrong; active=%d p0=%d planned=%d:\n%s", active, p0, planned, got)
+	}
+}
+
+func TestRenderNextSlicesAllowsExplicitNoTestRequiredReason(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"1": {Name: "Phase 1", Subphases: map[string]Subphase{
+			"1.A": {Name: "Alpha", Items: []Item{{
+				Name:                 "docs-only",
+				Status:               StatusPlanned,
+				Contract:             "docs contract",
+				ContractStatus:       ContractStatusDraft,
+				SliceSize:            SliceSizeSmall,
+				TrustClass:           []string{"system"},
+				Fixture:              "docs/content/building-gormes",
+				NoTestRequiredReason: "docs-only row; post-promotion progress validate covers it",
+			}}},
+		}},
+	}}
+
+	got := RenderNextSlices(p, 10)
+	if !strings.Contains(got, "docs contract") {
+		t.Fatalf("next slices should include explicit no_test_required rows:\n%s", got)
 	}
 }
 
@@ -266,6 +289,36 @@ func TestRenderAgentQueueIncludesExecutionCardAndSkipsBlockedUmbrella(t *testing
 	}
 }
 
+func TestRenderAgentQueueIncludesNoTestRequiredReason(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"4": {Name: "Phase 4", Subphases: map[string]Subphase{
+			"4.A": {Name: "Providers", Items: []Item{{
+				Name:                 "Docs row",
+				Status:               StatusPlanned,
+				Contract:             "Docs-only contract",
+				ContractStatus:       ContractStatusDraft,
+				SliceSize:            SliceSizeSmall,
+				ExecutionOwner:       ExecutionOwnerDocs,
+				ReadyWhen:            []string{"copy source exists"},
+				WriteScope:           []string{"docs/content/building-gormes/"},
+				NoTestRequiredReason: "docs-only copy update; progress validate is enough",
+				DoneSignal:           []string{"docs mention the behavior"},
+			}}},
+		}},
+	}}
+
+	got := RenderAgentQueue(p, 10)
+	for _, want := range []string{
+		"## 1. Docs row",
+		"- Test commands: -",
+		"- No test required: docs-only copy update; progress validate is enough",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("agent queue missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestRenderBlockedSlices(t *testing.T) {
 	p := &Progress{Phases: map[string]Phase{
 		"3": {Name: "Phase 3", Subphases: map[string]Subphase{
@@ -323,30 +376,30 @@ func TestRenderUmbrellaCleanup(t *testing.T) {
 
 func TestRenderBuilderLoopHandoff(t *testing.T) {
 	p := &Progress{Meta: Meta{BuilderLoop: BuilderLoopMeta{
-		Entrypoint:      "scripts/gormes-auto-codexu-orchestrator.sh",
-		Plan:            "docs/superpowers/plans/plan.md",
+		Entrypoint:      "docs/development-skills/gormes-skill-manager/SKILL.md",
+		Plan:            "docs/content/building-gormes/architecture_plan/completion-plan.md",
 		AgentQueue:      "docs/content/building-gormes/builder-loop/agent-queue.md",
 		ProgressSchema:  "docs/content/building-gormes/builder-loop/progress-schema.md",
 		CandidateSource: "docs/content/building-gormes/architecture_plan/progress.json",
-		UnitTest:        "go test ./internal/builderloop ./cmd/builder-loop -count=1",
+		UnitTest:        "go test ./internal/progress -count=1",
 		CandidatePolicy: []string{"Skip blocked rows.", "Skip umbrella rows."},
 	}}}
 
 	got := RenderBuilderLoopHandoff(p)
 	for _, want := range []string{
 		"## Control Plane",
-		"- Entrypoint: `scripts/gormes-auto-codexu-orchestrator.sh`",
-		"- Plan: `docs/superpowers/plans/plan.md`",
+		"- Entrypoint: `docs/development-skills/gormes-skill-manager/SKILL.md`",
+		"- Plan: `docs/content/building-gormes/architecture_plan/completion-plan.md`",
 		"- Candidate source: `docs/content/building-gormes/architecture_plan/progress.json`",
 		"- Agent queue: `docs/content/building-gormes/builder-loop/agent-queue.md`",
 		"- Progress schema: `docs/content/building-gormes/builder-loop/progress-schema.md`",
-		"- Unit tests: `go test ./internal/builderloop ./cmd/builder-loop -count=1`",
+		"- Unit tests: `go test ./internal/progress -count=1`",
 		"## Candidate Policy",
 		"- Skip blocked rows.",
 		"- Skip umbrella rows.",
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("autoloop handoff missing %q:\n%s", want, got)
+			t.Fatalf("skill handoff missing %q:\n%s", want, got)
 		}
 	}
 }
@@ -361,6 +414,7 @@ func TestRenderProgressSchema(t *testing.T) {
 		"`ready_when`",
 		"`write_scope`",
 		"`test_commands`",
+		"`no_test_required`",
 		"`done_signal`",
 		"## Planning Metrics",
 		"Progress is measured from derived status counts",
@@ -371,9 +425,14 @@ func TestRenderProgressSchema(t *testing.T) {
 		"`docs/content/building-gormes/builder-loop/agent-queue.md`",
 		"`docs/content/building-gormes/builder-loop/blocked-slices.md`",
 		"`docs/content/building-gormes/builder-loop/umbrella-cleanup.md`",
+		"Files, directories, or packages a builder skill may edit",
+		"Required for skill-builder selection",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("progress schema missing %q:\n%s", want, got)
 		}
+	}
+	if strings.Contains(got, "autonomous worker selection") {
+		t.Fatalf("progress schema still uses loop-era worker wording:\n%s", got)
 	}
 }

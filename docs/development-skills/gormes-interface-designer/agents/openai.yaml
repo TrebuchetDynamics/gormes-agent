@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Interface Designer"
+  short_description: "Design deep Go interfaces for Gormes subsystems."
+  default_prompt: "Use the Gormes interface designer skill to compare API/package shapes before implementing a Gormes subsystem."

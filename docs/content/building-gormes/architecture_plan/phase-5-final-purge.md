@@ -9,6 +9,13 @@ weight: 60
 
 **Deliverable:** Python tool scripts ported to Go or WASM. Python disappears entirely from the runtime path.
 
+**Completion lanes:** Phase 5 spans [Lane 3 — Tool Surface, Security, And Skills](../lane-roadmap/#lane-3--tool-surface-security-and-skills),
+[Lane 4 — Gateway, Channels, Cron, And Delivery](../lane-roadmap/#lane-4--gateway-channels-cron-and-delivery),
+and [Lane 5 — CLI, API, TUI, Packaging, And Release](../lane-roadmap/#lane-5--cli-api-tui-packaging-and-release).
+The phase is not "port every handler first." Descriptor, schema,
+availability, trust, audit, and doctor contracts must land before broad tool
+or CLI handler ports.
+
 Phase 5 is when Python disappears entirely from the runtime path. Each sub-phase is a separable spec.
 
 ## Phase 5 Sub-phase Outline

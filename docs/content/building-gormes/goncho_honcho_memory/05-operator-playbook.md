@@ -257,4 +257,4 @@ Before changing Goncho memory behavior:
 5. Update `progress.json` when a row becomes more specific or a new row is
    needed.
 6. Regenerate progress outputs if `progress.json` changes.
-7. Run the packet's tests plus `go run ./cmd/builder-loop progress validate`.
+7. Run the packet's tests plus `go run ./cmd/progress validate`.

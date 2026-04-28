@@ -13,6 +13,12 @@ The hybrid is **temporary**. The long-term state is 100% Go. During Phases 1–4
 
 **Deliverable:** Tactical bridge: Go TUI over Python's `api_server` HTTP+SSE boundary.
 
+**Completion lane:** Phase 1 now belongs to [Lane 0 — Control Plane Discipline](../lane-roadmap/#lane-0--control-plane-discipline)
+and [Lane 5 — CLI, API, TUI, Packaging, And Release](../lane-roadmap/#lane-5--cli-api-tui-packaging-and-release).
+Future Phase 1 work should be maintenance, native-TUI divergence evidence, or
+planner-builder reliability only. Do not reopen the Python bridge as product
+scope; the completion plan moves Python removal to Phases 4 and 5.
+
 ## What shipped
 
 - Bubble Tea TUI shell

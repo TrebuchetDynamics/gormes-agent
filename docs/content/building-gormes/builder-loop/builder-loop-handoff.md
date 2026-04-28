@@ -1,50 +1,89 @@
 ---
-title: "Builder Loop Handoff"
+title: "Skill Builder Handoff"
 weight: 10
 aliases:
   - /building-gormes/autoloop-handoff/
   - /building-gormes/autoloop/autoloop-handoff/
 ---
 
-# Builder Loop Handoff
+# Skill Builder Handoff
 
 This page is generated from `meta.builder_loop` in the canonical progress
-file: `docs/content/building-gormes/architecture_plan/progress.json`.
+file. The field name is historical; the active workflow is skill-driven.
 
-It keeps shared unattended-loop facts in one place so autonomous workers do
-not guess the entrypoint, plan, candidate source, generated docs, or
-selection policy from scattered prose. Row-specific execution facts stay in
+It keeps shared skill handoff facts in one place so agents do not guess the
+entrypoint, plan, candidate source, generated docs, or selection policy from
+scattered prose. Row-specific execution facts stay in
 [Agent Queue](../agent-queue/) and canonical progress rows.
 
-The `builder-loop` command is the executor side of the
-Planner-Builder Loop architecture (see `AGENTS.md` at the repo root): it selects work from
-`progress.json`, uses the generated building-gormes pages as the
-operator-facing handoff, and passes selected row metadata into worker
-prompts so the agent loop can develop the full `gormes-agent` one phase
-slice at a time. Do not maintain a parallel queue outside this docs tree.
+`gormes-builder` and `gormes-tdd-slice` replace the deleted builder-loop
+command. They select work from `progress.json`, use the
+generated building-gormes pages as the operator-facing handoff, and carry
+selected row metadata into the implementation pass. Do not maintain a parallel
+queue outside this docs tree.
+
+## Skill-Routed Handoff
+
+Before a worker starts, the pass must route through repo-local skills:
+
+1. Use `gormes-builder` to select and restate the row.
+2. Use `gormes-tdd-slice` for the red-green-refactor loop.
+3. If the row is vague, stop and send it back through `gormes-planner`.
+4. If upstream parity is unclear, stop and use `gormes-parity-auditor`.
+5. If the package/API shape is unclear, stop and use
+   `gormes-interface-designer`.
+
+This is not optional process overhead. The skill route is how Gormes avoids
+token-expensive planner drift and keeps every implementation pass tied to the
+Hermes-in-Go completion plan.
+
+## Row Selection Contract
+
+A row is ready for a builder skill when all are true:
+
+- it is not `complete`;
+- it is not `slice_size: umbrella`;
+- all `blocked_by` entries are satisfied or irrelevant to the slice;
+- `ready_when` names locally checkable prerequisites;
+- `write_scope` names concrete files, directories, or packages;
+- `test_commands` exists, or `no_test_required` explains the rare exception;
+- `acceptance` and `done_signal` describe observable behavior.
+
+If any condition is false, use `gormes-planner` to repair the row before
+implementation.
+
+## Worker Definition Of Done
+
+A worker pass is complete only when:
+
+- the selected row's public behavior is implemented;
+- row-local `test_commands` pass;
+- focused package tests for touched code pass;
+- progress validation still passes;
+- docs/web surfaces are updated when public behavior changed;
+- the final report names the done signal and any follow-up row.
 
 <!-- PROGRESS:START kind=builder-loop-handoff -->
 ## Control Plane
 
-- Entrypoint: `scripts/gormes-auto-codexu-orchestrator.sh`
-- Plan: `docs/superpowers/plans/2026-04-24-orchestrator-oiling-release-1-plan.md`
+- Entrypoint: `docs/development-skills/gormes-skill-manager/SKILL.md`
+- Plan: `docs/content/building-gormes/architecture_plan/completion-plan.md`
 - Candidate source: `docs/content/building-gormes/architecture_plan/progress.json`
 - Agent queue: `docs/content/building-gormes/builder-loop/agent-queue.md`
 - Progress schema: `docs/content/building-gormes/builder-loop/progress-schema.md`
-- Unit tests: `scripts/orchestrator/tests/run.sh unit`
+- Unit tests: `go test ./internal/progress -count=1`
 
 ## Candidate Policy
 
 - Skip rows with blocked_by until ready_when is satisfied.
 - Skip slice_size=umbrella rows until they are split.
-- Default cmd/builder-loop CLI runs cap eligible roadmap work at Phase 4 unless MAX_PHASE is explicitly overridden; the production service unit sets MAX_PHASE=0 so the planner-builder loop can keep advancing across phases.
-- MAX_AGENTS is a safety cap: if fewer metadata-ready rows are available, run fewer workers instead of selecting filler or random work.
-- Each worker runs in an isolated git worktree under RUN_ROOT/worktrees and promotion rejects committed paths outside the selected row's write_scope.
-- When git worktrees are available and MAX_AGENTS is greater than 1, cmd/builder-loop launches selected workers concurrently, then validates and promotes each branch through the same ledgered safety gates.
-- When PRE_PROMOTION_VERIFY_COMMANDS is configured, cmd/builder-loop verifies the worker branch before cherry-picking, repairs failures on that worker branch, and keeps main untouched until the gate passes.
-- After all promotions, cmd/builder-loop runs the mandatory post-promotion full-suite gate before emitting run_completed or health_updated.
-- On post-promotion gate failure, cmd/builder-loop starts one backend repair attempt by default, requires the checkout to be clean, reruns the suite, and records final health only if the gate passes.
-- Backend worker failures preserve captured stderr/stdout detail in the ledger so repair and planner loops can diagnose the real failure instead of only seeing backend_failed.
+- Use gormes-builder and gormes-tdd-slice for one row at a time; do not recreate the deleted builder-loop selector.
+- Use gormes-planner to split vague rows before implementation.
+- A builder pass must restate the row contract, write_scope, test_commands, acceptance, and done_signal before editing.
+- Run row-local tests first, then focused package tests, then go run ./cmd/progress validate.
+- Update progress evidence only for the row being built.
+- If validation fails from stale loop assumptions, fix the docs or progress row instead of invoking old loop binaries.
+- Canonical skill files live in docs/development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.
 - Prefer contract rows with write_scope, test_commands, and done_signal.
-- Inject selected progress metadata into the worker prompt instead of asking workers to rescan the whole roadmap.
+- Do not create side queues; missing work becomes a progress.json row.
 <!-- PROGRESS:END -->

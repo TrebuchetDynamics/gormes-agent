@@ -177,6 +177,11 @@ type Config struct {
 	// intake and dispatch a focused backend repair agent when git conflicts
 	// block planning. Sourced from PLANNER_GIT_REPAIR; default true.
 	GitRepairEnabled bool
+	// AllowDirtyRuntimePreflight lets controlled debugging runs proceed when
+	// cmd/ or internal/ already contain dirty files. The planner still snapshots
+	// the current runtime tree and rejects any new runtime edits made by planner
+	// output. Sourced from PLANNER_ALLOW_DIRTY_RUNTIME; default false.
+	AllowDirtyRuntimePreflight bool
 }
 
 // EnvLookup mirrors os.LookupEnv: cmd/ binaries pass os.LookupEnv;
@@ -206,33 +211,34 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 
 	parent := filepath.Dir(repoRoot)
 	cfg := Config{
-		RepoRoot:               repoRoot,
-		ProgressJSON:           filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
-		RunRoot:                defaultPlannerLoopRunRoot(repoRoot),
-		AutoloopRunRoot:        defaultBuilderLoopRunRootFromPlanner(repoRoot),
-		Backend:                "codexu",
-		Mode:                   "safe",
-		HermesDir:              filepath.Join(parent, "hermes-agent"),
-		GBrainDir:              filepath.Join(parent, "gbrain"),
-		HonchoDir:              filepath.Join(parent, "honcho"),
-		HermesRepoURL:          "https://github.com/NousResearch/hermes-agent.git",
-		GBrainRepoURL:          "https://github.com/garrytan/gbrain.git",
-		HonchoRepoURL:          "https://github.com/plastic-labs/honcho",
-		Validate:               true,
-		SyncRepos:              true,
-		PlannerQuarantineLimit: 5,
-		PlannerTriggersPath:    defaultPlannerTriggersPathFromPlanner(repoRoot),
-		MaxRetries:             DefaultMaxRetries,
-		BackendTimeout:         20 * time.Minute,
-		MergeOpenPullRequests:  true,
-		PRIntakeEmptyBackoff:   5 * time.Minute,
-		PRConflictAction:       builderloop.PRConflictActionClose,
-		EvaluationWindow:       DefaultEvaluationWindow,
-		EscalationThreshold:    DefaultEscalationThreshold,
-		GormesOriginalPaths:    nil, // ScanImplementation falls back to DefaultGormesOriginalPaths
-		ImplLookback:           24 * time.Hour,
-		TriggerReason:          "",
-		GitRepairEnabled:       true,
+		RepoRoot:                   repoRoot,
+		ProgressJSON:               filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		RunRoot:                    defaultPlannerLoopRunRoot(repoRoot),
+		AutoloopRunRoot:            defaultBuilderLoopRunRootFromPlanner(repoRoot),
+		Backend:                    "codexu",
+		Mode:                       "safe",
+		HermesDir:                  filepath.Join(parent, "hermes-agent"),
+		GBrainDir:                  filepath.Join(parent, "gbrain"),
+		HonchoDir:                  filepath.Join(parent, "honcho"),
+		HermesRepoURL:              "https://github.com/NousResearch/hermes-agent.git",
+		GBrainRepoURL:              "https://github.com/garrytan/gbrain.git",
+		HonchoRepoURL:              "https://github.com/plastic-labs/honcho",
+		Validate:                   true,
+		SyncRepos:                  true,
+		PlannerQuarantineLimit:     5,
+		PlannerTriggersPath:        defaultPlannerTriggersPathFromPlanner(repoRoot),
+		MaxRetries:                 DefaultMaxRetries,
+		BackendTimeout:             20 * time.Minute,
+		MergeOpenPullRequests:      true,
+		PRIntakeEmptyBackoff:       5 * time.Minute,
+		PRConflictAction:           builderloop.PRConflictActionClose,
+		EvaluationWindow:           DefaultEvaluationWindow,
+		EscalationThreshold:        DefaultEscalationThreshold,
+		GormesOriginalPaths:        nil, // ScanImplementation falls back to DefaultGormesOriginalPaths
+		ImplLookback:               24 * time.Hour,
+		TriggerReason:              "",
+		GitRepairEnabled:           true,
+		AllowDirtyRuntimePreflight: false,
 	}
 
 	if value := envValue(lookup, "PROGRESS_JSON"); value != "" {
@@ -379,6 +385,13 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 			return Config{}, fmt.Errorf("PLANNER_GIT_REPAIR: %w", err)
 		}
 		cfg.GitRepairEnabled = b
+	}
+	if value := envValue(lookup, "PLANNER_ALLOW_DIRTY_RUNTIME"); value != "" {
+		b, err := parseBoolEnv(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("PLANNER_ALLOW_DIRTY_RUNTIME: %w", err)
+		}
+		cfg.AllowDirtyRuntimePreflight = b
 	}
 
 	// TriggersCursorPath derives from the (possibly env-overridden) RunRoot

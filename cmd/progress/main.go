@@ -1,9 +1,6 @@
 // Command progress is a thin wrapper around internal/progressctl: it
 // validates the canonical progress.json and regenerates the markered docs
-// the planner-builder loop reads from. Operators can call it directly via
-// `go run ./cmd/progress validate` instead of the longer
-// `go run ./cmd/builder-loop progress validate`; both routes share the
-// same code.
+// the skill-driven planning/building workflow reads from.
 package main
 
 import (

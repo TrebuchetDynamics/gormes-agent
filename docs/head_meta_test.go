@@ -2,7 +2,6 @@ package docs_test
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,11 +14,7 @@ import (
 // tab icons or social previews.
 func TestHugoBuild_HeadMetaAndFavicons(t *testing.T) {
 	tmp := t.TempDir()
-	cmd := exec.Command("hugo", "--minify", "-d", tmp)
-	cmd.Dir = "."
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("hugo build failed: %v\noutput:\n%s", err, string(out))
-	}
+	runDocsHugoBuild(t, tmp)
 
 	home, err := os.ReadFile(filepath.Join(tmp, "index.html"))
 	if err != nil {

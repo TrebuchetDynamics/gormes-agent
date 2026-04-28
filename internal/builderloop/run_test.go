@@ -16,13 +16,13 @@ import (
 )
 
 func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 					"subphases": {
 					"12.A": {
 							"items": [
-								{"name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft"}
+								{"name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft", "no_test_required": "run-loop fixture"}
 							]
 						}
 					}
@@ -46,14 +46,14 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
 
-	wantSelected := []Candidate{
-		{PhaseID: "12", SubphaseID: "12.A", ItemName: "planned run candidate", Status: "planned", Contract: "run contract", ContractStatus: "draft"},
-	}
 	if summary.Candidates != 1 {
 		t.Fatalf("Candidates = %d, want 1", summary.Candidates)
 	}
-	if !reflect.DeepEqual(summary.Selected, wantSelected) {
-		t.Fatalf("Selected = %#v, want %#v", summary.Selected, wantSelected)
+	if got, want := candidateNames(summary.Selected), []string{"planned run candidate"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Selected names = %#v, want %#v", got, want)
+	}
+	if got := summary.Selected[0].NoTestRequired; got == "" {
+		t.Fatalf("Selected[0].NoTestRequired is empty, want test proof reason")
 	}
 	if len(runner.Commands) != 0 {
 		t.Fatalf("Commands length = %d, want 0", len(runner.Commands))
@@ -62,7 +62,7 @@ func TestDryRunSelectsCandidatesWithoutRunningBackend(t *testing.T) {
 
 func TestRunOnceRefusesToStartWhilePlannerRunLockHeld(t *testing.T) {
 	dir := t.TempDir()
-	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	progressPath := writeValidProgressJSON(t, `{"phases": {}}`)
 	runRoot := filepath.Join(dir, "builder-loop")
 	plannerRoot := filepath.Join(dir, "planner-loop")
 	if err := os.MkdirAll(plannerRoot, 0o755); err != nil {
@@ -108,6 +108,82 @@ func TestRunOnceRefusesToStartWhilePlannerRunLockHeld(t *testing.T) {
 	}
 }
 
+func TestRunOnceBlocksInvalidProgressBeforeStartingRun(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"12": {
+				"subphases": {
+					"12.A": {
+						"items": [
+							{"name": "invalid row", "status": "planned", "contract": "missing metadata", "contract_status": "draft"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+	runRoot := t.TempDir()
+	runner := &FakeRunner{}
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     t.TempDir(),
+			ProgressJSON: progressPath,
+			RunRoot:      runRoot,
+			Backend:      "codexu",
+			Mode:         "safe",
+			MaxAgents:    1,
+		},
+		Runner: runner,
+	})
+	if !errors.Is(err, ErrInvalidProgress) {
+		t.Fatalf("RunOnce() error = %v, want ErrInvalidProgress", err)
+	}
+	if len(runner.Commands) != 0 {
+		t.Fatalf("Commands length = %d, want 0", len(runner.Commands))
+	}
+
+	events := readLedgerEvents(t, filepath.Join(runRoot, "state", "runs.jsonl"))
+	got := ledgerEventPairsExcludingJobs(events)
+	want := []string{"run_blocked:invalid_progress"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ledger events = %#v, want %#v", got, want)
+	}
+	if !strings.Contains(events[0].Detail, "meta.version") {
+		t.Fatalf("ledger detail = %q, want validation detail", events[0].Detail)
+	}
+}
+
+func TestRunOnceDryRunRejectsInvalidProgress(t *testing.T) {
+	progressPath := writeProgressJSON(t, `{
+		"phases": {
+			"12": {
+				"subphases": {
+					"12.A": {
+						"items": [
+							{"name": "invalid row", "status": "planned", "contract": "missing metadata", "contract_status": "draft"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+
+	_, err := RunOnce(context.Background(), RunOptions{
+		Config: Config{
+			RepoRoot:     t.TempDir(),
+			ProgressJSON: progressPath,
+			Backend:      "codexu",
+			Mode:         "safe",
+			MaxAgents:    1,
+		},
+		DryRun: true,
+	})
+	if !errors.Is(err, ErrInvalidProgress) {
+		t.Fatalf("RunOnce() dry-run error = %v, want ErrInvalidProgress", err)
+	}
+}
+
 func TestRunOnceRefusesBehindUpstreamBranch(t *testing.T) {
 	dir := t.TempDir()
 	origin := filepath.Join(dir, "origin.git")
@@ -138,7 +214,7 @@ func TestRunOnceRefusesBehindUpstreamBranch(t *testing.T) {
 	runGitCommand(t, seedRoot, "push")
 	runGitCommand(t, repoRoot, "fetch", "origin")
 
-	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	progressPath := writeValidProgressJSON(t, `{"phases": {}}`)
 	runRoot := filepath.Join(dir, "builder-loop")
 	plannerRoot := filepath.Join(dir, "planner-loop")
 	_, err := RunOnce(context.Background(), RunOptions{
@@ -178,7 +254,7 @@ func TestRunOnceRefusesBehindUpstreamBranch(t *testing.T) {
 func TestRunOnceMergesOpenPullRequestsBeforeSelectingWork(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	progressPath := writeValidProgressJSON(t, `{"phases": {}}`)
 	runRoot := t.TempDir()
 	runner := &FakeRunner{Results: []Result{
 		{Stdout: "git@github.com:TrebuchetDynamics/gormes-agent.git\n"},
@@ -228,7 +304,7 @@ func TestRunOnceMergesOpenPullRequestsBeforeSelectingWork(t *testing.T) {
 func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	progressPath := writeValidProgressJSON(t, `{"phases": {}}`)
 	runRoot := t.TempDir()
 	lastEmpty := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
 	if err := AppendLedgerEvent(filepath.Join(runRoot, "state", "runs.jsonl"), LedgerEvent{
@@ -275,7 +351,7 @@ func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
 }
 
 func TestRunOnceUsesNanosecondSuffixForRapidRunIDs(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	progressPath := writeValidProgressJSON(t, `{"phases": {}}`)
 	config := Config{
 		RepoRoot:     t.TempDir(),
 		ProgressJSON: progressPath,
@@ -313,7 +389,7 @@ func TestRunOnceUsesNanosecondSuffixForRapidRunIDs(t *testing.T) {
 }
 
 func TestRunOncePreservesSecondPrecisionRunIDWhenClockHasNoNanoseconds(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	progressPath := writeValidProgressJSON(t, `{"phases": {}}`)
 
 	summary, err := RunOnce(context.Background(), RunOptions{
 		Config: Config{
@@ -336,13 +412,13 @@ func TestRunOncePreservesSecondPrecisionRunIDWhenClockHasNoNanoseconds(t *testin
 }
 
 func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"3": {
 					"subphases": {
 					"3.E": {
 							"items": [
-								{"name": "phase 3 candidate", "status": "planned", "contract": "phase 3 contract", "contract_status": "draft"}
+								{"name": "phase 3 candidate", "status": "planned", "contract": "phase 3 contract", "contract_status": "draft", "no_test_required": "max phase fixture"}
 							]
 						}
 					}
@@ -351,7 +427,7 @@ func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
 					"subphases": {
 					"4.A": {
 							"items": [
-								{"name": "phase 4 active candidate", "status": "in_progress", "contract": "phase 4 contract"}
+								{"name": "phase 4 active candidate", "status": "in_progress", "contract": "phase 4 contract", "no_test_required": "max phase fixture"}
 							]
 						}
 					}
@@ -374,27 +450,24 @@ func TestDryRunSkipsCandidatesAboveConfiguredMaxPhase(t *testing.T) {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
 
-	wantSelected := []Candidate{
-		{PhaseID: "3", SubphaseID: "3.E", ItemName: "phase 3 candidate", Status: "planned", Contract: "phase 3 contract", ContractStatus: "draft"},
-	}
 	if summary.Candidates != 1 {
 		t.Fatalf("Candidates = %d, want 1", summary.Candidates)
 	}
-	if !reflect.DeepEqual(summary.Selected, wantSelected) {
-		t.Fatalf("Selected = %#v, want %#v", summary.Selected, wantSelected)
+	if got, want := candidateNames(summary.Selected), []string{"phase 3 candidate"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Selected names = %#v, want %#v", got, want)
 	}
 }
 
 func TestRunOnceExecutesOncePerSelectedCandidate(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 							"items": [
-								{"name": "active candidate", "status": "in_progress", "contract": "active contract"},
-								{"name": "planned candidate", "status": "planned", "contract": "planned contract", "contract_status": "draft"},
-								{"name": "deferred candidate", "status": "deferred"}
+								{"name": "active candidate", "status": "in_progress", "contract": "active contract", "no_test_required": "run-loop fixture"},
+								{"name": "planned candidate", "status": "planned", "contract": "planned contract", "contract_status": "draft", "no_test_required": "run-loop fixture"},
+								{"name": "deferred candidate", "status": "planned"}
 							]
 						}
 				}
@@ -427,51 +500,35 @@ func TestRunOnceExecutesOncePerSelectedCandidate(t *testing.T) {
 		t.Fatalf("Selected length = %d, want %d", got, want)
 	}
 
-	wantCommands := []Command{
-		{
-			Name: "opencode",
-			Args: []string{"run", BuildWorkerPrompt(Candidate{
-				PhaseID:    "12",
-				SubphaseID: "12.A",
-				ItemName:   "active candidate",
-				Status:     "in_progress",
-				Contract:   "active contract",
-			})},
-			Dir: repoRoot,
-		},
-		{
-			Name: "opencode",
-			Args: []string{"run", BuildWorkerPrompt(Candidate{
-				PhaseID:        "12",
-				SubphaseID:     "12.A",
-				ItemName:       "planned candidate",
-				Status:         "planned",
-				Contract:       "planned contract",
-				ContractStatus: "draft",
-			})},
-			Dir: repoRoot,
-		},
+	if len(runner.Commands) != 2 {
+		t.Fatalf("Commands = %#v, want two worker commands", runner.Commands)
 	}
-	if !reflect.DeepEqual(runner.Commands, wantCommands) {
-		t.Fatalf("Commands = %#v, want %#v", runner.Commands, wantCommands)
+	for i, wantName := range []string{"active candidate", "planned candidate"} {
+		command := runner.Commands[i]
+		if command.Name != "opencode" || command.Dir != repoRoot {
+			t.Fatalf("command[%d] = %#v, want opencode in repo root", i, command)
+		}
+		if len(command.Args) != 2 || command.Args[0] != "run" || !strings.Contains(command.Args[1], wantName) {
+			t.Fatalf("command[%d].Args = %#v, want prompt for %q", i, command.Args, wantName)
+		}
 	}
 }
 
 func TestRunOnceLaunchesGitWorkersConcurrently(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "first parallel candidate", "status": "planned", "contract": "first contract", "contract_status": "draft"}
+							{"name": "first parallel candidate", "status": "planned", "contract": "first contract", "contract_status": "draft", "no_test_required": "parallel fixture"}
 						]
 					},
 					"12.B": {
 						"items": [
-							{"name": "second parallel candidate", "status": "planned", "contract": "second contract", "contract_status": "draft"}
+							{"name": "second parallel candidate", "status": "planned", "contract": "second contract", "contract_status": "draft", "no_test_required": "parallel fixture"}
 						]
 					}
 				}
@@ -540,7 +597,7 @@ func TestRunOnceLaunchesGitWorkersConcurrently(t *testing.T) {
 }
 
 func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
@@ -663,6 +720,27 @@ func TestBuildWorkerPromptRendersDependencyMetadata(t *testing.T) {
 	}
 }
 
+func TestBuildWorkerPromptRendersNoTestRequiredReason(t *testing.T) {
+	prompt := BuildWorkerPrompt(Candidate{
+		PhaseID:        "12",
+		SubphaseID:     "12.A",
+		ItemName:       "docs-only candidate",
+		Status:         "planned",
+		NoTestRequired: "docs-only row; progress validate covers it",
+	})
+
+	for _, want := range []string{
+		"Required test commands:",
+		"- (none declared)",
+		"No test required: docs-only row; progress validate covers it",
+		"if the row has no_test_required, report the concrete non-command evidence you checked",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt = %q, want %q", prompt, want)
+		}
+	}
+}
+
 func TestBuildWorkerPromptRendersEmptyNote(t *testing.T) {
 	prompt := BuildWorkerPrompt(Candidate{
 		PhaseID:    "12",
@@ -677,13 +755,13 @@ func TestBuildWorkerPromptRendersEmptyNote(t *testing.T) {
 }
 
 func TestRunOnceReturnsBackendRunnerError(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 							"items": [
-								{"name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft"}
+								{"name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft", "no_test_required": "backend failure fixture"}
 							]
 						}
 					}
@@ -711,13 +789,13 @@ func TestRunOnceReturnsBackendRunnerError(t *testing.T) {
 }
 
 func TestRunOnceIncludesBackendStderrInError(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 							"items": [
-								{"name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft"}
+								{"name": "planned run candidate", "status": "planned", "contract": "run contract", "contract_status": "draft", "no_test_required": "backend stderr fixture"}
 							]
 						}
 					}
@@ -748,13 +826,13 @@ func TestRunOnceIncludesBackendStderrInError(t *testing.T) {
 }
 
 func TestRunOnceWritesLedgerEvents(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "ledger candidate", "status": "planned", "contract": "ledger contract", "contract_status": "draft"}
+							{"name": "ledger candidate", "status": "planned", "contract": "ledger contract", "contract_status": "draft", "no_test_required": "ledger fixture"}
 						]
 					}
 				}
@@ -794,18 +872,18 @@ func TestRunOnceWritesLedgerEvents(t *testing.T) {
 }
 
 func TestRunOnceRecordsSelfImprovementUserFeatureMix(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"5": {
 				"subphases": {
 					"5.A": {
 						"items": [
-							{"name": "builder loop checkpoint coalescing", "status": "planned", "contract": "loop contract", "contract_status": "draft", "write_scope": ["internal/builderloop/run.go"]}
+							{"name": "builder loop checkpoint coalescing", "status": "planned", "contract": "loop contract", "contract_status": "draft", "execution_owner": "orchestrator", "write_scope": ["internal/builderloop/run.go"], "no_test_required": "health mix fixture"}
 						]
 					},
 					"5.B": {
 						"items": [
-							{"name": "provider feature surface", "status": "planned", "contract": "provider contract", "contract_status": "draft", "write_scope": ["internal/hermes/client.go"]}
+							{"name": "provider feature surface", "status": "planned", "contract": "provider contract", "contract_status": "draft", "execution_owner": "provider", "write_scope": ["internal/hermes/client.go"], "no_test_required": "health mix fixture"}
 						]
 					}
 				}
@@ -849,13 +927,13 @@ func TestRunOnceRecordsSelfImprovementUserFeatureMix(t *testing.T) {
 }
 
 func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "failing ledger candidate", "status": "planned", "contract": "failing ledger contract", "contract_status": "draft"}
+							{"name": "failing ledger candidate", "status": "planned", "contract": "failing ledger contract", "contract_status": "draft", "no_test_required": "failure ledger fixture"}
 						]
 					}
 				}
@@ -901,13 +979,13 @@ func TestRunOnceWritesWorkerFailedLedgerEventBeforeReturningBackendError(t *test
 }
 
 func TestRunOnceAppliesBackendTimeoutAndRecordsDeadlineDetail(t *testing.T) {
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "timeout candidate", "status": "planned", "contract": "timeout contract", "contract_status": "draft"}
+							{"name": "timeout candidate", "status": "planned", "contract": "timeout contract", "contract_status": "draft", "no_test_required": "timeout fixture"}
 						]
 					}
 				}
@@ -961,7 +1039,9 @@ func TestRunBackendWorkersAppliesBackendTimeout(t *testing.T) {
 		{ID: 2, RepoRoot: t.TempDir(), Candidate: Candidate{ItemName: "worker two"}},
 	}
 
-	runBackendWorkers(context.Background(), Config{BackendTimeout: time.Minute}, runner, "run-timeout", []string{"opencode", "run"}, workers)
+	runBackendWorkers(context.Background(), Config{BackendTimeout: time.Minute}, runner, "run-timeout", func() ([]string, error) {
+		return []string{"opencode", "run"}, nil
+	}, workers)
 
 	deadlines := runner.deadlines()
 	if len(deadlines) != 2 {
@@ -983,13 +1063,13 @@ func TestRunBackendWorkersAppliesBackendTimeout(t *testing.T) {
 func TestRunOnceRefusesDirtyRepositoryBeforeWorkerLaunch(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "dirty preflight", "status": "planned", "contract": "dirty contract", "contract_status": "draft"}
+							{"name": "dirty preflight", "status": "planned", "contract": "dirty contract", "contract_status": "draft", "no_test_required": "dirty preflight fixture"}
 						]
 					}
 				}
@@ -1037,7 +1117,7 @@ func TestRunOnceRefusesDirtyRepositoryBeforeWorkerLaunch(t *testing.T) {
 func TestRunOnceAutoCommitsDirtyRepositoryBeforePreflight(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{"phases": {}}`)
+	progressPath := writeValidProgressJSON(t, `{"phases": {}}`)
 	if err := os.WriteFile(filepath.Join(repoRoot, "conflict.txt"), []byte("base changed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1168,13 +1248,13 @@ func TestCheckpointDirtyWorktreeDoesNotAmendPublishedCheckpointCommit(t *testing
 func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "dirty worker", "status": "planned", "contract": "dirty worker contract", "contract_status": "draft"}
+							{"name": "dirty worker", "status": "planned", "contract": "dirty worker contract", "contract_status": "draft", "no_test_required": "dirty worker fixture"}
 						]
 					}
 				}
@@ -1243,7 +1323,7 @@ func TestRunOnceFailsWhenWorkerLeavesDirtyWorktree(t *testing.T) {
 func TestRunOnceRunsWorkerInIsolatedGitWorktree(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
@@ -1254,7 +1334,8 @@ func TestRunOnceRunsWorkerInIsolatedGitWorktree(t *testing.T) {
 								"status": "planned",
 								"contract": "isolation contract",
 								"contract_status": "draft",
-								"write_scope": ["internal/channels/whatsapp/"]
+								"write_scope": ["internal/channels/whatsapp/"],
+								"no_test_required": "worktree isolation fixture"
 							}
 						]
 					}
@@ -1319,7 +1400,7 @@ func TestRunOnceRunsWorkerInIsolatedGitWorktree(t *testing.T) {
 func TestRunOnceFailsWhenWorkerCommitsOutsideWriteScope(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
@@ -1330,7 +1411,8 @@ func TestRunOnceFailsWhenWorkerCommitsOutsideWriteScope(t *testing.T) {
 								"status": "planned",
 								"contract": "scope contract",
 								"contract_status": "draft",
-								"write_scope": ["allowed/"]
+								"write_scope": ["allowed/"],
+								"no_test_required": "write-scope fixture"
 							}
 						]
 					}
@@ -1394,13 +1476,13 @@ func TestRunOnceFailsWhenWorkerCommitsOutsideWriteScope(t *testing.T) {
 func TestRunOnceFailsWhenWorkerLeavesWorkerBranch(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "branch escaping worker", "status": "planned", "contract": "branch contract", "contract_status": "draft"}
+							{"name": "branch escaping worker", "status": "planned", "contract": "branch contract", "contract_status": "draft", "no_test_required": "branch fixture"}
 						]
 					}
 				}
@@ -1448,13 +1530,13 @@ func TestRunOnceFailsWhenWorkerLeavesWorkerBranch(t *testing.T) {
 func TestRunOnceFailsWhenWorkerLeavesMergeConflicts(t *testing.T) {
 	repoRoot := t.TempDir()
 	initConflictingRepo(t, repoRoot)
-	progressPath := writeProgressJSON(t, `{
+	progressPath := writeValidProgressJSON(t, `{
 		"phases": {
 			"12": {
 				"subphases": {
 					"12.A": {
 						"items": [
-							{"name": "conflicting worker", "status": "planned", "contract": "conflict contract", "contract_status": "draft"}
+							{"name": "conflicting worker", "status": "planned", "contract": "conflict contract", "contract_status": "draft", "no_test_required": "conflict fixture"}
 						]
 					}
 				}

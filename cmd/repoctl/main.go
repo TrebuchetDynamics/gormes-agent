@@ -1,8 +1,6 @@
-// Command repoctl wraps the existing internal/repoctl package as a
-// standalone binary. The same verbs are still reachable via
-// `builder-loop repo …` for back-compat; this entry point exists so an
-// operator (or CI) can update repo metadata without dragging in the rest
-// of the builder-loop's surface or environment.
+// Command repoctl wraps the existing internal/repoctl package as a standalone
+// binary so operators and CI can update repo metadata without any autonomous
+// loop executable.
 package main
 
 import (

@@ -10,10 +10,9 @@ case "${1:-}" in
   status|tail|abort|cleanup|promote-commit|verify-gh-auth|--resume)
     exec "$LEGACY_ORCHESTRATOR" "$@"
     ;;
-  run|audit|digest|service)
-    exec go run ./cmd/builder-loop "$@"
-    ;;
   *)
-    exec go run ./cmd/builder-loop run "$@"
+    printf '%s\n' "gormes-auto-codexu-orchestrator: autonomous builder-loop command removed."
+    printf '%s\n' "Use repo-local skills for planning/building, go run ./cmd/progress for progress docs, and go run ./cmd/repoctl for repo metadata."
+    exit 2
     ;;
 esac

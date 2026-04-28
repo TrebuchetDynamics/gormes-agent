@@ -405,7 +405,8 @@ func TestLifecycle_PlannerSelfHealingFullLoop(t *testing.T) {
 }
 
 // writeLifecycleProgress seeds progress.json with two rows in subphase 2.B
-// using ContractStatus=draft so they pass agentQueueCandidate.
+// using ContractStatus=draft and no_test_required so they pass worker-readiness
+// gating while this fixture focuses on planner health transitions.
 func writeLifecycleProgress(t *testing.T, path string) {
 	t.Helper()
 	body := `{
@@ -417,8 +418,8 @@ func writeLifecycleProgress(t *testing.T, path string) {
         "2.B": {
           "name": "S",
           "items": [
-            {"name": "row-x", "status": "planned", "contract": "do x", "contract_status": "draft"},
-            {"name": "row-y", "status": "planned", "contract": "do y", "contract_status": "draft"}
+            {"name": "row-x", "status": "planned", "contract": "do x", "contract_status": "draft", "no_test_required": "planner lifecycle fixture"},
+            {"name": "row-y", "status": "planned", "contract": "do y", "contract_status": "draft", "no_test_required": "planner lifecycle fixture"}
           ]
         }
       }

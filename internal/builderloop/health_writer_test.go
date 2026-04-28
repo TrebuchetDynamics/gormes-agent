@@ -20,8 +20,8 @@ func writeBaseProgress(t *testing.T, path string) {
         "2.B": {
           "name": "S",
           "items": [
-            {"name": "row-1", "status": "planned", "contract": "do x"},
-            {"name": "row-2", "status": "planned", "contract": "do y"}
+            {"name": "row-1", "status": "planned", "contract": "do x", "no_test_required": "health fixture"},
+            {"name": "row-2", "status": "planned", "contract": "do y", "no_test_required": "health fixture"}
           ]
         }
       }

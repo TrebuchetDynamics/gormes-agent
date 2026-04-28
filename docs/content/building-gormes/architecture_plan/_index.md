@@ -15,36 +15,63 @@ weight: 20
 - [docs.gormes.ai](https://docs.gormes.ai/building-gormes/architecture_plan/) — This page
 - [Source code](https://github.com/TrebuchetDynamics/gormes-agent) — Implementation
 
-**Execution control plane:** `cmd/builder-loop` consumes this `progress.json` and
-the generated `docs/content/building-gormes/` pages to select and execute
-eligible phase work. The roadmap is not only status reporting; it is the
-machine-readable queue for developing the full `gormes-agent`.
+**Execution control plane:** repo-local Gormes skills consume this
+`progress.json` and the generated `docs/content/building-gormes/` pages to
+select and execute eligible work. The old loop command binaries are gone; the
+roadmap is still the machine-readable queue for developing the full
+`gormes-agent`.
+
+**Completion doctrine:** [Gormes Completion Plan](./completion-plan/) defines
+the non-negotiable finish line: Gormes is complete only when it is Hermes in Go,
+with Goncho as the Honcho-compatible Go port inside Gormes.
+
+**Operating model:** [Completion Lane Roadmap](./lane-roadmap/) maps phases to
+finish lanes and gates; [Agent Operating Model](./agent-operating-model/) tells
+agents how to run bounded parity, planner, builder, TDD, and interface-design
+passes.
+
+**Feature map:** [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/)
+maps upstream Hermes and Honcho feature families to Go packages, implementation
+strategy, proof gates, and `progress.json` anchors.
+
+**Completeness audit:** [Upstream Coverage Ledger](./upstream-coverage-ledger/)
+lists the upstream source classes that must be represented in the feature map,
+so a planner pass can tell whether Hermes/Honcho mapping is complete or has
+drifted.
 
 ## How To Read This Roadmap
 
 - The generated checklist below is rebuilt from `progress.json`; do not hand-edit
   content between `PROGRESS` markers.
+- Start with the [Completion Plan](./completion-plan/) when deciding what to
+  build next; then use the [Completion Lane Roadmap](./lane-roadmap/) for lane
+  gates and the [Agent Operating Model](./agent-operating-model/) for the
+  exact pass workflow.
+- Use [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/) when
+  mapping upstream capabilities or deciding where a feature belongs in Go.
+- Use [Upstream Coverage Ledger](./upstream-coverage-ledger/) to verify that no
+  feature-bearing Hermes/Honcho source class is unmapped.
 - Use the phase pages for design intent and boundaries, then use
   [Contract Readiness](../contract-readiness/) and [Agent Queue](../builder-loop/agent-queue/)
   for assignable work.
 - When a row is too broad for one agent, split it in `progress.json` first and
   let [Umbrella Cleanup](../builder-loop/umbrella-cleanup/) show the remaining inventory.
 - When a row is blocked, keep the unblock condition explicit so
-  [Blocked Slices](../builder-loop/blocked-slices/) stays useful to operators and autoloop.
+  [Blocked Slices](../builder-loop/blocked-slices/) stays useful to operators and agents.
 
 ---
 
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 37/74 subphases shipped · 22 in progress · 15 planned
+**Overall:** 36/77 subphases shipped · 25 in progress · 16 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 3/3 subphases |
-| Phase 2 — The Gateway | 🔨 | 16/20 subphases |
-| Phase 3 — The Black Box (Memory) | ✅ | 14/14 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 0/8 subphases |
+| Phase 1 — The Dashboard | ✅ | 4/4 subphases |
+| Phase 2 — The Gateway | 🔨 | 15/20 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 13/15 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 0/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -78,6 +105,13 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Watchdog dead-process vs slow-progress separation
 - [x] Builder-loop self-improvement vs user-feature ratio metric
 
+### 1.D — Skill-Driven Control Plane ✅
+
+- [x] Skill control-plane docs and Hugo navigation closeout
+- [x] Skill-manager selection matrix hardening
+- [x] Skill-pack coverage audit for Hermes-in-Go completion
+- [x] Canonical development-skills directory and loader symlinks
+
 ## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
@@ -102,13 +136,14 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] gormes gateway multi-channel entrypoint
 - [x] Discord
 
-### 2.B.3 — Slack on Shared Chassis ✅
+### 2.B.3 — Slack on Shared Chassis 🔨
 
 - [x] Slack Socket Mode adapter
 - [x] Thread routing + coalesced reply flow
 - [x] Slack CommandRegistry parser wiring
 - [x] Slack gateway.Channel adapter shim
 - [x] Slack config + cmd/gormes gateway registration
+- [ ] Slack env-token enabled-state preservation
 
 ### 2.B.4 — WhatsApp Adapter ✅
 
@@ -250,7 +285,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
 
-## Phase 3 — The Black Box (Memory) ✅
+## Phase 3 — The Black Box (Memory) 🔨
 
 *SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries*
 
@@ -338,7 +373,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Lineage-aware source-filtered search hits
 - [x] Operator-auditable search evidence
 
-### 3.F — Goncho Honcho Memory Parity ✅
+### 3.F — Goncho Honcho Memory Parity 🔨
 
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
@@ -352,6 +387,12 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Goncho streaming chat persistence contract
 - [x] Goncho configuration namespace
 - [x] Goncho dreaming scheduler contract
+- [ ] Goncho empty peer-card hint contract
+
+### 3.G — Goncho Drop-In Compatibility Closure ⏳
+
+- [ ] Goncho Honcho SDK compatibility e2e harness
+- [ ] Goncho memory integration into normal agent turn
 
 ## Phase 4 — The Brain Transplant 🔨
 
@@ -460,6 +501,13 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
+### 4.I — Native Agent Turn Closure 🔨
+
+- [ ] Python-free normal agent turn e2e harness
+- [ ] Provider-tool-memory golden transcript suite
+- [x] Hermes and Honcho feature parity map to Go implementation plan
+- [x] Upstream source coverage ledger for Hermes/Honcho mapping completeness
+
 ## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
@@ -519,6 +567,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
 - [x] Bundled Airtable productivity skill contract
+- [ ] Bundled TouchDesigner MCP skill catalog contract
 
 ### 5.G — MCP Integration ✅
 
@@ -665,6 +714,7 @@ machine-readable queue for developing the full `gormes-agent`.
 - [x] Native TUI /branch session fork + transcript target switch
 - [x] TUI running-agent placeholder surfaces interrupt + queued slash actions
 - [x] Native TUI conversation viewport tail helper
+- [ ] Native TUI queued-message edit helper
 - [ ] Native TUI renderConv viewport budget binding
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server

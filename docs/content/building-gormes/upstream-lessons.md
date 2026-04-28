@@ -6,6 +6,8 @@ weight: 25
 # Upstream Lessons
 
 Gormes does not copy Hermes or GBrain. It absorbs their durable contracts.
+The [Completion Plan](../architecture_plan/completion-plan/) is the delivery
+contract for turning those lessons into Hermes-in-Go parity.
 
 Hermes is the capability ledger for the agent runtime: provider routing,
 prompt assembly, tool continuations, gateway sessions, cron, memory providers,

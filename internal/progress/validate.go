@@ -211,12 +211,15 @@ func validateExecutionMetadata(phKey, spKey string, index int, it Item) []error 
 		if len(it.WriteScope) == 0 {
 			add("contract row missing write_scope")
 		}
-		if len(it.TestCommands) == 0 {
-			add("contract row missing test_commands")
+		if len(it.TestCommands) == 0 && strings.TrimSpace(it.NoTestRequiredReason) == "" {
+			add("contract row missing test_commands or no_test_required")
 		}
 		if len(it.DoneSignal) == 0 {
 			add("contract row missing done_signal")
 		}
+	}
+	if it.NoTestRequiredReason != "" && strings.TrimSpace(it.NoTestRequiredReason) == "" {
+		add("no_test_required is blank")
 	}
 	for _, list := range []struct {
 		field  string

@@ -53,6 +53,7 @@ type Candidate struct {
 	Acceptance     []string
 	WriteScope     []string
 	TestCommands   []string
+	NoTestRequired string
 	DoneSignal     []string
 	Note           string
 	// Health is the row's autoloop execution-history block, if any. Surfaced
@@ -200,6 +201,7 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 					Acceptance:     trimStringSlice(item.Acceptance),
 					WriteScope:     trimStringSlice(item.WriteScope),
 					TestCommands:   trimStringSlice(item.TestCommands),
+					NoTestRequired: strings.TrimSpace(item.NoTestRequired),
 					DoneSignal:     trimStringSlice(item.DoneSignal),
 					Note:           strings.TrimSpace(item.Note),
 				}
@@ -402,6 +404,7 @@ type progressItem struct {
 	Acceptance     []string `json:"acceptance"`
 	WriteScope     []string `json:"write_scope"`
 	TestCommands   []string `json:"test_commands"`
+	NoTestRequired string   `json:"no_test_required"`
 	DoneSignal     []string `json:"done_signal"`
 	Note           string   `json:"note"`
 	// Health mirrors progress.Item.Health so candidate selection can honor
@@ -420,11 +423,13 @@ type progressItem struct {
 // the same file.
 func (item progressItem) toProgressItem() progress.Item {
 	return progress.Item{
-		Contract:       item.Contract,
-		ContractStatus: progress.ContractStatus(item.ContractStatus),
-		BlockedBy:      append([]string(nil), item.BlockedBy...),
-		WriteScope:     append([]string(nil), item.WriteScope...),
-		Fixture:        item.Fixture,
+		Contract:             item.Contract,
+		ContractStatus:       progress.ContractStatus(item.ContractStatus),
+		BlockedBy:            append([]string(nil), item.BlockedBy...),
+		WriteScope:           append([]string(nil), item.WriteScope...),
+		TestCommands:         append([]string(nil), item.TestCommands...),
+		NoTestRequiredReason: item.NoTestRequired,
+		Fixture:              item.Fixture,
 	}
 }
 
@@ -499,7 +504,13 @@ func candidateBucket(candidate Candidate) int {
 }
 
 func agentQueueCandidate(candidate Candidate) bool {
-	return strings.TrimSpace(candidate.Contract) != "" && candidateBucket(candidate) <= candidateBucketDraft
+	return strings.TrimSpace(candidate.Contract) != "" &&
+		candidateBucket(candidate) <= candidateBucketDraft &&
+		candidateHasTestProof(candidate)
+}
+
+func candidateHasTestProof(candidate Candidate) bool {
+	return len(candidate.TestCommands) > 0 || strings.TrimSpace(candidate.NoTestRequired) != ""
 }
 
 func candidateSortKey(candidate Candidate) string {

@@ -267,6 +267,21 @@ func RunOnce(ctx context.Context, opts RunOptions) (RunSummary, error) {
 		return RunSummary{}, fmt.Errorf("planner: load before-doc: %w", err)
 	}
 	runtimePreflightErr := validateRuntimeSourcePreflightClean(cfg.RepoRoot)
+	if runtimePreflightErr != nil && cfg.AllowDirtyRuntimePreflight {
+		appendPlannerLedger(ledgerPath, LedgerEvent{
+			TS:            now.UTC().Format(time.RFC3339),
+			RunID:         runID,
+			Trigger:       trigger,
+			TriggerEvents: triggerEventIDs,
+			Backend:       cfg.Backend,
+			Mode:          cfg.Mode,
+			Status:        "runtime_source_preflight_allowed",
+			Detail:        runtimePreflightErr.Error(),
+			BeforeStats:   computeStats(beforeDoc),
+			Keywords:      opts.Keywords,
+		})
+		runtimePreflightErr = nil
+	}
 	if runtimePreflightErr != nil {
 		if cfg.GitRepairEnabled && !opts.DryRun {
 			cause := fmt.Errorf("runtime source preflight rejected: %w", runtimePreflightErr)
@@ -865,11 +880,11 @@ func runPlannerGitRepairAgent(ctx context.Context, cfg Config, runner cmdrunner.
 
 	validate := runner.Run(ctx, cmdrunner.Command{
 		Name: "go",
-		Args: []string{"run", "./cmd/builder-loop", "progress", "validate"},
+		Args: []string{"run", "./cmd/progress", "validate"},
 		Dir:  cfg.RepoRoot,
 	})
 	if validate.Err != nil {
-		err := commandError("go run ./cmd/builder-loop progress validate", validate)
+		err := commandError("go run ./cmd/progress validate", validate)
 		appendPlannerLedger(ledgerPath, LedgerEvent{
 			TS:      time.Now().UTC().Format(time.RFC3339Nano),
 			RunID:   runID,
@@ -933,9 +948,9 @@ func verifyPlannerMainReconciledAfterRepair(ctx context.Context, cfg Config, run
 }
 
 func buildPlannerGitRepairPrompt(cfg Config, reason string, cause error) string {
-	return fmt.Sprintf(`You are the planner-loop git repair agent.
+	return fmt.Sprintf(`You are the Gormes skill-driven planning git repair agent.
 
-Task: resolve the repository git state so planner-loop can continue.
+Task: resolve the repository git state so skill-driven planning can continue.
 
 Reason: %s
 Failure:
@@ -947,7 +962,7 @@ Canonical progress file: %s
 Rules:
 - Fix git state only: fetch/merge conflicts, unresolved conflict markers, dirty merge state, stale local main, or a failed PR-intake sync.
 - Do not implement unrelated Gormes features.
-- If progress.json or generated planning/docs surfaces conflict, preserve newer builder-loop health fields and keep the file valid JSON.
+- If progress.json or generated planning/docs surfaces conflict, preserve newer row health evidence and keep the file valid JSON.
 - If runtime source files under cmd/ or internal/ conflict, resolve the merge conservatively and run the focused tests that prove the resolution still compiles. Do not invent new runtime behavior.
 - Commit the merge or repair if tracked files change; leave the worktree clean.
 - Do not open pull requests and do not create a new queue.
@@ -955,7 +970,7 @@ Rules:
 Before returning, run:
 - git diff --name-only --diff-filter=U
 - git status --porcelain
-- go run ./cmd/builder-loop progress validate
+- go run ./cmd/progress validate
 `, reason, cause.Error(), cfg.RepoRoot, cfg.ProgressJSON)
 }
 
@@ -988,8 +1003,8 @@ func plannerBackendCommand(backend, mode, rawReportPath, repoRoot string) ([]str
 func runValidation(ctx context.Context, runner cmdrunner.Runner, repoRoot, logPath string) error {
 	env := validationCommandEnv()
 	commands := []cmdrunner.Command{
-		{Name: "go", Args: []string{"run", "./cmd/builder-loop", "progress", "write"}, Dir: repoRoot, Env: env},
-		{Name: "go", Args: []string{"run", "./cmd/builder-loop", "progress", "validate"}, Dir: repoRoot, Env: env},
+		{Name: "go", Args: []string{"run", "./cmd/progress", "write"}, Dir: repoRoot, Env: env},
+		{Name: "go", Args: []string{"run", "./cmd/progress", "validate"}, Dir: repoRoot, Env: env},
 		{Name: "go", Args: []string{"test", "./internal/progress", "-count=1"}, Dir: repoRoot, Env: env},
 		{Name: "go", Args: []string{"test", "./docs", "-count=1"}, Dir: repoRoot, Env: env},
 		{Name: "go", Args: []string{"test", "./...", "-count=1"}, Dir: filepath.Join(repoRoot, "www.gormes.ai"), Env: env},

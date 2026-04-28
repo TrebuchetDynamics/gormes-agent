@@ -40,6 +40,8 @@ func TestBuildPrompt_IncludesRuntimeSourceBoundary(t *testing.T) {
 		"RUNTIME SOURCE BOUNDARY (HARD RULE)",
 		"Do not edit repo-root cmd/**/*.go or internal/**/*.go",
 		"add or refine progress.json rows instead",
+		"test_commands (or explicit no_test_required)",
+		"A row is not worker-ready without row-local test_commands unless no_test_required explains why",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing %q:\n%s", want, prompt)
@@ -230,15 +232,15 @@ func TestBuildPrompt_ProvenanceClauseAlwaysPresent(t *testing.T) {
 func TestBuildPrompt_ImplInventorySectionRendersWhenPresent(t *testing.T) {
 	bundle := ContextBundle{
 		ImplInventory: ImplInventory{
-			GormesOriginalPaths: []string{"cmd/builder-loop/main.go", "internal/builderloop/run.go"},
-			RecentlyChanged:     []string{"cmd/builder-loop/main.go"},
+			GormesOriginalPaths: []string{"cmd/progress/main.go", "internal/builderloop/run.go"},
+			RecentlyChanged:     []string{"cmd/progress/main.go"},
 			OwnedSubphases:      []string{"5.O", "5.P"},
 		},
 	}
 	prompt := BuildPrompt(bundle, nil)
 	for _, want := range []string{
 		"## Implementation Inventory",
-		"cmd/builder-loop/main.go",
+		"cmd/progress/main.go",
 		"5.O",
 	} {
 		if !strings.Contains(prompt, want) {

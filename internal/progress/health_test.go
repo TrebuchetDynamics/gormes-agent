@@ -101,6 +101,14 @@ func TestItemSpecHash_IgnoresBlockedByOrdering(t *testing.T) {
 	}
 }
 
+func TestItemSpecHash_IgnoresTestCommandOrdering(t *testing.T) {
+	a := &Item{TestCommands: []string{"go test ./internal/b", "go test ./internal/a"}}
+	b := &Item{TestCommands: []string{"go test ./internal/a", "go test ./internal/b"}}
+	if ItemSpecHash(a) != ItemSpecHash(b) {
+		t.Fatal("hash should be order-independent for TestCommands")
+	}
+}
+
 func TestItemSpecHash_IgnoresStatusAndName(t *testing.T) {
 	a := &Item{Name: "row-a", Status: StatusPlanned, Contract: "x"}
 	b := &Item{Name: "row-b", Status: StatusComplete, Contract: "x"}
@@ -114,6 +122,20 @@ func TestItemSpecHash_ChangesWhenContractChanges(t *testing.T) {
 	b := &Item{Name: "x", Contract: "new"}
 	if ItemSpecHash(a) == ItemSpecHash(b) {
 		t.Fatal("hash should change when Contract changes")
+	}
+}
+
+func TestItemSpecHash_ChangesWhenTestProofChanges(t *testing.T) {
+	a := &Item{Name: "x", TestCommands: []string{"go test ./internal/a"}}
+	b := &Item{Name: "x", TestCommands: []string{"go test ./internal/b"}}
+	if ItemSpecHash(a) == ItemSpecHash(b) {
+		t.Fatal("hash should change when TestCommands changes")
+	}
+
+	c := &Item{Name: "x", NoTestRequiredReason: "docs-only row"}
+	d := &Item{Name: "x", NoTestRequiredReason: "external evidence only"}
+	if ItemSpecHash(c) == ItemSpecHash(d) {
+		t.Fatal("hash should change when NoTestRequiredReason changes")
 	}
 }
 

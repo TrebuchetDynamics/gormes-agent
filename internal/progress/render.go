@@ -139,7 +139,7 @@ func RenderNextSlices(p *Progress, limit int) string {
 }
 
 // RenderAgentQueue returns execution cards for unblocked, non-umbrella rows
-// that an autonomous worker can turn into a focused implementation attempt.
+// that a builder skill can turn into a focused implementation attempt.
 func RenderAgentQueue(p *Progress, limit int) string {
 	if limit <= 0 {
 		limit = 10
@@ -168,6 +168,9 @@ func RenderAgentQueue(p *Progress, limit int) string {
 		fmt.Fprintf(&b, "- Fixture: `%s`\n", mdCell(it.Fixture))
 		fmt.Fprintf(&b, "- Write scope: %s\n", mdCell(joinCodeOrDash(it.WriteScope)))
 		fmt.Fprintf(&b, "- Test commands: %s\n", mdCell(joinCodeOrDash(it.TestCommands)))
+		if strings.TrimSpace(it.NoTestRequiredReason) != "" {
+			fmt.Fprintf(&b, "- No test required: %s\n", mdCell(it.NoTestRequiredReason))
+		}
 		fmt.Fprintf(&b, "- Done signal: %s\n", mdCell(joinOrDash(it.DoneSignal)))
 		fmt.Fprintf(&b, "- Acceptance: %s\n", mdCell(joinOrDash(it.Acceptance)))
 		fmt.Fprintf(&b, "- Source refs: %s\n", mdCell(joinOrDash(it.SourceRefs)))
@@ -227,13 +230,13 @@ func RenderUmbrellaCleanup(p *Progress) string {
 	return b.String()
 }
 
-// RenderBuilderLoopHandoff returns the control-plane facts used by the
-// unattended builder loop. These live in progress.json meta so docs and
-// prompts do not drift from each other.
+// RenderBuilderLoopHandoff returns the control-plane facts used by skill-driven
+// planner and builder passes. The JSON field keeps the historical builder_loop
+// name so older progress files still load.
 func RenderBuilderLoopHandoff(p *Progress) string {
 	m := p.Meta.BuilderLoop
 	if !builderLoopMetaDeclared(m) {
-		return "_No builder-loop metadata declared in canonical progress._\n"
+		return "_No skill handoff metadata declared in canonical progress._\n"
 	}
 
 	var b strings.Builder
@@ -280,21 +283,22 @@ func RenderProgressSchema() string {
 | `+"`ready_when`"+` | contract rows and blocked rows | Concrete condition that makes the row assignable. |
 | `+"`not_ready_when`"+` | umbrella rows, optional elsewhere | Conditions that make the row unsafe or too broad to assign. |
 | `+"`acceptance`"+` | active/P0 handoffs | Testable done criteria. |
-| `+"`write_scope`"+` | contract rows | Files, directories, or packages an autonomous agent may edit for this slice. |
-| `+"`test_commands`"+` | contract rows | Commands that prove the slice without live provider or platform credentials. |
+| `+"`write_scope`"+` | contract rows | Files, directories, or packages a builder skill may edit for this slice. |
+| `+"`test_commands`"+` | contract rows | Commands that prove the slice without live provider or platform credentials. Required for skill-builder selection unless `+"`no_test_required`"+` is present. |
+| `+"`no_test_required`"+` | rare testless contract rows | Explicit reason a row has no focused executable test command. Rows without `+"`test_commands`"+` or this field are not worker-ready. |
 | `+"`done_signal`"+` | contract rows | Observable evidence that the row can move forward or close. |
 
 ## Meta Fields
 
 | Field | Required when | Meaning |
 |---|---|---|
-| `+"`meta.builder_loop.entrypoint`"+` | builder-loop metadata is declared | Main unattended-loop script. |
-| `+"`meta.builder_loop.plan`"+` | builder-loop metadata is declared | Canonical implementation plan for improving the orchestrator. |
-| `+"`meta.builder_loop.agent_queue`"+` | builder-loop metadata is declared | Generated queue page for assignable rows. |
-| `+"`meta.builder_loop.progress_schema`"+` | builder-loop metadata is declared | This schema reference. |
-| `+"`meta.builder_loop.candidate_source`"+` | builder-loop metadata is declared | Canonical progress file consumed by the loop. |
-| `+"`meta.builder_loop.unit_test`"+` | builder-loop metadata is declared | Fast verification command for orchestrator prompt/candidate behavior. |
-| `+"`meta.builder_loop.candidate_policy`"+` | builder-loop metadata is declared | Shared selection rules injected into worker prompts. |
+| `+"`meta.builder_loop.entrypoint`"+` | skill handoff metadata is declared | Primary skill-routing entrypoint. Historical field name retained for schema compatibility. |
+| `+"`meta.builder_loop.plan`"+` | skill handoff metadata is declared | Canonical completion plan for skill-driven work. |
+| `+"`meta.builder_loop.agent_queue`"+` | skill handoff metadata is declared | Generated queue page for assignable rows. |
+| `+"`meta.builder_loop.progress_schema`"+` | skill handoff metadata is declared | This schema reference. |
+| `+"`meta.builder_loop.candidate_source`"+` | skill handoff metadata is declared | Canonical progress file consumed by skills. |
+| `+"`meta.builder_loop.unit_test`"+` | skill handoff metadata is declared | Fast verification command for progress docs/schema behavior. |
+| `+"`meta.builder_loop.candidate_policy`"+` | skill handoff metadata is declared | Shared selection rules used by builder skills. |
 
 ## Validation Rules
 
@@ -302,7 +306,7 @@ func RenderProgressSchema() string {
 - if `+"`meta.builder_loop`"+` is declared, entrypoint, plan, candidate source, generated docs, unit test, and candidate policy must all be present.
 - `+"`in_progress`"+` rows cannot use `+"`slice_size: umbrella`"+`.
 - item-level `+"`P0`"+` and `+"`in_progress`"+` rows must include full contract metadata.
-- contract rows must declare `+"`slice_size`"+`, `+"`execution_owner`"+`, `+"`ready_when`"+`, `+"`write_scope`"+`, `+"`test_commands`"+`, and `+"`done_signal`"+`.
+- contract rows must declare `+"`slice_size`"+`, `+"`execution_owner`"+`, `+"`ready_when`"+`, `+"`write_scope`"+`, `+"`test_commands`"+` (or explicit `+"`no_test_required`"+`), and `+"`done_signal`"+`.
 - blocked rows must declare `+"`ready_when`"+`.
 - `+"`fixture_ready`"+` rows must name a concrete fixture package or path.
 - complete rows with contract metadata must use `+"`contract_status: validated`"+`.
@@ -318,22 +322,22 @@ architecture-plan index use those derived counts for shipped/subphase totals.
 
 Future work is measured from contract-bearing rows. A row becomes assignable
 when it is not `+"`complete`"+`, has no `+"`blocked_by`"+` dependency, is not
-`+"`slice_size: umbrella`"+`, and declares the handoff fields autoloop needs:
-`+"`source_refs`"+`, `+"`write_scope`"+`, `+"`test_commands`"+`,
+`+"`slice_size: umbrella`"+`, and declares the handoff fields builder skills need:
+`+"`source_refs`"+`, `+"`write_scope`"+`, `+"`test_commands`"+` or `+"`no_test_required`"+`,
 `+"`acceptance`"+`, `+"`ready_when`"+`, `+"`not_ready_when`"+`, and
 `+"`done_signal`"+` whenever applicable. `+"`agent-queue.md`"+` is the
 assignable-work view; `+"`blocked-slices.md`"+` is the deferred-work view; and
 `+"`umbrella-cleanup.md`"+` is the work that must be split before assignment.
 
-Planner quality is measured by reducing ambiguity for the builder loop:
+Planner quality is measured by reducing ambiguity for builder skills:
 exact upstream refs, local file paths, fixture names, validation commands,
 dependency edges, and degraded-mode behavior count as useful planning;
 generic notes without bounded tests or write scope do not.
 
 ## Generated Agent Surfaces
 
-- `+"`docs/content/building-gormes/builder-loop/builder-loop-handoff.md`"+` lists shared unattended-loop entrypoint, plan, candidate source, generated docs, test command, and candidate policy.
-- `+"`docs/content/building-gormes/builder-loop/agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands, done signal, acceptance, and source references.
+- `+"`docs/content/building-gormes/builder-loop/builder-loop-handoff.md`"+` lists shared skill entrypoint, plan, candidate source, generated docs, test command, and candidate policy.
+- `+"`docs/content/building-gormes/builder-loop/agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands or a no-test-required reason, done signal, acceptance, and source references.
 - `+"`docs/content/building-gormes/builder-loop/blocked-slices.md`"+` keeps blocked rows out of the execution queue while preserving their unblock condition.
 - `+"`docs/content/building-gormes/builder-loop/umbrella-cleanup.md`"+` lists broad inventory rows that must be split before assignment.
 
@@ -412,7 +416,7 @@ func nextSliceRows(rows []contractRow, limit int) []contractRow {
 	seen := map[string]struct{}{}
 	for bucket := 0; bucket <= 4 && len(out) < limit; bucket++ {
 		for _, row := range rows {
-			if row.Item.Status == StatusComplete || len(row.Item.BlockedBy) > 0 || row.Item.SliceSize == SliceSizeUmbrella {
+			if row.Item.Status == StatusComplete || len(row.Item.BlockedBy) > 0 || row.Item.SliceSize == SliceSizeUmbrella || !rowHasTestProof(row.Item) {
 				continue
 			}
 			if nextSliceBucket(row.Item) != bucket {
@@ -447,6 +451,10 @@ func nextSliceBucket(it Item) int {
 	default:
 		return 5
 	}
+}
+
+func rowHasTestProof(it Item) bool {
+	return len(it.TestCommands) > 0 || strings.TrimSpace(it.NoTestRequiredReason) != ""
 }
 
 func whyNow(it Item) string {

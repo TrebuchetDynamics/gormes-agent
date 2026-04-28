@@ -370,7 +370,7 @@ not make obvious:
 ## Progress Measurement
 
 For memory planning, progress is measured in `progress.json`, not by prose
-length. A row is usable by autoloop only when it has:
+length. A row is usable by builder skills only when it has:
 
 - a concrete contract;
 - `contract_status`;
@@ -419,8 +419,10 @@ under `3.F - Goncho Honcho Memory Parity`:
 - `Goncho operator diagnostics contract`;
 - `Goncho streaming chat persistence contract`;
 - `Goncho configuration namespace`.
+- `Goncho Honcho SDK compatibility e2e harness`;
+- `Goncho memory integration into normal agent turn`.
 
 Those rows are intentionally smaller than "port Honcho." Each one gives the
-autoloop source refs, write scope, fixtures, and done signals so it can build
+builder-skill source refs, write scope, fixtures, and done signals so it can build
 the memory system without rereading every upstream doc. The exact worker packet
 for each row is in [Agent Work Packets](../04-agent-work-packets/).

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Builder"
+  short_description: "Build Gormes from progress.json rows."
+  default_prompt: "Use the Gormes builder skill to select a progress.json row and implement it with tests."

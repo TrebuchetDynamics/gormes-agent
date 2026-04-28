@@ -7,6 +7,24 @@ weight: 80
 
 The complete picture of what Gormes must absorb to retire the Python `hermes-agent` runtime. Each row is one upstream module or capability, mapped to its target phase. This inventory is the source of truth for "what's left" — when a subsystem is shipped in Go, mark it ✅ and link the spec.
 
+For the cross-repo implementation plan, use
+[Hermes And Honcho Feature Map](../hermes-honcho-feature-map/). This inventory
+tracks detailed module status; the feature map explains how those modules
+should land in Go and how Honcho maps into Goncho.
+
+Use this inventory with the [Completion Lane Roadmap](../lane-roadmap/). The
+phase column says where a row lives historically; the lane determines which
+gate proves it:
+
+- provider, prompt, context, retry, compression, and model routing map to Lane 1;
+- Goncho/Honcho memory and scoped recall map to Lane 2;
+- tools, plugins, MCP/ACP, approvals, and skills plumbing map to Lane 3;
+- gateway adapters, delivery, cron, pairing, and active-turn policy map to Lane 4;
+- CLI, API, TUI, installers, services, and release surfaces map to Lane 5;
+- learning-loop rows map to Lane 6.
+
+If a subsystem crosses lanes, split the row before assigning it to a builder.
+
 ### Gateway platforms (17 connectors — 10 unshipped)
 
 | Platform | Upstream file | Target phase | Status | Landed Go surface |

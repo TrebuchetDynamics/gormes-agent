@@ -31,8 +31,8 @@ func TestNormalizeCandidates_NoHealthBehavesLikeBaseline(t *testing.T) {
         "1.A": {
           "name": "S",
           "items": [
-            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft"},
-            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft"}
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft", "no_test_required": "health selection fixture"},
+            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft", "no_test_required": "health selection fixture"}
           ]
         }
       }
@@ -62,8 +62,8 @@ func TestNormalizeCandidates_QuarantineFiltersByDefault(t *testing.T) {
         "1.A": {
           "name": "S",
           "items": [
-            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft"},
-            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft"}
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft", "no_test_required": "health selection fixture"},
+            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft", "no_test_required": "health selection fixture"}
           ]
         }
       }
@@ -112,8 +112,8 @@ func TestNormalizeCandidates_IncludeQuarantinedReturnsAll(t *testing.T) {
         "1.A": {
           "name": "S",
           "items": [
-            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft"},
-            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft"}
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft", "no_test_required": "health selection fixture"},
+            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft", "no_test_required": "health selection fixture"}
           ]
         }
       }
@@ -155,7 +155,7 @@ func TestNormalizeCandidates_StaleQuarantineFlagsAndIncludes(t *testing.T) {
         "1.A": {
           "name": "S",
           "items": [
-            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft"}
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft", "no_test_required": "health selection fixture"}
           ]
         }
       }
@@ -199,9 +199,9 @@ func TestNormalizeCandidates_NeedsHumanSkippedByDefault(t *testing.T) {
         "1.A": {
           "name": "S",
           "items": [
-            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft",
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft", "no_test_required": "health selection fixture",
              "planner_verdict": {"needs_human": true, "reason": "auto", "since": "2026-04-25T10:00:00Z"}},
-            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft"}
+            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft", "no_test_required": "health selection fixture"}
           ]
         }
       }
@@ -230,7 +230,7 @@ func TestNormalizeCandidates_IncludeNeedsHumanSurfacesAll(t *testing.T) {
         "1.A": {
           "name": "S",
           "items": [
-            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft",
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft", "no_test_required": "health selection fixture",
              "planner_verdict": {"needs_human": true}}
           ]
         }
@@ -285,8 +285,8 @@ func TestNormalizeCandidates_PenaltyDemotesAndAnnotates(t *testing.T) {
         "1.A": {
           "name": "S",
           "items": [
-            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft"},
-            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft"}
+            {"name": "row-a", "status": "planned", "contract": "do a", "contract_status": "draft", "no_test_required": "health selection fixture"},
+            {"name": "row-b", "status": "planned", "contract": "do b", "contract_status": "draft", "no_test_required": "health selection fixture"}
           ]
         }
       }

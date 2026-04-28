@@ -1,12 +1,8 @@
 // Package progressctl owns the regeneration logic for the building-gormes
-// progress control plane: validating progress.json, rewriting the markered
-// docs (README rollup, agent queue, blocked slices, etc.), and mirroring
-// progress.json into the www.gormes.ai data directory.
-//
-// The package is consumed by both cmd/progress (the dedicated binary) and
-// cmd/builder-loop (which keeps its `progress` subcommand for back-compat).
-// Both pass an io.Writer for human-facing output and a root string for the
-// repo location; no other state is shared.
+// progress control plane: validating progress.json, rewriting the markered docs
+// (README rollup, agent queue, blocked slices, etc.), and mirroring
+// progress.json into the www.gormes.ai data directory. It is exposed through
+// cmd/progress for skill-driven planner and builder passes.
 package progressctl
 
 import (

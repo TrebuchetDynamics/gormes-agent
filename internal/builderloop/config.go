@@ -78,14 +78,13 @@ type Config struct {
 	PostPromotionRepairEnabled  bool     // POST_PROMOTION_REPAIR, default true
 	PostPromotionRepairAttempts int      // POST_PROMOTION_REPAIR_ATTEMPTS, default 1
 
-	// PrePromotionVerifyCommands runs ON THE WORKER'S WORKTREE before the
-	// worker's commit is cherry-picked onto main. Empty = disabled (current
-	// post-promotion-only behavior preserved). When set (e.g. via env
-	// PRE_PROMOTION_VERIFY_COMMANDS=go test ./...), a failing verify aborts
-	// the worker_failed path BEFORE main is touched, so main never enters a
-	// briefly-broken state and any repair work happens in the worktree.
-	// Compose with PostPromotionVerifyCommands for defense-in-depth (pre
-	// catches per-worker breakage; post catches cross-worker integration).
+	// PrePromotionVerifyCommands appends extra commands to the selected row's
+	// test_commands. The combined list runs ON THE WORKER'S WORKTREE before the
+	// worker's commit is cherry-picked onto main. A failing verify aborts the
+	// worker_failed path BEFORE main is touched, so main never enters a briefly
+	// broken state and any repair work happens in the worktree. Compose with
+	// PostPromotionVerifyCommands for defense-in-depth (pre catches per-worker
+	// breakage; post catches cross-worker integration).
 	PrePromotionVerifyCommands []string // PRE_PROMOTION_VERIFY_COMMANDS
 	// PrePromotionRepairEnabled gates the LLM-driven repair attempt that
 	// runs in the worker's worktree when the pre-promotion verify fails.
@@ -431,9 +430,9 @@ func defaultPostPromotionVerifyCommands() []string {
 	return []string{
 		"go test ./... -count=1",
 		"(cd www.gormes.ai && go test ./... -count=1)",
-		"go run ./cmd/builder-loop progress validate",
-		"go run ./cmd/builder-loop run --dry-run",
-		"(cd www.gormes.ai && npm run test:e2e -- --reporter=line)",
+		"go run ./cmd/progress validate",
+		"(cd docs/www-tests && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
+		"(cd www.gormes.ai && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
 	}
 }
 
