@@ -26,6 +26,7 @@ Use these skills as the default routing surface:
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
 | Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
+| Improving `www.gormes.ai` landing page content or UI | `gormes-landing-web` |
 | Stress-testing a plan or decision tree with the user | `grill-me` |
 
 If none of these skills fits repeated Gormes work, use
@@ -92,6 +93,7 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
 | Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
 | Refreshing README.md or public repository claims from current evidence | `docs/development-skills/gormes-readme/SKILL.md` |
+| Improving the public landing page content or UI | `docs/development-skills/gormes-landing-web/SKILL.md` |
 | Implementing one row | `docs/development-skills/gormes-builder/SKILL.md` |
 | Driving red-green-refactor | `docs/development-skills/gormes-tdd-slice/SKILL.md` |
 | Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `docs/content/building-gormes/builder-loop/progress-schema.md` |

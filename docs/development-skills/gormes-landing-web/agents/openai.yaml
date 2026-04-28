@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Landing Web"
+  short_description: "Improve landing page content and UI."
+  default_prompt: "Use $gormes-landing-web to audit and improve www.gormes.ai landing-page content, UI, and trust signals."

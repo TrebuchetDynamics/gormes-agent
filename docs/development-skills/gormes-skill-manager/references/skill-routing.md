@@ -20,6 +20,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Need to implement one progress row | `gormes-builder` | `gormes-tdd-slice` inside implementation |
 | Need strict red-green-refactor on one behavior | `gormes-tdd-slice` | `gormes-builder` final report |
 | Need to audit or periodically refresh README/public repository messaging | `gormes-readme` | `gormes-planner` only if roadmap rows need edits |
+| Need to improve `www.gormes.ai` landing page content or UI | `gormes-landing-web` | `gormes-planner` only if roadmap/progress claims need edits |
 | Need to create or improve a skill | `gormes-skill-manager` + system `skill-creator` | validate all affected skills |
 
 ## Feature-Map-First Routing
@@ -44,7 +45,8 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Provider transcript parity | `gormes-parity-auditor` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-provider-parity` when transcript fixtures span multiple providers. |
 | Gateway/channels | `gormes-parity-auditor` -> `gormes-interface-designer` -> `gormes-builder` | Add `gormes-channel-adapter` after at least two channel adapters need the same contract gates. |
 | README/public repo messaging | `gormes-readme` | Covered by the periodic README evidence workflow. |
-| Docs/Hugo/site sync | `gormes-planner` | Add `gormes-docs-web-sync` if progress docs and `www.gormes.ai` updates keep drifting. |
+| Landing page content/UI | `gormes-landing-web` | Covered by the focused public homepage workflow. |
+| Docs/Hugo/site sync | `gormes-planner` | Add `gormes-docs-web-sync` if progress docs and broader site data updates keep drifting. |
 | Release/install packaging | `gormes-planner` -> future release rows | Add `gormes-release-packager` when installer, service, OCI, and version gates are active. |
 
 ## Good Skill Chains

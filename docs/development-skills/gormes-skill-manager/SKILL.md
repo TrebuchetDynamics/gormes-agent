@@ -31,6 +31,7 @@ Pick the primary intent:
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.
 - **Audit README or public repo messaging**: use `gormes-readme`.
+- **Improve landing page content or UI**: use `gormes-landing-web`.
 - **Create or improve skills**: use system `skill-creator` plus this manager.
 
 If more than one applies, choose a chain with at most three skills. Do not load every Gormes skill.
