@@ -6,7 +6,9 @@
 
 Your agents shouldn't crash because of a broken Python environment.
 
-Run AI agents as a single static binary: no Python runtime, no environment drift, no running Hermes backend. Gormes gives you a local terminal UI, offline diagnostics, provider-backed turns, and configured gateway channels from one Go-native runtime.
+Run AI agents as a single static binary: no Python, no environment drift, no running Hermes backend.
+
+Gormes is built for agents that need to stay running across restarts, machines, and flaky networks. It gives you a local terminal UI, offline diagnostics, provider-backed turns, and configured gateway channels from one Go-native runtime.
 
 **Status: early-stage.** The TUI, offline doctor, and provider-backed one-shots work today; the full agent runtime is still in progress.
 
@@ -53,6 +55,22 @@ Expected result: Gormes prints local readiness checks for the TUI, tools, gatewa
 
 ---
 
+### Getting Started
+
+Once built, the `gormes` binary contains the current operator surface:
+
+```bash
+./bin/gormes                         # Interactive TUI
+./bin/gormes --oneshot "hi"          # Run one turn and exit
+./bin/gormes doctor --offline        # Diagnose local config, tools, and memory
+./bin/gormes goncho doctor --json    # Inspect local SQLite memory paths and schema
+./bin/gormes gateway status          # Check Discord, Telegram, and Slack runtime state
+./bin/gormes memory status           # Inspect persisted memory and extractor queues
+./bin/gormes session export <id>     # Export a persisted session transcript
+```
+
+---
+
 ## Why Gormes
 
 Python-stack agents are powerful, but production operation is fragile. Gormes moves the runtime surface into one inspectable Go artifact.
@@ -64,6 +82,38 @@ Python-stack agents are powerful, but production operation is fragile. Gormes mo
 | **Recovery** | Dropped streams kill turns | **Route-B reconnect** |
 | **Memory** | Redis, vector DBs, sidecars | **In-binary Goncho SQLite** |
 | **Diagnostics** | Crosses Node/Python/OS bounds | **Built-in `gormes doctor`** |
+
+That means you can drop the binary onto a small VM, a Raspberry Pi, or a managed server without rebuilding a Python environment first. No `pip install`, no virtualenv repair, no Node bootstrap just to reach the terminal UI.
+
+It also means memory can stay boring and local. Goncho keeps session history, peer profiles, and diagnostics inside local SQLite instead of requiring Redis or an external vector database just to make the agent remember what happened.
+
+## What You Can Do Today
+
+- Run a local agent UI without installing Python, Node, or Docker at runtime.
+- Send one-shot prompts to any provider-compatible endpoint from one binary.
+- Validate your runtime before spending tokens with `gormes doctor --offline`.
+- Operate Telegram, Discord, or Slack agents through one gateway runtime.
+- Develop and debug Goncho memory entirely offline with `gormes goncho doctor`.
+
+## Example: Run A One-Shot Turn
+
+Configure a provider-compatible endpoint and run one prompt:
+
+```bash
+export GORMES_ENDPOINT="https://your-provider.example/v1"
+export GORMES_API_KEY="..."
+export GORMES_MODEL="your-model"
+
+./bin/gormes --oneshot "Summarize this repo in one sentence"
+```
+
+Example output:
+
+```text
+Gormes runs AI agents as a single static Go runtime with no Python backend.
+```
+
+Use `./bin/gormes` without `--oneshot` to open the TUI against the same configured runtime. If your provider needs an explicit route, pass `--provider <name>` or set `GORMES_INFERENCE_PROVIDER`.
 
 ## Current State
 
@@ -125,23 +175,6 @@ Pre-compiled binaries are not the primary trust path yet. The release target is 
 
 ---
 
-## Model-Backed Turn
-
-Configure a provider-compatible endpoint and run Gormes directly:
-
-```bash
-export GORMES_ENDPOINT="https://your-provider.example/v1"
-export GORMES_API_KEY="..."
-export GORMES_MODEL="your-model"
-gormes --oneshot "hello from Gormes"
-```
-
-Expected result: Gormes sends one turn to the configured provider and prints the assistant response without requiring a separate Hermes service.
-
-Use `gormes` without `--oneshot` to open the TUI against the same configured runtime. If your provider needs an explicit route, pass `--provider <name>` or set `GORMES_INFERENCE_PROVIDER`.
-
----
-
 ## Gateway Operator Surface
 
 Gateway setup details stay in the docs. The README-level operator contract is:
@@ -152,7 +185,24 @@ Gateway setup details stay in the docs. The README-level operator contract is:
 - Telegram, Discord, and Slack are the current `gormes gateway` runtime channels. WhatsApp, WeChat, and the broader connector backlog remain progress-row work until their live transports are exposed through the gateway command.
 - `gateway start`, `stop`, `restart`, `install`, and `uninstall` are intentionally not mutating service-manager commands inside the binary; run `gormes gateway` in the foreground or supervise it externally.
 
+| Action | Native CLI / TUI | Configured gateway |
+|---|---|---|
+| **Start chatting** | `./bin/gormes` | Send a message to the paired bot |
+| **Run offline diagnostics** | `gormes doctor --offline` | CLI only |
+| **Inspect Goncho memory** | `gormes goncho doctor --json` | Planned |
+| **Persist subagent jobs** | Native execution | Routed through gateway |
+
 Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-systems/gateway/).
+
+---
+
+## Coming From Python Hermes
+
+Gormes is a standalone Go-native rewrite of the Hermes Agent architecture. It does not require a running Hermes process, and it does not read `~/.hermes` state on startup.
+
+- Use Gormes-scoped provider variables such as `GORMES_ENDPOINT`, `GORMES_API_KEY`, and `GORMES_MODEL`.
+- Hermes config migration is tracked under Phase 5.O; dry-run manifest work exists, but automatic state import is not a production README path yet.
+- SOUL.md, context-file, plugin, MCP, and ACP compatibility remain deeper roadmap surfaces until their operator docs say otherwise.
 
 ---
 
@@ -248,6 +298,14 @@ Useful commands:
 - [Architecture plan](https://docs.gormes.ai/building-gormes/architecture_plan/)
 - [Goncho Honcho Memory](https://docs.gormes.ai/building-gormes/goncho_honcho_memory/)
 - [Command reference](cmd/README.md)
+
+---
+
+## Community & Support
+
+- [Issues](https://github.com/TrebuchetDynamics/gormes-agent/issues) for bugs, missing docs, and feature requests.
+- [Security policy](SECURITY.md) for private vulnerability reporting.
+- [Docs](https://docs.gormes.ai/) for install, configuration, gateway, and architecture details.
 
 ---
 
