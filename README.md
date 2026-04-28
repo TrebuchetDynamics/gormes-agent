@@ -4,13 +4,11 @@
 
 # GORMES-AGENT
 
-Run AI agents as one Go-native runtime.
+Stop losing agent runs to broken environments.
 
-Gormes is for long-running agents that need predictable installs, stable runtime behavior, recoverable streams, and local diagnostics. It replaces Python-stack runtime drift with a single static binary that is easier to ship, inspect, and operate.
+Gormes runs AI agents as one Go-native runtime: a static binary with a native TUI, local diagnostics, provider-backed turns, and configured gateway channels. No Python runtime. No virtualenv drift. No running Hermes backend.
 
-**Status: early-stage scout release. Not production-stable yet.** Use Gormes today for the native TUI, local diagnostics, provider-backed one-shots, gateway work, and Goncho memory development. Do not treat it as production-ready until the remaining brain/provider slices are complete.
-
-Gormes is a standalone, Go-native rewrite of the Hermes Agent architecture. It requires no Python dependencies and no running Hermes backend.
+**Status: early-stage scout release. Not production-stable yet.** Use Gormes today for the local TUI, offline doctor, provider-backed one-shots, and configured gateway work.
 
 <p align="center">
   <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
@@ -22,13 +20,33 @@ Gormes is a standalone, Go-native rewrite of the Hermes Agent architecture. It r
 
 ## TL;DR
 
-- Source build is the recommended install path: clone the repository, inspect it, and run `make build`.
-- `gormes --offline` opens the native TUI without network or provider setup.
-- `gormes doctor --offline` checks the local runtime surface before you burn tokens.
-- `gormes goncho doctor --json` reports local memory paths and Goncho readiness.
-- Provider-backed turns run directly from Gormes with `GORMES_ENDPOINT`, `GORMES_API_KEY`, and `GORMES_MODEL`.
-- Gateway operators can inspect configured Telegram, Discord, and Slack channels with `gormes gateway status`; deeper connector setup stays in the docs.
-- Signed binary releases, checksums, detached signatures, and package-manager manifests are release-hardening work, not current trust claims.
+- Agents should not depend on a fragile Python runtime.
+- One static Go artifact runs the TUI, diagnostics, provider turns, and configured gateways.
+- You can smoke-test the runtime offline before adding credentials or spending tokens.
+- Early-stage means useful now, not production-stable yet.
+
+---
+
+## Quick Start
+
+Build from source and open the local UI:
+
+```bash
+git clone https://github.com/TrebuchetDynamics/gormes-agent.git
+cd gormes-agent
+make build
+./bin/gormes --offline
+```
+
+Expected result: a native terminal UI opens locally. No API key, network call, Python runtime, or Hermes process is required.
+
+Then verify the local stack:
+
+```bash
+./bin/gormes doctor --offline
+```
+
+Expected result: Gormes prints local readiness checks for the TUI, tools, gateway configuration, Goncho, and provider endpoint setup. Failures are explicit and exit non-zero.
 
 ---
 
@@ -67,24 +85,11 @@ Current limits:
 
 ---
 
-## Installation
+## Install Paths
 
-### From Source (Recommended)
+### From Source
 
-```bash
-git clone https://github.com/TrebuchetDynamics/gormes-agent.git
-cd gormes-agent
-make build
-./bin/gormes --offline
-./bin/gormes doctor --offline
-./bin/gormes goncho doctor --json
-```
-
-This path is intentionally boring: you build the exact source tree you inspected, without piping a network response into a shell. It proves:
-
-- the binary builds on your machine;
-- the native TUI starts without a JS bundle or Python runtime;
-- local diagnostics can inspect the tool/config/memory surface without contacting a provider.
+The Quick Start path above is the recommended install path. It is intentionally boring: you build the exact source tree you inspected, without piping a network response into a shell.
 
 ### Source-Backed Installer (Convenience)
 
@@ -110,7 +115,7 @@ gormes doctor --offline
 
 The installer manages a source checkout under `~/.gormes/gormes-agent` or `%LOCALAPPDATA%\gormes\gormes-agent`, builds `gormes`, and updates in place on rerun. Convenience aliases still exist at `https://gormes.ai/install.sh` and `https://gormes.ai/install.ps1`, but the README uses GitHub-hosted source so operators can inspect the script before running it.
 
-If local Go is missing, the installer can download a managed Go toolchain. The Gormes runtime itself does not self-update or fetch-and-execute secondary binaries; release hardening is tracking package-manager installs and signed binary artifacts so production environments do not need source-backed bootstrapping.
+If local Go is missing, the installer can download a managed Go toolchain. The Gormes runtime itself does not self-update or fetch-and-execute secondary binaries.
 
 ### Pre-Compiled Binaries
 
@@ -128,6 +133,8 @@ export GORMES_API_KEY="..."
 export GORMES_MODEL="your-model"
 gormes --oneshot "hello from Gormes"
 ```
+
+Expected result: Gormes sends one turn to the configured provider and prints the assistant response without requiring a separate Hermes service.
 
 Use `gormes` without `--oneshot` to open the TUI against the same configured runtime. If your provider needs an explicit route, pass `--provider <name>` or set `GORMES_INFERENCE_PROVIDER`.
 
