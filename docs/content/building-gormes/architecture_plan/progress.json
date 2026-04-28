@@ -6234,7 +6234,7 @@
                 "CreateScopedKey emits HS256 JWTs with Honcho-compatible compact claim names t, exp, w, p, and s, and VerifyScopedKey rejects wrong secrets and expired keys.",
                 "GetOrCreateWebhookEndpoint validates HTTP/HTTPS public URLs, enforces the default workspace limit, returns the existing endpoint for duplicate URLs in the same workspace, and treats the same URL in another workspace as a separate resource.",
                 "ListWebhookEndpoints and DeleteWebhookEndpoint are workspace-scoped and reject cross-workspace deletes.",
-                "NewTestWebhookEvent and SignWebhookPayload preserve Honcho's test.event and HMAC-SHA256 payload signature contract without publishing to a queue."
+                "NewTestWebhookEvent and SignWebhookPayload preserve Honcho's test.event and HMAC-SHA256 payload signature contract, including missing-secret failure evidence, without publishing to a queue."
               ],
               "note": "Complete: TDD added internal/goncho/keys.go, internal/goncho/webhooks.go, and focused tests. The key surface mirrors Honcho's admin-only /keys behavior with local HS256 JWT creation/verification and compact w/p/s/exp/t claim names. The webhook surface mirrors Honcho's workspace-scoped create/list/delete/test endpoint contract over local SQLite with URL validation, duplicate get-or-create semantics, per-workspace limit enforcement, workspace-isolated deletes, test.event construction, and HMAC-SHA256 payload signing. HTTP route binding, hosted auth middleware, queue publication, outbound delivery, retries, and OpenAPI/SDK compatibility remain separate rows.",
               "write_scope": [

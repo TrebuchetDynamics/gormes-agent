@@ -152,4 +152,7 @@ func TestWebhooks_TestEventAndSignatureMatchHonchoContract(t *testing.T) {
 	if got != want {
 		t.Fatalf("signature = %q, want %q", got, want)
 	}
+	if _, err := SignWebhookPayload(payload, ""); !errors.Is(err, ErrWebhookSecretMissing) {
+		t.Fatalf("missing secret err = %v, want ErrWebhookSecretMissing", err)
+	}
 }

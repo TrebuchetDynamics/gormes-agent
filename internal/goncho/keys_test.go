@@ -76,6 +76,34 @@ func TestKeys_CreateScopedKeyEmitsHonchoClaimNames(t *testing.T) {
 	}
 }
 
+func TestKeys_CreateAndVerifyScopedKeyRequireSecret(t *testing.T) {
+	now := time.Date(2026, 4, 28, 14, 0, 0, 0, time.UTC)
+	_, err := CreateScopedKey(ScopedKeyParams{
+		AuthEnabled: true,
+		Admin:       true,
+		WorkspaceID: "default",
+		Secret:      "",
+		Now:         now,
+	})
+	if !errors.Is(err, ErrKeySecretMissing) {
+		t.Fatalf("missing create secret err = %v, want ErrKeySecretMissing", err)
+	}
+
+	got, err := CreateScopedKey(ScopedKeyParams{
+		AuthEnabled: true,
+		Admin:       true,
+		WorkspaceID: "default",
+		Secret:      "secret",
+		Now:         now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyScopedKey(got.Key, "", now); !errors.Is(err, ErrKeySecretMissing) {
+		t.Fatalf("missing verify secret err = %v, want ErrKeySecretMissing", err)
+	}
+}
+
 func TestKeys_VerifyScopedKeyRejectsWrongSecretAndExpiredToken(t *testing.T) {
 	now := time.Date(2026, 4, 28, 14, 0, 0, 0, time.UTC)
 	got, err := CreateScopedKey(ScopedKeyParams{
