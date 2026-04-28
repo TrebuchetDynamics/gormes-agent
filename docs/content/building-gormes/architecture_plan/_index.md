@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 37/77 subphases shipped · 25 in progress · 15 planned
+**Overall:** 37/77 subphases shipped · 26 in progress · 14 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -404,8 +404,10 @@ classification and row-backed implementation queue.
 - [x] Goncho CRUD lifecycle invariants
 - [ ] Goncho empty peer-card hint contract
 
-### 3.G — Goncho Drop-In Compatibility Closure ⏳
+### 3.G — Goncho Drop-In Compatibility Closure 🔨
 
+- [x] Goncho keys + webhooks compatibility surface
+- [x] Goncho HTTP route parity over OpenAPI v3
 - [ ] Goncho Honcho SDK compatibility e2e harness
 - [ ] Goncho memory integration into normal agent turn
 

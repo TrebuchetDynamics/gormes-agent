@@ -6214,6 +6214,7 @@
                 "../honcho/src/webhooks/events.py",
                 "../honcho/src/webhooks/webhook_delivery.py",
                 "../honcho/tests/routes/test_webhooks.py",
+                "../honcho/tests/webhooks/test_webhook_delivery.py",
                 "internal/goncho/keys.go",
                 "internal/goncho/webhooks.go"
               ],
@@ -6266,6 +6267,80 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "honcho:src/routers/{keys,webhooks}.py + src/security.py + src/crud/webhook.py + src/webhooks/**",
                 "note": "Honcho supplies the public key/webhook behavior; Gormes owns a local Go compatibility surface and leaves route/worker binding to dedicated rows."
+              }
+            },
+            {
+              "name": "Goncho HTTP route parity over OpenAPI v3",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Goncho owns a source-backed OpenAPI v3 route manifest for every upstream Honcho HTTP path/method and classifies each route as service-backed or still row-backed with residual implementation evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "This slice does not bind HTTP handlers. Routes without a service target remain row-backed with explicit residuals, and service-backed routes still require a later internal/apiserver adapter for auth, pagination, validation, status codes, and response envelopes.",
+              "fixture": "internal/goncho/http/routes_test.go",
+              "source_refs": [
+                "../honcho/docs/v3/openapi.json",
+                "../honcho/src/routers/workspaces.py",
+                "../honcho/src/routers/peers.py",
+                "../honcho/src/routers/sessions.py",
+                "../honcho/src/routers/messages.py",
+                "../honcho/src/routers/conclusions.py",
+                "../honcho/src/routers/keys.py",
+                "../honcho/src/routers/webhooks.py",
+                "../honcho/tests/routes/",
+                "internal/goncho/http/routes.go"
+              ],
+              "ready_when": [
+                "Goncho CRUD lifecycle invariants and keys/webhooks compatibility surface are validated.",
+                "The slice can remain a manifest/classification package and must not add HTTP route binding, hosted Honcho middleware, generated SDKs, or live network tests."
+              ],
+              "not_ready_when": [
+                "The slice attempts full API server parity, generated OpenAPI clients, SDK e2e flows, or broad hosted Honcho behavior instead of a route coverage manifest.",
+                "The implementation claims broad route coverage from globbed routers without proving each OpenAPI path/method."
+              ],
+              "unblocks": [
+                "Goncho Honcho SDK compatibility e2e harness",
+                "Goncho CLI command-tree parity",
+                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+              ],
+              "acceptance": [
+                "OpenAPIRouteManifest enumerates all 45 Honcho v3 path/method routes from docs/v3/openapi.json with operationId and tag evidence.",
+                "A test parses the upstream OpenAPI fixture and fails if any route is missing, renamed, or added without classification.",
+                "Every route has source refs, a service-backed or row-backed status, and a residual contract naming the remaining HTTP adapter work.",
+                "Service-backed routes identify existing Go targets such as CreateScopedKey, webhook helpers, CreateMessages, DeleteSession, DeleteWorkspace, Profile, Context, Search, Conclude, queue status, and dream scheduler.",
+                "The manifest returns defensive copies so later adapter code cannot mutate canonical parity rows."
+              ],
+              "note": "Complete: TDD added internal/goncho/http/routes.go and routes_test.go. The manifest enumerates all 45 upstream Honcho v3 OpenAPI path/method routes, including workspaces, peers, sessions, messages, conclusions, keys, and webhooks, and classifies each as service_backed or row_backed with per-route source refs and residual adapter work. Tests parse ../honcho/docs/v3/openapi.json when present, compare exact method/path/operationId/tag signatures, require every route to be classified with source/residual evidence, verify key/webhook/CRUD service-backed targets, and prove returned route slices are defensive copies. No HTTP handler binding, hosted auth middleware, SDK clients, queue delivery, pagination envelopes, or status-code parity was implemented in this slice.",
+              "write_scope": [
+                "internal/goncho/http/routes.go",
+                "internal/goncho/http/routes_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho/http -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OpenAPI route manifest fixtures prove every upstream Honcho v3 route is classified with source refs, service-backed targets where available, and explicit residual row-backed HTTP adapter work."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-28T15:34:00Z",
+                "last_success": "2026-04-28T15:34:00Z"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "honcho:docs/v3/openapi.json + src/routers/*.py",
+                "note": "Honcho OpenAPI is the source of truth for path/method/operation IDs; Gormes owns the Go route manifest and leaves handler binding to a later adapter row."
               }
             },
             {
