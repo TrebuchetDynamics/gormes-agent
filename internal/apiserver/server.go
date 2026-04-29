@@ -41,6 +41,15 @@ type Config struct {
 	// health endpoint. Callers fill it from already-available status reads;
 	// when nil the endpoint returns a degraded zero-value snapshot.
 	DetailedHealth func() DetailedHealthSnapshotInput
+	// CronJobs is the read facade for the native cron job store used by the
+	// authenticated read-only cron admin endpoints. *cron.Store satisfies
+	// this interface. When nil, the endpoints respond with the shared error
+	// envelope and code "cron_store_unavailable".
+	CronJobs CronJobReader
+	// CronRuns is the read facade for the cron run audit log used by the
+	// run-history endpoint. *cron.RunStore satisfies this interface. When
+	// nil, run-history responds with code "cron_runs_unavailable".
+	CronRuns CronRunReader
 }
 
 // ChatTransportStatus describes the dashboard's embedded chat transports
@@ -69,6 +78,8 @@ type Server struct {
 	pluginInventory        pluginmeta.Inventory
 	chatTransport          ChatTransportStatus
 	detailedHealth         func() DetailedHealthSnapshotInput
+	cronJobs               CronJobReader
+	cronRuns               CronRunReader
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -174,6 +185,8 @@ func NewServer(cfg Config) *Server {
 		pluginInventory: clonePluginInventory(cfg.PluginInventory),
 		chatTransport:   cfg.ChatTransport,
 		detailedHealth:  cfg.DetailedHealth,
+		cronJobs:        cfg.CronJobs,
+		cronRuns:        cfg.CronRuns,
 		now:             time.Now,
 		mux:             http.NewServeMux(),
 	}
@@ -204,6 +217,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/dashboard/plugins", s.handleDashboardPlugins)
 	s.mux.HandleFunc("/api/sessions", s.handleDashboardSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
+	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)
+	s.mux.HandleFunc("/v1/admin/cron/jobs/", s.handleCronAdminJobByID)
 }
 
 func securityHeaders(next http.Handler) http.Handler {
