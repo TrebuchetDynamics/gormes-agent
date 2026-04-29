@@ -75,17 +75,41 @@ func scoreSkill(skill Skill, tokens []string) int {
 	name := strings.ToLower(skill.Name)
 	description := strings.ToLower(skill.Description)
 	body := strings.ToLower(skill.Body)
+	tagBag := strings.ToLower(strings.Join(skill.HermesTags, " "))
+	triggerBag := lowerJoin(skill.Triggers)
+	query := strings.ToLower(strings.Join(tokens, " "))
 
 	score := 0
+	for _, trigger := range skill.Triggers {
+		trigger = strings.ToLower(strings.TrimSpace(trigger))
+		if trigger != "" && strings.Contains(query, trigger) {
+			score += 25
+		}
+	}
 	for _, token := range tokens {
 		switch {
 		case strings.Contains(name, token):
 			score += 10
 		case strings.Contains(description, token):
 			score += 4
+		case strings.Contains(tagBag, token):
+			score += 3
+		case strings.Contains(triggerBag, token):
+			score += 2
 		case strings.Contains(body, token):
 			score++
 		}
 	}
 	return score
+}
+
+func lowerJoin(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	out := make([]string, len(values))
+	for i, value := range values {
+		out[i] = strings.ToLower(value)
+	}
+	return strings.Join(out, " ")
 }

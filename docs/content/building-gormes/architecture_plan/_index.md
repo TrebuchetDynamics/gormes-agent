@@ -796,7 +796,7 @@ classification and row-backed implementation queue.
 ### 6.C — Skill Storage Format 🔨
 
 - [x] SKILL.md frontmatter validation guard
-- [ ] Hermes creative skill metadata compatibility
+- [x] Hermes creative skill metadata compatibility
 - [ ] Portable SKILL.md format
 
 ### 6.D — Skill Retrieval + Matching ⏳

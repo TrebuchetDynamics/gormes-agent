@@ -18,6 +18,12 @@ type Skill struct {
 	Path        string
 	RawBytes    int
 
+	Version       string
+	Author        string
+	License       string
+	HermesTags    []string
+	RelatedSkills []string
+
 	Platforms        []string
 	RequiredEnvVars  []string
 	CredentialGroups []CredentialGroup

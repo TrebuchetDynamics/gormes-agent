@@ -39,6 +39,11 @@ func Parse(raw []byte, maxBytes int) (Skill, error) {
 	frontmatter := parseFrontmatter(strings.Join(lines[1:end], "\n"))
 	skill.Name = frontmatterString(frontmatter, "name")
 	skill.Description = frontmatterString(frontmatter, "description")
+	skill.Version = frontmatterString(frontmatter, "version")
+	skill.Author = frontmatterString(frontmatter, "author")
+	skill.License = frontmatterString(frontmatter, "license")
+	skill.HermesTags = hermesTags(frontmatter)
+	skill.RelatedSkills = relatedSkills(frontmatter)
 	skill.Platforms = frontmatterStringList(frontmatter["platforms"])
 	skill.RequiredEnvVars = requiredEnvVars(frontmatter)
 	skill.CredentialGroups = credentialGroups(frontmatter)
@@ -199,6 +204,40 @@ func dedupeCredentialGroups(in []CredentialGroup) []CredentialGroup {
 		out = append(out, group)
 	}
 	return out
+}
+
+// hermesTags collects tag strings from the upstream-supported locations:
+// nested `metadata.hermes.tags` (claude-design, design-md), bare `hermes.tags`
+// (legacy), and a flat top-level `tags` list (popular-web-designs).
+func hermesTags(frontmatter map[string]any) []string {
+	var out []string
+	if metadata, ok := frontmatter["metadata"].(map[string]any); ok {
+		if hermes, ok := metadata["hermes"].(map[string]any); ok {
+			out = append(out, frontmatterStringList(hermes["tags"])...)
+		}
+	}
+	if hermes, ok := frontmatter["hermes"].(map[string]any); ok {
+		out = append(out, frontmatterStringList(hermes["tags"])...)
+	}
+	out = append(out, frontmatterStringList(frontmatter["tags"])...)
+	return dedupeStrings(out)
+}
+
+// relatedSkills mirrors hermesTags' precedence for the related_skills field
+// so creative skills carry cross-reference routing without inflating the
+// top-level frontmatter shape.
+func relatedSkills(frontmatter map[string]any) []string {
+	var out []string
+	if metadata, ok := frontmatter["metadata"].(map[string]any); ok {
+		if hermes, ok := metadata["hermes"].(map[string]any); ok {
+			out = append(out, frontmatterStringList(hermes["related_skills"])...)
+		}
+	}
+	if hermes, ok := frontmatter["hermes"].(map[string]any); ok {
+		out = append(out, frontmatterStringList(hermes["related_skills"])...)
+	}
+	out = append(out, frontmatterStringList(frontmatter["related_skills"])...)
+	return dedupeStrings(out)
 }
 
 func reviewState(frontmatter map[string]any) string {

@@ -32,7 +32,7 @@
   },
   "phases": {
     "1": {
-      "name": "Phase 1 — The Dashboard",
+      "name": "Phase 1 \u2014 The Dashboard",
       "deliverable": "Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary",
       "subphases": {
         "1.A": {
@@ -377,11 +377,11 @@
               ],
               "ready_when": [
                 "Watchdog dirty-worktree checkpointing is in place (commit ff96a5d94) and emits a record_run_health event we can key off of.",
-                "Tests can use a fake clock and an in-memory git repo or a synthetic commit-recorder seam — no live system clock or systemd is required."
+                "Tests can use a fake clock and an in-memory git repo or a synthetic commit-recorder seam \u2014 no live system clock or systemd is required."
               ],
               "not_ready_when": [
                 "The slice changes the watchdog stall threshold, the dead-process detection, or the planner cadence.",
-                "The slice silently drops the dirty-worktree checkpoint when a stall is real — the first tick of every distinct stall window must still produce a single observable checkpoint."
+                "The slice silently drops the dirty-worktree checkpoint when a stall is real \u2014 the first tick of every distinct stall window must still produce a single observable checkpoint."
               ],
               "unblocks": [
                 "Watchdog dead-process vs slow-progress separation"
@@ -392,9 +392,9 @@
                 "TestDecideCheckpoint_LaterTickPastWindowReturnsFirst: prior state {LastCheckpointAt: now-601s, WindowID: \"w-1\"}, cfg.Dirty=true, windowSeconds=600, NextWindowID=()=>\"w-2\" returns (DecisionFirst, {LastCheckpointAt: now, WindowID: \"w-2\"}).",
                 "TestDecideCheckpoint_NoopWhenNotDirty: any prior state, cfg.Dirty=false returns (DecisionNoop, prior state unchanged); NextWindowID is NOT called.",
                 "TestDecideCheckpoint_DefaultWindowWhenZeroOrNegative: cfg.WindowSeconds=0 and cfg.WindowSeconds=-5 both behave like windowSeconds=600.",
-                "Helper is a pure function with no time.Now, no git invocation, no os.* calls — caller passes both the clock (now) and the dirty flag (cfg.Dirty) and the WindowID generator (cfg.NextWindowID)."
+                "Helper is a pure function with no time.Now, no git invocation, no os.* calls \u2014 caller passes both the clock (now) and the dirty flag (cfg.Dirty) and the WindowID generator (cfg.NextWindowID)."
               ],
-              "note": "Complete: TDD landed the pure DecideCheckpoint helper and fake-clock fixtures for first checkpoint, in-window amend, post-window rotation, no-dirty noop, and the 600-second fallback for zero/negative window sizes. Pure-Go decider only — shell-script wiring at scripts/orchestrator/watchdog.sh is OUT of scope and will be a separate row that imports DecideCheckpoint via a small stub binary.",
+              "note": "Complete: TDD landed the pure DecideCheckpoint helper and fake-clock fixtures for first checkpoint, in-window amend, post-window rotation, no-dirty noop, and the 600-second fallback for zero/negative window sizes. Pure-Go decider only \u2014 shell-script wiring at scripts/orchestrator/watchdog.sh is OUT of scope and will be a separate row that imports DecideCheckpoint via a small stub binary.",
               "write_scope": [
                 "internal/builderloop/watchdog_coalesce.go",
                 "internal/builderloop/watchdog_coalesce_test.go",
@@ -429,7 +429,7 @@
               },
               "provenance": {
                 "origin_type": "operator_audit",
-                "note": "Reduces the 74-commit/28-min checkpoint storm observed overnight 2026-04-25 → 2026-04-26 to ≤1 commit per stall window."
+                "note": "Reduces the 74-commit/28-min checkpoint storm observed overnight 2026-04-25 \u2192 2026-04-26 to \u22641 commit per stall window."
               }
             },
             {
@@ -454,7 +454,7 @@
                 "A fake clock and a stub gh-list backend make backoff state observable without live network calls."
               ],
               "not_ready_when": [
-                "The slice changes how PRs are merged, classified, or evicted — only the schedule of intake runs is in scope.",
+                "The slice changes how PRs are merged, classified, or evicted \u2014 only the schedule of intake runs is in scope.",
                 "The slice removes pr_intake calls entirely or makes them event-driven (gh webhook); event-driven is a separate row."
               ],
               "unblocks": [
@@ -466,9 +466,9 @@
                 "TestBackoffState_RecordEmptyAtThreshold sets SuppressUntil=now+Idle and ShouldPoll=false until SuppressUntil elapses.",
                 "TestBackoffState_RecordNonEmptyResetsState restores baseline (ConsecutiveEmpty=0, SuppressUntil zero).",
                 "TestBackoffState_ShouldPollAfterSuppressionElapsed flips back to true when now >= SuppressUntil even if ConsecutiveEmpty is still at threshold.",
-                "Helper is a pure function — caller injects the clock and the listed result count."
+                "Helper is a pure function \u2014 caller injects the clock and the listed result count."
               ],
-              "note": "Pure-Go state machine only. Wiring into pr_intake.go is a separate downstream row. Overnight ledger showed 654 pr_intake_completed events of which only 3 actually merged — this helper is the gate that suppresses 651 idle polls.",
+              "note": "Pure-Go state machine only. Wiring into pr_intake.go is a separate downstream row. Overnight ledger showed 654 pr_intake_completed events of which only 3 actually merged \u2014 this helper is the gate that suppresses 651 idle polls.",
               "write_scope": [
                 "internal/builderloop/pr_intake_backoff.go",
                 "internal/builderloop/pr_intake_backoff_test.go",
@@ -510,7 +510,7 @@
               "name": "Watchdog dead-process vs slow-progress separation",
               "priority": "P1",
               "status": "complete",
-              "contract": "TDD packet for a missing pure helper; create exactly two files and do not wire them into the watchdog loop. STEP 1: cd into the repo root and run `ls internal/builderloop/watchdog_state*.go` — both files must be absent before the worker writes them. STEP 2: write internal/builderloop/watchdog_state_test.go in package builderloop with one TestDiagnose function holding a t.Run-driven table. The subtests are named exactly zero_pid_dead, pid_not_live_after_dead_threshold, live_after_slow_threshold, dead_wins_when_both_thresholds_fire, healthy_recent_live, and pid_live_silent_for_a_year_is_slow_not_dead. Use a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and pass deadAfter=120*time.Second, slowAfter=600*time.Second. STEP 3: write internal/builderloop/watchdog_state.go exposing type Verdict string with constants VerdictHealthy=\"healthy\", VerdictSlow=\"slow\", VerdictDead=\"dead\"; type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and func Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Verdict precedence (evaluate in this order): if v.PID==0 return VerdictDead; let elapsed := now.Sub(v.LastCommitAt); if !v.PIDIsLive && elapsed>=deadAfter return VerdictDead; if v.PIDIsLive && elapsed>=slowAfter return VerdictSlow; otherwise return VerdictHealthy. STEP 4: the helper uses only caller-injected now and PIDIsLive — no os.FindProcess, signal delivery, time.Now, goroutines, watchdog wiring, config validation, or imports beyond `time`.",
+              "contract": "TDD packet for a missing pure helper; create exactly two files and do not wire them into the watchdog loop. STEP 1: cd into the repo root and run `ls internal/builderloop/watchdog_state*.go` \u2014 both files must be absent before the worker writes them. STEP 2: write internal/builderloop/watchdog_state_test.go in package builderloop with one TestDiagnose function holding a t.Run-driven table. The subtests are named exactly zero_pid_dead, pid_not_live_after_dead_threshold, live_after_slow_threshold, dead_wins_when_both_thresholds_fire, healthy_recent_live, and pid_live_silent_for_a_year_is_slow_not_dead. Use a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and pass deadAfter=120*time.Second, slowAfter=600*time.Second. STEP 3: write internal/builderloop/watchdog_state.go exposing type Verdict string with constants VerdictHealthy=\"healthy\", VerdictSlow=\"slow\", VerdictDead=\"dead\"; type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and func Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Verdict precedence (evaluate in this order): if v.PID==0 return VerdictDead; let elapsed := now.Sub(v.LastCommitAt); if !v.PIDIsLive && elapsed>=deadAfter return VerdictDead; if v.PIDIsLive && elapsed>=slowAfter return VerdictSlow; otherwise return VerdictHealthy. STEP 4: the helper uses only caller-injected now and PIDIsLive \u2014 no os.FindProcess, signal delivery, time.Now, goroutines, watchdog wiring, config validation, or imports beyond `time`.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -518,7 +518,7 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Watchdog status reports worker_state ∈ {alive_progressing, alive_silent, dead, unknown} and the threshold each one tripped; record_run_health carries the worker_state and which threshold (dead_after_seconds, silent_after_seconds) fired.",
+              "degraded_mode": "Watchdog status reports worker_state \u2208 {alive_progressing, alive_silent, dead, unknown} and the threshold each one tripped; record_run_health carries the worker_state and which threshold (dead_after_seconds, silent_after_seconds) fired.",
               "fixture": "internal/builderloop/watchdog_state_test.go (new file)::TestDiagnose/zero_pid_dead+dead_wins_when_both_thresholds_fire",
               "source_refs": [
                 "internal/builderloop/run.go",
@@ -531,7 +531,7 @@
                 "If either target file already exists in the worker checkout, the worker should run the focused test and update this progress row instead of creating a duplicate helper."
               ],
               "not_ready_when": [
-                "The slice changes how worker output is rejected or how dirty worktrees are committed — only worker liveness detection is in scope.",
+                "The slice changes how worker output is rejected or how dirty worktrees are committed \u2014 only worker liveness detection is in scope.",
                 "The slice introduces process-group signal sending or container-aware death detection (those belong to a separate sandboxing row).",
                 "The worker needs to edit internal/builderloop/run.go, watchdog timers, backend prompts, ledger writing, or process-kill behavior to make the test pass."
               ],
@@ -545,9 +545,9 @@
                 "TestDiagnose/zero_pid_dead: v={PID:0, LastCommitAt:now-1*time.Second, PIDIsLive:true} returns VerdictDead (zero PID short-circuits; thresholds and PIDIsLive are ignored).",
                 "TestDiagnose/dead_wins_when_both_thresholds_fire: v={PID:1234, LastCommitAt:now-700*time.Second, PIDIsLive:false} with deadAfter=120s, slowAfter=600s returns VerdictDead (dead wins over slow when both fire).",
                 "TestDiagnose/pid_live_silent_for_a_year_is_slow_not_dead: v={PID:1234, LastCommitAt:now-99999*time.Second, PIDIsLive:true} returns VerdictSlow (never VerdictDead while the process answers Signal(0)).",
-                "Helper is pure — caller injects the clock (now) and the PIDIsLive result; the test file imports only `testing` and `time` from stdlib."
+                "Helper is pure \u2014 caller injects the clock (now) and the PIDIsLive result; the test file imports only `testing` and `time` from stdlib."
               ],
-              "note": "Reshape #7 (2026-04-26T19:00:00Z): added explicit STEP 1–4 numbering, named the fixed time anchor, exact subtest names matching the contract, and an extra silent-but-live-for-a-year guard subtest so the spec_hash differs from the prior no_progress reshape. Workers must add the helper + test files directly and must not touch watchdog wiring or run.go.",
+              "note": "Reshape #7 (2026-04-26T19:00:00Z): added explicit STEP 1\u20134 numbering, named the fixed time anchor, exact subtest names matching the contract, and an extra silent-but-live-for-a-year guard subtest so the spec_hash differs from the prior no_progress reshape. Workers must add the helper + test files directly and must not touch watchdog wiring or run.go.",
               "write_scope": [
                 "internal/builderloop/watchdog_state.go",
                 "internal/builderloop/watchdog_state_test.go",
@@ -584,14 +584,14 @@
               "provenance": {
                 "origin_type": "gormes",
                 "owned_since": "2026-04-26T17:47:44Z",
-                "note": "Closes the 50-min dead-air gap from 05:28→06:19 local on 2026-04-26 by separating fast (dead-process) and slow (no-progress) thresholds."
+                "note": "Closes the 50-min dead-air gap from 05:28\u219206:19 local on 2026-04-26 by separating fast (dead-process) and slow (no-progress) thresholds."
               }
             },
             {
               "name": "Builder-loop self-improvement vs user-feature ratio metric",
               "priority": "P2",
               "status": "complete",
-              "contract": "TDD packet for a missing pure helper; create exactly two files and do not parse the live ledger. STEP 1: cd into the repo root and run `ls internal/builderloop/ship_ratio*.go` — both files must be absent before the worker writes them. STEP 2: write internal/builderloop/ship_ratio_test.go in package builderloop with two top-level test functions. TestClassifySubphase uses a t.Run-driven table with named subtests bare_1c, path_1c, bare_5o, path_5o, control_plane_prefix, user_feature_4a, user_feature_4h, user_feature_6a, user_feature_7b, blank_input, whitespace_only, and unknown_99x; each asserts ClassifySubphase returns the expected RowKind. TestComputeShipRatio uses a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and a 24h window; subtests inclusive_window_start, future_event_excluded, per_kind_counts, and zero_events_returns_zero_total. STEP 3: write internal/builderloop/ship_ratio.go exposing type RowKind string with constants RowKindSelfImprovement=\"self_improvement\", RowKindUserFeature=\"user_feature\", RowKindUnclassified=\"unclassified\"; type ShippedRowEvent struct{SubphaseID string; ShippedAt time.Time}; type ShipRatio struct{SelfImprovement int; UserFeature int; Unclassified int; Total int}; func ClassifySubphase(subphaseID string) RowKind; and func ComputeShipRatio(events []ShippedRowEvent, window time.Duration, now time.Time) ShipRatio. ClassifySubphase trims spaces, splits on \"/\" and inspects the second segment if the first is a phase number (\"1\",\"4\",\"5\",\"6\",\"7\"), and treats bare \"1.C\", \"5.O\", and any string with prefix \"control-plane/\" as RowKindSelfImprovement. \"4.A\", \"4.H\", \"6.*\", \"7.*\" map to RowKindUserFeature; everything else (including blank input) returns RowKindUnclassified. ComputeShipRatio is a pure aggregator over the provided slice. STEP 4: no file I/O, no ledger parsing, no record_run_health emission, no goroutines, no live clock; imports only `strings` and `time` plus `testing` in the test file.",
+              "contract": "TDD packet for a missing pure helper; create exactly two files and do not parse the live ledger. STEP 1: cd into the repo root and run `ls internal/builderloop/ship_ratio*.go` \u2014 both files must be absent before the worker writes them. STEP 2: write internal/builderloop/ship_ratio_test.go in package builderloop with two top-level test functions. TestClassifySubphase uses a t.Run-driven table with named subtests bare_1c, path_1c, bare_5o, path_5o, control_plane_prefix, user_feature_4a, user_feature_4h, user_feature_6a, user_feature_7b, blank_input, whitespace_only, and unknown_99x; each asserts ClassifySubphase returns the expected RowKind. TestComputeShipRatio uses a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and a 24h window; subtests inclusive_window_start, future_event_excluded, per_kind_counts, and zero_events_returns_zero_total. STEP 3: write internal/builderloop/ship_ratio.go exposing type RowKind string with constants RowKindSelfImprovement=\"self_improvement\", RowKindUserFeature=\"user_feature\", RowKindUnclassified=\"unclassified\"; type ShippedRowEvent struct{SubphaseID string; ShippedAt time.Time}; type ShipRatio struct{SelfImprovement int; UserFeature int; Unclassified int; Total int}; func ClassifySubphase(subphaseID string) RowKind; and func ComputeShipRatio(events []ShippedRowEvent, window time.Duration, now time.Time) ShipRatio. ClassifySubphase trims spaces, splits on \"/\" and inspects the second segment if the first is a phase number (\"1\",\"4\",\"5\",\"6\",\"7\"), and treats bare \"1.C\", \"5.O\", and any string with prefix \"control-plane/\" as RowKindSelfImprovement. \"4.A\", \"4.H\", \"6.*\", \"7.*\" map to RowKindUserFeature; everything else (including blank input) returns RowKindUnclassified. ComputeShipRatio is a pure aggregator over the provided slice. STEP 4: no file I/O, no ledger parsing, no record_run_health emission, no goroutines, no live clock; imports only `strings` and `time` plus `testing` in the test file.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -608,12 +608,12 @@
               ],
               "ready_when": [
                 "record_run_health is the canonical health signal already (commit 2653a7b6 etc.) and runs.jsonl carries shipped row evidence.",
-                "A subphase classifier mapping (1.C, control-plane/*, and 5.O → self_improvement; 4.*, 6.*, and 7.* → user_feature; blank/unknown → unclassified) can live in a small in-package table for now.",
+                "A subphase classifier mapping (1.C, control-plane/*, and 5.O \u2192 self_improvement; 4.*, 6.*, and 7.* \u2192 user_feature; blank/unknown \u2192 unclassified) can live in a small in-package table for now.",
                 "internal/builderloop/ship_ratio.go and ship_ratio_test.go are absent on main; the worker's first edit is the focused failing test file.",
                 "The dependency on PR-intake idle backoff is already satisfied on main; only Watchdog dead-process vs slow-progress separation remains a live prerequisite."
               ],
               "not_ready_when": [
-                "The slice changes ship-detection or ledger-write semantics — only adds a derived counter.",
+                "The slice changes ship-detection or ledger-write semantics \u2014 only adds a derived counter.",
                 "The slice depends on a yet-unbuilt classifier service or external store.",
                 "The worker needs to read .codex/builder-loop/state/runs.jsonl or change record_run_health to make the tests pass."
               ],
@@ -628,9 +628,9 @@
                 "TestComputeShipRatio/future_event_excluded: an event with ShippedAt=now+1*time.Hour is EXCLUDED from the count.",
                 "TestComputeShipRatio/per_kind_counts returns SelfImprovement, UserFeature, Unclassified counts plus Total = SelfImprovement+UserFeature+Unclassified.",
                 "TestComputeShipRatio/zero_events_returns_zero_total returns ShipRatio{} with all zero counts.",
-                "Helper is a pure function — caller injects the events slice and the clock; the test file imports only `strings`, `testing`, and `time`."
+                "Helper is a pure function \u2014 caller injects the events slice and the clock; the test file imports only `strings`, `testing`, and `time`."
               ],
-              "note": "Reshape #6 (2026-04-26T19:00:00Z): added explicit STEP 1–4 numbering, named the fixed time anchor, exact subtest names, and an extra zero-events guard subtest so the spec_hash differs from the prior no_progress reshape. Workers must add the helper + test files directly and must not touch run.go, health_writer.go, or any ledger writer.",
+              "note": "Reshape #6 (2026-04-26T19:00:00Z): added explicit STEP 1\u20134 numbering, named the fixed time anchor, exact subtest names, and an extra zero-events guard subtest so the spec_hash differs from the prior no_progress reshape. Workers must add the helper + test files directly and must not touch run.go, health_writer.go, or any ledger writer.",
               "write_scope": [
                 "internal/builderloop/ship_ratio.go",
                 "internal/builderloop/ship_ratio_test.go",
@@ -959,7 +959,7 @@
       }
     },
     "2": {
-      "name": "Phase 2 — The Gateway",
+      "name": "Phase 2 \u2014 The Gateway",
       "deliverable": "Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout",
       "subphases": {
         "2.A": {
@@ -2761,7 +2761,7 @@
               "blocked_by": [
                 "Discord forum channel ingress + thread lifecycle"
               ],
-              "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green — attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress.",
+              "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green \u2014 attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -4551,7 +4551,7 @@
             {
               "name": "Gateway-handled slash commands bypass active-session guard",
               "status": "planned",
-              "note": "TDD: mirror upstream PRs #12334 and #511ed4da — registry-resolved gateway slash commands must execute even while an agent is running for that session, without interrupting the running turn and without queuing discardable command text. Keep non-gateway/unknown commands behind the existing busy-state response so only the safe registry surface bypasses the guard; cover both allowed and denied paths with fixture tests before shipping.",
+              "note": "TDD: mirror upstream PRs #12334 and #511ed4da \u2014 registry-resolved gateway slash commands must execute even while an agent is running for that session, without interrupting the running turn and without queuing discardable command text. Keep non-gateway/unknown commands behind the existing busy-state response so only the safe registry surface bypasses the guard; cover both allowed and denied paths with fixture tests before shipping.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -4598,7 +4598,7 @@
       }
     },
     "3": {
-      "name": "Phase 3 — The Black Box (Memory)",
+      "name": "Phase 3 \u2014 The Black Box (Memory)",
       "deliverable": "SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries",
       "subphases": {
         "3.A": {
@@ -6751,7 +6751,7 @@
       }
     },
     "4": {
-      "name": "Phase 4 — The Brain Transplant",
+      "name": "Phase 4 \u2014 The Brain Transplant",
       "deliverable": "Native Go agent orchestrator + prompt builder",
       "dependency_note": "Build priority: 2.E0 deterministic subagent runtime -> 2.G static skills + reviewed candidate flow -> runner-enforced delegation policy + wider gateway surface -> native agent loop",
       "subphases": {
@@ -7278,8 +7278,8 @@
                 "The slice reads or writes AZURE_FOUNDRY_BASE_URL, AZURE_FOUNDRY_API_KEY, deployment config, or model context metadata."
               ],
               "blocked_by": [
-                "Azure Foundry probe — path sniffing",
-                "Azure Foundry probe — /models classification + Anthropic fallback"
+                "Azure Foundry probe \u2014 path sniffing",
+                "Azure Foundry probe \u2014 /models classification + Anthropic fallback"
               ],
               "unblocks": [
                 "Azure Foundry runtime env/config read model"
@@ -7319,7 +7319,7 @@
               }
             },
             {
-              "name": "Azure Foundry probe — path sniffing",
+              "name": "Azure Foundry probe \u2014 path sniffing",
               "priority": "P2",
               "status": "complete",
               "contract": "TDD packet for a missing pure helper; create exactly two files and do not edit the already validated /models probe. First add internal/hermes/azure_foundry_path_sniff_test.go in package hermes with TestClassifyAzurePath table subtests named exact_anthropic, trailing_anthropic, nested_anthropic, mixed_case, bare_host_unknown, openai_path_unknown, substring_false_positives, and empty_and_malformed_unknown. Then add internal/hermes/azure_foundry_path_sniff.go exposing ClassifyAzurePath(rawURL string) AzureTransport that reuses the AzureTransport type/constants from internal/hermes/azure_foundry_models_probe.go. Algorithm: url.Parse; empty path or parse error => AzureTransportUnknown; lowercase and strings.TrimRight(parsed.Path, \"/\"); return AzureTransportAnthropic only when the path equals \"/anthropic\", ends with \"/anthropic\", or contains \"/anthropic/\". This slice never returns AzureTransportOpenAI and never opens HTTP, reads env/config, writes files, starts goroutines, or changes ProbeAzureFoundry.",
@@ -7393,10 +7393,10 @@
               }
             },
             {
-              "name": "Azure Foundry probe — /models classification + Anthropic fallback",
+              "name": "Azure Foundry probe \u2014 /models classification + Anthropic fallback",
               "priority": "P2",
               "status": "complete",
-              "contract": "Pure helper internal/hermes/azure_foundry_models_probe.go exposes type AzureProbeResult struct{Transport AzureTransport; Models []string; Reason string; Evidence []string} and ProbeAzureFoundry(ctx, client *http.Client, base, apiKey string) (AzureProbeResult, error). Probes <base>/models first; on 200 + OpenAI-shaped JSON returns openai_chat_completions with the model IDs. On non-200 or shape mismatch, probes <base>/v1/messages with a zero-token Anthropic Messages payload and classifies anthropic_messages on any 4xx that mentions 'messages' or 'model'. Otherwise returns Transport=unknown and Reason=manual_required. Tests use httptest.Server fakes only — no live Azure call, no credential storage, no config writes.",
+              "contract": "Pure helper internal/hermes/azure_foundry_models_probe.go exposes type AzureProbeResult struct{Transport AzureTransport; Models []string; Reason string; Evidence []string} and ProbeAzureFoundry(ctx, client *http.Client, base, apiKey string) (AzureProbeResult, error). Probes <base>/models first; on 200 + OpenAI-shaped JSON returns openai_chat_completions with the model IDs. On non-200 or shape mismatch, probes <base>/v1/messages with a zero-token Anthropic Messages payload and classifies anthropic_messages on any 4xx that mentions 'messages' or 'model'. Otherwise returns Transport=unknown and Reason=manual_required. Tests use httptest.Server fakes only \u2014 no live Azure call, no credential storage, no config writes.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -7967,7 +7967,7 @@
             {
               "name": "OpenRouter",
               "status": "planned",
-              "note": "Not landed on main. Five codexu/* worker attempts on 2026-04-23 (`343ec085` / `c009045d` / `e7b271a7` / `f00010b1` / `b3b0c366`) produced candidate OpenRouter adapters but none merged — no `openrouter_*.go` file is tracked in `internal/hermes/` and `grep -i openrouter` over that package returns zero matches. Prior planner note incorrectly cited `agent/openrouter_client.py`, which does not exist upstream: `tools/openrouter_client.py` is only a 33-line async-client getter that delegates to `agent/auxiliary_client.py`. TDD scope: OpenRouter is not a standalone adapter upstream — it is one of several OpenAI-compatible providers routed through the shared provider resolver. Pin the behavior by porting against the real upstream surfaces: `agent/auxiliary_client.py:815 _try_openrouter`, `agent/auxiliary_client.py:2069 _is_openrouter_client`, the `X-OpenRouter-Title` / `X-OpenRouter-Categories` / `HTTP-Referer` app-attribution headers around `agent/auxiliary_client.py:170`, `agent/model_metadata.py:214 _is_openrouter_base_url`, `agent/usage_pricing.py:411 _openrouter_pricing_entry`, and `hermes_cli/runtime_provider.py:429 _resolve_openrouter_runtime`. Fixture-only unit tests must prove (a) base URL and model-family selection over the OpenAI-compatible client seam, (b) attribution-header emission, (c) retryable vs fatal error mapping through `internal/hermes/errors.go`, and (d) usage/pricing accounting against captured response fixtures — no live `OPENROUTER_API_KEY` in tests. Land after `Provider interface + stream fixture harness` and `Tool-call normalization + continuation contract` closeout so this slice reuses the shared transcript harness rather than inventing its own.",
+              "note": "Not landed on main. Five codexu/* worker attempts on 2026-04-23 (`343ec085` / `c009045d` / `e7b271a7` / `f00010b1` / `b3b0c366`) produced candidate OpenRouter adapters but none merged \u2014 no `openrouter_*.go` file is tracked in `internal/hermes/` and `grep -i openrouter` over that package returns zero matches. Prior planner note incorrectly cited `agent/openrouter_client.py`, which does not exist upstream: `tools/openrouter_client.py` is only a 33-line async-client getter that delegates to `agent/auxiliary_client.py`. TDD scope: OpenRouter is not a standalone adapter upstream \u2014 it is one of several OpenAI-compatible providers routed through the shared provider resolver. Pin the behavior by porting against the real upstream surfaces: `agent/auxiliary_client.py:815 _try_openrouter`, `agent/auxiliary_client.py:2069 _is_openrouter_client`, the `X-OpenRouter-Title` / `X-OpenRouter-Categories` / `HTTP-Referer` app-attribution headers around `agent/auxiliary_client.py:170`, `agent/model_metadata.py:214 _is_openrouter_base_url`, `agent/usage_pricing.py:411 _openrouter_pricing_entry`, and `hermes_cli/runtime_provider.py:429 _resolve_openrouter_runtime`. Fixture-only unit tests must prove (a) base URL and model-family selection over the OpenAI-compatible client seam, (b) attribution-header emission, (c) retryable vs fatal error mapping through `internal/hermes/errors.go`, and (d) usage/pricing accounting against captured response fixtures \u2014 no live `OPENROUTER_API_KEY` in tests. Land after `Provider interface + stream fixture harness` and `Tool-call normalization + continuation contract` closeout so this slice reuses the shared transcript harness rather than inventing its own.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -8714,7 +8714,7 @@
             {
               "name": "Tool-result pruning + protected head/tail summary",
               "status": "planned",
-              "note": "TDD: freeze old tool-output pruning, protected system/first-turn head messages, recent-tail preservation, and summary prefix compatibility before mutating live message history. Must keep tool-call arguments JSON valid when shrinking per upstream PR #3128d9fc — a pruning pass that truncates an argument string mid-JSON breaks the continuation payload on the next turn, so the head/tail contract has to respect tool-call argument boundaries and never emit partial JSON values.",
+              "note": "TDD: freeze old tool-output pruning, protected system/first-turn head messages, recent-tail preservation, and summary prefix compatibility before mutating live message history. Must keep tool-call arguments JSON valid when shrinking per upstream PR #3128d9fc \u2014 a pruning pass that truncates an argument string mid-JSON breaks the continuation payload on the next turn, so the head/tail contract has to respect tool-call argument boundaries and never emit partial JSON values.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -9341,10 +9341,10 @@
               }
             },
             {
-              "name": "[SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility",
+              "name": "[SYSTEM:\u2192[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility",
               "priority": "P1",
               "status": "complete",
-              "contract": "Single rename of the bracketed meta-instruction prefix used for skill-invocation and cron-heartbeat prompts: change every occurrence of the literal string \"[SYSTEM:\" to \"[IMPORTANT:\" in (a) internal/skills/commands.go (currently at line 94 inside the BuildSkill block string template) and (b) internal/cron/heartbeat.go's CronHeartbeatPrefix constant. The replacement is byte-for-byte over a 7→10 character literal; semantic meaning to the model is unchanged. Update the two existing assertions in internal/skills/preprocessing_commands_test.go (string literal `[SYSTEM: The user has invoked`) and the two assertions in internal/cron/heartbeat_test.go (HasPrefix and contained \"[SYSTEM:\") to match the new prefix. No public Go API renames, no struct shape changes, no provider/transport edits, no schema migrations.",
+              "contract": "Single rename of the bracketed meta-instruction prefix used for skill-invocation and cron-heartbeat prompts: change every occurrence of the literal string \"[SYSTEM:\" to \"[IMPORTANT:\" in (a) internal/skills/commands.go (currently at line 94 inside the BuildSkill block string template) and (b) internal/cron/heartbeat.go's CronHeartbeatPrefix constant. The replacement is byte-for-byte over a 7\u219210 character literal; semantic meaning to the model is unchanged. Update the two existing assertions in internal/skills/preprocessing_commands_test.go (string literal `[SYSTEM: The user has invoked`) and the two assertions in internal/cron/heartbeat_test.go (HasPrefix and contained \"[SYSTEM:\") to match the new prefix. No public Go API renames, no struct shape changes, no provider/transport edits, no schema migrations.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -9367,8 +9367,8 @@
                 "No upstream gate beyond the upstream Hermes commit d7a34682 already merged."
               ],
               "not_ready_when": [
-                "The slice changes the body content of the cron heartbeat or skill-invocation prompts — only the bracketed prefix token rename is in scope.",
-                "The slice introduces a runtime feature flag, environment variable, or config knob to switch between [SYSTEM: and [IMPORTANT: — the rename is unconditional.",
+                "The slice changes the body content of the cron heartbeat or skill-invocation prompts \u2014 only the bracketed prefix token rename is in scope.",
+                "The slice introduces a runtime feature flag, environment variable, or config knob to switch between [SYSTEM: and [IMPORTANT: \u2014 the rename is unconditional.",
                 "The slice touches gateway prompt assembly, provider transports, or any runtime that does not currently emit the [SYSTEM: marker."
               ],
               "acceptance": [
@@ -10961,8 +10961,8 @@
                 "Provider-side resilience",
                 "Classified provider-error taxonomy",
                 "Retry-After header parsing + HTTPError hint",
-                "Provider rate guard — x-ratelimit header classification",
-                "Provider rate guard — degraded-state + last-known-good evidence"
+                "Provider rate guard \u2014 x-ratelimit header classification",
+                "Provider rate guard \u2014 degraded-state + last-known-good evidence"
               ],
               "acceptance": [
                 "Headers with remaining=0 and reset window >=60s classify as genuine account rate limit and record redacted reset evidence.",
@@ -11000,10 +11000,10 @@
               }
             },
             {
-              "name": "Provider rate guard — x-ratelimit header classification",
+              "name": "Provider rate guard \u2014 x-ratelimit header classification",
               "priority": "P2",
               "status": "complete",
-              "contract": "TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics; create exactly two files and do not wire a provider breaker. STEP 1: cd into the repo root and run `ls internal/hermes/provider_rate_guard*.go` — both files must be absent before the worker writes them; if Classify429 already exists, the worker should run the focused test and update this row. STEP 2: write internal/hermes/provider_rate_guard_classification_test.go in package hermes with one TestClassify429 function holding a t.Run-driven table with named subtests genuine_quota_1h_reset, short_reset_upstream_capacity, healthy_remaining_upstream_capacity, missing_headers_insufficient, unknown_headers_ignored, malformed_values_ignored, and three_buckets_with_remaining_one_missing_returns_upstream_capacity. Each subtest builds an http.Header via h := http.Header{}; h.Set(...); h.Set(...). STEP 3: write internal/hermes/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota=\"genuine_quota\", RateLimitUpstreamCapacity=\"upstream_capacity\", RateLimitInsufficientEvidence=\"insufficient_evidence\" and func Classify429(headers http.Header) RateLimitClass. Algorithm: iterate the four Hermes Nous bucket tags (\"requests\", \"requests-1h\", \"tokens\", \"tokens-1h\") via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Get, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. A bucket is exhausted only if remaining<=0 AND reset>=60 seconds (matches Hermes _MIN_RESET_FOR_BREAKER_SECONDS). If any bucket is exhausted, return RateLimitGenuineQuota. If at least one bucket parsed successfully and none are exhausted, return RateLimitUpstreamCapacity. Otherwise return RateLimitInsufficientEvidence. STEP 4: no shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes; imports are limited to net/http, strconv, and strings (plus testing in the test file).",
+              "contract": "TDD packet for a missing pure helper that matches Hermes 192e7eb2 reset-window semantics; create exactly two files and do not wire a provider breaker. STEP 1: cd into the repo root and run `ls internal/hermes/provider_rate_guard*.go` \u2014 both files must be absent before the worker writes them; if Classify429 already exists, the worker should run the focused test and update this row. STEP 2: write internal/hermes/provider_rate_guard_classification_test.go in package hermes with one TestClassify429 function holding a t.Run-driven table with named subtests genuine_quota_1h_reset, short_reset_upstream_capacity, healthy_remaining_upstream_capacity, missing_headers_insufficient, unknown_headers_ignored, malformed_values_ignored, and three_buckets_with_remaining_one_missing_returns_upstream_capacity. Each subtest builds an http.Header via h := http.Header{}; h.Set(...); h.Set(...). STEP 3: write internal/hermes/provider_rate_guard.go exposing type RateLimitClass string with constants RateLimitGenuineQuota=\"genuine_quota\", RateLimitUpstreamCapacity=\"upstream_capacity\", RateLimitInsufficientEvidence=\"insufficient_evidence\" and func Classify429(headers http.Header) RateLimitClass. Algorithm: iterate the four Hermes Nous bucket tags (\"requests\", \"requests-1h\", \"tokens\", \"tokens-1h\") via the paired x-ratelimit-remaining-{tag} and x-ratelimit-reset-{tag} headers; use headers.Get, strings.TrimSpace, strconv.Atoi for remaining, strconv.ParseFloat for reset seconds. A bucket is exhausted only if remaining<=0 AND reset>=60 seconds (matches Hermes _MIN_RESET_FOR_BREAKER_SECONDS). If any bucket is exhausted, return RateLimitGenuineQuota. If at least one bucket parsed successfully and none are exhausted, return RateLimitUpstreamCapacity. Otherwise return RateLimitInsufficientEvidence. STEP 4: no shared breaker state, no time.Now, no sleeps, no retry policy, and no provider routing changes; imports are limited to net/http, strconv, and strings (plus testing in the test file).",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -11030,7 +11030,7 @@
                 "The worker needs to edit internal/hermes/client.go, internal/hermes/errors.go, internal/kernel/retry.go, or any provider routing code to make the tests pass."
               ],
               "unblocks": [
-                "Provider rate guard — degraded-state + last-known-good evidence"
+                "Provider rate guard \u2014 degraded-state + last-known-good evidence"
               ],
               "acceptance": [
                 "TestClassify429/genuine_quota_1h_reset (X-RateLimit-Remaining-Requests-1h=0 and X-RateLimit-Reset-Requests-1h=300) returns RateLimitGenuineQuota even when other present buckets are >0.",
@@ -11076,10 +11076,10 @@
               }
             },
             {
-              "name": "Provider rate guard — degraded-state + last-known-good evidence",
+              "name": "Provider rate guard \u2014 degraded-state + last-known-good evidence",
               "priority": "P2",
               "status": "complete",
-              "contract": "TDD packet for a missing pure state-transition helper. The prerequisite (RateLimitClass + Classify429 in internal/hermes/provider_rate_guard.go) is shipped on main as of commit a1d7d928; do NOT stub or duplicate those constants. STEP 1: write internal/hermes/provider_rate_guard_degraded_test.go in package hermes (importing only `testing` and `time`). Define t0 and t1 once at the top of TestApplyClassification: `t0 := time.Date(2026,4,26,12,0,0,0,time.UTC); t1 := t0.Add(5*time.Minute)`. Add six t.Run subtests in this order — preserves_last_known_when_insufficient, treats_empty_class_as_insufficient, fresh_genuine_quota_clears_unavailable, fresh_upstream_capacity_clears_unavailable, input_immutability_via_struct_value, transitions_back_to_available_on_fresh_evidence — each calling ApplyClassification with explicit GuardState literals and asserting the returned struct field-by-field with t.Fatalf on mismatch. STEP 2: write internal/hermes/provider_rate_guard_degraded.go in package hermes (importing only `time`). Define `type GuardState struct { LastKnownClass RateLimitClass; LastKnownAt time.Time; Unavailable bool }` and `func ApplyClassification(state GuardState, now time.Time, class RateLimitClass) GuardState`. Algorithm: if class == RateLimitInsufficientEvidence OR class == RateLimitClass(\"\"), return GuardState{LastKnownClass: state.LastKnownClass, LastKnownAt: state.LastKnownAt, Unavailable: true}. Otherwise return GuardState{LastKnownClass: class, LastKnownAt: now, Unavailable: false}. The helper takes its argument by value, never mutates it, never reads time.Now, never spawns a goroutine, and never touches retry/breaker code.",
+              "contract": "TDD packet for a missing pure state-transition helper. The prerequisite (RateLimitClass + Classify429 in internal/hermes/provider_rate_guard.go) is shipped on main as of commit a1d7d928; do NOT stub or duplicate those constants. STEP 1: write internal/hermes/provider_rate_guard_degraded_test.go in package hermes (importing only `testing` and `time`). Define t0 and t1 once at the top of TestApplyClassification: `t0 := time.Date(2026,4,26,12,0,0,0,time.UTC); t1 := t0.Add(5*time.Minute)`. Add six t.Run subtests in this order \u2014 preserves_last_known_when_insufficient, treats_empty_class_as_insufficient, fresh_genuine_quota_clears_unavailable, fresh_upstream_capacity_clears_unavailable, input_immutability_via_struct_value, transitions_back_to_available_on_fresh_evidence \u2014 each calling ApplyClassification with explicit GuardState literals and asserting the returned struct field-by-field with t.Fatalf on mismatch. STEP 2: write internal/hermes/provider_rate_guard_degraded.go in package hermes (importing only `time`). Define `type GuardState struct { LastKnownClass RateLimitClass; LastKnownAt time.Time; Unavailable bool }` and `func ApplyClassification(state GuardState, now time.Time, class RateLimitClass) GuardState`. Algorithm: if class == RateLimitInsufficientEvidence OR class == RateLimitClass(\"\"), return GuardState{LastKnownClass: state.LastKnownClass, LastKnownAt: state.LastKnownAt, Unavailable: true}. Otherwise return GuardState{LastKnownClass: class, LastKnownAt: now, Unavailable: false}. The helper takes its argument by value, never mutates it, never reads time.Now, never spawns a goroutine, and never touches retry/breaker code.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -11095,7 +11095,7 @@
                 "internal/hermes/provider_rate_guard.go::Classify429"
               ],
               "ready_when": [
-                "Provider rate guard — x-ratelimit header classification is complete on main (commit a1d7d928); RateLimitClass and the three RateLimit* constants are importable directly from package hermes.",
+                "Provider rate guard \u2014 x-ratelimit header classification is complete on main (commit a1d7d928); RateLimitClass and the three RateLimit* constants are importable directly from package hermes.",
                 "internal/hermes/provider_rate_guard_degraded.go and provider_rate_guard_degraded_test.go are absent on main; the worker's first edit is the focused failing test file."
               ],
               "not_ready_when": [
@@ -11137,7 +11137,7 @@
                   "run_id": "20260426T150848Z-251659260",
                   "category": "no_progress",
                   "backend": "codexu",
-                  "stderr_tail": "worker made no changes: 4/4.H/Provider rate guard — degraded-state + last-known-good evidence"
+                  "stderr_tail": "worker made no changes: 4/4.H/Provider rate guard \u2014 degraded-state + last-known-good evidence"
                 },
                 "backends_tried": [
                   "codexu"
@@ -11703,7 +11703,7 @@
       }
     },
     "5": {
-      "name": "Phase 5 — The Final Purge",
+      "name": "Phase 5 \u2014 The Final Purge",
       "deliverable": "Python tool scripts ported to Go or WASM",
       "subphases": {
         "5.A": {
@@ -13271,7 +13271,7 @@
             {
               "name": "[IMPORTANT:] prompt prefix for cron and skill commands",
               "status": "complete",
-              "contract": "internal/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) — same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift",
+              "contract": "internal/cron.CronHeartbeatPrefix and internal/skills.BuildSkillSlashCommandMessage emit `[IMPORTANT:` instead of `[SYSTEM:` so Azure OpenAI Default/DefaultV2 content filters do not reject Gormes prompts as prompt-injection (HTTP 400) \u2014 same semantic meta-instruction, different bracketed marker; tests update in lockstep so the byte-match assertions still cover drift",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
@@ -13298,7 +13298,7 @@
               ],
               "not_ready_when": [
                 "The slice changes the `[SILENT]` token semantics, the skill body trimming, the cron prompt structure beyond the bracketed marker word, or the `Heartbeat [SYSTEM:] + [SILENT] delivery contract` row name in 2.D (that row name is a historical record; only the runtime constant + the byte-match tests change).",
-                "The slice introduces a new Azure provider adapter, a content-filter-detection layer, or a configurable marker word — the change is a hardcoded literal rename only.",
+                "The slice introduces a new Azure provider adapter, a content-filter-detection layer, or a configurable marker word \u2014 the change is a hardcoded literal rename only.",
                 "The slice updates internal/progress/progress_test.go literal assertions for the 2.D row name (the row name in progress.json must stay as `Heartbeat [SYSTEM:] + [SILENT] delivery contract` for historical accuracy)."
               ],
               "acceptance": [
@@ -13336,9 +13336,9 @@
               }
             },
             {
-              "name": "Skills list — enabled/disabled status column + --enabled-only filter",
+              "name": "Skills list \u2014 enabled/disabled status column + --enabled-only filter",
               "status": "complete",
-              "contract": "internal/skills/list.go exposes type SkillStatus string (\"enabled\", \"disabled\"), extends SkillRow with a Status field and adds ListOptions{Source string; EnabledOnly bool}. ListInstalledSkills(opts ListOptions, disabled map[string]struct{}) []SkillRow returns every installed skill annotated with Status from the disabled set; when opts.EnabledOnly is true, disabled rows are filtered out. The CLI surface (gormes skills list --source <s> --enabled-only) calls this helper and prints a table with a Status column plus a summary \"N enabled, M disabled\" (or \"K enabled shown\" when --enabled-only). No platform-aware override read in this slice — disabled set comes from the active profile only, mirroring upstream do_list semantics.",
+              "contract": "internal/skills/list.go exposes type SkillStatus string (\"enabled\", \"disabled\"), extends SkillRow with a Status field and adds ListOptions{Source string; EnabledOnly bool}. ListInstalledSkills(opts ListOptions, disabled map[string]struct{}) []SkillRow returns every installed skill annotated with Status from the disabled set; when opts.EnabledOnly is true, disabled rows are filtered out. The CLI surface (gormes skills list --source <s> --enabled-only) calls this helper and prints a table with a Status column plus a summary \"N enabled, M disabled\" (or \"K enabled shown\" when --enabled-only). No platform-aware override read in this slice \u2014 disabled set comes from the active profile only, mirroring upstream do_list semantics.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
@@ -13362,7 +13362,7 @@
                 "CLI table rendering exists for skills already (status column is an additional column)."
               ],
               "not_ready_when": [
-                "The slice plumbs a HERMES_PLATFORM-style platform override into list — upstream test_do_list_platform_env_is_ignored asserts the platform arg stays nil here.",
+                "The slice plumbs a HERMES_PLATFORM-style platform override into list \u2014 upstream test_do_list_platform_env_is_ignored asserts the platform arg stays nil here.",
                 "The slice rewrites do_check, do_install, or do_search behavior."
               ],
               "unblocks": [
@@ -13376,7 +13376,7 @@
                 "TestSkillsListCommand_RendersStatusColumnAndSummary prints the Status column and \"N enabled, M disabled\" footer (or \"K enabled shown\" with --enabled-only).",
                 "TestSkillsListCommand_PlatformArgNotPropagated proves the disabled-set lookup does not pass a platform override."
               ],
-              "note": "Upstream-sync row — Hermes PR #16129 (commit 0e2a53ea, 2026-04-26) added \"skills list --enabled-only\" so operators can answer \"which skills will actually load for this profile?\" without reading config. Gormes should match the introspection contract; the platform-arg guard test is intentional — Hermes -p swaps HERMES_HOME, so per-platform overrides must NOT leak in via env.",
+              "note": "Upstream-sync row \u2014 Hermes PR #16129 (commit 0e2a53ea, 2026-04-26) added \"skills list --enabled-only\" so operators can answer \"which skills will actually load for this profile?\" without reading config. Gormes should match the introspection contract; the platform-arg guard test is intentional \u2014 Hermes -p swaps HERMES_HOME, so per-platform overrides must NOT leak in via env.",
               "write_scope": [
                 "internal/skills/list.go",
                 "internal/skills/list_test.go",
@@ -13400,7 +13400,7 @@
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:0e2a53ea hermes_cli/skills_hub.py do_list",
-                "note": "Mirrors PR #16129; pure introspection feature — no skill execution change."
+                "note": "Mirrors PR #16129; pure introspection feature \u2014 no skill execution change."
               }
             },
             {
@@ -13438,7 +13438,7 @@
                 "The slice changes the SKILL.md parser format beyond fields needed for reviewed bundled-skill metadata and credential evidence."
               ],
               "blocked_by": [
-                "Skills list — enabled/disabled status column + --enabled-only filter"
+                "Skills list \u2014 enabled/disabled status column + --enabled-only filter"
               ],
               "acceptance": [
                 "A fixture SKILL.md adapted from upstream Airtable parses with name, description, triggers, exclusions, review state, and cookbook sections intact.",
@@ -13508,7 +13508,7 @@
                 "The slice injects the skill into prompts while prerequisite evidence says unavailable."
               ],
               "blocked_by": [
-                "Skills list — enabled/disabled status column + --enabled-only filter",
+                "Skills list \u2014 enabled/disabled status column + --enabled-only filter",
                 "Bundled Airtable productivity skill contract"
               ],
               "acceptance": [
@@ -13707,7 +13707,7 @@
             {
               "name": "MCP stdio transport + tool/list discovery",
               "status": "complete",
-              "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests — deterministic over an in-process fake server with no real subprocess",
+              "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests \u2014 deterministic over an in-process fake server with no real subprocess",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -13775,7 +13775,7 @@
             {
               "name": "MCP HTTP transport + tool/list discovery",
               "status": "complete",
-              "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper — deterministic over httptest.Server in unit tests with no real network egress",
+              "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper \u2014 deterministic over httptest.Server in unit tests with no real network egress",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -13852,7 +13852,7 @@
             {
               "name": "MCP schema normalization + structured-content adapter",
               "status": "complete",
-              "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings — sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
+              "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings \u2014 sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -13957,7 +13957,7 @@
                 "TestMCPOAuthStore_StatusRedactsSecrets: tokens with AccessToken='sk-abc-secret' and RefreshToken='rt-xyz-secret' produce a StatusFor result whose String() and Evidence fields contain neither 'sk-abc-secret' nor 'rt-xyz-secret' (sub-string assertion).",
                 "TestMCPOAuthStore_NoninteractiveErrorClass: a constant ErrMCPOAuthNoninteractiveRequired is exported and StatusFor for an absent server in noninteractive mode (NewMCPOAuthStore().WithNoninteractive(true)) returns State='noninteractive_required', Evidence='noninteractive_auth_unavailable'."
               ],
-              "note": "Reshape of the prior quarantined 5.G row. The previous contract spanned token store + refresh flow + 401 recovery + browser handling — workers had no obvious atomic edit. This row narrows scope to one in-memory store with a typed token + status read, six named tests, and one declared error class, all inside internal/tools. Refresh, 401 recovery, and persistence land in follow-up rows. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+              "note": "Reshape of the prior quarantined 5.G row. The previous contract spanned token store + refresh flow + 401 recovery + browser handling \u2014 workers had no obvious atomic edit. This row narrows scope to one in-memory store with a typed token + status read, six named tests, and one declared error class, all inside internal/tools. Refresh, 401 recovery, and persistence land in follow-up rows. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
                 "internal/tools/mcp_oauth_store.go",
                 "internal/tools/mcp_oauth_store_test.go",
@@ -15742,7 +15742,7 @@
               "acceptance": [
                 "TestSummarizeAutoloopAuditIncludesRecentFailureDetail writes a worker_failed event with Task=\"\", Status=\"backend_failed\", Detail containing \"backend_waiting_for_stdin\", and StderrTail containing \"Reading additional input from stdin\"; the summary row has SubphaseID=\"control-plane/backend\" and Detail containing the classified excerpt.",
                 "A second fixture with a 4096-character StderrTail proves TaskAuditRow.Detail is capped to 240 characters and keeps the status/task counts unchanged.",
-                "Prompt rendering includes the detail after the task line as ` — <excerpt>` only when Detail is non-empty; existing prompt output for empty Detail remains byte-stable.",
+                "Prompt rendering includes the detail after the task line as ` \u2014 <excerpt>` only when Detail is non-empty; existing prompt output for empty Detail remains byte-stable.",
                 "No builderloop package files change in this slice."
               ],
               "note": "Planner repair for the 2026-04-26 audit: control-plane/backend is the hottest toxic bucket (60 claimed, 0 promoted, 31 failed) but Recent failed tasks only shows status. Surface the bounded ledger detail already recorded by builderloop so the next planner run can tell stdin waits, kills, and command failures apart without scanning runs.jsonl manually.",
@@ -16641,7 +16641,7 @@
               ],
               "not_ready_when": [
                 "The slice imports math/rand without an injected seed, reads files, registers commands, or copies upstream tip text verbatim (which would couple Gormes to Hermes string churn).",
-                "The slice spans dump.py or webhook.py — those land in their own rows."
+                "The slice spans dump.py or webhook.py \u2014 those land in their own rows."
               ],
               "blocked_by": [
                 "CLI banner/output formatting helpers"
@@ -16657,7 +16657,7 @@
                 "TestTipFor_HandlesZeroSeed: TipFor(0) == Tips[0].",
                 "TestTipFor_DistributesAcrossCorpus: calling TipFor(int64(i)) for i in [0, len(Tips)) returns each Tips entry exactly once."
               ],
-              "note": "Reshape of the prior quarantined 5.O row. The previous contract bundled tips + dump + webhook in one slice with a 'tips_dump_webhook_test.go' fixture name — three concept layers that workers couldn't land atomically. This row narrows scope to one file with one corpus + one selector and five named tests. Dump and webhook are tracked as separate sibling rows below. Gormes owns the tip text; we do not port the Hermes corpus verbatim because tip strings reference hermes-specific commands (/save, /personality, hermes -c) that do not all exist in Gormes yet. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+              "note": "Reshape of the prior quarantined 5.O row. The previous contract bundled tips + dump + webhook in one slice with a 'tips_dump_webhook_test.go' fixture name \u2014 three concept layers that workers couldn't land atomically. This row narrows scope to one file with one corpus + one selector and five named tests. Dump and webhook are tracked as separate sibling rows below. Gormes owns the tip text; we do not port the Hermes corpus verbatim because tip strings reference hermes-specific commands (/save, /personality, hermes -c) that do not all exist in Gormes yet. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
                 "internal/cli/tips.go",
                 "internal/cli/tips_test.go",
@@ -16963,7 +16963,7 @@
                 "TestNormalizeWebhookURL_PreservesQueryAndFragment: NormalizeWebhookURL('https://example.com/x/?a=1#f') returns ('https://example.com/x?a=1#f', nil).",
                 "TestNormalizeWebhookURL_RejectsEmpty: NormalizeWebhookURL('   ') returns ('', ErrWebhookURLEmpty).",
                 "TestNormalizeWebhookURL_RejectsNonHTTP: NormalizeWebhookURL('ftp://example.com') and NormalizeWebhookURL('javascript:alert(1)') each return ('', ErrWebhookURLBadScheme).",
-                "TestNormalizeWebhookURL_RejectsUserInfo: NormalizeWebhookURL('https://user:pass@example.com/x') returns ('', ErrWebhookURLUserInfoForbidden) — credentials must not be embedded in webhook URLs."
+                "TestNormalizeWebhookURL_RejectsUserInfo: NormalizeWebhookURL('https://user:pass@example.com/x') returns ('', ErrWebhookURLUserInfoForbidden) \u2014 credentials must not be embedded in webhook URLs."
               ],
               "note": "Sibling slice after deterministic tip selector. Keeps the webhook URL contract at one pure function with six named tests so workers can land it atomically without porting webhook signing or command wiring.",
               "write_scope": [
@@ -17132,7 +17132,7 @@
                 "Gateway-safe commands remain invokable during active turns while mutating/long-running commands return busy evidence.",
                 "Unknown commands share the existing gateway unknown-command behavior and do not enter the model prompt as command text."
               ],
-              "note": "Complete: TDD landed the CLI policy table in `internal/cli/command_registry.go` with closed enum `ActiveTurnPolicy{bypass,queue,busy_reject,unavailable}`, `CommandPolicy` entries (name/description/aliases/surface/active-turn policy/ported flag) for every shared and CLI-only slash command from upstream `hermes_cli/commands.py@edc78e25`, plus `ResolveCommandPolicy`, `EvaluateActiveTurnVerdict`, and `SlashLeaksToModelPrompt`. The fixture `internal/cli/command_registry_policy_test.go` proves every entry declares one of the closed policies, names round-trip through the slash/alias normalizer, busy verdicts surface explicit busy/queue/unavailable evidence, idle dispatch is allowed for every ported command, unknown slash text resolves to `ActiveTurnPolicyUnavailable` with operator-facing evidence (so it cannot leak into the model prompt), and gateway parity holds: every entry in `internal/gateway/CommandRegistry` exists in the CLI registry with the corresponding policy mapping (Immediate/Drain → bypass, Reject → busy_reject), aliases included. `internal/gateway/commands_test.go` adds `TestSlashCommandPolicyParityWithCLIRegistry`, `TestSlashCommandBusyVerdictRejectsKnownMutators`, and `TestSlashCommandUnknownDoesNotEnterModelPrompt` to lock the parity from the gateway side. No handler, config, auth, or setup wiring landed — those remain on the unblocked rows.",
+              "note": "Complete: TDD landed the CLI policy table in `internal/cli/command_registry.go` with closed enum `ActiveTurnPolicy{bypass,queue,busy_reject,unavailable}`, `CommandPolicy` entries (name/description/aliases/surface/active-turn policy/ported flag) for every shared and CLI-only slash command from upstream `hermes_cli/commands.py@edc78e25`, plus `ResolveCommandPolicy`, `EvaluateActiveTurnVerdict`, and `SlashLeaksToModelPrompt`. The fixture `internal/cli/command_registry_policy_test.go` proves every entry declares one of the closed policies, names round-trip through the slash/alias normalizer, busy verdicts surface explicit busy/queue/unavailable evidence, idle dispatch is allowed for every ported command, unknown slash text resolves to `ActiveTurnPolicyUnavailable` with operator-facing evidence (so it cannot leak into the model prompt), and gateway parity holds: every entry in `internal/gateway/CommandRegistry` exists in the CLI registry with the corresponding policy mapping (Immediate/Drain \u2192 bypass, Reject \u2192 busy_reject), aliases included. `internal/gateway/commands_test.go` adds `TestSlashCommandPolicyParityWithCLIRegistry`, `TestSlashCommandBusyVerdictRejectsKnownMutators`, and `TestSlashCommandUnknownDoesNotEnterModelPrompt` to lock the parity from the gateway side. No handler, config, auth, or setup wiring landed \u2014 those remain on the unblocked rows.",
               "write_scope": [
                 "internal/cli/",
                 "internal/gateway/commands.go",
@@ -17185,7 +17185,7 @@
                 "Pure-function table tests with synthetic []string args are sufficient."
               ],
               "not_ready_when": [
-                "The row touches manager.go, persists config, or wires gateway dispatch — those land in the follow-up apply/dispatch row."
+                "The row touches manager.go, persists config, or wires gateway dispatch \u2014 those land in the follow-up apply/dispatch row."
               ],
               "unblocks": [
                 "Gateway /reasoning apply + dispatch"
@@ -17198,7 +17198,7 @@
                 "TestParseReasoningCommand_RejectGlobalReset ([\"reset\",\"--global\"]) returns ErrResetGlobalUnsupported.",
                 "TestParseReasoningCommand_RejectInvalidEffort ([\"bogus\"]) returns ErrInvalidEffort."
               ],
-              "note": "Complete: TDD landed pure parser `internal/gateway/reasoning_command.go` and table tests in `internal/gateway/reasoning_command_test.go`. ParseReasoningCommand recognizes the show form on empty args, the set form for high|low|medium, the trailing --global modifier, and the reset form (session-scoped only). Unknown effort tokens return ErrInvalidEffort and `reset --global` returns ErrResetGlobalUnsupported, both wrapped via fmt.Errorf so dispatchers can errors.Is them without re-parsing. The parser stays pure: no manager.go, no config persistence, no gateway dispatch — the apply + dispatch slice consumes these typed errors next.",
+              "note": "Complete: TDD landed pure parser `internal/gateway/reasoning_command.go` and table tests in `internal/gateway/reasoning_command_test.go`. ParseReasoningCommand recognizes the show form on empty args, the set form for high|low|medium, the trailing --global modifier, and the reset form (session-scoped only). Unknown effort tokens return ErrInvalidEffort and `reset --global` returns ErrResetGlobalUnsupported, both wrapped via fmt.Errorf so dispatchers can errors.Is them without re-parsing. The parser stays pure: no manager.go, no config persistence, no gateway dispatch \u2014 the apply + dispatch slice consumes these typed errors next.",
               "write_scope": [
                 "internal/gateway/reasoning_command.go",
                 "internal/gateway/reasoning_command_test.go",
@@ -17330,7 +17330,7 @@
                 "User input during busy command execution returns a visible busy response.",
                 "The guard does not block gateway-safe commands that explicitly declare active-turn bypass."
               ],
-              "note": "Complete: TDD landed `BusyCommandGuard` in `internal/cli/busy_command.go` with `Run(name, status, fn)` that sets command-busy state, defers a clearing closure so success, error, and panic exit paths all reset the flag, and rejects nested entries with `ErrBusyCommandActive` (empty names rejected with `ErrBusyCommandInvalid`). The guard exposes `IsBusy`, `Status`, `ActiveCommand`, and `EvaluateInput` for the input dispatcher; `EvaluateInput` consults `ResolveCommandPolicy` so any command declared `ActiveTurnPolicyBypass` (`/help`, `/stop`, `/restart`) passes through while the guard is busy, and every other input — plain text, recognized non-bypass slash, or unknown slash — gets a uniform `Gormes is busy — <status> — wait for it to finish or send /stop` notice that includes the active status label. `internal/tui/model.go` adds an `Options.BusyGuard BusyInputEvaluator` interface so the kernel package stays independent of `internal/cli`; `internal/tui/update.go` consults the guard in the `tea.KeyEnter` branch before slash dispatch and submit, so a rejected verdict resets the editor, surfaces the evidence as `statusMessage`, and skips both the slash registry and the Submitter callback. Tests cover idle baseline, busy-during-fn, success/error/panic clear, nested rejection, idle-accepts-anything, plain-text rejection, bypass allow-list (incl. mixed-case `/STOP`), non-bypass slash rejection, unknown slash rejection, evidence-mentions-status, concurrent EvaluateInput across goroutines, ActiveCommand reporting, and empty-name rejection. The TUI fixture asserts plain text is consumed without calling Submitter while busy, that idle evaluators preserve the existing submit path, and that bypass slash commands still dispatch through the slash registry while busy.",
+              "note": "Complete: TDD landed `BusyCommandGuard` in `internal/cli/busy_command.go` with `Run(name, status, fn)` that sets command-busy state, defers a clearing closure so success, error, and panic exit paths all reset the flag, and rejects nested entries with `ErrBusyCommandActive` (empty names rejected with `ErrBusyCommandInvalid`). The guard exposes `IsBusy`, `Status`, `ActiveCommand`, and `EvaluateInput` for the input dispatcher; `EvaluateInput` consults `ResolveCommandPolicy` so any command declared `ActiveTurnPolicyBypass` (`/help`, `/stop`, `/restart`) passes through while the guard is busy, and every other input \u2014 plain text, recognized non-bypass slash, or unknown slash \u2014 gets a uniform `Gormes is busy \u2014 <status> \u2014 wait for it to finish or send /stop` notice that includes the active status label. `internal/tui/model.go` adds an `Options.BusyGuard BusyInputEvaluator` interface so the kernel package stays independent of `internal/cli`; `internal/tui/update.go` consults the guard in the `tea.KeyEnter` branch before slash dispatch and submit, so a rejected verdict resets the editor, surfaces the evidence as `statusMessage`, and skips both the slash registry and the Submitter callback. Tests cover idle baseline, busy-during-fn, success/error/panic clear, nested rejection, idle-accepts-anything, plain-text rejection, bypass allow-list (incl. mixed-case `/STOP`), non-bypass slash rejection, unknown slash rejection, evidence-mentions-status, concurrent EvaluateInput across goroutines, ActiveCommand reporting, and empty-name rejection. The TUI fixture asserts plain text is consumed without calling Submitter while busy, that idle evaluators preserve the existing submit path, and that bypass slash commands still dispatch through the slash registry while busy.",
               "write_scope": [
                 "internal/cli/busy_command.go",
                 "internal/cli/busy_command_test.go",
@@ -18072,7 +18072,7 @@
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
-                "The row is selected at all — execute the three sibling rows above (CLI profile name validator, CLI profile root resolver, CLI active-profile store) instead."
+                "The row is selected at all \u2014 execute the three sibling rows above (CLI profile name validator, CLI profile root resolver, CLI active-profile store) instead."
               ],
               "note": "Deprecated 2026-04-26: the prior validator+resolver+store umbrella was repeatedly quarantined because workers could not land four concept layers atomically. Replaced by three sibling rows. Keep this row in inventory so historical references resolve."
             },
@@ -18760,7 +18760,7 @@
                 "internal/doctor/doctor.go:CheckResult"
               ],
               "ready_when": [
-                "cmd/gormes/doctor.go already calls doctorGonchoConfig(cfg) and doctorSlackGatewayConfig(cfg, runtimeStatus) — adding a third helper alongside them is mechanical.",
+                "cmd/gormes/doctor.go already calls doctorGonchoConfig(cfg) and doctorSlackGatewayConfig(cfg, runtimeStatus) \u2014 adding a third helper alongside them is mechanical.",
                 "internal/config/config.go declares HermesCfg{Endpoint, APIKey, Model} so the check has a stable typed input.",
                 "internal/doctor/doctor.go already exposes CheckResult, ItemInfo, StatusPass/StatusWarn/StatusFail; this row only composes them."
               ],
@@ -18844,7 +18844,7 @@
                 "TestResolveCustomProviderSecret_EnvVarUnset: ref={Name:'acme',APIKey:'${ACME_KEY}'}, env={} returns {EffectiveSecret:'', PersistAsRef:'${ACME_KEY}', Evidence:'env_var_unset'} and a non-nil error of class ErrCustomProviderEnvUnset.",
                 "TestResolveCustomProviderSecret_BothEmpty: ref={Name:'acme',APIKey:'',KeyEnv:''}, env={} returns {EffectiveSecret:'', PersistAsRef:'', Evidence:'credential_missing'} and a non-nil error of class ErrCustomProviderCredentialMissing."
               ],
-              "note": "Reshape of the prior quarantined 5.O row. The previous contract spanned model_switch.py, main.py, tui_gateway/server.py, fake /v1/models catalogs, and internal/config + internal/hermes — workers had no obvious first edit. This row narrows scope to one named pure function plus its struct/error declarations and five named tests, all inside internal/cli. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+              "note": "Reshape of the prior quarantined 5.O row. The previous contract spanned model_switch.py, main.py, tui_gateway/server.py, fake /v1/models catalogs, and internal/config + internal/hermes \u2014 workers had no obvious first edit. This row narrows scope to one named pure function plus its struct/error declarations and five named tests, all inside internal/cli. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
               "write_scope": [
                 "internal/cli/custom_provider_secret.go",
                 "internal/cli/custom_provider_secret_test.go",
@@ -18971,7 +18971,7 @@
               ],
               "ready_when": [
                 "internal/cli already compiles; this row adds a sibling log_redact.go + _test.go.",
-                "Tests use fixed []byte literals — no file I/O."
+                "Tests use fixed []byte literals \u2014 no file I/O."
               ],
               "not_ready_when": [
                 "The slice reads files, walks XDG paths, or uploads anywhere.",
@@ -19033,11 +19033,11 @@
               ],
               "ready_when": [
                 "CLI log redactor for known secret shapes is fixture_ready or validated so this slice can import RedactLine.",
-                "Tests use t.TempDir() and inject LogSnapshotRoots — no XDG resolution inside this helper."
+                "Tests use t.TempDir() and inject LogSnapshotRoots \u2014 no XDG resolution inside this helper."
               ],
               "not_ready_when": [
                 "The slice resolves XDG paths or reads config.LogPath() inside the helper.",
-                "The slice adds gateway/error log file constants — those rows land once those files start being written.",
+                "The slice adds gateway/error log file constants \u2014 those rows land once those files start being written.",
                 "The slice uploads to paste.rs/dpaste, creates archives, or changes doctor exit codes."
               ],
               "blocked_by": [
@@ -19056,7 +19056,7 @@
                 "TestSnapshotLogs_BothFilesMissingReturnsTwoSections: empty LogSnapshotRoots paths produce a Snapshot with len(Sections)==2 in the order [LogClassMain, LogClassToolAudit], both with Missing=true.",
                 "TestSnapshotLogs_DefaultOptsAppliedWhenZero: SnapshotOpts{} results in HeadBytes=64*1024 and TailBytes=16*1024 being applied internally; covered by writing a 200 KiB file and asserting Truncated=true with len(Head)==64*1024 and len(Tail)==16*1024."
               ],
-              "note": "Reader slice. Imports RedactLine from the redactor row. Caller resolves config.LogPath() and config.ToolAuditLogPath() and passes them in — keeps the helper testable with t.TempDir() only. Reshape 2026-04-26T19:00:00Z: spelled out the Truncated decision rule, default-opts behavior, byte-line redaction loop, and added named subtests so the autoloop's row evaluation matches the contract.",
+              "note": "Reader slice. Imports RedactLine from the redactor row. Caller resolves config.LogPath() and config.ToolAuditLogPath() and passes them in \u2014 keeps the helper testable with t.TempDir() only. Reshape 2026-04-26T19:00:00Z: spelled out the Truncated decision rule, default-opts behavior, byte-line redaction loop, and added named subtests so the autoloop's row evaluation matches the contract.",
               "write_scope": [
                 "internal/cli/log_snapshot.go",
                 "internal/cli/log_snapshot_test.go",
@@ -19111,15 +19111,19 @@
                 "Hermes config.yaml model.provider populates cfg.Hermes.Provider.",
                 "ResolveInference reports model and provider source as config and does not request provider auto-detect when provider came from Hermes config.yaml.",
                 "Gormes env model override still wins over Hermes config.yaml while the Hermes provider remains available when no Gormes provider override is set.",
-                "Config tests isolate HERMES_HOME so live operator secrets and profile defaults do not contaminate built-in default tests."
+                "Config tests isolate HERMES_HOME so live operator secrets and profile defaults do not contaminate built-in default tests.",
+                "Active gateway HTTP client construction passes cfg.Hermes.Provider into the provider transport so openai-codex uses /v1/responses instead of the default localhost chat-completions bridge."
               ],
               "write_scope": [
                 "internal/config/config.go",
                 "internal/config/config_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json",
-                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_test.go"
               ],
               "test_commands": [
+                "go test ./cmd/gormes -run TestNewGatewayHermesClient_UsesConfiguredProviderTransport -count=1",
                 "go test ./internal/config -count=1",
                 "go run ./cmd/progress validate",
                 "go test ./... -count=1",
@@ -19129,9 +19133,9 @@
                 "Gormes loads Hermes config.yaml model.default/model.provider into inference defaults and keeps precedence/secret isolation covered by focused config tests."
               ],
               "evidence": {
-                "implementation": "internal/config/config.go, internal/config/config_test.go",
-                "tests": "go test ./internal/config -count=1",
-                "note": "Added 2026-04-29 during Telegram parity blocker work after live gateway showed localhost backend fallback despite active Hermes model/provider config."
+                "implementation": "internal/config/config.go, internal/config/config_test.go; cmd/gormes/gateway.go, cmd/gormes/gateway_test.go",
+                "tests": "go test ./cmd/gormes -run TestNewGatewayHermesClient_UsesConfiguredProviderTransport -count=1; go test ./internal/config -count=1",
+                "note": "Extended 2026-04-29 Telegram parity blocker work: gateway now constructs the Gormes-native HTTP client with cfg.Hermes.Provider so Hermes config.yaml model.provider=openai-codex selects the native Responses transport instead of POSTing to the default 127.0.0.1:8642 chat-completions endpoint."
               }
             }
           ],
@@ -19258,7 +19262,7 @@
             {
               "name": "Unix installer (install.sh) source-backed update flow",
               "status": "planned",
-              "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into canonical `scripts/install.sh`, with the site embedding a synced `www.gormes.ai/internal/site/installers/install.sh` copy. The installer uses user-scoped PATH publication, a managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain — no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them.",
+              "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into canonical `scripts/install.sh`, with the site embedding a synced `www.gormes.ai/internal/site/installers/install.sh` copy. The installer uses user-scoped PATH publication, a managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain \u2014 no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -19330,7 +19334,7 @@
             {
               "name": "Windows installer (install.ps1 + install.cmd) parity",
               "status": "planned",
-              "note": "TDD slice 2 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): add `www.gormes.ai/internal/site/install.ps1` (native PowerShell) plus `install.cmd` wrapper that launches it, matching the Unix contract (user-scoped PATH, managed checkout, rerun-as-update, source-backed). Cover content/smoke assertions — PATH publication, managed checkout layout, release branch handling, and stable global command publication — via `install_windows_test.go` over fake toolchains; no live network calls in unit tests.",
+              "note": "TDD slice 2 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): add `www.gormes.ai/internal/site/install.ps1` (native PowerShell) plus `install.cmd` wrapper that launches it, matching the Unix contract (user-scoped PATH, managed checkout, rerun-as-update, source-backed). Cover content/smoke assertions \u2014 PATH publication, managed checkout layout, release branch handling, and stable global command publication \u2014 via `install_windows_test.go` over fake toolchains; no live network calls in unit tests.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -19378,7 +19382,7 @@
               "name": "TUI gateway tool-progress mode normalizer",
               "priority": "P2",
               "status": "complete",
-              "contract": "Pure helper internal/tuigateway/tool_progress_mode.go exposes NormalizeToolProgressMode(raw any) string returning one of {off, new, all, verbose}. Mirrors upstream tui_gateway/server.py:_load_tool_progress_mode (line 661). Boolean false → off, boolean true → all, string is lowercased and trimmed; any value outside the recognised set defaults to all. No config file reads, no session state.",
+              "contract": "Pure helper internal/tuigateway/tool_progress_mode.go exposes NormalizeToolProgressMode(raw any) string returning one of {off, new, all, verbose}. Mirrors upstream tui_gateway/server.py:_load_tool_progress_mode (line 661). Boolean false \u2192 off, boolean true \u2192 all, string is lowercased and trimmed; any value outside the recognised set defaults to all. No config file reads, no session state.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -19396,7 +19400,7 @@
                 "internal/tui/"
               ],
               "ready_when": [
-                "Pure helper only — table-driven tests with synthetic raw values are sufficient. No transport wiring, no session map, no config file read in this slice.",
+                "Pure helper only \u2014 table-driven tests with synthetic raw values are sufficient. No transport wiring, no session map, no config file read in this slice.",
                 "internal/tuigateway/ does not yet exist; this row creates the package with one helper file and one test file."
               ],
               "not_ready_when": [
@@ -19415,7 +19419,7 @@
                 "TestNormalizeToolProgressMode_UnknownDefaultsToAll for `loud`, empty string, nil.",
                 "Helper has no side effects; package internal/tuigateway exists after this row lands."
               ],
-              "note": "Complete: internal/tuigateway package created with NormalizeToolProgressMode(raw any) string. Bool false→off, bool true→all, recognised strings round-trip after trim+lowercase, unknown values (including nil, numbers, slices, empty/whitespace-only strings) collapse to all. Pure helper — no config reads, no session state, no transport. Verified by table-driven tests in internal/tuigateway/tool_progress_mode_test.go covering RecognizedValues, BooleanFalseToOff, BooleanTrueToAll, LowercasesAndTrims, UnknownDefaultsToAll.",
+              "note": "Complete: internal/tuigateway package created with NormalizeToolProgressMode(raw any) string. Bool false\u2192off, bool true\u2192all, recognised strings round-trip after trim+lowercase, unknown values (including nil, numbers, slices, empty/whitespace-only strings) collapse to all. Pure helper \u2014 no config reads, no session state, no transport. Verified by table-driven tests in internal/tuigateway/tool_progress_mode_test.go covering RecognizedValues, BooleanFalseToOff, BooleanTrueToAll, LowercasesAndTrims, UnknownDefaultsToAll.",
               "write_scope": [
                 "internal/tuigateway/tool_progress_mode.go",
                 "internal/tuigateway/tool_progress_mode_test.go",
@@ -19444,7 +19448,7 @@
               "name": "TUI gateway completion path normalizer",
               "priority": "P2",
               "status": "complete",
-              "contract": "Pure helper internal/tuigateway/completion_path.go exposes NormalizeCompletionPath(in string, isWindows bool) string. Mirrors upstream tui_gateway/server.py:_normalize_completion_path (line 428): expands a leading ~ to the operator's home dir (caller injects the home value via a small stubbable hook), and on non-Windows callers also rewrites Windows-style C:/foo into /mnt/c/foo. No filesystem stat, no os.UserHomeDir inside the helper — caller threads a HomeFn or homeDir string.",
+              "contract": "Pure helper internal/tuigateway/completion_path.go exposes NormalizeCompletionPath(in string, isWindows bool) string. Mirrors upstream tui_gateway/server.py:_normalize_completion_path (line 428): expands a leading ~ to the operator's home dir (caller injects the home value via a small stubbable hook), and on non-Windows callers also rewrites Windows-style C:/foo into /mnt/c/foo. No filesystem stat, no os.UserHomeDir inside the helper \u2014 caller threads a HomeFn or homeDir string.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -19460,7 +19464,7 @@
               ],
               "ready_when": [
                 "TUI gateway tool-progress mode normalizer is fixture-ready or validated, so the internal/tuigateway package directory already exists.",
-                "Pure-string transformation only — table tests with synthetic inputs."
+                "Pure-string transformation only \u2014 table tests with synthetic inputs."
               ],
               "not_ready_when": [
                 "The slice opens a real home directory, calls os.Stat, or talks to the live filesystem.",
@@ -19478,9 +19482,9 @@
                 "TestNormalizeCompletionPath_NoExpansionOnWindows leaves C:/Users/x as C:/Users/x when isWindows=true.",
                 "TestNormalizeCompletionPath_EmptyInputReturnsEmpty without panic.",
                 "TestNormalizeCompletionPath_NoSlashConversionWithoutDriveColon leaves /usr/bin unchanged on Linux.",
-                "Helper does not call os.UserHomeDir, os.Stat, or runtime.GOOS — caller injects."
+                "Helper does not call os.UserHomeDir, os.Stat, or runtime.GOOS \u2014 caller injects."
               ],
-              "note": "Complete: internal/tuigateway/completion_path.go exposes NormalizeCompletionPath(in string, isWindows bool) string and a stubbable package-level HomeFn hook. Tilde-only and tilde-slash forms are rewritten through the injected home; on non-Windows callers, expanded paths matching <letter>:/... are rewritten to /mnt/<lower-letter>/... (with backslash-to-slash normalisation gating the pattern check). Empty input returns empty without consulting HomeFn. The helper performs no filesystem I/O and never reads os.UserHomeDir, os.Stat, or runtime.GOOS — verified by table-driven tests in internal/tuigateway/completion_path_test.go covering TildeExpansion, BareTildeExpandsToHome, WindowsToMntOnLinux, BackslashWindowsToMntOnLinux, DriveLetterLowercased, NoExpansionOnWindows, EmptyInputReturnsEmpty, NoSlashConversionWithoutDriveColon, NonTildeNonDrivePassthrough, TildeOnWindowsStillExpands, and DriveColonWithoutSlashUntouched.",
+              "note": "Complete: internal/tuigateway/completion_path.go exposes NormalizeCompletionPath(in string, isWindows bool) string and a stubbable package-level HomeFn hook. Tilde-only and tilde-slash forms are rewritten through the injected home; on non-Windows callers, expanded paths matching <letter>:/... are rewritten to /mnt/<lower-letter>/... (with backslash-to-slash normalisation gating the pattern check). Empty input returns empty without consulting HomeFn. The helper performs no filesystem I/O and never reads os.UserHomeDir, os.Stat, or runtime.GOOS \u2014 verified by table-driven tests in internal/tuigateway/completion_path_test.go covering TildeExpansion, BareTildeExpandsToHome, WindowsToMntOnLinux, BackslashWindowsToMntOnLinux, DriveLetterLowercased, NoExpansionOnWindows, EmptyInputReturnsEmpty, NoSlashConversionWithoutDriveColon, NonTildeNonDrivePassthrough, TildeOnWindowsStillExpands, and DriveColonWithoutSlashUntouched.",
               "write_scope": [
                 "internal/tuigateway/completion_path.go",
                 "internal/tuigateway/completion_path_test.go",
@@ -19492,7 +19496,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "internal/tuigateway/completion_path_test.go fixtures prove tilde expansion and Windows→/mnt rewrite without runtime.GOOS or os.UserHomeDir calls."
+                "internal/tuigateway/completion_path_test.go fixtures prove tilde expansion and Windows\u2192/mnt rewrite without runtime.GOOS or os.UserHomeDir calls."
               ],
               "health": {
                 "attempt_count": 2,
@@ -19527,11 +19531,11 @@
               ],
               "ready_when": [
                 "TUI gateway tool-progress mode normalizer is fixture-ready or validated, so the internal/tuigateway package directory already exists.",
-                "Pure JSON-shape formatting only — table tests with synthetic resultJSON values."
+                "Pure JSON-shape formatting only \u2014 table tests with synthetic resultJSON values."
               ],
               "not_ready_when": [
                 "The slice depends on a tool registry or a live tool-complete event hook.",
-                "The slice ports diff-snapshot rendering (capture_local_edit_snapshot / render_edit_diff_with_delta) — those are separate rows."
+                "The slice ports diff-snapshot rendering (capture_local_edit_snapshot / render_edit_diff_with_delta) \u2014 those are separate rows."
               ],
               "blocked_by": [
                 "TUI gateway tool-progress mode normalizer"
@@ -19611,7 +19615,7 @@
                 "Personality validation/rendering returns deterministic messages for supported, missing, and invalid values.",
                 "PlatformEvent structs round-trip JSON for submit, cancel, resize, progress, and image metadata without starting transport."
               ],
-              "note": "Complete: internal/tuigateway/image.go ports _estimate_image_tokens and _image_meta as EstimateImageTokens(width, height int) int and ReadImageMetadata(path string) (ImageMetadata, error) — the metadata reader caps reads at 64 KiB through io.LimitReader so PNG/JPEG/GIF headers decode in O(header) and a fake 12 MiB pseudo-PNG falls back to name-only without exhausting memory. internal/tuigateway/personality.go ports _render_personality_prompt and _validate_personality as RenderPersonalityPrompt(value any) string and ValidatePersonality(value string, personalities map[string]any) (name, prompt string, err error) with deterministic alias handling (`none`, `default`, `neutral`) and sorted, raw-casing-preserving error messages. internal/tuigateway/platform_event.go declares the PlatformEventKind enum plus SubmitEvent, CancelEvent, ResizeEvent, ProgressEvent, ImageMetadataEvent — each round-trips encoding/json with stable field tags, and ValidPlatformEventKind gives O(1) discriminator validation. Fixtures in internal/tuigateway/media_personality_event_test.go cover tile-math math + zero/negative guard, PNG/JPEG/GIF fixture decode, non-image and missing-file fallbacks, the bounded-read invariant, personality dict assembly + plain-string passthrough + alias clearing + sorted available-list error + raw-casing preservation, and JSON round-trip plus omitempty checks for every event variant. No NewRemoteClient, NewGatewayMux, SSE dialer, JSON-RPC dispatcher, or live image read outside t.TempDir() exists in this slice.",
+              "note": "Complete: internal/tuigateway/image.go ports _estimate_image_tokens and _image_meta as EstimateImageTokens(width, height int) int and ReadImageMetadata(path string) (ImageMetadata, error) \u2014 the metadata reader caps reads at 64 KiB through io.LimitReader so PNG/JPEG/GIF headers decode in O(header) and a fake 12 MiB pseudo-PNG falls back to name-only without exhausting memory. internal/tuigateway/personality.go ports _render_personality_prompt and _validate_personality as RenderPersonalityPrompt(value any) string and ValidatePersonality(value string, personalities map[string]any) (name, prompt string, err error) with deterministic alias handling (`none`, `default`, `neutral`) and sorted, raw-casing-preserving error messages. internal/tuigateway/platform_event.go declares the PlatformEventKind enum plus SubmitEvent, CancelEvent, ResizeEvent, ProgressEvent, ImageMetadataEvent \u2014 each round-trips encoding/json with stable field tags, and ValidPlatformEventKind gives O(1) discriminator validation. Fixtures in internal/tuigateway/media_personality_event_test.go cover tile-math math + zero/negative guard, PNG/JPEG/GIF fixture decode, non-image and missing-file fallbacks, the bounded-read invariant, personality dict assembly + plain-string passthrough + alias clearing + sorted available-list error + raw-casing preservation, and JSON round-trip plus omitempty checks for every event variant. No NewRemoteClient, NewGatewayMux, SSE dialer, JSON-RPC dispatcher, or live image read outside t.TempDir() exists in this slice.",
               "write_scope": [
                 "internal/tuigateway/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -19942,7 +19946,7 @@
               "name": "Native TUI slash-command dispatch table",
               "priority": "P2",
               "status": "complete",
-              "contract": "internal/tui exposes a generic slash-command registry — a single dispatch helper checks editor input on Enter, routes any registered slash to a handler that returns (handled bool, statusMessage string, cmd tea.Cmd), and short-circuits the normal kernel.Submit path; the existing /mouse handler migrates onto the registry, and `/save` registers as an explicit no-op stub that emits `save not yet implemented` so a follow-up row can wire the export call",
+              "contract": "internal/tui exposes a generic slash-command registry \u2014 a single dispatch helper checks editor input on Enter, routes any registered slash to a handler that returns (handled bool, statusMessage string, cmd tea.Cmd), and short-circuits the normal kernel.Submit path; the existing /mouse handler migrates onto the registry, and `/save` registers as an explicit no-op stub that emits `save not yet implemented` so a follow-up row can wire the export call",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -19959,7 +19963,7 @@
                 "internal/tui/mouse_tracking_test.go"
               ],
               "ready_when": [
-                "internal/tui/update.go currently switches on `tea.KeyEnter`, calls parseMouseTrackingSlash, and either short-circuits or calls submitCmd — the dispatch helper drops in at the same point.",
+                "internal/tui/update.go currently switches on `tea.KeyEnter`, calls parseMouseTrackingSlash, and either short-circuits or calls submitCmd \u2014 the dispatch helper drops in at the same point.",
                 "internal/tui/mouse_tracking.go already returns a typed result struct; the new registry signature should be source-compatible so the migration is mechanical."
               ],
               "not_ready_when": [
@@ -19979,7 +19983,7 @@
                 "TestSlashRegistry_MouseHandlerMigrationParity proves invoking `/mouse on`, `/mouse off`, and an invalid `/mouse foo` through the registry produces the same StatusMessage values that parseMouseTrackingSlash returned in the existing mouse_tracking_test.go cases.",
                 "internal/tui/update.go's tea.KeyEnter branch calls registry.Dispatch BEFORE m.submitCmd; only handler-returning Handled=false reaches submitCmd."
               ],
-              "note": "Reshaped 2026-04-26 (split from `Native TUI /save canonical session export`). Original /save row was quarantined no_progress x3 because Gormes TUI has no slash-command dispatch at all — only parseMouseTrackingSlash hardcoded in update.go. Workers couldn't decide where to register a new handler. This prerequisite row introduces a generic registry and a /save no-op stub; the follow-up row replaces the stub with the export call.",
+              "note": "Reshaped 2026-04-26 (split from `Native TUI /save canonical session export`). Original /save row was quarantined no_progress x3 because Gormes TUI has no slash-command dispatch at all \u2014 only parseMouseTrackingSlash hardcoded in update.go. Workers couldn't decide where to register a new handler. This prerequisite row introduces a generic registry and a /save no-op stub; the follow-up row replaces the stub with the export call.",
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json",
                 "internal/tui/model.go",
@@ -20012,14 +20016,14 @@
               },
               "provenance": {
                 "origin_type": "gormes",
-                "note": "Gormes-owned dispatch primitive that doesn't exist in upstream (Hermes uses an Ink/TS slash registry). Reshaped 2026-04-26 from the prior `Native TUI /save canonical session export` quarantine — the original row was split into this dispatch prerequisite + the /save wiring follow-up below; the original RowHealth block was dropped per the planner split convention."
+                "note": "Gormes-owned dispatch primitive that doesn't exist in upstream (Hermes uses an Ink/TS slash registry). Reshaped 2026-04-26 from the prior `Native TUI /save canonical session export` quarantine \u2014 the original row was split into this dispatch prerequisite + the /save wiring follow-up below; the original RowHealth block was dropped per the planner split convention."
               }
             },
             {
               "name": "Native TUI /save canonical session export",
               "priority": "P2",
               "status": "complete",
-              "contract": "Native Bubble Tea TUI replaces the /save no-op stub registered by `Native TUI slash-command dispatch table` with a handler that calls an injected SessionExportFunc(ctx, sessionID) (path string, err error) which delegates to internal/transcript.ExportMarkdown over the persisted session DB and renders the resulting file path through StatusMessage — never via the kernel submit path",
+              "contract": "Native Bubble Tea TUI replaces the /save no-op stub registered by `Native TUI slash-command dispatch table` with a handler that calls an injected SessionExportFunc(ctx, sessionID) (path string, err error) which delegates to internal/transcript.ExportMarkdown over the persisted session DB and renders the resulting file path through StatusMessage \u2014 never via the kernel submit path",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -20039,7 +20043,7 @@
               ],
               "ready_when": [
                 "`Native TUI slash-command dispatch table` is complete (the registry and /save stub already exist).",
-                "internal/transcript.ExportMarkdown is the canonical persisted-transcript reader — `cmd/gormes/session.go` already proves it works over a sql.DB pointing at config.MemoryDBPath().",
+                "internal/transcript.ExportMarkdown is the canonical persisted-transcript reader \u2014 `cmd/gormes/session.go` already proves it works over a sql.DB pointing at config.MemoryDBPath().",
                 "The existing TestSlashRegistry_SaveStubReturnsNotImplemented assertion in internal/tui/slash_dispatch_test.go is the only test the prior dispatch row required to assert /save was a no-op; replacing the stub means that one named test must be deleted or rewritten in the same slice (no test outside internal/tui asserts the stub message)."
               ],
               "not_ready_when": [
@@ -20047,7 +20051,7 @@
                 "The slice opens a network connection, starts SSE/api_server transport, or treats /save as a normal model prompt.",
                 "The slice changes kernel.Submit signatures or the registry shape introduced by the prior row.",
                 "The slice modifies any internal/tui file other than slash_dispatch.go, slash_dispatch_test.go, slash_save.go, slash_save_test.go, or model.go (in particular: update.go, view.go, mouse_tracking.go, and auto_title.go must be untouched).",
-                "The slice modifies cmd/gormes/* — wiring config.MemoryDBPath() into a real SessionExportFunc lives in a follow-up cmd-level row, not here."
+                "The slice modifies cmd/gormes/* \u2014 wiring config.MemoryDBPath() into a real SessionExportFunc lives in a follow-up cmd-level row, not here."
               ],
               "blocked_by": [
                 "Native TUI slash-command dispatch table"
@@ -20062,7 +20066,7 @@
                 "TestSlashSave_ExportFailureRemovesPartialFile wires a fake that writes a partial file then returns an error; asserts the partial file is removed (os.Stat ENOENT) and StatusMessage starts with `save: write failed:`.",
                 "TestSlashSave_ErrSessionNotFoundReturnsStoreUnavailable wires a fake returning transcript.ErrSessionNotFound; asserts StatusMessage=`save: store unavailable`."
               ],
-              "note": "Reshaped 2026-04-26 (continuation of `Native TUI slash-command dispatch table`). Wires the no-op /save stub to internal/transcript.ExportMarkdown via an injected function so unit tests do not need a real SQLite DB. cmd/gormes/main.go is responsible for binding the real implementation (open MemoryDBPath, call ExportMarkdown) when constructing the Model — that wiring lives outside this row's write_scope. 2026-04-26T20:30Z reshape: prior attempt failed report_validation_failed because the worker needed to delete TestSlashRegistry_SaveStubReturnsNotImplemented from internal/tui/slash_dispatch_test.go but that file was not in write_scope; this reshape adds slash_dispatch_test.go to write_scope, names the deletion explicitly in acceptance, and tightens not_ready_when to forbid touching any other internal/tui file.",
+              "note": "Reshaped 2026-04-26 (continuation of `Native TUI slash-command dispatch table`). Wires the no-op /save stub to internal/transcript.ExportMarkdown via an injected function so unit tests do not need a real SQLite DB. cmd/gormes/main.go is responsible for binding the real implementation (open MemoryDBPath, call ExportMarkdown) when constructing the Model \u2014 that wiring lives outside this row's write_scope. 2026-04-26T20:30Z reshape: prior attempt failed report_validation_failed because the worker needed to delete TestSlashRegistry_SaveStubReturnsNotImplemented from internal/tui/slash_dispatch_test.go but that file was not in write_scope; this reshape adds slash_dispatch_test.go to write_scope, names the deletion explicitly in acceptance, and tightens not_ready_when to forbid touching any other internal/tui file.",
               "write_scope": [
                 "internal/tui/slash_dispatch.go",
                 "internal/tui/slash_dispatch_test.go",
@@ -20276,7 +20280,7 @@
                 "TestSlashBranch_HappyPathSwitchesSessionIDAndDoesNotSubmit wires a fake SessionBranchFunc, asserts the model SessionID changes to the child, the fake sees the parent ID, and kernel.Submit is not called.",
                 "TestSlashBranch_CustomNamePreserved passes `/branch refactor path` and asserts BranchRequest.Title=`refactor path`."
               ],
-              "note": "Complete: internal/session.Fork orchestrates a fork via an injected TurnCopier and writes Metadata{ParentSessionID, LineageKindFork}; internal/transcript.ForkTurns runs a single INSERT…SELECT to duplicate parent rows under the child session_id without rewriting the parent; internal/tui adds a /branch slash handler wired through SessionBranchFunc on Options, exposes Model.SessionID() that prefers the locally-tracked branch session over the kernel frame, and keeps the slash text from ever reaching kernel.Submit. Tracks Hermes 0824ba6a, which fixed /branch so post-branch writes target the branch session log and branch sessions remain visible in session lists while delegate/compression children stay hidden. Gormes adapts this to native session IDs, transcript copying, and fork lineage rather than Python session_log_file paths.",
+              "note": "Complete: internal/session.Fork orchestrates a fork via an injected TurnCopier and writes Metadata{ParentSessionID, LineageKindFork}; internal/transcript.ForkTurns runs a single INSERT\u2026SELECT to duplicate parent rows under the child session_id without rewriting the parent; internal/tui adds a /branch slash handler wired through SessionBranchFunc on Options, exposes Model.SessionID() that prefers the locally-tracked branch session over the kernel frame, and keeps the slash text from ever reaching kernel.Submit. Tracks Hermes 0824ba6a, which fixed /branch so post-branch writes target the branch session log and branch sessions remain visible in session lists while delegate/compression children stay hidden. Gormes adapts this to native session IDs, transcript copying, and fork lineage rather than Python session_log_file paths.",
               "write_scope": [
                 "internal/session/fork.go",
                 "internal/session/fork_test.go",
@@ -20322,7 +20326,7 @@
               "name": "TUI running-agent placeholder surfaces interrupt + queued slash actions",
               "priority": "P3",
               "status": "complete",
-              "contract": "internal/tui Model.editor.Placeholder switches between an idle placeholder (`Type a message and hit Enter…`) and an in-flight placeholder that lists discoverable busy-time actions — at minimum `msg=interrupt · Ctrl+C cancel`, plus any slash command registered with BusyAvailable=true on the SlashRegistry — so operators can discover the cancel + interrupt UX without reading docs",
+              "contract": "internal/tui Model.editor.Placeholder switches between an idle placeholder (`Type a message and hit Enter\u2026`) and an in-flight placeholder that lists discoverable busy-time actions \u2014 at minimum `msg=interrupt \u00b7 Ctrl+C cancel`, plus any slash command registered with BusyAvailable=true on the SlashRegistry \u2014 so operators can discover the cancel + interrupt UX without reading docs",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -20330,7 +20334,7 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "If the registry exposes no busy-available slashes, the in-flight placeholder degrades to `msg=interrupt · Ctrl+C cancel` only (Gormes's current minimum-viable busy actions).",
+              "degraded_mode": "If the registry exposes no busy-available slashes, the in-flight placeholder degrades to `msg=interrupt \u00b7 Ctrl+C cancel` only (Gormes's current minimum-viable busy actions).",
               "fixture": "internal/tui/running_placeholder_test.go",
               "source_refs": [
                 "../hermes-agent/cli.py@eaa7e2db:RUNNING_PLACEHOLDER",
@@ -20343,7 +20347,7 @@
                 "internal/tui/update.go already toggles `m.inFlight` between user submit and PhaseIdle frame; this slice piggybacks on that boolean."
               ],
               "not_ready_when": [
-                "The slice introduces /queue, /bg, or /steer slash commands themselves — those are separate larger rows; this slice only surfaces them in the placeholder IF they exist as registered busy-available slashes.",
+                "The slice introduces /queue, /bg, or /steer slash commands themselves \u2014 those are separate larger rows; this slice only surfaces them in the placeholder IF they exist as registered busy-available slashes.",
                 "The slice changes Ctrl+C semantics, the cancel callback signature, or the kernel.Submit path.",
                 "The slice writes to stdout/stderr instead of the Bubble Tea editor placeholder."
               ],
@@ -20352,13 +20356,13 @@
               ],
               "acceptance": [
                 "internal/tui/slash_dispatch.go's SlashRegistry exposes BusyAvailable on Register: `Register(name string, handler SlashHandler, opts ...RegisterOpt)` with `WithBusyAvailable() RegisterOpt`; the default `save` stub registers WITHOUT BusyAvailable.",
-                "internal/tui/running_placeholder.go declares `func (m Model) RunningPlaceholder() string` that returns `Type a message and hit Enter…` when m.inFlight is false, and otherwise returns `msg=interrupt · ` + comma-joined registry.BusyAvailableSlashes() with `/` prefixes + ` · Ctrl+C cancel` (no trailing/leading whitespace beyond the joiners).",
+                "internal/tui/running_placeholder.go declares `func (m Model) RunningPlaceholder() string` that returns `Type a message and hit Enter\u2026` when m.inFlight is false, and otherwise returns `msg=interrupt \u00b7 ` + comma-joined registry.BusyAvailableSlashes() with `/` prefixes + ` \u00b7 Ctrl+C cancel` (no trailing/leading whitespace beyond the joiners).",
                 "internal/tui/update.go's frameMsg branch sets `m.editor.Placeholder = m.RunningPlaceholder()` after the PhaseIdle/in-flight transition is decided, NOT before, so the placeholder reflects the post-frame state.",
-                "TestRunningPlaceholder_IdleStateUsesIdleText asserts the placeholder is `Type a message and hit Enter…` when inFlight=false.",
-                "TestRunningPlaceholder_BusyStateListsRegisteredBusySlashes registers two fake busy slashes (`queue`, `steer`) and asserts the placeholder is `msg=interrupt · /queue · /steer · Ctrl+C cancel`.",
-                "TestRunningPlaceholder_BusyStateWithNoBusySlashesShowsMinimum asserts a registry with zero busy-available slashes produces `msg=interrupt · Ctrl+C cancel`."
+                "TestRunningPlaceholder_IdleStateUsesIdleText asserts the placeholder is `Type a message and hit Enter\u2026` when inFlight=false.",
+                "TestRunningPlaceholder_BusyStateListsRegisteredBusySlashes registers two fake busy slashes (`queue`, `steer`) and asserts the placeholder is `msg=interrupt \u00b7 /queue \u00b7 /steer \u00b7 Ctrl+C cancel`.",
+                "TestRunningPlaceholder_BusyStateWithNoBusySlashesShowsMinimum asserts a registry with zero busy-available slashes produces `msg=interrupt \u00b7 Ctrl+C cancel`."
               ],
-              "note": "Tracks Hermes commit eaa7e2db (2026-04-26) which surfaced /queue · /bg · /steer · Ctrl+C cancel in cli.py's running placeholder. Gormes does not have /queue/bg/steer slash commands yet — this row only adds the placeholder mechanism (gated on the SlashRegistry); each individual busy slash command is a separate downstream row.",
+              "note": "Tracks Hermes commit eaa7e2db (2026-04-26) which surfaced /queue \u00b7 /bg \u00b7 /steer \u00b7 Ctrl+C cancel in cli.py's running placeholder. Gormes does not have /queue/bg/steer slash commands yet \u2014 this row only adds the placeholder mechanism (gated on the SlashRegistry); each individual busy slash command is a separate downstream row.",
               "write_scope": [
                 "internal/tui/running_placeholder.go",
                 "internal/tui/running_placeholder_test.go",
@@ -20615,7 +20619,7 @@
                 "The slice attempts to port user YAML skin loading; start with built-in Hermes-compatible default tokens and an extension point."
               ],
               "acceptance": [
-                "TestHermesSkin_DefaultTokens proves the default prompt symbol is `❯ `, response label contains `Hermes`, input-rule color matches Hermes bronze, and status-bar background/text/strong/dim tokens are stable.",
+                "TestHermesSkin_DefaultTokens proves the default prompt symbol is `\u276f `, response label contains `Hermes`, input-rule color matches Hermes bronze, and status-bar background/text/strong/dim tokens are stable.",
                 "TestHermesSkin_MinimalChromeThreshold proves width < 64 uses minimal chrome and width >= 64 keeps the full input/status chrome, matching cli.py.",
                 "TestHermesSkin_ProfilePromptPrefix proves a non-default profile name prepends the prompt symbol without changing the state suffix.",
                 "Helper has no filesystem, config, terminal, or provider side effects."
@@ -21661,7 +21665,7 @@
             {
               "name": "Execution-mode resolver + config precedence",
               "status": "planned",
-              "note": "TDD slice 1 of 4: pure helper in `internal/tools/execute_code.go` that returns `off`/`project`/`strict` from (a) env var (e.g. `GORMES_EXECUTE_CODE_MODE`), then (b) config key, then (c) default, with unknown values falling back to default and emitting a warning. Table tests only — no sandbox coupling, no CWD/interpreter behavior yet. Freeze the token set here so later slices cannot silently add modes.",
+              "note": "TDD slice 1 of 4: pure helper in `internal/tools/execute_code.go` that returns `off`/`project`/`strict` from (a) env var (e.g. `GORMES_EXECUTE_CODE_MODE`), then (b) config key, then (c) default, with unknown values falling back to default and emitting a warning. Table tests only \u2014 no sandbox coupling, no CWD/interpreter behavior yet. Freeze the token set here so later slices cannot silently add modes.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -21675,7 +21679,7 @@
             {
               "name": "Strict-mode CWD + interpreter parity",
               "status": "planned",
-              "note": "TDD slice 2 of 4: strict mode keeps today's behavior frozen — isolated tmpdir CWD plus the canonical interpreter resolved via `LocalCodeSandbox.resolveRuntime`. Fixtures must prove the 5.K blocked-result envelope (status, error, filesystem_access, network_access) is unchanged and that relative imports/filesystem access outside the tmpdir continue to fail. This slice exists only to pin the reference behavior before project-mode lands.",
+              "note": "TDD slice 2 of 4: strict mode keeps today's behavior frozen \u2014 isolated tmpdir CWD plus the canonical interpreter resolved via `LocalCodeSandbox.resolveRuntime`. Fixtures must prove the 5.K blocked-result envelope (status, error, filesystem_access, network_access) is unchanged and that relative imports/filesystem access outside the tmpdir continue to fail. This slice exists only to pin the reference behavior before project-mode lands.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -21689,7 +21693,7 @@
             {
               "name": "Project-mode CWD + active venv detection",
               "status": "planned",
-              "note": "TDD slice 3 of 4: port upstream `_resolve_python_binary`/`_resolve_cwd` project semantics — session's working directory for CWD and the active virtualenv/conda python when present, falling back to the resolved system interpreter. Unit tests must drive resolution via injected env (`VIRTUAL_ENV`, `CONDA_PREFIX`), not the real host. Do not widen the 5.K filesystem/network blocking contract — project mode still flows through the same `sandboxGuardReason` gate.",
+              "note": "TDD slice 3 of 4: port upstream `_resolve_python_binary`/`_resolve_cwd` project semantics \u2014 session's working directory for CWD and the active virtualenv/conda python when present, falling back to the resolved system interpreter. Unit tests must drive resolution via injected env (`VIRTUAL_ENV`, `CONDA_PREFIX`), not the real host. Do not widen the 5.K filesystem/network blocking contract \u2014 project mode still flows through the same `sandboxGuardReason` gate.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -21719,7 +21723,7 @@
       }
     },
     "6": {
-      "name": "Phase 6 — The Learning Loop (Soul)",
+      "name": "Phase 6 \u2014 The Learning Loop (Soul)",
       "deliverable": "Native skill extraction. Compounding intelligence. The feature Hermes doesn't have.",
       "subphases": {
         "6.A": {
@@ -21877,9 +21881,9 @@
             {
               "name": "Hermes creative skill metadata compatibility",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Skill storage fixtures preserve Hermes creative SKILL.md routing metadata for claude-design, popular-web-designs, and design-md as distinct reviewed skills, including short descriptions, version/author/license fields, hermes tags, and related_skills, without collapsing them into one generic design skill",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -21919,7 +21923,7 @@
                 "TestCreativeSkillMetadata_InvalidDraftExcluded proves malformed or unreviewed creative skill fixtures are not included in BuildSkillBlock or selection output.",
                 "Existing parser, selector, and active-store fixtures keep passing."
               ],
-              "note": "Added after Hermes 8c5d3a99 introduced the claude-design HTML artifact skill and 55be5323/7d586ddb clarified routing among claude-design, popular-web-designs, and design-md while keeping descriptions short. Gormes should preserve the metadata/route contract before broadening portable SKILL.md storage.",
+              "note": "Complete: TDD added internal/skills/creative_design_metadata_test.go covering claude-design frontmatter preservation, distinct selector routing across claude-design/popular-web-designs/design-md, and invalid-draft exclusion. Skill type now carries Version, Author, License, HermesTags, and RelatedSkills fields. Parser reads metadata.hermes.tags, hermes.tags, and flat top-level tags into HermesTags, and the matching cross-reference paths into RelatedSkills. Selector matches HermesTags and Triggers in addition to name/description/body so trigger phrases like 'make it look like stripe' route to popular-web-designs while one-off prototype/deck/artifact phrasing stays with claude-design. No HTML artifact creation, hermes-body wholesale import, or unreviewed-draft injection is added.",
               "write_scope": [
                 "internal/skills/creative_design_metadata_test.go",
                 "internal/skills/parser.go",
@@ -22327,7 +22331,7 @@
       }
     },
     "7": {
-      "name": "Phase 7 — Paused Channel Backlog",
+      "name": "Phase 7 \u2014 Paused Channel Backlog",
       "deliverable": "Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize",
       "subphases": {
         "7.A": {
