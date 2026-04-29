@@ -12955,9 +12955,9 @@
             {
               "name": "Image-too-large shrink retry helper",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/hermes exposes a pure image retry planner that, after a provider image_too_large classification, returns a single bounded retry plan with smaller image content parts and explicit no-retry evidence when shrinking is unavailable",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
