@@ -688,6 +688,10 @@ classification and row-backed implementation queue.
 
 - [ ] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
+- [x] Hermes auth command-tree manifest refresh
+- [ ] Hermes auth credential-pool command surface
+- [ ] Hermes auth OAuth provider adapters
+- [ ] Hermes auth Spotify service-provider subcommand
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
 - [x] CLI deterministic tip selector

@@ -10058,16 +10058,75 @@
             {
               "name": "Model-specific role and tool-use guidance",
               "status": "planned",
-              "note": "TDD: freeze developer-vs-system role selection plus OpenAI/Codex/Gemini/Google operational guidance blocks so provider adapters receive stable prompt roles.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Pure native prompt/provider helper selects the API-facing system role and model guidance without calling any provider: gpt-5 and codex-family models emit developer-role system content at the adapter boundary, other models keep system; tool-use enforcement guidance is injected only when valid tool names exist and config enables always/auto/list matching; Google guidance is injected for gemini/gemma families, OpenAI/Codex guidance for gpt/codex families; the internal Gormes transcript keeps system-role semantics so later adapters own provider-specific role translation.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Malformed tool_use_enforcement config falls back to Hermes auto mode and records tool_use_enforcement_defaulted evidence; missing tools suppress the guidance block instead of adding model-visible promises about unavailable tools.",
+              "fixture": "internal/hermes/model_guidance_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:TOOL_USE_ENFORCEMENT_GUIDANCE",
+                "../hermes-agent/agent/prompt_builder.py:TOOL_USE_ENFORCEMENT_MODELS",
+                "../hermes-agent/agent/prompt_builder.py:OPENAI_MODEL_EXECUTION_GUIDANCE",
+                "../hermes-agent/agent/prompt_builder.py:GOOGLE_MODEL_OPERATIONAL_GUIDANCE",
+                "../hermes-agent/agent/prompt_builder.py:DEVELOPER_ROLE_MODELS",
+                "../hermes-agent/run_agent.py:_build_system_prompt",
+                "../hermes-agent/tests/agent/test_prompt_builder.py:test_tool_use_enforcement_guidance_content",
+                "../hermes-agent/tests/agent/test_prompt_builder.py:test_tool_use_enforcement_model_list_includes_gpt_family",
+                "../hermes-agent/tests/agent/test_prompt_builder.py:test_openai_model_execution_guidance_content",
+                "internal/hermes/context_files.go",
+                "internal/hermes/self_help_guidance.go",
+                "references/go-agent-os/trpc-agent-go/model/callbacks.go"
+              ],
+              "ready_when": [
+                "Context-file prompt and self-help guidance helpers exist under internal/hermes, so model guidance can be added as another pure prompt block helper.",
+                "Tests can use synthetic model names, valid-tool-name lists, and injected config values; no provider adapter, model catalog, memory lookup, or live model call is required.",
+                "The helper exposes API-boundary role translation data while preserving the internal transcript role used by the rest of Gormes."
+              ],
+              "not_ready_when": [
+                "The slice rewrites full prompt assembly, memory/session-search injection, skill snapshot rendering, provider HTTP transports, or message history persistence.",
+                "The implementation changes internal message roles from system to developer before the provider adapter boundary.",
+                "The slice calls a provider, reads credentials, or infers available tools from the live registry instead of using injected test data."
+              ],
+              "unblocks": [
+                "Memory and session-search guidance assembly",
+                "Native full prompt assembly",
+                "Codex/Gemini prompt parity"
+              ],
+              "acceptance": [
+                "TestModelPromptRoleForDeveloperModels proves gpt-5 and codex-family model IDs request developer role at the API boundary while gemini, claude, openrouter, and unknown models keep system.",
+                "TestToolUseEnforcementConfigModes proves true/always, false/never/off, auto, string family names, and explicit lists match Hermes behavior, with malformed config recording tool_use_enforcement_defaulted.",
+                "TestToolUseEnforcementRequiresTools proves no guidance is emitted when the valid tool list is empty even for enforcement-capable model families.",
+                "TestModelOperationalGuidanceByFamily proves Google guidance appears only for gemini/gemma families and OpenAI/Codex guidance appears only for gpt/codex families.",
+                "TestPromptGuidanceIsPure proves the helper has no provider, network, env, credential, or live tool-registry dependency."
+              ],
+              "note": "Builder-ready provider/prompt parity slice. Hermes defines the model-family role translation and tool-use guidance constants; Gormes should freeze the pure helper before native full prompt assembly and provider adapters consume it.",
+              "write_scope": [
+                "internal/hermes/model_guidance.go",
+                "internal/hermes/model_guidance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'Test(ModelPromptRole|ToolUseEnforcement|ModelOperationalGuidance|PromptGuidanceIsPure)' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Model guidance fixtures prove API-boundary role selection, tool-use enforcement gating, family-specific operational guidance, and pure/no-provider behavior."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:agent/prompt_builder.py",
+                  "hermes:run_agent.py",
+                  "references/go-agent-os/trpc-agent-go/model/callbacks.go"
+                ],
+                "note": "Hermes is the parity contract for prompt content and role choice; the Go donor reference informs keeping provider-boundary transforms separate from model callbacks."
+              }
             },
             {
               "name": "Toolset-aware skills prompt snapshot",
@@ -13884,16 +13943,80 @@
             {
               "name": "Browser provider bridge + Firecrawl fallback",
               "status": "planned",
-              "note": "TDD: port `tools/browser_providers/{browserbase,firecrawl}.py` as optional provider adapters with credential gating and deterministic fallback/error results before network-backed browsing is default.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Fakeable cloud browser provider bridge implements Hermes' CloudBrowserProvider shape for Browserbase and Firecrawl without starting a browser: provider registration is gated by explicit config/env credentials, CreateSession returns session_name, provider_session_id, bb_session_id compatibility evidence, cdp_url, and feature flags; Browserbase 402 responses retry deterministically by stripping keepAlive then proxies before failing; Firecrawl honors configured API URL and browser TTL; CloseSession and EmergencyCleanup are idempotent and redact API keys, project IDs, session URLs, and response bodies in errors.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Unavailable credentials, provider create failures, Browserbase fallback retries, Firecrawl API failures, and cleanup failures return typed evidence such as browser_provider_unconfigured, browserbase_plan_fallback, browser_provider_create_failed, browser_provider_cleanup_failed, and browser_provider_error_redacted without leaking secrets or attempting live navigation.",
+              "fixture": "internal/tools/browser_provider_bridge_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/browser_providers/base.py:CloudBrowserProvider",
+                "../hermes-agent/tools/browser_providers/browserbase.py:BrowserbaseProvider",
+                "../hermes-agent/tools/browser_providers/firecrawl.py:FirecrawlProvider",
+                "../hermes-agent/tools/browser_providers/browser_use.py:BrowserUseProvider",
+                "../hermes-agent/tests/tools/test_browser_hybrid_routing.py",
+                "internal/tools/browser_contract.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "references/go-agent-os/nanobot/pkg/tools/flows.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
+              ],
+              "ready_when": [
+                "Browser action contract and private-URL sidecar routing are stable enough to define a cloud-provider session result consumed by later chromedp/Rod runtime slices.",
+                "Tests can inject fake HTTP transports for Browserbase and Firecrawl and synthetic credential structs; no DNS, Browserbase, Firecrawl, Chromium, chromedp, Rod, or Browser Use process is required.",
+                "Provider selection remains optional and disabled when required credentials or project IDs are missing."
+              ],
+              "not_ready_when": [
+                "The slice starts Chromium, opens CDP, navigates URLs, imports chromedp/Rod/Browser Use runtime packages, or calls a real cloud browser service.",
+                "The bridge sends LAN/private URLs to a cloud provider instead of consuming the existing private-URL local-sidecar routing decision.",
+                "Errors include raw API keys, bearer tokens, session URLs, project IDs, or unbounded provider response bodies."
+              ],
+              "blocked_by": [
+                "Browser action contract",
+                "Browser hybrid private-URL local sidecar routing"
+              ],
+              "unblocks": [
+                "Chromedp",
+                "Rod",
+                "Browser action runtime provider selection",
+                "Browser provider status reporting"
+              ],
+              "acceptance": [
+                "TestBrowserProviderBridgeConfigGates proves Browserbase requires API key plus project ID, Firecrawl requires API key, and missing config produces browser_provider_unconfigured without constructing an HTTP request.",
+                "TestBrowserbaseCreateSessionFallbacks proves a fake 402 response retries by removing keepAlive, then proxies, and records browserbase_plan_fallback evidence while preserving a stable cdp_url/session result on success.",
+                "TestFirecrawlCreateSessionTTLAndURL proves the configured Firecrawl base URL and browser TTL flow into the fake /v2/browser request and the result captures id/cdpUrl/features.",
+                "TestBrowserProviderCloseAndEmergencyCleanup proves close and cleanup are idempotent, use fake clients, tolerate missing sessions, and surface cleanup evidence without panics.",
+                "TestBrowserProviderErrorsRedacted proves provider errors redact API keys, bearer headers, project IDs, CDP/session URLs, and truncate long response bodies."
+              ],
+              "note": "Builder-ready tool/provider bridge slice. Hermes supplies the Browserbase/Firecrawl provider contract; Go donor files suggest narrow fakeable tool/provider interfaces and artifact evidence, but no donor runtime code is needed.",
+              "write_scope": [
+                "internal/tools/browser_provider_bridge.go",
+                "internal/tools/browser_provider_bridge_test.go",
+                "internal/tools/browser_contract.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestBrowserProvider' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Browser provider fixtures prove config gates, Browserbase 402 fallback, Firecrawl TTL/base URL handling, idempotent cleanup, private-URL handoff safety, and secret-redacted errors using fake HTTP only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/browser_providers/base.py",
+                  "hermes:tools/browser_providers/browserbase.py",
+                  "hermes:tools/browser_providers/firecrawl.py",
+                  "references/go-agent-os/nanobot/pkg/tools/flows.go"
+                ],
+                "note": "Hermes defines provider behavior; Gormes adapts it behind native Go tool contracts before choosing a browser runtime backend."
+              }
             },
             {
               "name": "Browser hybrid private-URL local sidecar routing",
@@ -14259,16 +14382,74 @@
             {
               "name": "Transcription tool contract",
               "status": "planned",
-              "note": "TDD: port `tools/transcription_tools.py` input validation, provider selection, and text/error result shape with local audio fixtures before gateway media hooks call it.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Native STT/transcription tool helper validates local audio input and provider selection before gateway media hooks call it: files must exist, be regular files, use supported audio suffixes, and stay under configured max bytes; explicit provider selection among local, local_command, groq, openai, mistral, and xai never silently falls back; auto mode chooses Hermes order local, groq, openai, mistral, xai from injected availability; model defaults and overrides are normalized per provider; tool results return transcript/provider/model/language on success or typed redacted error evidence on failure.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Disabled STT, missing files, directories, unsupported formats, oversized audio, missing provider credentials, local-command failures, and provider API failures return evidence codes such as stt_disabled, audio_not_found, audio_not_file, unsupported_audio_format, audio_too_large, stt_provider_unavailable, and stt_api_error with secret/redaction guards.",
+              "fixture": "internal/tools/transcription_tool_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/transcription_tools.py:_load_stt_config",
+                "../hermes-agent/tools/transcription_tools.py:is_stt_enabled",
+                "../hermes-agent/tools/transcription_tools.py:_get_provider",
+                "../hermes-agent/tools/transcription_tools.py:_validate_audio_file",
+                "../hermes-agent/tools/transcription_tools.py:_normalize_local_model",
+                "../hermes-agent/tools/transcription_tools.py:_normalize_local_command_model",
+                "../hermes-agent/tools/transcription_tools.py:transcribe_audio",
+                "../hermes-agent/tests/tools/test_transcription_tools.py",
+                "internal/tools/tool.go",
+                "references/go-agent-os/nanobot/pkg/tools/flows.go"
+              ],
+              "ready_when": [
+                "internal/tools has the shared tool descriptor/result surface and can host a pure transcription helper with injected provider clients.",
+                "Tests can use t.TempDir files with small fake audio bytes and fake provider clients; no ffmpeg, faster-whisper, OpenAI, Groq, Mistral, xAI, managed gateway, or network call is required.",
+                "Gateway voice/message attachment rows can remain blocked until this helper exposes a stable result envelope."
+              ],
+              "not_ready_when": [
+                "The slice shells out to ffmpeg or local STT binaries, imports cloud SDKs, calls live provider APIs, downloads attachment media, or wires gateway channel handlers.",
+                "Explicit provider errors fall back to another provider instead of returning a typed unavailable/error result.",
+                "Provider errors expose API keys, managed-gateway tokens, raw HTTP response bodies, or local command output without redaction/truncation."
+              ],
+              "unblocks": [
+                "TTS synthesis + voice-mode state",
+                "Gateway media transcription hooks",
+                "Voice attachment handling for Signal and QQ Bot"
+              ],
+              "acceptance": [
+                "TestTranscriptionValidateAudioInput proves missing files, directories, unsupported suffixes, and max-size violations return stable evidence and no provider is called.",
+                "TestTranscriptionProviderSelection proves explicit local/local_command/groq/openai/mistral/xai selection is honored without fallback and auto mode follows local > groq > openai > mistral > xai availability.",
+                "TestTranscriptionModelNormalization proves provider defaults and overrides normalize like Hermes, including local and local_command model aliases.",
+                "TestTranscriptionResultEnvelope proves success includes transcript/provider/model/language and failures include redacted typed error evidence.",
+                "TestTranscriptionToolDescriptor proves the tool schema exposes audio path, provider, model, language, and optional format fields without requiring gateway media plumbing."
+              ],
+              "note": "Builder-ready tool-calling slice. Hermes' transcription_tools.py defines validation, provider choice, and result semantics; Gormes should first own the Go contract with fake clients before channel voice flows call it.",
+              "write_scope": [
+                "internal/tools/transcription_tool.go",
+                "internal/tools/transcription_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestTranscription' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Transcription fixtures prove audio validation, provider selection/no-fallback behavior, model normalization, redacted result envelope, and tool descriptor shape with fake providers only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/transcription_tools.py",
+                  "hermes:tests/tools/test_transcription_tools.py",
+                  "references/go-agent-os/nanobot/pkg/tools/flows.go"
+                ],
+                "note": "Hermes is the STT parity contract; Go donor tool-flow references only inform how to keep provider calls injectable and testable."
+              }
             },
             {
               "name": "TTS synthesis + voice-mode state",
@@ -16217,16 +16398,75 @@
             {
               "name": "Approval mode config normalization",
               "status": "planned",
-              "note": "TDD: add config parsing for manual/smart/off approval modes, including YAML/TOML boolean edge cases such as bare off, before wiring prompts or smart auxiliary review.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Pure approval-mode parser normalizes config-loaded values before dangerous-command prompting is wired: bool false maps to off to preserve YAML 1.1 bare `off`, bool true maps to manual, strings trim/lowercase with empty and unknown values behaving as manual, and only manual, smart, and off are returned to GuardCommand callers; hardline blocks remain non-bypassable and recoverable dangerous commands use the normalized mode without starting prompts or auxiliary LLM review in this slice.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Invalid, empty, unsupported, or non-scalar approval config records approval_mode_defaulted evidence and falls back to manual; a bool false/off value bypasses only recoverable approvals and never bypasses hardline blocks.",
+              "fixture": "internal/tools/approval_mode_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/approval.py:_normalize_approval_mode",
+                "../hermes-agent/tools/approval.py:_get_approval_mode",
+                "../hermes-agent/tools/approval.py:check_command_approval",
+                "../hermes-agent/tests/tools/test_approval.py:TestApprovalModeParsing",
+                "internal/tools/dangerous_command.go",
+                "internal/tools/dangerous_command_test.go",
+                "references/go-agent-os/axe/internal/budget/budget.go"
+              ],
+              "ready_when": [
+                "Hardline command pattern table + DetectHardline function and Recoverable dangerous patterns + blocked-result schema are complete.",
+                "The slice can table-test config values as plain Go types and call the existing pure GuardCommand path; no prompt UI, gateway slash command, cron runner, or smart LLM is required.",
+                "Workers keep the parser reusable for later CLI/TUI/gateway config loaders."
+              ],
+              "not_ready_when": [
+                "The slice adds interactive prompts, /approve handling, cron policy, smart auxiliary model calls, config-file IO, or execute_code boundary wiring.",
+                "Hardline commands can be bypassed by off/yolo/manual/smart mode in tests.",
+                "Unknown strings, arrays, maps, or integer-like scalars are treated as opt-in/off instead of defaulting to manual with evidence."
+              ],
+              "blocked_by": [
+                "Hardline command pattern table + DetectHardline function",
+                "Recoverable dangerous patterns + blocked-result schema"
+              ],
+              "unblocks": [
+                "Subagent dangerous-command non-interactive approval policy",
+                "Cron dangerous-command approval mode",
+                "Wire GuardCommand into execute_code boundary"
+              ],
+              "acceptance": [
+                "TestNormalizeApprovalMode_YAMLBooleanOff proves bool false maps to off while bool true maps to manual.",
+                "TestNormalizeApprovalMode_StringModes proves manual, smart, off, whitespace, and case folding produce stable modes.",
+                "TestNormalizeApprovalMode_Defaults proves empty strings, unknown strings, nil, numbers, slices, and maps default to manual with approval_mode_defaulted evidence.",
+                "TestApprovalModeDoesNotBypassHardline proves GuardCommand('rm -rf /', mode off/smart/manual) remains hardline blocked.",
+                "TestApprovalModeOffBypassesRecoverable proves GuardCommand('git reset --hard', mode off) bypasses only recoverable approval while manual/smart still mark approval_required for later prompt/smart rows."
+              ],
+              "note": "Builder-ready dangerous-command config slice. Hermes approval.py has a regression guard for YAML bare off parsing; Gormes should freeze that parser before wiring prompts, smart approval, cron policy, or execute_code enforcement.",
+              "write_scope": [
+                "internal/tools/approval_mode.go",
+                "internal/tools/approval_mode_test.go",
+                "internal/tools/dangerous_command.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestNormalizeApprovalMode|TestApprovalMode' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Approval-mode fixtures prove YAML boolean off, string mode folding, invalid-value defaulting, hardline non-bypassability, and recoverable off-mode behavior without prompts or LLM calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/approval.py",
+                  "hermes:tests/tools/test_approval.py",
+                  "references/go-agent-os/axe/internal/budget/budget.go"
+                ],
+                "note": "Hermes supplies the approval-mode parsing parity; the Go donor reference only reinforces keeping policy state explicit and bounded."
+              }
             },
             {
               "name": "Gateway hook auto-accept strict parser",
@@ -18160,6 +18400,10 @@
               ],
               "unblocks": [
                 "Hermes CLI command-tree parity manifest",
+                "Hermes auth command-tree manifest refresh",
+                "Hermes auth credential-pool command surface",
+                "Hermes auth OAuth provider adapters",
+                "Hermes auth Spotify service-provider subcommand",
                 "Deterministic helper-file ports (banner/output/tips/webhook/dump)",
                 "CLI command registry parity + active-turn busy policy",
                 "Config, profile, auth, and setup command surfaces",
@@ -18208,6 +18452,7 @@
                 "Any upstream command, subcommand, flag, alias, or slash command is left unclassified."
               ],
               "unblocks": [
+                "Hermes auth command-tree manifest refresh",
                 "Gormes config command surface",
                 "Gormes config edit/check/native schema-migrate closeout",
                 "Hermes config migration dry-run manifest",
@@ -18248,6 +18493,349 @@
                 "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go",
                 "tests": "go test ./cmd/gormes -run 'TestHermesCLIParityManifest|TestHermesCLIParityManifestNoUnknowns' -count=1; go run ./cmd/progress validate; git diff --check",
                 "note": "Manifest classifies upstream Hermes top-level/nested commands, gateway handlers, slash registry aliases, dynamic plugin commands, Gormes-owned divergences, and typo suggestion evidence before handler ports."
+              }
+            },
+            {
+              "name": "Hermes auth command-tree manifest refresh",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Refresh the Gormes Hermes CLI compatibility manifest so provider auth command paths match current non-deprecated Hermes behavior: top-level `hermes login` is classified as removed/deprecated guidance, top-level `hermes logout --provider nous|openai-codex|spotify` remains a provider-auth shortcut, `hermes auth` without a subcommand opens interactive credential-pool management, and nested auth commands are `add`, `list`, `remove`, `reset`, `status`, `logout`, and `spotify` rather than the stale `auth login` or `auth refresh` paths.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown, removed, or stale auth command paths are explicit manifest entries with auth_command_removed, auth_command_stale, or row_backed evidence instead of silently suggesting unsupported `auth login` or `auth refresh` commands.",
+              "fixture": "cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifestProviderAuthCommandsMatchHermes",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:login_parser",
+                "../hermes-agent/hermes_cli/main.py:logout_parser",
+                "../hermes-agent/hermes_cli/main.py:auth_parser",
+                "../hermes-agent/hermes_cli/auth.py:login_command",
+                "../hermes-agent/hermes_cli/auth.py:logout_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_list_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_remove_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_reset_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_status_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_spotify_command",
+                "cmd/gormes/hermes_cli_parity.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+              ],
+              "ready_when": [
+                "Hermes CLI command-tree parity manifest is validated and can be refreshed without implementing auth handlers.",
+                "The builder can assert manifest rows using in-process Go tests only; no provider credentials, browser, keychain, Spotify account, or network access is required.",
+                "The refreshed manifest records removed/deprecated commands distinctly from row-backed non-deprecated commands."
+              ],
+              "not_ready_when": [
+                "The slice implements `gormes auth` handlers, opens OAuth browser flows, mutates auth.json, reads live provider credentials, or rewrites config command behavior.",
+                "The manifest continues to advertise `auth login` or `auth refresh` as supported Hermes parity commands.",
+                "Top-level `login` is treated as the provider login implementation path instead of a removed command that prints guidance toward `auth`, `model`, or `setup`."
+              ],
+              "blocked_by": [
+                "Hermes CLI command-tree parity manifest"
+              ],
+              "unblocks": [
+                "Hermes auth credential-pool command surface",
+                "Hermes auth OAuth provider adapters",
+                "Hermes auth Spotify service-provider subcommand"
+              ],
+              "acceptance": [
+                "TestHermesCLIParityManifestProviderAuthCommandsMatchHermes proves nested `auth add`, `auth list`, `auth remove`, `auth reset`, `auth status`, `auth logout`, and `auth spotify` entries exist with source refs and row-backed residuals.",
+                "TestHermesCLIParityManifestProviderAuthCommandsMatchHermes proves stale `auth login` and `auth refresh` entries are absent or explicitly classified as removed/stale, never row-backed implementation targets.",
+                "TestHermesCLIParityManifestProviderAuthCommandsMatchHermes proves top-level `login` carries removed/deprecated guidance and top-level `logout` remains a secret-safe provider-auth shortcut.",
+                "TestHermesCLIParityManifestFallbackCommandsMatchHermes proves current Hermes fallback subcommands are `list`, `ls`, `add`, `remove`, `rm`, and `clear`, not stale `show` or `set` paths.",
+                "Secret-bearing paths such as `auth add --api-key` and OAuth login rows carry RedactsSecrets=true; destructive paths such as `auth remove`, `auth logout`, and `logout` carry destructive/confirmation evidence as appropriate.",
+                "The manifest row count increases only through reviewed auth entries; no runtime command executes during the test."
+              ],
+              "note": "Complete: upstream current Hermes routes provider login through `hermes auth add <provider> --type oauth`, not `hermes auth login`; top-level `hermes login` is a removed command that prints guidance. The manifest now records this before handler ports so Gormes does not build deprecated auth UX.",
+              "write_scope": [
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(ProviderAuthCommandsMatchHermes|FallbackCommandsMatchHermes|NoUnknowns)' -count=1",
+                "go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "CLI parity manifest fixtures prove the current Hermes auth command tree, removed top-level login guidance, redaction/destructive flags, and absence of stale auth login/refresh targets."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:hermes_cli/main.py auth parser",
+                  "hermes:hermes_cli/auth.py login_command/logout_command",
+                  "hermes:hermes_cli/auth_commands.py auth_command"
+                ],
+                "note": "Hermes defines the command spelling and deprecation boundary; Gormes owns the manifest and Go-native implementation order."
+              },
+              "evidence": {
+                "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go, docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
+                "tests": "go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1; go test ./cmd/gormes -count=1; go run ./cmd/progress validate",
+                "note": "Manifest now excludes removed top-level login as implementation target, models current auth add/list/remove/reset/status/logout/spotify, tracks top-level logout redaction/destructive behavior, and replaces stale fallback show/set with list/ls/add/remove/rm/clear."
+              }
+            },
+            {
+              "name": "Hermes auth credential-pool command surface",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Implement the non-OAuth `gormes auth` command surface over the existing native credential pool: bare `auth` renders an interactive-safe status/readout without prompting in tests; `auth add <provider> --type api-key|api_key [--label --api-key]` stores a manual credential for registry, openrouter, or custom providers; `auth list [provider]` renders redacted pool rows with current marker and exhaustion status; `auth remove <provider> <index|id|label>` deletes one credential and records source suppression; `auth reset <provider>` clears exhaustion status; `auth status <provider>` renders provider auth state; and `auth logout <provider>` clears stored provider auth without leaking secrets.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown providers, empty API keys, corrupt auth.json, missing credentials, invalid remove targets, unsupported provider auth status, and logout of an absent provider return auth_provider_unknown, auth_api_key_missing, credential_pool_corrupt, credential_pool_empty, credential_target_missing, auth_status_unavailable, or auth_state_absent evidence with all token fields redacted.",
+              "fixture": "cmd/gormes/auth_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_list_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_remove_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_reset_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_status_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_logout_command",
+                "../hermes-agent/agent/credential_pool.py:PooledCredential,CredentialPool.resolve_target,reset_statuses",
+                "../hermes-agent/tests/hermes_cli/test_auth_commands.py",
+                "internal/config/credential_pool.go",
+                "internal/config/codex_oauth_state.go",
+                "internal/config/anthropic_auth_state.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
+              ],
+              "ready_when": [
+                "Multi-account auth is complete and exposes native credential-pool load, save, redacted status, selection, exhaustion, and corrupt-store evidence.",
+                "Hermes auth command-tree manifest refresh is planned or complete so command spelling is no longer stale.",
+                "Tests use temp XDG/HERMES_HOME/auth.json stores and neutral placeholder tokens only; no live provider, keychain, OAuth, browser, or network access is required."
+              ],
+              "not_ready_when": [
+                "The slice implements OAuth login flows for anthropic, nous, openai-codex, qwen-oauth, google-gemini-cli, or Spotify; those are separate rows.",
+                "The command reads live ~/.hermes, ~/.claude, ~/.codex, ~/.qwen, shell provider credentials, or platform keychains during tests.",
+                "List/status/logout output includes access_token, refresh_token, API keys, raw auth.json content, or unredacted secret-looking values."
+              ],
+              "blocked_by": [
+                "Hermes auth command-tree manifest refresh",
+                "Multi-account auth"
+              ],
+              "unblocks": [
+                "Hermes auth OAuth provider adapters",
+                "Provider auth selection for native gateway turns",
+                "Provider auth CLI status in doctor/status surfaces"
+              ],
+              "acceptance": [
+                "TestGormesAuthAddAPIKeyPersistsManualEntry proves `auth add openrouter --type api-key --label personal --api-key sk-test` stores one manual credential with provider base URL metadata and never writes the key to stdout/stderr.",
+                "TestGormesAuthListRedactsSecrets proves list output shows provider, index, label, auth_type, source, current marker, and exhaustion status while omitting access_token, refresh_token, and raw API key bytes.",
+                "TestGormesAuthRemoveByIndexIDOrLabel proves remove resolves index, id, and exact label, deletes exactly one entry, records source suppression for env/external singleton sources, and reports missing targets deterministically.",
+                "TestGormesAuthResetClearsExhaustion proves reset clears last_status/last_error fields for all credentials of one provider and preserves unrelated providers.",
+                "TestGormesAuthStatusAndLogout prove status uses provider-specific native stores when present and logout clears the selected provider/auth state with redacted absent-state behavior.",
+                "TestGormesAuthBareReadout proves bare `auth` can render credential-pool status and Bedrock/AWS-chain placeholder evidence without entering an interactive prompt in non-TTY tests."
+              ],
+              "note": "Builder-ready CLI/provider-auth row. This row ports the non-deprecated credential-pool command behavior from Hermes without building OAuth browser/device-code flows yet. It consumes the native internal/config credential pool that already exists.",
+              "write_scope": [
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_command_test.go",
+                "cmd/gormes/main.go",
+                "internal/config/credential_pool.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestGormesAuth' -count=1",
+                "go test ./cmd/gormes ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Auth command fixtures prove API-key add, list redaction, remove target resolution and suppression, reset, status, logout, and noninteractive bare auth readout over temp auth stores."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:hermes_cli/auth_commands.py",
+                  "hermes:agent/credential_pool.py",
+                  "references/go-agent-os/axe/internal/artifact/tracker.go"
+                ],
+                "note": "Hermes defines command UX and credential-pool semantics; Gormes adapts them over the native internal/config pool and keeps donor references patterns-only."
+              }
+            },
+            {
+              "name": "Hermes auth OAuth provider adapters",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Implement non-deprecated provider login through `gormes auth add <provider> --type oauth` with injectable provider login seams for Hermes OAuth-capable inference providers: anthropic uses Hermes PKCE credentials, nous uses device-code state and mirrors providers.nous plus credential_pool.nous, openai-codex uses Codex device-code tokens and clears device_code suppression on relink, google-gemini-cli stores Google Code Assist OAuth credentials, and qwen-oauth imports/refreshes local Qwen CLI credentials into a pool entry. Each adapter returns the Hermes source label, base URL, expiry/refresh metadata, and redacted status evidence without requiring live credentials in tests.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "OAuth provider login failures return provider-specific evidence such as anthropic_oauth_failed, nous_device_code_failed, nous_provider_mirror_missing, codex_device_code_failed, google_gemini_oauth_failed, qwen_cli_auth_missing, qwen_cli_refresh_failed, auth_suppression_cleared, and auth_secret_redacted while preserving any existing auth store unless a fake successful login is committed.",
+              "fixture": "cmd/gormes/auth_oauth_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth_commands.py:_OAUTH_CAPABLE_PROVIDERS",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command",
+                "../hermes-agent/hermes_cli/auth.py:_nous_device_code_login",
+                "../hermes-agent/hermes_cli/auth.py:persist_nous_credentials",
+                "../hermes-agent/hermes_cli/auth.py:_codex_device_code_login",
+                "../hermes-agent/hermes_cli/auth.py:resolve_qwen_runtime_credentials",
+                "../hermes-agent/agent/anthropic_adapter.py:run_hermes_oauth_login_pure",
+                "../hermes-agent/agent/google_oauth.py:run_gemini_oauth_login_pure",
+                "../hermes-agent/tests/hermes_cli/test_auth_commands.py",
+                "../hermes-agent/tests/hermes_cli/test_auth_nous_provider.py",
+                "../hermes-agent/tests/hermes_cli/test_auth_qwen_provider.py",
+                "internal/config/anthropic_auth_state.go",
+                "internal/config/codex_oauth_state.go",
+                "internal/config/google_oauth_state.go",
+                "internal/config/credential_pool.go",
+                "references/go-agent-os/goclaw/internal/oauth/openai.go",
+                "references/go-agent-os/goclaw/internal/oauth/token.go"
+              ],
+              "ready_when": [
+                "Hermes auth credential-pool command surface is fixture-ready or complete so command routing, storage, redaction, and suppression semantics exist.",
+                "Codex OAuth state + stale-token relogin, Anthropic OAuth/keychain credential discovery, Multi-account auth, and Google OAuth flow + refresh seam are complete enough to provide native stores or fake login seams.",
+                "Tests can inject fake OAuth/device-code/Qwen clients and temp auth stores; no browser, localhost callback, keychain, Qwen CLI, Google OAuth server, Codex endpoint, Nous portal, or Anthropic network is required."
+              ],
+              "not_ready_when": [
+                "The slice calls live OAuth endpoints, opens browsers, polls real device-code flows, reads live ~/.claude ~/.codex ~/.qwen credentials, or contacts provider model catalogs in unit tests.",
+                "Nous OAuth writes only credential_pool.nous but not providers.nous; Hermes requires both for later 401 recovery.",
+                "OpenAI Codex relink leaves a stale device_code suppression marker in auth.json.",
+                "Provider errors or status output include access_token, refresh_token, agent_key, auth code, client secret, device code, raw callback URL, or raw provider body."
+              ],
+              "blocked_by": [
+                "Hermes auth command-tree manifest refresh",
+                "Hermes auth credential-pool command surface",
+                "Anthropic OAuth/keychain credential discovery",
+                "Codex OAuth state + stale-token relogin",
+                "Multi-account auth",
+                "Google OAuth flow + refresh seam"
+              ],
+              "unblocks": [
+                "Provider auth selection for native gateway turns",
+                "Qwen OAuth provider runtime binding",
+                "Google Gemini CLI provider runtime binding",
+                "Nous provider auth refresh and agent-key recovery"
+              ],
+              "acceptance": [
+                "TestGormesAuthAddAnthropicOAuth stores a manual:hermes_pkce entry with label derived from fake token claims, refresh token, expiry metadata, and no live keychain access.",
+                "TestGormesAuthAddNousOAuthMirrorsProviderAndPool proves fake device-code login writes providers.nous and exactly one credential_pool.nous device_code entry with label preservation and no manual:device_code duplicate.",
+                "TestGormesAuthAddCodexOAuthClearsSuppression proves relinking openai-codex removes device_code suppression, stores manual:device_code access/refresh/base_url metadata, and redacts tokens in output.",
+                "TestGormesAuthAddGoogleGeminiOAuth stores google_pkce source, email/default label, access/refresh metadata, and redacted status without using live Google endpoints.",
+                "TestGormesAuthAddQwenOAuth imports fake Qwen CLI credentials as manual:qwen_cli, preserves base_url, classifies missing/expired Qwen CLI credentials, and does not shell out.",
+                "TestGormesAuthOAuthErrorsAreAtomic proves failed fake OAuth logins leave existing credential_pool/provider state byte-identical and return provider-specific redacted evidence."
+              ],
+              "note": "Builder-ready provider-auth row. Hermes' non-deprecated provider login UX is `auth add <provider> --type oauth`; Gormes must implement that, not resurrect removed top-level login or invent `auth login`. GoClaw OAuth files are implementation references for PKCE/state/redirect and bounded token exchange, filtered through Hermes behavior.",
+              "write_scope": [
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_oauth_command_test.go",
+                "internal/config/credential_pool.go",
+                "internal/config/codex_oauth_state.go",
+                "internal/config/google_oauth_state.go",
+                "internal/config/anthropic_auth_state.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestGormesAuthAdd.*OAuth|^TestGormesAuthOAuth' -count=1",
+                "go test ./cmd/gormes ./internal/config ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "OAuth auth command fixtures prove anthropic, nous, openai-codex, google-gemini-cli, and qwen-oauth add flows through fake clients, atomic failure handling, suppression cleanup, provider/pool mirroring, and redacted output."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:hermes_cli/auth_commands.py",
+                  "hermes:hermes_cli/auth.py",
+                  "hermes:agent/anthropic_adapter.py",
+                  "hermes:agent/google_oauth.py",
+                  "references/go-agent-os/goclaw/internal/oauth/openai.go",
+                  "references/go-agent-os/goclaw/internal/oauth/token.go"
+                ],
+                "note": "Hermes owns provider auth UX and auth.json semantics; Gormes may adapt GoClaw OAuth mechanics with provenance comments only where they preserve Hermes behavior."
+              }
+            },
+            {
+              "name": "Hermes auth Spotify service-provider subcommand",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Implement `gormes auth spotify [login|status|logout]` as the service-provider auth companion to the first-party Spotify plugin: login runs an injectable PKCE callback/token exchange using client_id, redirect_uri, scope, no-browser, and timeout inputs; status reads providers.spotify from the auth store and reports logged-in, expiry, scope, redirect_uri, and API base URL with secrets redacted; logout clears only Spotify provider auth. The command gates Spotify tool/plugin availability through the same providers.spotify auth key Hermes uses.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing client ID, redirect mismatch, callback timeout, token exchange failure, partial/corrupt auth state, and absent Spotify credentials return spotify_client_id_missing, spotify_redirect_invalid, spotify_callback_timeout, spotify_token_exchange_failed, spotify_auth_corrupt, or spotify_logged_out evidence without leaking authorization codes, access tokens, or refresh tokens.",
+              "fixture": "cmd/gormes/auth_spotify_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:auth_spotify",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_spotify_command",
+                "../hermes-agent/hermes_cli/auth.py:login_spotify_command",
+                "../hermes-agent/hermes_cli/auth.py:get_spotify_auth_status",
+                "../hermes-agent/hermes_cli/auth.py:_refresh_spotify_oauth_state",
+                "../hermes-agent/tests/hermes_cli/test_spotify_auth.py",
+                "internal/plugins/spotify_plugin_test.go",
+                "internal/plugins/manifest_test.go",
+                "references/go-agent-os/goclaw/internal/oauth/openai.go"
+              ],
+              "ready_when": [
+                "First-party Spotify plugin metadata fixture is complete and already gates capabilities on providers.spotify.",
+                "Hermes auth command-tree manifest refresh and credential-pool command surface are planned or complete.",
+                "Tests can inject PKCE state, callback input, token exchange responses, fake clock, and temp auth stores; no Spotify account, browser, localhost socket, or network access is required."
+              ],
+              "not_ready_when": [
+                "The slice implements Spotify playback/search tools, plugin backend routes, live browser callbacks, or real Spotify API calls in unit tests.",
+                "Logout clears unrelated provider auth or credential pools.",
+                "Status output prints access_token, refresh_token, authorization code, client secret, raw callback URL, or token response bodies."
+              ],
+              "blocked_by": [
+                "Hermes auth command-tree manifest refresh",
+                "Hermes auth credential-pool command surface",
+                "First-party Spotify plugin metadata fixture"
+              ],
+              "unblocks": [
+                "Spotify plugin backend runtime",
+                "Spotify tool handlers over providers.spotify auth"
+              ],
+              "acceptance": [
+                "TestGormesAuthSpotifyLoginPKCEStoresProviderState proves fake PKCE login writes providers.spotify with access/refresh/expiry/scope/api_base_url metadata and redacted output.",
+                "TestGormesAuthSpotifyStatusLoggedInAndLoggedOut proves status renders logged-in fields without secrets and reports logged out when providers.spotify is absent.",
+                "TestGormesAuthSpotifyLogoutClearsOnlySpotify proves logout deletes providers.spotify while preserving openai-codex, anthropic, and credential_pool entries.",
+                "TestGormesAuthSpotifyLoginNoBrowserAndTimeout prove --no-browser suppresses browser opener and fake timeout returns spotify_callback_timeout without mutating auth.json.",
+                "TestSpotifyPluginAuthGateUsesProvidersSpotify proves plugin capability status changes from missing-credential to enabled when the fake Spotify auth state exists."
+              ],
+              "note": "Builder-ready service-provider auth row. Spotify is not an inference provider, but Hermes exposes it through the same `hermes auth` command family and plugin gates depend on providers.spotify, so Gormes should plan it alongside provider auth instead of leaving plugin auth implicit.",
+              "write_scope": [
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_spotify_command_test.go",
+                "internal/config/spotify_auth_state.go",
+                "internal/config/spotify_auth_state_test.go",
+                "internal/plugins/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestGormesAuthSpotify' -count=1",
+                "go test ./internal/config ./internal/plugins -run 'Test.*Spotify' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Spotify auth fixtures prove PKCE state, login/status/logout, providers.spotify plugin gating, timeout/no-browser behavior, scoped logout, and secret redaction with fake clients only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:hermes_cli/auth.py Spotify auth helpers",
+                  "hermes:hermes_cli/auth_commands.py auth_spotify_command",
+                  "hermes:tests/hermes_cli/test_spotify_auth.py",
+                  "references/go-agent-os/goclaw/internal/oauth/openai.go"
+                ],
+                "note": "Hermes defines the auth command and providers.spotify state; GoClaw supplies reusable PKCE shape only as an implementation reference."
               }
             },
             {
@@ -19071,6 +19659,10 @@
                 "CLI profile name validator",
                 "CLI profile root resolver",
                 "CLI active-profile store",
+                "Hermes auth command-tree manifest refresh",
+                "Hermes auth credential-pool command surface",
+                "Hermes auth OAuth provider adapters",
+                "Hermes auth Spotify service-provider subcommand",
                 "Provider endpoint/API-key root flags + runtime resolution",
                 "Gormes config command surface",
                 "Hermes config migration dry-run manifest",
@@ -19078,7 +19670,7 @@
                 "CLI auth status read model before provider setup",
                 "Setup/uninstall dry-run command contracts"
               ],
-              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then auth-status, setup/uninstall. Do not assign this umbrella row directly."
+              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows, setup/uninstall. Do not assign this umbrella row directly."
             },
             {
               "name": "Provider endpoint/API-key root flags + runtime resolution",
@@ -24083,16 +24675,80 @@
             {
               "name": "Signal transport/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze signal-cli or bridge client lifecycle, receive-loop reconnect/error handling, and outbound attachment/send seams before binding a real transport.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Fakeable Signal bridge bootstrap binds the existing Signal Bot seam to a signal-cli HTTP JSON-RPC/SSE client without live signal-cli: config requires SIGNAL_HTTP_URL and SIGNAL_ACCOUNT or explicit equivalents, acquires a platform lock keyed by account, health-checks /api/v1/check before starting, opens an SSE events stream with the account URL-encoded, treats comments as liveness, parses data envelopes into normalized inbound events, reconnects with jitter/backoff and stale-stream health evidence, sends JSON-RPC requests through an injected client, fetches attachments with getAttachment params {account,id}, and routes outbound direct/group sends with typing-stop and timestamp message IDs.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing config, failed health checks, platform-lock conflicts, SSE disconnects, invalid envelopes, RPC failures, attachment decode failures, and send failures return typed evidence such as signal_config_missing, signal_health_failed, signal_lock_busy, signal_sse_reconnect, signal_envelope_invalid, signal_rpc_failed, signal_attachment_unavailable, and signal_send_failed while redacting phone/account identifiers.",
+              "fixture": "internal/channels/signal/bootstrap_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/signal.py:SignalAdapter.connect",
+                "../hermes-agent/gateway/platforms/signal.py:_sse_listener",
+                "../hermes-agent/gateway/platforms/signal.py:_health_monitor",
+                "../hermes-agent/gateway/platforms/signal.py:_rpc",
+                "../hermes-agent/gateway/platforms/signal.py:_fetch_attachment",
+                "../hermes-agent/gateway/platforms/signal.py:send",
+                "../hermes-agent/tests/gateway/test_signal.py",
+                "internal/channels/signal/bot.go",
+                "internal/channels/signal/inbound.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/trpc-agent-go/model/callbacks.go"
+              ],
+              "ready_when": [
+                "Inbound event normalization + session identity and Reply/send contract on shared chassis are complete.",
+                "Tests can inject fake health/RPC/SSE clients, fake clocks, and fake locks; no live signal-cli daemon, phone number registration, network socket, or attachment download is required.",
+                "The bootstrap layer only adapts transport lifecycle into the existing Signal Bot contract."
+              ],
+              "not_ready_when": [
+                "The slice starts or installs signal-cli, opens a real HTTP/SSE connection, registers devices, downloads real attachments, or edits non-Signal gateway routing.",
+                "Attachment fetch uses attachmentId instead of Hermes' getAttachment id parameter, or errors leak full phone/account values.",
+                "Connect failure paths keep locks, goroutines, HTTP clients, or SSE loops alive."
+              ],
+              "blocked_by": [
+                "Inbound event normalization + session identity",
+                "Reply/send contract on shared chassis"
+              ],
+              "unblocks": [
+                "Signal live transport smoke test",
+                "Voice attachment handling for Signal and QQ Bot",
+                "Channel health/status readout for paused adapters"
+              ],
+              "acceptance": [
+                "TestSignalBootstrapConfigAndHealth proves env/explicit config loading, redacted status, required health check, lock acquisition, and cleanup-on-connect-failure.",
+                "TestSignalSSEListenerAccountEncodingAndLiveness proves /api/v1/events?account=... is URL-encoded, comments update liveness, invalid JSON records evidence, and data envelopes call NormalizeInbound.",
+                "TestSignalReconnectAndHealthMonitor proves stale SSE and daemon health failures trigger bounded reconnect/backoff using fake clocks without leaking goroutines.",
+                "TestSignalAttachmentFetchUsesIDParam proves JSON-RPC getAttachment sends params account and id, base64 decodes fake bytes, guesses media class, and records attachment evidence.",
+                "TestSignalSendDirectAndGroup proves outbound sends stop typing, use recipient UUID/phone or groupId as appropriate, preserve reply metadata, and return timestamp message IDs through the existing Bot seam."
+              ],
+              "note": "Builder-ready paused-channel slice. Hermes' Signal adapter is transport-heavy; Gormes already owns normalization/send seams, so this row narrows the signal-cli bridge client lifecycle to fake HTTP/RPC/SSE bootstrap and cleanup evidence before any live signal-cli smoke test.",
+              "write_scope": [
+                "internal/channels/signal/bootstrap.go",
+                "internal/channels/signal/bootstrap_test.go",
+                "internal/channels/signal/bot.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/signal -run '^TestSignal(Bootstrap|SSE|Reconnect|Attachment|Send)' -count=1",
+                "go test ./internal/channels/signal -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Signal bootstrap fixtures prove config/health/lock lifecycle, SSE parsing and reconnects, JSON-RPC attachment fetch shape, outbound send routing, cleanup, and redaction with fake clients only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/signal.py",
+                  "hermes:tests/gateway/test_signal.py",
+                  "references/go-agent-os/trpc-agent-go/agent/callbacks.go"
+                ],
+                "note": "Hermes defines Signal transport behavior; Gormes adapts it to the existing Go Signal channel seam with fakeable lifecycle callbacks."
+              }
             }
           ]
         },
@@ -25104,16 +25760,81 @@
             {
               "name": "QQ Bot transport/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze gateway/event receive loops, passive-reply lifecycle, and platform-specific send failure handling before binding a real QQ transport.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Fakeable Official QQ Bot transport bootstrap binds the existing QQ Bot shared-chassis seam to token, gateway, websocket, and REST clients without live QQ: config resolves app_id/client_secret from explicit values or QQ_APP_ID/QQ_CLIENT_SECRET, applies markdown support and DM/group allowlist policies, acquires an app-id platform lock, uses an HTTP redirect guard for token/media requests, fetches token and gateway URL through injected clients, consumes websocket READY/RESUMED/dispatch/heartbeat frames with sequence tracking, builds REST message bodies for markdown/plain/truncated replies, waits for reconnect before sends, and returns retryable send evidence on timeout or close.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing dependencies, missing credentials, token failure, gateway failure, websocket close codes, reconnect timeouts, send failures, voice STT unavailability, and unsafe voice/media URLs return typed evidence such as qq_missing_dependency, qq_missing_credentials, qq_token_failed, qq_gateway_unavailable, qq_ws_closed, qq_send_retryable, qq_voice_stt_unavailable, and qq_ssrf_blocked with secrets redacted.",
+              "fixture": "internal/channels/qqbot/bootstrap_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/qqbot/adapter.py:QQAdapter",
+                "../hermes-agent/gateway/platforms/qqbot/adapter.py:QQCloseError",
+                "../hermes-agent/gateway/platforms/qqbot/adapter.py:connect",
+                "../hermes-agent/gateway/platforms/qqbot/adapter.py:_dispatch_payload",
+                "../hermes-agent/gateway/platforms/qqbot/adapter.py:_build_text_body",
+                "../hermes-agent/gateway/platforms/qqbot/constants.py",
+                "../hermes-agent/gateway/platforms/qqbot/utils.py",
+                "../hermes-agent/tests/gateway/test_qqbot.py",
+                "internal/channels/qqbot/bot.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/trpc-agent-go/model/callbacks.go"
+              ],
+              "ready_when": [
+                "QQ Bot shared-chassis bot seam is complete.",
+                "Tests can inject fake dependency probes, token clients, websocket frames, REST send clients, fake clocks, and fake locks; no QQ credential, aiohttp/httpx equivalent, live websocket, or media upload is required.",
+                "The row remains a bootstrap/runtime seam and does not expand the QQ tool catalog."
+              ],
+              "not_ready_when": [
+                "The slice calls live QQ endpoints, opens a real websocket, uploads media, downloads voice attachments, changes default toolsets, or rewrites the shared Bot routing contract.",
+                "HTTP redirect guards are omitted for token/media requests, or voice/media URL tests can reach loopback/private hosts.",
+                "Send waits indefinitely for reconnect instead of returning retryable evidence after the configured fake timeout."
+              ],
+              "blocked_by": [
+                "QQ Bot shared-chassis bot seam"
+              ],
+              "unblocks": [
+                "QQ Bot live transport smoke test",
+                "Voice attachment handling for Signal and QQ Bot",
+                "Paused adapter channel health/status readout"
+              ],
+              "acceptance": [
+                "TestQQBotBootstrapConfigAndDependencyStatus proves explicit values win over env fallback, markdown/allowlist policy parses, dependency/credential failures are redacted, and app-id locks release on connect failure.",
+                "TestQQBotConnectTokenGatewayAndRedirectGuard proves fake token and gateway clients are used, redirect attempts are blocked, and no live HTTP request is made.",
+                "TestQQBotWebsocketDispatchAndHeartbeat proves READY and RESUMED frames update state, dispatch payloads call the existing Bot seam, heartbeat frames include the latest sequence, and QQCloseError evidence carries code/reason.",
+                "TestQQBotTextBodyMarkdownPlainTruncateAndReply proves markdown vs plain body selection, message truncation, and reply_to/passive reply metadata match Hermes fixtures.",
+                "TestQQBotSendReconnectRetryable proves sends wait for reconnect with fake time and return qq_send_retryable after timeout.",
+                "TestQQBotVoiceAttachmentSSRFGuard proves unsafe private/loopback voice URLs are blocked before HTTP and safe fake URLs can hand off to the future transcription contract."
+              ],
+              "note": "Builder-ready paused-channel slice. Hermes' QQ Bot adapter supplies the token/gateway/websocket/send contract; Gormes already has the shared-chassis bot seam, so this row freezes fakeable bootstrap, reconnect, send, and SSRF guards before live transport.",
+              "write_scope": [
+                "internal/channels/qqbot/bootstrap.go",
+                "internal/channels/qqbot/bootstrap_test.go",
+                "internal/channels/qqbot/bot.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/qqbot -run '^TestQQBot(Bootstrap|Connect|Websocket|TextBody|Send|Voice)' -count=1",
+                "go test ./internal/channels/qqbot -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "QQ Bot bootstrap fixtures prove config/env/dependency redaction, token/gateway redirect guarding, websocket sequence/heartbeat dispatch, text body construction, reconnect retryability, SSRF-protected voice handoff, and cleanup with fake clients only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/qqbot/adapter.py",
+                  "hermes:gateway/platforms/qqbot/constants.py",
+                  "hermes:tests/gateway/test_qqbot.py",
+                  "references/go-agent-os/trpc-agent-go/agent/callbacks.go"
+                ],
+                "note": "Hermes is the QQ Bot transport parity contract; Go donor callbacks only inform fakeable lifecycle and before/after hooks."
+              }
             }
           ],
           "drift_state": {
