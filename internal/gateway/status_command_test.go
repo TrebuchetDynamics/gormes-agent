@@ -142,3 +142,46 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 		t.Fatalf("/status submitted to kernel: %#v", submits)
 	}
 }
+
+func TestManagerStatusCommandReplacesLegacyChatKeySessionID(t *testing.T) {
+	ctx := context.Background()
+	k := &fakeKernel{}
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 29, 11, 42, 0, 0, time.UTC)
+	if err := smap.Put(ctx, "telegram:42", "telegram:42"); err != nil {
+		t.Fatalf("seed legacy chat-key session: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, k, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	ev := InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}
+	if err := m.handleInbound(ctx, ev); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	got := sent[0].Text
+	if strings.Contains(got, "Session ID:\ntelegram:42") {
+		t.Fatalf("status leaked legacy chat-key session id:\n%s", got)
+	}
+	if !strings.Contains(got, "Session ID:\n20260429_114200_") {
+		t.Fatalf("status response did not include generated session id:\n%s", got)
+	}
+	mapped, err := smap.Get(ctx, "telegram:42")
+	if err != nil {
+		t.Fatalf("Get session map: %v", err)
+	}
+	if mapped == "telegram:42" || !strings.HasPrefix(mapped, "20260429_114200_") {
+		t.Fatalf("session map = %q, want legacy chat-key replaced with generated id", mapped)
+	}
+}

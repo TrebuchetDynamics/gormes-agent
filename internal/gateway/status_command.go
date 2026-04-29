@@ -51,7 +51,7 @@ func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, fra
 		stored, err := m.cfg.SessionMap.Get(ctx, key)
 		if err != nil {
 			m.log.Warn("resolve session for status", "key", key, "err", err)
-		} else if strings.TrimSpace(stored) != "" {
+		} else if stored = strings.TrimSpace(stored); stored != "" && stored != key {
 			resolved, err := resolveSession(ctx, m.cfg.SessionMap, key)
 			if err != nil {
 				m.log.Warn("resolve session lineage for status", "key", key, "err", err)
