@@ -18582,17 +18582,17 @@
             },
             {
               "name": "Hermes auth credential-pool command surface",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
-              "contract": "Implement the non-OAuth `gormes auth` command surface over the existing native credential pool: bare `auth` renders an interactive-safe status/readout without prompting in tests; `auth add <provider> --type api-key|api_key [--label --api-key]` stores a manual credential for registry, openrouter, or custom providers; `auth list [provider]` renders redacted pool rows with current marker and exhaustion status; `auth remove <provider> <index|id|label>` deletes one credential and records source suppression; `auth reset <provider>` clears exhaustion status; `auth status <provider>` renders provider auth state; and `auth logout <provider>` clears stored provider auth without leaking secrets.",
-              "contract_status": "draft",
+              "contract": "Implement the non-OAuth `gormes auth` command surface over the existing native credential pool: bare `auth` renders an interactive-safe status/readout without prompting in tests; `auth add <provider> --type api-key|api_key [--label --api-key]` stores a manual credential for registry/openrouter-style providers with provider base URL metadata; `auth list [provider]` renders redacted pool rows with exhaustion status; `auth remove <provider> <index|id|label>` deletes one credential; `auth reset <provider>` clears exhaustion status; `auth status <provider>` renders credential-pool auth state; and `auth logout <provider>` clears stored provider auth without leaking secrets. OAuth browser/device-code flows and source-specific cleanup/suppression stay in the provider OAuth adapter row.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Unknown providers, empty API keys, corrupt auth.json, missing credentials, invalid remove targets, unsupported provider auth status, and logout of an absent provider return auth_provider_unknown, auth_api_key_missing, credential_pool_corrupt, credential_pool_empty, credential_target_missing, auth_status_unavailable, or auth_state_absent evidence with all token fields redacted.",
+              "degraded_mode": "Empty API keys, missing inference base URLs, corrupt auth.json, empty pools, invalid remove targets, unsupported OAuth requests, and logout/status of an absent provider return auth_api_key_missing, credential_pool_corrupt, credential_pool_empty, credential_not_found, provider OAuth adapters are planned, or logged-out evidence with all token fields redacted.",
               "fixture": "cmd/gormes/auth_command_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/auth_commands.py:auth_command",
@@ -18630,13 +18630,13 @@
               ],
               "acceptance": [
                 "TestGormesAuthAddAPIKeyPersistsManualEntry proves `auth add openrouter --type api-key --label personal --api-key sk-test` stores one manual credential with provider base URL metadata and never writes the key to stdout/stderr.",
-                "TestGormesAuthListRedactsSecrets proves list output shows provider, index, label, auth_type, source, current marker, and exhaustion status while omitting access_token, refresh_token, and raw API key bytes.",
-                "TestGormesAuthRemoveByIndexIDOrLabel proves remove resolves index, id, and exact label, deletes exactly one entry, records source suppression for env/external singleton sources, and reports missing targets deterministically.",
+                "TestGormesAuthListRedactsSecrets proves list output shows provider, index, label, auth_type, source, and exhaustion status while omitting access_token, refresh_token, and raw API key bytes.",
+                "TestGormesAuthRemoveByIndexIDOrLabel proves remove resolves index, id, and exact label, deletes exactly one entry, and reports missing targets deterministically.",
                 "TestGormesAuthResetClearsExhaustion proves reset clears last_status/last_error fields for all credentials of one provider and preserves unrelated providers.",
-                "TestGormesAuthStatusAndLogout prove status uses provider-specific native stores when present and logout clears the selected provider/auth state with redacted absent-state behavior.",
+                "TestGormesAuthStatusAndLogout prove status uses the native credential pool and logout clears the selected provider/auth state with redacted absent-state behavior.",
                 "TestGormesAuthBareReadout proves bare `auth` can render credential-pool status and Bedrock/AWS-chain placeholder evidence without entering an interactive prompt in non-TTY tests."
               ],
-              "note": "Builder-ready CLI/provider-auth row. This row ports the non-deprecated credential-pool command behavior from Hermes without building OAuth browser/device-code flows yet. It consumes the native internal/config credential pool that already exists.",
+              "note": "Complete: the non-deprecated credential-pool command behavior is now available in `gormes auth` without building OAuth browser/device-code flows yet. It consumes the native internal/config credential pool that already exists; OAuth adapter login and source-specific external cleanup remain separate rows.",
               "write_scope": [
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_command_test.go",
@@ -18650,7 +18650,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Auth command fixtures prove API-key add, list redaction, remove target resolution and suppression, reset, status, logout, and noninteractive bare auth readout over temp auth stores."
+                "Auth command fixtures prove API-key add, list redaction, remove target resolution, reset, status, logout, removed login guidance, and noninteractive bare auth readout over temp auth stores."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -18660,6 +18660,11 @@
                   "references/go-agent-os/axe/internal/artifact/tracker.go"
                 ],
                 "note": "Hermes defines command UX and credential-pool semantics; Gormes adapts them over the native internal/config pool and keeps donor references patterns-only."
+              },
+              "evidence": {
+                "implementation": "cmd/gormes/auth.go, cmd/gormes/auth_command_test.go, cmd/gormes/main.go, internal/config/credential_pool.go",
+                "tests": "go test ./cmd/gormes -run '^TestGormesAuth|^TestGormesLogin' -count=1; go test ./cmd/gormes ./internal/config -count=1; go run ./cmd/progress validate",
+                "note": "Gormes now exposes auth add/list/remove/reset/status/logout, a removed top-level login shim, provider-pool listing, Bedrock placeholder evidence, and redacted temp-store fixtures for API-key credential management."
               }
             },
             {

@@ -113,6 +113,12 @@ func TestGormesAuthRemoveByIndexIDOrLabel(t *testing.T) {
 	if got := pool.Entries(); len(got) != 0 {
 		t.Fatalf("entries after removals = %#v, want empty", got)
 	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "remove", "openrouter", "missing")
+	if err == nil || !strings.Contains(err.Error(), "credential_not_found") {
+		t.Fatalf("remove missing err = %v, stdout=%s stderr=%s, want credential_not_found", err, stdout, stderr)
+	}
 }
 
 func TestGormesAuthResetClearsExhaustion(t *testing.T) {

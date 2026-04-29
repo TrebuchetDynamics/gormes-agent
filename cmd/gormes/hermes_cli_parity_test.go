@@ -152,11 +152,21 @@ func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
 		{"auth", "spotify"},
 	} {
 		entry := requireHermesCLIEntry(t, path)
-		if entry.Row != "Hermes provider auth CLI commands" {
-			t.Fatalf("%v row = %q, want Hermes provider auth CLI commands: %+v", path, entry.Row, entry)
-		}
 		if entry.SourceRef == "" || entry.Residual == "" {
 			t.Fatalf("%v missing source/residual: %+v", path, entry)
+		}
+		if entry.Status == hermesCLIImplemented {
+			if entry.Target == "" {
+				t.Fatalf("%v implemented entry missing target: %+v", path, entry)
+			}
+		} else if entry.Row != "Hermes provider auth CLI commands" {
+			t.Fatalf("%v row = %q, want Hermes provider auth CLI commands: %+v", path, entry.Row, entry)
+		}
+	}
+	for _, implemented := range [][]string{{"auth", "list"}, {"auth", "remove"}, {"auth", "reset"}, {"auth", "status"}, {"auth", "logout"}} {
+		entry := requireHermesCLIEntry(t, implemented)
+		if entry.Status != hermesCLIImplemented {
+			t.Fatalf("%v status = %q, want implemented credential-pool command", implemented, entry.Status)
 		}
 	}
 	for _, removed := range [][]string{{"auth", "login"}, {"auth", "refresh"}} {

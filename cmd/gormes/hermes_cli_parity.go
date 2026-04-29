@@ -181,6 +181,8 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 		name        string
 		sourceRef   string
 		residual    string
+		status      hermesCLIParityStatus
+		target      string
 		destructive bool
 		redacts     bool
 	}{
@@ -193,29 +195,39 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 		{
 			name:      "list",
 			sourceRef: "hermes_cli/auth_commands.py:auth_list_command",
-			residual:  "redacted credential-pool list/status rendering remains row-backed",
+			residual:  "redacted credential-pool listing is implemented over the native auth.json pool",
+			status:    hermesCLIImplemented,
+			target:    "cmd/gormes auth list",
 		},
 		{
 			name:        "remove",
 			sourceRef:   "hermes_cli/auth_commands.py:auth_remove_command",
-			residual:    "credential removal by index, id, or label plus source suppression remains row-backed",
+			residual:    "credential removal by index, id, or label is implemented; source suppression is reported as not_applicable for manual credentials",
+			status:      hermesCLIImplemented,
+			target:      "cmd/gormes auth remove",
 			destructive: true,
 			redacts:     true,
 		},
 		{
 			name:      "reset",
 			sourceRef: "hermes_cli/auth_commands.py:auth_reset_command",
-			residual:  "provider credential exhaustion/cooldown reset remains row-backed",
+			residual:  "provider credential exhaustion/cooldown reset is implemented over the native auth.json pool",
+			status:    hermesCLIImplemented,
+			target:    "cmd/gormes auth reset",
 		},
 		{
 			name:      "status",
 			sourceRef: "hermes_cli/auth_commands.py:auth_status_command",
-			residual:  "provider auth status read model remains row-backed",
+			residual:  "provider auth status read model is implemented over the native auth.json pool; provider-specific OAuth status expansion remains in adapter rows",
+			status:    hermesCLIImplemented,
+			target:    "cmd/gormes auth status",
 		},
 		{
 			name:        "logout",
 			sourceRef:   "hermes_cli/auth_commands.py:auth_logout_command",
-			residual:    "provider logout through shared logout_command remains row-backed",
+			residual:    "provider logout clears native credential-pool entries; top-level logout shortcut remains row-backed",
+			status:      hermesCLIImplemented,
+			target:      "cmd/gormes auth logout",
 			destructive: true,
 			redacts:     true,
 		},
@@ -229,6 +241,10 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 	out := make([]hermesCLIParityEntry, 0, len(commands))
 	for _, command := range commands {
 		entry := hermesRowPath([]string{"auth", command.name}, hermesCLICommand, command.sourceRef, "Hermes provider auth CLI commands", command.residual)
+		if command.status != "" {
+			entry.Status = command.status
+			entry.Target = command.target
+		}
 		entry.Destructive = command.destructive
 		entry.RedactsSecrets = command.redacts
 		out = append(out, entry)
