@@ -31,7 +31,6 @@ and acceptance checks before assigning them to an implementation agent.
 | 5 / 5.B | Modal | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.B | Daytona | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.B | Singularity | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 5 / 5.C | Chromedp | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.C | Rod | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.D | Multimodal in/out | `provider` | The row is assigned directly instead of the smaller image-routing, image-shrink, and image-generation contracts below. | Image input mode router + native content parts, Image-too-large shrink retry helper, Image generation result contract |
 | 5 / 5.E | Voice mode port | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
