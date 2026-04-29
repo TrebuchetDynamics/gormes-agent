@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
@@ -110,6 +111,8 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	root.Flags().StringP("oneshot", "z", "", "one-shot mode: send a single prompt and resolve model/provider selection without starting the TUI")
 	root.Flags().StringP("model", "m", "", "model override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_MODEL")
 	root.Flags().String("provider", "", "provider override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_PROVIDER")
+	root.Flags().String("endpoint", "", "provider endpoint override for --oneshot or TUI startup; invocation-only and also settable via GORMES_ENDPOINT")
+	root.Flags().String("api-key", "", "provider API key override for --oneshot or TUI startup; invocation-only and never persisted")
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses api_server, kernel, and provider setup)")
@@ -136,11 +139,14 @@ func resolveOneshotInvocation(cmd *cobra.Command) (oneshotInvocation, error) {
 	prompt, _ := cmd.Flags().GetString("oneshot")
 	modelFlag, _ := cmd.Flags().GetString("model")
 	providerFlag, _ := cmd.Flags().GetString("provider")
+	endpointFlag, _ := cmd.Flags().GetString("endpoint")
+	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
 
 	cfg, err := config.Load(nil)
 	if err != nil {
 		return oneshotInvocation{Prompt: prompt}, err
 	}
+	applyProviderStartupFlags(&cfg, endpointFlag, apiKeyFlag)
 	resolution, err := config.ResolveOneshotInference(config.OneshotInferenceRequest{
 		Config:       cfg,
 		ModelFlag:    modelFlag,
@@ -161,12 +167,15 @@ func resolveOneshotInvocation(cmd *cobra.Command) (oneshotInvocation, error) {
 func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
 	modelFlag, _ := cmd.Flags().GetString("model")
 	providerFlag, _ := cmd.Flags().GetString("provider")
+	endpointFlag, _ := cmd.Flags().GetString("endpoint")
+	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
 	remoteFlag, _ := cmd.Flags().GetString("remote")
 
 	cfg, err := config.Load(nil)
 	if err != nil {
 		return tuiInvocation{RemoteURL: remoteFlag}, err
 	}
+	applyProviderStartupFlags(&cfg, endpointFlag, apiKeyFlag)
 	resolution, err := config.ResolveTUIInference(config.TUIInferenceRequest{
 		Config:       cfg,
 		ModelFlag:    modelFlag,
@@ -182,6 +191,15 @@ func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
 		return invocation, newExitCodeError(2, err)
 	}
 	return invocation, nil
+}
+
+func applyProviderStartupFlags(cfg *config.Config, endpointFlag, apiKeyFlag string) {
+	if endpoint := strings.TrimSpace(endpointFlag); endpoint != "" {
+		cfg.Hermes.Endpoint = endpoint
+	}
+	if apiKey := strings.TrimSpace(apiKeyFlag); apiKey != "" {
+		cfg.Hermes.APIKey = apiKey
+	}
 }
 
 func resolveStaticStartupInference(resolution config.InferenceResolution) config.InferenceResolution {
@@ -229,7 +247,7 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 
 	client, err := newClient(rootCtx, cfg, invocation)
 	if err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: provider setup failed: %w", err))
+		return newExitCodeError(1, fmt.Errorf("gormes -z: provider setup failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	if client == nil {
 		return newExitCodeError(1, fmt.Errorf("gormes -z: provider setup failed: %w", errors.New("nil hermes client")))
@@ -267,17 +285,17 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 
 	initial, err := readOneshotFrame(rootCtx, k.Render())
 	if err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: kernel startup failed: %w", err))
+		return newExitCodeError(1, fmt.Errorf("gormes -z: kernel startup failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	if err := k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: invocation.Prompt}); err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: submit failed: %w", err))
+		return newExitCodeError(1, fmt.Errorf("gormes -z: submit failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	final, err := waitForOneshotFinalFrame(rootCtx, k.Render(), initial.Seq)
 	if err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: kernel turn failed: %w", err))
+		return newExitCodeError(1, fmt.Errorf("gormes -z: kernel turn failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	if final.LastError != "" {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: %s", final.LastError))
+		return newExitCodeError(1, fmt.Errorf("gormes -z: %s", redactRuntimeSecretText(final.LastError, cfg.Hermes.APIKey)))
 	}
 	content, ok := finalAssistantContent(final.History)
 	if !ok {
@@ -378,10 +396,11 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		healthCtx, healthCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		if err := c.Health(healthCtx); err != nil {
 			healthCancel()
+			redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
 			fmt.Fprintf(os.Stderr,
 				"provider endpoint not reachable at %s: %v\n\nConfigure [hermes] endpoint/api_key/model for a live turn, or pass --offline to run the local TUI smoke path without network submits.\n",
-				cfg.Hermes.Endpoint, err)
-			return err
+				cfg.Hermes.Endpoint, redactedErr)
+			return errors.New(redactedErr)
 		}
 		healthCancel()
 	}
@@ -490,6 +509,18 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	_, err = prog.Run()
 	close(programDone)
 	return err
+}
+
+func redactRuntimeSecretText(text string, secrets ...string) string {
+	redacted := text
+	for _, secret := range secrets {
+		secret = strings.TrimSpace(secret)
+		if secret == "" {
+			continue
+		}
+		redacted = strings.ReplaceAll(redacted, secret, "[REDACTED]")
+	}
+	return redacted
 }
 
 func dumpCrash(r any) {
