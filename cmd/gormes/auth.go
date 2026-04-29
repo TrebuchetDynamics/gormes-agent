@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -162,6 +164,27 @@ type authAddOptions struct {
 	InferenceURL string
 }
 
+type anthropicOAuthLoginRequest struct {
+	Label string
+	Out   interface{ Write([]byte) (int, error) }
+}
+
+type anthropicOAuthTokens struct {
+	AccountID    string
+	Label        string
+	AccessToken  string
+	RefreshToken string
+	BaseURL      string
+	ExpiresAtMS  int64
+	Source       string
+}
+
+var authAnthropicOAuthLogin func(context.Context, anthropicOAuthLoginRequest) (anthropicOAuthTokens, error)
+
+func runAnthropicOAuthLoginUnavailable(context.Context, anthropicOAuthLoginRequest) (anthropicOAuthTokens, error) {
+	return anthropicOAuthTokens{}, errors.New("native Anthropic Hermes PKCE login is unavailable in this slice; inject OAuth login seam or import Claude credentials first")
+}
+
 func runAuthBareCommand(cmd *cobra.Command) error {
 	providers, err := config.ListCredentialPoolProviders(config.CredentialPoolOptions{})
 	if err != nil {
@@ -194,10 +217,14 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 	}
 	authType := normalizeAuthType(opts.AuthType, provider)
 	if authType == config.CredentialAuthOAuth {
-		if provider == config.CodexOAuthProvider {
+		switch provider {
+		case config.AnthropicProvider:
+			return runAuthAddAnthropicOAuthCommand(cmd, opts)
+		case config.CodexOAuthProvider:
 			return runAuthAddCodexOAuthCommand(cmd, opts)
+		default:
+			return fmt.Errorf("gormes auth add %s --type oauth: provider OAuth adapters are planned; use --type api-key for API-key providers", provider)
 		}
-		return fmt.Errorf("gormes auth add %s --type oauth: provider OAuth adapters are planned; use --type api-key for API-key providers", provider)
 	}
 	if authType != config.CredentialAuthAPIKey {
 		return fmt.Errorf("gormes auth add %s: unsupported auth type %q", provider, opts.AuthType)
@@ -234,6 +261,50 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_api_key_saved provider=%s id=%s label=%s redacted=true\n", provider, id, label)
+	return nil
+}
+
+func runAuthAddAnthropicOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
+	login := authAnthropicOAuthLogin
+	if login == nil {
+		login = runAnthropicOAuthLoginUnavailable
+	}
+	tokens, err := login(context.Background(), anthropicOAuthLoginRequest{
+		Label: strings.TrimSpace(opts.Label),
+		Out:   cmd.OutOrStdout(),
+	})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: anthropic_oauth_failed: %s", config.AnthropicProvider, sanitizeAuthCommandError(err.Error()))
+	}
+	tokens.Label = firstNonEmpty(strings.TrimSpace(opts.Label), strings.TrimSpace(tokens.Label), labelFromOAuthToken(tokens.AccessToken, "anthropic-oauth"))
+	tokens.AccountID = firstNonEmpty(strings.TrimSpace(tokens.AccountID), nextCredentialID(config.AnthropicProvider, nil))
+	tokens.Source = firstNonEmpty(strings.TrimSpace(tokens.Source), "hermes_pkce")
+	tokens.BaseURL = firstNonEmpty(strings.TrimRight(strings.TrimSpace(tokens.BaseURL), "/"), providerBaseURL(config.AnthropicProvider, ""))
+	if strings.TrimSpace(tokens.AccessToken) == "" {
+		return fmt.Errorf("gormes auth add %s --type oauth: anthropic_oauth_failed: oauth_access_token_missing", config.AnthropicProvider)
+	}
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: config.AnthropicProvider})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", config.AnthropicProvider)
+	}
+	entries := pool.Entries()
+	entry := config.PooledCredential{
+		ID:               tokens.AccountID,
+		Label:            tokens.Label,
+		AuthType:         config.CredentialAuthOAuth,
+		Source:           "manual:" + tokens.Source,
+		AccessToken:      tokens.AccessToken,
+		RefreshToken:     tokens.RefreshToken,
+		BaseURL:          tokens.BaseURL,
+		InferenceBaseURL: tokens.BaseURL,
+		ExpiresAtMS:      tokens.ExpiresAtMS,
+		LastStatus:       config.CredentialStatusOK,
+	}
+	entries = append(entries, entry)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.AnthropicProvider}, entries); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.AnthropicProvider, entry.ID, entry.Label, tokens.Source)
 	return nil
 }
 
@@ -423,6 +494,8 @@ func providerBaseURL(provider, override string) string {
 	switch provider {
 	case "openrouter":
 		return openRouterBaseURL
+	case config.AnthropicProvider:
+		return "https://api.anthropic.com"
 	case config.CodexOAuthProvider:
 		return "https://chatgpt.com/backend-api/codex"
 	default:
@@ -432,6 +505,27 @@ func providerBaseURL(provider, override string) string {
 
 func displayCredentialSource(source string) string {
 	return strings.TrimPrefix(strings.TrimSpace(source), "manual:")
+}
+
+func labelFromOAuthToken(accessToken, fallback string) string {
+	parts := strings.Split(strings.TrimSpace(accessToken), ".")
+	if len(parts) < 2 {
+		return fallback
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return fallback
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return fallback
+	}
+	for _, key := range []string{"email", "preferred_username", "name", "sub"} {
+		if value := strings.TrimSpace(fmt.Sprint(claims[key])); value != "" && value != "<nil>" {
+			return value
+		}
+	}
+	return fallback
 }
 
 func nextCredentialID(provider string, entries []config.PooledCredential) string {

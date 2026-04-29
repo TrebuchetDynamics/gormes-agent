@@ -69,6 +69,109 @@ func TestGormesAuthAddCodexOAuthStoresDeviceCodeCredential(t *testing.T) {
 	}
 }
 
+func TestGormesAuthAddAnthropicOAuthStoresHermesPKCECredential(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := authAnthropicOAuthLogin
+	authAnthropicOAuthLogin = func(_ context.Context, req anthropicOAuthLoginRequest) (anthropicOAuthTokens, error) {
+		if req.Label != "" {
+			t.Fatalf("login request label = %q, want empty so token claim can supply label", req.Label)
+		}
+		return anthropicOAuthTokens{
+			AccountID:    "anthropic-user-1",
+			Label:        "anthropic-claim-label",
+			AccessToken:  "header.eyJlbWFpbCI6ImFudGhyb3BpYy10ZWFtQGV4YW1wbGUudGVzdCJ9.signature",
+			RefreshToken: "anthropic-refresh-plain",
+			BaseURL:      "https://api.anthropic.com",
+			ExpiresAtMS:  1_900_000_000_000,
+			Source:       "hermes_pkce",
+		}, nil
+	}
+	t.Cleanup(func() { authAnthropicOAuthLogin = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "anthropic",
+		"--type", "oauth",
+	)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, leak := range []string{"anthropic-refresh-plain", "header.eyJlbWFpbCI6ImFudGhyb3BpYy10ZWFtQGV4YW1wbGUudGVzdCJ9.signature"} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("auth add anthropic leaked %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+	if !strings.Contains(stdout, "auth_oauth_saved") || !strings.Contains(stdout, "anthropic") || !strings.Contains(stdout, "redacted=true") {
+		t.Fatalf("stdout = %q, want redacted auth_oauth_saved evidence", stdout)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: config.AnthropicProvider})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one Anthropic OAuth credential", entries)
+	}
+	entry := entries[0]
+	if entry.ID != "anthropic-user-1" || entry.Label != "anthropic-claim-label" || entry.AuthType != config.CredentialAuthOAuth {
+		t.Fatalf("entry metadata = %#v", entry)
+	}
+	if entry.Source != "manual:hermes_pkce" || entry.AccessToken == "" || entry.RefreshToken != "anthropic-refresh-plain" {
+		t.Fatalf("entry source/tokens = %#v", entry)
+	}
+	if entry.BaseURL != "https://api.anthropic.com" || entry.InferenceBaseURL != "https://api.anthropic.com" || entry.ExpiresAtMS != 1_900_000_000_000 {
+		t.Fatalf("entry runtime metadata = %#v", entry)
+	}
+}
+
+func TestGormesAuthOAuthErrorsAreAtomic(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seed := []config.PooledCredential{{
+		ID:           "existing-anthropic",
+		Label:        "existing",
+		AuthType:     config.CredentialAuthOAuth,
+		Source:       "manual:hermes_pkce",
+		AccessToken:  "plain-existing-token",
+		RefreshToken: "plain-existing-refresh",
+	}}
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.AnthropicProvider}, seed); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+	before, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: config.AnthropicProvider})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool before: %v", err)
+	}
+	prev := authAnthropicOAuthLogin
+	authAnthropicOAuthLogin = func(context.Context, anthropicOAuthLoginRequest) (anthropicOAuthTokens, error) {
+		return anthropicOAuthTokens{}, errAuthFixture("provider raw token access_token=secret should redact")
+	}
+	t.Cleanup(func() { authAnthropicOAuthLogin = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "anthropic",
+		"--type", "oauth",
+	)
+	if err == nil {
+		t.Fatalf("Execute error = nil, want redacted anthropic_oauth_failed evidence\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if strings.Contains(err.Error(), "secret") || strings.Contains(stdout+stderr, "secret") {
+		t.Fatalf("failure leaked secret-shaped text: err=%v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	after, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: config.AnthropicProvider})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool after: %v", err)
+	}
+	if got, want := after.Entries(), before.Entries(); len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("credential pool mutated on failed OAuth login\ngot=%#v\nwant=%#v", got, want)
+	}
+}
+
+type errAuthFixture string
+
+func (e errAuthFixture) Error() string { return string(e) }
+
 func TestRunCodexDeviceCodeLoginUsesHermesDeviceFlow(t *testing.T) {
 	var sawUserCode bool
 	var sawPoll bool
