@@ -384,13 +384,24 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	tg := &freshFinalFakeChannel{fakeChannel: newFakeChannel("telegram")}
 	frames := make(chan kernel.RenderFrame, 8)
 	fk := &fakeKernel{}
+	var nowMu sync.Mutex
 	now := time.Date(2026, 4, 27, 1, 0, 0, 0, time.UTC)
+	readNow := func() time.Time {
+		nowMu.Lock()
+		defer nowMu.Unlock()
+		return now
+	}
+	advanceNow := func(d time.Duration) {
+		nowMu.Lock()
+		defer nowMu.Unlock()
+		now = now.Add(d)
+	}
 
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats:    map[string]string{"telegram": "42"},
 		CoalesceMs:      10,
 		FreshFinalAfter: time.Minute,
-		Now:             func() time.Time { return now },
+		Now:             readNow,
 	}, fk, slog.Default())
 	m.setRenderChan(frames)
 	_ = m.Register(tg)
@@ -413,7 +424,7 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	})
 	oldID := tg.sentSnapshot()[0].MsgID
 
-	now = now.Add(time.Minute)
+	advanceNow(time.Minute)
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
 		History: []hermes.Message{
