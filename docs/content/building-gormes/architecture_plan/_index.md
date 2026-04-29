@@ -754,7 +754,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI /branch session fork + transcript target switch
 - [x] TUI running-agent placeholder surfaces interrupt + queued slash actions
 - [x] Native TUI conversation viewport tail helper
-- [ ] Native TUI queued-message edit helper
+- [x] Native TUI queued-message edit helper
 - [ ] Native TUI renderConv viewport budget binding
 - [x] Native TUI Hermes skin token renderer
 - [ ] Native TUI Hermes status bar renderer

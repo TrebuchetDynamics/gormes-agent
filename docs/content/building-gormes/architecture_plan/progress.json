@@ -20467,9 +20467,9 @@
             {
               "name": "Native TUI queued-message edit helper",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui owns a pure queued-message buffer helper that can enqueue, dequeue, select an item for edit, replace edited text, cancel edit without mutation, delete the edited item, and compute a stable three-row visible window before any Bubble Tea keybinding or kernel submission wiring lands",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20510,7 +20510,7 @@
                 "TestQueuedMessages_ReplaceEditingItem proves replacing the selected item updates only that item and keeps queue order.",
                 "TestQueuedMessages_WindowCentersEditedItem proves the visible three-row window matches Hermes' start/end/lead/tail behavior for head, middle, tail, and empty queues."
               ],
-              "note": "Added after upstream Hermes ea1012f5 made queued-message editing discoverable with Ctrl+X delete and Escape cancel. Gormes does not yet have the same Node/Ink queue runtime, so the first Go slice freezes a pure helper contract before any Bubble Tea binding changes.",
+              "note": "Complete: TDD added internal/tui/queued_messages.go and internal/tui/queued_messages_test.go. The pure QueuedMessages helper locks five invariants the dependent runtime bindings can rely on: RemoveAt mutates the queue only for in-range indexes and slides or clears the edit selection so Ctrl+X bindings need no bounds checks; CancelEdit clears edit state without removing queued text, preserving the contract that only DeleteEditing or RemoveAt may mutate the buffer; DeleteEditing on edit index 1 of [a,b,c] yields [a,c] without dequeuing the head and clears the selection; ReplaceEditing only mutates the edited slot and refuses without a selection; and ComputeQueueWindow returns the same start/end/showLead/showTail shape as Hermes getQueueWindow for empty, head, middle, tail, and shorter-than-window queues.",
               "write_scope": [
                 "internal/tui/queued_messages.go",
                 "internal/tui/queued_messages_test.go",
