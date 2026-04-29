@@ -279,16 +279,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		"semantic_enabled", cfg.Telegram.SemanticEnabled,
 		"semantic_model", cfg.Telegram.SemanticModel)
 
-	mgr := gateway.NewManager(gateway.ManagerConfig{
-		AllowedChats: map[string]string{
-			"telegram": strconv.FormatInt(cfg.Telegram.AllowedChatID, 10),
-		},
-		AllowDiscovery: map[string]bool{
-			"telegram": cfg.Telegram.FirstRunDiscovery,
-		},
-		CoalesceMs: cfg.Telegram.CoalesceMs,
-		SessionMap: smap,
-	}, k, slog.Default())
+	mgr := gateway.NewManager(telegramManagerConfig(cfg, smap), k, slog.Default())
 	if err := mgr.Register(bot); err != nil {
 		return fmt.Errorf("register telegram: %w", err)
 	}
@@ -326,4 +317,14 @@ func newTelegramDeliverySink(bot telegramBotSender, chatID int64) cron.DeliveryS
 	return cron.FuncSink(func(ctx context.Context, text string) error {
 		return bot.SendToChat(ctx, chatID, text)
 	})
+}
+
+func telegramManagerConfig(cfg config.Config, smap session.Map) gateway.ManagerConfig {
+	allowedChats := map[string]string{
+		"telegram": strconv.FormatInt(cfg.Telegram.AllowedChatID, 10),
+	}
+	allowDiscovery := map[string]bool{
+		"telegram": cfg.Telegram.FirstRunDiscovery,
+	}
+	return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, nil, nil, gateway.RestartConfig{})
 }

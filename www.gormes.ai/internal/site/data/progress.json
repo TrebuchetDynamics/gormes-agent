@@ -1995,9 +1995,10 @@
               "contract": "cmd/gormes wires the slice-4 metadata seams (`LiveTurnNow`, `LiveTurnActiveModel`, `LiveTurnActiveProvider`) into the production gateway.ManagerConfig at the existing construction site `cmd/gormes/gateway.go:gatewayManagerConfig`. Active session ID is passed through `assembleLiveTurnPrompt` as a direct parameter (mirroring submitText) instead of through a closure seam, because the per-turn session ID is not in scope at seam-construction time; the `LiveTurnActiveSessionID` closure field is removed. After this slice lands, live Telegram/Slack/WhatsApp/BlueBubbles/Discord turns emit the Hermes-format `Conversation started: <weekday>, <Month> <D>, <YYYY> <HH:MM AM/PM>\\nSession ID: <id>\\nModel: <model>\\nProvider: <provider>` block per run_agent.py:3770-3779.",
               "contract_status": "validated",
               "degraded_mode": "If `cfg.Hermes.Model` or `cfg.Hermes.Provider` is empty in production config, the corresponding line is omitted from the metadata block (slice-4's BuildTurnMetadataBlock already handles empty fields). If the gateway cannot resolve a session ID at the call site, the SessionID line is omitted. The clock fallback is deterministic via `time.Now`. No raw provider credentials, base URLs, or API keys are rendered.",
-              "fixture": "internal/gateway/live_turn_prompt_test.go (existing) + cmd/gormes/gateway_test.go (new wiring test)",
+              "fixture": "internal/gateway/live_turn_prompt_test.go + cmd/gormes/gateway_test.go + cmd/gormes/telegram_test.go",
               "source_refs": [
                 "cmd/gormes/gateway.go:235 gatewayManagerConfig (construction site)",
+                "cmd/gormes/telegram.go:telegramManagerConfig (standalone Telegram construction site)",
                 "internal/gateway/manager.go:LiveTurnNow|LiveTurnActiveModel|LiveTurnActiveProvider|LiveTurnActiveSessionID (slice-4 ManagerConfig fields)",
                 "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (signature change: add activeSessionID parameter)",
                 "internal/gateway/manager.go:1599 (call site where resolved.SessionID is in scope)",
@@ -2025,12 +2026,15 @@
                 "TestGatewayManagerConfig_LiveTurnActiveSessionID_NotWiredAsClosure: the production gatewayManagerConfig sets `LiveTurnActiveSessionID = nil` (or removes the field entirely if the slice deletes it from ManagerConfig); a static check or grep test confirms cmd/gormes does not assign a closure to this field because session-id is parameter-passed.",
                 "TestAssembleLiveTurnPrompt_ActiveSessionIDParameter: the new signature `assembleLiveTurnPrompt(seams, submitText, activeSessionID, sessionBlock)` accepts a non-empty activeSessionID and routes it into hermes.TurnMetadataOptions.SessionID; an empty activeSessionID falls back to the closure seam (if retained) or produces an empty Session ID line.",
                 "TestSubmitPinned_PassesResolvedSessionIDIntoMetadata: a fake gateway turn dispatched with resolved.SessionID='sess-prod-123' produces a captured kernel.PlatformEvent.SessionContext containing 'Session ID: sess-prod-123' in the metadata block.",
-                "TestLiveTurn_SystemPrompt_ProductionWiringE2E: a fake-cfg-driven test that constructs the Manager via gatewayManagerConfig with cfg.Hermes={Model: 'claude-opus-4-7', Provider: 'anthropic'}, dispatches a turn with resolved.SessionID='sess-1', and asserts the captured SessionContext contains 'Conversation started:' + 'Session ID: sess-1' + 'Model: claude-opus-4-7' + 'Provider: anthropic'."
+                "TestLiveTurn_SystemPrompt_ProductionWiringE2E: a fake-cfg-driven test that constructs the Manager via gatewayManagerConfig with cfg.Hermes={Model: 'claude-opus-4-7', Provider: 'anthropic'}, dispatches a turn with resolved.SessionID='sess-1', and asserts the captured SessionContext contains 'Conversation started:' + 'Session ID: sess-1' + 'Model: claude-opus-4-7' + 'Provider: anthropic'.",
+                "TestTelegramManagerConfig_LiveTurnMetadataProductionWiring proves the standalone `gormes telegram` command also routes through the production metadata seams instead of constructing a metadata-less ManagerConfig inline."
               ],
-              "note": "Implemented in this slice: cmd/gormes production gatewayManagerConfig now wires LiveTurnNow, LiveTurnActiveModel, and LiveTurnActiveProvider; internal/gateway submitPinned passes resolved.SessionID directly into assembleLiveTurnPrompt so the metadata block renders the same per-turn session id submitted to the kernel. The LiveTurnActiveSessionID closure seam was removed from ManagerConfig. Focused cmd/gormes and internal/gateway LiveTurn fixtures validate the production wiring and byte-identical empty-metadata behavior; no channel adapter or provider transport code was touched.",
+              "note": "Implemented in this slice: cmd/gormes production gatewayManagerConfig now wires LiveTurnNow, LiveTurnActiveModel, and LiveTurnActiveProvider; internal/gateway submitPinned passes resolved.SessionID directly into assembleLiveTurnPrompt so the metadata block renders the same per-turn session id submitted to the kernel. The LiveTurnActiveSessionID closure seam was removed from ManagerConfig. Follow-up dogfood parity audit on 2026-04-29 found that the legacy standalone `gormes telegram` command still built ManagerConfig inline; that entrypoint now calls telegramManagerConfig, which reuses gatewayManagerConfig and is covered by TestTelegramManagerConfig_LiveTurnMetadataProductionWiring. Focused cmd/gormes and internal/gateway LiveTurn fixtures validate the production wiring and byte-identical empty-metadata behavior; no channel adapter or provider transport code was touched.",
               "write_scope": [
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_test.go",
+                "cmd/gormes/telegram.go",
+                "cmd/gormes/telegram_test.go",
                 "internal/gateway/manager.go",
                 "internal/gateway/live_turn_prompt.go",
                 "internal/gateway/live_turn_prompt_test.go",
@@ -2039,6 +2043,7 @@
               ],
               "test_commands": [
                 "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run GatewayManagerConfig_LiveTurn -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestTelegramManagerConfig_LiveTurnMetadataProductionWiring$' -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/hermes -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
@@ -2046,7 +2051,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Seven cmd/gormes + gateway fixtures pass; production-style gatewayManagerConfig produces non-nil LiveTurnNow + LiveTurnActiveModel + LiveTurnActiveProvider getters; assembleLiveTurnPrompt accepts activeSessionID as a parameter; submitPinned passes resolved.SessionID through; existing slice-1+2+4 byte-identity fixtures pass unchanged when seams produce empty values; live restart smoke confirms the metadata block appears in a captured Telegram turn."
+                "Seven cmd/gormes + gateway fixtures pass; production-style gatewayManagerConfig and standalone telegramManagerConfig produce non-nil LiveTurnNow + LiveTurnActiveModel + LiveTurnActiveProvider getters; assembleLiveTurnPrompt accepts activeSessionID as a parameter; submitPinned passes resolved.SessionID through; existing slice-1+2+4 byte-identity fixtures pass unchanged when seams produce empty values; live restart smoke confirms the metadata block appears in a captured Telegram turn."
               ],
               "provenance": {
                 "origin_type": "porting",
