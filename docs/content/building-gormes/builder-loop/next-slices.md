@@ -22,7 +22,5 @@ Use this page when choosing implementation work. If a row is too broad, split
 the row in `progress.json` before assigning it.
 
 <!-- PROGRESS:START kind=next-slices -->
-| Phase | Slice | Contract | Trust class | Fixture | Why now |
-|---|---|---|---|---|---|
-| 4 / 4.G | Token vault | Gormes owns an XDG-scoped, Hermes-compatible credential file vault that resolves declared relative credential paths without path traversal, missing-file leaks, or cross-profile bleed. | operator, system | `internal/config/token_vault_test.go` | P0 handoff; needs contract proof before closeout. |
+_No contract-ready progress rows are available._
 <!-- PROGRESS:END -->

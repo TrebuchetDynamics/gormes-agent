@@ -10451,10 +10451,10 @@
           "items": [
             {
               "name": "Token vault",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Gormes owns an XDG-scoped, Hermes-compatible credential file vault that resolves declared relative credential paths without path traversal, missing-file leaks, or cross-profile bleed.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -10487,7 +10487,7 @@
                 "TestTokenVaultConfigCredentialFiles loads terminal.credential_files from a temp Hermes config.yaml, skips missing files, rejects unsafe entries, and deduplicates skill-registered and config-declared mounts by container path.",
                 "TestTokenVaultClear removes only the current vault's registered files and preserves deterministic config-derived mounts."
               ],
-              "note": "Refined from an inventory placeholder after the Go reference audit prioritized provider/auth reliability. This is the minimal native credential-file vault needed before Anthropic, Google, Codex, remote terminal, and skill credential rows can consume tokens safely.",
+              "note": "Complete: internal/config token vault now resolves existing relative credential files under a Hermes profile to /root/.hermes mounts, rejects absolute/traversal/symlink-escaped/unreadable paths with redacted evidence, isolates vault instances, loads terminal.credential_files from fixture config.yaml with missing-file skip evidence, deduplicates by container path, and clears registered mounts without dropping config-derived mounts. No live credentials, provider calls, or hermes-agent runtime services are used.",
               "write_scope": [
                 "internal/config/token_vault.go",
                 "internal/config/token_vault_test.go",

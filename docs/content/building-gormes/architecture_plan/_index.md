@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 45/78 subphases shipped · 24 in progress · 9 planned
+**Overall:** 45/78 subphases shipped · 25 in progress · 8 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -503,9 +503,9 @@ classification and row-backed implementation queue.
 - [x] Title auxiliary failure visibility
 - [x] Auto-naming sessions
 
-### 4.G — Credentials + OAuth ⏳
+### 4.G — Credentials + OAuth 🔨
 
-- [ ] Token vault
+- [x] Token vault
 - [ ] Anthropic OAuth/keychain credential discovery
 - [ ] Multi-account auth
 - [ ] Google OAuth flow + refresh seam
