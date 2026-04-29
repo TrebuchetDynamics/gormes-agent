@@ -10578,9 +10578,9 @@
             },
             {
               "name": "Google OAuth flow + refresh seam",
-              "status": "planned",
+              "status": "complete",
               "contract": "Google Workspace OAuth setup stores pending PKCE state, accepts either a raw code or localhost redirect URL, preserves only actually granted scopes, and reports partial-scope tokens without forcing refresh invalid_scope failures",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -10615,7 +10615,7 @@
                 "TestGoogleOAuthCheckAuth_PartialScopeEvidence reports token_partial_scope with the missing scope list while still treating otherwise-valid credentials as authenticated.",
                 "TestGoogleOAuthExchange_StateMismatch leaves the pending auth file and token file untouched and returns oauth_state_mismatch evidence."
               ],
-              "note": "Refined after Hermes 898ccfd6: upstream fixed Google OAuth refresh by honoring the scope query returned in the redirect URL and storing granted scopes instead of requested scopes. Gormes should port this as a pure, XDG-scoped state machine before any live Google Workspace tool or provider auth uses it.",
+              "note": "Complete: internal/config Google OAuth state helper now persists pending PKCE state under caller-supplied XDG/temp storage, parses raw authorization codes and localhost callback URLs, stores only callback-granted scopes in authorized_user credential payloads, reports token_partial_scope while preserving authenticated status, and leaves pending/token files untouched on state mismatch. The slice uses hermetic fixtures only and does not contact Google, open a browser, import SDKs, or expose secret-bearing fields in status evidence.",
               "write_scope": [
                 "internal/config/google_oauth_state.go",
                 "internal/config/google_oauth_state_test.go",
@@ -10632,7 +10632,7 @@
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-27T04:18:56Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "validated"
               },
               "provenance": {
                 "origin_type": "upstream",

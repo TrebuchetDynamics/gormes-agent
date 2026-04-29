@@ -508,7 +508,7 @@ classification and row-backed implementation queue.
 - [x] Token vault
 - [ ] Anthropic OAuth/keychain credential discovery
 - [ ] Multi-account auth
-- [ ] Google OAuth flow + refresh seam
+- [x] Google OAuth flow + refresh seam
 
 ### 4.H — Rate / Retry / Caching 🔨
 
