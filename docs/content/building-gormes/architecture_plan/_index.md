@@ -556,7 +556,7 @@ classification and row-backed implementation queue.
 - [ ] Pure core tools first
 - [ ] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
-- [ ] Tool output budget persisted artifact pointer
+- [x] Tool output budget persisted artifact pointer
 
 ### 5.B — Sandboxing Backends 🔨
 
@@ -597,7 +597,7 @@ classification and row-backed implementation queue.
 - [x] Skills hub search read-model function over registry providers
 - [ ] Skill registries
 - [x] Skills hub direct URL candidate parser
-- [ ] Skills hub direct URL install name/category guard
+- [x] Skills hub direct URL install name/category guard
 - [x] Skill preprocessing + dynamic slash commands
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
@@ -682,7 +682,7 @@ classification and row-backed implementation queue.
 - [x] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
-- [ ] Goncho serialized write queue + relation candidates
+- [x] Goncho serialized write queue + relation candidates
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -708,7 +708,7 @@ classification and row-backed implementation queue.
 - [x] Gormes config command surface
 - [x] Gormes config edit/check/native schema-migrate closeout
 - [x] Hermes config migration dry-run manifest
-- [ ] Hermes config migration writer
+- [x] Hermes config migration writer
 - [x] OpenClaw migration dry-run manifest
 - [ ] OpenClaw migration writer and cleanup command
 - [x] CLI profile name validator
