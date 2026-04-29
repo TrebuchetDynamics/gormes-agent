@@ -29,8 +29,8 @@ func TestOneshotFinalOutput_PrintsOnlyFinalAssistantContent(t *testing.T) {
 		},
 		newOneshotClient: func(_ context.Context, cfg config.Config, invocation oneshotInvocation) (hermes.Client, error) {
 			clientCalls++
-			if cfg.Hermes.Endpoint == "" {
-				t.Fatal("oneshot client factory received empty endpoint")
+			if cfg.Hermes.Endpoint != "" {
+				t.Fatalf("oneshot client factory endpoint = %q, want empty so one-shot does not silently dial implicit localhost", cfg.Hermes.Endpoint)
 			}
 			if invocation.Prompt != "hi" {
 				t.Fatalf("invocation prompt = %q, want hi", invocation.Prompt)

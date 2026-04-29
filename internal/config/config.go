@@ -381,8 +381,7 @@ func defaults() Config {
 	return Config{
 		ConfigVersion: CurrentConfigVersion,
 		Hermes: HermesCfg{
-			Endpoint: "http://127.0.0.1:8642",
-			Model:    "hermes-agent",
+			Model: "hermes-agent",
 		},
 		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},

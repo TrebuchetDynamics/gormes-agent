@@ -35,8 +35,8 @@ func TestLoad_BuiltinDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Hermes.Endpoint != "http://127.0.0.1:8642" {
-		t.Errorf("default endpoint = %q", cfg.Hermes.Endpoint)
+	if cfg.Hermes.Endpoint != "" {
+		t.Errorf("default endpoint = %q, want empty so gateway does not silently dial implicit localhost", cfg.Hermes.Endpoint)
 	}
 	if cfg.Hermes.Model != "hermes-agent" {
 		t.Errorf("default model = %q", cfg.Hermes.Model)
