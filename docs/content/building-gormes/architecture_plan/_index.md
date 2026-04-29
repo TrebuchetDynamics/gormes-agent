@@ -77,15 +77,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 41/77 subphases shipped · 24 in progress · 12 planned
+**Overall:** 39/77 subphases shipped · 26 in progress · 12 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 17/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 1/9 subphases |
-| Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 0/9 subphases |
+| Phase 5 — The Final Purge | 🔨 | 1/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -282,6 +282,7 @@ classification and row-backed implementation queue.
 - [ ] Channel directory refresh + stale-target invalidation
 - [ ] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
+- [ ] Channel-neutral native runtime turn adapter
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy 🔨
 
@@ -526,7 +527,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure ✅
+### 4.I — Native Agent Turn Closure 🔨
 
 - [x] Python-free normal agent turn e2e harness
 - [x] Provider-tool-memory golden transcript suite
@@ -535,6 +536,7 @@ classification and row-backed implementation queue.
 - [x] Swarm feature-level parity audit for Hermes/Honcho map
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
+- [ ] Native runtime provider gateway binding
 
 ## Phase 5 — The Final Purge 🔨
 
@@ -551,6 +553,7 @@ classification and row-backed implementation queue.
 - [ ] Pure core tools first
 - [ ] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
+- [ ] Tool output budget persisted artifact pointer
 
 ### 5.B — Sandboxing Backends 🔨
 
@@ -598,7 +601,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [ ] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration ✅
+### 5.G — MCP Integration 🔨
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -610,6 +613,7 @@ classification and row-backed implementation queue.
 - [x] MCP OAuth refresh + 401 session-expired recovery
 - [x] Managed tool gateway bridge
 - [x] MCP stdio orphan cleanup after cron ticks
+- [ ] Gormes-native MCP host runtime boundary
 
 ### 5.H — ACP Integration ⏳
 
@@ -675,6 +679,7 @@ classification and row-backed implementation queue.
 - [x] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
+- [ ] Goncho serialized write queue + relation candidates
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -755,7 +760,7 @@ classification and row-backed implementation queue.
 - [x] TUI running-agent placeholder surfaces interrupt + queued slash actions
 - [x] Native TUI conversation viewport tail helper
 - [x] Native TUI queued-message edit helper
-- [ ] Native TUI renderConv viewport budget binding
+- [x] Native TUI renderConv viewport budget binding
 - [x] Native TUI Hermes skin token renderer
 - [ ] Native TUI Hermes status bar renderer
 - [ ] Native TUI Hermes bottom-pinned chrome layout

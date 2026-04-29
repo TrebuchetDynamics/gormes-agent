@@ -62,7 +62,7 @@ func (m Model) View() string {
 		topH = 3
 	}
 
-	main := border.Width(mainW).Height(topH).Render(renderConv(m.frame, mainW))
+	main := border.Width(mainW).Height(topH).Render(renderConv(m.frame, mainW, topH))
 
 	var top string
 	if sidebarW > 0 {
@@ -98,29 +98,12 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, top, editor, status)
 }
 
-// renderConv renders the conversation pane: prior history turns, the
-// streaming draft (if any), and a final LastError line (if any).
-func renderConv(f kernel.RenderFrame, width int) string {
-	if width < 4 {
-		width = 4
-	}
-	wrap := lipgloss.NewStyle().Width(width - 4)
-
-	var lines []string
-	for _, msg := range f.History {
-		tag := roleTag(msg.Role)
-		lines = append(lines, tag+" "+wrap.Render(msg.Content))
-	}
-	if f.DraftText != "" {
-		lines = append(lines, botStyle.Render("gormes:")+" "+wrap.Render(f.DraftText))
-	}
-	if f.LastError != "" {
-		lines = append(lines, errStyle.Render("err:")+" "+f.LastError)
-	}
-	if len(lines) == 0 {
-		return muted.Render("(start typing below to begin)")
-	}
-	return strings.Join(lines, "\n\n")
+// renderConv renders the conversation pane bounded to the caller-provided
+// width and height budget. It delegates to conversationViewportTail so each
+// Bubble Tea frame shows only the visible tail of history plus DraftText and
+// LastError, with a deterministic omitted-history sentinel when clipped.
+func renderConv(f kernel.RenderFrame, width, height int) string {
+	return conversationViewportTail(f, width, height)
 }
 
 func conversationViewportTail(f kernel.RenderFrame, width, height int) string {

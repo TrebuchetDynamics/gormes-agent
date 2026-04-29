@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-28T02:56:53Z",
+    "last_updated": "2026-04-29T00:00:00Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -4372,6 +4372,68 @@
               "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
+            },
+            {
+              "name": "Channel-neutral native runtime turn adapter",
+              "priority": "P0",
+              "status": "planned",
+              "contract": "Telegram, Slack, Discord, WhatsApp, BlueBubbles, and future channels enter the same native Gormes turn adapter so provider/runtime fixes preserve Hermes channel parity instead of hard-coding Telegram behavior.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "fixture": "internal/gateway/channel_neutral_turn_adapter_test.go",
+              "degraded_mode": "A channel with unsupported media, identity ambiguity, or provider-unavailable state emits typed channel evidence and a safe user-facing response while preserving session/admission cleanup.",
+              "source_refs": [
+                "references/go-agent-os/GORMES-REUSE-AUDIT.md#recommended-immediate-builder-row",
+                "references/go-agent-os/trpc-agent-go/agent/await_user_reply.go",
+                "references/go-agent-os/nanobot/pkg/mcp/session.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/session_context.go",
+                "internal/channels/telegram/",
+                "internal/channels/discord/",
+                "internal/channels/slack/",
+                "internal/channels/whatsapp/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+              ],
+              "ready_when": [
+                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
+                "A fake channel fixture can drive a message through the same turn adapter used by Telegram without importing Telegram SDK types.",
+                "Existing per-channel identity/self-filter and delivery routing tests stay unchanged."
+              ],
+              "not_ready_when": [
+                "The row adds a Telegram-only provider/runtime bypass.",
+                "The row changes channel-specific identity safety, require-mention, delivery, or thread rules outside adapter boundaries.",
+                "The row sends raw provider errors to external channels."
+              ],
+              "unblocks": [
+                "Native runtime provider gateway binding",
+                "Await-user-reply channel route",
+                "Live multi-channel parity smoke tests"
+              ],
+              "acceptance": [
+                "A shared channel-neutral turn request contains channel, chat/thread, sender identity, session source, media references, command/admission metadata, and reply route fields.",
+                "Telegram fixture and one fake non-Telegram channel fixture both exercise the same native runtime adapter path.",
+                "Provider/runtime failure is rendered through shared external-channel safe error handling and clears active turn state."
+              ],
+              "write_scope": [
+                "internal/gateway/",
+                "internal/channels/",
+                "cmd/gormes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/channels/... -run 'ChannelNeutral|TurnAdapter|Admission|AwaitUserReply' -count=1",
+                "go test ./internal/gateway ./internal/channels/... -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway tests prove Telegram and a fake channel share the same native runtime adapter while preserving existing channel identity and delivery contracts."
               ]
             }
           ]
@@ -11692,6 +11754,69 @@
                 "upstream_ref": "swarm feature-level parity audit gaps",
                 "note": "Follows up on the top-level ledger test, which intentionally cannot prove nested feature-level coverage by itself."
               }
+            },
+            {
+              "name": "Native runtime provider gateway binding",
+              "priority": "P0",
+              "status": "planned",
+              "contract": "Gormes gateway constructs a native Go runtime/provider binding from Hermes-compatible config when no explicit endpoint is configured, so live Telegram and other channel turns do not default to a dead localhost backend while explicit OpenAI-compatible endpoints remain supported.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "fixture": "internal/runtime/native_provider_gateway_binding_test.go",
+              "degraded_mode": "If native provider credentials or model routing are unavailable, gateway returns a typed provider/config admission error and clears active-turn state instead of calling hermes-agent runtime or hanging on 127.0.0.1:8642.",
+              "source_refs": [
+                "references/go-agent-os/GORMES-REUSE-AUDIT.md#1-native-runtime-wiring",
+                "references/go-agent-os/nanobot/pkg/runtime/runtime.go",
+                "references/go-agent-os/nanobot/pkg/tools/service.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/gateway.go",
+                "internal/config/config.go",
+                "internal/hermes/http_client.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#providers-models-and-credentials",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+              ],
+              "ready_when": [
+                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
+                "A failing test proves provider/model config without an explicit endpoint no longer resolves to the implicit 127.0.0.1:8642 HTTP backend for gateway turns.",
+                "A separate test proves an explicit endpoint still uses the OpenAI-compatible HTTP client path."
+              ],
+              "not_ready_when": [
+                "The implementation starts, shells out to, imports, or requires hermes-agent runtime services.",
+                "The implementation changes Hermes config precedence or removes explicit endpoint support.",
+                "The implementation solves only Telegram while bypassing the shared gateway/channel runtime path."
+              ],
+              "unblocks": [
+                "Live @gormes_bot normal turn",
+                "Channel-neutral native runtime binding",
+                "Provider-tool-memory golden transcript suite"
+              ],
+              "acceptance": [
+                "Gateway invocation config with Hermes model.provider/model.default and no endpoint chooses a native provider path or a typed provider-config error, never the implicit localhost backend.",
+                "Explicit endpoint/base-url config preserves OpenAI-compatible HTTP POST behavior for /v1/chat/completions or /v1/responses as configured.",
+                "Provider/config failures clear active_agents/admission state and are visible through gateway status."
+              ],
+              "write_scope": [
+                "internal/runtime/",
+                "internal/hermes/",
+                "internal/config/",
+                "cmd/gormes/",
+                "internal/gateway/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config ./internal/hermes ./internal/gateway ./cmd/gormes -run 'NativeRuntime|ResolveInference|Gateway.*Provider|ExplicitEndpoint' -count=1",
+                "go test ./cmd/gormes ./internal/gateway -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "A source-run gateway can report native provider readiness/failure without connection-refused attempts to 127.0.0.1:8642 unless that endpoint was explicitly configured."
+              ]
             }
           ],
           "drift_state": {
@@ -12140,6 +12265,62 @@
                 "upstream_ref": "hermes:97d54f0e tools/process_registry.py",
                 "note": "Hermes defines the watch-pattern flood-control behavior; Gormes should port it as Go-native process-tool policy before exposing a terminal runner."
               }
+            },
+            {
+              "name": "Tool output budget persisted artifact pointer",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Native tool execution bounds large tool results by persisting full output as a session artifact and returning a short text pointer to the model/channel, preserving Hermes operator readability and channel safety.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "fixture": "internal/tools/result_budget_test.go",
+              "degraded_mode": "If artifact persistence fails, the result is still bounded and includes a safe warning without exposing raw oversized payloads to external channels.",
+              "source_refs": [
+                "references/go-agent-os/GORMES-REUSE-AUDIT.md#2-tool-output-truncation",
+                "references/go-agent-os/nanobot/pkg/agents/truncate.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
+              ],
+              "ready_when": [
+                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
+                "A small pure package can be tested without live providers, channels, or filesystem outside temp dirs.",
+                "Artifact path policy uses Gormes data/session dirs, not reference repo paths."
+              ],
+              "not_ready_when": [
+                "The row changes individual tool handlers before a shared result-budget helper exists.",
+                "The row sends full oversized output to Telegram or provider context.",
+                "The row stores artifacts outside a sanitized Gormes session/run directory."
+              ],
+              "unblocks": [
+                "61-tool registry port",
+                "Native runtime provider gateway binding",
+                "MCP stdio transport + tool/list discovery"
+              ],
+              "acceptance": [
+                "Text output over budget is truncated and full output is written to a sanitized artifact path.",
+                "JSON/non-text output is persisted as JSON and represented by a short pointer.",
+                "Callers receive evidence for truncated, persisted, and persistence_failed cases."
+              ],
+              "write_scope": [
+                "internal/tools/",
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools ./internal/hermes -run 'Tool.*Budget|Truncat|Artifact' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Tool-result budget tests prove oversized outputs become safe artifact pointers with sanitized paths and no channel/provider flooding."
+              ]
             }
           ],
           "drift_state": {
@@ -14178,6 +14359,66 @@
                 "upstream_ref": "hermes:930494d6 tools/mcp_tool.py",
                 "note": "Hermes provides the orphan-cleanup failure mode; Gormes adapts it to native MCP stdio and cron seams with injected process operations."
               }
+            },
+            {
+              "name": "Gormes-native MCP host runtime boundary",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes exposes a native MCP/tool host boundary with explicit tool declarations, filtering, audit evidence, and channel/runtime-safe execution without adopting a non-Hermes config surface.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "fixture": "internal/tools/mcp_host_boundary_test.go",
+              "degraded_mode": "Unavailable MCP servers/tools produce structured unavailable/unauthorized evidence while core Hermes-parity tools and channel commands continue to work.",
+              "source_refs": [
+                "references/go-agent-os/GORMES-REUSE-AUDIT.md#3-runtime-service-wiring-via-explicit-optionsmergecomplete",
+                "references/go-agent-os/nanobot/pkg/tools/service.go",
+                "references/go-agent-os/nanobot/pkg/runtime/runtime.go",
+                "references/go-agent-os/trpc-agent-go/tool/tool.go",
+                "references/go-agent-os/trpc-agent-go/tool/filter.go",
+                "internal/tools/",
+                "internal/plugins/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
+              ],
+              "ready_when": [
+                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
+                "The interface design identifies caller-facing tool declaration/call/filter types before transport implementation.",
+                "Hermes toolset/config semantics remain the source of truth for what tools are enabled."
+              ],
+              "not_ready_when": [
+                "The row imports Nanobot config semantics or changes Hermes config.yaml precedence.",
+                "The row vendors a full MCP framework instead of creating a tested Gormes boundary.",
+                "The row bypasses channel/tool trust classes."
+              ],
+              "unblocks": [
+                "MCP stdio transport + tool/list discovery",
+                "Managed tool gateway bridge",
+                "Tool output budget persisted artifact pointer"
+              ],
+              "acceptance": [
+                "A Gormes tool declaration interface can render provider JSON schema and MCP metadata from one source.",
+                "Include/exclude filters can restrict tools by channel, trust class, and configured toolset.",
+                "Audit evidence records server/tool name, arguments redaction status, result status, and unavailable errors."
+              ],
+              "write_scope": [
+                "internal/tools/",
+                "internal/plugins/",
+                "internal/gateway/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools ./internal/plugins -run 'ToolDeclaration|ToolFilter|MCPHost|Audit' -count=1",
+                "go test ./internal/tools ./internal/plugins -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "A native Gormes tool/MCP boundary exists behind Hermes-compatible toolset/config semantics with filter and audit tests."
+              ]
             }
           ],
           "drift_state": {
@@ -16436,6 +16677,63 @@
                 "upstream_ref": "hermes:755a2804 cron/scheduler.py",
                 "note": "Hermes defines cron multi-target/media delivery behavior; Gormes adapts it to the native DeliverySink/gateway abstractions and keeps channel-directory creation separate."
               }
+            },
+            {
+              "name": "Goncho serialized write queue + relation candidates",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Goncho serializes memory/conclusion writes and records pending relation candidates for possible conflicts or supersession without blocking the originating memory write.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "fixture": "internal/goncho/write_queue_relation_test.go",
+              "degraded_mode": "If candidate search or relation insertion fails, the memory write still succeeds with degraded evidence; queue-full returns a retryable typed error.",
+              "source_refs": [
+                "references/go-agent-os/GORMES-REUSE-AUDIT.md#5-deterministic-serialized-mcpmemory-write-queue",
+                "references/go-agent-os/engram/internal/mcp/write_queue.go",
+                "references/go-agent-os/engram/internal/store/relations.go",
+                "references/go-agent-os/engram/internal/store/store.go",
+                "internal/goncho/",
+                "internal/memory/",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+              ],
+              "ready_when": [
+                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
+                "Existing Goncho storage/tests identify the write entrypoints to serialize.",
+                "The relation vocabulary is mapped to Honcho-compatible public behavior or explicitly kept internal."
+              ],
+              "not_ready_when": [
+                "The row exposes Engram-specific API names as public Gormes/Honcho names.",
+                "The row fails the original memory write because candidate detection is unavailable.",
+                "The row adds an LLM judge before pending relation storage is deterministic."
+              ],
+              "unblocks": [
+                "Goncho memory integration into normal agent turn",
+                "Goncho operator diagnostics contract"
+              ],
+              "acceptance": [
+                "Concurrent memory writes execute in deterministic queue order under test.",
+                "Queued cancellation before start does not mutate storage; started writes complete deterministically.",
+                "Saving a memory can create pending relation candidates with verbs such as related, conflicts_with, supersedes, compatible, scoped, or not_conflict for later judgment."
+              ],
+              "write_scope": [
+                "internal/goncho/",
+                "internal/memory/",
+                "internal/gonchotools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho ./internal/memory -run 'WriteQueue|Relation|Conflict|Supersede' -count=1",
+                "go test ./internal/goncho ./internal/memory -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Goncho tests prove serialized writes and nonblocking pending relation candidates without changing Honcho-compatible external names."
+              ]
             }
           ],
           "drift_state": {
@@ -20538,9 +20836,9 @@
             {
               "name": "Native TUI renderConv viewport budget binding",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui renderConv uses the validated conversation viewport helper with the caller-provided frame height/width budget so each Bubble Tea frame renders only the visible conversation tail plus draft/error status",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20572,7 +20870,7 @@
                 "TestRenderConvViewportBinding_NoKernelOrTranscriptMutation is covered by write scope and package tests; only internal/tui/view.go plus tests change.",
                 "Existing internal/tui rendering and slash command tests remain green."
               ],
-              "note": "Dependent binding half of the bounded viewport split. Keep this row to internal/tui view wiring only.",
+              "note": "Complete: TDD added internal/tui/viewport_render_test.go and bound renderConv in internal/tui/view.go to conversationViewportTail with the caller-provided width/height budget. Fixtures lock the latest-tail-plus-omitted-sentinel invariant for 120 turns, draft/error preservation under clipping, the tiny-terminal compact fallback retaining DraftText and LastError, the rendered-line budget under height+3, and the empty-frame placeholder. View now passes topH so each Bubble Tea frame renders only the visible conversation tail; kernel.RenderFrame, session persistence, transcript storage, remote TUI SSE, and API server remain untouched.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/viewport_render_test.go",
