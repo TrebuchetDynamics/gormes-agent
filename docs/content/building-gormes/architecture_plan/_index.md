@@ -702,8 +702,8 @@ classification and row-backed implementation queue.
 - [ ] Config, profile, auth, and setup command surfaces
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
-- [ ] Gormes config command surface
-- [ ] Gormes config edit/check/native schema-migrate closeout
+- [x] Gormes config command surface
+- [x] Gormes config edit/check/native schema-migrate closeout
 - [x] Hermes config migration dry-run manifest
 - [ ] Hermes config migration writer
 - [ ] OpenClaw migration dry-run manifest
@@ -762,8 +762,8 @@ classification and row-backed implementation queue.
 - [x] Native TUI queued-message edit helper
 - [x] Native TUI renderConv viewport budget binding
 - [x] Native TUI Hermes skin token renderer
-- [ ] Native TUI Hermes status bar renderer
-- [ ] Native TUI Hermes bottom-pinned chrome layout
+- [x] Native TUI Hermes status bar renderer
+- [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
 - [ ] Native TUI Hermes slash completion helpers
 - [ ] Native TUI Hermes tool progress + modal panel renderers
