@@ -228,6 +228,28 @@ func runNousOAuthLoginUnavailable(context.Context, nousOAuthLoginRequest) (nousO
 	return nousOAuthTokens{}, errors.New("native Nous device-code OAuth login is unavailable in this slice; inject OAuth login seam before calling provider endpoints")
 }
 
+type googleGeminiOAuthLoginRequest struct {
+	Label string
+	Out   interface{ Write([]byte) (int, error) }
+}
+
+type googleGeminiOAuthTokens struct {
+	AccountID    string
+	Label        string
+	Email        string
+	AccessToken  string
+	RefreshToken string
+	BaseURL      string
+	ExpiresAtMS  int64
+	Source       string
+}
+
+var authGoogleGeminiOAuthLogin func(context.Context, googleGeminiOAuthLoginRequest) (googleGeminiOAuthTokens, error)
+
+func runGoogleGeminiOAuthLoginUnavailable(context.Context, googleGeminiOAuthLoginRequest) (googleGeminiOAuthTokens, error) {
+	return googleGeminiOAuthTokens{}, errors.New("native Google Gemini CLI PKCE login is unavailable in this slice; inject OAuth login seam before calling Google endpoints")
+}
+
 func runAuthBareCommand(cmd *cobra.Command) error {
 	providers, err := config.ListCredentialPoolProviders(config.CredentialPoolOptions{})
 	if err != nil {
@@ -267,6 +289,8 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 			return runAuthAddNousOAuthCommand(cmd, opts)
 		case config.CodexOAuthProvider:
 			return runAuthAddCodexOAuthCommand(cmd, opts)
+		case "google-gemini-cli":
+			return runAuthAddGoogleGeminiOAuthCommand(cmd, opts)
 		default:
 			return fmt.Errorf("gormes auth add %s --type oauth: provider OAuth adapters are planned; use --type api-key for API-key providers", provider)
 		}
@@ -385,6 +409,51 @@ func runAuthAddNousOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
 		return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", config.NousOAuthProvider)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.NousOAuthProvider, entry.ID, entry.Label, entry.Source)
+	return nil
+}
+
+func runAuthAddGoogleGeminiOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
+	const provider = "google-gemini-cli"
+	login := authGoogleGeminiOAuthLogin
+	if login == nil {
+		login = runGoogleGeminiOAuthLoginUnavailable
+	}
+	tokens, err := login(context.Background(), googleGeminiOAuthLoginRequest{
+		Label: strings.TrimSpace(opts.Label),
+		Out:   cmd.OutOrStdout(),
+	})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: google_gemini_oauth_failed: %s", provider, sanitizeAuthCommandError(err.Error()))
+	}
+	tokens.Label = firstNonEmpty(strings.TrimSpace(opts.Label), strings.TrimSpace(tokens.Label), strings.TrimSpace(tokens.Email), "Google Gemini CLI")
+	tokens.Source = firstNonEmpty(strings.TrimSpace(tokens.Source), "google_pkce")
+	tokens.BaseURL = firstNonEmpty(strings.TrimRight(strings.TrimSpace(tokens.BaseURL), "/"), providerBaseURL(provider, ""))
+	if strings.TrimSpace(tokens.AccessToken) == "" {
+		return fmt.Errorf("gormes auth add %s --type oauth: google_gemini_oauth_failed: oauth_access_token_missing", provider)
+	}
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: provider})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", provider)
+	}
+	entries := pool.Entries()
+	id := firstNonEmpty(strings.TrimSpace(tokens.AccountID), nextCredentialID(provider, entries))
+	entry := config.PooledCredential{
+		ID:               id,
+		Label:            tokens.Label,
+		AuthType:         config.CredentialAuthOAuth,
+		Source:           "manual:" + tokens.Source,
+		AccessToken:      tokens.AccessToken,
+		RefreshToken:     tokens.RefreshToken,
+		BaseURL:          tokens.BaseURL,
+		InferenceBaseURL: tokens.BaseURL,
+		ExpiresAtMS:      tokens.ExpiresAtMS,
+		LastStatus:       config.CredentialStatusOK,
+	}
+	entries = append(entries, entry)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", provider, entry.ID, entry.Label, tokens.Source)
 	return nil
 }
 
@@ -571,6 +640,8 @@ func providerBaseURL(provider, override string) string {
 		return "https://chatgpt.com/backend-api/codex"
 	case config.NousOAuthProvider:
 		return "https://inference-api.nousresearch.com/v1"
+	case "google-gemini-cli":
+		return "cloudcode-pa://google"
 	default:
 		return ""
 	}

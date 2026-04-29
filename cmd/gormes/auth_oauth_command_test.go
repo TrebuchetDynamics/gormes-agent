@@ -218,6 +218,61 @@ func TestGormesAuthAddNousOAuthMirrorsProviderAndPool(t *testing.T) {
 	}
 }
 
+func TestGormesAuthAddGoogleGeminiOAuthStoresGooglePKCECredential(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := authGoogleGeminiOAuthLogin
+	authGoogleGeminiOAuthLogin = func(_ context.Context, req googleGeminiOAuthLoginRequest) (googleGeminiOAuthTokens, error) {
+		if req.Label != "" {
+			t.Fatalf("login request label = %q, want empty so email can supply label", req.Label)
+		}
+		return googleGeminiOAuthTokens{
+			Email:        "gemini-user@example.test",
+			AccessToken:  "google-access-secret",
+			RefreshToken: "google-refresh-secret",
+			BaseURL:      "cloudcode-pa://google",
+			ExpiresAtMS:  1_900_000_000_000,
+			Source:       "google_pkce",
+		}, nil
+	}
+	t.Cleanup(func() { authGoogleGeminiOAuthLogin = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "google-gemini-cli",
+		"--type", "oauth",
+	)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, leak := range []string{"google-access-secret", "google-refresh-secret"} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("auth add google leaked %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+	if !strings.Contains(stdout, "auth_oauth_saved") || !strings.Contains(stdout, "provider=google-gemini-cli") || !strings.Contains(stdout, "source=google_pkce") || !strings.Contains(stdout, "redacted=true") {
+		t.Fatalf("stdout = %q, want redacted google auth_oauth_saved evidence", stdout)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "google-gemini-cli"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one Google Gemini OAuth credential", entries)
+	}
+	entry := entries[0]
+	if entry.ID != "google-gemini-cli-manual-1" || entry.Label != "gemini-user@example.test" || entry.AuthType != config.CredentialAuthOAuth || entry.Source != "manual:google_pkce" {
+		t.Fatalf("entry metadata = %#v", entry)
+	}
+	if entry.AccessToken != "google-access-secret" || entry.RefreshToken != "google-refresh-secret" {
+		t.Fatalf("entry tokens not persisted for runtime use: %#v", entry)
+	}
+	if entry.BaseURL != "cloudcode-pa://google" || entry.InferenceBaseURL != "cloudcode-pa://google" || entry.ExpiresAtMS != 1_900_000_000_000 {
+		t.Fatalf("entry runtime metadata = %#v", entry)
+	}
+}
+
 func TestGormesAuthOAuthErrorsAreAtomic(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seed := []config.PooledCredential{{
