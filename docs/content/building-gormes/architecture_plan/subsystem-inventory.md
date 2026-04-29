@@ -238,7 +238,7 @@ The upstream `hermes_cli/` has 49 Python files. Grouped by capability:
 | Subsystem | Upstream | Target phase | Status |
 |---|---|---|---|
 | CLI entry + setup + uninstall | `hermes_cli/{main,setup,uninstall,env_loader,commands,callbacks,completion,oneshot}.py` | 5.O | 🔨 partial — busy-command guards, platform toolset persistence helpers, and top-level `-z/--oneshot` parser/resolver are validated; remaining rows split final-output capture, noninteractive one-shot safety, RestartSec parser helper, and active-status poller before broader setup/auth command ports |
-| Auth commands (base) | `hermes_cli/{auth,auth_commands}.py` | 5.O | ⏳ planned |
+| Auth commands (base) | `hermes_cli/{auth,auth_commands}.py`, `hermes_cli/main.py:auth_parser` | 5.O | ⏳ planned — current non-deprecated surface is `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance and must not become the provider-login target |
 | Provider-specific auth | `hermes_cli/{copilot_auth,dingtalk_auth}.py` + (`hermes_cli/nous_subscription.py` for Nous) | 5.O | ⏳ planned |
 | Backup / dump / debug | `hermes_cli/{backup,dump,debug,logs,doctor,status}.py` | 5.O | ⏳ planned |
 | Display / TUI | `hermes_cli/{banner,cli_output,clipboard,colors,curses_ui,tips}.py` | 5.O | ⏳ planned |

@@ -29,7 +29,7 @@ broken MCP OAuth session.
 |---|---|---|
 | `hermes auth` | Bare invocation. Prints the credential pool (per provider, with current pick markers and exhaustion status), prints AWS Bedrock identity if boto3 resolves credentials, then enters an interactive menu: add / remove / reset cooldowns / set rotation strategy / exit. | `hermes_cli/auth_commands.py:449-507`, `hermes_cli/auth_commands.py:632-656`; parser at `hermes_cli/main.py:8245-8307` |
 | `hermes auth add <provider> [--type oauth\|api-key] [--label LBL] [--api-key VAL] [--portal-url URL] [--inference-url URL] [--client-id ID] [--scope S] [--no-browser] [--timeout SEC] [--insecure] [--ca-bundle PATH]` | Add a pooled credential for `<provider>`. Default type is `oauth` for `anthropic|nous|openai-codex|qwen-oauth|google-gemini-cli` and `api-key` for everyone else (and for `custom:*` pools). API-key path: prompt securely (or use `--api-key`), label-or-prompt, write `PooledCredential(auth_type=api_key, source=manual, base_url=PROVIDER_REGISTRY[provider].inference_base_url)`. OAuth path dispatches per provider (see matrix in §3). On any add, all suppressed credential sources for that provider are unsuppressed. | parser `hermes_cli/main.py:8250-8282`; impl `hermes_cli/auth_commands.py:161-336` |
-| `hermes auth list [provider]` | List pooled credentials for one provider (filter) or every provider in `PROVIDER_REGISTRY ∪ {openrouter} ∪ list_custom_pool_providers()`. Marks the currently-selected entry with `←`, shows label, auth type, source, and exhaustion status with retry-window hints. | parser `hermes_cli/main.py:8283-8284`; impl `hermes_cli/auth_commands.py:339-363` |
+| `hermes auth list [provider]` | List pooled credentials for one provider (filter) or every provider in `PROVIDER_REGISTRY + {openrouter} + list_custom_pool_providers()`. Marks the currently-selected entry with `<-`, shows label, auth type, source, and exhaustion status with retry-window hints. | parser `hermes_cli/main.py:8283-8284`; impl `hermes_cli/auth_commands.py:339-363` |
 | `hermes auth remove <provider> <target>` | Remove a credential by index, entry id, or exact label. After pool removal, dispatches the unified `find_removal_step` from `agent.credential_sources` which performs source-specific cleanup (env vars, external OAuth files like `~/.codex/auth.json`, gh-cli copilot tokens, claude-code, qwen-cli, etc.) and may suppress that source so it does not get re-imported. | parser `hermes_cli/main.py:8285-8291`; impl `hermes_cli/auth_commands.py:366-401` |
 | `hermes auth reset <provider>` | Clear exhaustion / rate-limit / auth-failure status on every credential for `<provider>` so they are eligible to be picked again on the next inference call. | parser `hermes_cli/main.py:8292-8295`; impl `hermes_cli/auth_commands.py:404-408` |
 | `hermes auth status <provider>` | Print logged-in / logged-out for `<provider>` via `auth.get_auth_status(provider)`, including auth_type, client_id, redirect_uri, scope, expires_at, api_base_url where available. | parser `hermes_cli/main.py:8296-8297`; impl `hermes_cli/auth_commands.py:411-428`, `hermes_cli/auth.py:3419-3446` |
@@ -123,12 +123,12 @@ must not perform any OAuth work. README and docs should never tell a user to
 
 **`auth list [provider]`** — Resolves the filter via `_normalize_provider` (so
 aliases like `or` become `openrouter`). With no filter, iterates over
-`sorted(PROVIDER_REGISTRY.keys() ∪ {"openrouter"} ∪ list_custom_pool_providers())`.
+`sorted(PROVIDER_REGISTRY.keys() + {"openrouter"} + list_custom_pool_providers())`.
 For each provider with at least one entry, prints a header
 `<provider> (N credentials):` and one line per entry showing index, label,
 auth_type, source (with the `manual:` prefix stripped via `_display_source`),
 exhaustion status (`_format_exhausted_status` distinguishes rate-limited /
-auth-failed / exhausted with retry-window math), and a `←` marker on the
+auth-failed / exhausted with retry-window math), and a `<-` marker on the
 currently-selected entry. Source: `hermes_cli/auth_commands.py:339-363`.
 
 **`auth status <provider>`** — Required positional. Calls
@@ -151,7 +151,7 @@ clears `active_provider` if it pointed there, resets `model.provider` in config
 when it matched, and prints
 `Logged out of <Display Name>.` followed by either
 `Hermes will use OpenRouter for inference.` (if `OPENROUTER_API_KEY`) or
-`Run `hermes model` or configure an API key to use Hermes.`. Source:
+`Run 'hermes model' or configure an API key to use Hermes.`. Source:
 `hermes_cli/auth_commands.py:431-432`.
 
 **`auth reset <provider>`** — Calls `pool.reset_statuses()` on the named
