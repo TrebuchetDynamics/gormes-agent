@@ -84,6 +84,37 @@ CLI/API/gateway input
   -> Go final response + audit/status evidence
 ```
 
+## Telegram Dogfood Closure Plan ("Gormes finishes itself")
+
+Goal: operate Gormes from Telegram as the primary operator surface while Gormes
+continues shipping the remaining parity rows.
+
+Execution sequence:
+
+1. **Control-plane safety first (Phase 2/5).**
+   - Land `/steer` queue fallback (`2.F.5.1`) so operators can issue bounded
+     steering instructions during active work.
+   - Land gateway `/usage` binding (`4.H.13`) and `/status` parity surfaces so
+     runtime health, rate limits, and stuck sessions are visible from Telegram.
+2. **CLI/config parity closure (Phase 5.O).**
+   - Finish command-tree manifest (`5.O.1`) and migrate/config rows
+     (`5.O.18`..`5.O.23`) so Telegram-driven sessions can rely on the same
+     deterministic runtime/config behavior as Hermes.
+3. **Tool/runtime closure (Phase 5.A/B/J).**
+   - Complete remaining core tool registry and sandbox-policy rows before broad
+     channel expansion.
+4. **Operator e2e gate.**
+   - Prove one full “plan -> build -> validate -> report” loop executed from
+     Telegram without Python fallbacks, using only Gormes runtime and Goncho
+     memory surfaces.
+
+Definition of done for this lane:
+
+- Telegram session can start work, steer active work, inspect status/usage, and
+  receive validated completion evidence.
+- Remaining implementation rows are then executed through that same Telegram
+  surface as the default operator workflow.
+
 ## Docs Spine
 
 | Need | Start here |

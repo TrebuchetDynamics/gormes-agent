@@ -13,6 +13,9 @@ type SteerEvidence string
 const (
 	SteerEvidenceUsage              SteerEvidence = "steer_usage"
 	SteerEvidencePayloadUnsupported SteerEvidence = "steer_payload_unsupported"
+	SteerEvidenceQueued             SteerEvidence = "steer_queued"
+	SteerEvidenceUnavailable        SteerEvidence = "steer_unavailable"
+	SteerEvidencePreview            SteerEvidence = "steer_preview"
 )
 
 const (

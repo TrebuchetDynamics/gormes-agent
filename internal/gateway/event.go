@@ -23,6 +23,8 @@ const (
 	EventStart
 	// EventRestart requests a graceful service-manager restart.
 	EventRestart
+	// EventSteer queues operator guidance for the active turn fallback path.
+	EventSteer
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
 	EventThreadLifecycle
 )
@@ -40,6 +42,8 @@ func (k EventKind) String() string {
 		return "start"
 	case EventRestart:
 		return "restart"
+	case EventSteer:
+		return "steer"
 	case EventThreadLifecycle:
 		return "thread_lifecycle"
 	default:

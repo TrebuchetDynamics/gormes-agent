@@ -286,7 +286,7 @@ classification and row-backed implementation queue.
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy 🔨
 
 - [x] Steer slash command parser + preview helper
-- [ ] Steer slash command registry + queue fallback
+- [x] Steer slash command registry + queue fallback
 - [ ] Mid-run steer injection between tool calls
 - [ ] Gateway-handled slash commands bypass active-session guard
 

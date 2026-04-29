@@ -4445,7 +4445,7 @@
             },
             {
               "name": "Steer slash command registry + queue fallback",
-              "status": "planned",
+              "status": "complete",
               "contract": "Registry-owned active-turn steering command",
               "contract_status": "validated",
               "slice_size": "small",
@@ -4465,10 +4465,10 @@
                 "internal/gateway/steer_command.go"
               ],
               "ready_when": [
-                "Steer slash command parser + preview helper is validated on main.",
-                "Human review identifies whether /steer should reuse queueFollowUpIfActive, a separate steer guidance queue, or the existing CommandActiveTurnPolicyDrain path.",
-                "After review, the worker must keep the parser helper read-only and add only registry/queue fallback behavior; live between-tool-call injection remains a dependent row.",
-                "Tests must use fake running-agent state and fake command dispatch; no provider, active tool loop, TUI, Slack, or Telegram transport is required."
+                "Steer slash parser/preview helpers are complete on main.",
+                "Use Manager.queueFollowUpIfActive as the explicit fallback hook: /steer queues guidance as a follow-up submit event and acknowledges with steer_preview evidence.",
+                "Running-agent paths must stay degraded (steer_unavailable) until the mid-run callback row lands; this slice must not inject into active tool calls.",
+                "Tests use fake running-agent state and fake command dispatch; no provider, TUI, or platform transport dependency."
               ],
               "not_ready_when": [
                 "No human-reviewed decision exists for the Manager queue hook or status evidence names.",
@@ -4476,9 +4476,7 @@
                 "The slice changes /queue, /bg, /busy config persistence, TUI keybindings, or platform adapter code.",
                 "The parser row is not present in the worker checkout."
               ],
-              "blocked_by": [
-                "Human review: steer queue manager hook"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Mid-run steer injection between tool calls",
                 "Gateway-handled slash commands bypass active-session guard"
@@ -4489,7 +4487,7 @@
                 "TestSteerCommandRegistry_RunningAgentFallbackDoesNotInject proves running-agent paths return explicit steer_unavailable/queued evidence until the mid-run hook row lands.",
                 "Existing gateway command parsing and active-session policy tests remain green."
               ],
-              "note": "Marked draft 2026-04-27T13:21:48Z after repeated worker_error attempts with no landed diff. The remaining ambiguity is not upstream behavior; it is the Gormes Manager hook choice for queueing guidance without colliding with regular follow-up prompts.",
+              "note": "Complete: TDD landed the gateway /steer registry binding plus Manager.queueFollowUpIfActive fallback. /steer parses text guidance, rejects unsupported payloads via existing parser evidence, queues trimmed guidance as an EventSubmit follow-up while an active turn is pinned, and acknowledges with steer_unavailable + steer_queued + steer_preview evidence. Live mid-run injection remains deferred to the dependent mid-run steer injection row.",
               "write_scope": [
                 "internal/gateway/commands.go",
                 "internal/gateway/manager.go",
@@ -4519,17 +4517,21 @@
                 ]
               },
               "planner_verdict": {
-                "needs_human": true,
-                "reason": "auto: 6 reshapes without unsticking; last category ",
-                "since": "2026-04-27T12:01:21Z",
+                "needs_human": false,
+                "reason": "resolved: selected queueFollowUpIfActive fallback + explicit degraded evidence for live injection",
+                "since": "2026-04-29T03:00:00Z",
                 "reshape_count": 7,
-                "last_reshape": "2026-04-27T13:21:48Z",
-                "last_outcome": "no_attempts_yet"
+                "last_reshape": "2026-04-29T03:00:00Z",
+                "last_outcome": "ready_for_builder"
               },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:635253b9 gateway/run.py",
                 "note": "Hermes defines busy-input steer behavior; Gormes splits command registration/fallback from the later native kernel injection hook."
+              },
+              "evidence": {
+                "implementation": "internal/gateway/commands.go, internal/gateway/event.go, internal/gateway/manager.go, internal/gateway/steer_command.go, internal/gateway/steer_queue_test.go, internal/cli/command_registry.go (CLI parity registry flip required by gateway/CLI policy parity test)",
+                "tests": "go test ./internal/gateway -run ^TestSteerCommandRegistry_ -count=1; go test ./internal/gateway -count=1; go run ./cmd/progress validate"
               }
             },
             {

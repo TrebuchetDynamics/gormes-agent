@@ -579,6 +579,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	case EventRestart:
 		return m.handleRestartCommand(ctx, ch, ev)
+	case EventSteer:
+		m.handleSteerCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
 		if m.kernel == nil {
 			return nil
@@ -602,6 +605,40 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	}
 	return nil
+}
+
+func (m *Manager) handleSteerCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	parsed := ParseSteerCommand(ev.Text, steerPayloadMetadataFromInbound(ev))
+	if parsed.Evidence != "" {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(parsed.Evidence))
+		return
+	}
+
+	followUp := ev
+	followUp.Kind = EventSubmit
+	followUp.Text = parsed.Guidance
+	followUp.Attachments = nil
+	queued, full := m.queueFollowUpIfActive(followUp)
+	if full {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, followUpQueueFullNotice)
+		return
+	}
+	if queued {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(SteerEvidenceUnavailable)+": mid-run injection unavailable; "+string(SteerEvidenceQueued)+"; "+string(SteerEvidencePreview)+": "+parsed.Preview)
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(SteerEvidenceUnavailable)+": no active turn; "+string(SteerEvidencePreview)+": "+parsed.Preview)
+}
+
+func steerPayloadMetadataFromInbound(ev InboundEvent) SteerPayloadMetadata {
+	meta := SteerPayloadMetadata{AttachmentCount: len(ev.Attachments)}
+	for _, attachment := range ev.Attachments {
+		kind := strings.ToLower(strings.TrimSpace(attachment.Kind + " " + attachment.MediaType))
+		if strings.Contains(kind, "image") {
+			meta.ImageCount++
+		}
+	}
+	return meta
 }
 
 func (m *Manager) dropDuplicateInboundSubmit(ev InboundEvent) bool {

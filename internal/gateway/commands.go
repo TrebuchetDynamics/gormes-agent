@@ -60,6 +60,12 @@ var CommandRegistry = []CommandDef{
 		Kind:             EventRestart,
 		ActiveTurnPolicy: CommandActiveTurnPolicyDrain,
 	},
+	{
+		Name:             "steer",
+		Description:      "Queue steering guidance for the active turn",
+		Kind:             EventSteer,
+		ActiveTurnPolicy: CommandActiveTurnPolicyDrain,
+	},
 }
 
 var commandLookup = buildCommandLookup()
@@ -97,6 +103,9 @@ func ParseInboundText(text string) (EventKind, string) {
 	cmd, ok := ResolveCommand(body)
 	if !ok {
 		return EventUnknown, ""
+	}
+	if cmd.Kind == EventSteer {
+		return cmd.Kind, body
 	}
 	return cmd.Kind, ""
 }
