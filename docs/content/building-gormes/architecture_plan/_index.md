@@ -686,7 +686,7 @@ classification and row-backed implementation queue.
 - [x] CLI OpenClaw residue detection and hint text
 - [x] CLI onboarding seen-state map helpers
 - [x] CLI bracketed-paste wrapper sanitizer
-- [ ] CLI slow bracketed-paste diagnostic threshold
+- [x] CLI slow bracketed-paste diagnostic threshold
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter

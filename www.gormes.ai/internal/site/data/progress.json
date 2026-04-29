@@ -16872,9 +16872,9 @@
             {
               "name": "CLI slow bracketed-paste diagnostic threshold",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cli exposes a pure slow-paste diagnostic helper that emits structured evidence only when bracketed-paste handling exceeds a 500ms threshold and never logs pasted content bytes",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -16908,7 +16908,7 @@
                 "TestSlowBracketedPasteDiagnostic_CustomThreshold proves callers can inject a threshold while default remains 500ms.",
                 "No test opens a terminal, reads from stdin, sleeps, or depends on prompt_toolkit."
               ],
-              "note": "Added after Hermes ac0325c2 added diagnostics for bracketed-paste handlers slower than 500ms. Gormes keeps this as a pure diagnostic helper so terminal input wiring remains separate.",
+              "note": "Complete: TDD added internal/cli/paste_diagnostic.go with SlowBracketedPasteDiagnostic.Record emitting paste_handler_slow events only when SlowBracketedPasteSample.Duration >= the threshold (default 500ms, override via NewSlowBracketedPasteDiagnostic). Events carry duration_ms and threshold_ms only; PastedContent and PastedFilePaths on the sample are dropped before emission. PasteEventLogger is the narrow logging seam, no TTY or prompt_toolkit timer. CLI bracketed-paste sanitizer behavior is unchanged.",
               "write_scope": [
                 "internal/cli/paste_diagnostic.go",
                 "internal/cli/paste_diagnostic_test.go",
