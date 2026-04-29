@@ -180,6 +180,7 @@ func TestClassifyProviderErrorKindStrings(t *testing.T) {
 		ProviderErrorRateLimit,
 		ProviderErrorAuth,
 		ProviderErrorContext,
+		ProviderErrorImageTooLarge,
 		ProviderErrorRetryable,
 		ProviderErrorNonRetryable,
 	} {

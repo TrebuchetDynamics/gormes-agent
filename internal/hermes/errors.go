@@ -51,12 +51,13 @@ func newHTTPError(status int, body string, header http.Header) *HTTPError {
 type ProviderErrorKind string
 
 const (
-	ProviderErrorUnknown      ProviderErrorKind = "unknown"
-	ProviderErrorRateLimit    ProviderErrorKind = "rate_limit"
-	ProviderErrorAuth         ProviderErrorKind = "auth"
-	ProviderErrorContext      ProviderErrorKind = "context"
-	ProviderErrorRetryable    ProviderErrorKind = "retryable"
-	ProviderErrorNonRetryable ProviderErrorKind = "non_retryable"
+	ProviderErrorUnknown        ProviderErrorKind = "unknown"
+	ProviderErrorRateLimit      ProviderErrorKind = "rate_limit"
+	ProviderErrorAuth           ProviderErrorKind = "auth"
+	ProviderErrorContext        ProviderErrorKind = "context"
+	ProviderErrorImageTooLarge  ProviderErrorKind = "image_too_large"
+	ProviderErrorRetryable      ProviderErrorKind = "retryable"
+	ProviderErrorNonRetryable   ProviderErrorKind = "non_retryable"
 )
 
 func (k ProviderErrorKind) String() string {
@@ -110,6 +111,9 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 			out.ShouldFallback = true
 			return out
 		}
+		if containsAny(combined, imageTooLargePatterns) {
+			return providerError(ProviderErrorImageTooLarge, ClassFatal, httpErr.Status, message, false)
+		}
 		if httpErr.Status == http.StatusRequestEntityTooLarge ||
 			containsAny(combined, contextPatterns) ||
 			isContextCode(code) {
@@ -142,6 +146,9 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 		out.ShouldRotateCredential = true
 		out.ShouldFallback = true
 		return out
+	}
+	if containsAny(combined, imageTooLargePatterns) {
+		return providerError(ProviderErrorImageTooLarge, ClassFatal, 0, message, false)
 	}
 	if containsAny(combined, contextPatterns) {
 		out := providerError(ProviderErrorContext, ClassFatal, 0, message, false)
@@ -191,6 +198,18 @@ var authPatterns = []string{
 	"token expired",
 	"token revoked",
 	"access denied",
+}
+
+var imageTooLargePatterns = []string{
+	"image too large",
+	"image payload too large",
+	"image is too large",
+	"max image size",
+	"maximum image size",
+	"image size exceeds",
+	"unsupported image dimensions",
+	"unsupported image dimension",
+	"image dimensions are too large",
 }
 
 var contextPatterns = []string{

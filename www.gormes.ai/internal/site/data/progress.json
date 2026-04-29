@@ -10303,9 +10303,9 @@
             {
               "name": "Provider image-too-large error classification",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Provider error classification distinguishes image_too_large failures from generic context overflow and retryable errors so multimodal callers can trigger bounded image-shrink recovery without retry loops",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
