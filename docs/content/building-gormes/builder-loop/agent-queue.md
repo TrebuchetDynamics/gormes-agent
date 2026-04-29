@@ -41,7 +41,28 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Model-specific role and tool-use guidance
+## 2. Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
+
+- Phase: 2 / 2.B.5
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Port the seven unbranded Hermes prompt-builder guidance constants from `../hermes-agent/agent/prompt_builder.py` to Go as exported package-level identifiers in a new file `internal/hermes/guidance_constants.go`: MEMORY_GUIDANCE -> MemoryGuidance, SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance, SKILLS_GUIDANCE -> SkillsGuidance, TOOL_USE_ENFORCEMENT_GUIDANCE -> ToolUseEnforcementGuidance, TOOL_USE_ENFORCEMENT_MODELS -> ToolUseEnforcementModels ([]string), DEVELOPER_ROLE_MODELS -> DeveloperRoleModels ([]string), WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint. Each constant must be byte-equivalent to its Hermes upstream when concatenated (Python parenthesised string literals concatenate adjacent strings into one). The slice is data-only — no wiring into live-turn prompt assembly, no provider routing change, no runtime behavior change. Subsequent slices will wire each constant into `assembleLiveTurnPrompt` gated on the relevant condition (tools loaded, model substring match, WSL detected).
+- Trust class: system, operator
+- Ready when: Sibling repository `../hermes-agent` is checked out at the active commit so byte-equivalence tests can read the upstream source., Tests can read `../hermes-agent/agent/prompt_builder.py` from a relative path or a fixture path injected at test time., No live network, model call, or provider adapter is required.
+- Not ready when: The slice wires any constant into `assembleLiveTurnPrompt`, `gateway.Manager`, kernel, or any channel adapter — wiring is reserved for follow-up rows., The slice ports DEFAULT_AGENT_IDENTITY, HERMES_AGENT_HELP_GUIDANCE (already shipped as GormesSelfHelpGuidanceForPrompt), OPENAI_MODEL_EXECUTION_GUIDANCE, GOOGLE_MODEL_OPERATIONAL_GUIDANCE, or PLATFORM_HINTS — those need explicit Gormes branding decisions or per-block adaptation rows., The slice deviates from the upstream byte sequence for any constant (slack, missing whitespace, stripped trailing newline) — drift here would silently change a future wiring slice's prompt text., The slice exposes the constants under names that conflict with existing internal/hermes identifiers (verify by `grep -rn` before naming).
+- Degraded mode: Constants are pure data; no runtime path is affected. If Hermes drifts upstream the byte-equivalence test fails loudly so a follow-up port row can land the new value.
+- Fixture: `internal/hermes/guidance_constants_test.go`
+- Write scope: `internal/hermes/guidance_constants.go`, `internal/hermes/guidance_constants_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `www.gormes.ai/internal/site/data/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run GuidanceConstants -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./... -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Seven byte-equivalence fixtures + the no-runtime-import static check pass; `internal/hermes/guidance_constants.go` exports MemoryGuidance, SessionSearchGuidance, SkillsGuidance, ToolUseEnforcementGuidance, ToolUseEnforcementModels, DeveloperRoleModels, WSLEnvironmentHint as documented; no live-turn or kernel file is modified.
+- Acceptance: TestGuidanceConstants_MemoryGuidance_ByteEquivalent: extracts MEMORY_GUIDANCE concatenated string from `../hermes-agent/agent/prompt_builder.py` and asserts equality to `hermes.MemoryGuidance`. Use a deterministic Python concatenation reproduction (parse the parenthesised literal block) so the test is self-contained without invoking Python., TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent: same shape for SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance., TestGuidanceConstants_SkillsGuidance_ByteEquivalent: same shape for SKILLS_GUIDANCE -> SkillsGuidance., TestGuidanceConstants_ToolUseEnforcementGuidance_ByteEquivalent: same shape for TOOL_USE_ENFORCEMENT_GUIDANCE -> ToolUseEnforcementGuidance., TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream: parses the TOOL_USE_ENFORCEMENT_MODELS tuple literal from upstream and asserts equality to `hermes.ToolUseEnforcementModels` []string with deterministic order., TestGuidanceConstants_DeveloperRoleModels_MatchesUpstream: same shape for DEVELOPER_ROLE_MODELS -> DeveloperRoleModels []string., TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent: same shape for WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint., TestGuidanceConstants_NoRuntimeImport: a static check (e.g. via `go vet ./internal/hermes` or a deliberate `grep` in the test) confirms guidance_constants.go imports nothing beyond stdlib — no internal/gateway, internal/kernel, internal/channels, internal/runtime, or internal/provider import.
+- Source refs: ../hermes-agent/agent/prompt_builder.py:144-156 MEMORY_GUIDANCE, ../hermes-agent/agent/prompt_builder.py:158-162 SESSION_SEARCH_GUIDANCE, ../hermes-agent/agent/prompt_builder.py:164-171 SKILLS_GUIDANCE, ../hermes-agent/agent/prompt_builder.py:173-186 TOOL_USE_ENFORCEMENT_GUIDANCE, ../hermes-agent/agent/prompt_builder.py:190 TOOL_USE_ENFORCEMENT_MODELS, ../hermes-agent/agent/prompt_builder.py:283 DEVELOPER_ROLE_MODELS, ../hermes-agent/agent/prompt_builder.py:466-475 WSL_ENVIRONMENT_HINT, internal/hermes/self_help_guidance.go (existing precedent for hermes/<constant>.go file shape)
+- Unblocks: Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated), Live-turn tool-use enforcement guidance block (model-substring gated), Live-turn environment hints block (WSL/Termux/Docker gated)
+- Why now: Unblocks Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated), Live-turn tool-use enforcement guidance block (model-substring gated), Live-turn environment hints block (WSL/Termux/Docker gated).
+
+## 3. Model-specific role and tool-use guidance
 
 - Phase: 4 / 4.C
 - Owner: `provider`
@@ -61,7 +82,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity
 - Why now: Unblocks Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity.
 
-## 3. Stateful tool migration queue
+## 4. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -81,7 +102,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 4. Transcription tool contract
+## 5. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -101,7 +122,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 5. Debug helpers
+## 6. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -121,7 +142,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 6. Feishu transport/bootstrap layer
+## 7. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -141,7 +162,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 7. Prompt-cache capability guard
+## 8. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -160,7 +181,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Clarify
+## 9. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`
