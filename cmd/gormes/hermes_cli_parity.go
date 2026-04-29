@@ -189,7 +189,7 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 		{
 			name:      "add",
 			sourceRef: "hermes_cli/auth_commands.py:auth_add_command",
-			residual:  "non-deprecated provider login/add flow remains row-backed: API keys plus OAuth for anthropic, nous, openai-codex, qwen-oauth, and google-gemini-cli",
+			residual:  "non-deprecated provider login/add flow is partially implemented: API keys and openai-codex device-code OAuth are native; anthropic, nous, qwen-oauth, and google-gemini-cli OAuth remain row-backed",
 			redacts:   true,
 		},
 		{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -193,6 +194,9 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 	}
 	authType := normalizeAuthType(opts.AuthType, provider)
 	if authType == config.CredentialAuthOAuth {
+		if provider == config.CodexOAuthProvider {
+			return runAuthAddCodexOAuthCommand(cmd, opts)
+		}
 		return fmt.Errorf("gormes auth add %s --type oauth: provider OAuth adapters are planned; use --type api-key for API-key providers", provider)
 	}
 	if authType != config.CredentialAuthAPIKey {
@@ -230,6 +234,32 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_api_key_saved provider=%s id=%s label=%s redacted=true\n", provider, id, label)
+	return nil
+}
+
+func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
+	login := authCodexOAuthLogin
+	if login == nil {
+		login = runCodexDeviceCodeLogin
+	}
+	tokens, err := login(context.Background(), codexOAuthLoginRequest{
+		Label: strings.TrimSpace(opts.Label),
+		Out:   cmd.OutOrStdout(),
+	})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: codex_device_code_failed: %s", config.CodexOAuthProvider, sanitizeAuthCommandError(err.Error()))
+	}
+	if strings.TrimSpace(opts.Label) != "" && strings.TrimSpace(tokens.Label) == "" {
+		tokens.Label = strings.TrimSpace(opts.Label)
+	}
+	status, err := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{}).SaveTokens(tokens)
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", config.CodexOAuthProvider)
+	}
+	if status.Code != config.CodexOAuthStatusAuthorized {
+		return fmt.Errorf("gormes auth add %s --type oauth: %s", config.CodexOAuthProvider, status.Code)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 	return nil
 }
 

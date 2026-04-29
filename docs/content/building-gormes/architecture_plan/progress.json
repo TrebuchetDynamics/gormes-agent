@@ -18669,7 +18669,7 @@
             },
             {
               "name": "Hermes auth OAuth provider adapters",
-              "status": "planned",
+              "status": "in_progress",
               "priority": "P1",
               "contract": "Implement non-deprecated provider login through `gormes auth add <provider> --type oauth` with injectable provider login seams for Hermes OAuth-capable inference providers: anthropic uses Hermes PKCE credentials, nous uses device-code state and mirrors providers.nous plus credential_pool.nous, openai-codex uses Codex device-code tokens and clears device_code suppression on relink, google-gemini-cli stores Google Code Assist OAuth credentials, and qwen-oauth imports/refreshes local Qwen CLI credentials into a pool entry. Each adapter returns the Hermes source label, base URL, expiry/refresh metadata, and redacted status evidence without requiring live credentials in tests.",
               "contract_status": "draft",
@@ -18733,9 +18733,10 @@
                 "TestGormesAuthAddQwenOAuth imports fake Qwen CLI credentials as manual:qwen_cli, preserves base_url, classifies missing/expired Qwen CLI credentials, and does not shell out.",
                 "TestGormesAuthOAuthErrorsAreAtomic proves failed fake OAuth logins leave existing credential_pool/provider state byte-identical and return provider-specific redacted evidence."
               ],
-              "note": "Builder-ready provider-auth row. Hermes' non-deprecated provider login UX is `auth add <provider> --type oauth`; Gormes must implement that, not resurrect removed top-level login or invent `auth login`. GoClaw OAuth files are implementation references for PKCE/state/redirect and bounded token exchange, filtered through Hermes behavior.",
+              "note": "Porting: the OpenAI Codex device-code vertical is implemented behind `gormes auth add openai-codex --type oauth` with fake HTTP fixtures and native auth.json persistence. Remaining provider OAuth adapters are Anthropic PKCE, Nous device-code provider mirroring, Google Gemini CLI PKCE, Qwen CLI import/refresh, and Spotify's service-provider subcommand. Hermes' non-deprecated provider login UX is `auth add <provider> --type oauth`; Gormes must keep using that instead of resurrecting top-level login or inventing `auth login`.",
               "write_scope": [
                 "cmd/gormes/auth.go",
+                "cmd/gormes/auth_codex_oauth.go",
                 "cmd/gormes/auth_oauth_command_test.go",
                 "internal/config/credential_pool.go",
                 "internal/config/codex_oauth_state.go",
@@ -18744,6 +18745,7 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
+                "go test ./cmd/gormes -run 'Test(GormesAuthAddCodexOAuthStoresDeviceCodeCredential|RunCodexDeviceCodeLoginUsesHermesDeviceFlow)' -count=1",
                 "go test ./cmd/gormes -run '^TestGormesAuthAdd.*OAuth|^TestGormesAuthOAuth' -count=1",
                 "go test ./cmd/gormes ./internal/config ./internal/hermes -count=1",
                 "go run ./cmd/progress validate"
@@ -18762,6 +18764,11 @@
                   "references/go-agent-os/goclaw/internal/oauth/token.go"
                 ],
                 "note": "Hermes owns provider auth UX and auth.json semantics; Gormes may adapt GoClaw OAuth mechanics with provenance comments only where they preserve Hermes behavior."
+              },
+              "evidence": {
+                "implementation": "cmd/gormes/auth.go, cmd/gormes/auth_codex_oauth.go, cmd/gormes/auth_oauth_command_test.go, internal/config/codex_oauth_state.go",
+                "tests": "go test ./cmd/gormes -run 'Test(GormesAuthAddCodexOAuthStoresDeviceCodeCredential|RunCodexDeviceCodeLoginUsesHermesDeviceFlow)' -count=1; go test ./cmd/gormes ./internal/config -count=1; go run ./cmd/progress validate",
+                "note": "OpenAI Codex now uses Hermes' deviceauth user-code, polling, and authorization-code token exchange shape with redacted operator output, fake HTTP fixtures, and native credential-pool persistence. The broader OAuth row remains porting until Anthropic, Nous, Google Gemini CLI, Qwen, and Spotify are covered."
               }
             },
             {
