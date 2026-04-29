@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 41/77 subphases shipped · 24 in progress · 12 planned
+**Overall:** 41/77 subphases shipped · 26 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -282,6 +282,7 @@ classification and row-backed implementation queue.
 - [ ] Channel directory refresh + stale-target invalidation
 - [ ] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
+- [ ] Channel-neutral native runtime turn adapter
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy 🔨
 
@@ -491,7 +492,7 @@ classification and row-backed implementation queue.
 
 - [ ] Trajectory writer + redaction gates
 - [x] Trajectory compressor + compressed-evidence lineage
-- [ ] Self-monitoring telemetry
+- [x] Self-monitoring telemetry
 
 ### 4.F — Title Generation 🔨
 
@@ -535,6 +536,7 @@ classification and row-backed implementation queue.
 - [x] Swarm feature-level parity audit for Hermes/Honcho map
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
+- [x] Native runtime provider gateway binding
 
 ## Phase 5 — The Final Purge 🔨
 
@@ -551,12 +553,13 @@ classification and row-backed implementation queue.
 - [ ] Pure core tools first
 - [ ] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
+- [ ] Tool output budget persisted artifact pointer
 
 ### 5.B — Sandboxing Backends 🔨
 
-- [ ] Environment interface + file sync contract
+- [x] Environment interface + file sync contract
 - [ ] Terminal snapshot source stdout suppression guard
-- [ ] Raw tool-call parser fixture matrix
+- [x] Raw tool-call parser fixture matrix
 - [ ] Docker
 - [x] Docker backend top-level container reuse semantics
 - [ ] Modal
@@ -596,9 +599,9 @@ classification and row-backed implementation queue.
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
 - [x] Bundled Airtable productivity skill contract
-- [ ] Bundled TouchDesigner MCP skill catalog contract
+- [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration ✅
+### 5.G — MCP Integration 🔨
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -610,10 +613,11 @@ classification and row-backed implementation queue.
 - [x] MCP OAuth refresh + 401 session-expired recovery
 - [x] Managed tool gateway bridge
 - [x] MCP stdio orphan cleanup after cron ticks
+- [ ] Gormes-native MCP host runtime boundary
 
-### 5.H — ACP Integration ⏳
+### 5.H — ACP Integration ✅
 
-- [ ] ACP server side
+- [x] ACP server side
 
 ### 5.I — Plugins Architecture 🔨
 
@@ -622,7 +626,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
 - [x] First-party Spotify plugin fixture
-- [ ] First-party Google Meet plugin metadata fixture
+- [x] First-party Google Meet plugin metadata fixture
 - [ ] Hindsight memory setup blank-input preservation
 
 ### 5.J — Approval / Security Guards 🔨
@@ -634,7 +638,7 @@ classification and row-backed implementation queue.
 - [x] Gateway hook auto-accept strict parser
 - [ ] Subagent dangerous-command non-interactive approval policy
 - [ ] Concurrent tool approval callback propagation
-- [ ] Background review toolset restriction
+- [x] Background review toolset restriction
 - [ ] Cron dangerous-command approval mode
 - [ ] Tirith, path, URL, and website policy integration
 
@@ -659,7 +663,7 @@ classification and row-backed implementation queue.
 - [ ] Clarify
 - [x] Session search tool schema and argument validation
 - [x] Session search tool execution wrapper
-- [ ] Session shutdown memory transcript handoff
+- [x] Session shutdown memory transcript handoff
 - [ ] Debug helpers
 - [ ] Debug share paste sweep scheduler contract
 - [x] Planner audit blank-subphase control-plane bucket
@@ -670,11 +674,12 @@ classification and row-backed implementation queue.
 - [x] Cron recurring next-run failure preservation
 - [x] Cron prompt/script safety + pre-run script contract
 - [x] Cronjob tool action envelope over native store
-- [ ] Cron run resource release contract
+- [x] Cron run resource release contract
 - [ ] Cron run resource release executor binding
 - [x] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
+- [ ] Goncho serialized write queue + relation candidates
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -686,7 +691,7 @@ classification and row-backed implementation queue.
 - [x] CLI OpenClaw residue detection and hint text
 - [x] CLI onboarding seen-state map helpers
 - [x] CLI bracketed-paste wrapper sanitizer
-- [ ] CLI slow bracketed-paste diagnostic threshold
+- [x] CLI slow bracketed-paste diagnostic threshold
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
@@ -697,11 +702,11 @@ classification and row-backed implementation queue.
 - [ ] Config, profile, auth, and setup command surfaces
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
-- [ ] Gormes config command surface
-- [ ] Gormes config edit/check/native schema-migrate closeout
-- [ ] Hermes config migration dry-run manifest
+- [x] Gormes config command surface
+- [x] Gormes config edit/check/native schema-migrate closeout
+- [x] Hermes config migration dry-run manifest
 - [ ] Hermes config migration writer
-- [ ] OpenClaw migration dry-run manifest
+- [x] OpenClaw migration dry-run manifest
 - [ ] OpenClaw migration writer and cleanup command
 - [x] CLI profile name validator
 - [x] CLI profile root resolver
@@ -718,7 +723,7 @@ classification and row-backed implementation queue.
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
-- [ ] Backup/update opt-in and exclusion policy
+- [x] Backup/update opt-in and exclusion policy
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
@@ -726,10 +731,10 @@ classification and row-backed implementation queue.
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge
 
-### 5.P — Docker / Packaging ⏳
+### 5.P — Docker / Packaging 🔨
 
-- [ ] OCI image
-- [ ] Homebrew
+- [x] OCI image
+- [x] Homebrew
 - [ ] Unix installer (install.sh) source-backed update flow
 - [ ] Unix installer root/FHS layout policy
 - [ ] Windows installer (install.ps1 + install.cmd) parity
@@ -754,12 +759,12 @@ classification and row-backed implementation queue.
 - [x] Native TUI /branch session fork + transcript target switch
 - [x] TUI running-agent placeholder surfaces interrupt + queued slash actions
 - [x] Native TUI conversation viewport tail helper
-- [ ] Native TUI queued-message edit helper
-- [ ] Native TUI renderConv viewport budget binding
+- [x] Native TUI queued-message edit helper
+- [x] Native TUI renderConv viewport budget binding
 - [x] Native TUI Hermes skin token renderer
-- [ ] Native TUI Hermes status bar renderer
-- [ ] Native TUI Hermes bottom-pinned chrome layout
-- [ ] Native TUI Hermes input keybinding semantics
+- [x] Native TUI Hermes status bar renderer
+- [x] Native TUI Hermes bottom-pinned chrome layout
+- [x] Native TUI Hermes input keybinding semantics
 - [x] Native TUI Hermes slash completion helpers
 - [ ] Native TUI Hermes tool progress + modal panel renderers
 - [x] SSE streaming to Bubble Tea TUI
@@ -770,7 +775,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard API client contract
 - [x] Dashboard PTY chat sidecar contract
 - [x] API server detailed health snapshot contract
-- [ ] API server detailed health endpoint
+- [x] API server detailed health endpoint
 - [ ] API server cron admin read-only endpoints
 - [ ] API server cron admin mutating endpoints
 
@@ -859,9 +864,9 @@ classification and row-backed implementation queue.
 - [x] DingTalk AI Cards streaming-update contract
 - [x] DingTalk emoji reaction send/receive parity
 - [x] DingTalk media (image/file) attachment routing
-- [ ] Yuanbao protocol envelope + markdown fixtures
-- [ ] Yuanbao media/sticker attachment normalization
-- [ ] Yuanbao gateway runtime + toolset registration
+- [x] Yuanbao protocol envelope + markdown fixtures
+- [x] Yuanbao media/sticker attachment normalization
+- [x] Yuanbao gateway runtime + toolset registration
 - [ ] QQ Bot transport/bootstrap layer
 
 <!-- PROGRESS:END -->
