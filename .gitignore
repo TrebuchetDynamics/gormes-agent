@@ -32,6 +32,7 @@ crash-*.log
 
 # ── Agent/orchestrator scratch ───────────────────────
 scripts/.swarm/
+.claude/worktrees/
 
 # ── Docs/site generated artifacts ────────────────────
 docs/www-tests/node_modules/
