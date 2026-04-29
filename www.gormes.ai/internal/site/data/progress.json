@@ -17951,9 +17951,9 @@
             },
             {
               "name": "Hermes config migration dry-run manifest",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/migrate/hermes builds a deterministic dry-run manifest for `gormes migrate hermes` by reading an explicit source directory, $HERMES_HOME, or ~/.hermes, parsing config.yaml and .env, classifying every supported key as importable, skipped, conflict, or archived, and printing a report without writing Gormes state.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -17995,7 +17995,7 @@
                 "The dry-run command prints migrated/skipped/conflict/error counts and exits non-zero only for an unreadable or invalid requested source.",
                 "No file under XDG_CONFIG_HOME, XDG_DATA_HOME, or XDG_STATE_HOME changes during dry-run tests."
               ],
-              "note": "Added by planner pass 2026-04-28 to make the planned `gormes migrate hermes` explicit. Gormes must not silently read HERMES_HOME at runtime; Hermes state is consumed only through this operator-run migration path.",
+              "note": "Complete: TDD added internal/migrate/hermes/manifest.go, internal/migrate/hermes/manifest_test.go, cmd/gormes/migrate.go, and cmd/gormes/migrate_hermes_test.go. BuildManifest resolves Hermes home in the order --source, $HERMES_HOME, ~/.hermes and records every candidate path with a Found flag, classifies config.yaml model/providers/custom_provider/terminal/display/gateway/memory as importable into hermes.model/hermes.providers/hermes.custom_provider/terminal/tui.display/gateway/memory, archives _config_version, marks unsupported top-level sections as skipped with explicit reason text, classifies .env keys against a Telegram/Discord/Slack and *_API_KEY/*_TOKEN target map, never serializes raw secret bytes (RedactedValue=[REDACTED]), reports conflict_with_existing when a Gormes target env is already set, and surfaces invalid YAML as an Errors entry instead of panicking. The migrate cobra command requires --dry-run, errors non-zero on missing/non-directory --source, prints the manifest as indented JSON, and writes nothing under XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_STATE_HOME. Locked invariants: read-only filesystem behavior, redacted-only env values, deterministic config-key sorting, and explicit candidate-path reporting for every discovery origin. Root command wiring is deferred to the writer slice, which already owns cmd/gormes/migrate.go in its write_scope.",
               "write_scope": [
                 "cmd/gormes/migrate.go",
                 "cmd/gormes/migrate_hermes_test.go",

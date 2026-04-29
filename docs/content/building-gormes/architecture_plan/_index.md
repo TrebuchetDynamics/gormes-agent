@@ -702,9 +702,9 @@ classification and row-backed implementation queue.
 - [ ] Config, profile, auth, and setup command surfaces
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
-- [x] Gormes config command surface
-- [x] Gormes config edit/check/native schema-migrate closeout
-- [ ] Hermes config migration dry-run manifest
+- [ ] Gormes config command surface
+- [ ] Gormes config edit/check/native schema-migrate closeout
+- [x] Hermes config migration dry-run manifest
 - [ ] Hermes config migration writer
 - [ ] OpenClaw migration dry-run manifest
 - [ ] OpenClaw migration writer and cleanup command
