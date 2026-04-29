@@ -330,3 +330,249 @@ func TestLiveTurn_SystemPrompt_DurableUserThreatBlocked(t *testing.T) {
 		t.Fatalf("USER block must not carry raw threat string %q. got:\n%s", threat, got)
 	}
 }
+
+// liveTurnFixture is the slice-4 harness input shape. Empty fields elide
+// the corresponding block, mirroring production seam wiring.
+type liveTurnFixture struct {
+	platform   string
+	profileDir string
+	cwd        string
+	memoryDir  string
+	submitText string
+
+	// Slice-4 metadata seams. Zero/empty values are seam-equivalent to "not
+	// configured" so the assembler elides the metadata block.
+	now             time.Time
+	activeSessionID string
+	activeModel     string
+	activeProvider  string
+}
+
+// dispatchFixture is the slice-4 superset of dispatchWithMemory. Tests
+// supply submitText (defaults to "hello") and the metadata seam values.
+// Empty seams produce the slice-2 byte-identical baseline.
+func (h *liveTurnHarness) dispatchFixture(f liveTurnFixture) string {
+	h.t.Helper()
+	platform := f.platform
+	if platform == "" {
+		platform = h.platform
+	}
+	tg := newFakeChannel(platform)
+	fk := &fakeKernel{}
+	smap := session.NewMemMap()
+	if err := smap.Put(context.Background(), platform+":42", "sess-stored"); err != nil {
+		h.t.Fatalf("Put: %v", err)
+	}
+	cfg := ManagerConfig{
+		AllowedChats:          map[string]string{platform: "42"},
+		SessionMap:            smap,
+		ContextFilesProfile:   f.profileDir,
+		ContextFilesCWD:       f.cwd,
+		ContextFilesMemoryDir: f.memoryDir,
+	}
+	if !f.now.IsZero() {
+		clock := f.now
+		cfg.LiveTurnNow = func() time.Time { return clock }
+	}
+	if f.activeSessionID != "" {
+		sid := f.activeSessionID
+		cfg.LiveTurnActiveSessionID = func() string { return sid }
+	}
+	if f.activeModel != "" {
+		mod := f.activeModel
+		cfg.LiveTurnActiveModel = func() string { return mod }
+	}
+	if f.activeProvider != "" {
+		prov := f.activeProvider
+		cfg.LiveTurnActiveProvider = func() string { return prov }
+	}
+	m := NewManagerWithSubmitter(cfg, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		h.t.Fatalf("Register: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	text := f.submitText
+	if text == "" {
+		text = "hello"
+	}
+	tg.pushInbound(InboundEvent{
+		Platform: platform,
+		ChatID:   "42",
+		UserID:   "7",
+		MsgID:    "m1",
+		Kind:     EventSubmit,
+		Text:     text,
+	})
+	waitFor(h.t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+	return fk.submitsSnapshot()[0].SessionContext
+}
+
+func turnMetadataFixtureClock() time.Time {
+	return time.Date(2026, time.April, 29, 14, 46, 0, 0, time.Local)
+}
+
+func turnMetadataFixtureBlock() string {
+	return hermes.BuildTurnMetadataBlock(hermes.TurnMetadataOptions{
+		Now:       turnMetadataFixtureClock(),
+		SessionID: "sess-1",
+		Model:     "claude-opus-4-7",
+		Provider:  "anthropic",
+	})
+}
+
+func TestLiveTurn_SystemPrompt_IncludesTurnMetadata(t *testing.T) {
+	got := newLiveTurnHarness(t, "telegram").dispatchFixture(liveTurnFixture{
+		now:             turnMetadataFixtureClock(),
+		activeSessionID: "sess-1",
+		activeModel:     "claude-opus-4-7",
+		activeProvider:  "anthropic",
+	})
+	want := turnMetadataFixtureBlock()
+	if want == "" {
+		t.Fatalf("expected non-empty metadata fixture block")
+	}
+	if !strings.Contains(got, want) {
+		t.Fatalf("SessionContext missing turn-metadata block.\nwant:\n%s\n\ngot:\n%s", want, got)
+	}
+}
+
+func TestLiveTurn_SystemPrompt_TurnMetadataBlockOrder(t *testing.T) {
+	soul := "You are Gormes, not ChatGPT."
+	project := "Project: Gormes — native Go Hermes parity agent."
+	userBody := "# User\nName: Juan"
+	memoryBody := "# Memory\nLast topic: live prompt parity."
+
+	got := newLiveTurnHarness(t, "telegram").dispatchFixture(liveTurnFixture{
+		profileDir:      writeSoul(t, soul),
+		cwd:             writeProject(t, project),
+		memoryDir:       writeMemory(t, userBody, memoryBody),
+		now:             turnMetadataFixtureClock(),
+		activeSessionID: "sess-1",
+		activeModel:     "claude-opus-4-7",
+		activeProvider:  "anthropic",
+	})
+
+	projectMarker := "# Project Context"
+	durableMarker := "# Durable User Context"
+	metaMarker := "Conversation started:"
+	sessionMarker := "## Current Session Context"
+
+	pi := strings.Index(got, projectMarker)
+	di := strings.Index(got, durableMarker)
+	mi := strings.Index(got, metaMarker)
+	si := strings.Index(got, sessionMarker)
+	for name, idx := range map[string]int{
+		projectMarker: pi,
+		durableMarker: di,
+		metaMarker:    mi,
+		sessionMarker: si,
+	} {
+		if idx < 0 {
+			t.Fatalf("missing marker %q. got:\n%s", name, got)
+		}
+	}
+	if !(pi < di && di < mi && mi < si) {
+		t.Fatalf("expected order project(%d) < durable(%d) < metadata(%d) < session(%d). got:\n%s", pi, di, mi, si, got)
+	}
+}
+
+func TestLiveTurn_SystemPrompt_TurnMetadataChannelNeutral(t *testing.T) {
+	want := turnMetadataFixtureBlock()
+	if want == "" {
+		t.Fatalf("expected non-empty metadata fixture block")
+	}
+	platforms := []string{"telegram", "slack", "bluebubbles", "whatsapp", "discord"}
+	for _, platform := range platforms {
+		platform := platform
+		t.Run(platform, func(t *testing.T) {
+			got := newLiveTurnHarness(t, platform).dispatchFixture(liveTurnFixture{
+				now:             turnMetadataFixtureClock(),
+				activeSessionID: "sess-1",
+				activeModel:     "claude-opus-4-7",
+				activeProvider:  "anthropic",
+			})
+			if !strings.Contains(got, want) {
+				t.Fatalf("[%s] SessionContext does not contain expected metadata block.\nwant:\n%s\n\ngot:\n%s", platform, want, got)
+			}
+		})
+	}
+}
+
+func TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic(t *testing.T) {
+	emptyProfile := t.TempDir()
+	emptyCWD := t.TempDir()
+	emptyMemory := t.TempDir()
+
+	gotEmptyMeta := newLiveTurnHarness(t, "telegram").dispatchFixture(liveTurnFixture{
+		profileDir: emptyProfile,
+		cwd:        emptyCWD,
+		memoryDir:  emptyMemory,
+	})
+	gotSlice2 := newLiveTurnHarness(t, "telegram").dispatchWithMemory(emptyProfile, emptyCWD, emptyMemory)
+	if gotEmptyMeta != gotSlice2 {
+		t.Fatalf("missing-metadata SessionContext must equal slice-2 baseline byte-for-byte.\nslice2:\n%s\n\nslice4-empty:\n%s", gotSlice2, gotEmptyMeta)
+	}
+	if strings.Contains(gotEmptyMeta, "Conversation started:") {
+		t.Fatalf("missing-metadata SessionContext must not contain a Conversation started: line. got:\n%s", gotEmptyMeta)
+	}
+}
+
+func TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateOpen(t *testing.T) {
+	prompt := "How do I configure Gormes?"
+	wantGuidance, ok := hermes.GormesSelfHelpGuidanceForPrompt(prompt)
+	if !ok || wantGuidance == "" {
+		t.Fatalf("self-help gate must open for %q (slice-4 fixture); got ok=%v guidance=%q", prompt, ok, wantGuidance)
+	}
+	got := newLiveTurnHarness(t, "telegram").dispatchFixture(liveTurnFixture{
+		submitText: prompt,
+	})
+	if !strings.Contains(got, wantGuidance) {
+		t.Fatalf("SessionContext missing gate-open self-help guidance.\nwant:\n%s\n\ngot:\n%s", wantGuidance, got)
+	}
+}
+
+func TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateClosed(t *testing.T) {
+	// "Write a Go unit test for JSON parsing." is proven gate=false by
+	// internal/hermes/self_help_guidance_test.go (TestGormesSelfHelpGuidanceGateMatchesSetupQuestions/unrelated).
+	prompt := "Write a Go unit test for JSON parsing."
+	if guidance, ok := hermes.GormesSelfHelpGuidanceForPrompt(prompt); ok {
+		t.Fatalf("precondition: self-help gate must be closed for %q; got ok=true guidance=%q", prompt, guidance)
+	}
+	// Use the open-gate body as the not-want substring; it must be absent
+	// when the gate rejects the inbound prompt.
+	openBody, _ := hermes.GormesSelfHelpGuidanceForPrompt("How do I configure Gormes?")
+	if openBody == "" {
+		t.Fatalf("precondition: open-gate body must be non-empty")
+	}
+	got := newLiveTurnHarness(t, "telegram").dispatchFixture(liveTurnFixture{
+		submitText: prompt,
+	})
+	if strings.Contains(got, openBody) {
+		t.Fatalf("SessionContext must not include self-help guidance for unrelated prompt.\ngot:\n%s", got)
+	}
+}
+
+func TestLiveTurn_SystemPrompt_SelfHelpGuidanceChannelNeutral(t *testing.T) {
+	prompt := "How do I configure Gormes?"
+	wantGuidance, ok := hermes.GormesSelfHelpGuidanceForPrompt(prompt)
+	if !ok || wantGuidance == "" {
+		t.Fatalf("self-help gate must open for %q", prompt)
+	}
+	platforms := []string{"telegram", "slack", "bluebubbles", "whatsapp", "discord"}
+	for _, platform := range platforms {
+		platform := platform
+		t.Run(platform, func(t *testing.T) {
+			got := newLiveTurnHarness(t, platform).dispatchFixture(liveTurnFixture{
+				submitText: prompt,
+			})
+			if !strings.Contains(got, wantGuidance) {
+				t.Fatalf("[%s] SessionContext does not contain self-help guidance body.\nwant:\n%s\n\ngot:\n%s", platform, wantGuidance, got)
+			}
+		})
+	}
+}

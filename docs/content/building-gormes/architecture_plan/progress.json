@@ -1763,7 +1763,7 @@
             },
             {
               "name": "Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -1772,7 +1772,7 @@
                 "system"
               ],
               "contract": "gateway.Manager assembles a Hermes-compatible turn-metadata block per inbound submit, mirroring run_agent.py:3770-3779: `Conversation started: <Weekday>, <Month> <Day>, <Year> <HH:MM AM/PM>` followed by optional `Session ID: <id>`, `Model: <model>`, `Provider: <provider>` lines (each rendered only when the corresponding value is non-empty). The block is appended after the slice-1 context-files block and the slice-2 USER/MEMORY block but before the platform/session block. The same site also gates an inline injection of the already-shipped `internal/hermes.GormesSelfHelpGuidanceForPrompt(submitText)` helper so the gateway-supplied user message can trigger Gormes self-help guidance without a model call. Both pieces honor the channel-neutral assembly site at gateway.Manager — never inside any channel adapter — so all channels (Telegram, Slack, WhatsApp, BlueBubbles, Discord) inherit them automatically.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "Empty session ID, empty model, or empty provider drops the corresponding line from the metadata block; an empty block (none of timestamp/session/model/provider populated) is omitted from the assembled header. Self-help guidance is suppressed when GormesSelfHelpGuidanceForPrompt returns gate=false (user prompt not a Gormes-self-help question). A clock seam returning the zero time produces the deterministic test fixture timestamp; production wiring uses time.Now via the seam default. No raw provider credentials, base URLs, or API keys are ever rendered — only model/provider names.",
               "fixture": "internal/gateway/live_turn_prompt_test.go + internal/hermes/turn_metadata_test.go",
               "source_refs": [
@@ -1834,6 +1834,45 @@
               "done_signal": [
                 "Four BuildTurnMetadataBlock unit fixtures + seven gateway live-turn fixtures pass; the captured SessionContext order is context-files -> USER/MEMORY -> turn-metadata -> platform/session; self-help guidance gate is open for self-help prompts and closed for off-topic prompts; existing slice-1+2 fixtures pass byte-identical when metadata seams return empty/zero values."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/turn_metadata.go:TurnMetadataOptions (clock + SessionID + Model + Provider options struct, doc-cited to run_agent.py:3770-3779)",
+                  "internal/hermes/turn_metadata.go:BuildTurnMetadataBlock (renders the Hermes-format `Conversation started: ...` line followed by optional Session ID / Model / Provider lines; zero clock + all-empty fields returns \"\"; honors the supplied time.Time location)",
+                  "internal/hermes/turn_metadata.go:turnMetadataTimeFormat (Go layout `Monday, January 2, 2006 03:04 PM` mirroring Python `'%A, %B %d, %Y %I:%M %p'`)",
+                  "internal/gateway/live_turn_prompt.go:liveTurnPromptSeams (extended with Now / ActiveSessionID / ActiveModel / ActiveProvider / BuildMetadata / SelfHelpGate seams)",
+                  "internal/gateway/live_turn_prompt.go:defaultLiveTurnPromptSeams (defaults BuildMetadata=hermes.BuildTurnMetadataBlock and SelfHelpGate=hermes.GormesSelfHelpGuidanceForPrompt; the active-state getters default to nil so the metadata block is fully elided unless production wiring or a fixture supplies them — keeps slice-1+2 byte output stable)",
+                  "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (now accepts submitText so the self-help gate runs at the channel-neutral assembly site; pieces joined in fixed order context-files / durable-user / turn-metadata / self-help / session, empty pieces elided so missing-metadata + closed-gate output stays byte-identical to slice 2)",
+                  "internal/gateway/live_turn_prompt.go:buildMetadataFromSeams (private helper that resolves the seams into a hermes.TurnMetadataOptions and renders via BuildMetadata)",
+                  "internal/gateway/live_turn_prompt.go:buildSelfHelpFromSeams (private helper that calls SelfHelpGate(submitText) and returns the body only when the gate opens)",
+                  "internal/gateway/manager.go:ManagerConfig.LiveTurnNow / LiveTurnActiveSessionID / LiveTurnActiveModel / LiveTurnActiveProvider (caller-supplied seam overrides; nil leaves the metadata block elided so existing tests stay byte-identical)",
+                  "internal/gateway/manager.go:newManagerInternal (resolves the new ManagerConfig fields into seams.Now / ActiveSessionID / ActiveModel / ActiveProvider at construction)",
+                  "internal/gateway/manager.go:submitPinned (passes submitText to assembleLiveTurnPrompt at the existing channel-neutral assembly site)"
+                ],
+                "tests": [
+                  "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_RendersHermesFormat",
+                  "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_OmitsEmptyFields (sub-tests: only_timestamp, empty_only_model)",
+                  "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_EmptyClockReturnsEmpty",
+                  "internal/hermes/turn_metadata_test.go:TestBuildTurnMetadataBlock_TimezoneHonorsLocal",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesTurnMetadata",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_TurnMetadataBlockOrder",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_TurnMetadataChannelNeutral (sub-tests: telegram, slack, bluebubbles, whatsapp, discord)",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateOpen",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateClosed",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_SelfHelpGuidanceChannelNeutral (sub-tests: telegram, slack, bluebubbles, whatsapp, discord)"
+                ],
+                "captured_session_context_for_full_metadata_gate_open_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\n## AGENTS.md\n\nProject: Gormes — native Go Hermes parity agent.\nYou are Gormes, not ChatGPT.\n\n# Durable User Context\n\nThe following durable user/memory files have been loaded and should be considered when responding:\n\n## USER.md\n\n# User\nName: Juan\n\n## MEMORY.md\n\n# Memory\nLast topic: live prompt parity.\n\nConversation started: Wednesday, April 29, 2026 02:46 PM\nSession ID: sess-1\nModel: claude-opus-4-7\nProvider: anthropic\n\nGormes self-help guidance:\nWhen the user asks about configuring, setting up, troubleshooting, or using Gormes or Gormes Agent itself, consult Gormes-owned self-help material before answering.\n- Prefer the future gormes-self-help skill when it is available.\n- If that skill is unavailable, use the local Hugo docs surface at https://docs.gormes.ai/, especially Using Gormes and Building Gormes pages.\n- Include evidence self-help-unavailable when falling back to docs because the skill is unavailable.\n- Keep this guidance scoped to Gormes/Gormes Agent self-help; omit it for unrelated prompts.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
+                "self_help_gate_closed_fixture_prompt": "Write a Go unit test for JSON parsing. (proven gate=false by internal/hermes/self_help_guidance_test.go TestGormesSelfHelpGuidanceGateMatchesSetupQuestions/unrelated)",
+                "byte_identity_baseline": "TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic captures the slice-2 baseline via dispatchWithMemory(emptyProfile, emptyCWD, emptyMemory) and asserts byte-equality with dispatchFixture(empty seams + 'hello' submitText) — both elide the metadata block (no clock seam) and the self-help block (gate closed for 'hello').",
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run TurnMetadata -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel ./internal/memory -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "porting",
                 "upstream_ref": "hermes:run_agent.py:3770-3779 timestamp/session/model/provider lines + run_agent.py self-help guidance gate",

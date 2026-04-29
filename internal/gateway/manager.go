@@ -83,6 +83,22 @@ type ManagerConfig struct {
 	// to <config.GormesHome()>/memory at call time. Tests inject hermetic
 	// temp directories so no live ~/.gormes/memory state is read.
 	ContextFilesMemoryDir string
+	// LiveTurnNow overrides the clock used to render the live-turn timestamp
+	// line. Nil leaves the clock unset, which suppresses the "Conversation
+	// started: ..." line so slice-1+2 byte output stays stable. Production
+	// wiring should set this to time.Now (or an equivalent UTC/zone-aware
+	// closure); tests wire a fixed clock.
+	LiveTurnNow func() time.Time
+	// LiveTurnActiveSessionID returns the active session id rendered on the
+	// `Session ID: ...` line. Nil or empty result drops the line.
+	LiveTurnActiveSessionID func() string
+	// LiveTurnActiveModel returns the active model name rendered on the
+	// `Model: ...` line. Nil or empty result drops the line.
+	LiveTurnActiveModel func() string
+	// LiveTurnActiveProvider returns the active provider name rendered on
+	// the `Provider: ...` line. Nil or empty result drops the line. Only
+	// non-secret display names are exposed — never base URLs or API keys.
+	LiveTurnActiveProvider func() string
 }
 
 type kernelSubmitter interface {
@@ -275,6 +291,18 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 	if memDir := strings.TrimSpace(cfg.ContextFilesMemoryDir); memDir != "" {
 		seams.MemoryDir = func() string { return memDir }
+	}
+	if cfg.LiveTurnNow != nil {
+		seams.Now = cfg.LiveTurnNow
+	}
+	if cfg.LiveTurnActiveSessionID != nil {
+		seams.ActiveSessionID = cfg.LiveTurnActiveSessionID
+	}
+	if cfg.LiveTurnActiveModel != nil {
+		seams.ActiveModel = cfg.LiveTurnActiveModel
+	}
+	if cfg.LiveTurnActiveProvider != nil {
+		seams.ActiveProvider = cfg.LiveTurnActiveProvider
 	}
 	return &Manager{
 		cfg:                 cfg,
@@ -1568,7 +1596,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
-	sessionContext, _, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, sessionBlock)
+	sessionContext, _, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, submitText, sessionBlock)
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,
