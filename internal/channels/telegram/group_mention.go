@@ -87,10 +87,12 @@ func utf16EntityByteRange(text string, offset, length int) (int, int, bool) {
 		currentUnit += len(utf16.Encode([]rune{r}))
 	}
 
-	if currentUnit == startUnit {
+	// Fallbacks only fire when the loop completed without finding the
+	// boundary inside the text (entity ends at the very end of the string).
+	if startByte < 0 && currentUnit == startUnit {
 		startByte = len(text)
 	}
-	if currentUnit == endUnit {
+	if endByte < 0 && currentUnit == endUnit {
 		endByte = len(text)
 	}
 	if startByte < 0 || endByte < 0 || startByte > endByte {

@@ -63,3 +63,15 @@ func botCommandEntity(command string) tgbotapi.MessageEntity {
 		Length: len(command),
 	}
 }
+
+func TestTelegramEntityText_OffsetZeroEntityInteriorToText(t *testing.T) {
+	text := "@gormes_bot hello"
+	entity := tgbotapi.MessageEntity{Type: "mention", Offset: 0, Length: len("@gormes_bot")}
+	got, ok := telegramEntityText(text, entity)
+	if !ok {
+		t.Fatal("telegramEntityText returned ok=false")
+	}
+	if got != "@gormes_bot" {
+		t.Fatalf("got %q, want %q", got, "@gormes_bot")
+	}
+}
