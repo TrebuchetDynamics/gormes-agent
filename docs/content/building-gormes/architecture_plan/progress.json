@@ -17888,9 +17888,9 @@
             },
             {
               "name": "OpenClaw migration writer and cleanup command",
-              "status": "planned",
+              "status": "complete",
               "contract": "`gormes migrate openclaw --yes` applies the validated OpenClaw manifest into Gormes config, dotenv, memories, skills, and archive report directories with backups and conflict policies; `gormes migrate openclaw cleanup` archives leftover OpenClaw directories after warning about running processes.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -17943,7 +17943,12 @@
               ],
               "done_signal": [
                 "OpenClaw apply/cleanup fixtures prove manifest-only writes, backup/conflict policy, secret opt-in, explicit archive reports, cleanup dry-run/apply behavior, and injected running-process warnings."
-              ]
+              ],
+              "evidence": {
+                "implementation": "cmd/gormes/migrate.go, cmd/gormes/migrate_openclaw_apply_test.go, internal/migrate/openclaw/apply.go, internal/migrate/openclaw/apply_test.go",
+                "tests": "go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup' -count=1; go test ./... -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "OpenClaw migrate apply writes config/dotenv/memory/skills under injected XDG roots, emits a timestamped report.json under XDG_STATE_HOME/gormes/migrations/openclaw, refuses without --yes, conflicts skip-by-default with --overwrite flipping to migrated and creating .bak.<timestamp> files, secrets gate behind --secrets, and cleanup is its own sub-subcommand that renames ~/.openclaw, ~/.clawdbot, and ~/.moltbot into .pre-migration archives without deleting data; running-process warnings flow through an injected ProcessDetector seam."
+              }
             },
             {
               "name": "CLI profile name validator",
