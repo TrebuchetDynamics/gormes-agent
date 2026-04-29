@@ -20954,9 +20954,9 @@
             {
               "name": "Native TUI Hermes status bar renderer",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui renders a Hermes-compatible single-line footer/status bar from the latest RenderFrame plus local timing state: short model name, context used/total, context percentage with threshold styles, session duration, per-prompt elapsed timer, width-aware collapse at <52 and <76 columns, and no wrapping or duplicated ghost rows.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20989,7 +20989,7 @@
                 "TestHermesStatusBar_TrimsToWidth proves long model names and wide glyphs never wrap past the announced width.",
                 "TestHermesStatusBar_ContextThresholdStyles proves >=95 critical, >80 bad, >=50 warn, and lower good classifications."
               ],
-              "note": "Second exact-look slice. Gormes currently shows `phase/model/session/mouse`; Hermes shows a compact model/context/duration footer. Keep this renderer isolated before replacing View chrome.",
+              "note": "Complete: TDD added internal/tui/hermes_status_bar.go and internal/tui/hermes_status_bar_test.go porting Hermes cli.py:_get_status_bar_snapshot/_build_status_bar_text/_status_bar_context_style as pure helpers. Locked invariants: ⚕-prefixed model + ` │ ` separators above 76 columns with model/ctx-used/ctx-total/percent/duration/prompt-elapsed; ` · ` mid tier collapses to model/percent/duration below 76; narrow tier below 52 collapses to model/duration; lipgloss.Width-based ellipsis trim guarantees the rendered line never exceeds the announced terminal width even with CJK glyphs; context severity matches Hermes' nil/<50/50–80/81–94/≥95 dim/good/warn/bad/critical bands.",
               "write_scope": [
                 "internal/tui/hermes_status_bar.go",
                 "internal/tui/hermes_status_bar_test.go",
