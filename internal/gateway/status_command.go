@@ -16,17 +16,7 @@ func (m *Manager) handleStatusCommand(ctx context.Context, ch Channel, ev Inboun
 
 func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) string {
 	frame := m.lastUsageFrameSnapshot()
-	sessionID := ""
-	if m.cfg.SessionMap != nil {
-		if mapped, err := m.cfg.SessionMap.Get(ctx, ev.ChatKey()); err == nil {
-			sessionID = strings.TrimSpace(mapped)
-		} else {
-			m.log.Warn("load session mapping for status", "key", ev.ChatKey(), "err", err)
-		}
-	}
-	if sessionID == "" {
-		sessionID = strings.TrimSpace(frame.SessionID)
-	}
+	sessionID := m.resolveStatusSession(ctx, ev, frame)
 	if sessionID == "" {
 		sessionID = "(none)"
 	}
@@ -53,12 +43,59 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	return fmt.Sprintf("📊 Gormes Gateway Status\n\nSession ID:\n%s\nTitle: (untitled)\nCreated: (unknown)\nLast Activity: %s\nTokens: %d\nAgent Running: %s\n\nConnected Platforms: %s", sessionID, lastActivity, tokens, agentRunning, connected)
 }
 
-type sessionMetadataGetter interface {
-	GetMetadata(context.Context, string) (session.Metadata, bool, error)
+func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, frame kernel.RenderFrame) string {
+	sessionID := ""
+	resolved, err := resolveSession(ctx, m.cfg.SessionMap, ev.ChatKey())
+	if err != nil {
+		m.log.Warn("resolve session for status", "key", ev.ChatKey(), "err", err)
+	}
+	sessionID = strings.TrimSpace(resolved.SessionID)
+	if sessionID == "" {
+		sessionID = strings.TrimSpace(frame.SessionID)
+	}
+	if sessionID == "" {
+		return ""
+	}
+	m.persistStatusSession(ctx, ev, sessionID)
+	m.ensureStatusSessionMetadata(ctx, ev, sessionID)
+	return sessionID
+}
+
+func (m *Manager) persistStatusSession(ctx context.Context, ev InboundEvent, sessionID string) {
+	if m.cfg.SessionMap == nil {
+		return
+	}
+	key := strings.TrimSpace(ev.ChatKey())
+	if key == "" || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+	if err := m.cfg.SessionMap.Put(ctx, key, sessionID); err != nil {
+		m.log.Warn("persist session_id for status", "key", key, "session_id", sessionID, "err", err)
+	}
+}
+
+func (m *Manager) ensureStatusSessionMetadata(ctx context.Context, ev InboundEvent, sessionID string) {
+	writer, ok := m.cfg.SessionMap.(sessionMetadataWriter)
+	if !ok {
+		return
+	}
+	source := sessionSourceFromInbound(ev)
+	meta := session.Metadata{
+		SessionID: sessionID,
+		UpdatedAt: m.now().Unix(),
+	}
+	if source.Platform != "" && source.ChatID != "" {
+		meta.Source = source.Platform
+		meta.ChatID = source.ChatID
+		meta.UserID = source.UserID
+	}
+	if err := writer.PutMetadata(ctx, meta); err != nil {
+		m.log.Warn("write session metadata for status", "session_id", sessionID, "err", err)
+	}
 }
 
 func (m *Manager) lookupSessionMetadata(ctx context.Context, sessionID string) (session.Metadata, bool) {
-	store, ok := m.cfg.SessionMap.(sessionMetadataGetter)
+	store, ok := m.cfg.SessionMap.(sessionMetadataReader)
 	if !ok {
 		return session.Metadata{}, false
 	}
