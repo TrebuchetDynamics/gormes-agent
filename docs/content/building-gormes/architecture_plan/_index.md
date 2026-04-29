@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 39/77 subphases shipped · 26 in progress · 12 planned
+**Overall:** 41/77 subphases shipped · 25 in progress · 11 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -731,9 +731,9 @@ classification and row-backed implementation queue.
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge
 
-### 5.P — Docker / Packaging ⏳
+### 5.P — Docker / Packaging 🔨
 
-- [ ] OCI image
+- [x] OCI image
 - [ ] Homebrew
 - [ ] Unix installer (install.sh) source-backed update flow
 - [ ] Unix installer root/FHS layout policy

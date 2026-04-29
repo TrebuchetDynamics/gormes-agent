@@ -83,24 +83,26 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. OCI image
+## 4. Backup/update opt-in and exclusion policy
 
-- Phase: 5 / 5.P
-- Owner: `docs`
+- Phase: 5 / 5.O
+- Owner: `tools`
 - Size: `small`
 - Status: `planned`
-- Contract: Gormes ships an OCI image contract that mirrors upstream Docker entrypoint/config volume operational behavior while proving the final image contains the Go binary and no required Python runtime path.
+- Priority: `P3`
+- Contract: CLI backup/update policy defaults pre-update backups off unless explicitly requested, honors --no-backup over --backup, and excludes checkpoints plus SQLite WAL/SHM/journal sidecars from backup manifests
 - Trust class: operator, system
-- Ready when: The Go binary build and offline doctor command are stable., The slice can test Dockerfile/entrypoint text and optional local container smoke fixtures without publishing an image.
-- Not ready when: The slice requires live registry access, provider credentials, hosted Honcho Postgres/Redis, or Python package installation to prove Gormes runtime behavior., The slice changes installer policy or release artifact signing in the same pass.
-- Degraded mode: Container smoke tests run offline and report missing binary, missing config volume, or Python-runtime dependency evidence without contacting registries or providers.
-- Fixture: `docs/install/oci_image_test.go`
-- Write scope: `Dockerfile`, `docker/entrypoint.sh`, `docs/install/oci_image_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./docs -run TestOCIImageContract -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: OCI image fixtures prove Go-binary runtime layout, offline doctor command behavior, config volume handling, and explicit hosted Honcho deploy divergence.
-- Acceptance: Dockerfile fixtures prove the image builds or describes a Go-binary runtime path with no Hermes Python runtime dependency., Entrypoint fixtures preserve offline doctor/config-volume behavior and deterministic command forwarding., Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies., A smoke command can run `gormes doctor --offline` with fake config volume inputs.
-- Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+- Ready when: Diagnostics, backup, logs, and status CLI remains an umbrella; this row is the first pure backup policy helper and does not require a real update command., Tests use synthetic flag values and temp path lists; no archive writer, git pull, network, package manager, or real Gormes home is required.
+- Not ready when: The slice implements update execution, writes archives, contacts git remotes, changes installer scripts, or scans the real operator home directory., The slice includes checkpoints/, *.db-wal, *.db-shm, or *.db-journal files in a default backup manifest., The slice changes log redaction or support-upload behavior.
+- Degraded mode: Update status reports backup_skipped_default, backup_forced, backup_disabled_by_flag, or backup_manifest_excluded_paths instead of silently archiving large or unsafe runtime files.
+- Fixture: `internal/cli/backup_policy_test.go::TestBackupPolicy_*`
+- Write scope: `internal/cli/backup_policy.go`, `internal/cli/backup_policy_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/cli -run '^TestBackupPolicy_\|^TestBackupManifestExclusions_' -count=1`, `go test ./internal/cli -count=1`, `go run ./cmd/progress validate`
+- Done signal: Backup policy fixtures prove pre-update backups are opt-in, --no-backup wins, and checkpoints plus SQLite WAL/SHM/journal sidecars are excluded from manifests without archive or network side effects.
+- Acceptance: TestBackupPolicy_DefaultSkipsPreUpdateBackup proves no backup is requested when neither --backup nor --no-backup is set., TestBackupPolicy_ExplicitBackupEnables proves --backup requests a backup and emits backup_forced evidence., TestBackupPolicy_NoBackupWins proves --no-backup suppresses backup even when --backup is also true., TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars proves checkpoints/, *.db-wal, *.db-shm, and *.db-journal are excluded while ordinary .db files remain eligible., Tests use synthetic paths/temp dirs only and do not create archives or invoke git.
+- Source refs: ../hermes-agent/hermes_cli/main.py@ea3c5a14:update backup flags, ../hermes-agent/hermes_cli/backup.py@a9033c92:exclude checkpoints, ../hermes-agent/hermes_cli/backup.py@817633bc:exclude SQLite sidecars, ../hermes-agent/tests/hermes_cli/test_backup.py@817633bc, internal/cli/log_snapshot.go, cmd/gormes/doctor.go
+- Unblocks: Backup manifest dry-run contract
+- Why now: Unblocks Backup manifest dry-run contract.
 
 ## 5. Homebrew
 
@@ -121,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Tool output budget persisted artifact pointer
+## 6. Yuanbao protocol envelope + markdown fixtures
 
 - Phase: 5 / 5.A
 - Owner: `tools`

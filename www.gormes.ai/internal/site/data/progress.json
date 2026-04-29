@@ -19453,9 +19453,9 @@
           "items": [
             {
               "name": "OCI image",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ships an OCI image contract that mirrors upstream Docker entrypoint/config volume operational behavior while proving the final image contains the Go binary and no required Python runtime path.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -19489,7 +19489,7 @@
                 "Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies.",
                 "A smoke command can run `gormes doctor --offline` with fake config volume inputs."
               ],
-              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad Docker/packaging evidence with exact Dockerfile and entrypoint/config refs for Hermes and Honcho.",
+              "note": "Complete: TDD added Dockerfile, docker/entrypoint.sh, and docs/install/oci_image_test.go. Locked invariants: two-stage Go build into distroless/static with no Python/Node/Playwright deps, /opt/data config volume seeded by entrypoint with offline-safe config.yaml, deterministic CMD doctor --offline smoke and gormes \"$@\" forwarding, and explicit divergence comments classifying hosted-Honcho compose/Prometheus/Grafana files as docs-only.",
               "write_scope": [
                 "Dockerfile",
                 "docker/entrypoint.sh",
