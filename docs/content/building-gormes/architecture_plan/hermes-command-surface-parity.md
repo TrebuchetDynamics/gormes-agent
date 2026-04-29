@@ -27,15 +27,29 @@ If this page disagrees with `progress.json`, fix `progress.json` first and then
 update or regenerate derived docs. This page is an operator-readable matrix; the
 machine-readable work queue remains `progress.json`.
 
+## Audit answer: do we have every command?
+
+Not yet. The current executable manifest is good enough to stop losing
+top-level Hermes commands, auth subcommands, fallback aliases, gateway message
+handlers, slash commands, and dynamic plugin command classes. It is not yet
+good enough to claim every current Hermes nested parser command is captured.
+
+The drift is now explicit: `Hermes CLI nested parser inventory refresh` is a
+Phase `5.O` P1 row. That row must refresh `cmd/gormes/hermes_cli_parity.go`
+from current `../hermes-agent/hermes_cli/main.py` parser groups before any
+builder claims command-surface parity. Unsupported commands still count as
+parity work: they should be classified as `Row-backed`, `Excluded/deprecated`,
+or `Gormes-owned`, never silently omitted.
+
 ## Source capture
 
 Hermes source paths inspected for this matrix:
 
-- `/home/xel/.hermes/hermes-agent/hermes_cli/main.py`
-- `/home/xel/.hermes/hermes-agent/hermes_cli/auth.py`
-- `/home/xel/.hermes/hermes-agent/hermes_cli/auth_commands.py`
-- `/home/xel/.hermes/hermes-agent/agent/credential_pool.py`
-- `/home/xel/.hermes/hermes-agent/gateway/run.py`
+- `../hermes-agent/hermes_cli/main.py`
+- `../hermes-agent/hermes_cli/auth.py`
+- `../hermes-agent/hermes_cli/auth_commands.py`
+- `../hermes-agent/agent/credential_pool.py`
+- `../hermes-agent/gateway/run.py`
 
 Gormes source and runtime probes inspected for this matrix:
 
@@ -45,6 +59,19 @@ Gormes source and runtime probes inspected for this matrix:
 - `go run ./cmd/gormes auth --help`
 - `go run ./cmd/gormes gateway --help`
 - `go run ./cmd/progress validate`
+
+Gormes-reference donor anchors consulted for provider/channel/tool planning:
+
+- `../references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`
+- `../references/go-agent-os/goclaw/internal/oauth/openai.go`
+- `../references/go-agent-os/goclaw/internal/oauth/token.go`
+- `../references/go-agent-os/goclaw/internal/oauth/openai_quota_transport.go`
+- `../references/go-agent-os/nanobot/pkg/tools/service.go`
+- `../references/go-agent-os/nanobot/pkg/tools/flows.go`
+- `../references/go-agent-os/nanobot/pkg/agents/truncate.go`
+- `../references/go-agent-os/trpc-agent-go/agent/callbacks.go`
+- `../references/go-agent-os/trpc-agent-go/model/callbacks.go`
+- `../references/go-agent-os/engram/internal/mcp/write_queue.go`
 
 ## Current Gormes visible command surface
 
@@ -69,10 +96,40 @@ Current implemented or stubbed subcommand highlights:
 - `gormes login`: compatibility shim; it must remain a deprecation redirect, not
   a new OAuth implementation surface.
 
-Known absent root commands from current Gormes help include `skills`, `plugins`,
-`tools`, `mcp`, `profile`, `logs`, `cron`, `webhook`, `backup`, `dump`, `debug`,
-`pairing`, `sessions`, `insights`, `claw`, `update`, `uninstall`, `acp`, and
-`dashboard`. These absences are not ignored; they are row-backed below.
+Known absent root commands from current Gormes help include `model`, `fallback`,
+`setup`, `whatsapp`, `slack`, `logout`, `status`, `cron`, `webhook`, `hooks`,
+`dump`, `debug`, `backup`, `import`, `pairing`, `skills`, `plugins`, `tools`,
+`mcp`, `sessions`, `insights`, `claw`, `update`, `uninstall`, `acp`, `profile`,
+`dashboard`, and `logs`. These absences are not ignored; they are row-backed
+below.
+
+## Current upstream nested parser inventory
+
+This table is the planner guardrail for the new nested-manifest refresh row.
+It distinguishes real `hermes <group> <subcommand>` parser paths from gateway
+message handlers and dynamic plugin commands.
+
+| Hermes parser group | Current upstream nested commands / aliases | Current manifest state | Progress action |
+|---|---|---|---|
+| `fallback` | `list`/`ls`, `add`, `remove`/`rm`, `clear` | Captured. | Keep covered by `Hermes auth command-tree manifest refresh` and fallback command rows. |
+| `gateway` | `run`, `start`, `stop`, `restart`, `status`, `install`, `uninstall`, `setup`, `migrate-legacy` | Stale: the manifest currently mixes gateway message handlers such as `reset`, `help`, `model`, `approve`, and `usage` into the parser group. | `Hermes CLI nested parser inventory refresh`; management handlers remain in `Gateway, platform, webhook, and cron management CLI`. |
+| `slack` | `manifest` | Missing nested command. | `Hermes CLI nested parser inventory refresh`; platform handler work stays row-backed. |
+| `auth` | `add`, `list`, `remove`, `reset`, `status`, `logout`, `spotify` | Captured; stale `auth login` and `auth refresh` are excluded. | Keep non-deprecated provider login through `auth add <provider> --type oauth`. |
+| `cron` | `list`, `create`/`add`, `edit`, `pause`, `resume`, `run`, `remove`/`rm`/`delete`, `status`, `tick` | Stale: old `enable`/`disable` paths are still represented while `edit`, `pause`, `resume`, `status`, and `tick` are missing. | `Hermes CLI nested parser inventory refresh`, then `Gateway, platform, webhook, and cron management CLI`. |
+| `webhook` | `subscribe`/`add`, `list`/`ls`, `remove`/`rm`, `test` | Stale: `serve` is not a current parser command; `subscribe` and aliases need capture. | `Hermes CLI nested parser inventory refresh`, then platform/webhook row. |
+| `hooks` | `list`/`ls`, `test`, `revoke`/`remove`/`rm`, `doctor` | Stale: old `run` path is represented; current revoke/doctor paths need capture. | `Hermes CLI nested parser inventory refresh`; shell hook execution stays dedicated handler work. |
+| `debug` | `share`, `delete` | Stale: `doctor`, `paste`, and `sweep` are not current parser commands. | `Hermes CLI nested parser inventory refresh`; paste sweep scheduler remains diagnostics work if needed. |
+| `config` | `show`, `edit`, `set`, `path`, `env-path`, `check`, `migrate` | Partial: `env-path` needs manifest coverage. | `Hermes CLI nested parser inventory refresh`; config behavior rows own handlers. |
+| `pairing` | `list`, `approve`, `revoke`, `clear-pending` | Stale: old `deny`/`reset` paths are represented; current revoke/clear-pending need capture. | `Hermes CLI nested parser inventory refresh`, then platform pairing row. |
+| `skills` | `browse`, `search`, `install`, `inspect`, `list`, `check`, `update`, `audit`, `uninstall`, `reset`, `publish`, `snapshot export`, `snapshot import`, `tap list`, `tap add`, `tap remove`, `config` | Shallow: only a small subset is represented. | `Hermes CLI nested parser inventory refresh`; skill manager/runtime rows own behavior. |
+| `plugins` | `install`, `update`, `remove`/`rm`/`uninstall`, `list`/`ls`, `enable`, `disable` | Partial: aliases and `update` need manifest coverage; stale `doctor` should be removed or marked stale. | `Hermes CLI nested parser inventory refresh`; plugin SDK owns behavior. |
+| `memory` | `setup`, `status`, `off`, `reset` | Stale: plugin-style `search/add/delete/export` is a dynamic plugin class, not the current static parser group. | `Hermes CLI nested parser inventory refresh`; memory/Goncho rows own implementation. |
+| `tools` | `list`, `disable`, `enable`; bare `tools` opens interactive config; `--summary` prints summary | Partial: stale `doctor` should be removed or marked stale. | `Hermes CLI nested parser inventory refresh`; tool runtime/security rows own behavior. |
+| `mcp` | `serve`, `add`, `remove`/`rm`, `list`/`ls`, `test`, `configure`/`config`, `login` | Stale: old `call` and `auth` paths are represented; `serve`, `test`, `configure`/`config`, and `login` need capture. | `Hermes CLI nested parser inventory refresh`; ACP/MCP rows own behavior. |
+| `sessions` | `list`, `export`, `delete`, `prune`, `stats`, `rename`, `browse` | Stale: `resume` is represented as a parser command, but current resume is a browse/exec behavior; `prune`, `stats`, and `browse` need capture. | `Hermes CLI nested parser inventory refresh`; session rows own handlers. |
+| `claw` | `migrate`, `cleanup`/`clean` | Mostly captured; `clean` alias needs explicit coverage. | `Hermes CLI nested parser inventory refresh`; OpenClaw migration rows own behavior. |
+| `profile` | `list`, `use`, `create`, `delete`, `show`, `alias`, `rename`, `export`, `import` | Stale: old `set` path is represented; most current profile subcommands are missing. | `Hermes CLI nested parser inventory refresh`; config/profile rows own behavior. |
+| `logs` | No subparser; optional `log_name` argument accepts `agent`, `errors`, `gateway`, or `list`. | Top-level row-backed only. | Diagnostics rows own log viewing/filtering behavior. |
 
 ## Hermes top-level parity matrix
 
@@ -89,12 +146,14 @@ Status values:
 |---|---|---|---|
 | `chat` / root interactive | Partial | `cmd/gormes root TUI/oneshot`; Phase `5.O` root flags rows | Native TUI/oneshot exists; full Hermes chat UX is still broader than root help parity. |
 | `model` | Row-backed | Phase `5.O`: `Gormes model interactive provider/model picker` | Must select provider/model and run needed OAuth flows. |
+| `fallback` | Row-backed | Phase `5.O`: fallback provider chain rows; CLI manifest rows | Current Hermes subcommands are `list`/`ls`, `add`, `remove`/`rm`, and `clear`. |
 | `gateway` | Partial | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` plus `Gateway management CLI read-model closeout` | `status` exists; mutating service commands are explicit unavailable stubs. |
 | `setup` | Row-backed | Phase `5.O`: `Gormes setup minimal sectioned wizard slice`; `Gormes config command surface` | Must preserve Hermes wizard semantics where relevant. |
 | `whatsapp` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Platform management surface not yet visible as a root command. |
+| `slack` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Current Hermes nested command is `slack manifest`. |
 | `login` | Excluded/deprecated | Phase `5.O`: `Gormes login deprecated-redirect contract` | Must print deprecation guidance and exit cleanly; do not run OAuth work here. |
 | `logout` | Row-backed | Phase `5.O`: `Gormes top-level logout provider shortcut`; auth rows | `gormes auth logout` exists; top-level shortcut remains separate parity work. |
-| `auth` | Partial | Phase `5.O`: auth command rows; `hermes-auth-cli-parity.md` | API-key and pool operations exist; OAuth provider adapters remain planned. |
+| `auth` | Partial | Phase `5.O`: auth command rows; `hermes-auth-cli-parity.md` | API-key and pool operations exist; Codex device-code OAuth is in progress/native, while Anthropic, Nous, Google Gemini CLI, Qwen, and Spotify remain row-backed. |
 | `status` | Partial | Phase `5.O`: `Diagnostics, backup, logs, and status CLI`; gateway status rows | Current equivalent is `gormes gateway status`, not full Hermes root status. |
 | `cron` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Runtime cron exists elsewhere; CLI management parity remains planned. |
 | `webhook` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | CLI management surface remains planned. |
@@ -147,7 +206,7 @@ Codex CLI token import may exist only as an explicitly labeled emergency bridge.
 | Surface | Hermes behavior | Current Gormes state | Backlog owner |
 |---|---|---|---|
 | `auth add <provider>` API-key path | Securely stores manual pooled credential; redacts secrets. | Visible in `gormes auth add`; API-key path is present. | Phase `5.O`: `Hermes auth credential-pool command surface`. |
-| `auth add openai-codex` | Fresh Hermes-owned OAuth device-code flow, stored in `~/.hermes/auth.json`; separate from Codex CLI / VS Code tokens. | Command accepts OAuth-style flags, but OAuth provider adapters are still planned. | Phase `5.O`: `Hermes auth OAuth provider adapters`; `Gormes auth add openai-codex strict isolation contract`. |
+| `auth add openai-codex` | Fresh Hermes-owned OAuth device-code flow, stored in `~/.hermes/auth.json`; separate from Codex CLI / VS Code tokens. | Native device-code adapter and credential-pool persistence are in progress; remaining provider OAuth adapters stay row-backed. | Phase `5.O`: `Hermes auth OAuth provider adapters`; `Gormes auth add openai-codex strict isolation contract`. |
 | `auth list [provider]` | Lists redacted credential-pool entries and current selection markers. | Implemented as `gormes auth list`. | Phase `5.O`: auth command surface rows. |
 | `auth status <provider>` | Provider-specific logged-in/logged-out metadata. | Implemented read model; provider-specific OAuth expansions remain adapter work. | Phase `5.O`: `Gormes auth status per-provider aggregator`. |
 | `auth remove <provider> <target>` | Removes by index/id/label and runs source cleanup/suppression. | Implemented for native pool removal; source-specific cleanup gaps must remain explicit. | Phase `5.O`: auth command surface rows. |
@@ -171,12 +230,13 @@ provider/operator parity evidence:
   next Telegram turn is admitted. The regression row is covered by
   `internal/kernel/provider_failure_admission_test.go`.
 
-Remaining blocker: `openai-codex` currently reaches the upstream endpoint but
-returns a sanitized `Forbidden: provider returned HTML error body`. That is an
-auth/entitlement/relogin blocker, not an admission or Telegram wedging blocker.
-The next implementation slice should preserve the Hermes path above: native
-`gormes auth add openai-codex` OAuth/device-code behavior with Hermes-compatible
-credential storage, not Python Hermes runtime delegation.
+The next provider-auth slices should preserve the Hermes path above: native
+`gormes auth add <provider> --type oauth` behavior with Hermes-compatible
+credential storage, not Python Hermes runtime delegation. The OpenAI Codex
+device-code vertical is the first native adapter; any remaining `Forbidden:
+provider returned HTML error body` result should be triaged as
+auth/entitlement/relogin evidence, not as an admission-control or Telegram
+wedging blocker.
 
 ## Validation commands for parity-doc changes
 

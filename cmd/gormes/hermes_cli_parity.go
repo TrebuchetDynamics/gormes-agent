@@ -46,7 +46,7 @@ type hermesCLIParityEntry struct {
 func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries := []hermesCLIParityEntry{
 		hermesImplementedCommand("chat", "hermes_cli/main.py:chat", "cmd/gormes root TUI/oneshot"),
-		hermesRowCommand("model", "hermes_cli/main.py:model_command", "Hermes model/provider picker CLI commands", "interactive model picker and account-aware provider switching remain row-backed"),
+		hermesRowCommand("model", "hermes_cli/main.py:model_command", "Gormes model interactive provider/model picker", "interactive model picker and account-aware provider switching remain row-backed"),
 		hermesCommandSet("fallback", "hermes_cli/main.py:fallback", "fallback provider chain handlers remain row-backed", "Hermes fallback provider chain CLI commands"),
 		hermesCommandSet("gateway", "hermes_cli/main.py:gateway", "gateway lifecycle subcommands are partly implemented; missing mutating/service commands remain row-backed", "Gateway, platform, webhook, and cron management CLI"),
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
@@ -54,7 +54,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("slack", "hermes_cli/main.py:slack", "Gateway, platform, webhook, and cron management CLI", "Slack platform management remains row-backed"),
 		hermesExcludedCommand("login", "hermes_cli/auth.py:login_command", "Hermes top-level login is removed; use `gormes auth add <provider> --type oauth`, `gormes model`, or `gormes setup` parity rows"),
 		hermesProviderLogoutCommand(),
-		hermesCommandSet("auth", "hermes_cli/auth_commands.py:auth_command", "provider auth subcommands remain row-backed", "Hermes provider auth CLI commands"),
+		hermesCommandSet("auth", "hermes_cli/auth_commands.py:auth_command", "provider auth subcommands remain row-backed", "Hermes auth credential-pool command surface"),
 		hermesImplementedCommand("status", "hermes_cli/main.py:status", "cmd/gormes gateway status"),
 		hermesCommandSet("cron", "hermes_cli/main.py:cron", "cron command handlers remain row-backed over native cron store", "Gateway, platform, webhook, and cron management CLI"),
 		hermesCommandSet("webhook", "hermes_cli/main.py:webhook", "webhook management remains row-backed", "Gateway, platform, webhook, and cron management CLI"),

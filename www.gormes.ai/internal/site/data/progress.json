@@ -18400,6 +18400,7 @@
               ],
               "unblocks": [
                 "Hermes CLI command-tree parity manifest",
+                "Hermes CLI nested parser inventory refresh",
                 "Hermes auth command-tree manifest refresh",
                 "Hermes auth credential-pool command surface",
                 "Hermes auth OAuth provider adapters",
@@ -18452,6 +18453,7 @@
                 "Any upstream command, subcommand, flag, alias, or slash command is left unclassified."
               ],
               "unblocks": [
+                "Hermes CLI nested parser inventory refresh",
                 "Hermes auth command-tree manifest refresh",
                 "Gormes config command surface",
                 "Gormes config edit/check/native schema-migrate closeout",
@@ -18493,6 +18495,100 @@
                 "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go",
                 "tests": "go test ./cmd/gormes -run 'TestHermesCLIParityManifest|TestHermesCLIParityManifestNoUnknowns' -count=1; go run ./cmd/progress validate; git diff --check",
                 "note": "Manifest classifies upstream Hermes top-level/nested commands, gateway handlers, slash registry aliases, dynamic plugin commands, Gormes-owned divergences, and typo suggestion evidence before handler ports."
+              }
+            },
+            {
+              "name": "Hermes CLI nested parser inventory refresh",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Refresh the Gormes Hermes CLI compatibility manifest and tests from current Hermes argparse parser groups so every nested top-level command, alias, and removed/stale parser path is classified distinctly from gateway message handlers and dynamic plugin commands. Unsupported commands still need row-backed, excluded/deprecated, or Gormes-owned evidence; no current Hermes parser command may be absent merely because Gormes has not implemented it yet.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Nested parser drift fails the manifest test with a command-path diff. Stale paths such as `gateway reset`, `cron enable`, `webhook serve`, `mcp call`, `mcp auth`, `profile set`, `auth login`, and `auth refresh` are either excluded/stale with evidence or removed from active parser-command assertions instead of treated as implementation targets.",
+              "fixture": "cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifestNestedParserInventoryMatchesHermes",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:fallback_parser",
+                "../hermes-agent/hermes_cli/main.py:gateway_subparsers",
+                "../hermes-agent/hermes_cli/main.py:slack_sub",
+                "../hermes-agent/hermes_cli/main.py:auth_subparsers",
+                "../hermes-agent/hermes_cli/main.py:cron_subparsers",
+                "../hermes-agent/hermes_cli/main.py:webhook_subparsers",
+                "../hermes-agent/hermes_cli/main.py:hooks_subparsers",
+                "../hermes-agent/hermes_cli/main.py:debug_sub",
+                "../hermes-agent/hermes_cli/main.py:config_subparsers",
+                "../hermes-agent/hermes_cli/main.py:pairing_sub",
+                "../hermes-agent/hermes_cli/main.py:skills_subparsers",
+                "../hermes-agent/hermes_cli/main.py:plugins_subparsers",
+                "../hermes-agent/hermes_cli/main.py:memory_sub",
+                "../hermes-agent/hermes_cli/main.py:tools_sub",
+                "../hermes-agent/hermes_cli/main.py:mcp_sub",
+                "../hermes-agent/hermes_cli/main.py:sessions_subparsers",
+                "../hermes-agent/hermes_cli/main.py:claw_subparsers",
+                "../hermes-agent/hermes_cli/main.py:profile_subparsers",
+                "../hermes-agent/hermes_cli/main.py:logs_parser",
+                "../hermes-agent/gateway/run.py:_handle_status_command,_handle_restart_command,_handle_reset_command,_handle_help_command,_handle_model_command,_handle_profile_command,_handle_update_command,_handle_approve_command,_handle_deny_command,_handle_voice_command,_handle_usage_command",
+                "cmd/gormes/hermes_cli_parity.go:hermesCLIParityManifest",
+                "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifest",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Current upstream nested parser inventory"
+              ],
+              "ready_when": [
+                "Hermes CLI command-tree parity manifest is complete and can be refined without changing runtime command handlers.",
+                "The builder can assert the nested parser inventory with in-process Go fixtures and static upstream source refs; no provider credentials, gateway service, browser, network, or plugin install is required.",
+                "The Hugo parity matrix already records the current upstream nested parser inventory and known manifest drift."
+              ],
+              "not_ready_when": [
+                "The slice implements handler behavior for cron, webhook, hooks, skills, plugins, memory, tools, MCP, sessions, profile, Slack, or gateway service management.",
+                "Gateway message handlers are modeled as `hermes gateway <subcommand>` parser commands instead of `gateway-handler` entries.",
+                "The refreshed manifest leaves aliases, bare interactive surfaces, dynamic plugin commands, destructive markers, dry-run markers, or secret-redaction markers unclassified."
+              ],
+              "blocked_by": [
+                "Hermes CLI command-tree parity manifest"
+              ],
+              "unblocks": [
+                "Hermes auth command-tree manifest refresh",
+                "Gateway, platform, webhook, and cron management CLI",
+                "Diagnostics, backup, logs, and status CLI",
+                "Gormes config command surface",
+                "Gormes model interactive provider/model picker",
+                "Gormes mcp login OAuth re-auth bridge",
+                "Plugin SDK",
+                "Tool/runtime/security rows",
+                "Session shutdown memory transcript handoff"
+              ],
+              "acceptance": [
+                "TestHermesCLIParityManifestNestedParserInventoryMatchesHermes proves `gateway run/start/stop/restart/status/install/uninstall/setup/migrate-legacy` are parser commands and gateway `reset/help/model/profile/update/approve/deny/voice/usage` remain gateway-handler entries.",
+                "The refreshed manifest proves current cron parser commands and aliases are `list`, `create`/`add`, `edit`, `pause`, `resume`, `run`, `remove`/`rm`/`delete`, `status`, and `tick`; stale `enable`/`disable` are excluded or absent from active parser-command assertions.",
+                "The refreshed manifest proves webhook, hooks, debug, config, pairing, skills, plugins, memory, tools, MCP, sessions, claw, profile, Slack, and logs surfaces match current upstream parser inventory including aliases and nested `skills snapshot` / `skills tap` actions.",
+                "The refreshed manifest proves stale parser commands such as `webhook serve`, `hooks run`, `debug doctor`, `debug paste`, `debug sweep`, `pairing deny`, `pairing reset`, `plugins doctor`, `tools doctor`, `mcp call`, `mcp auth`, `sessions resume`, `profile set`, `auth login`, and `auth refresh` are not advertised as current Hermes implementation targets.",
+                "Every unsupported current Hermes parser path points to a named progress row, excluded/deprecated rationale, or Gormes-owned rationale; no path has unknown classification.",
+                "The Hugo command-surface matrix is updated from the same inventory so docs and executable manifest do not diverge."
+              ],
+              "note": "Added 2026-04-29 after the planner audit found the completed command-tree manifest overclaimed nested parser coverage: top-level/auth/fallback coverage is useful, but gateway parser commands, platform/channel commands, cron/webhook/hooks, skills/plugins, tool/MCP, sessions, profile, and Slack nested commands need a source-backed refresh before handler parity work proceeds.",
+              "write_scope": [
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(NestedParserInventoryMatchesHermes|NoUnknowns)' -count=1",
+                "go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "CLI parity manifest fixtures prove the current Hermes nested parser inventory, aliases, stale command exclusions, gateway-handler separation, row-backed residuals, and Hugo matrix evidence before any handler implementation claims parity."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/main.py argparse parser groups and gateway/run.py handler registry",
+                "note": "Hermes defines command spelling and aliases; Gormes owns Go-native manifest classification and implementation order."
               }
             },
             {

@@ -18400,6 +18400,7 @@
               ],
               "unblocks": [
                 "Hermes CLI command-tree parity manifest",
+                "Hermes CLI nested parser inventory refresh",
                 "Hermes auth command-tree manifest refresh",
                 "Hermes auth credential-pool command surface",
                 "Hermes auth OAuth provider adapters",
@@ -18452,6 +18453,7 @@
                 "Any upstream command, subcommand, flag, alias, or slash command is left unclassified."
               ],
               "unblocks": [
+                "Hermes CLI nested parser inventory refresh",
                 "Hermes auth command-tree manifest refresh",
                 "Gormes config command surface",
                 "Gormes config edit/check/native schema-migrate closeout",
@@ -18493,6 +18495,100 @@
                 "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go",
                 "tests": "go test ./cmd/gormes -run 'TestHermesCLIParityManifest|TestHermesCLIParityManifestNoUnknowns' -count=1; go run ./cmd/progress validate; git diff --check",
                 "note": "Manifest classifies upstream Hermes top-level/nested commands, gateway handlers, slash registry aliases, dynamic plugin commands, Gormes-owned divergences, and typo suggestion evidence before handler ports."
+              }
+            },
+            {
+              "name": "Hermes CLI nested parser inventory refresh",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Refresh the Gormes Hermes CLI compatibility manifest and tests from current Hermes argparse parser groups so every nested top-level command, alias, and removed/stale parser path is classified distinctly from gateway message handlers and dynamic plugin commands. Unsupported commands still need row-backed, excluded/deprecated, or Gormes-owned evidence; no current Hermes parser command may be absent merely because Gormes has not implemented it yet.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Nested parser drift fails the manifest test with a command-path diff. Stale paths such as `gateway reset`, `cron enable`, `webhook serve`, `mcp call`, `mcp auth`, `profile set`, `auth login`, and `auth refresh` are either excluded/stale with evidence or removed from active parser-command assertions instead of treated as implementation targets.",
+              "fixture": "cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifestNestedParserInventoryMatchesHermes",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:fallback_parser",
+                "../hermes-agent/hermes_cli/main.py:gateway_subparsers",
+                "../hermes-agent/hermes_cli/main.py:slack_sub",
+                "../hermes-agent/hermes_cli/main.py:auth_subparsers",
+                "../hermes-agent/hermes_cli/main.py:cron_subparsers",
+                "../hermes-agent/hermes_cli/main.py:webhook_subparsers",
+                "../hermes-agent/hermes_cli/main.py:hooks_subparsers",
+                "../hermes-agent/hermes_cli/main.py:debug_sub",
+                "../hermes-agent/hermes_cli/main.py:config_subparsers",
+                "../hermes-agent/hermes_cli/main.py:pairing_sub",
+                "../hermes-agent/hermes_cli/main.py:skills_subparsers",
+                "../hermes-agent/hermes_cli/main.py:plugins_subparsers",
+                "../hermes-agent/hermes_cli/main.py:memory_sub",
+                "../hermes-agent/hermes_cli/main.py:tools_sub",
+                "../hermes-agent/hermes_cli/main.py:mcp_sub",
+                "../hermes-agent/hermes_cli/main.py:sessions_subparsers",
+                "../hermes-agent/hermes_cli/main.py:claw_subparsers",
+                "../hermes-agent/hermes_cli/main.py:profile_subparsers",
+                "../hermes-agent/hermes_cli/main.py:logs_parser",
+                "../hermes-agent/gateway/run.py:_handle_status_command,_handle_restart_command,_handle_reset_command,_handle_help_command,_handle_model_command,_handle_profile_command,_handle_update_command,_handle_approve_command,_handle_deny_command,_handle_voice_command,_handle_usage_command",
+                "cmd/gormes/hermes_cli_parity.go:hermesCLIParityManifest",
+                "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifest",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Current upstream nested parser inventory"
+              ],
+              "ready_when": [
+                "Hermes CLI command-tree parity manifest is complete and can be refined without changing runtime command handlers.",
+                "The builder can assert the nested parser inventory with in-process Go fixtures and static upstream source refs; no provider credentials, gateway service, browser, network, or plugin install is required.",
+                "The Hugo parity matrix already records the current upstream nested parser inventory and known manifest drift."
+              ],
+              "not_ready_when": [
+                "The slice implements handler behavior for cron, webhook, hooks, skills, plugins, memory, tools, MCP, sessions, profile, Slack, or gateway service management.",
+                "Gateway message handlers are modeled as `hermes gateway <subcommand>` parser commands instead of `gateway-handler` entries.",
+                "The refreshed manifest leaves aliases, bare interactive surfaces, dynamic plugin commands, destructive markers, dry-run markers, or secret-redaction markers unclassified."
+              ],
+              "blocked_by": [
+                "Hermes CLI command-tree parity manifest"
+              ],
+              "unblocks": [
+                "Hermes auth command-tree manifest refresh",
+                "Gateway, platform, webhook, and cron management CLI",
+                "Diagnostics, backup, logs, and status CLI",
+                "Gormes config command surface",
+                "Gormes model interactive provider/model picker",
+                "Gormes mcp login OAuth re-auth bridge",
+                "Plugin SDK",
+                "Tool/runtime/security rows",
+                "Session shutdown memory transcript handoff"
+              ],
+              "acceptance": [
+                "TestHermesCLIParityManifestNestedParserInventoryMatchesHermes proves `gateway run/start/stop/restart/status/install/uninstall/setup/migrate-legacy` are parser commands and gateway `reset/help/model/profile/update/approve/deny/voice/usage` remain gateway-handler entries.",
+                "The refreshed manifest proves current cron parser commands and aliases are `list`, `create`/`add`, `edit`, `pause`, `resume`, `run`, `remove`/`rm`/`delete`, `status`, and `tick`; stale `enable`/`disable` are excluded or absent from active parser-command assertions.",
+                "The refreshed manifest proves webhook, hooks, debug, config, pairing, skills, plugins, memory, tools, MCP, sessions, claw, profile, Slack, and logs surfaces match current upstream parser inventory including aliases and nested `skills snapshot` / `skills tap` actions.",
+                "The refreshed manifest proves stale parser commands such as `webhook serve`, `hooks run`, `debug doctor`, `debug paste`, `debug sweep`, `pairing deny`, `pairing reset`, `plugins doctor`, `tools doctor`, `mcp call`, `mcp auth`, `sessions resume`, `profile set`, `auth login`, and `auth refresh` are not advertised as current Hermes implementation targets.",
+                "Every unsupported current Hermes parser path points to a named progress row, excluded/deprecated rationale, or Gormes-owned rationale; no path has unknown classification.",
+                "The Hugo command-surface matrix is updated from the same inventory so docs and executable manifest do not diverge."
+              ],
+              "note": "Added 2026-04-29 after the planner audit found the completed command-tree manifest overclaimed nested parser coverage: top-level/auth/fallback coverage is useful, but gateway parser commands, platform/channel commands, cron/webhook/hooks, skills/plugins, tool/MCP, sessions, profile, and Slack nested commands need a source-backed refresh before handler parity work proceeds.",
+              "write_scope": [
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(NestedParserInventoryMatchesHermes|NoUnknowns)' -count=1",
+                "go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "CLI parity manifest fixtures prove the current Hermes nested parser inventory, aliases, stale command exclusions, gateway-handler separation, row-backed residuals, and Hugo matrix evidence before any handler implementation claims parity."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/main.py argparse parser groups and gateway/run.py handler registry",
+                "note": "Hermes defines command spelling and aliases; Gormes owns Go-native manifest classification and implementation order."
               }
             },
             {
@@ -20340,6 +20436,74 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/mcp_config.py:582-636 mcp_login_handler",
                 "note": "Hermes scopes mcp_login to OAuth-only and routes header/stdio servers to remove+add; Gormes mirrors the scope and lands a noninteractive-first slice."
+              }
+            },
+            {
+              "name": "Hermes fallback provider chain CLI commands",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "`gormes fallback {list|ls|add|remove|rm|clear}` manages the operator-visible `fallback_providers` chain in the active Hermes-compatible config: list/ls render the current chain with provider, model, account/profile evidence, and a current marker; add appends a provider+model pair after delegating to the shared model picker (no separate picker is implemented here); remove deletes one entry by index, id, or exact label using the same resolution semantics as the credential-pool surface; rm and clear are destructive and require explicit confirmation; ls is a pure alias of list and rm is a pure alias of remove.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Empty chain renders an empty-state list and exits 0; corrupt fallback config returns fallback_chain_corrupt without partial mutation; remove/rm/clear without explicit confirmation flag in non-TTY tests return fallback_destructive_unconfirmed; remove against an unknown index/id/label returns fallback_target_missing with the current chain echoed for operator context; the model picker dependency being unavailable in the add path returns fallback_picker_unavailable rather than re-implementing the picker locally.",
+              "fixture": "cmd/gormes/fallback_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_list",
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_add",
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_remove",
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_clear",
+                "../hermes-agent/hermes_cli/main.py:fallback_parser ls/rm aliases",
+                "cmd/gormes/hermes_cli_parity.go:hermesFallbackCommands",
+                "internal/config/credential_pool.go"
+              ],
+              "ready_when": [
+                "Gormes model interactive provider/model picker row is at minimum planned so the add subcommand can name the picker delegation seam.",
+                "Tests inject a fake config loader/writer and a fake model picker; no live providers, browser, keychain, or network access is required.",
+                "Hermes auth credential-pool command surface is complete so the remove resolver can mirror its index/id/label semantics."
+              ],
+              "not_ready_when": [
+                "The slice re-implements the model picker instead of delegating to `Gormes model interactive provider/model picker`.",
+                "The slice mutates `fallback_providers` config without backing up or recording dry-run intent.",
+                "Destructive subcommands (`remove`, `rm`, `clear`) execute without confirmation in non-TTY tests.",
+                "The slice silently treats `ls` and `rm` as separate commands instead of aliases of `list` and `remove`."
+              ],
+              "blocked_by": [
+                "Gormes model interactive provider/model picker"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestGormesFallbackListRendersRedactedChain proves `gormes fallback list` and `gormes fallback ls` render the current chain with provider, model, account/profile label, and current marker over a fake config and never echo raw secrets.",
+                "TestGormesFallbackAddDelegatesToModelPicker proves `gormes fallback add` invokes the injected model-picker seam, then appends the chosen provider+model to `fallback_providers` without re-implementing picker logic and without duplicating an identical existing entry.",
+                "TestGormesFallbackRemoveResolvesIndexIDLabel proves `gormes fallback remove` resolves a target by numeric index, by stable id, and by exact label, mirroring the credential-pool resolver semantics.",
+                "TestGormesFallbackClearRequiresConfirmation proves `gormes fallback clear` without an explicit confirmation flag returns fallback_destructive_unconfirmed exit code 2 and does not mutate the chain.",
+                "TestGormesFallbackAliasResolution proves `ls` resolves to `list` and `rm` resolves to `remove` as pure aliases (no divergent code path).",
+                "TestGormesFallbackEmptyChainRendersEmptyState proves an empty `fallback_providers` exits 0 with an empty-state message and no error.",
+                "TestGormesFallbackPickerUnavailableTypedEvidence proves a fake picker-unavailable seam in `add` returns fallback_picker_unavailable and leaves the chain untouched."
+              ],
+              "note": "Materializes the parity-manifest residual `Hermes fallback provider chain CLI commands` referenced from `cmd/gormes/hermes_cli_parity.go:hermesFallbackCommands`. The row name is matched verbatim to the manifest `Row:` label so the existing `TestHermesCLIParityManifestFallbackCommandsMatchHermes` test continues to pass without Go changes for this gap. The `internal/config/fallback.go` write_scope path is intentionally a not-yet-existing file so this row claims fresh ownership rather than overlapping with the credential-pool file.",
+              "write_scope": [
+                "cmd/gormes/fallback.go",
+                "cmd/gormes/fallback_command_test.go",
+                "internal/config/fallback.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestGormesFallback' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fallback CLI fixtures prove redacted list/ls rendering, picker-delegated add, index/id/label remove resolution, destructive-confirmation gating on clear, alias resolution for ls/rm, empty-state rendering, and typed picker-unavailable evidence."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/fallback_cmd.py + hermes_cli/main.py fallback_parser",
+                "note": "Hermes ships fallback list/add/remove/clear with ls/rm aliases over the `fallback_providers` config; Gormes mirrors the surface as a thin Go-native CLI binding that delegates picker logic to the shared model picker row."
               }
             },
             {

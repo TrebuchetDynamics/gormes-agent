@@ -692,6 +692,7 @@ classification and row-backed implementation queue.
 
 - [ ] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
+- [ ] Hermes CLI nested parser inventory refresh
 - [x] Hermes auth command-tree manifest refresh
 - [x] Hermes auth credential-pool command surface
 - [ ] Hermes auth OAuth provider adapters
