@@ -20,7 +20,6 @@ and acceptance checks before assigning them to an implementation agent.
 | 2 / 2.F.4 | Channel directory refresh + stale-target invalidation | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Manager remember-source hook | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Mirror + sticker cache surfaces | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 2 / 2.F.5 | Gateway-handled slash commands bypass active-session guard | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.A | Bedrock | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.A | Gemini | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.A | OpenRouter | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |

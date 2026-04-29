@@ -4765,17 +4765,73 @@
             },
             {
               "name": "Gateway-handled slash commands bypass active-session guard",
+              "priority": "P0",
               "status": "planned",
-              "note": "TDD: mirror upstream PRs #12334 and #511ed4da — registry-resolved gateway slash commands must execute even while an agent is running for that session, without interrupting the running turn and without queuing discardable command text. Keep non-gateway/unknown commands behind the existing busy-state response so only the safe registry surface bypasses the guard; cover both allowed and denied paths with fixture tests before shipping.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Active-turn command bypass contract",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If a command is unknown, unavailable, or marked busy_reject while a turn is active, the gateway returns the existing sanitized busy/unavailable evidence and does not enqueue the slash text into the running model turn.",
+              "fixture": "internal/gateway/active_turn_command_bypass_test.go",
+              "source_refs": [
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway--platform-control",
+                "docs/content/upstream-hermes/reference/slash-commands.md",
+                "internal/gateway/commands.go",
+                "internal/cli/command_registry.go",
+                "internal/gateway/turn_adapter.go"
+              ],
+              "ready_when": [
+                "CommandRegistry and cli.CommandRegistry already classify ported gateway slash commands with active-turn policies.",
+                "The channel-neutral TurnAdapter path is validated, so tests can exercise active-turn bypass with fixture channels and no live Telegram, Slack, Discord, WhatsApp, or BlueBubbles dependency.",
+                "Mid-run steer injection and queued steer fallback are validated, so /steer can remain a safe bypass/drain command without interrupting the running turn."
+              ],
+              "not_ready_when": [
+                "The implementation adds a Telegram-only active-turn bypass instead of using shared gateway command policy.",
+                "Unknown, unavailable, CLI-only, or busy_reject commands can leak into the model prompt while a turn is active.",
+                "The slice changes provider/runtime behavior or starts, shells out to, imports, or requires hermes-agent runtime services."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "While a session has an active turn, registry-resolved gateway commands with bypass/drain policy such as /help, /stop, /usage, and /steer dispatch through their gateway handlers immediately instead of being rejected by the active-session guard.",
+                "Busy-reject mutators such as /new, unavailable commands such as /status, and unknown slash commands still return structured safe evidence and never enter the model prompt or queued turn text.",
+                "The behavior is proven through the shared gateway/turn adapter seam with both a Telegram-shaped fixture and a non-Telegram fixture so channel parity is preserved."
+              ],
+              "write_scope": [
+                "internal/gateway/",
+                "internal/cli/command_registry.go",
+                "internal/cli/*command*_test.go",
+                "internal/channels/fakes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/cli ./internal/channels/... -run 'ActiveTurn|CommandBypass|SlashCommand|TurnAdapter' -count=1",
+                "go test ./internal/gateway ./internal/cli ./internal/channels/... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Gateway active-turn fixture tests prove safe registry commands bypass the active-session guard across channel-neutral adapters while denied/unknown commands remain sanitized and do not reach the model prompt."
+              ],
+              "planner_verdict": {
+                "needs_human": false,
+                "reason": "refined from umbrella inventory into a bounded gateway TDD slice; existing command registries and channel-neutral turn adapter make fixture-only implementation safe",
+                "since": "2026-04-29T04:12:00Z",
+                "reshape_count": 1,
+                "last_reshape": "2026-04-29T04:12:00Z",
+                "last_outcome": "ready_for_builder"
+              },
+              "provenance": {
+                "origin_type": "upstream_parity",
+                "upstream_refs": [
+                  "Hermes PR #12334 active-session command bypass behavior",
+                  "Hermes commit 511ed4da gateway command busy-state behavior"
+                ],
+                "note": "Hermes is the parity contract only; Gormes must implement the bypass natively through shared gateway command policy and channel-neutral turn adapter seams."
+              }
             }
           ],
           "drift_state": {
