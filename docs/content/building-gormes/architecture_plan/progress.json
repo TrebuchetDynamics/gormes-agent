@@ -21846,9 +21846,9 @@
             {
               "name": "API server cron admin read-only endpoints",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native API server exposes authenticated read-only cron admin endpoints for list/get/run-history over the existing cron store and run audit without creating a second scheduler control plane",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -21905,7 +21905,7 @@
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-27T04:18:56Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "complete"
               },
               "provenance": {
                 "origin_type": "hybrid",

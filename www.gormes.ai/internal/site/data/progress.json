@@ -10111,9 +10111,9 @@
             },
             {
               "name": "Auto-naming sessions",
-              "status": "planned",
+              "status": "complete",
               "contract": "Session auto-naming persists exactly one generated title for eligible untitled sessions after the native title helper succeeds, respects manual title overrides, preserves historical transcript content, and records skip/failure evidence without retry storms",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -21248,9 +21248,9 @@
             {
               "name": "Native TUI Hermes tool progress + modal panel renderers",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui adds Hermes-compatible renderer primitives for tool progress and interactive modal panels: live spinner text with elapsed timer, stacked tool-completion scrollback lines for all/new modes, dangerous-command approval panels with once/session/always/deny/view choices, clarify question panels with numbered options and Other, and sudo/secret panels with countdown/hint text. This row renders state injected by tests; live tool/approval/clarify wiring remains dependent work.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21846,9 +21846,9 @@
             {
               "name": "API server cron admin read-only endpoints",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native API server exposes authenticated read-only cron admin endpoints for list/get/run-history over the existing cron store and run audit without creating a second scheduler control plane",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -21905,7 +21905,7 @@
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-27T04:18:56Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "complete"
               },
               "provenance": {
                 "origin_type": "hybrid",
