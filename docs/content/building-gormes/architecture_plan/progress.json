@@ -4361,9 +4361,9 @@
           "items": [
             {
               "name": "Home channel ownership resolver fixtures",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
-              "note": "Planner split from the former inventory-only Home channel ownership rules row. Build this before notify-to expansion so platform-name delivery targets have one shared, channel-neutral home-channel resolver.",
+              "note": "Complete: added a shared gateway home-channel resolver with explicit/origin/local preservation, configured home_channel precedence, discovery-gated fallback, and structured MissingHomeChannelError degradation. Hermes config.yaml platform home_channel.chat_id now bridges beyond Telegram into Discord and Slack fixture config without live platform SDKs or hermes-agent runtime services.",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -4373,7 +4373,7 @@
               "degraded_mode": "If a platform has no configured home channel and first-run discovery has not supplied one, resolution must return a structured missing_home_channel error and leave delivery at local/origin fallback; it must not guess a chat, leak secrets, or special-case Telegram.",
               "fixture": "internal/gateway/home_channel_resolver_test.go with temp config structs and fake SessionSource records only; no live platform SDK or Hermes runtime service.",
               "contract": "Add a channel-neutral home-channel ownership resolver for platform-only delivery targets. The resolver must prefer an explicit target chat/thread, then a Hermes-compatible per-platform home_channel.chat_id/thread/name setting bridged through Gormes config, then a discovery/pairing-owned source only when discovery is explicitly enabled for that platform. It must be callable by delivery routing without Telegram-specific branches and must preserve explicit endpoint/source routing semantics.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "ready_when": [
                 "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
                 "Upstream Hermes refs are available at gateway/config.py HomeChannel/PlatformConfig and gateway/delivery.py DeliveryTarget.parse platform-name semantics.",
@@ -4423,8 +4423,8 @@
                 "Missing home-channel evidence returns a structured, user-safe error/fallback reason suitable for /status and cron delivery diagnostics."
               ],
               "done_signal": [
-                "Home-channel resolver fixtures prove explicit override precedence, configured home_channel ownership, first-run discovery fallback, and missing-home-channel degradation without live platform SDKs.",
-                "Progress evidence records that the next builder can implement notify-to fanout on top of a tested shared home-channel resolver."
+                "internal/gateway/home_channel_resolver_test.go proves configured home-channel resolution, explicit/origin/local preservation, configured-over-discovery precedence, discovery-gated fallback, and missing-home-channel degradation.",
+                "internal/config/config_test.go proves Hermes config.yaml platforms.discord/slack home_channel.chat_id and token/app_token fields bridge into Gormes config using neutral fixtures."
               ],
               "provenance": {
                 "origin_type": "hybrid",

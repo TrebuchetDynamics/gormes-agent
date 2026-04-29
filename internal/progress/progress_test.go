@@ -811,16 +811,16 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 lifecycle writers note = %q, want runtime status store evidence", lifecycleWriters.Note)
 	}
 
-	if got := operator.DerivedStatus(); got != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 = %q, want planned", got)
+	if got := operator.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.F.4 = %q, want in_progress while notify-to and directory rows remain planned", got)
 	}
 	operatorItems := itemsByName(operator.Items)
 	homeRules := operatorItems["Home channel ownership resolver fixtures"]
-	if homeRules.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 home channel ownership resolver status = %q, want planned", homeRules.Status)
+	if homeRules.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 home channel ownership resolver status = %q, want complete", homeRules.Status)
 	}
-	if homeRules.ContractStatus != ContractStatusFixtureReady || len(homeRules.WriteScope) == 0 || len(homeRules.TestCommands) == 0 {
-		t.Fatalf("Phase 2.F.4 home channel resolver readiness = %q scope=%d tests=%d, want fixture-ready builder row", homeRules.ContractStatus, len(homeRules.WriteScope), len(homeRules.TestCommands))
+	if homeRules.ContractStatus != ContractStatusValidated || len(homeRules.WriteScope) == 0 || len(homeRules.TestCommands) == 0 || !strings.Contains(homeRules.Note, "MissingHomeChannelError") {
+		t.Fatalf("Phase 2.F.4 home channel resolver evidence = status %q scope=%d tests=%d note=%q, want validated builder row", homeRules.ContractStatus, len(homeRules.WriteScope), len(homeRules.TestCommands), homeRules.Note)
 	}
 	notifyRoute := operatorItems["Notify-to delivery routing"]
 	if notifyRoute.Status != StatusPlanned {

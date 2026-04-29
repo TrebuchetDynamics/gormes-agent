@@ -523,6 +523,8 @@ func loadHermesConfigYAML(cfg *Config) error {
 	}
 	applyHermesModelConfig(cfg, hc.Model)
 	applyHermesTelegramConfig(cfg, hc.Platforms["telegram"], hc.Streaming)
+	applyHermesDiscordConfig(cfg, hc.Platforms["discord"])
+	applyHermesSlackConfig(cfg, hc.Platforms["slack"])
 	return nil
 }
 
@@ -550,6 +552,36 @@ func applyHermesTelegramConfig(cfg *Config, platform hermesPlatformConfigYAML, s
 	}
 	if streaming.FreshFinalAfterSeconds != nil {
 		cfg.Telegram.FreshFinalAfterSeconds = *streaming.FreshFinalAfterSeconds
+	}
+}
+
+func applyHermesDiscordConfig(cfg *Config, platform hermesPlatformConfigYAML) {
+	if token := strings.TrimSpace(firstNonEmpty(platform.Token, platform.APIKey)); token != "" {
+		cfg.Discord.Token = token
+	}
+	if chatID := strings.TrimSpace(hermesChatIDString(platform.HomeChannel.ChatID)); chatID != "" {
+		cfg.Discord.AllowedChannelID = chatID
+	}
+	if v, ok := boolFromInterface(platform.Extra["first_run_discovery"]); ok {
+		cfg.Discord.FirstRunDiscovery = v
+	}
+}
+
+func applyHermesSlackConfig(cfg *Config, platform hermesPlatformConfigYAML) {
+	if platform.Enabled {
+		cfg.Slack.Enabled = true
+	}
+	if token := strings.TrimSpace(firstNonEmpty(platform.Token, platform.APIKey)); token != "" {
+		cfg.Slack.BotToken = token
+	}
+	if appToken := strings.TrimSpace(stringFromInterface(platform.Extra["app_token"])); appToken != "" {
+		cfg.Slack.AppToken = appToken
+	}
+	if chatID := strings.TrimSpace(hermesChatIDString(platform.HomeChannel.ChatID)); chatID != "" {
+		cfg.Slack.AllowedChannelID = chatID
+	}
+	if v, ok := boolFromInterface(platform.Extra["first_run_discovery"]); ok {
+		cfg.Slack.FirstRunDiscovery = v
 	}
 }
 
@@ -586,6 +618,26 @@ func coerceHermesChatID(value interface{}) (int64, bool) {
 		return parsed, err == nil
 	default:
 		return 0, false
+	}
+}
+
+func hermesChatIDString(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case int:
+		return strconv.FormatInt(int64(v), 10)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		if v == float64(int64(v)) {
+			return strconv.FormatInt(int64(v), 10)
+		}
+		return ""
+	case fmt.Stringer:
+		return strings.TrimSpace(v.String())
+	default:
+		return ""
 	}
 }
 

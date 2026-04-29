@@ -381,6 +381,52 @@ streaming:
 	}
 }
 
+func TestLoad_HermesConfigYAMLChannelHomeParity(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+platforms:
+  discord:
+    enabled: true
+    token: discord-token
+    home_channel:
+      chat_id: D-home
+  slack:
+    enabled: true
+    token: slack-bot-token
+    home_channel:
+      chat_id: C-home
+    extra:
+      app_token: slack-app-token
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Discord.Token != "discord-token" {
+		t.Fatalf("Discord.Token = %q, want Hermes config.yaml token", cfg.Discord.Token)
+	}
+	if cfg.Discord.AllowedChannelID != "D-home" {
+		t.Fatalf("Discord.AllowedChannelID = %q, want home_channel chat_id", cfg.Discord.AllowedChannelID)
+	}
+	if !cfg.Slack.Enabled {
+		t.Fatal("Slack.Enabled = false, want true from Hermes config.yaml platforms.slack.enabled")
+	}
+	if cfg.Slack.BotToken != "slack-bot-token" {
+		t.Fatalf("Slack.BotToken = %q, want Hermes config.yaml token", cfg.Slack.BotToken)
+	}
+	if cfg.Slack.AppToken != "slack-app-token" {
+		t.Fatalf("Slack.AppToken = %q, want Hermes config.yaml extra.app_token", cfg.Slack.AppToken)
+	}
+	if cfg.Slack.AllowedChannelID != "C-home" {
+		t.Fatalf("Slack.AllowedChannelID = %q, want home_channel chat_id", cfg.Slack.AllowedChannelID)
+	}
+}
+
 func TestLoad_HermesConfigYAMLModelProviderParity(t *testing.T) {
 	hermesHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
