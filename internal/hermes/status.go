@@ -95,9 +95,10 @@ func anthropicProviderStatus() ProviderStatus {
 func codexResponsesProviderStatus() ProviderStatus {
 	return ProviderStatus{
 		Provider: "openai-codex",
-		Runtime:  "responses_unavailable",
+		Runtime:  "codex_responses",
 		Capabilities: ProviderCapabilities{
-			PromptCache:     unavailableCapability("Codex Responses auth wiring not configured"),
+			PromptCache:     unavailableCapability("cache_control not serialized by Codex Responses request mapping"),
+			ReasoningEcho:   unavailableCapability("reasoning_content echo padding is not required by Codex Responses request mapping"),
 			RateGuard:       unavailableCapability("Codex provider rate guard not implemented"),
 			BudgetTelemetry: unavailableCapability("Codex budget telemetry not implemented"),
 		},

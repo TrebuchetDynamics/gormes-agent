@@ -8003,10 +8003,11 @@
               "unblocks": [
                 "Codex Responses pure conversion harness",
                 "Codex Responses assistant content role types",
+                "Codex Responses HTTP client binding",
                 "Codex OAuth state + stale-token relogin",
                 "Codex stream repair + tool-call leak sanitizer"
               ],
-              "note": "Not landed on main. Four codexu/* worker attempts on 2026-04-23 (`a93551c9` / `a4c433f2` / `c9bc6d8d` / `a057f47c`) produced candidate Codex adapters but none merged — no `codex_*.go` file is tracked in `internal/hermes/` and `grep -i codex` over that package returns zero matches. TDD scope: upstream Codex is an OpenAI-Codex OAuth surface over the Responses API (not standard chat.completions), so the adapter must wrap `/v1/responses` at `https://chatgpt.com/backend-api/codex` — upstream surface lives at `agent/auxiliary_client.py:483 CodexAuxiliaryClient` / `:313 _CodexCompletionsAdapter` / `:501 _AsyncCodexCompletionsAdapter` / `:1038 _try_codex` (Responses→chat-completions shim, empty-output backfill from stream events, `gpt-5.2-codex` vs `gpt-5.3-codex` fallback), and the auth seam lives at `hermes_cli/auth.py:1451 refresh_codex_oauth_pure` / `:1546 _refresh_codex_auth_tokens` / `:1567 _import_codex_cli_tokens` / `:1601 resolve_codex_runtime_credentials` / `:3023 _codex_device_code_login`, with model enumeration at `hermes_cli/codex_models.py:147 get_codex_model_ids`. Pin behavior via fake-auth fixture tests: developer-message role handling, tool-call deltas, Responses→chat-completions envelope parity (including stream-event backfill when `response.output` arrives empty), `gpt-5.3-codex` rejection fallback, and explicit unsupported-feature errors. Upstream PR #12360 requires Codex auth state to live under Gormes's own home rather than touching `~/.codex/auth.json`, and upstream PR #2a2e5c0f requires 401/403 token-refresh failures to force a relogin rather than silently retrying with a stale token — freeze both behaviors as fake-auth unit tests before any live Codex request can fire. Land after `Provider interface + stream fixture harness`, `Tool-call normalization + continuation contract`, and `4.G Token vault` + `Multi-account auth` so the Codex adapter consumes a frozen credential seam rather than touching OS home paths directly."
+              "note": "Umbrella remains planned because full Codex parity still includes Gormes-owned OAuth state, account selection, stale-token relogin, model enumeration/fallbacks, and live streaming repair. The old no-Codex-code claim is obsolete: Gormes now has `internal/hermes/codex_responses_adapter.go`, Codex Responses role/content fixtures, stream repair fixtures, and a completed HTTP client binding that routes `provider=openai-codex` through `/v1/responses` with the configured bearer token. Keep remaining work split into builder-ready rows rather than selecting this umbrella."
             },
             {
               "name": "Codex Responses pure conversion harness",
@@ -8121,6 +8122,72 @@
               }
             },
             {
+              "name": "Codex Responses HTTP client binding",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "provider=openai-codex on the Go HTTP client routes OpenStream through the Codex Responses transport at /v1/responses instead of the generic chat-completions endpoint, then normalizes the provider JSON response back into Hermes stream events.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Codex OAuth refresh, account selection, and stale-token relogin remain blocked on the token-vault/auth rows; this binding only uses the configured endpoint and bearer token already supplied to NewHTTPClientWithProvider.",
+              "fixture": "internal/hermes/provider_transcript_test.go::TestProviderTranscriptHarness_OpenAICodexUsesResponsesAPI",
+              "source_refs": [
+                "../hermes-agent/agent/codex_responses_adapter.py",
+                "../hermes-agent/agent/auxiliary_client.py",
+                "internal/hermes/provider_transport.go",
+                "internal/hermes/codex_responses_adapter.go"
+              ],
+              "ready_when": [
+                "Codex Responses pure conversion harness is validated on main.",
+                "Codex Responses assistant content role types are validated on main.",
+                "Codex stream repair + tool-call leak sanitizer is validated on main."
+              ],
+              "not_ready_when": [
+                "The slice attempts Codex device-code login, token refresh, ~/.codex import, or multi-account selection instead of only binding the existing HTTP client to the already-ported Responses transport."
+              ],
+              "blocked_by": [
+                "Codex Responses pure conversion harness",
+                "Codex Responses assistant content role types",
+                "Codex stream repair + tool-call leak sanitizer"
+              ],
+              "unblocks": [
+                "Codex OAuth state + stale-token relogin"
+              ],
+              "acceptance": [
+                "NewHTTPClientWithProvider(baseURL, apiKey, \"openai-codex\") sends POST /v1/responses with the Codex Responses payload shape and Authorization bearer header.",
+                "The request body does not contain chat-completions-only fields such as messages, max_tokens, or temperature.",
+                "A fake Responses JSON body normalizes into reasoning, token, and done events with usage evidence.",
+                "ProviderStatus for openai-codex reports runtime=codex_responses instead of chat_completions or responses_unavailable."
+              ],
+              "note": "Complete: TDD added `TestProviderTranscriptHarness_OpenAICodexUsesResponsesAPI` and `TestCodexProviderStatusReportsResponsesRuntime`. `httpClient.OpenStream` now routes provider aliases `openai-codex` and `codex` through `codexResponsesTransport`, posts `/v1/responses` with the existing configured bearer token, reads the provider JSON body, and returns the normalized static event stream. Generic OpenAI-compatible, Azure OpenAI, Anthropic, Bedrock, and pure transport fixtures remain unchanged; Codex OAuth/token refresh remains a separate planned auth row.",
+              "write_scope": [
+                "internal/hermes/http_client.go",
+                "internal/hermes/status.go",
+                "internal/hermes/provider_status_test.go",
+                "internal/hermes/provider_transcript_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestProviderTranscriptHarness_OpenAICodexUsesResponsesAPI|TestCodexProviderStatusReportsResponsesRuntime' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OpenAI-Codex provider selection reaches the Responses API transport in the live Go HTTP client without live OAuth credentials."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T05:43:56Z",
+                "last_success": "2026-04-29T05:43:56Z"
+              }
+            },
+            {
               "name": "Codex OAuth state + stale-token relogin",
               "status": "planned",
               "contract": "Codex OAuth state is Gormes-owned and stale refresh failures force explicit relogin",
@@ -8148,7 +8215,8 @@
                 "Token vault",
                 "Multi-account auth",
                 "Codex Responses pure conversion harness",
-                "Codex Responses assistant content role types"
+                "Codex Responses assistant content role types",
+                "Codex Responses HTTP client binding"
               ],
               "acceptance": [
                 "Codex tokens persist under Gormes home with provider/account metadata.",

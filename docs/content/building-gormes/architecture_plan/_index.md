@@ -445,6 +445,7 @@ classification and row-backed implementation queue.
 - [ ] Codex
 - [x] Codex Responses pure conversion harness
 - [x] Codex Responses assistant content role types
+- [x] Codex Responses HTTP client binding
 - [ ] Codex OAuth state + stale-token relogin
 - [x] Codex stream repair + tool-call leak sanitizer
 - [x] Cross-provider reasoning-tag sanitization

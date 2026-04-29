@@ -59,19 +59,19 @@ func TestProviderStatusOfReportsCacheRateAndBudgetCapabilities(t *testing.T) {
 	}
 }
 
-func TestCodexProviderStatusReportsUnavailableUntilAuthWiring(t *testing.T) {
-	got := codexResponsesProviderStatus()
+func TestCodexProviderStatusReportsResponsesRuntime(t *testing.T) {
+	got := ProviderStatusOf(NewHTTPClientWithProvider("http://example.test", "sk-codex-test", "openai-codex"))
 	if got.Provider != "openai-codex" {
 		t.Fatalf("Provider = %q, want openai-codex", got.Provider)
 	}
-	if got.Runtime != "responses_unavailable" {
-		t.Fatalf("Runtime = %q, want responses_unavailable", got.Runtime)
+	if got.Runtime != "codex_responses" {
+		t.Fatalf("Runtime = %q, want codex_responses", got.Runtime)
 	}
 	if got.Capabilities.PromptCache.Available {
-		t.Fatal("PromptCache.Available = true, want unavailable until Codex auth wiring lands")
+		t.Fatal("PromptCache.Available = true, want unavailable until Codex cache_control mapping lands")
 	}
-	if !strings.Contains(got.Capabilities.PromptCache.Reason, "auth wiring not configured") {
-		t.Fatalf("PromptCache.Reason = %q, want auth wiring degradation", got.Capabilities.PromptCache.Reason)
+	if !strings.Contains(got.Capabilities.PromptCache.Reason, "cache_control not serialized") {
+		t.Fatalf("PromptCache.Reason = %q, want cache_control mapping degradation", got.Capabilities.PromptCache.Reason)
 	}
 	assertUnavailableCapability(t, "RateGuard", got.Capabilities.RateGuard)
 	assertUnavailableCapability(t, "BudgetTelemetry", got.Capabilities.BudgetTelemetry)

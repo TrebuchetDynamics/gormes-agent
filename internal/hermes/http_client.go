@@ -53,8 +53,13 @@ func NewHTTPClientWithProvider(baseURL, apiKey, provider string) Client {
 }
 
 func (c *httpClient) ProviderStatus() ProviderStatus {
-	status := openAICompatibleProviderStatus(c.provider, c.baseURL)
-	if openAICompatibleIsAzureOpenAI(c.provider, c.baseURL) {
+	var status ProviderStatus
+	if c.usesCodexResponsesTransport() {
+		status = codexResponsesProviderStatus()
+	} else {
+		status = openAICompatibleProviderStatus(c.provider, c.baseURL)
+	}
+	if !c.usesCodexResponsesTransport() && openAICompatibleIsAzureOpenAI(c.provider, c.baseURL) {
 		evidence := []string{"azure_chat_completions"}
 		if openAICompatibleBaseURLHasQuery(c.baseURL) {
 			evidence = append([]string{"azure_query_preserved"}, evidence...)
@@ -126,6 +131,10 @@ type orChatRequest struct {
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
+	if c.usesCodexResponsesTransport() {
+		return c.openCodexResponsesStream(ctx, req)
+	}
+
 	body, descriptors, err := c.buildOpenAICompatibleChatRequestBody(req)
 	if err != nil {
 		return nil, err
@@ -216,6 +225,25 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 	return body, descriptors, nil
 }
 
+func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatRequest) (Stream, error) {
+	transport := codexResponsesTransport{}
+	providerReq, err := transport.BuildRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.doProviderPost(ctx, req.SessionID, providerReq.Path, providerReq.Body, "application/json")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 300 {
+		raw, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
+	}
+	return transport.OpenFixtureStream(resp.Body, providerReq)
+}
+
 func validateReasoningEffort(effort *ReasoningEffort) (*ReasoningEffort, error) {
 	if effort == nil {
 		return nil, nil
@@ -251,20 +279,26 @@ func replaceMaxTokensWithMaxCompletionTokens(body []byte, maxTokens int) ([]byte
 }
 
 func (c *httpClient) doChatCompletions(ctx context.Context, req ChatRequest, body []byte) (*http.Response, error) {
+	return c.doProviderPost(ctx, req.SessionID, defaultChatCompletionsPath, body, "text/event-stream")
+}
+
+func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath string, body []byte, accept string) (*http.Response, error) {
 	// Header-phase budget enforced by Transport.ResponseHeaderTimeout (5s).
 	// The request ctx governs the full response lifetime including body reads —
 	// do NOT cancel it after Do returns or streaming breaks.
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.openAICompatibleURL(defaultChatCompletionsPath), bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.openAICompatibleURL(endpointPath), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "text/event-stream")
+	if strings.TrimSpace(accept) != "" {
+		httpReq.Header.Set("Accept", accept)
+	}
 	if c.apiKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
-	if req.SessionID != "" {
-		httpReq.Header.Set("X-Hermes-Session-Id", req.SessionID)
+	if sessionID != "" {
+		httpReq.Header.Set("X-Hermes-Session-Id", sessionID)
 	}
 
 	resp, err := c.http.Do(httpReq)
@@ -272,6 +306,11 @@ func (c *httpClient) doChatCompletions(ctx context.Context, req ChatRequest, bod
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (c *httpClient) usesCodexResponsesTransport() bool {
+	provider := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(c.provider)), "_", "-")
+	return provider == "openai-codex" || provider == "codex"
 }
 
 func (c *httpClient) openAICompatibleURL(endpointPath string) string {

@@ -192,6 +192,118 @@ func TestProviderTranscriptHarness_OpenAICompatibleMapsToolContinuationRequest(t
 	})
 }
 
+func TestProviderTranscriptHarness_OpenAICodexUsesResponsesAPI(t *testing.T) {
+	var captured capturedProviderRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("openai-codex responses: read request body: %v", err)
+		}
+		captured = capturedProviderRequest{
+			Method: r.Method,
+			Path:   r.URL.Path,
+			Header: r.Header.Clone(),
+			Body:   raw,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `{
+			"status":"completed",
+			"output":[
+				{"type":"reasoning","summary":[{"type":"summary_text","text":"Need status lookup."}]},
+				{"type":"message","status":"completed","content":[{"type":"output_text","text":"Done."}]}
+			],
+			"usage":{"input_tokens":21,"output_tokens":8,"total_tokens":29}
+		}`)
+	}))
+	defer srv.Close()
+
+	client := NewHTTPClientWithProvider(srv.URL, "sk-codex-test", "openai-codex")
+	stream, err := client.OpenStream(context.Background(), ChatRequest{
+		Model:     "gpt-5.5",
+		MaxTokens: 256,
+		Stream:    true,
+		Messages: []Message{
+			{Role: "system", Content: "Follow policy."},
+			{Role: "user", Content: "lookup status"},
+			{
+				Role:    "assistant",
+				Content: "Calling lookup.",
+				ToolCalls: []ToolCall{{
+					ID:        "call_lookup",
+					Name:      "lookup",
+					Arguments: json.RawMessage(`{"query":"status"}`),
+				}},
+			},
+			{Role: "tool", ToolCallID: "call_lookup", Name: "lookup", Content: "status ok"},
+		},
+		Tools: []ToolDescriptor{{
+			Name:        "lookup",
+			Description: "Looks up fixture status.",
+			Schema:      json.RawMessage(`{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}`),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("openai-codex responses: OpenStream() error = %v", err)
+	}
+	defer stream.Close()
+
+	if captured.Method != http.MethodPost {
+		t.Fatalf("method = %s, want POST", captured.Method)
+	}
+	if captured.Path != "/v1/responses" {
+		t.Fatalf("path = %q, want /v1/responses", captured.Path)
+	}
+	if captured.Header.Get("Authorization") != "Bearer sk-codex-test" {
+		t.Fatalf("Authorization header = %q, want bearer codex token", captured.Header.Get("Authorization"))
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(captured.Body, &raw); err != nil {
+		t.Fatalf("decode Codex Responses request: %v\n%s", err, captured.Body)
+	}
+	for _, forbidden := range []string{"messages", "max_tokens", "temperature"} {
+		if _, ok := raw[forbidden]; ok {
+			t.Fatalf("Codex Responses request contains chat-completions field %q: %s", forbidden, captured.Body)
+		}
+	}
+
+	var body struct {
+		Model             string            `json:"model"`
+		Instructions      string            `json:"instructions"`
+		Input             []json.RawMessage `json:"input"`
+		MaxOutputTokens   int               `json:"max_output_tokens"`
+		ToolChoice        string            `json:"tool_choice"`
+		ParallelToolCalls bool              `json:"parallel_tool_calls"`
+		Tools             []struct {
+			Type string `json:"type"`
+			Name string `json:"name"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(captured.Body, &body); err != nil {
+		t.Fatalf("decode Codex Responses body: %v\n%s", err, captured.Body)
+	}
+	if body.Model != "gpt-5.5" || body.Instructions != "Follow policy." || body.MaxOutputTokens != 256 {
+		t.Fatalf("request model/instructions/max_output_tokens = %q/%q/%d", body.Model, body.Instructions, body.MaxOutputTokens)
+	}
+	if len(body.Input) != 4 {
+		t.Fatalf("input len = %d, want user, assistant, function_call, function_call_output: %s", len(body.Input), captured.Body)
+	}
+	if len(body.Tools) != 1 || body.Tools[0].Type != "function" || body.Tools[0].Name != "lookup" {
+		t.Fatalf("tools = %+v, want lookup function", body.Tools)
+	}
+	if body.ToolChoice != "auto" || !body.ParallelToolCalls {
+		t.Fatalf("tool choice/parallel = %q/%v, want auto/true", body.ToolChoice, body.ParallelToolCalls)
+	}
+
+	assertTranscriptEvents(t, []eventSnapshot{
+		{Kind: EventReasoning, Reasoning: "Need status lookup."},
+		{Kind: EventToken, Token: "Done."},
+		{Kind: EventDone, FinishReason: "stop", TokensIn: 21, TokensOut: 8},
+	}, collectStreamEvents(t, stream))
+}
+
 func TestProviderTranscriptHarness_AnthropicFlushesPendingToolCallOnEOF(t *testing.T) {
 	runProviderTranscript(t, providerTranscript{
 		name:          "anthropic pending tool call EOF",
