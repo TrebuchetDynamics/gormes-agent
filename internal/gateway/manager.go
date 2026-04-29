@@ -95,6 +95,7 @@ type Manager struct {
 	turnSessionID  string
 	turnSource     SessionSource
 	turnCancelled  bool
+	turnFrameSeen  bool
 	shuttingDown   bool
 	followUps      []InboundEvent
 	lastUsageFrame kernel.RenderFrame
@@ -779,9 +780,16 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	m.turnMu.Lock()
 	platform := m.turnPlatform
 	chatID := m.turnChatID
+	staleInitialIdle := platform != "" && chatID != "" && !m.turnFrameSeen && isStartupIdleFrame(f)
+	if !staleInitialIdle && platform != "" && chatID != "" {
+		m.turnFrameSeen = true
+	}
 	m.turnMu.Unlock()
 
 	if platform == "" || chatID == "" {
+		return
+	}
+	if staleInitialIdle {
 		return
 	}
 
@@ -1148,6 +1156,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnSessionID = ""
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
+	m.turnFrameSeen = false
 }
 
 func (m *Manager) clearTurn() {
@@ -1160,6 +1169,7 @@ func (m *Manager) clearTurn() {
 	m.turnSessionID = ""
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
+	m.turnFrameSeen = false
 }
 
 func (m *Manager) hasActiveTurn() bool {
@@ -1235,6 +1245,14 @@ func (m *Manager) formatError(platform string, f kernel.RenderFrame) string {
 	return FormatErrorPlain(f)
 }
 
+func isStartupIdleFrame(f kernel.RenderFrame) bool {
+	return f.Phase == kernel.PhaseIdle &&
+		f.StatusText == "idle" &&
+		f.DraftText == "" &&
+		f.LastError == "" &&
+		len(f.History) == 0
+}
+
 func (m *Manager) persistSession(ctx context.Context, f kernel.RenderFrame) {
 	if m.cfg.SessionMap == nil {
 		return
@@ -1307,6 +1325,7 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 	m.turnSessionID = ""
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
+	m.turnFrameSeen = false
 	return next, true
 }
 

@@ -953,3 +953,42 @@ func TestManager_FailedProviderFrameSanitizesAndClearsActiveTurn(t *testing.T) {
 		t.Fatalf("failed provider frame must clear active turn so admission does not wedge")
 	}
 }
+
+func TestManager_StartupIdleFrameDoesNotClearPinnedTurn(t *testing.T) {
+	ch := newChannelOnlyFake("telegram")
+	m := NewManager(ManagerConfig{}, nil, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	m.pinTurn("telegram", "42", "msg-1")
+	var co *coalescer
+	var coCancel context.CancelFunc
+	m.dispatchFrame(context.Background(), kernel.RenderFrame{
+		Phase:      kernel.PhaseIdle,
+		StatusText: "idle",
+	}, &co, &coCancel)
+
+	if sent := ch.sentSnapshot(); len(sent) != 0 {
+		t.Fatalf("startup idle frame should not send or finalize active turn: %#v", sent)
+	}
+	if !m.hasActiveTurn() {
+		t.Fatalf("startup idle frame cleared active turn before provider result arrived")
+	}
+
+	m.dispatchFrame(context.Background(), kernel.RenderFrame{
+		Phase:     kernel.PhaseFailed,
+		LastError: "Forbidden: <html><body>bad</body></html>",
+	}, &co, &coCancel)
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("failed provider frame should send exactly one error reply, got %d", len(sent))
+	}
+	if !strings.Contains(sent[0].Text, "provider returned HTML error body") {
+		t.Fatalf("gateway error reply = %q, want sanitized provider HTML evidence", sent[0].Text)
+	}
+	if m.hasActiveTurn() {
+		t.Fatalf("failed provider frame must still clear active turn after stale startup idle")
+	}
+}
