@@ -14364,6 +14364,95 @@
               }
             },
             {
+              "name": "Browser-harness Hermes browser_* tool wrappers",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes registers Hermes-visible browser_* tools backed by the Go BrowserHarnessBridge: browser_navigate opens a new tab with browser-harness new_tab(url) and returns a compact snapshot; browser_snapshot returns text plus @e refs; browser_click/browser_type/browser_scroll/browser_back/browser_press/browser_console/browser_get_images/browser_vision/browser_cdp/browser_dialog generate argv-only browser-harness -c snippets, use sanitized BU_NAME task namespaces, preserve BrowserResultEnvelope artifact budgeting, and degrade with browser_harness_* evidence when the external harness is unavailable.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing browser-harness binary, stale CDP attachment, bad @e refs, command failures, and oversized output return typed browser_harness_unavailable/browser_harness_command_failed evidence through bounded BrowserHarnessToolResponse JSON. Unit tests use fake process runners only and never start Chrome, Browser Use, Browserbase, Firecrawl, Camofox, or browser-harness.",
+              "fixture": "internal/tools/browser_harness_tools_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/browser_tool.py:browser_navigate,browser_snapshot,browser_click,browser_type,browser_scroll,browser_back,browser_press,browser_console,browser_get_images,browser_vision",
+                "../hermes-agent/tools/browser_cdp_tool.py:browser_cdp",
+                "../hermes-agent/tools/browser_dialog_tool.py:browser_dialog",
+                "../browser-harness/SKILL.md",
+                "../browser-harness/src/browser_harness/helpers.py",
+                "internal/tools/browser_use_harness_bridge.go",
+                "internal/tools/browser_contract.go",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "Browser action contract + event transcript is validated.",
+                "Browser Use cloud + browser-harness bridge is validated.",
+                "Tests can inject fake BrowserHarnessProcessRunner outputs; no live browser runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice bypasses BrowserHarnessBridge and shell-concatenates commands.",
+                "browser_navigate uses goto_url instead of new_tab and risks clobbering the operator's active tab.",
+                "The tests require live Chrome, Browser Use, Browserbase, Firecrawl, Camofox, browser-harness, or CDP sockets.",
+                "The slice claims full Hermes browser parity; CDP supervisor sessions, Browserbase/Firecrawl providers, and optional live smoke remain separate rows."
+              ],
+              "blocked_by": [
+                "Browser action contract + event transcript",
+                "Browser Use cloud + browser-harness bridge"
+              ],
+              "unblocks": [
+                "Browser /browser connect CDP parity",
+                "Browser provider status reporting",
+                "Browser-harness optional live smoke docs",
+                "Operator e2e gate"
+              ],
+              "acceptance": [
+                "TestBrowserHarnessToolsExposeHermesNames proves all core Hermes browser_* names are exposed with valid JSON schemas.",
+                "TestBrowserHarnessNavigateUsesNewTabAndEnvelope proves browser_navigate builds browser-harness -c argv, calls new_tab(url) rather than goto_url, sanitizes BU_NAME, and returns a bounded BrowserHarnessToolResponse.",
+                "TestBrowserHarnessClickAndTypeUseSnapshotRefs proves browser_click/browser_type consume @e refs from the snapshot helper and reject missing refs before invoking the runner.",
+                "TestBrowserHarnessCDPConsoleAndVisionBuildExpectedSnippets proves browser_cdp, browser_console, browser_vision, and browser_dialog generate the expected CDP/JS/screenshot snippets without live browser runtime.",
+                "TestBuildDefaultRegistryDelegationDisabled proves the default Gormes registry used by TUI/gateway/Telegram exposes browser_navigate, browser_snapshot, browser_click, browser_type, browser_cdp, and browser_dialog."
+              ],
+              "note": "Complete: TDD landed internal/tools/browser_harness_tools.go and registered the browser-harness toolset in cmd/gormes/registry.go. This makes Gormes expose Hermes browser_* tool names to normal tool-call loops using the existing fakeable BrowserHarnessBridge. It is not final browser parity: live smoke docs, Browserbase/Firecrawl provider selection, CDP supervisor frame routing, and richer vision analysis remain row-backed follow-ups.",
+              "write_scope": [
+                "internal/tools/browser_harness_tools.go",
+                "internal/tools/browser_harness_tools_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestBrowserHarness' -count=1",
+                "go test ./internal/tools -count=1",
+                "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gormes default registry exposes browser-harness-backed Hermes browser_* tools with fake-runner fixtures for schemas, navigation, snapshots, @e ref click/type, CDP/dialog/console/vision snippets, artifact budgeting, and unavailable-runtime evidence."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T17:42:52Z",
+                "last_success": "2026-04-29T17:42:52Z",
+                "backends_tried": [
+                  "codex"
+                ]
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/browser_tool.py",
+                  "hermes:tools/browser_cdp_tool.py",
+                  "hermes:tools/browser_dialog_tool.py",
+                  "browser-use/browser-harness:helpers.py"
+                ],
+                "note": "Hermes defines the public browser_* tool names and broad behavior; browser-harness supplies the external CDP operator workflow bridged by Go."
+              }
+            },
+            {
               "name": "Browser hybrid private-URL local sidecar routing",
               "priority": "P2",
               "status": "complete",

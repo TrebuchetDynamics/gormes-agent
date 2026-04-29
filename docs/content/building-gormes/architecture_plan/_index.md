@@ -583,6 +583,7 @@ classification and row-backed implementation queue.
 - [ ] Rod
 - [ ] Browser provider bridge + Firecrawl fallback
 - [x] Browser Use cloud + browser-harness bridge
+- [x] Browser-harness Hermes browser_* tool wrappers
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 
