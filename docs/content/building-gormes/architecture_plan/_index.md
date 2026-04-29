@@ -429,7 +429,7 @@ classification and row-backed implementation queue.
 ### 4.A — Provider Adapters 🔨
 
 - [x] Provider interface + stream fixture harness
-- [ ] Hermes provider registry and alias manifest
+- [x] Hermes provider registry and alias manifest
 - [x] Tool-call normalization + continuation contract
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] DeepSeek/Kimi cross-provider reasoning isolation
