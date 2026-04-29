@@ -21809,9 +21809,9 @@
             {
               "name": "SKILL.md frontmatter validation guard",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Skill storage exposes a GBrain v0.22.4-inspired frontmatter validator that reports malformed SKILL.md files before parser/store promotion or prompt injection can use them",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -21851,7 +21851,7 @@
                 "TestSkillFrontmatterValidation_SlugMismatch derives the expected slug from the SKILL.md directory and reports SLUG_MISMATCH when a declared slug differs.",
                 "Parse/Load fixtures prove invalid active skills are omitted from BuildSkillBlock/selection and surfaced with skill_frontmatter_invalid status, while valid existing parser fixtures remain green."
               ],
-              "note": "GBrain 891c28b/v0.22.4 added a frontmatter-guard skill plus shared validation classes for markdown pages. Gormes should first adapt the validation-code contract to SKILL.md assets, not import GBrain's CLI or auto-fix workflow.",
+              "note": "Complete: TDD added internal/skills/frontmatter_validation.go with ValidateSkillFrontmatter inspecting NULL_BYTES, MISSING_OPEN/CLOSE, EMPTY_FRONTMATTER, NESTED_QUOTES, YAML_PARSE, and SLUG_MISMATCH classes against raw SKILL.md bytes, plus a SnapshotActive change that skips invalid files into Snapshot.Invalid and surfaces them via SkillStatusFrontmatterInvalid through BuildSkillBlockWithOptions. Slug check stays opt-in via FrontmatterValidateOptions.ExpectedSlug; loader passes the parent directory name. No auto-fix, .bak writes, pre-commit hook installation, gbrain CLI compatibility, selector scoring, or learning-loop behavior is touched.",
               "write_scope": [
                 "internal/skills/frontmatter_validation.go",
                 "internal/skills/frontmatter_validation_test.go",

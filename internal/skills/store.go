@@ -7,10 +7,20 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type Snapshot struct {
-	Skills []Skill
+	Skills  []Skill
+	Invalid []InvalidSkill
+}
+
+// InvalidSkill records one SKILL.md file the loader could not promote
+// because its frontmatter failed structural validation. The file is omitted
+// from prompt injection; callers surface the evidence as a SkillStatus.
+type InvalidSkill struct {
+	Path   string
+	Errors []SkillValidationError
 }
 
 type Store struct {
@@ -77,6 +87,11 @@ func (s *Store) SnapshotActive() (Snapshot, error) {
 		if err != nil {
 			return Snapshot{}, err
 		}
+		expectedSlug := filepath.Base(filepath.Dir(path))
+		if errs := ValidateSkillFrontmatter(raw, FrontmatterValidateOptions{ExpectedSlug: expectedSlug}); len(errs) > 0 {
+			out.Invalid = append(out.Invalid, InvalidSkill{Path: path, Errors: errs})
+			continue
+		}
 		skill, err := Parse(raw, s.maxBytes)
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("%s: %w", path, err)
@@ -112,8 +127,25 @@ func (r *Runtime) BuildSkillBlockWithOptions(ctx context.Context, userMessage st
 		return "", nil, nil, err
 	}
 	prepared, statuses := prepareSkills(ctx, snapshot.Skills, opts)
+	for _, invalid := range snapshot.Invalid {
+		statuses = append(statuses, invalidSkillStatus(invalid))
+	}
 	selected := Select(prepared, userMessage, r.selectionCap)
 	return RenderBlock(selected), skillNames(selected), statuses, nil
+}
+
+func invalidSkillStatus(invalid InvalidSkill) SkillStatus {
+	name := filepath.Base(filepath.Dir(invalid.Path))
+	codes := make([]string, 0, len(invalid.Errors))
+	for _, err := range invalid.Errors {
+		codes = append(codes, string(err.Code))
+	}
+	return SkillStatus{
+		Name:   name,
+		Path:   invalid.Path,
+		Status: SkillStatusFrontmatterInvalid,
+		Reason: "frontmatter validation failed: " + strings.Join(codes, ", "),
+	}
 }
 
 func (r *Runtime) RecordSkillUsage(ctx context.Context, skillNames []string) error {

@@ -16,6 +16,7 @@ const (
 	SkillStatusUnsupported         SkillStatusCode = "unsupported"
 	SkillStatusMissingPrerequisite SkillStatusCode = "missing-prerequisite"
 	SkillStatusPreprocessingFailed SkillStatusCode = "preprocessing-failed"
+	SkillStatusFrontmatterInvalid  SkillStatusCode = "frontmatter-invalid"
 )
 
 type SkillStatus struct {

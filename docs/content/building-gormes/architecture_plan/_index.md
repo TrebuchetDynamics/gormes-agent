@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 41/77 subphases shipped · 23 in progress · 13 planned
+**Overall:** 41/77 subphases shipped · 24 in progress · 12 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -86,7 +86,7 @@ classification and row-backed implementation queue.
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 1/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
-| Phase 6 — The Learning Loop (Soul) | ⏳ | 0/6 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -781,7 +781,7 @@ classification and row-backed implementation queue.
 - [ ] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over
 
-## Phase 6 — The Learning Loop (Soul) ⏳
+## Phase 6 — The Learning Loop (Soul) 🔨
 
 *Native skill extraction. Compounding intelligence. The feature Hermes doesn't have.*
 
@@ -793,9 +793,9 @@ classification and row-backed implementation queue.
 
 - [ ] LLM-assisted pattern distillation
 
-### 6.C — Skill Storage Format ⏳
+### 6.C — Skill Storage Format 🔨
 
-- [ ] SKILL.md frontmatter validation guard
+- [x] SKILL.md frontmatter validation guard
 - [ ] Hermes creative skill metadata compatibility
 - [ ] Portable SKILL.md format
 
