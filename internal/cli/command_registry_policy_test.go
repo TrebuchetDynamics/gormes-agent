@@ -221,6 +221,26 @@ func TestSlashCommandTextLeaksToModelPromptOnlyForPlainText(t *testing.T) {
 	}
 }
 
+// TestCommandRegistryReasoningSubcommandsHermesOrder pins the static
+// subcommand order of /reasoning to the upstream hermes_cli/commands.py
+// definition so the TUI slash completion helpers surface tokens in the order
+// Hermes ships, not alphabetical or insertion-shuffled order.
+func TestCommandRegistryReasoningSubcommandsHermesOrder(t *testing.T) {
+	policy, ok := ResolveCommandPolicy("/reasoning")
+	if !ok {
+		t.Fatal("ResolveCommandPolicy(/reasoning) not found")
+	}
+	want := []string{"none", "minimal", "low", "medium", "high", "xhigh", "show", "hide", "on", "off"}
+	if len(policy.Subcommands) != len(want) {
+		t.Fatalf("/reasoning Subcommands = %v, want %v", policy.Subcommands, want)
+	}
+	for i, sub := range want {
+		if policy.Subcommands[i] != sub {
+			t.Errorf("/reasoning Subcommands[%d] = %q, want %q (full=%v)", i, policy.Subcommands[i], sub, policy.Subcommands)
+		}
+	}
+}
+
 func TestCommandRegistryPolicyGatewayParity(t *testing.T) {
 	// Every command in the gateway registry must also exist in the CLI
 	// registry with a compatible active-turn policy. The CLI registry is the

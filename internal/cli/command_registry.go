@@ -50,6 +50,12 @@ type CommandPolicy struct {
 	// in the registry so unknown-vs-unavailable can be distinguished, but they
 	// always render unavailable evidence regardless of busy state.
 	Ported bool
+	// Subcommands is the Hermes-canonical, order-preserving list of static
+	// sub-tokens a TUI completer should surface after the command name plus a
+	// space (e.g. /reasoning ⏎ none, minimal, low, …). Order matches upstream
+	// hermes_cli/commands.py CommandDef.subcommands. Dynamic per-runtime menus
+	// (/model, /skin, /personality) are intentionally not encoded here.
+	Subcommands []string
 }
 
 // CommandRegistry is the single source of truth for the active-turn behavior
@@ -98,6 +104,7 @@ var CommandRegistry = []CommandPolicy{
 		Surface:          CommandSurfaceShared,
 		ActiveTurnPolicy: ActiveTurnPolicyQueue,
 		Ported:           true,
+		Subcommands:      []string{"none", "minimal", "low", "medium", "high", "xhigh", "show", "hide", "on", "off"},
 	},
 
 	// Recognized-but-not-yet-ported commands. These mirror the upstream

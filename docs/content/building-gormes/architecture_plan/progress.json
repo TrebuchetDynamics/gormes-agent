@@ -21175,9 +21175,9 @@
             {
               "name": "Native TUI Hermes slash completion helpers",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui exposes pure completion and autosuggest helpers backed by internal/cli.CommandRegistry so the local TUI can complete Hermes-compatible slash commands, aliases, subcommands, and unavailable-but-recognized commands without submitting unknown slash text to the model. Runtime completion-menu binding remains a dependent visual row.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -21209,7 +21209,7 @@
                 "TestHermesSlashCompletion_AutoSuggest returns the suffix Hermes would ghost for a unique command or subcommand prefix.",
                 "Helper is deterministic and has no provider/config/plugin filesystem dependency."
               ],
-              "note": "Hermes prompt_toolkit surface proves feature richness through completion before commands are read. Gormes should match that feel without using prompt_toolkit or duplicating registries.",
+              "note": "Complete: TDD added internal/tui/slash_completion.go and internal/tui/slash_completion_test.go covering command-prefix completion, alias surfacing, recognized-but-unavailable commands, Hermes-ordered /reasoning subcommand completion, and unique-prefix autosuggest, all driven by internal/cli.CommandRegistry; the registry now carries an ordered Subcommands slice with a parity test in internal/cli/command_registry_policy_test.go pinning the Hermes order. Locked invariants: HermesSlashCommandCompletions / HermesSlashSubcommandCompletions / HermesSlashAutoSuggest are pure (no IO, no goroutines, no provider/config/plugin filesystem dependency); recognized-but-unavailable commands complete with Available=false while still dispatching as ActiveTurnPolicyUnavailable so /model and friends never leak to kernel.Submit; subcommand suggestions only resolve on the first sub-token of registry-defined inventories — dynamic /model, /skin, /personality menus stay out of this slice.",
               "write_scope": [
                 "internal/tui/slash_completion.go",
                 "internal/tui/slash_completion_test.go",
