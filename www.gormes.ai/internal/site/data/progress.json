@@ -1485,6 +1485,137 @@
               "note": "TDD landed: each inbound submit now injects a stable Current Session Context system block ahead of recall/user messages, covering source metadata plus deterministic delivery-target exposure."
             },
             {
+              "name": "Hermes live-turn prompt assembly parity (channel-neutral)",
+              "status": "planned",
+              "priority": "P0",
+              "slice_size": "umbrella",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "contract": "Live gateway turns for every channel (Telegram, Slack, WhatsApp, BlueBubbles, Discord, Sage Goblin, future) assemble a system-prompt header that mirrors Hermes' run_agent.py / prompt_builder.py block order before the user message: (1) SOUL.md identity, (2) tool/memory guidance, (3) USER.md / MEMORY.md durable user context, (4) skills guidance, (5) AGENTS.md / .hermes.md / project context, (6) timestamp + model + provider metadata, (7) platform/session context. Assembly happens once inside `gateway.Manager` at the existing `BuildSessionContextPrompt` call site so all channel adapters inherit it without channel-specific code. The umbrella tracks the seven-block contract; child rows deliver each block.",
+              "contract_status": "draft",
+              "degraded_mode": "Until child rows land, live turns continue to inject only the existing platform/session block (block 7), so Gormes presents as the underlying provider's default identity (e.g. 'I'm ChatGPT') and lacks USER/AGENTS/skills awareness. No raw threat content is ever injected — `internal/hermes/context_files.go` already gates SOUL.md / project context on a threat-pattern scan before render.",
+              "fixture": "internal/gateway/live_turn_prompt_test.go (planned)",
+              "source_refs": [
+                "../hermes-agent/run_agent.py",
+                "../hermes-agent/agent/prompt_builder.py",
+                "internal/hermes/context_files.go:BuildContextFilesPrompt",
+                "internal/gateway/manager.go:1534",
+                "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
+                "internal/kernel/kernel.go:204",
+                "internal/kernel/frame.go:112",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+              ],
+              "ready_when": [
+                "internal/hermes/context_files.go BuildContextFilesPrompt is complete (it is) and exposes channel-neutral SOUL/project block rendering with threat-scan guards.",
+                "internal/gateway/manager.go owns a single channel-neutral assembly site (BuildSessionContextPrompt at line 1534) where the prepend can land for all channels at once.",
+                "Each child row carries its own ready_when independent of the others so SOUL/project block can ship without USER/MEMORY/skills/tools/timestamp blocks."
+              ],
+              "not_ready_when": [
+                "The umbrella is selected as a single slice rather than executed through child rows.",
+                "Wiring is added inside any one channel adapter (internal/channels/telegram, internal/channels/slack, internal/channels/bluebubbles, etc.) instead of inside gateway.Manager.",
+                "A child row mutates BuildContextFilesPrompt instead of consuming it, or modifies kernel.PlatformEvent to add new system-prompt fields when the existing SessionContext field already carries the assembled header."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "acceptance": [
+                "Each Hermes block (1)–(7) has a complete child row, a fixture under internal/gateway/, and a captured-kernel-submit test that proves the rendered system-prompt header includes that block.",
+                "A channel-neutrality fixture proves the assembled header is byte-identical when the same turn fixture is dispatched through fake Telegram, Slack, WhatsApp, BlueBubbles, and Discord channels.",
+                "A live Telegram smoke after the SOUL/project child lands proves Gormes self-identifies as Gormes (not as the underlying provider) when SOUL.md says so."
+              ],
+              "note": "Architectural seam fix mandated by 2026-04-29 live Telegram evidence: Gormes was asked 'Whats ur name?' and replied 'I'm ChatGPT.' This proved the live provider request was missing the Hermes identity/context stack. The umbrella exists so child rows ship one block at a time without re-litigating the seam each time. The first child (`Live-turn SOUL.md and project context wiring (channel-neutral)`) flips the visible identity by itself; subsequent children layer USER/MEMORY, skills, tools, and metadata blocks on top.",
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "All seven child rows are complete, the channel-neutrality fixture passes for at least Telegram + Slack + BlueBubbles, and a live smoke confirms Gormes identity, user-awareness, and project-awareness through any one channel."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:run_agent.py + agent/prompt_builder.py system-prompt block ordering",
+                "note": "Hermes assembles system-prompt blocks per turn inside the agent runtime; Gormes assembles them inside gateway.Manager so the channel-neutral TurnAdapter / kernel.PlatformEvent.SessionContext seam already in place is reused. No kernel.PlatformEvent shape change required."
+              }
+            },
+            {
+              "name": "Live-turn SOUL.md and project context wiring (channel-neutral)",
+              "status": "planned",
+              "priority": "P0",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "contract": "gateway.Manager invokes internal/hermes.BuildContextFilesPrompt once per inbound submit and prepends the rendered SOUL.md + project context block (HERMES.md / .hermes.md / AGENTS.md / CLAUDE.md / .cursorrules per BuildContextFilesPrompt's existing first-match-wins precedence) to the existing BuildSessionContextPrompt block before the kernel.PlatformEvent.SessionContext field is set. The wiring lives inside gateway.Manager — never inside any channel adapter — so Telegram, Slack, WhatsApp, BlueBubbles, Discord, Sage Goblin, and any future channel inherit the block automatically. Profile dir resolution uses config.GormesHome() in production with a fakeable seam for tests; CWD resolution uses the manager's configured working directory with a fakeable seam. ContextFilesReport evidence is logged via gateway telemetry but never sent on the channel.",
+              "contract_status": "draft",
+              "degraded_mode": "Missing SOUL.md or missing project context returns an empty block from BuildContextFilesPrompt — the existing platform/session block is injected unchanged and no error reaches the channel. A SOUL.md that trips the threat-pattern scan is rendered as the existing `[BLOCKED: ...]` marker and never reaches the provider as raw threat content. A truncated SOUL.md or AGENTS.md carries the existing `[...truncated ... kept H+T of N chars ...]` marker. A failed file read is logged via telemetry and the block is dropped for that turn.",
+              "fixture": "internal/gateway/live_turn_prompt_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py",
+                "../hermes-agent/agent/prompt_builder.py",
+                "internal/hermes/context_files.go:BuildContextFilesPrompt",
+                "internal/hermes/context_files.go:ContextFilesOptions",
+                "internal/hermes/context_files.go:ContextFilesReport",
+                "internal/gateway/manager.go:1534",
+                "internal/gateway/session_context.go:BuildSessionContextPrompt",
+                "internal/gateway/turn_adapter.go:TurnRequest",
+                "internal/kernel/kernel.go:runTurn",
+                "internal/kernel/frame.go:PlatformEvent.SessionContext"
+              ],
+              "ready_when": [
+                "BuildContextFilesPrompt is complete and exposes channel-neutral SOUL + project rendering with threat-scan guards (verified — internal/hermes/context_files.go ships and is tested).",
+                "The single channel-neutral assembly site at gateway/manager.go:1534 is intact (verified — BuildSessionContextPrompt already lives there and feeds kernel.PlatformEvent.SessionContext).",
+                "Tests can construct a fake gateway turn with injected fakes for profile dir + CWD + channel; no live filesystem state under ~/.gormes or ~/.hermes is read."
+              ],
+              "not_ready_when": [
+                "The slice modifies internal/hermes/context_files.go, internal/kernel/frame.go, internal/kernel/kernel.go, or any channel adapter under internal/channels/.",
+                "The slice ports USER.md, MEMORY.md, skills guidance, tool guidance, or time/model/provider metadata — those are sibling child rows.",
+                "The slice adds a channel name check (`if platform == 'telegram'`) anywhere on the assembly path.",
+                "The slice exposes raw absolute paths or raw threat content to the channel; only redacted evidence may be logged through telemetry.",
+                "The slice changes BuildSessionContextPrompt behavior or its byte output for the existing platform/session block."
+              ],
+              "blocked_by": [
+                "Hermes live-turn prompt assembly parity (channel-neutral)"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestLiveTurn_SystemPrompt_IncludesSOUL: a fake gateway turn dispatched with a fake profile dir containing SOUL.md='You are Gormes, not ChatGPT.' produces a captured kernel.PlatformEvent.SessionContext that contains the exact substring 'You are Gormes, not ChatGPT.'.",
+                "TestLiveTurn_SystemPrompt_IncludesProjectContext: a fake gateway turn dispatched with a fake CWD containing AGENTS.md='Project: Gormes — native Go Hermes parity agent.' produces a captured kernel.PlatformEvent.SessionContext that contains the AGENTS.md body.",
+                "TestLiveTurn_SystemPrompt_BlockOrder: a fake gateway turn with both SOUL.md and AGENTS.md fixtures produces a captured SessionContext where the SOUL/project header precedes the existing BuildSessionContextPrompt platform/session block, which precedes any user-bound recall content. The recall ordering test from the existing kernel session_context_test fixture must continue to pass unchanged.",
+                "TestLiveTurn_SystemPrompt_ChannelNeutral: the same fake turn fixture run through fake Telegram, Slack, BlueBubbles, WhatsApp, and Discord channel adapters produces a byte-identical SOUL/project block in each captured kernel submit.",
+                "TestLiveTurn_SystemPrompt_MissingProfileNoPanic: a fake gateway turn with no SOUL.md and no project context produces a captured SessionContext byte-identical to the current (pre-wiring) BuildSessionContextPrompt-only output, proving the existing block is unchanged when context-files content is absent.",
+                "TestLiveTurn_SystemPrompt_ThreatBlocked: a fake gateway turn with a SOUL.md containing 'ignore previous instructions' produces a captured SessionContext whose SOUL block carries the `[BLOCKED:` marker and never carries the raw threat string."
+              ],
+              "note": "Critical 2026-04-29 P0 fix: live Telegram evidence shows Gormes replying 'I'm ChatGPT.' to 'Whats ur name?' because the live provider request omits the Hermes identity stack. This slice flips the visible identity by wiring the already-shipped BuildContextFilesPrompt into the channel-neutral gateway.Manager assembly site. No re-implementation of context discovery, threat scan, or truncation — just the wiring + fakeable seams + six fixtures. After green, restart the source-run gateway and live-test 'Whats ur name?' on Telegram; Gormes should self-identify per SOUL.md.",
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/live_turn_prompt_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Six named fixtures pass; gateway.Manager prepends the BuildContextFilesPrompt block at the existing BuildSessionContextPrompt site; no channel adapter under internal/channels/ is modified; restart smoke confirms Gormes identity through Telegram with the project's SOUL.md."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:run_agent.py + agent/prompt_builder.py SOUL + project context blocks",
+                "note": "Hermes loads SOUL.md and project context (HERMES.md / AGENTS.md / CLAUDE.md / .cursorrules) and prepends them to the system prompt before the user message. Gormes already implements the rendering in internal/hermes/context_files.go; this slice is purely the channel-neutral wiring at gateway.Manager."
+              }
+            },
+            {
               "name": "BlueBubbles iMessage session-context prompt guidance",
               "priority": "P1",
               "status": "complete",
