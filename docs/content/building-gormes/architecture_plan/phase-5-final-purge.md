@@ -107,3 +107,33 @@ Phase 5 is the highest-risk place to accidentally create giant porting tasks. Tr
 9. **5.O service restart polling is parser first, poller second.** Parse fake `RestartUSec` output and compute bounded restart delays before landing the fake active-status poller that waits `max(10s, RestartSec+10s)`. Neither row should touch real `systemctl`, Windows service control, installers, or gateway restart logic.
 10. **5.Q TUI bundle drift is a deliberate divergence.** Upstream Hermes still has to defend its Node/Ink TUI bundle, including the `ee0728c6` stale-bundle rebuild check. Gormes proves the opposite with `cmd/gormes/tui_bundle_independence_test.go`: native Bubble Tea startup and offline status do not shell out to npm/node, inspect `node_modules`, or require `packages/hermes-ink/dist/ink-bundle.js`.
 11. **5.Q TUI model/copy drift is native-first.** Port `283c8fd6` model/provider startup override semantics into Gormes' Cobra/Bubble Tea path with static alias fixtures and no provider catalog network calls. Treat `edc78e25`/`31d7f195` Ink selection-copy fixes as an explicit divergence row for now: docs and TUI status should say Gormes relies on terminal-native selection and should not advertise custom copy hotkeys until a Go-native copy mode exists.
+
+## Go donor pointers
+
+Before writing a new Phase 5 slice, route through the `gormes-references`
+skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+donor file that already shapes the seam.
+
+| Phase 5 problem | Donor file | Notes |
+|---|---|---|
+| 5.A tool registry + descriptor-driven schema/availability/trust | `nanobot/pkg/tools/service.go`, `nanobot/pkg/tools/flows.go` | Apache 2.0; descriptor pattern |
+| 5.A tool-output truncation while persisting full bytes (artifact pointer) | `nanobot/pkg/agents/truncate.go` | Already used in Phase 2 inbound |
+| 5.A image-token estimation per provider | `nanobot/pkg/agents/tokencount.go` | Conservative per-provider fallback |
+| 5.B sandbox environment interface + cancellable workers | `nanobot/pkg/runtime/runtime.go` | Explicit dependency layering |
+| 5.G MCP serialized write queue (deterministic, cancel-before-start) | `engram/internal/mcp/write_queue.go` | Already in production use in engram |
+| 5.G MCP activity/audit logging (redaction, append-only) | `engram/internal/mcp/activity.go` | Same audit shape Gormes uses in 2.D/3.E |
+| 5.J approval / dangerous-action filters with declarative pre-call gates | `nanobot/pkg/tools/flows.go`, `axe/internal/tool/` | Filter helpers + flow gates |
+| 5.J path-traversal/URL/website policy guards | `axe/internal/artifact/tracker.go` | Sanitized-path pattern, append-only registry |
+| 5.K code execution sandbox + bounded stdout/stderr caps | `nanobot/pkg/agents/truncate.go` | Output-cap policy already shipped uses this shape |
+| 5.L file-ops checkpoint + path-sanitization + dedup | `axe/internal/artifact/tracker.go` | Path-traversal guard for write-capable file tools |
+| 5.M mixture-of-agents — workflow agents (loop / sequential / parallel) | `adk-go/agent/workflowagents/...` | Workflow primitives without rewriting kernel |
+| 5.N session-search / debug helpers — bounded token budget | `axe/internal/budget/budget.go` | Per-turn counter + reset |
+| 5.O CLI parity — config/profile/dotenv layered loaders | `axe/internal/config/`, `axe/internal/xdg/` | XDG-respecting layered config |
+| 5.O CLI parity — credential/auth surface | `goclaw/internal/oauth/openai.go` | Code permitted with provenance |
+| 5.Q API server proxy mode + run-event SSE | `nanobot/pkg/runtime/runtime.go` | Cancellable session-scoped workers |
+| 5.R code-execution-mode resolver (strict vs project, CWD/interpreter) | `axe/internal/resolve/`, `axe/internal/envinterp/` | Per-mode resolver pattern |
+
+Provider-side surfaces (auth/streaming/quota/retry) inside any 5.x tool route
+through `gormes-provider-parity` and
+`references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` instead of
+re-deriving the OAuth/quota classifier.

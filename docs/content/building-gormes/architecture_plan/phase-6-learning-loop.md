@@ -70,3 +70,25 @@ Do not begin Phase 6 with live LLM extraction. The dependency order is:
 4. **6.D retrieval scorer** — combine lexical and semantic signals while excluding disabled or unreviewed skills from prompt injection.
 5. **6.E feedback records** — persist outcomes before any automatic promotion/demotion or weight change.
 6. **6.F operator surfaces** — expose review/edit/disable flows only after the underlying store and feedback records are stable.
+
+## Go donor pointers
+
+Skill extraction itself is Gormes-original — no Go reference ships an
+automated extractor — so each row needs `provenance.origin_type: gormes` plus
+test-first delivery. Surrounding plumbing has donors:
+
+| Phase 6 problem | Donor file | Notes |
+|---|---|---|
+| 6.A complexity detector — bounded transcript-size budget | `axe/internal/budget/budget.go` | Per-turn counter + overflow signal |
+| 6.A complexity detector — append-only signal log | `engram/internal/mcp/activity.go` | Audit shape, redaction |
+| 6.B extractor schema — secret stripping at ingest boundary | `nanobot/pkg/agents/truncate.go` | Sanitize/truncate before persistence |
+| 6.C skill storage — versioned metadata + atomic writes | `engram/internal/store/store.go` | DDL + migration helpers |
+| 6.C skill storage — sanitized artifact paths for stored evidence | `axe/internal/artifact/tracker.go` | Path-traversal guard |
+| 6.D retrieval scorer — bounded fan-out cap for code-context evidence | `axe/internal/budget/budget.go` | Reset + overflow signal |
+| 6.D retrieval scorer — provenance-aware ranking signals | `engram/internal/store/relations.go` | Provenance edges (`scoped`, `supersedes`) |
+| 6.E feedback records — outcome ledger before promotion/demotion | `engram/internal/mcp/activity.go` | Append-only outcome log |
+| 6.F operator review surfaces — workflow agent pattern | `adk-go/agent/workflowagents/...` | Loop / sequential / parallel primitives |
+
+Route through the `gormes-references` skill
+(`docs/development-skills/gormes-references/SKILL.md`) before re-deriving any
+of these shapes.

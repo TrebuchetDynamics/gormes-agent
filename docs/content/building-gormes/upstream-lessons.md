@@ -96,6 +96,32 @@ Every planned subsystem should answer these before implementation:
 - [Hermes Good And Bad](../../upstream-hermes/good-and-bad/)
 - [Hermes Gormes Takeaways](../../upstream-hermes/gormes-takeaways/)
 
+## Go Donor Anchors
+
+Hermes Python defines what to port; Go donors under `references/go-agent-os/`
+define how to shape it idiomatically in Go. Each durable contract has at least
+one donor file that already implements its shape:
+
+| Contract | Go donor anchor |
+|---|---|
+| Contract-first operations | `nanobot/pkg/tools/service.go`, `nanobot/pkg/tools/flows.go` |
+| Trust-class enforcement | `nanobot/pkg/tools/flows.go`, `axe/internal/tool/` |
+| Stable prompt assembly | `nanobot/pkg/runtime/runtime.go` |
+| Provider-neutral events | `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` |
+| Durable jobs | `engram/internal/mcp/write_queue.go`, `engram/internal/mcp/activity.go` |
+| Provenance-rich memory | `engram/internal/store/store.go`, `engram/internal/store/relations.go` |
+| Skills as reviewed code | `engram/internal/store/store.go` for storage; extractor itself is `provenance.origin_type: gormes` |
+| Visible degraded mode | `goclaw/internal/oauth/openai_quota_transport.go` (degraded-state classification) |
+| Cancellable session-scoped workers | `trpc-agent-go/agent/await_user_reply.go` |
+| Before/after callback pipeline | `trpc-agent-go/model/callbacks.go`, `trpc-agent-go/agent/callbacks.go` |
+
+Use the `gormes-references` skill
+(`docs/development-skills/gormes-references/SKILL.md`) for
+runtime/tools/memory/utility lookups and the `gormes-provider-parity` skill
+(`docs/development-skills/gormes-provider-parity/SKILL.md`) for
+provider/auth/streaming/quota/retry. Always add a `// Adapted from
+<donor>/...::Symbol` comment when porting code.
+
 ## Decision
 
 The better Gormes architecture is:
