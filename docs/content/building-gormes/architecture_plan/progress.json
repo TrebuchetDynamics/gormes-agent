@@ -12287,9 +12287,10 @@
             {
               "name": "Tool output budget persisted artifact pointer",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native tool execution bounds large tool results by persisting full output as a session artifact and returning a short text pointer to the model/channel, preserving Hermes operator readability and channel safety.",
-              "contract_status": "draft",
+              "contract_status": "validated",
+              "note": "Complete: TDD landed internal/tools/result_budget.go and result_budget_test.go. FormatToolResult truncates over-budget text, persists full bytes to a sha256-derived artifact under the session OutputDir, and returns a short pointer of the form [tool_output_artifact path=<rel> media=<mt> bytes=<n>]\\n<preview>. Evidence codes tool_output_truncated, tool_output_persisted, tool_output_persistence_failed, and tool_output_under_budget are stable for callers. Persistence_failed degrades to bounded inline preview without leaking secrets or over-budget bytes. Path sanitization derives filenames from a content hash and confirms the joined path stays inside OutputDir.",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
