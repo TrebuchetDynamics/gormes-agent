@@ -16156,9 +16156,9 @@
             {
               "name": "Cron run resource release contract",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cron exposes a typed per-run resource-release ledger helper that records spawned subprocess PIDs (via an injected killer interface), io.Closer values for SQLite session DBs, and outbound HTTP RoundTripper idle-closables. The helper guarantees deterministic close ordering, idempotent re-entry, partial-failure continuation, and explicit evidence vocabulary so a later Executor binding can release every per-run resource exactly once. The helper does not start a kernel turn, hit a provider, manage MCP stdio runtimes, or change the Scheduler goroutine lifecycle.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -16204,7 +16204,7 @@
                 "TestRunReleaseLedger_IsIdempotent calls the helper twice on the same ledger and proves the second call is a no-op with cron_release_skipped_no_resource evidence (no double-close, no double-kill).",
                 "Existing internal/cron Executor, run_completion, heartbeat, and integration tests remain green without editing executor.go, run_completion.go, heartbeat.go, or scheduler.go."
               ],
-              "note": "Added 2026-04-27T14:55:00Z after Hermes 9b55365f added agent.close() + ThreadPoolExecutor event-loop httpx-client reaping in Python cron run_job and gateway shutdown, citing #10200 fd-leak (\"too many open files\") on long-running cron tickers. Gormes does not have Python's threadlocal httpx accumulation problem, but it does have spawned tool subprocess and SQLite session-DB lifetimes that must be released per-run. This first slice is helper-only: a typed release ledger with deterministic close ordering and explicit evidence vocabulary. Executor binding (so Executor.Run actually pushes its closables/PIDs into the ledger) is a dependent row.",
+              "note": "Complete: TDD added internal/cron/run_release.go exposing RunReleaseLedger with RegisterCloser, RegisterIdleClosable, RegisterSubprocess, and Release(SubprocessKiller). Release closes each registered resource in registration order, continues past errors via errors.Join, and emits cron_release_session_db_closed, cron_release_http_idle_closed, cron_release_subprocess_killed evidence with structured Fields. The session-db and http-idle paths emit *_failed codes when Close() returns an error. Empty ledgers and second Release calls return cron_release_skipped_no_resource exactly once. Executor binding stays a dependent row; scheduler goroutines, kernel turns, MCP stdio runtimes, and run_completion/heartbeat ordering are unchanged.",
               "write_scope": [
                 "internal/cron/run_release.go",
                 "internal/cron/run_release_test.go",
