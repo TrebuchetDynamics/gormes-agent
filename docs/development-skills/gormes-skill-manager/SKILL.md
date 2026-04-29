@@ -32,6 +32,11 @@ Pick the primary intent:
   implementation and keep `config migrate` separate from `migrate hermes` /
   `migrate openclaw`. Treat `ooenclaw` as an OpenClaw typo-suggestion path,
   not a second migration command, unless a compatibility row exists.
+- **Provider/auth/model/runtime failure or implementation**: use
+  `gormes-provider-parity`, then `gormes-builder` + `gormes-tdd-slice` when
+  code changes are needed. This route must check Hermes behavior first, then
+  inspect local Go references such as GoClaw/Plandex/Nanobot/trpc-agent-go/ADK-Go
+  for implementation patterns while preserving Hermes parity as P0.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.
@@ -74,8 +79,8 @@ Do not create a skill for one-off context, a single row, or a vague theme.
 
 Use names like:
 
-- `gormes-goncho-compat`
 - `gormes-provider-parity`
+- `gormes-goncho-compat`
 - `gormes-channel-adapter`
 - `gormes-docs-web-sync`
 - `gormes-e2e-operator`
