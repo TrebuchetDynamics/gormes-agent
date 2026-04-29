@@ -451,8 +451,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.B.5 = %q, want complete", got)
+	if got := routing.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.B.5 = %q, want in_progress while live-turn prompt assembly umbrella remains planned", got)
 	}
 	routingItems := itemsByName(routing.Items)
 	sessionStore := routingItems["Gateway session store + SessionSource parity"]

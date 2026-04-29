@@ -1543,7 +1543,7 @@
             },
             {
               "name": "Live-turn SOUL.md and project context wiring (channel-neutral)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -1552,7 +1552,7 @@
                 "system"
               ],
               "contract": "gateway.Manager invokes internal/hermes.BuildContextFilesPrompt once per inbound submit and prepends the rendered SOUL.md + project context block (HERMES.md / .hermes.md / AGENTS.md / CLAUDE.md / .cursorrules per BuildContextFilesPrompt's existing first-match-wins precedence) to the existing BuildSessionContextPrompt block before the kernel.PlatformEvent.SessionContext field is set. The wiring lives inside gateway.Manager — never inside any channel adapter — so Telegram, Slack, WhatsApp, BlueBubbles, Discord, Sage Goblin, and any future channel inherit the block automatically. Profile dir resolution uses config.GormesHome() in production with a fakeable seam for tests; CWD resolution uses the manager's configured working directory with a fakeable seam. ContextFilesReport evidence is logged via gateway telemetry but never sent on the channel.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "Missing SOUL.md or missing project context returns an empty block from BuildContextFilesPrompt — the existing platform/session block is injected unchanged and no error reaches the channel. A SOUL.md that trips the threat-pattern scan is rendered as the existing `[BLOCKED: ...]` marker and never reaches the provider as raw threat content. A truncated SOUL.md or AGENTS.md carries the existing `[...truncated ... kept H+T of N chars ...]` marker. A failed file read is logged via telemetry and the block is dropped for that turn.",
               "fixture": "internal/gateway/live_turn_prompt_test.go",
               "source_refs": [
@@ -1609,6 +1609,32 @@
               "done_signal": [
                 "Six named fixtures pass; gateway.Manager prepends the BuildContextFilesPrompt block at the existing BuildSessionContextPrompt site; no channel adapter under internal/channels/ is modified; restart smoke confirms Gormes identity through Telegram with the project's SOUL.md."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/live_turn_prompt.go:liveTurnPromptSeams (struct seam for ProfileDir / CWD / Build)",
+                  "internal/gateway/live_turn_prompt.go:defaultLiveTurnPromptSeams (production wiring: config.GormesHome + os.Getwd + hermes.BuildContextFilesPrompt)",
+                  "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (prepend + empty-context byte-identical fallback)",
+                  "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile + ContextFilesCWD (caller-supplied seam overrides)",
+                  "internal/gateway/manager.go:Manager.liveTurnPromptSeams (resolved at construction time)",
+                  "internal/gateway/manager.go:submitPinned (channel-neutral assembly site now feeds assembleLiveTurnPrompt before kernel.PlatformEvent.SessionContext)"
+                ],
+                "tests": [
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesSOUL",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesProjectContext",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_BlockOrder",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_ChannelNeutral (sub-tests: telegram, slack, bluebubbles, whatsapp, discord)",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_MissingProfileNoPanic",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_ThreatBlocked"
+                ],
+                "captured_session_context_for_soul_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\nYou are Gormes, not ChatGPT.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok (including internal/progress phase 2.B.5 derived-status assertion now green)",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "porting",
                 "upstream_ref": "hermes:run_agent.py + agent/prompt_builder.py SOUL + project context blocks",

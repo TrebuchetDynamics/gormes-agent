@@ -14,6 +14,7 @@ and acceptance checks before assigning them to an implementation agent.
 <!-- PROGRESS:START kind=umbrella-cleanup -->
 | Phase | Umbrella row | Owner | Not ready when | Split into |
 |---|---|---|---|---|
+| 2 / 2.B.5 | Hermes live-turn prompt assembly parity (channel-neutral) | `gateway` | The umbrella is selected as a single slice rather than executed through child rows., Wiring is added inside any one channel adapter (internal/channels/telegram, internal/channels/slack, internal/channels/bluebubbles, etc.) instead of inside gateway.Manager., A child row mutates BuildContextFilesPrompt instead of consuming it, or modifies kernel.PlatformEvent to add new system-prompt fields when the existing SessionContext field already carries the assembled header. | - |
 | 2 / 2.F.4 | Notify-to delivery routing | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Manager remember-source hook | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Mirror + sticker cache surfaces | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |

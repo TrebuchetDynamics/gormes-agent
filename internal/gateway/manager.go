@@ -70,6 +70,14 @@ type ManagerConfig struct {
 	// AccountUsage renders /usage provider account-limit evidence. Runtime token
 	// telemetry is read from the manager's latest render frame.
 	AccountUsage AccountUsageProvider
+	// ContextFilesProfile overrides the profile directory used for live-turn
+	// SOUL.md discovery. Empty falls back to config.GormesHome() at call time.
+	// Tests inject hermetic temp directories so no live ~/.gormes state is read.
+	ContextFilesProfile string
+	// ContextFilesCWD overrides the working directory used for project-context
+	// discovery (HERMES.md / .hermes.md / AGENTS.md / CLAUDE.md / .cursorrules).
+	// Empty falls back to os.Getwd() at call time.
+	ContextFilesCWD string
 }
 
 type kernelSubmitter interface {
@@ -106,6 +114,8 @@ type Manager struct {
 	inboundDedup *MessageDeduplicator
 
 	renderChan <-chan kernel.RenderFrame
+
+	liveTurnPromptSeams liveTurnPromptSeams
 }
 
 type channelRunFailure struct {
@@ -251,13 +261,21 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	if cfg.AllowDiscovery == nil {
 		cfg.AllowDiscovery = map[string]bool{}
 	}
+	seams := defaultLiveTurnPromptSeams()
+	if dir := strings.TrimSpace(cfg.ContextFilesProfile); dir != "" {
+		seams.ProfileDir = func() string { return dir }
+	}
+	if cwd := strings.TrimSpace(cfg.ContextFilesCWD); cwd != "" {
+		seams.CWD = func() string { return cwd }
+	}
 	return &Manager{
-		cfg:            cfg,
-		kernel:         k,
-		log:            log,
-		channels:       map[string]Channel{},
-		reasoningState: map[string]SessionReasoningState{},
-		inboundDedup:   NewMessageDeduplicator(defaultInboundDedupMaxSize),
+		cfg:                 cfg,
+		kernel:              k,
+		log:                 log,
+		channels:            map[string]Channel{},
+		reasoningState:      map[string]SessionReasoningState{},
+		inboundDedup:        NewMessageDeduplicator(defaultInboundDedupMaxSize),
+		liveTurnPromptSeams: seams,
 	}
 }
 
@@ -1531,7 +1549,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		}
 	}
 	m.setPinnedTurnSession(ev.ChatKey(), resolved.SessionID, source)
-	sessionContext := BuildSessionContextPrompt(SessionContext{
+	sessionBlock := BuildSessionContextPrompt(SessionContext{
 		Source:                source,
 		SessionKey:            ev.ChatKey(),
 		SessionID:             resolved.SessionID,
@@ -1542,6 +1560,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
+	sessionContext, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, sessionBlock)
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,
