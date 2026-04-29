@@ -29,8 +29,10 @@ type Metadata struct {
 	Source                       string               `json:"source,omitempty"`
 	ChatID                       string               `json:"chat_id,omitempty"`
 	UserID                       string               `json:"user_id,omitempty"`
+	Title                        string               `json:"title,omitempty"`
 	ParentSessionID              string               `json:"parent_session_id,omitempty"`
 	LineageKind                  string               `json:"lineage_kind"`
+	CreatedAt                    int64                `json:"created_at,omitempty"`
 	UpdatedAt                    int64                `json:"updated_at"`
 	ResumePending                bool                 `json:"resume_pending,omitempty"`
 	ResumeReason                 string               `json:"resume_reason,omitempty"`
@@ -61,6 +63,7 @@ func normalizeMetadata(meta Metadata) Metadata {
 	meta.Source = strings.TrimSpace(meta.Source)
 	meta.ChatID = strings.TrimSpace(meta.ChatID)
 	meta.UserID = strings.TrimSpace(meta.UserID)
+	meta.Title = strings.TrimSpace(meta.Title)
 	meta.ParentSessionID = strings.TrimSpace(meta.ParentSessionID)
 	meta.LineageKind = strings.ToLower(strings.TrimSpace(meta.LineageKind))
 	meta.ResumeReason = strings.ToLower(strings.TrimSpace(meta.ResumeReason))
@@ -85,6 +88,9 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	if incoming.UserID != "" {
 		out.UserID = incoming.UserID
 	}
+	if incoming.Title != "" {
+		out.Title = incoming.Title
+	}
 	if incoming.ParentSessionID != "" {
 		if out.ParentSessionID != "" && out.ParentSessionID != incoming.ParentSessionID {
 			return Metadata{}, fmt.Errorf("%w: %s parent_session_id already %s", ErrLineageConflict, incoming.SessionID, out.ParentSessionID)
@@ -96,6 +102,9 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 			return Metadata{}, fmt.Errorf("%w: %s lineage_kind already %s", ErrLineageConflict, incoming.SessionID, out.LineageKind)
 		}
 		out.LineageKind = incoming.LineageKind
+	}
+	if incoming.CreatedAt != 0 && out.CreatedAt == 0 {
+		out.CreatedAt = incoming.CreatedAt
 	}
 	if incoming.UpdatedAt != 0 {
 		out.UpdatedAt = incoming.UpdatedAt
@@ -242,6 +251,9 @@ func (m *BoltMap) PutMetadata(ctx context.Context, meta Metadata) error {
 
 		if meta.UpdatedAt == 0 {
 			meta.UpdatedAt = time.Now().Unix()
+		}
+		if meta.CreatedAt == 0 {
+			meta.CreatedAt = meta.UpdatedAt
 		}
 		raw, err := json.Marshal(meta)
 		if err != nil {
@@ -509,6 +521,9 @@ func (m *MemMap) PutMetadata(ctx context.Context, meta Metadata) error {
 	}
 	if meta.UpdatedAt == 0 {
 		meta.UpdatedAt = time.Now().Unix()
+	}
+	if meta.CreatedAt == 0 {
+		meta.CreatedAt = meta.UpdatedAt
 	}
 	m.meta[meta.SessionID] = meta
 	return nil

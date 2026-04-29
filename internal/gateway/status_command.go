@@ -22,9 +22,17 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		sessionID = "(none)"
 	}
 
+	created := statusCreatedAt(sessionID)
 	lastActivity := "(unknown)"
-	if meta, ok := m.lookupSessionMetadata(ctx, sessionID); ok && meta.UpdatedAt != 0 {
-		lastActivity = time.Unix(meta.UpdatedAt, 0).Format("2006-01-02 15:04")
+	title := ""
+	if meta, ok := m.lookupSessionMetadata(ctx, sessionID); ok {
+		title = strings.TrimSpace(meta.Title)
+		if meta.CreatedAt != 0 {
+			created = formatStatusTime(time.Unix(meta.CreatedAt, 0))
+		}
+		if meta.UpdatedAt != 0 {
+			lastActivity = formatStatusTime(time.Unix(meta.UpdatedAt, 0))
+		}
 	}
 
 	tokens := frame.Telemetry.TokensInTotal + frame.Telemetry.TokensOutTotal
@@ -41,7 +49,24 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		connected = strings.Join(platforms, ", ")
 	}
 
-	return fmt.Sprintf("📊 Gormes Gateway Status\n\nSession ID:\n%s\nTitle: (untitled)\nCreated: (unknown)\nLast Activity: %s\nTokens: %d\nAgent Running: %s\n\nConnected Platforms: %s", sessionID, lastActivity, tokens, agentRunning, connected)
+	lines := []string{
+		"📊 Gormes Gateway Status",
+		"",
+		"Session ID:",
+		sessionID,
+	}
+	if title != "" {
+		lines = append(lines, "Title: "+title)
+	}
+	lines = append(lines,
+		"Created: "+created,
+		"Last Activity: "+lastActivity,
+		fmt.Sprintf("Tokens: %d", tokens),
+		"Agent Running: "+agentRunning,
+		"",
+		"Connected Platforms: "+connected,
+	)
+	return strings.Join(lines, "\n")
 }
 
 func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, frame kernel.RenderFrame) string {
@@ -82,6 +107,22 @@ func generateStatusSessionID(now time.Time, ev InboundEvent) string {
 	return fmt.Sprintf("%s_%08x", stamp, h.Sum32())
 }
 
+func statusCreatedAt(sessionID string) string {
+	parts := strings.Split(strings.TrimSpace(sessionID), "_")
+	if len(parts) < 2 {
+		return "(unknown)"
+	}
+	t, err := time.ParseInLocation("20060102_150405", parts[0]+"_"+parts[1], time.Local)
+	if err != nil {
+		return "(unknown)"
+	}
+	return formatStatusTime(t)
+}
+
+func formatStatusTime(t time.Time) string {
+	return t.Local().Format("2006-01-02 15:04")
+}
+
 func (m *Manager) persistStatusSession(ctx context.Context, ev InboundEvent, sessionID string) {
 	if m.cfg.SessionMap == nil {
 		return
@@ -103,6 +144,7 @@ func (m *Manager) ensureStatusSessionMetadata(ctx context.Context, ev InboundEve
 	source := sessionSourceFromInbound(ev)
 	meta := session.Metadata{
 		SessionID: sessionID,
+		CreatedAt: m.now().Unix(),
 		UpdatedAt: m.now().Unix(),
 	}
 	if source.Platform != "" && source.ChatID != "" {

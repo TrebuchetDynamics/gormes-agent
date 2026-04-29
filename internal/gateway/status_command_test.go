@@ -62,8 +62,7 @@ func TestManagerStatusCommandRendersHermesStyleGatewayStatus(t *testing.T) {
 	for _, want := range []string{
 		"📊 Gormes Gateway Status",
 		"Session ID:\nsess-123",
-		"Title: (untitled)",
-		"Created: (unknown)",
+		"Created: " + time.Unix(now.Unix(), 0).Format("2006-01-02 15:04"),
 		wantActivity,
 		"Tokens: 7",
 		"Agent Running: No",
@@ -109,8 +108,10 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 	}
 	got := sent[0].Text
 	wantActivity := "Last Activity: " + time.Unix(now.Unix(), 0).Format("2006-01-02 15:04")
+	wantCreated := "Created: " + time.Unix(now.Unix(), 0).Format("2006-01-02 15:04")
 	for _, want := range []string{
 		"Session ID:\n20260429_094200_",
+		wantCreated,
 		wantActivity,
 		"Connected Platforms: telegram",
 	} {
@@ -174,8 +175,12 @@ func TestManagerStatusCommandReplacesLegacyChatKeySessionID(t *testing.T) {
 	if strings.Contains(got, "Session ID:\ntelegram:42") {
 		t.Fatalf("status leaked legacy chat-key session id:\n%s", got)
 	}
-	if !strings.Contains(got, "Session ID:\n20260429_114200_") {
-		t.Fatalf("status response did not include generated session id:\n%s", got)
+	wantCreated := "Created: " + time.Unix(now.Unix(), 0).Format("2006-01-02 15:04")
+	if !strings.Contains(got, wantCreated) {
+		t.Fatalf("status response did not derive Created from generated session id:\n%s", got)
+	}
+	if strings.Contains(got, "Title: (untitled)") || strings.Contains(got, "Created: (unknown)") {
+		t.Fatalf("status response leaked placeholder fields:\n%s", got)
 	}
 	mapped, err := smap.Get(ctx, "telegram:42")
 	if err != nil {
