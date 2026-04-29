@@ -46,7 +46,29 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 
 func (b *Bot) Name() string { return "telegram" }
 
+func (b *Bot) registerCommands() error {
+	commands := gateway.TelegramBotCommands()
+	botCommands := make([]tgbotapi.BotCommand, 0, len(commands))
+	for _, cmd := range commands {
+		name := strings.TrimSpace(cmd.Name)
+		desc := strings.TrimSpace(cmd.Description)
+		if name == "" || desc == "" {
+			continue
+		}
+		botCommands = append(botCommands, tgbotapi.BotCommand{Command: name, Description: desc})
+	}
+	if len(botCommands) == 0 {
+		return nil
+	}
+	_, err := b.client.Request(tgbotapi.NewSetMyCommands(botCommands...))
+	return err
+}
+
 func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
+	if err := b.registerCommands(); err != nil {
+		b.log.Warn("telegram setMyCommands failed", "err", err)
+	}
+
 	ucfg := tgbotapi.NewUpdate(0)
 	ucfg.Timeout = 30
 	updates := b.client.GetUpdatesChan(ucfg)

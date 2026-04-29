@@ -20,6 +20,9 @@ type telegramClient interface {
 	// an effectively-ignored Message with the same ID.
 	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 
+	// Request sends non-message Telegram API requests such as setMyCommands.
+	Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
+
 	// DeleteMessage removes a bot-posted message through the Bot API
 	// deleteMessage request path.
 	DeleteMessage(chatID int64, messageID int) error

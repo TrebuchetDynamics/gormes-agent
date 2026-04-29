@@ -18,6 +18,43 @@ func TestBot_Name(t *testing.T) {
 	}
 }
 
+func TestBot_RunRegistersHermesTelegramCommands(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = b.Run(ctx, inbox) }()
+	defer cancel()
+
+	deadline := time.After(200 * time.Millisecond)
+	for {
+		requests := mc.requestMessages()
+		for _, req := range requests {
+			cfg, ok := req.(tgbotapi.SetMyCommandsConfig)
+			if !ok {
+				continue
+			}
+			seen := map[string]bool{}
+			for _, cmd := range cfg.Commands {
+				seen[cmd.Command] = true
+			}
+			for _, want := range []string{"new", "retry", "undo", "title", "branch", "compress", "rollback", "snapshot", "stop", "approve", "deny", "background", "btw", "agents", "queue", "steer", "status"} {
+				if !seen[want] {
+					t.Fatalf("setMyCommands missing %q in %#v", want, cfg.Commands)
+				}
+			}
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("Run did not issue setMyCommands; requests=%#v", requests)
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+}
+
 func TestBot_ToInboundEvent_Submit(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)

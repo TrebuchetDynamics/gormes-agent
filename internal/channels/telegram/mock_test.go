@@ -10,6 +10,7 @@ type mockClient struct {
 	updatesCh chan tgbotapi.Update
 	mu        sync.Mutex
 	sent      []tgbotapi.Chattable
+	requests  []tgbotapi.Chattable
 	deleted   []tgbotapi.Chattable
 	nextMsgID int
 	stopped   bool
@@ -42,6 +43,13 @@ func (m *mockClient) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 		return m.SendFn(c)
 	}
 	return tgbotapi.Message{MessageID: id}, nil
+}
+
+func (m *mockClient) Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error) {
+	m.mu.Lock()
+	m.requests = append(m.requests, c)
+	m.mu.Unlock()
+	return &tgbotapi.APIResponse{Ok: true}, nil
 }
 
 func (m *mockClient) DeleteMessage(chatID int64, messageID int) error {
@@ -83,6 +91,14 @@ func (m *mockClient) sentMessages() []tgbotapi.Chattable {
 	defer m.mu.Unlock()
 	out := make([]tgbotapi.Chattable, len(m.sent))
 	copy(out, m.sent)
+	return out
+}
+
+func (m *mockClient) requestMessages() []tgbotapi.Chattable {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]tgbotapi.Chattable, len(m.requests))
+	copy(out, m.requests)
 	return out
 }
 
