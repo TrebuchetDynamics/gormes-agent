@@ -21629,7 +21629,7 @@
               "status": "planned",
               "priority": "P2",
               "contract": "`gormes mcp login <name>` is registered as a Cobra command that delegates to a `MCPLoginFlow` interface defined in `internal/tools/mcp_login.go` with signature `type MCPLoginFlow interface { Login(ctx context.Context, server MCPServer) (*MCPSession, error) }`. The default implementation `noninteractiveLoginFlow` returns `noninteractive_required` typed evidence with operator guidance text (pointing at `gormes mcp remove` + `gormes mcp add` and the future browser-flow row) and never opens a browser, callback server, or live token-exchange request. Tests inject fake successful, failed, and noninteractive flows to prove the seam supports a future browser implementation. Existing rows 15458 (MCP OAuth state store) and 15522 (MCP OAuth refresh) supply the OAuth state store and refresh seams; this row only ports the command + interface seam.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21658,10 +21658,7 @@
                 "Output prints raw access_token, refresh_token, or authorization code values.",
                 "Non-OAuth servers are auto-converted to OAuth instead of returning mcp_auth_not_oauth with the redirect."
               ],
-              "blocked_by": [
-                "MCP OAuth state store + noninteractive auth errors",
-                "MCP OAuth refresh + 401 session-expired recovery"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Gormes mcp login browser callback flow",
                 "Diagnostics, backup, logs, and status CLI"

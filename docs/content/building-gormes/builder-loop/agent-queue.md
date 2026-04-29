@@ -22,7 +22,28 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Model-specific role and tool-use guidance
+## 1. Gormes mcp login interface seam + noninteractive default
+
+- Phase: 5 / 5.O
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: `gormes mcp login <name>` is registered as a Cobra command that delegates to a `MCPLoginFlow` interface defined in `internal/tools/mcp_login.go` with signature `type MCPLoginFlow interface { Login(ctx context.Context, server MCPServer) (*MCPSession, error) }`. The default implementation `noninteractiveLoginFlow` returns `noninteractive_required` typed evidence with operator guidance text (pointing at `gormes mcp remove` + `gormes mcp add` and the future browser-flow row) and never opens a browser, callback server, or live token-exchange request. Tests inject fake successful, failed, and noninteractive flows to prove the seam supports a future browser implementation. Existing rows 15458 (MCP OAuth state store) and 15522 (MCP OAuth refresh) supply the OAuth state store and refresh seams; this row only ports the command + interface seam.
+- Trust class: operator, system
+- Ready when: MCP OAuth state store + noninteractive auth errors row exposes the persisted state and remove helper (row 15458)., MCP OAuth refresh + 401 session-expired recovery row exposes the OAuth-refresh seam the relogin command can drive (row 15522)., Tests inject a fake MCP config loader, fake OAuth refresh transport, fake `MCPLoginFlow`, and fake clock; no live MCP server, browser callback, or localhost socket is required.
+- Not ready when: The slice opens a localhost callback server, real browser, or live token-exchange request., The default flow returns success or attempts a real network call., The slice duplicates existing rows 15458 (MCP OAuth state store) or 15522 (MCP OAuth refresh) instead of consuming their interfaces., Output prints raw access_token, refresh_token, or authorization code values., Non-OAuth servers are auto-converted to OAuth instead of returning mcp_auth_not_oauth with the redirect.
+- Degraded mode: Default flow returns `noninteractive_required` typed evidence; injected flows can additionally return `mcp_login_state_store_unwritable` when the OAuth state store is read-only and `mcp_login_flow_failed` when an injected flow returns an error. Unknown MCP server name returns mcp_server_unknown with the configured server list. Non-OAuth auth modes (header/stdio) return mcp_auth_not_oauth with the operator-facing redirect (`use 'gormes mcp remove' + 'gormes mcp add'`).
+- Fixture: `internal/tools/mcp_login_test.go`
+- Write scope: `internal/tools/mcp_login.go`, `internal/tools/mcp_login_test.go`, `cmd/gormes/mcp_login.go`, `cmd/gormes/mcp_login_command_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tools -run '^TestMCPLogin' -count=1`, `go test ./cmd/gormes -run '^TestMCPLogin' -count=1`, `go test ./cmd/gormes ./internal/plugins ./internal/tools -count=1`, `go run ./cmd/progress validate`
+- Done signal: MCP login interface-seam fixtures prove the `MCPLoginFlow` contract, noninteractive-default typed evidence, injected success writes through row 15458, injected failure emits typed evidence with no store mutation, unknown-server rejection, and non-OAuth redirect.
+- Acceptance: TestMCPLoginInterfaceContract proves the `MCPLoginFlow` interface exposes `Login(ctx context.Context, server MCPServer) (*MCPSession, error)` and is exported from `internal/tools/mcp_login.go`., TestMCPLoginNoninteractiveDefaultReturnsTypedEvidence proves the default `noninteractiveLoginFlow` returns `noninteractive_required` evidence with operator guidance text and never opens a browser, socket, or live request., TestMCPLoginInjectedSuccessStoresSession proves a fake successful flow writes the session to the OAuth state store via row 15458's interface., TestMCPLoginInjectedFailureEmitsTypedError proves a fake failure does not mutate the OAuth state store and returns `mcp_login_flow_failed` typed evidence., TestMCPLoginUnknownServer proves `gormes mcp login does-not-exist` returns mcp_server_unknown exit 2 and lists configured server names., TestMCPLoginRejectsNonOAuth proves a header-auth and stdio-auth fixture each return mcp_auth_not_oauth with the redirect (`use 'gormes mcp remove' + 'gormes mcp add'`) and do not invoke the `MCPLoginFlow` seam.
+- Source refs: ../hermes-agent/hermes_cli/main.py:9278-9282:mcp_login_parser, ../hermes-agent/hermes_cli/mcp_config.py:582-636:mcp_login_handler, ../hermes-agent/hermes_cli/mcp_config.py:613-614:non_oauth_redirect, ../hermes-agent/hermes_cli/mcp_config.py:740-758:_probe_single_server_dispatch, internal/plugins/mcp_oauth_state.go, docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md
+- Unblocks: Gormes mcp login browser callback flow, Diagnostics, backup, logs, and status CLI
+- Why now: Unblocks Gormes mcp login browser callback flow, Diagnostics, backup, logs, and status CLI.
+
+## 2. Model-specific role and tool-use guidance
 
 - Phase: 4 / 4.C
 - Owner: `provider`
@@ -42,7 +63,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity
 - Why now: Unblocks Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity.
 
-## 2. Stateful tool migration queue
+## 3. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -62,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 3. Transcription tool contract
+## 4. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -82,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 4. Debug helpers
+## 5. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -102,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 5. Feishu transport/bootstrap layer
+## 6. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -122,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 6. Prompt-cache capability guard
+## 7. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -141,7 +162,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Clarify
+## 8. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`
