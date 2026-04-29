@@ -519,7 +519,7 @@ classification and row-backed implementation queue.
 - [x] Streaming interrupt retry suppression
 - [x] Provider timeout config fail-closed helper
 - [ ] Prompt-cache capability guard
-- [ ] Provider account usage read model + renderer
+- [x] Provider account usage read model + renderer
 - [ ] Gateway /usage command binding over provider account usage
 - [x] Provider rate guard + budget telemetry
 - [x] Provider rate guard — x-ratelimit header classification

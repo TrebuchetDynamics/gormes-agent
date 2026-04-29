@@ -9752,6 +9752,7 @@
             },
             {
               "name": "Self-monitoring telemetry",
+              "priority": "P0",
               "status": "planned",
               "contract": "Gormes bridges Hermes turn/provider/tool telemetry and Honcho telemetry/reasoning traces into local redacted telemetry, audit, and insights evidence through SelfMonitoringBridge, TelemetryEventMatrix, ReasoningTraceRecord, TelemetrySink, AuditSink, and InsightsRecorder interfaces without changing the local usage.jsonl schema until compatibility tests pass.",
               "contract_status": "fixture_ready",
@@ -9792,9 +9793,6 @@
                 "The slice changes the persisted usage.jsonl schema, starts Prometheus/Sentry/OpenTelemetry exporters, or sends telemetry over the network.",
                 "The slice blocks kernel turns, provider calls, memory writes, or dream/reconciliation jobs when telemetry recording fails.",
                 "The slice collapses Honcho reasoning traces into generic log lines without preserving event name, reasoning tree ID, level, parent/child relationship, and redaction evidence."
-              ],
-              "blocked_by": [
-                "Provider account usage read model + renderer"
               ],
               "acceptance": [
                 "SelfMonitoringBridge accepts injected TelemetrySink, AuditSink, and InsightsRecorder implementations so telemetry, audit, and insights behavior can be tested without global state.",
@@ -10719,9 +10717,9 @@
             {
               "name": "Provider account usage read model + renderer",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes exposes a Hermes-compatible provider account-usage read model with internal/hermes.AccountUsageSnapshot and AccountUsageWindow, fakeable Codex/Anthropic/OpenRouter fetchers, and a shared redacted renderer that later CLI/status and gateway `/usage` command rows can bind without rediscovering provider payload semantics.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -10761,7 +10759,6 @@
                 "The shared renderer produces stable text/JSON fixtures that include provider/account/window/quota evidence but do not require Cobra, gateway manager, running-agent, cached-agent, or transcript-history integration.",
                 "The implementation stays read-only: no config, token vault, memory, transcript, or provider client state is modified."
               ],
-              "note": "swarm_origin: 2026-04-28/hermes-mapper. The mapper found `agent/account_usage.py` hidden under broad `agent/*.py` coverage; this row converts that feature-level unknown into an explicit Phase 4.H row-backed read-model and renderer contract. Upstream `fetch_account_usage` returns None for unsupported providers and caught failures; Gormes keeps the nonfatal behavior but owns typed unsupported/degraded evidence as a Go-native improvement. Command dispatch stays row-backed: upstream CLI `/usage` and gateway `/usage` running-agent vs cached-agent precedence, session token/cost/context output, history fallback, and account-limits rendering bind this read model in `Gateway /usage command binding over provider account usage`.",
               "write_scope": [
                 "internal/hermes/account_usage.go",
                 "internal/hermes/account_usage_test.go",
@@ -10775,6 +10772,12 @@
               "done_signal": [
                 "Account-usage fixtures prove Codex, Anthropic, and OpenRouter normalization, unsupported/missing/degraded evidence, shared rendering, redaction, fake HTTP/clock seams, and read-only behavior."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T01:49:50Z",
+                "last_success": "2026-04-29T01:49:50Z"
+              },
+              "note": "Complete: TDD added internal/hermes/account_usage.go and account_usage_test.go. The read model exposes AccountUsageSnapshot, AccountUsageWindow, AccountUsageFetcher, injected HTTP/clock seams, Codex/Anthropic/OpenRouter fixture normalization, typed unsupported/missing/degraded evidence, stable text/JSON renderers, endpoint redaction, and no config/token/provider state writes. Upstream CLI `/usage` and gateway `/usage` running-agent versus cached-agent precedence, session token/cost/context output, history fallback, and account-limits rendering remain row-backed by `Gateway /usage command binding over provider account usage`.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:agent/account_usage.py",
