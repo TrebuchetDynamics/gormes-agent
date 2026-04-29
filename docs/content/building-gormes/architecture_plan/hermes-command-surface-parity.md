@@ -73,6 +73,19 @@ Gormes-reference donor anchors consulted for provider/channel/tool planning:
 - `../references/go-agent-os/trpc-agent-go/model/callbacks.go`
 - `../references/go-agent-os/engram/internal/mcp/write_queue.go`
 
+## Provider, channel, and tool-calling guardrails
+
+Command parity is not enough by itself. Gormes also needs source-backed
+inventories for provider IDs/auth modes, gateway platform IDs, and raw
+tool-call parser families so unsupported behavior remains visible.
+
+| Surface | Current upstream source | Current planner answer | Progress action |
+|---|---|---|---|
+| Provider IDs and aliases | `../hermes-agent/hermes_cli/providers.py:HERMES_OVERLAYS,ALIASES`, `../hermes-agent/agent/models_dev.py:PROVIDER_TO_MODELS_DEV`, `../hermes-agent/hermes_cli/main.py:--provider choices` | Not yet centralized in one Gormes manifest. Hermes includes canonical overlay providers such as `openrouter`, `nous`, `openai-codex`, `qwen-oauth`, `google-gemini-cli`, `copilot-acp`, `github-copilot`, `anthropic`, `zai`, `kimi-for-coding`, `stepfun`, `minimax`, `minimax-cn`, `deepseek`, `alibaba`, `alibaba-coding-plan`, `vercel`, `opencode`, `opencode-go`, `kilo`, `huggingface`, `xai`, `nvidia`, `xiaomi`, `arcee`, `ollama-cloud`, and `azure-foundry`, plus model-catalog aliases such as `kimi-coding`, `kilocode`, `gemini`, `groq`, `mistral`, `togetherai`, `perplexity`, and `cohere`. | New Phase `4.A` row: `Hermes provider registry and alias manifest`. |
+| Provider auth commands | `../hermes-agent/hermes_cli/main.py:auth_subparsers`, `../hermes-agent/hermes_cli/auth_commands.py` | Current non-deprecated provider login is `auth add <provider> --type oauth`; top-level `login`, `auth login`, and `auth refresh` are not implementation targets. | Existing Phase `5.O` auth rows remain the command contract. |
+| Gateway platform IDs | `../hermes-agent/gateway/config.py:Platform`, `../hermes-agent/gateway/platforms/*.py` | Not yet centralized in one Gormes manifest. Current upstream enum values are `local`, `telegram`, `discord`, `whatsapp`, `slack`, `signal`, `mattermost`, `matrix`, `homeassistant`, `email`, `sms`, `dingtalk`, `api_server`, `webhook`, `feishu`, `wecom`, `wecom_callback`, `weixin`, `bluebubbles`, `qqbot`, and `yuanbao`. | New Phase `2.B.12` row: `Hermes gateway platform registry manifest`. |
+| Raw tool-call parsers | `../hermes-agent/environments/tool_call_parsers/*.py` | Manifest exists, but docs/progress references must track the current 11 parser files: `deepseek_v3_1`, `deepseek_v3`, `glm45`, `glm47`, `hermes`, `kimi_k2`, `llama`, `longcat`, `mistral`, `qwen3_coder`, and `qwen`. | Refresh existing `Raw tool-call parser fixture matrix` docs/progress refs; parser execution stays row-backed per family. |
+
 ## Current Gormes visible command surface
 
 The current Gormes root help exposes these top-level commands:

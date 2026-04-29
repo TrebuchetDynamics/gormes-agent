@@ -45,7 +45,7 @@ Alternatives monitored:
 **Porting Strategy**: Strangler Fig — Gormes phases gradually subsume Python subsystems (§1 Rosetta Stone)
 
 **Recent upstream additions to monitor** (inventory from parallel codebase audit):
-- Gateway platforms: 24 adapters including Telegram, Discord, Slack, WhatsApp, Signal, Email, SMS, Feishu, Matrix, Weixin, BlueBubbles, QQ
+- Gateway platforms: 21 `Platform` enum values including local, Telegram, Discord, Slack, WhatsApp, Signal, Mattermost, Matrix, Home Assistant, Email, SMS, DingTalk, API server, webhook, Feishu, WeCom, WeCom callback, Weixin, BlueBubbles, QQ, and Yuanbao
 - RL training environments (`environments/`)
 - ACP adapter for IDE integration (`acp_adapter/`)
 - Honcho dialectic user modeling integration

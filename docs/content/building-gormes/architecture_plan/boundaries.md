@@ -9,6 +9,30 @@ Hard rule: no Python file in this repository is modified. Gormes is now the repo
 
 The bridge is allowed to exist. The bridge is not allowed to become the destination.
 
+## Hermes Compatibility Namespace Boundary
+
+`internal/hermes` is a parity staging namespace. It is acceptable while Gormes
+is proving Hermes-compatible provider, prompt, context, model, and tool-call
+contracts in Go. It is not the intended long-term name for Gormes-owned runtime
+architecture.
+
+The long-term split is:
+
+- `internal/compat/hermes` keeps upstream-facing compatibility evidence:
+  Hermes config import/migration, command-surface manifests, provider/platform
+  drift inventories, fixture provenance, and any explicit deprecated shim.
+- Gormes-owned runtime packages keep product architecture: provider transports
+  and routing under a provider package, model metadata under a model registry
+  package, raw tool-call parsing/repair under a tool-call package, and prompt /
+  context / compression under runtime or context packages.
+- `internal/hermes` becomes a temporary import shim only during migration and is
+  removed once callers and fixtures prove the split.
+
+Two alternatives are intentionally rejected. Renaming everything immediately
+would churn tests before the compatibility manifests are strong enough. Keeping
+`internal/hermes` forever would make the donor name the permanent architecture
+for Gormes-owned runtime code.
+
 ## Upstream Contract Boundary
 
 Gormes studies Hermes and GBrain as donors, but only ports contracts that make
@@ -44,7 +68,8 @@ boundary.
 
 Provider quirks stay out of the kernel. Anthropic Messages, OpenAI Responses,
 Bedrock Converse, OpenRouter, Gemini, Codex, and custom OpenAI-compatible
-servers should all collapse into the shared `internal/hermes` event contract:
+servers currently collapse into the shared Hermes-compatible event contract
+staged under `internal/hermes`:
 
 - text and reasoning deltas;
 - final finish reason;
@@ -55,3 +80,8 @@ servers should all collapse into the shared `internal/hermes` event contract:
 
 Adapters own request shaping and protocol oddities. The kernel owns turn state,
 cancellation, retry orchestration, tool execution, and finalization.
+
+After the compatibility manifests and normal-turn fixtures are stable, the
+event contract should move to a Gormes-owned provider/runtime package while
+Hermes-specific import, drift, and deprecation evidence stays in
+`internal/compat/hermes`.

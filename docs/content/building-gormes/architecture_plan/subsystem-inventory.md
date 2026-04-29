@@ -25,7 +25,7 @@ gate proves it:
 
 If a subsystem crosses lanes, split the row before assigning it to a builder.
 
-### Gateway platforms (17 connectors — 10 unshipped)
+### Gateway platforms (18 connectors plus local runtime)
 
 | Platform | Upstream file | Target phase | Status | Landed Go surface |
 |---|---|---|---|---|
@@ -46,6 +46,7 @@ If a subsystem crosses lanes, split the row before assigning it to a builder.
 | WeChat (WeCom + WeiXin) | `gateway/platforms/wecom*.py`, `weixin.py` | 2.B.10 | ✅ shipped | Shared-bot ingress policy, reply-path contracts, WebSocket/callback bootstrap, credential validation, and outbound push/reply lifecycle seams live in `internal/channels/{wecom,weixin}` |
 | DingTalk | `gateway/platforms/dingtalk.py` | 7.E | 🔨 in progress | Shared-bot ingress plus Stream Mode bootstrap, session-webhook refresh, and reply retry/error contracts now live in `internal/channels/dingtalk`; real SDK binding is paused behind the priority channel set |
 | QQ Bot | `gateway/platforms/qqbot/` | 7.E | 🔨 in progress | Shared-bot DM/group policy, mention gating, and passive-reply contracts live in `internal/channels/qqbot`; transport/bootstrap follow-up is paused behind the priority channel set |
+| Yuanbao | `gateway/platforms/yuanbao*.py`, `tools/yuanbao_tools.py` | 7.E | 🔨 in progress | Protobuf/markdown/media/sticker fixtures and disabled-by-default runtime/toolset registration live in `internal/channels/yuanbao`; remaining live transport/tool catalog work is paused behind the priority channel set |
 
 ### Operational layer (cross-cutting, mostly Phase 2.D–2.F)
 
@@ -120,7 +121,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Mini SWE runner | `mini_swe_runner.py` | 5.M or 5.O | ⏳ planned |
 | RL training CLI + compressor | `rl_cli.py`, `trajectory_compressor.py` | 5.M | ⏳ deferred (research) |
 | Runtime shared helpers | `hermes_constants.py`, `hermes_logging.py`, `hermes_state.py`, `hermes_time.py`, `utils.py` | 5.O | ⏳ planned |
-| Per-model tool-call parsers | `environments/tool_call_parsers/{deepseek_v3_parser,deepseek_v3_1_parser,glm45_parser,glm47_parser,hermes_parser,kimi_k2_parser,llama_parser,longcat_parser,mistral_parser}.py` | 4.A | ⏳ planned |
+| Per-model tool-call parsers | `environments/tool_call_parsers/{deepseek_v3_parser,deepseek_v3_1_parser,glm45_parser,glm47_parser,hermes_parser,kimi_k2_parser,llama_parser,longcat_parser,mistral_parser,qwen3_coder_parser,qwen_parser}.py` | 4.A / 5.B | 🔨 manifest shipped; parser families remain row-backed until golden fixtures land |
 | Agent loop environment | `environments/agent_loop.py`, `environments/tool_context.py`, `environments/patches.py`, `environments/hermes_base_env.py`, `environments/agentic_opd_env.py`, `environments/web_research_env.py` | 4.C / 5.A | ⏳ planned |
 
 ### Brain (Phase 4 — sub-phases 4.A–4.H)
@@ -344,7 +345,7 @@ Re-run the upstream survey when a major Hermes release lands, when a new platfor
 3. `ls plugins/memory/` for new memory backends (currently 8)
 4. `ls tools/environments/*.py` for new sandbox backends (currently 10 including `ssh.py`)
 5. `ls hermes_cli/*.py` for new CLI subcommands (currently 49)
-6. `ls environments/tool_call_parsers/*.py` for new per-model parsers (currently 9)
+6. `ls environments/tool_call_parsers/*.py` for new per-model parsers (currently 11)
 7. `wc -l run_agent.py cli.py tui_gateway/server.py` to track orchestrator size growth
 8. `grep -oE '^class ' agent/*.py tools/*.py gateway/*.py | sort -u | wc -l` — class count drift signals new subsystem surface (round-3 audit found 30 classes not previously mapped)
 9. `grep -oE '"[A-Z_]{4,}":' hermes_cli/config.py | sort -u | wc -l` — current: 117 top-level config keys
@@ -354,7 +355,7 @@ Re-run the upstream survey when a major Hermes release lands, when a new platfor
 The survey from 2026-04-20 caught **42 items** previously under-specified:
 
 - **Round 1 (spec-level):** Phase 3.D semantic fusion ship criterion, Phase 3.E ledger (8 subphases).
-- **Round 2 (file-level, 12 finds):** `run_agent.py` (12,113 lines), `cli.py` (10,570 lines), `tui_gateway/server.py` (2,931 lines), 9 per-model tool-call parsers, 8 third-party memory plugins, SSH sandbox, SkillSources, TUI skin engine, install scripts, `hermes_cli/` expansion from ~15 to 49 files.
+- **Round 2 (file-level, 12 finds):** `run_agent.py` (12,113 lines), `cli.py` (10,570 lines), `tui_gateway/server.py` (2,931 lines), 11 per-model tool-call parsers, 8 third-party memory plugins, SSH sandbox, SkillSources, TUI skin engine, install scripts, `hermes_cli/` expansion from ~15 to 49 files.
 - **Round 3 (class-level, 30 finds):** Slash command registry cross-cutting concern, tool registry orchestrator, toolset definitions, `HomeChannel` / `DeliveryRouter` / `GatewayStreamConsumer` / `SessionStore`, webhook subscription system, iteration budget, 3 new `AuxiliaryClient` classes (Anthropic + Codex, not just xAI), billing / cost / failover / metadata types, 7 `SkillSource` subclasses, `AudioRecorder` + `TermuxAudioRecorder`, 15+ file-operation classes, MCP OAuth / Sampling / FAL sync, `GitHubAuth` + `HermesTokenStorage`.
 - **Round 4 (contract-level, this pass):** 117 config keys, ~170 env vars across 4 layers (HERMES_*, provider keys, platform credentials, gateway-level), 28 state-directory entries under `~/.hermes/`, config migration system (`_config_version`), XDG vs `HERMES_HOME` reconciliation, dotenv support gap, cron output filesystem mirror (`~/.hermes/cron/`).
 

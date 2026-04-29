@@ -2898,6 +2898,99 @@
                 "owned_since": "2026-04-29T00:00:00Z",
                 "note": "Channel-neutral turn adapter is Gormes-owned shared-chassis infrastructure that prevents Telegram-only runtime bypasses; the helper has no direct upstream Hermes analog because Hermes routes are channel-specific Python modules."
               }
+            },
+            {
+              "name": "Hermes gateway platform registry manifest",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Gormes owns a source-backed gateway platform manifest that enumerates every current Hermes Platform enum value and connector file, classifies each platform as implemented, partial, row-backed, excluded, or Gormes-owned, and records command, config, credential, inbound, outbound, media, toolset, pairing, and delivery status without requiring live platform credentials.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown platform enum values, connector files, or platform-specific command/toolset surfaces fail the manifest test. Unsupported platforms remain visible as row-backed or excluded entries with source refs instead of disappearing from docs, gateway status, or future command planning.",
+              "fixture": "internal/gateway/platform_manifest_test.go::TestHermesGatewayPlatformManifestCoversUpstream",
+              "source_refs": [
+                "../hermes-agent/gateway/config.py:Platform",
+                "../hermes-agent/gateway/platforms/base.py",
+                "../hermes-agent/gateway/platforms/telegram.py",
+                "../hermes-agent/gateway/platforms/discord.py",
+                "../hermes-agent/gateway/platforms/whatsapp.py",
+                "../hermes-agent/gateway/platforms/slack.py",
+                "../hermes-agent/gateway/platforms/signal.py",
+                "../hermes-agent/gateway/platforms/mattermost.py",
+                "../hermes-agent/gateway/platforms/matrix.py",
+                "../hermes-agent/gateway/platforms/homeassistant.py",
+                "../hermes-agent/gateway/platforms/email.py",
+                "../hermes-agent/gateway/platforms/sms.py",
+                "../hermes-agent/gateway/platforms/dingtalk.py",
+                "../hermes-agent/gateway/platforms/api_server.py",
+                "../hermes-agent/gateway/platforms/webhook.py",
+                "../hermes-agent/gateway/platforms/feishu.py",
+                "../hermes-agent/gateway/platforms/wecom.py",
+                "../hermes-agent/gateway/platforms/wecom_callback.py",
+                "../hermes-agent/gateway/platforms/weixin.py",
+                "../hermes-agent/gateway/platforms/bluebubbles.py",
+                "../hermes-agent/gateway/platforms/qqbot/",
+                "../hermes-agent/gateway/platforms/yuanbao.py",
+                "../hermes-agent/tools/yuanbao_tools.py",
+                "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Gateway platforms",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails"
+              ],
+              "ready_when": [
+                "Channel-neutral native runtime turn adapter is complete and provides a shared channel boundary for fake fixtures.",
+                "Subsystem inventory records the current gateway platform list including Yuanbao.",
+                "The builder can compare static source files and local manifests without live Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Home Assistant, email, SMS, DingTalk, Feishu, WeCom, Weixin, BlueBubbles, QQ, Yuanbao, API server, or webhook credentials."
+              ],
+              "not_ready_when": [
+                "The slice implements live transport behavior, opens sockets/webhooks, downloads media, mutates platform credentials, or changes shared gateway runtime admission.",
+                "The manifest treats local, api_server, webhook, wecom_callback, or disabled regional adapters as absent because they are not enabled in current Gormes help.",
+                "The slice collapses all platform-specific media, pairing, home-channel, command, and toolset gaps into one broad completed row."
+              ],
+              "blocked_by": [
+                "Channel-neutral native runtime turn adapter"
+              ],
+              "unblocks": [
+                "Gateway, platform, webhook, and cron management CLI",
+                "Channel directory atomic persistence + lookup",
+                "Paused adapter channel health/status readout",
+                "Yuanbao gateway runtime + toolset registration",
+                "QQ Bot bootstrap + token/gateway fake transport",
+                "Matrix shared-chassis adapter",
+                "Mattermost shared-chassis adapter"
+              ],
+              "acceptance": [
+                "TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao.",
+                "Each manifest row records source file, current Gormes package or row-backed target, inbound/outbound/media/commands/toolset/config/pairing status, and whether live credentials are required.",
+                "The manifest distinguishes external channels from non-channel runtime surfaces such as local, api_server, webhook, and wecom_callback instead of dropping them.",
+                "The docs matrix and subsystem inventory stay in sync with the manifest and mention unsupported/paused platforms explicitly.",
+                "No test starts a real channel SDK, websocket, webhook listener, browser, QR flow, or HTTP client."
+              ],
+              "note": "Added 2026-04-29 after the planner audit found command coverage was stronger than provider/channel coverage. This is the channel equivalent of the CLI manifest: it keeps every Hermes platform visible even when Gormes only has a paused row, fixture contract, or disabled-by-default adapter.",
+              "write_scope": [
+                "internal/gateway/platform_manifest.go",
+                "internal/gateway/platform_manifest_test.go",
+                "docs/content/building-gormes/architecture_plan/subsystem-inventory.md",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestHermesGatewayPlatformManifest -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway platform manifest fixtures prove every Hermes platform enum value and connector file is classified with row-backed, excluded, partial, implemented, or owned evidence and no live credentials."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:gateway/config.py Platform enum and gateway/platforms connectors",
+                "note": "Hermes defines platform IDs and operator behavior; Gormes owns the Go registry and implementation order."
+              }
             }
           ]
         },
@@ -7271,6 +7364,85 @@
               "done_signal": [
                 "Provider transcript fixtures replay request, stream, finish reason, and usage data without live credentials."
               ]
+            },
+            {
+              "name": "Hermes provider registry and alias manifest",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Gormes owns a source-backed provider registry manifest that enumerates Hermes canonical provider IDs, aliases, models.dev mappings, transport family, auth type, aggregator flag, env vars, base-url overrides, and current implementation status before claiming provider/model/auth parity. Unsupported providers remain manifest-visible and row-backed rather than disappearing from model picker, status, docs, or runtime planning.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unknown provider IDs, missing aliases, stale chat --provider choices, or unclassified auth modes fail the manifest test with provider_registry_drift. The manifest must not require live models.dev, live provider credentials, browser auth, or network discovery.",
+              "fixture": "internal/hermes/provider_registry_manifest_test.go::TestHermesProviderRegistryManifestCoversUpstream",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/providers.py:HERMES_OVERLAYS",
+                "../hermes-agent/hermes_cli/providers.py:ALIASES",
+                "../hermes-agent/agent/models_dev.py:PROVIDER_TO_MODELS_DEV",
+                "../hermes-agent/agent/model_metadata.py:_PROVIDER_PREFIXES",
+                "../hermes-agent/hermes_cli/main.py:chat_parser --provider choices",
+                "../hermes-agent/hermes_cli/main.py:model command",
+                "../hermes-agent/hermes_cli/auth_commands.py:_OAUTH_CAPABLE_PROVIDERS",
+                "../hermes-agent/hermes_cli/models.py:_PROVIDER_MODELS",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Provider registry, aliases, and auth modes",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails",
+                "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md"
+              ],
+              "ready_when": [
+                "Provider interface + stream fixture harness is complete and can host provider-neutral manifest fixtures without implementing new transports.",
+                "Hermes auth command-tree manifest refresh and auth credential-pool rows define the non-deprecated command surface.",
+                "The builder can parse static upstream files and use embedded fixtures only; live models.dev, provider APIs, browser OAuth, keychains, and CLI credential stores are out of scope."
+              ],
+              "not_ready_when": [
+                "The slice implements provider transports, OAuth login flows, model picker prompts, live model catalog calls, provider account usage calls, or runtime fallback policy.",
+                "The manifest hard-codes only currently supported Gormes providers and omits unsupported Hermes providers such as qwen-oauth, google-gemini-cli, copilot-acp, azure-foundry, opencode, alibaba-coding-plan, or regional aliases.",
+                "Aliases such as openai->openrouter, kimi-coding->kimi-for-coding, kilocode->kilo, copilot->github-copilot, gemini-cli->google-gemini-cli, qwen->alibaba, aws->bedrock, or local/custom endpoint aliases are left unclassified."
+              ],
+              "blocked_by": [
+                "Provider interface + stream fixture harness"
+              ],
+              "unblocks": [
+                "Gormes model interactive provider/model picker",
+                "Hermes auth OAuth provider adapters",
+                "Provider auth selection for native gateway turns",
+                "Provider account usage read model + renderer",
+                "Hermes fallback provider chain CLI commands",
+                "Model metadata types",
+                "Top-level oneshot flag and model/provider resolver"
+              ],
+              "acceptance": [
+                "TestHermesProviderRegistryManifestCoversUpstream proves every key in HERMES_OVERLAYS, every provider in PROVIDER_TO_MODELS_DEV, every chat --provider choice, and every known provider-prefix alias is classified.",
+                "Each provider row records canonical ID, aliases, models.dev ID when applicable, transport family, auth type, aggregator status, env vars, base URL override/env var, and row-backed/implemented/excluded/owned implementation status.",
+                "OAuth-capable providers are cross-linked to `Hermes auth OAuth provider adapters`; API-key providers are cross-linked to credential-pool/runtime rows; external-process providers are cross-linked to ACP/Copilot rows.",
+                "The manifest distinguishes canonical provider IDs from operator aliases and model-prefix aliases, so `gormes model`, `--provider`, auth commands, config import, and fallback planning share one spelling table.",
+                "The docs matrix is updated from the same provider inventory and no test performs live provider or models.dev network calls."
+              ],
+              "note": "Added 2026-04-29 after the planner audit found command parity was stronger than provider registry parity. This row is the provider equivalent of the CLI command manifest: it keeps every Hermes provider, alias, auth mode, and unsupported provider visible before handlers/transports land.",
+              "write_scope": [
+                "internal/hermes/provider_registry_manifest.go",
+                "internal/hermes/provider_registry_manifest_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestHermesProviderRegistryManifest -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Provider registry manifest fixtures prove every Hermes provider ID, alias, auth mode, transport family, and unsupported provider row is classified without live providers or network catalog calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/providers.py, agent/models_dev.py, agent/model_metadata.py, hermes_cli/main.py provider choices",
+                "note": "Hermes defines provider spelling and auth modes; Go donors provide implementation shapes only after the manifest chooses a row-backed implementation order."
+              }
             },
             {
               "name": "Tool-call normalization + continuation contract",
@@ -12893,6 +13065,92 @@
                 "Progress evidence records channel-neutral native runtime binding without claiming provider/tool/memory loop completion."
               ],
               "note": "Complete: TDD added internal/runtime/binding.go with a pure ResolveBinding helper plus StatusEvidence redactor, and internal/runtime/native_provider_gateway_binding_test.go covering all four acceptance bullets. Locked invariants: with no explicit endpoint or proxy URL the resolver routes through the injectable NativeClientFactory and never invokes the OpenAI-compatible HTTP factory; explicit endpoint or proxy URL stays on the OpenAI-compatible path with EndpointSource explicit_endpoint; incomplete provider/model/api_key resolution returns EndpointSource unconfigured plus stable provider_config_missing/native_runtime_unavailable codes with a nil client and no implicit 127.0.0.1:8642 dial; the resolver is channel-neutral and StatusEvidence exposes provider, model, endpoint_source, and degraded_reasons without echoing api keys or proxy keys."
+            },
+            {
+              "name": "Hermes compatibility namespace retirement boundary",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes splits the current `internal/hermes` parity staging package into durable Gormes-owned runtime packages and a narrow Hermes compatibility namespace after provider/model/tool-call/context fixtures are stable. Hermes-specific import, drift, command/config, provider/platform inventory, and deprecated-shim evidence moves to `internal/compat/hermes`; provider transport/routing, model metadata, tool-call parsing/repair, account usage, prompt/context/compression helpers, and normal-turn runtime contracts move to Gormes-owned packages. `internal/hermes` is allowed only as a temporary import shim during the migration and must be removed or reduced to no public runtime ownership before release readiness.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If a caller still imports `internal/hermes` for Gormes-owned runtime behavior after the migration, package-boundary tests report hermes_namespace_runtime_leak with the importing package and the target replacement package. Hermes compatibility docs and drift manifests remain available under `internal/compat/hermes` so removing the staging namespace does not hide upstream parity evidence.",
+              "fixture": "internal/compat/hermes/namespace_contract_test.go::TestHermesCompatibilityBoundaryOwnsOnlyCompatibilitySurfaces",
+              "source_refs": [
+                "docs/content/building-gormes/architecture_plan/boundaries.md:Hermes Compatibility Namespace Boundary",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Namespace note",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Gormes-Native Pending Decisions",
+                "internal/hermes/",
+                "internal/kernel/",
+                "internal/runtime/",
+                "internal/config/",
+                "internal/e2e/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "ready_when": [
+                "Hermes provider registry and alias manifest is complete so provider IDs, aliases, auth modes, and model metadata have one source-backed table before package movement.",
+                "Python-free normal agent turn e2e harness and Provider-tool-memory golden transcript suite remain green, proving provider/tool/memory behavior through public runtime fixtures before and after package movement.",
+                "Native runtime provider gateway binding is complete so gateway callers can depend on a Gormes runtime seam rather than `internal/hermes` package names.",
+                "The builder can move Go files with mechanical import rewrites and focused boundary tests without changing provider behavior, command spelling, config precedence, or live credential flows."
+              ],
+              "not_ready_when": [
+                "The slice starts before provider registry coverage is complete or while major provider/runtime fixtures are missing.",
+                "The implementation renames packages without first defining which surfaces are compatibility-only versus Gormes-owned runtime.",
+                "The migration removes Hermes import/config/command drift evidence, deprecated redirect behavior, or upstream fixture provenance.",
+                "The slice changes provider request/stream semantics, model selection, auth behavior, prompt assembly, or tool-call repair while moving packages."
+              ],
+              "blocked_by": [
+                "Hermes provider registry and alias manifest",
+                "Python-free normal agent turn e2e harness",
+                "Provider-tool-memory golden transcript suite",
+                "Native runtime provider gateway binding"
+              ],
+              "unblocks": [
+                "Release readiness e2e gate",
+                "Hermes/Honcho Go runtime plan second-wave reconciliation",
+                "Gormes-owned runtime docs/API naming cleanup"
+              ],
+              "acceptance": [
+                "`internal/compat/hermes` contains only upstream compatibility surfaces: config/import compatibility, command-surface/drift manifests, provider/platform inventory provenance, fixture metadata, and explicit deprecated shims.",
+                "Gormes-owned runtime code has package names that describe product architecture rather than donor origin: provider transport/routing, model registry, tool-call parser/repair, account usage, prompt/context/compression, and runtime bridge seams no longer live in `internal/hermes`.",
+                "Package-boundary tests fail if a new runtime package imports `internal/hermes` for non-compat behavior or if compat code imports live provider/gateway runtimes directly.",
+                "Normal-turn, provider transcript, tool-call parser, model registry, account usage, config/auth, and gateway native runtime tests pass with no behavior drift.",
+                "Docs explain that Hermes remains a compatibility contract and donor reference, while Gormes-owned runtime architecture no longer carries the Hermes package name."
+              ],
+              "write_scope": [
+                "internal/compat/hermes/",
+                "internal/provider/",
+                "internal/modelregistry/",
+                "internal/toolcall/",
+                "internal/contextengine/",
+                "internal/runtime/",
+                "internal/kernel/",
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/boundaries.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/compat/hermes ./internal/provider ./internal/modelregistry ./internal/toolcall ./internal/contextengine ./internal/runtime ./internal/kernel ./internal/e2e -count=1",
+                "go test ./internal/hermes -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermes compatibility evidence lives under `internal/compat/hermes`, Gormes-owned runtime imports no longer depend on `internal/hermes`, and full normal-turn/provider/tool-call/config/gateway tests prove behavior stayed stable."
+              ],
+              "note": "Long-term namespace plan added 2026-04-29 after the package-boundary review concluded that `internal/hermes` is an honest parity staging name but a poor permanent home for Gormes-owned runtime architecture. This row is intentionally blocked until registry and normal-turn fixtures are stable, so the rename is a behavior-preserving split rather than churn.",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes owns the package boundary decision; Hermes remains the compatibility contract and upstream drift source, not the permanent internal architecture name."
+              }
             }
           ],
           "drift_state": {
@@ -13666,6 +13924,8 @@
                 "../hermes-agent/environments/tool_call_parsers/llama_parser.py",
                 "../hermes-agent/environments/tool_call_parsers/longcat_parser.py",
                 "../hermes-agent/environments/tool_call_parsers/mistral_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/qwen3_coder_parser.py",
+                "../hermes-agent/environments/tool_call_parsers/qwen_parser.py",
                 "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Raw tool-call parser fixture matrix"
               ],
               "ready_when": [
@@ -13690,7 +13950,7 @@
                 "The docs test fails if a new upstream parser file appears without a classification.",
                 "No runtime Python parser invocation or live model output is required."
               ],
-              "note": "Complete: TDD added `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, and golden fixtures under `internal/hermes/testdata/tool_call_parsers/` (hermes_basic.json, hermes_multi.json, hermes_malformed.json, deepseek_v3_1_basic.json, deepseek_v3_1_malformed.json). The manifest classifies every upstream `environments/tool_call_parsers/*.py` file with model_family, expected_input_style, mapped|row_backed status, and target Go parser package; Hermes XML and DeepSeek v3.1 entries are mapped with golden raw-output fixtures plus malformed-call degraded evidence, while remaining families stay row_backed with no fixtures. The fixture-coverage test fails if a new upstream parser file appears unclassified, fixtures lack a malformed/degraded case, or any entry references a python or live-model runtime, and the manifest is sorted and stable across calls so no live provider or python invocation is needed.",
+              "note": "Complete: TDD added `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, and golden fixtures under `internal/hermes/testdata/tool_call_parsers/` (hermes_basic.json, hermes_multi.json, hermes_malformed.json, deepseek_v3_1_basic.json, deepseek_v3_1_malformed.json). The manifest classifies every upstream `environments/tool_call_parsers/*.py` file with model_family, expected_input_style, mapped|row_backed status, and target Go parser package, including the current Qwen and Qwen3-Coder parser files. Hermes XML and DeepSeek v3.1 entries are mapped with golden raw-output fixtures plus malformed-call degraded evidence, while remaining families stay row_backed with no fixtures. The fixture-coverage test fails if a new upstream parser file appears unclassified, fixtures lack a malformed/degraded case, or any entry references a python or live-model runtime, and the manifest is sorted and stable across calls so no live provider or python invocation is needed.",
               "write_scope": [
                 "internal/hermes/tool_call_parser_manifest.go",
                 "internal/hermes/tool_call_parser_manifest_test.go",
@@ -20436,6 +20696,74 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/mcp_config.py:582-636 mcp_login_handler",
                 "note": "Hermes scopes mcp_login to OAuth-only and routes header/stdio servers to remove+add; Gormes mirrors the scope and lands a noninteractive-first slice."
+              }
+            },
+            {
+              "name": "Hermes fallback provider chain CLI commands",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "`gormes fallback {list|ls|add|remove|rm|clear}` manages the operator-visible `fallback_providers` chain in the active Hermes-compatible config: list/ls render the current chain with provider, model, account/profile evidence, and a current marker; add appends a provider+model pair after delegating to the shared model picker (no separate picker is implemented here); remove deletes one entry by index, id, or exact label using the same resolution semantics as the credential-pool surface; rm and clear are destructive and require explicit confirmation; ls is a pure alias of list and rm is a pure alias of remove.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Empty chain renders an empty-state list and exits 0; corrupt fallback config returns fallback_chain_corrupt without partial mutation; remove/rm/clear without explicit confirmation flag in non-TTY tests return fallback_destructive_unconfirmed; remove against an unknown index/id/label returns fallback_target_missing with the current chain echoed for operator context; the model picker dependency being unavailable in the add path returns fallback_picker_unavailable rather than re-implementing the picker locally.",
+              "fixture": "cmd/gormes/fallback_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_list",
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_add",
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_remove",
+                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_clear",
+                "../hermes-agent/hermes_cli/main.py:fallback_parser ls/rm aliases",
+                "cmd/gormes/hermes_cli_parity.go:hermesFallbackCommands",
+                "internal/config/credential_pool.go"
+              ],
+              "ready_when": [
+                "Gormes model interactive provider/model picker row is at minimum planned so the add subcommand can name the picker delegation seam.",
+                "Tests inject a fake config loader/writer and a fake model picker; no live providers, browser, keychain, or network access is required.",
+                "Hermes auth credential-pool command surface is complete so the remove resolver can mirror its index/id/label semantics."
+              ],
+              "not_ready_when": [
+                "The slice re-implements the model picker instead of delegating to `Gormes model interactive provider/model picker`.",
+                "The slice mutates `fallback_providers` config without backing up or recording dry-run intent.",
+                "Destructive subcommands (`remove`, `rm`, `clear`) execute without confirmation in non-TTY tests.",
+                "The slice silently treats `ls` and `rm` as separate commands instead of aliases of `list` and `remove`."
+              ],
+              "blocked_by": [
+                "Gormes model interactive provider/model picker"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestGormesFallbackListRendersRedactedChain proves `gormes fallback list` and `gormes fallback ls` render the current chain with provider, model, account/profile label, and current marker over a fake config and never echo raw secrets.",
+                "TestGormesFallbackAddDelegatesToModelPicker proves `gormes fallback add` invokes the injected model-picker seam, then appends the chosen provider+model to `fallback_providers` without re-implementing picker logic and without duplicating an identical existing entry.",
+                "TestGormesFallbackRemoveResolvesIndexIDLabel proves `gormes fallback remove` resolves a target by numeric index, by stable id, and by exact label, mirroring the credential-pool resolver semantics.",
+                "TestGormesFallbackClearRequiresConfirmation proves `gormes fallback clear` without an explicit confirmation flag returns fallback_destructive_unconfirmed exit code 2 and does not mutate the chain.",
+                "TestGormesFallbackAliasResolution proves `ls` resolves to `list` and `rm` resolves to `remove` as pure aliases (no divergent code path).",
+                "TestGormesFallbackEmptyChainRendersEmptyState proves an empty `fallback_providers` exits 0 with an empty-state message and no error.",
+                "TestGormesFallbackPickerUnavailableTypedEvidence proves a fake picker-unavailable seam in `add` returns fallback_picker_unavailable and leaves the chain untouched."
+              ],
+              "note": "Materializes the parity-manifest residual `Hermes fallback provider chain CLI commands` referenced from `cmd/gormes/hermes_cli_parity.go:hermesFallbackCommands`. The row name is matched verbatim to the manifest `Row:` label so the existing `TestHermesCLIParityManifestFallbackCommandsMatchHermes` test continues to pass without Go changes for this gap. The `internal/config/fallback.go` write_scope path is intentionally a not-yet-existing file so this row claims fresh ownership rather than overlapping with the credential-pool file.",
+              "write_scope": [
+                "cmd/gormes/fallback.go",
+                "cmd/gormes/fallback_command_test.go",
+                "internal/config/fallback.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestGormesFallback' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fallback CLI fixtures prove redacted list/ls rendering, picker-delegated add, index/id/label remove resolution, destructive-confirmation gating on clear, alias resolution for ls/rm, empty-state rendering, and typed picker-unavailable evidence."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/fallback_cmd.py + hermes_cli/main.py fallback_parser",
+                "note": "Hermes ships fallback list/add/remove/clear with ls/rm aliases over the `fallback_providers` config; Gormes mirrors the surface as a thin Go-native CLI binding that delegates picker logic to the shared model picker row."
               }
             },
             {

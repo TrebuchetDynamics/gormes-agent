@@ -81,14 +81,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 46/78 subphases shipped · 24 in progress · 8 planned
+**Overall:** 44/78 subphases shipped · 26 in progress · 8 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 19/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 18/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 3/9 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -206,9 +206,10 @@ classification and row-backed implementation queue.
 - [x] Discord SessionSource guild/parent/message evidence
 - [ ] Discord forum media + polish parity
 
-### 2.B.12 — Channel-Neutral Native Runtime Adapter ✅
+### 2.B.12 — Channel-Neutral Native Runtime Adapter 🔨
 
 - [x] Channel-neutral native runtime turn adapter
+- [ ] Hermes gateway platform registry manifest
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -428,6 +429,7 @@ classification and row-backed implementation queue.
 ### 4.A — Provider Adapters 🔨
 
 - [x] Provider interface + stream fixture harness
+- [ ] Hermes provider registry and alias manifest
 - [x] Tool-call normalization + continuation contract
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] DeepSeek/Kimi cross-provider reasoning isolation
@@ -534,7 +536,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure ✅
+### 4.I — Native Agent Turn Closure 🔨
 
 - [x] Python-free normal agent turn e2e harness
 - [x] Provider-tool-memory golden transcript suite
@@ -544,6 +546,7 @@ classification and row-backed implementation queue.
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
 - [x] Native runtime provider gateway binding
+- [ ] Hermes compatibility namespace retirement boundary
 
 ## Phase 5 — The Final Purge 🔨
 
@@ -722,6 +725,7 @@ classification and row-backed implementation queue.
 - [ ] Gormes setup minimal sectioned wizard slice
 - [ ] Gormes uninstall dry-run command contract
 - [ ] Gormes mcp login OAuth re-auth bridge
+- [ ] Hermes fallback provider chain CLI commands
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface
