@@ -12421,9 +12421,9 @@
             {
               "name": "Terminal snapshot source stdout suppression guard",
               "priority": "P4",
-              "status": "planned",
+              "status": "complete",
               "contract": "The future Go terminal-environment snapshot wrapper suppresses stdout and stderr while loading persisted shell environment snapshots so macOS bash declare -x output cannot leak environment variables into terminal tool responses",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -12457,7 +12457,7 @@
                 "TestEnvironmentSnapshotSource_DoesNotRedactUserCommandOutput proves only snapshot loading is suppressed, not the actual command output.",
                 "No test executes a real shell or inspects the developer environment."
               ],
-              "note": "Added from Hermes 2e6699b3. Keep draft/blocked until the native environment wrapper exists; this prevents the macOS declare -x leak from being forgotten when sandbox backends start.",
+              "note": "Complete: pure Go BuildShellWrapper string-builder emits a `source <path> >/dev/null 2>&1 || true` line before the user command when SnapshotEnabled, and returns the user command verbatim with snapshot_disabled or snapshot_path_missing evidence otherwise. Hermetic tests prove both stdout AND stderr are redirected on the snapshot-load line only, so the macOS bash declare -x leak (Hermes 2e6699b3) cannot reach tool responses while real command output stays visible. No subprocess, real shell, Docker/SSH backend, or developer environment is touched.",
               "write_scope": [
                 "internal/tools/environment_snapshot.go",
                 "internal/tools/environment_snapshot_test.go",
@@ -12471,6 +12471,11 @@
               "done_signal": [
                 "Environment snapshot wrapper fixtures prove persisted snapshot sourcing suppresses stdout/stderr while preserving real command output."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T00:00:00Z",
+                "last_success": "2026-04-29T00:00:00Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:2e6699b3 tools/environments/base.py",
