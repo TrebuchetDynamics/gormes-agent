@@ -177,7 +177,7 @@ classification and row-backed implementation queue.
 - [x] Non-editable gateway progress/commentary send fallback
 - [x] WhatsApp identifier safety predicate
 - [x] WhatsApp unsafe sender/chat inbound evidence
-- [ ] WhatsApp unsafe alias endpoint inbound evidence
+- [x] WhatsApp unsafe alias endpoint inbound evidence
 - [x] Gateway fresh-final eligibility helper
 - [x] Gateway fresh-final send/delete fallback
 - [x] Telegram fresh-final delete and config exposure
@@ -461,7 +461,7 @@ classification and row-backed implementation queue.
 - [ ] Tool-result pruning + protected head/tail summary
 - [x] Aux compression single-prompt threshold reconciliation
 - [x] Compression protected-tail multimodal length estimator
-- [ ] Context compressor image-token budget charge
+- [x] Context compressor image-token budget charge
 - [x] Context references stable-handle store
 - [ ] Manual compression feedback + context references
 - [x] ContextEngine compression-boundary callback vocabulary

@@ -9,6 +9,17 @@ const (
 	maxContextCompressorSummaryTargetRatio     = 0.80
 	minimumContextCompressorContextLength      = 64_000
 	contextCompressorSummaryTokensCeiling      = 12_000
+
+	// imageTokenEstimate is a flat cost per attached image part. Real cost
+	// varies by provider and dimensions, but 1600 is a realistic ceiling
+	// matching upstream Hermes (and Claude Code's IMAGE_TOKEN_ESTIMATE).
+	imageTokenEstimate = 1600
+	// charsPerToken is the rough chars-per-token estimator the compressor
+	// budget speaks in.
+	charsPerToken = 4
+	// imageCharEquivalent expresses imageTokenEstimate in the char-budget
+	// currency used by tail-cut accounting.
+	imageCharEquivalent = imageTokenEstimate * charsPerToken
 )
 
 type ContextCompressorThresholdSource string

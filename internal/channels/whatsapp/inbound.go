@@ -51,6 +51,10 @@ func NormalizeInbound(msg InboundMessage) (gateway.InboundEvent, bool) {
 func NormalizeInboundWithIdentity(msg InboundMessage, identity IdentityContext) InboundResult {
 	status := resolveBotIdentity(identity, msg)
 
+	if evidence, ok := unsafeAliasEvidence(identity.AliasMappings); ok {
+		return unsafeInboundIdentifierResult(status, SessionIdentity{}, evidence)
+	}
+
 	rawUserID := strings.TrimSpace(msg.UserID)
 	if _, safe, evidence := NormalizeSafeWhatsAppIdentifier(rawUserID); !safe {
 		return unsafeInboundIdentifierResult(status, SessionIdentity{}, evidence)
@@ -131,6 +135,25 @@ func NormalizeInboundWithIdentity(msg InboundMessage, identity IdentityContext) 
 	}
 	result.Decision = InboundDecisionRoute
 	return result
+}
+
+// unsafeAliasEvidence returns the first whatsapp_identifier_unsafe evidence
+// produced by an alias mapping endpoint that fails the inbound safety check,
+// so unsafe alias graph inputs cannot influence canonical ID resolution or
+// outbound pairing target derivation.
+func unsafeAliasEvidence(aliases []IdentityAlias) (WhatsAppIdentifierEvidence, bool) {
+	for _, alias := range aliases {
+		for _, endpoint := range []string{alias.From, alias.To} {
+			endpoint = strings.TrimSpace(endpoint)
+			if endpoint == "" {
+				continue
+			}
+			if _, safe, evidence := NormalizeSafeWhatsAppIdentifier(endpoint); !safe {
+				return evidence, true
+			}
+		}
+	}
+	return "", false
 }
 
 func unsafeInboundIdentifierResult(status IdentityStatus, identity SessionIdentity, evidence WhatsAppIdentifierEvidence) InboundResult {

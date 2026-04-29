@@ -64,6 +64,27 @@ func TestNormalizeInboundWithIdentity_UnsafeReplyTargetRejected(t *testing.T) {
 	}
 }
 
+func TestNormalizeInboundWithIdentity_UnsafeAliasEndpointRejected(t *testing.T) {
+	got := NormalizeInboundWithIdentity(safeInboundMessage(nil), IdentityContext{
+		AliasMappings: []IdentityAlias{
+			{From: "15551234567@s.whatsapp.net", To: "../etc/passwd@s.whatsapp.net"},
+		},
+	})
+
+	assertUnsafeInboundEvidence(t, got)
+	if got.Event.ChatID != "" {
+		t.Fatalf("Event.ChatID = %q, want empty after unsafe alias rejection", got.Event.ChatID)
+	}
+	if got.Reply.ChatID != "" {
+		t.Fatalf("Reply.ChatID = %q, want empty after unsafe alias rejection", got.Reply.ChatID)
+	}
+
+	bot := New(nil, IdentityContext{}, nil)
+	if bot.PairOutboundTarget(got) {
+		t.Fatal("PairOutboundTarget returned true for unsafe alias endpoint, want false")
+	}
+}
+
 func safeInboundMessage(mutator func(InboundMessage) InboundMessage) InboundMessage {
 	msg := InboundMessage{
 		ChatID:    "15551234567@s.whatsapp.net",

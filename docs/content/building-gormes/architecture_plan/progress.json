@@ -1726,9 +1726,9 @@
             {
               "name": "WhatsApp unsafe alias endpoint inbound evidence",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "WhatsApp inbound alias graph expansion skips unsafe alias endpoints with explicit whatsapp_identifier_unsafe evidence after raw sender/chat safety is fixture-backed",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -8794,9 +8794,9 @@
             {
               "name": "Context compressor image-token budget charge",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Context-compression budget accounting charges a flat image token equivalent for image_url, input_image, and image content parts while keeping raw base64 payload length out of text-char estimates and preserving the existing text-only estimator boundary",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
