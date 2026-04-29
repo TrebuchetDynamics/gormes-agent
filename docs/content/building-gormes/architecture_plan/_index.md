@@ -659,7 +659,7 @@ classification and row-backed implementation queue.
 - [ ] Clarify
 - [x] Session search tool schema and argument validation
 - [x] Session search tool execution wrapper
-- [ ] Session shutdown memory transcript handoff
+- [x] Session shutdown memory transcript handoff
 - [ ] Debug helpers
 - [ ] Debug share paste sweep scheduler contract
 - [x] Planner audit blank-subphase control-plane bucket

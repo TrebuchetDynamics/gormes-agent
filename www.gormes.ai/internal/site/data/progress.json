@@ -15503,9 +15503,9 @@
             {
               "name": "Session shutdown memory transcript handoff",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Session-end memory handoff receives the completed transcript/message slice explicitly, while skip_memory, interrupted turns, and expiry-only cleanup still prevent hidden GONCHO or Honcho-compatible memory writes",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -15547,7 +15547,7 @@
                 "TestShutdownMemoryHandoff_InterruptedSuppressesProvider proves interrupted sessions do not write GONCHO conclusions or call external Honcho-compatible memory hooks.",
                 "Existing session-expiry hook tests keep proving expiry cleanup does not perform hidden memory flushes."
               ],
-              "note": "Moved to Phase 5.N on 2026-04-27T13:57:25Z after progress tests confirmed Phase 3 is intentionally closed. Added after Hermes 500774e3/a59a98b1 fixed gateway and CLI shutdown paths that lost session messages before calling shutdown_memory_provider. Gormes should encode the transcript handoff as an internal memory contract first while preserving internal GONCHO naming and external honcho_* compatibility.",
+              "note": "Complete: TDD added internal/memory/shutdown_handoff.go with PerformShutdownHandoff invoking ShutdownMemoryProvider.Shutdown exactly once with an explicit (possibly empty) ShutdownMessage slice. SkipMemory short-circuits with shutdown_memory_skipped, Interrupted short-circuits with shutdown_memory_interrupted, and a nil provider is treated as skip. Provider errors propagate verbatim while ShutdownMemoryStatus still records the call was attempted. Pure helper; gateway/CLI runtime binding stays a dependent row. internal GONCHO names and external honcho_* compatibility are unchanged.",
               "write_scope": [
                 "internal/memory/shutdown_handoff.go",
                 "internal/memory/shutdown_handoff_test.go",
