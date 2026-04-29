@@ -12421,9 +12421,9 @@
             {
               "name": "Terminal snapshot source stdout suppression guard",
               "priority": "P4",
-              "status": "planned",
+              "status": "complete",
               "contract": "The future Go terminal-environment snapshot wrapper suppresses stdout and stderr while loading persisted shell environment snapshots so macOS bash declare -x output cannot leak environment variables into terminal tool responses",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -12457,7 +12457,7 @@
                 "TestEnvironmentSnapshotSource_DoesNotRedactUserCommandOutput proves only snapshot loading is suppressed, not the actual command output.",
                 "No test executes a real shell or inspects the developer environment."
               ],
-              "note": "Added from Hermes 2e6699b3. Keep draft/blocked until the native environment wrapper exists; this prevents the macOS declare -x leak from being forgotten when sandbox backends start.",
+              "note": "Complete: pure Go BuildShellWrapper string-builder emits a `source <path> >/dev/null 2>&1 || true` line before the user command when SnapshotEnabled, and returns the user command verbatim with snapshot_disabled or snapshot_path_missing evidence otherwise. Hermetic tests prove both stdout AND stderr are redirected on the snapshot-load line only, so the macOS bash declare -x leak (Hermes 2e6699b3) cannot reach tool responses while real command output stays visible. No subprocess, real shell, Docker/SSH backend, or developer environment is touched.",
               "write_scope": [
                 "internal/tools/environment_snapshot.go",
                 "internal/tools/environment_snapshot_test.go",
@@ -12471,6 +12471,11 @@
               "done_signal": [
                 "Environment snapshot wrapper fixtures prove persisted snapshot sourcing suppresses stdout/stderr while preserving real command output."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T00:00:00Z",
+                "last_success": "2026-04-29T00:00:00Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:2e6699b3 tools/environments/base.py",
@@ -12950,9 +12955,9 @@
             {
               "name": "Image-too-large shrink retry helper",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/hermes exposes a pure image retry planner that, after a provider image_too_large classification, returns a single bounded retry plan with smaller image content parts and explicit no-retry evidence when shrinking is unavailable",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -13013,9 +13018,9 @@
             {
               "name": "Image generation result contract",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Image-generation tool results use a stable local artifact envelope with provider name, model, prompt hash, media type, output path, and redacted error evidence before any live image model call is wired",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -16484,9 +16489,9 @@
             {
               "name": "Cron run resource release executor binding",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cron Executor.Run pushes per-run *sql.DB session stores, tool subprocess handles, and outbound RoundTripper idle-closables into the validated Cron run resource release ledger before returning, so the next Scheduler tick observes no leaked fds; success, kernel-error, ctx-cancel, and timeout paths all release through the same ledger exactly once.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -16523,19 +16528,20 @@
                 "TestExecutorRunReleasesPerRunResources_NoRegisteredResources runs a minimal job with no registrations and proves the ledger reports cron_release_skipped_no_resource without errors.",
                 "Existing internal/cron Executor, run_completion, heartbeat, integration_test, and durable_ledger tests remain green without editing run_completion.go, heartbeat.go, scheduler.go, or kernel package code."
               ],
-              "note": "Dependent binding: keep this draft until the helper-only ledger row is validated, so workers cannot collapse the helper and the Executor wiring into one umbrella diff. Hermes had to land both pieces over multiple PRs for the same reason (#16598 + earlier shutdown fixes).",
+              "note": "Complete: TDD landed internal/cron/release_binding_test.go and extended internal/cron/executor.go with two ExecutorConfig fields (SubprocessKiller, RegisterRelease) and a new public Executor.RunWithRelease(ctx, job) ([]ReleaseEvidence, error) method. Run() now delegates through RunWithRelease so every exit path (success, kernel-Submit error, ctx-cancel, timeout) constructs a fresh RunReleaseLedger per call, runs the registration seam, and defers ledger.Release through the configured SubprocessKiller. Tests use fake io.Closer plus fake SubprocessKiller fixtures (no goroutines, no real DB, no real HTTP, no real os.Process) to prove all three release evidence codes fire on success, the kernel error is surfaced with full evidence on kernel-error, ctx cancellation still drains registered resources, an empty ledger emits exactly one cron_release_skipped_no_resource entry, and aggregated Release errors do not mask the kernel error. internal/cron/run_release.go was not modified. Existing cron/Executor/run_completion/heartbeat/durable_ledger tests stay green and `go build ./...` succeeds.",
               "write_scope": [
                 "internal/cron/executor.go",
-                "internal/cron/executor_release_test.go",
+                "internal/cron/executor_test.go",
+                "internal/cron/release_binding_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/cron -run '^TestExecutorRunReleasesPerRunResources_' -count=1",
+                "go test ./internal/cron -run '^TestExecutorRun_' -count=1",
                 "go test ./internal/cron -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "internal/cron/executor_release_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
+                "internal/cron/release_binding_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
               ],
               "provenance": {
                 "origin_type": "hybrid",

@@ -558,7 +558,7 @@ classification and row-backed implementation queue.
 ### 5.B — Sandboxing Backends 🔨
 
 - [x] Environment interface + file sync contract
-- [ ] Terminal snapshot source stdout suppression guard
+- [x] Terminal snapshot source stdout suppression guard
 - [x] Raw tool-call parser fixture matrix
 - [ ] Docker
 - [x] Docker backend top-level container reuse semantics
@@ -579,8 +579,8 @@ classification and row-backed implementation queue.
 
 - [ ] Multimodal in/out
 - [x] Image input mode router + native content parts
-- [ ] Image-too-large shrink retry helper
-- [ ] Image generation result contract
+- [x] Image-too-large shrink retry helper
+- [x] Image generation result contract
 
 ### 5.E — TTS / Voice / Transcription ⏳
 
@@ -675,7 +675,7 @@ classification and row-backed implementation queue.
 - [x] Cron prompt/script safety + pre-run script contract
 - [x] Cronjob tool action envelope over native store
 - [x] Cron run resource release contract
-- [ ] Cron run resource release executor binding
+- [x] Cron run resource release executor binding
 - [x] Cron context_from output chaining
 - [ ] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
