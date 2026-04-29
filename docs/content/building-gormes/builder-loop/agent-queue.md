@@ -22,7 +22,28 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. ContextEngine compression-boundary callback vocabulary
+## 1. Provider account usage read model + renderer
+
+- Phase: 4 / 4.H
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Gormes exposes a Hermes-compatible provider account-usage read model with internal/hermes.AccountUsageSnapshot and AccountUsageWindow, fakeable Codex/Anthropic/OpenRouter fetchers, and a shared redacted renderer that later CLI/status and gateway `/usage` command rows can bind without rediscovering provider payload semantics.
+- Trust class: operator, gateway, system
+- Ready when: Provider rate-guard and budget telemetry rows already define the status/evidence vocabulary for provider quota and degradation., The slice can use injected HTTP clients, fake clocks, and static provider fixtures; no live Codex, Anthropic, or OpenRouter credentials are required., The row is limited to read-model and renderer behavior; token-vault writes, OAuth refresh, Cobra command binding, and gateway slash-command dispatch remain separate rows.
+- Not ready when: The slice performs live network calls in tests or requires real provider credentials., The slice changes provider routing, retry timing, token-vault storage, or normal-turn execution., The slice binds Cobra commands, gateway slash dispatch, or session-history lookup instead of exposing reusable read-model and render helpers., The slice logs, renders, or persists raw API tokens while building account-usage evidence.
+- Degraded mode: Missing credentials, unsupported providers, upstream 401/429/5xx responses, malformed usage payloads, and unavailable account-usage endpoints produce typed unavailable/unsupported/degraded evidence instead of blocking normal provider turns or command dispatch.
+- Fixture: `internal/hermes/account_usage_test.go`
+- Write scope: `internal/hermes/account_usage.go`, `internal/hermes/account_usage_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run 'TestAccountUsage' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Account-usage fixtures prove Codex, Anthropic, and OpenRouter normalization, unsupported/missing/degraded evidence, shared rendering, redaction, fake HTTP/clock seams, and read-only behavior.
+- Acceptance: The public Go API exposes AccountUsageSnapshot, AccountUsageWindow, AccountUsageFetcher, and renderer helpers under internal/hermes with injected HTTP client and fake clock seams., Codex, Anthropic, and OpenRouter fixture payloads normalize into one AccountUsageSnapshot shape with provider, account label, usage windows, reset times, remaining/used limits when available, and source evidence., Unsupported providers and missing credentials preserve upstream's nonfatal None-result contract while returning Gormes-owned typed unsupported or credential-missing evidence without contacting a provider client., Malformed JSON and upstream HTTP failures produce degraded evidence with redacted endpoint/account details and no raw credential bytes., The shared renderer produces stable text/JSON fixtures that include provider/account/window/quota evidence but do not require Cobra, gateway manager, running-agent, cached-agent, or transcript-history integration., The implementation stays read-only: no config, token vault, memory, transcript, or provider client state is modified.
+- Source refs: ../hermes-agent/agent/account_usage.py:AccountUsageSnapshot,AccountUsageWindow,render_account_usage_lines,fetch_account_usage,_fetch_codex_account_usage,_fetch_anthropic_account_usage,_fetch_openrouter_account_usage, ../hermes-agent/tests/test_account_usage.py, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting
+- Unblocks: Provider status command parity, Gateway /usage command binding over provider account usage, Self-monitoring telemetry
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. ContextEngine compression-boundary callback vocabulary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -42,26 +63,6 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/run_agent.py@e85b7525, ../hermes-agent/tests/run_agent/test_compression_boundary_hook.py@e85b7525, internal/hermes/context_engine.go:ContextEngine, internal/hermes/context_engine_test.go, internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json
 - Unblocks: ContextEngine compression-boundary notification
 - Why now: Unblocks ContextEngine compression-boundary notification.
-
-## 2. Provider account usage read model + renderer
-
-- Phase: 4 / 4.H
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes exposes a Hermes-compatible provider account-usage read model with internal/hermes.AccountUsageSnapshot and AccountUsageWindow, fakeable Codex/Anthropic/OpenRouter fetchers, and a shared redacted renderer that later CLI/status and gateway `/usage` command rows can bind without rediscovering provider payload semantics.
-- Trust class: operator, gateway, system
-- Ready when: Provider rate-guard and budget telemetry rows already define the status/evidence vocabulary for provider quota and degradation., The slice can use injected HTTP clients, fake clocks, and static provider fixtures; no live Codex, Anthropic, or OpenRouter credentials are required., The row is limited to read-model and renderer behavior; token-vault writes, OAuth refresh, Cobra command binding, and gateway slash-command dispatch remain separate rows.
-- Not ready when: The slice performs live network calls in tests or requires real provider credentials., The slice changes provider routing, retry timing, token-vault storage, or normal-turn execution., The slice binds Cobra commands, gateway slash dispatch, or session-history lookup instead of exposing reusable read-model and render helpers., The slice logs, renders, or persists raw API tokens while building account-usage evidence.
-- Degraded mode: Missing credentials, unsupported providers, upstream 401/429/5xx responses, malformed usage payloads, and unavailable account-usage endpoints produce typed unavailable/unsupported/degraded evidence instead of blocking normal provider turns or command dispatch.
-- Fixture: `internal/hermes/account_usage_test.go`
-- Write scope: `internal/hermes/account_usage.go`, `internal/hermes/account_usage_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run 'TestAccountUsage' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Account-usage fixtures prove Codex, Anthropic, and OpenRouter normalization, unsupported/missing/degraded evidence, shared rendering, redaction, fake HTTP/clock seams, and read-only behavior.
-- Acceptance: The public Go API exposes AccountUsageSnapshot, AccountUsageWindow, AccountUsageFetcher, and renderer helpers under internal/hermes with injected HTTP client and fake clock seams., Codex, Anthropic, and OpenRouter fixture payloads normalize into one AccountUsageSnapshot shape with provider, account label, usage windows, reset times, remaining/used limits when available, and source evidence., Unsupported providers and missing credentials preserve upstream's nonfatal None-result contract while returning Gormes-owned typed unsupported or credential-missing evidence without contacting a provider client., Malformed JSON and upstream HTTP failures produce degraded evidence with redacted endpoint/account details and no raw credential bytes., The shared renderer produces stable text/JSON fixtures that include provider/account/window/quota evidence but do not require Cobra, gateway manager, running-agent, cached-agent, or transcript-history integration., The implementation stays read-only: no config, token vault, memory, transcript, or provider client state is modified.
-- Source refs: ../hermes-agent/agent/account_usage.py:AccountUsageSnapshot,AccountUsageWindow,render_account_usage_lines,fetch_account_usage,_fetch_codex_account_usage,_fetch_anthropic_account_usage,_fetch_openrouter_account_usage, ../hermes-agent/tests/test_account_usage.py, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting
-- Unblocks: Provider status command parity, Gateway /usage command binding over provider account usage, Self-monitoring telemetry
-- Why now: Unblocks Provider status command parity, Gateway /usage command binding over provider account usage, Self-monitoring telemetry.
 
 ## 3. Environment interface + file sync contract
 
