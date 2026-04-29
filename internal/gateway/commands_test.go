@@ -113,6 +113,8 @@ func TestSlashCommandPolicyParityWithCLIRegistry(t *testing.T) {
 			want = cli.ActiveTurnPolicyBypass
 		case CommandActiveTurnPolicyReject:
 			want = cli.ActiveTurnPolicyBusyReject
+		case CommandActiveTurnPolicyUnavailable:
+			want = cli.ActiveTurnPolicyUnavailable
 		default:
 			t.Errorf("gateway command %q has unmapped policy %q", gw.Name, gw.ActiveTurnPolicy)
 			continue
@@ -153,6 +155,37 @@ func TestSlashCommandUnknownDoesNotEnterModelPrompt(t *testing.T) {
 	}
 	if body != "" {
 		t.Errorf("ParseInboundText(unknown slash) body = %q, want empty", body)
+	}
+}
+
+func TestTelegramBotCommandsExposeHermesGatewayMenu(t *testing.T) {
+	commands := TelegramBotCommands()
+	seen := make(map[string]string, len(commands))
+	for _, cmd := range commands {
+		seen[cmd.Name] = cmd.Description
+	}
+	for _, want := range []string{
+		"new",
+		"retry",
+		"undo",
+		"title",
+		"branch",
+		"compress",
+		"rollback",
+		"snapshot",
+		"stop",
+		"approve",
+		"deny",
+		"background",
+		"btw",
+		"agents",
+		"queue",
+		"steer",
+		"status",
+	} {
+		if _, ok := seen[want]; !ok {
+			t.Fatalf("TelegramBotCommands missing Hermes gateway command %q; got %#v", want, commands)
+		}
 	}
 }
 

@@ -22,7 +22,70 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Model-specific role and tool-use guidance
+## 1. Hermes auth OAuth provider adapters
+
+- Phase: 5 / 5.O
+- Owner: `provider`
+- Size: `medium`
+- Status: `in_progress`
+- Priority: `P1`
+- Contract: Implement non-deprecated provider login through `gormes auth add <provider> --type oauth` with injectable provider login seams for Hermes OAuth-capable inference providers: anthropic uses Hermes PKCE credentials, nous uses device-code state and mirrors providers.nous plus credential_pool.nous, openai-codex uses Codex device-code tokens and clears device_code suppression on relink, google-gemini-cli stores Google Code Assist OAuth credentials, and qwen-oauth imports/refreshes local Qwen CLI credentials into a pool entry. Each adapter returns the Hermes source label, base URL, expiry/refresh metadata, and redacted status evidence without requiring live credentials in tests.
+- Trust class: operator, system
+- Ready when: Hermes auth credential-pool command surface is fixture-ready or complete so command routing, storage, redaction, and suppression semantics exist., Codex OAuth state + stale-token relogin, Anthropic OAuth/keychain credential discovery, Multi-account auth, and Google OAuth flow + refresh seam are complete enough to provide native stores or fake login seams., Tests can inject fake OAuth/device-code/Qwen clients and temp auth stores; no browser, localhost callback, keychain, Qwen CLI, Google OAuth server, Codex endpoint, Nous portal, or Anthropic network is required.
+- Not ready when: The slice calls live OAuth endpoints, opens browsers, polls real device-code flows, reads live ~/.claude ~/.codex ~/.qwen credentials, or contacts provider model catalogs in unit tests., Nous OAuth writes only credential_pool.nous but not providers.nous; Hermes requires both for later 401 recovery., OpenAI Codex relink leaves a stale device_code suppression marker in auth.json., Provider errors or status output include access_token, refresh_token, agent_key, auth code, client secret, device code, raw callback URL, or raw provider body.
+- Degraded mode: OAuth provider login failures return provider-specific evidence such as anthropic_oauth_failed, nous_device_code_failed, nous_provider_mirror_missing, codex_device_code_failed, google_gemini_oauth_failed, qwen_cli_auth_missing, qwen_cli_refresh_failed, auth_suppression_cleared, and auth_secret_redacted while preserving any existing auth store unless a fake successful login is committed.
+- Fixture: `cmd/gormes/auth_oauth_command_test.go`
+- Write scope: `cmd/gormes/auth.go`, `cmd/gormes/auth_codex_oauth.go`, `cmd/gormes/auth_oauth_command_test.go`, `internal/config/credential_pool.go`, `internal/config/codex_oauth_state.go`, `internal/config/google_oauth_state.go`, `internal/config/anthropic_auth_state.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes -run 'Test(GormesAuthAddCodexOAuthStoresDeviceCodeCredential\|RunCodexDeviceCodeLoginUsesHermesDeviceFlow)' -count=1`, `go test ./cmd/gormes -run '^TestGormesAuthAdd.*OAuth\|^TestGormesAuthOAuth' -count=1`, `go test ./cmd/gormes ./internal/config ./internal/hermes -count=1`, `go run ./cmd/progress validate`
+- Done signal: OAuth auth command fixtures prove anthropic, nous, openai-codex, google-gemini-cli, and qwen-oauth add flows through fake clients, atomic failure handling, suppression cleanup, provider/pool mirroring, and redacted output.
+- Acceptance: TestGormesAuthAddAnthropicOAuth stores a manual:hermes_pkce entry with label derived from fake token claims, refresh token, expiry metadata, and no live keychain access., TestGormesAuthAddNousOAuthMirrorsProviderAndPool proves fake device-code login writes providers.nous and exactly one credential_pool.nous device_code entry with label preservation and no manual:device_code duplicate., TestGormesAuthAddCodexOAuthClearsSuppression proves relinking openai-codex removes device_code suppression, stores manual:device_code access/refresh/base_url metadata, and redacts tokens in output., TestGormesAuthAddGoogleGeminiOAuth stores google_pkce source, email/default label, access/refresh metadata, and redacted status without using live Google endpoints., TestGormesAuthAddQwenOAuth imports fake Qwen CLI credentials as manual:qwen_cli, preserves base_url, classifies missing/expired Qwen CLI credentials, and does not shell out., TestGormesAuthOAuthErrorsAreAtomic proves failed fake OAuth logins leave existing credential_pool/provider state byte-identical and return provider-specific redacted evidence.
+- Source refs: ../hermes-agent/hermes_cli/auth_commands.py:_OAUTH_CAPABLE_PROVIDERS, ../hermes-agent/hermes_cli/auth_commands.py:auth_add_command, ../hermes-agent/hermes_cli/auth.py:_nous_device_code_login, ../hermes-agent/hermes_cli/auth.py:persist_nous_credentials, ../hermes-agent/hermes_cli/auth.py:_codex_device_code_login, ../hermes-agent/hermes_cli/auth.py:resolve_qwen_runtime_credentials, ../hermes-agent/agent/anthropic_adapter.py:run_hermes_oauth_login_pure, ../hermes-agent/agent/google_oauth.py:run_gemini_oauth_login_pure, ../hermes-agent/tests/hermes_cli/test_auth_commands.py, ../hermes-agent/tests/hermes_cli/test_auth_nous_provider.py, ../hermes-agent/tests/hermes_cli/test_auth_qwen_provider.py, internal/config/anthropic_auth_state.go, internal/config/codex_oauth_state.go, internal/config/google_oauth_state.go, internal/config/credential_pool.go, references/go-agent-os/goclaw/internal/oauth/openai.go, references/go-agent-os/goclaw/internal/oauth/token.go
+- Unblocks: Provider auth selection for native gateway turns, Qwen OAuth provider runtime binding, Google Gemini CLI provider runtime binding, Nous provider auth refresh and agent-key recovery
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 2. Hermes gateway platform registry manifest
+
+- Phase: 2 / 2.B.12
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes owns a source-backed gateway platform manifest that enumerates every current Hermes Platform enum value and connector file, classifies each platform as implemented, partial, row-backed, excluded, or Gormes-owned, and records command, config, credential, inbound, outbound, media, toolset, pairing, and delivery status without requiring live platform credentials.
+- Trust class: gateway, operator, system
+- Ready when: Channel-neutral native runtime turn adapter is complete and provides a shared channel boundary for fake fixtures., Subsystem inventory records the current gateway platform list including Yuanbao., The builder can compare static source files and local manifests without live Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Home Assistant, email, SMS, DingTalk, Feishu, WeCom, Weixin, BlueBubbles, QQ, Yuanbao, API server, or webhook credentials.
+- Not ready when: The slice implements live transport behavior, opens sockets/webhooks, downloads media, mutates platform credentials, or changes shared gateway runtime admission., The manifest treats local, api_server, webhook, wecom_callback, or disabled regional adapters as absent because they are not enabled in current Gormes help., The slice collapses all platform-specific media, pairing, home-channel, command, and toolset gaps into one broad completed row.
+- Degraded mode: Unknown platform enum values, connector files, or platform-specific command/toolset surfaces fail the manifest test. Unsupported platforms remain visible as row-backed or excluded entries with source refs instead of disappearing from docs, gateway status, or future command planning.
+- Fixture: `internal/gateway/platform_manifest_test.go::TestHermesGatewayPlatformManifestCoversUpstream`
+- Write scope: `internal/gateway/platform_manifest.go`, `internal/gateway/platform_manifest_test.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, `docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway -run TestHermesGatewayPlatformManifest -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Gateway platform manifest fixtures prove every Hermes platform enum value and connector file is classified with row-backed, excluded, partial, implemented, or owned evidence and no live credentials.
+- Acceptance: TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao., Each manifest row records source file, current Gormes package or row-backed target, inbound/outbound/media/commands/toolset/config/pairing status, and whether live credentials are required., The manifest distinguishes external channels from non-channel runtime surfaces such as local, api_server, webhook, and wecom_callback instead of dropping them., The docs matrix and subsystem inventory stay in sync with the manifest and mention unsupported/paused platforms explicitly., No test starts a real channel SDK, websocket, webhook listener, browser, QR flow, or HTTP client.
+- Source refs: ../hermes-agent/gateway/config.py:Platform, ../hermes-agent/gateway/platforms/base.py, ../hermes-agent/gateway/platforms/telegram.py, ../hermes-agent/gateway/platforms/discord.py, ../hermes-agent/gateway/platforms/whatsapp.py, ../hermes-agent/gateway/platforms/slack.py, ../hermes-agent/gateway/platforms/signal.py, ../hermes-agent/gateway/platforms/mattermost.py, ../hermes-agent/gateway/platforms/matrix.py, ../hermes-agent/gateway/platforms/homeassistant.py, ../hermes-agent/gateway/platforms/email.py, ../hermes-agent/gateway/platforms/sms.py, ../hermes-agent/gateway/platforms/dingtalk.py, ../hermes-agent/gateway/platforms/api_server.py, ../hermes-agent/gateway/platforms/webhook.py, ../hermes-agent/gateway/platforms/feishu.py, ../hermes-agent/gateway/platforms/wecom.py, ../hermes-agent/gateway/platforms/wecom_callback.py, ../hermes-agent/gateway/platforms/weixin.py, ../hermes-agent/gateway/platforms/bluebubbles.py, ../hermes-agent/gateway/platforms/qqbot/, ../hermes-agent/gateway/platforms/yuanbao.py, ../hermes-agent/tools/yuanbao_tools.py, docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Gateway platforms, docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails
+- Unblocks: Gateway, platform, webhook, and cron management CLI, Channel directory atomic persistence + lookup, Paused adapter channel health/status readout, Yuanbao gateway runtime + toolset registration, QQ Bot bootstrap + token/gateway fake transport, Matrix shared-chassis adapter, Mattermost shared-chassis adapter
+- Why now: Unblocks Gateway, platform, webhook, and cron management CLI, Channel directory atomic persistence + lookup, Paused adapter channel health/status readout, Yuanbao gateway runtime + toolset registration, QQ Bot bootstrap + token/gateway fake transport, Matrix shared-chassis adapter, Mattermost shared-chassis adapter.
+
+## 3. Hermes provider registry and alias manifest
+
+- Phase: 4 / 4.A
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes owns a source-backed provider registry manifest that enumerates Hermes canonical provider IDs, aliases, models.dev mappings, transport family, auth type, aggregator flag, env vars, base-url overrides, and current implementation status before claiming provider/model/auth parity. Unsupported providers remain manifest-visible and row-backed rather than disappearing from model picker, status, docs, or runtime planning.
+- Trust class: operator, gateway, system
+- Ready when: Provider interface + stream fixture harness is complete and can host provider-neutral manifest fixtures without implementing new transports., Hermes auth command-tree manifest refresh and auth credential-pool rows define the non-deprecated command surface., The builder can parse static upstream files and use embedded fixtures only; live models.dev, provider APIs, browser OAuth, keychains, and CLI credential stores are out of scope.
+- Not ready when: The slice implements provider transports, OAuth login flows, model picker prompts, live model catalog calls, provider account usage calls, or runtime fallback policy., The manifest hard-codes only currently supported Gormes providers and omits unsupported Hermes providers such as qwen-oauth, google-gemini-cli, copilot-acp, azure-foundry, opencode, alibaba-coding-plan, or regional aliases., Aliases such as openai->openrouter, kimi-coding->kimi-for-coding, kilocode->kilo, copilot->github-copilot, gemini-cli->google-gemini-cli, qwen->alibaba, aws->bedrock, or local/custom endpoint aliases are left unclassified.
+- Degraded mode: Unknown provider IDs, missing aliases, stale chat --provider choices, or unclassified auth modes fail the manifest test with provider_registry_drift. The manifest must not require live models.dev, live provider credentials, browser auth, or network discovery.
+- Fixture: `internal/hermes/provider_registry_manifest_test.go::TestHermesProviderRegistryManifestCoversUpstream`
+- Write scope: `internal/hermes/provider_registry_manifest.go`, `internal/hermes/provider_registry_manifest_test.go`, `docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md`, `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run TestHermesProviderRegistryManifest -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Provider registry manifest fixtures prove every Hermes provider ID, alias, auth mode, transport family, and unsupported provider row is classified without live providers or network catalog calls.
+- Acceptance: TestHermesProviderRegistryManifestCoversUpstream proves every key in HERMES_OVERLAYS, every provider in PROVIDER_TO_MODELS_DEV, every chat --provider choice, and every known provider-prefix alias is classified., Each provider row records canonical ID, aliases, models.dev ID when applicable, transport family, auth type, aggregator status, env vars, base URL override/env var, and row-backed/implemented/excluded/owned implementation status., OAuth-capable providers are cross-linked to `Hermes auth OAuth provider adapters`; API-key providers are cross-linked to credential-pool/runtime rows; external-process providers are cross-linked to ACP/Copilot rows., The manifest distinguishes canonical provider IDs from operator aliases and model-prefix aliases, so `gormes model`, `--provider`, auth commands, config import, and fallback planning share one spelling table., The docs matrix is updated from the same provider inventory and no test performs live provider or models.dev network calls.
+- Source refs: ../hermes-agent/hermes_cli/providers.py:HERMES_OVERLAYS, ../hermes-agent/hermes_cli/providers.py:ALIASES, ../hermes-agent/agent/models_dev.py:PROVIDER_TO_MODELS_DEV, ../hermes-agent/agent/model_metadata.py:_PROVIDER_PREFIXES, ../hermes-agent/hermes_cli/main.py:chat_parser --provider choices, ../hermes-agent/hermes_cli/main.py:model command, ../hermes-agent/hermes_cli/auth_commands.py:_OAUTH_CAPABLE_PROVIDERS, ../hermes-agent/hermes_cli/models.py:_PROVIDER_MODELS, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Provider registry, aliases, and auth modes, docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md
+- Unblocks: Gormes model interactive provider/model picker, Hermes auth OAuth provider adapters, Provider auth selection for native gateway turns, Provider account usage read model + renderer, Hermes fallback provider chain CLI commands, Model metadata types, Top-level oneshot flag and model/provider resolver
+- Why now: Unblocks Gormes model interactive provider/model picker, Hermes auth OAuth provider adapters, Provider auth selection for native gateway turns, Provider account usage read model + renderer, Hermes fallback provider chain CLI commands, Model metadata types, Top-level oneshot flag and model/provider resolver.
+
+## 4. Model-specific role and tool-use guidance
 
 - Phase: 4 / 4.C
 - Owner: `provider`
@@ -42,7 +105,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity
 - Why now: Unblocks Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity.
 
-## 2. Stateful tool migration queue
+## 5. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -62,7 +125,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 3. Transcription tool contract
+## 6. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -82,7 +145,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 4. Debug helpers
+## 7. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -102,7 +165,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 5. Feishu transport/bootstrap layer
+## 8. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -122,7 +185,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 6. Tool-result pruning + protected head/tail summary
+## 9. Tool-result pruning + protected head/tail summary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -141,7 +204,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Prompt-cache capability guard
+## 10. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -158,25 +221,6 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Prompt-cache fixtures prove provider policy, native/envelope/stripped layouts, four-breakpoint rewrite behavior, and visible unsupported-provider status without live probes.
 - Acceptance: Policy fixtures match Hermes for native Anthropic, Anthropic-host aliases, OpenRouter Claude, third-party Anthropic Claude gateways, OpenAI-wire custom Claude names, and Qwen opencode/opencode-go/Alibaba cases., Message rewrite fixtures deep-copy inputs, place at most four breakpoints, mark system plus last three non-system messages, preserve 1h TTL, and handle native Anthropic tool-role markers., OpenAI-wire providers without an allow rule strip cache_control before request serialization and expose a visible degraded capability reason., Provider status and request bodies agree: a supported policy serializes cache markers and an unsupported policy omits them.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. Clarify
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes ports Hermes clarify as a schema-validated, interruptible user-reply tool: required question text, up to four trimmed choices, platform-added Other behavior, callback/resume routing for gateway and TUI, deterministic unavailable output in non-interactive cron/oneshot contexts, and one-shot resume-token cleanup after the next user reply.
-- Trust class: operator, gateway, child-agent, system
-- Ready when: Tool descriptor parity manifest, TUI clarify panel renderer, and oneshot noninteractive clarify policy are validated on main., The worker can test schema/callback/resume behavior with fake platform callbacks and fake session state; no live Telegram, TUI event loop, or stdin interaction is required.
-- Not ready when: The slice implements only TUI rendering without tool execution/resume state, or only schema validation without gateway/TUI callback routing., The slice blocks cron or oneshot waiting for user input, or persists a pending reply route that is not cleared after one resume.
-- Degraded mode: Clarify returns clarify_invalid_args, clarify_unavailable, clarify_timeout, or clarify_route_missing evidence instead of blocking cron/oneshot turns, reading stdin from a noninteractive context, or leaking a pending route into the wrong session.
-- Fixture: `internal/tools/clarify_tool_test.go; internal/gateway/clarify_resume_test.go`
-- Write scope: `internal/tools/clarify_tool.go`, `internal/tools/clarify_tool_test.go`, `internal/gateway/clarify_resume.go`, `internal/gateway/clarify_resume_test.go`, `internal/tui/`, `cmd/gormes/oneshot_safety_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestClarifyTool -count=1`, `go test ./internal/gateway -run TestClarifyResume -count=1`, `go test ./cmd/gormes -run TestOneshotClarify -count=1`, `go run ./cmd/progress validate`
-- Done signal: Clarify fixtures prove Hermes schema validation, platform callback output, gateway/TUI one-shot resume routing, and noninteractive unavailable/timeout evidence without live UI.
-- Acceptance: Tool fixtures match Hermes validation: empty questions error, choices must be lists, whitespace choices are stripped, non-string choices stringify, and more than four choices are trimmed., Callback fixtures return question, choices_offered, and stripped user_response for open-ended and multiple-choice prompts., Gateway/TUI resume fixtures persist a one-shot route for the awaiting session and clear it after the next user reply., Cron/oneshot fixtures return clarify_unavailable or clarify_timeout evidence and never wait for interactive input.
-- Source refs: ../hermes-agent/tools/clarify_tool.py:clarify_tool, ../hermes-agent/tools/clarify_tool.py:CLARIFY_SCHEMA, ../hermes-agent/tests/tools/test_clarify_tool.py, ../hermes-agent/cli.py:_clarify_callback, ../hermes-agent/gateway/run.py:clarify callback handling, references/go-agent-os/trpc-agent-go/agent/await_user_reply.go, cmd/gormes/oneshot_safety_test.go, internal/tui/hermes_panels.go, internal/tools/testdata/upstream_tool_parity_manifest.json
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

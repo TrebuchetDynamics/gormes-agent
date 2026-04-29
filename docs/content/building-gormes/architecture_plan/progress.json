@@ -2904,7 +2904,7 @@
               "status": "planned",
               "priority": "P1",
               "contract": "Gormes owns a source-backed gateway platform manifest that enumerates every current Hermes Platform enum value and connector file, classifies each platform as implemented, partial, row-backed, excluded, or Gormes-owned, and records command, config, credential, inbound, outbound, media, toolset, pairing, and delivery status without requiring live platform credentials.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2951,9 +2951,6 @@
                 "The manifest treats local, api_server, webhook, wecom_callback, or disabled regional adapters as absent because they are not enabled in current Gormes help.",
                 "The slice collapses all platform-specific media, pairing, home-channel, command, and toolset gaps into one broad completed row."
               ],
-              "blocked_by": [
-                "Channel-neutral native runtime turn adapter"
-              ],
               "unblocks": [
                 "Gateway, platform, webhook, and cron management CLI",
                 "Channel directory atomic persistence + lookup",
@@ -2970,7 +2967,7 @@
                 "The docs matrix and subsystem inventory stay in sync with the manifest and mention unsupported/paused platforms explicitly.",
                 "No test starts a real channel SDK, websocket, webhook listener, browser, QR flow, or HTTP client."
               ],
-              "note": "Added 2026-04-29 after the planner audit found command coverage was stronger than provider/channel coverage. This is the channel equivalent of the CLI manifest: it keeps every Hermes platform visible even when Gormes only has a paused row, fixture contract, or disabled-by-default adapter.",
+              "note": "Added 2026-04-29 after the planner audit found command coverage was stronger than provider/channel coverage. Promoted to fixture_ready after Channel-neutral native runtime turn adapter was validated; this is the channel equivalent of the CLI manifest and keeps every Hermes platform visible even when Gormes only has a paused row, fixture contract, or disabled-by-default adapter.",
               "write_scope": [
                 "internal/gateway/platform_manifest.go",
                 "internal/gateway/platform_manifest_test.go",
@@ -7370,7 +7367,7 @@
               "status": "planned",
               "priority": "P1",
               "contract": "Gormes owns a source-backed provider registry manifest that enumerates Hermes canonical provider IDs, aliases, models.dev mappings, transport family, auth type, aggregator flag, env vars, base-url overrides, and current implementation status before claiming provider/model/auth parity. Unsupported providers remain manifest-visible and row-backed rather than disappearing from model picker, status, docs, or runtime planning.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -7403,9 +7400,6 @@
                 "The manifest hard-codes only currently supported Gormes providers and omits unsupported Hermes providers such as qwen-oauth, google-gemini-cli, copilot-acp, azure-foundry, opencode, alibaba-coding-plan, or regional aliases.",
                 "Aliases such as openai->openrouter, kimi-coding->kimi-for-coding, kilocode->kilo, copilot->github-copilot, gemini-cli->google-gemini-cli, qwen->alibaba, aws->bedrock, or local/custom endpoint aliases are left unclassified."
               ],
-              "blocked_by": [
-                "Provider interface + stream fixture harness"
-              ],
               "unblocks": [
                 "Gormes model interactive provider/model picker",
                 "Hermes auth OAuth provider adapters",
@@ -7422,7 +7416,7 @@
                 "The manifest distinguishes canonical provider IDs from operator aliases and model-prefix aliases, so `gormes model`, `--provider`, auth commands, config import, and fallback planning share one spelling table.",
                 "The docs matrix is updated from the same provider inventory and no test performs live provider or models.dev network calls."
               ],
-              "note": "Added 2026-04-29 after the planner audit found command parity was stronger than provider registry parity. This row is the provider equivalent of the CLI command manifest: it keeps every Hermes provider, alias, auth mode, and unsupported provider visible before handlers/transports land.",
+              "note": "Added 2026-04-29 after the planner audit found command parity was stronger than provider registry parity. Promoted to fixture_ready after Provider interface + stream fixture harness and auth command manifests were validated. This row is the provider equivalent of the CLI command manifest: it keeps every Hermes provider, alias, auth mode, and unsupported provider visible before handlers/transports land.",
               "write_scope": [
                 "internal/hermes/provider_registry_manifest.go",
                 "internal/hermes/provider_registry_manifest_test.go",
@@ -18759,10 +18753,10 @@
             },
             {
               "name": "Hermes CLI nested parser inventory refresh",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Refresh the Gormes Hermes CLI compatibility manifest and tests from current Hermes argparse parser groups so every nested top-level command, alias, and removed/stale parser path is classified distinctly from gateway message handlers and dynamic plugin commands. Unsupported commands still need row-backed, excluded/deprecated, or Gormes-owned evidence; no current Hermes parser command may be absent merely because Gormes has not implemented it yet.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -18829,7 +18823,7 @@
                 "Every unsupported current Hermes parser path points to a named progress row, excluded/deprecated rationale, or Gormes-owned rationale; no path has unknown classification.",
                 "The Hugo command-surface matrix is updated from the same inventory so docs and executable manifest do not diverge."
               ],
-              "note": "Added 2026-04-29 after the planner audit found the completed command-tree manifest overclaimed nested parser coverage: top-level/auth/fallback coverage is useful, but gateway parser commands, platform/channel commands, cron/webhook/hooks, skills/plugins, tool/MCP, sessions, profile, and Slack nested commands need a source-backed refresh before handler parity work proceeds.",
+              "note": "Complete: TDD added TestHermesCLIParityManifestNestedParserInventoryMatchesHermes and refreshed cmd/gormes/hermes_cli_parity.go from current upstream argparse groups. The manifest now classifies gateway run/start/stop/restart/status/install/uninstall/setup/migrate-legacy separately from gateway message handlers, captures Slack manifest, current cron/webhook/hooks/debug/config/pairing/skills/plugins/memory/tools/MCP/sessions/claw/profile nested commands and aliases, and removes stale active parser targets such as gateway reset, cron enable/disable, webhook serve, hooks run, debug doctor/paste/sweep, pairing deny/reset, memory search/add/delete/export, mcp call/auth, sessions resume, profile set, auth login, and auth refresh. Unsupported current commands remain row-backed; this row ships inventory/classification, not handlers.",
               "write_scope": [
                 "cmd/gormes/hermes_cli_parity.go",
                 "cmd/gormes/hermes_cli_parity_test.go",
@@ -18845,6 +18839,11 @@
               "done_signal": [
                 "CLI parity manifest fixtures prove the current Hermes nested parser inventory, aliases, stale command exclusions, gateway-handler separation, row-backed residuals, and Hugo matrix evidence before any handler implementation claims parity."
               ],
+              "evidence": {
+                "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go, docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
+                "tests": "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(NestedParserInventoryMatchesHermes|NoUnknowns)' -count=1; go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "Nested parser inventory is source-backed from ../hermes-agent/hermes_cli/main.py add_parser groups and stays handler-neutral."
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/main.py argparse parser groups and gateway/run.py handler registry",
@@ -19028,7 +19027,7 @@
               "status": "in_progress",
               "priority": "P1",
               "contract": "Implement non-deprecated provider login through `gormes auth add <provider> --type oauth` with injectable provider login seams for Hermes OAuth-capable inference providers: anthropic uses Hermes PKCE credentials, nous uses device-code state and mirrors providers.nous plus credential_pool.nous, openai-codex uses Codex device-code tokens and clears device_code suppression on relink, google-gemini-cli stores Google Code Assist OAuth credentials, and qwen-oauth imports/refreshes local Qwen CLI credentials into a pool entry. Each adapter returns the Hermes source label, base URL, expiry/refresh metadata, and redacted status evidence without requiring live credentials in tests.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -19067,14 +19066,6 @@
                 "OpenAI Codex relink leaves a stale device_code suppression marker in auth.json.",
                 "Provider errors or status output include access_token, refresh_token, agent_key, auth code, client secret, device code, raw callback URL, or raw provider body."
               ],
-              "blocked_by": [
-                "Hermes auth command-tree manifest refresh",
-                "Hermes auth credential-pool command surface",
-                "Anthropic OAuth/keychain credential discovery",
-                "Codex OAuth state + stale-token relogin",
-                "Multi-account auth",
-                "Google OAuth flow + refresh seam"
-              ],
               "unblocks": [
                 "Provider auth selection for native gateway turns",
                 "Qwen OAuth provider runtime binding",
@@ -19089,7 +19080,7 @@
                 "TestGormesAuthAddQwenOAuth imports fake Qwen CLI credentials as manual:qwen_cli, preserves base_url, classifies missing/expired Qwen CLI credentials, and does not shell out.",
                 "TestGormesAuthOAuthErrorsAreAtomic proves failed fake OAuth logins leave existing credential_pool/provider state byte-identical and return provider-specific redacted evidence."
               ],
-              "note": "Porting: the OpenAI Codex device-code vertical is implemented behind `gormes auth add openai-codex --type oauth` with fake HTTP fixtures and native auth.json persistence. Remaining provider OAuth adapters are Anthropic PKCE, Nous device-code provider mirroring, Google Gemini CLI PKCE, Qwen CLI import/refresh, and Spotify's service-provider subcommand. Hermes' non-deprecated provider login UX is `auth add <provider> --type oauth`; Gormes must keep using that instead of resurrecting top-level login or inventing `auth login`.",
+              "note": "Porting: the OpenAI Codex device-code vertical is implemented behind `gormes auth add openai-codex --type oauth` with fake HTTP fixtures and native auth.json persistence. Promoted to fixture_ready after all named prerequisite auth/config/provider-state rows were validated; remaining provider OAuth adapters are Anthropic PKCE, Nous device-code provider mirroring, Google Gemini CLI PKCE, Qwen CLI import/refresh, and Spotify's service-provider subcommand. Hermes' non-deprecated provider login UX is `auth add <provider> --type oauth`; Gormes must keep using that instead of resurrecting top-level login or inventing `auth login`.",
               "write_scope": [
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_codex_oauth.go",

@@ -26,28 +26,117 @@ func TestHermesCLIParityManifest(t *testing.T) {
 	}
 
 	wantNested := [][]string{
-		{"gateway", "status"}, {"gateway", "restart"}, {"gateway", "reset"}, {"gateway", "model"}, {"gateway", "profile"}, {"gateway", "usage"},
+		{"gateway", "run"}, {"gateway", "restart"}, {"gateway", "status"}, {"gateway", "install"}, {"gateway", "migrate-legacy"},
 		{"fallback", "list"}, {"fallback", "ls"}, {"fallback", "add"}, {"fallback", "remove"}, {"fallback", "rm"}, {"fallback", "clear"},
 		{"auth", "add"}, {"auth", "list"}, {"auth", "remove"}, {"auth", "reset"}, {"auth", "status"}, {"auth", "logout"}, {"auth", "spotify"},
-		{"cron", "list"}, {"cron", "add"}, {"cron", "remove"}, {"cron", "run"},
-		{"webhook", "serve"}, {"webhook", "test"},
-		{"hooks", "list"}, {"hooks", "run"},
-		{"debug", "doctor"}, {"debug", "share"},
-		{"config", "show"}, {"config", "set"}, {"config", "check"}, {"config", "edit"}, {"config", "migrate"},
-		{"pairing", "approve"}, {"pairing", "deny"}, {"pairing", "list"},
-		{"skills", "list"}, {"skills", "search"}, {"skills", "install"}, {"skills", "remove"}, {"skills", "tap"}, {"skills", "snapshot"},
-		{"plugins", "list"}, {"plugins", "enable"}, {"plugins", "disable"},
-		{"memory", "search"}, {"memory", "add"}, {"memory", "status"},
-		{"tools", "list"}, {"tools", "doctor"},
-		{"mcp", "list"}, {"mcp", "call"},
-		{"sessions", "list"}, {"sessions", "resume"}, {"sessions", "export"},
-		{"claw", "migrate"}, {"claw", "cleanup"},
-		{"profile", "show"}, {"profile", "set"},
+		{"cron", "list"}, {"cron", "create"}, {"cron", "add"}, {"cron", "edit"}, {"cron", "remove"}, {"cron", "delete"}, {"cron", "status"}, {"cron", "tick"},
+		{"webhook", "subscribe"}, {"webhook", "add"}, {"webhook", "test"},
+		{"hooks", "list"}, {"hooks", "ls"}, {"hooks", "revoke"}, {"hooks", "doctor"},
+		{"debug", "share"}, {"debug", "delete"},
+		{"config", "show"}, {"config", "set"}, {"config", "check"}, {"config", "edit"}, {"config", "migrate"}, {"config", "env-path"},
+		{"pairing", "approve"}, {"pairing", "revoke"}, {"pairing", "clear-pending"}, {"pairing", "list"},
+		{"skills", "browse"}, {"skills", "search"}, {"skills", "install"}, {"skills", "uninstall"}, {"skills", "tap"}, {"skills", "tap", "add"}, {"skills", "snapshot"}, {"skills", "snapshot", "export"},
+		{"plugins", "list"}, {"plugins", "ls"}, {"plugins", "enable"}, {"plugins", "disable"}, {"plugins", "update"}, {"plugins", "remove"},
+		{"memory", "setup"}, {"memory", "status"}, {"memory", "off"}, {"memory", "reset"},
+		{"tools", "list"}, {"tools", "enable"}, {"tools", "disable"},
+		{"mcp", "serve"}, {"mcp", "list"}, {"mcp", "ls"}, {"mcp", "test"}, {"mcp", "configure"}, {"mcp", "config"}, {"mcp", "login"},
+		{"sessions", "list"}, {"sessions", "export"}, {"sessions", "delete"}, {"sessions", "prune"}, {"sessions", "stats"}, {"sessions", "browse"},
+		{"claw", "migrate"}, {"claw", "cleanup"}, {"claw", "clean"},
+		{"profile", "list"}, {"profile", "use"}, {"profile", "create"}, {"profile", "show"}, {"profile", "import"},
 	}
 	for _, path := range wantNested {
 		entry := requireHermesCLIEntry(t, path)
 		if entry.SourceRef == "" || entry.Residual == "" {
 			t.Fatalf("nested %v missing source/residual: %+v", path, entry)
+		}
+	}
+}
+
+func TestHermesCLIParityManifestNestedParserInventoryMatchesHermes(t *testing.T) {
+	want := map[string][][]string{
+		"fallback": {
+			{"fallback", "list"}, {"fallback", "ls"}, {"fallback", "add"}, {"fallback", "remove"}, {"fallback", "rm"}, {"fallback", "clear"},
+		},
+		"gateway": {
+			{"gateway", "run"}, {"gateway", "start"}, {"gateway", "stop"}, {"gateway", "restart"}, {"gateway", "status"}, {"gateway", "install"}, {"gateway", "uninstall"}, {"gateway", "setup"}, {"gateway", "migrate-legacy"},
+		},
+		"slack": {
+			{"slack", "manifest"},
+		},
+		"auth": {
+			{"auth", "add"}, {"auth", "list"}, {"auth", "remove"}, {"auth", "reset"}, {"auth", "status"}, {"auth", "logout"}, {"auth", "spotify"},
+		},
+		"cron": {
+			{"cron", "list"}, {"cron", "create"}, {"cron", "add"}, {"cron", "edit"}, {"cron", "pause"}, {"cron", "resume"}, {"cron", "run"}, {"cron", "remove"}, {"cron", "rm"}, {"cron", "delete"}, {"cron", "status"}, {"cron", "tick"},
+		},
+		"webhook": {
+			{"webhook", "subscribe"}, {"webhook", "add"}, {"webhook", "list"}, {"webhook", "ls"}, {"webhook", "remove"}, {"webhook", "rm"}, {"webhook", "test"},
+		},
+		"hooks": {
+			{"hooks", "list"}, {"hooks", "ls"}, {"hooks", "test"}, {"hooks", "revoke"}, {"hooks", "remove"}, {"hooks", "rm"}, {"hooks", "doctor"},
+		},
+		"debug": {
+			{"debug", "share"}, {"debug", "delete"},
+		},
+		"config": {
+			{"config", "show"}, {"config", "edit"}, {"config", "set"}, {"config", "path"}, {"config", "env-path"}, {"config", "check"}, {"config", "migrate"},
+		},
+		"pairing": {
+			{"pairing", "list"}, {"pairing", "approve"}, {"pairing", "revoke"}, {"pairing", "clear-pending"},
+		},
+		"skills": {
+			{"skills", "browse"}, {"skills", "search"}, {"skills", "install"}, {"skills", "inspect"}, {"skills", "list"}, {"skills", "check"}, {"skills", "update"}, {"skills", "audit"}, {"skills", "uninstall"}, {"skills", "reset"}, {"skills", "publish"}, {"skills", "snapshot"}, {"skills", "snapshot", "export"}, {"skills", "snapshot", "import"}, {"skills", "tap"}, {"skills", "tap", "list"}, {"skills", "tap", "add"}, {"skills", "tap", "remove"}, {"skills", "config"},
+		},
+		"plugins": {
+			{"plugins", "install"}, {"plugins", "update"}, {"plugins", "remove"}, {"plugins", "rm"}, {"plugins", "uninstall"}, {"plugins", "list"}, {"plugins", "ls"}, {"plugins", "enable"}, {"plugins", "disable"},
+		},
+		"memory": {
+			{"memory", "setup"}, {"memory", "status"}, {"memory", "off"}, {"memory", "reset"},
+		},
+		"tools": {
+			{"tools", "list"}, {"tools", "disable"}, {"tools", "enable"},
+		},
+		"mcp": {
+			{"mcp", "serve"}, {"mcp", "add"}, {"mcp", "remove"}, {"mcp", "rm"}, {"mcp", "list"}, {"mcp", "ls"}, {"mcp", "test"}, {"mcp", "configure"}, {"mcp", "config"}, {"mcp", "login"},
+		},
+		"sessions": {
+			{"sessions", "list"}, {"sessions", "export"}, {"sessions", "delete"}, {"sessions", "prune"}, {"sessions", "stats"}, {"sessions", "rename"}, {"sessions", "browse"},
+		},
+		"claw": {
+			{"claw", "migrate"}, {"claw", "cleanup"}, {"claw", "clean"},
+		},
+		"profile": {
+			{"profile", "list"}, {"profile", "use"}, {"profile", "create"}, {"profile", "delete"}, {"profile", "show"}, {"profile", "alias"}, {"profile", "rename"}, {"profile", "export"}, {"profile", "import"},
+		},
+	}
+	for group, paths := range want {
+		for _, path := range paths {
+			entry := requireHermesCLIEntry(t, path)
+			if entry.SourceRef == "" || entry.Residual == "" {
+				t.Fatalf("%s parser path %v missing source/residual: %+v", group, path, entry)
+			}
+		}
+	}
+
+	stale := [][]string{
+		{"gateway", "reset"}, {"gateway", "help"}, {"gateway", "model"}, {"gateway", "profile"}, {"gateway", "update"}, {"gateway", "approve"}, {"gateway", "deny"}, {"gateway", "voice"}, {"gateway", "usage"},
+		{"cron", "enable"}, {"cron", "disable"},
+		{"webhook", "serve"},
+		{"hooks", "run"},
+		{"debug", "doctor"}, {"debug", "paste"}, {"debug", "sweep"},
+		{"pairing", "deny"}, {"pairing", "reset"},
+		{"skills", "remove"},
+		{"plugins", "doctor"},
+		{"memory", "search"}, {"memory", "add"}, {"memory", "delete"}, {"memory", "export"},
+		{"tools", "doctor"},
+		{"mcp", "call"}, {"mcp", "auth"},
+		{"sessions", "resume"},
+		{"profile", "set"},
+		{"auth", "login"}, {"auth", "refresh"},
+	}
+	for _, path := range stale {
+		if entry, ok := findHermesCLIEntry(path); ok && entry.Kind == hermesCLICommand {
+			t.Fatalf("stale nested parser path %v should not be an active parser command: %+v", path, entry)
 		}
 	}
 }

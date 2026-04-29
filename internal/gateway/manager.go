@@ -637,6 +637,10 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Gormes is busy — finish the current turn or send /stop before /"+cmd.Name)
 		return true
 	}
+	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+cmd.Name+" is recognized but unavailable in this build")
+		return true
+	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
 	if cmd.Kind == EventSteer {

@@ -21,9 +21,10 @@ type CommandDef struct {
 type CommandActiveTurnPolicy string
 
 const (
-	CommandActiveTurnPolicyImmediate CommandActiveTurnPolicy = "immediate"
-	CommandActiveTurnPolicyReject    CommandActiveTurnPolicy = "reject"
-	CommandActiveTurnPolicyDrain     CommandActiveTurnPolicy = "drain"
+	CommandActiveTurnPolicyImmediate   CommandActiveTurnPolicy = "immediate"
+	CommandActiveTurnPolicyReject      CommandActiveTurnPolicy = "reject"
+	CommandActiveTurnPolicyDrain       CommandActiveTurnPolicy = "drain"
+	CommandActiveTurnPolicyUnavailable CommandActiveTurnPolicy = "unavailable"
 )
 
 // PlatformCommand is the platform-facing command/menu shape used for channel
@@ -72,13 +73,42 @@ var CommandRegistry = []CommandDef{
 		Kind:             EventUsage,
 		ActiveTurnPolicy: CommandActiveTurnPolicyImmediate,
 	},
+	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "undo", Description: "Remove the last user/assistant exchange", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "title", Description: "Set a title for the current session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "branch", Description: "Branch the current session (explore a different path)", Kind: EventUnknown, Aliases: []string{"fork"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "compress", Description: "Manually compress conversation context", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "rollback", Description: "List or restore filesystem checkpoints", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "snapshot", Description: "Create or restore state snapshots of Hermes config/state", Kind: EventUnknown, Aliases: []string{"snap"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "approve", Description: "Approve a pending dangerous command", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "deny", Description: "Deny a pending dangerous command", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "background", Description: "Run a prompt in the background", Kind: EventUnknown, Aliases: []string{"bg"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "btw", Description: "Ephemeral side question using session context (no tools, not persisted)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "agents", Description: "Show active agents and running tasks", Kind: EventUnknown, Aliases: []string{"tasks"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "queue", Description: "Queue a prompt for the next turn (doesn't interrupt)", Kind: EventUnknown, Aliases: []string{"q"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "status", Description: "Show session info", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 }
 
 var commandLookup = buildCommandLookup()
 
-var recognizedUnavailableSlashCommands = map[string]struct{}{
-	"status": {},
+var recognizedUnavailableCommands = []PlatformCommand{
+	{Name: "retry", Description: "Retry the last turn (not yet implemented)"},
+	{Name: "undo", Description: "Undo the last action (not yet implemented)"},
+	{Name: "title", Description: "Set or show the session title (not yet implemented)"},
+	{Name: "branch", Description: "Show or switch branches (not yet implemented)"},
+	{Name: "compress", Description: "Compress session context (not yet implemented)"},
+	{Name: "rollback", Description: "Rollback recent changes (not yet implemented)"},
+	{Name: "snapshot", Description: "Create a session snapshot (not yet implemented)"},
+	{Name: "approve", Description: "Approve a pending action (not yet implemented)"},
+	{Name: "deny", Description: "Deny a pending action (not yet implemented)"},
+	{Name: "background", Description: "Send a turn to background work (not yet implemented)"},
+	{Name: "btw", Description: "Add side guidance to the active turn (not yet implemented)"},
+	{Name: "agents", Description: "List or manage agents (not yet implemented)"},
+	{Name: "queue", Description: "Show queued work (not yet implemented)"},
+	{Name: "status", Description: "Show gateway status (not yet implemented)"},
 }
+
+var recognizedUnavailableSlashCommands = buildRecognizedUnavailableSlashCommands()
 
 func buildCommandLookup() map[string]CommandDef {
 	lookup := make(map[string]CommandDef, len(CommandRegistry)*2)
@@ -87,6 +117,14 @@ func buildCommandLookup() map[string]CommandDef {
 		for _, alias := range cmd.Aliases {
 			lookup[alias] = cmd
 		}
+	}
+	return lookup
+}
+
+func buildRecognizedUnavailableSlashCommands() map[string]struct{} {
+	lookup := make(map[string]struct{}, len(recognizedUnavailableCommands))
+	for _, cmd := range recognizedUnavailableCommands {
+		lookup[slashCommandName(cmd.Name)] = struct{}{}
 	}
 	return lookup
 }
@@ -152,10 +190,18 @@ func gatewayHelpText() string {
 }
 
 // TelegramBotCommands returns the canonical Telegram command menu in registry
-// order. Aliases are intentionally excluded from the menu surface.
+// order, followed by recognized Hermes commands that are safe to expose but not
+// implemented in this build. Aliases are intentionally excluded from the menu
+// surface.
 func TelegramBotCommands() []PlatformCommand {
-	out := make([]PlatformCommand, 0, len(CommandRegistry))
+	out := make([]PlatformCommand, 0, len(CommandRegistry)+len(recognizedUnavailableCommands))
 	for _, cmd := range CommandRegistry {
+		out = append(out, PlatformCommand{
+			Name:        strings.ReplaceAll(cmd.Name, "-", "_"),
+			Description: cmd.Description,
+		})
+	}
+	for _, cmd := range recognizedUnavailableCommands {
 		out = append(out, PlatformCommand{
 			Name:        strings.ReplaceAll(cmd.Name, "-", "_"),
 			Description: cmd.Description,

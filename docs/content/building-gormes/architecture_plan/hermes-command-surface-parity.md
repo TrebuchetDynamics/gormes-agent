@@ -29,17 +29,19 @@ machine-readable work queue remains `progress.json`.
 
 ## Audit answer: do we have every command?
 
-Not yet. The current executable manifest is good enough to stop losing
-top-level Hermes commands, auth subcommands, fallback aliases, gateway message
-handlers, slash commands, and dynamic plugin command classes. It is not yet
-good enough to claim every current Hermes nested parser command is captured.
+For source-backed inventory, yes: the executable manifest now captures every
+current Hermes top-level argparse command, nested parser command, nested alias,
+gateway message handler, slash command/alias, dynamic plugin command class, and
+Gormes-owned divergence that this audit found. This does **not** mean Gormes
+implements every handler. Unsupported commands remain visible as `Row-backed`,
+`Excluded/deprecated`, or `Gormes-owned` so builders can ship them deliberately.
 
-The drift is now explicit: `Hermes CLI nested parser inventory refresh` is a
-Phase `5.O` P1 row. That row must refresh `cmd/gormes/hermes_cli_parity.go`
-from current `../hermes-agent/hermes_cli/main.py` parser groups before any
-builder claims command-surface parity. Unsupported commands still count as
-parity work: they should be classified as `Row-backed`, `Excluded/deprecated`,
-or `Gormes-owned`, never silently omitted.
+The drift gate is now explicit in `cmd/gormes/hermes_cli_parity_test.go`:
+`TestHermesCLIParityManifestNestedParserInventoryMatchesHermes` locks the
+current nested parser inventory from `../hermes-agent/hermes_cli/main.py` and
+fails if stale paths such as `gateway reset`, `cron enable`, `webhook serve`,
+`mcp call`, `profile set`, `auth login`, or `auth refresh` are advertised as
+active parser commands.
 
 ## Source capture
 
@@ -81,10 +83,10 @@ tool-call parser families so unsupported behavior remains visible.
 
 | Surface | Current upstream source | Current planner answer | Progress action |
 |---|---|---|---|
-| Provider IDs and aliases | `../hermes-agent/hermes_cli/providers.py:HERMES_OVERLAYS,ALIASES`, `../hermes-agent/agent/models_dev.py:PROVIDER_TO_MODELS_DEV`, `../hermes-agent/hermes_cli/main.py:--provider choices` | Not yet centralized in one Gormes manifest. Hermes includes canonical overlay providers such as `openrouter`, `nous`, `openai-codex`, `qwen-oauth`, `google-gemini-cli`, `copilot-acp`, `github-copilot`, `anthropic`, `zai`, `kimi-for-coding`, `stepfun`, `minimax`, `minimax-cn`, `deepseek`, `alibaba`, `alibaba-coding-plan`, `vercel`, `opencode`, `opencode-go`, `kilo`, `huggingface`, `xai`, `nvidia`, `xiaomi`, `arcee`, `ollama-cloud`, and `azure-foundry`, plus model-catalog aliases such as `kimi-coding`, `kilocode`, `gemini`, `groq`, `mistral`, `togetherai`, `perplexity`, and `cohere`. | New Phase `4.A` row: `Hermes provider registry and alias manifest`. |
-| Provider auth commands | `../hermes-agent/hermes_cli/main.py:auth_subparsers`, `../hermes-agent/hermes_cli/auth_commands.py` | Current non-deprecated provider login is `auth add <provider> --type oauth`; top-level `login`, `auth login`, and `auth refresh` are not implementation targets. | Existing Phase `5.O` auth rows remain the command contract. |
-| Gateway platform IDs | `../hermes-agent/gateway/config.py:Platform`, `../hermes-agent/gateway/platforms/*.py` | Not yet centralized in one Gormes manifest. Current upstream enum values are `local`, `telegram`, `discord`, `whatsapp`, `slack`, `signal`, `mattermost`, `matrix`, `homeassistant`, `email`, `sms`, `dingtalk`, `api_server`, `webhook`, `feishu`, `wecom`, `wecom_callback`, `weixin`, `bluebubbles`, `qqbot`, and `yuanbao`. | New Phase `2.B.12` row: `Hermes gateway platform registry manifest`. |
-| Raw tool-call parsers | `../hermes-agent/environments/tool_call_parsers/*.py` | Manifest exists, but docs/progress references must track the current 11 parser files: `deepseek_v3_1`, `deepseek_v3`, `glm45`, `glm47`, `hermes`, `kimi_k2`, `llama`, `longcat`, `mistral`, `qwen3_coder`, and `qwen`. | Refresh existing `Raw tool-call parser fixture matrix` docs/progress refs; parser execution stays row-backed per family. |
+| Provider IDs and aliases | `../hermes-agent/hermes_cli/providers.py:HERMES_OVERLAYS,ALIASES`, `../hermes-agent/agent/models_dev.py:PROVIDER_TO_MODELS_DEV`, `../hermes-agent/hermes_cli/main.py:--provider choices` | Not yet implemented as one Gormes manifest, but the builder contract is now fixture-ready and unblocked. Hermes includes canonical overlay providers such as `openrouter`, `nous`, `openai-codex`, `qwen-oauth`, `google-gemini-cli`, `copilot-acp`, `github-copilot`, `anthropic`, `zai`, `kimi-for-coding`, `stepfun`, `minimax`, `minimax-cn`, `deepseek`, `alibaba`, `alibaba-coding-plan`, `vercel`, `opencode`, `opencode-go`, `kilo`, `huggingface`, `xai`, `nvidia`, `xiaomi`, `arcee`, `ollama-cloud`, and `azure-foundry`, plus model-catalog aliases such as `kimi-coding`, `kilocode`, `gemini`, `groq`, `mistral`, `togetherai`, `perplexity`, and `cohere`. | Phase `4.A` fixture-ready row: `Hermes provider registry and alias manifest`. |
+| Provider auth commands | `../hermes-agent/hermes_cli/main.py:auth_subparsers`, `../hermes-agent/hermes_cli/auth_commands.py` | Current non-deprecated provider login is `auth add <provider> --type oauth`; top-level `login`, `auth login`, and `auth refresh` are not implementation targets. OpenAI Codex is the first native vertical; Anthropic, Nous, Google Gemini CLI, Qwen OAuth, and Spotify remain fixture-ready follow-up adapters. | Phase `5.O` fixture-ready row: `Hermes auth OAuth provider adapters`; existing auth command rows remain the command contract. |
+| Gateway platform IDs | `../hermes-agent/gateway/config.py:Platform`, `../hermes-agent/gateway/platforms/*.py` | Not yet implemented as one Gormes manifest, but the builder contract is now fixture-ready and unblocked. Current upstream enum values are `local`, `telegram`, `discord`, `whatsapp`, `slack`, `signal`, `mattermost`, `matrix`, `homeassistant`, `email`, `sms`, `dingtalk`, `api_server`, `webhook`, `feishu`, `wecom`, `wecom_callback`, `weixin`, `bluebubbles`, `qqbot`, and `yuanbao`. | Phase `2.B.12` fixture-ready row: `Hermes gateway platform registry manifest`. |
+| Raw tool-call parsers | `../hermes-agent/environments/tool_call_parsers/*.py` | Validated manifest tracks the current 11 parser files: `deepseek_v3_1`, `deepseek_v3`, `glm45`, `glm47`, `hermes`, `kimi_k2`, `llama`, `longcat`, `mistral`, `qwen3_coder`, and `qwen`. Parser execution and provider-specific malformed-output behavior stay row-backed per family. | Phase `5.B` validated row: `Raw tool-call parser fixture matrix`. |
 
 ## Current Gormes visible command surface
 
@@ -124,24 +126,24 @@ message handlers and dynamic plugin commands.
 
 | Hermes parser group | Current upstream nested commands / aliases | Current manifest state | Progress action |
 |---|---|---|---|
-| `fallback` | `list`/`ls`, `add`, `remove`/`rm`, `clear` | Captured. | Keep covered by `Hermes auth command-tree manifest refresh` and fallback command rows. |
-| `gateway` | `run`, `start`, `stop`, `restart`, `status`, `install`, `uninstall`, `setup`, `migrate-legacy` | Stale: the manifest currently mixes gateway message handlers such as `reset`, `help`, `model`, `approve`, and `usage` into the parser group. | `Hermes CLI nested parser inventory refresh`; management handlers remain in `Gateway, platform, webhook, and cron management CLI`. |
-| `slack` | `manifest` | Missing nested command. | `Hermes CLI nested parser inventory refresh`; platform handler work stays row-backed. |
+| `fallback` | `list`/`ls`, `add`, `remove`/`rm`, `clear` | Captured. | Handler work remains under fallback command rows. |
+| `gateway` | `run`, `start`, `stop`, `restart`, `status`, `install`, `uninstall`, `setup`, `migrate-legacy` | Captured; gateway message handlers stay separate as `gateway-handler` entries. | Management handlers remain in `Gateway, platform, webhook, and cron management CLI`. |
+| `slack` | `manifest` | Captured. | Platform handler work stays row-backed. |
 | `auth` | `add`, `list`, `remove`, `reset`, `status`, `logout`, `spotify` | Captured; stale `auth login` and `auth refresh` are excluded. | Keep non-deprecated provider login through `auth add <provider> --type oauth`. |
-| `cron` | `list`, `create`/`add`, `edit`, `pause`, `resume`, `run`, `remove`/`rm`/`delete`, `status`, `tick` | Stale: old `enable`/`disable` paths are still represented while `edit`, `pause`, `resume`, `status`, and `tick` are missing. | `Hermes CLI nested parser inventory refresh`, then `Gateway, platform, webhook, and cron management CLI`. |
-| `webhook` | `subscribe`/`add`, `list`/`ls`, `remove`/`rm`, `test` | Stale: `serve` is not a current parser command; `subscribe` and aliases need capture. | `Hermes CLI nested parser inventory refresh`, then platform/webhook row. |
-| `hooks` | `list`/`ls`, `test`, `revoke`/`remove`/`rm`, `doctor` | Stale: old `run` path is represented; current revoke/doctor paths need capture. | `Hermes CLI nested parser inventory refresh`; shell hook execution stays dedicated handler work. |
-| `debug` | `share`, `delete` | Stale: `doctor`, `paste`, and `sweep` are not current parser commands. | `Hermes CLI nested parser inventory refresh`; paste sweep scheduler remains diagnostics work if needed. |
-| `config` | `show`, `edit`, `set`, `path`, `env-path`, `check`, `migrate` | Partial: `env-path` needs manifest coverage. | `Hermes CLI nested parser inventory refresh`; config behavior rows own handlers. |
-| `pairing` | `list`, `approve`, `revoke`, `clear-pending` | Stale: old `deny`/`reset` paths are represented; current revoke/clear-pending need capture. | `Hermes CLI nested parser inventory refresh`, then platform pairing row. |
-| `skills` | `browse`, `search`, `install`, `inspect`, `list`, `check`, `update`, `audit`, `uninstall`, `reset`, `publish`, `snapshot export`, `snapshot import`, `tap list`, `tap add`, `tap remove`, `config` | Shallow: only a small subset is represented. | `Hermes CLI nested parser inventory refresh`; skill manager/runtime rows own behavior. |
-| `plugins` | `install`, `update`, `remove`/`rm`/`uninstall`, `list`/`ls`, `enable`, `disable` | Partial: aliases and `update` need manifest coverage; stale `doctor` should be removed or marked stale. | `Hermes CLI nested parser inventory refresh`; plugin SDK owns behavior. |
-| `memory` | `setup`, `status`, `off`, `reset` | Stale: plugin-style `search/add/delete/export` is a dynamic plugin class, not the current static parser group. | `Hermes CLI nested parser inventory refresh`; memory/Goncho rows own implementation. |
-| `tools` | `list`, `disable`, `enable`; bare `tools` opens interactive config; `--summary` prints summary | Partial: stale `doctor` should be removed or marked stale. | `Hermes CLI nested parser inventory refresh`; tool runtime/security rows own behavior. |
-| `mcp` | `serve`, `add`, `remove`/`rm`, `list`/`ls`, `test`, `configure`/`config`, `login` | Stale: old `call` and `auth` paths are represented; `serve`, `test`, `configure`/`config`, and `login` need capture. | `Hermes CLI nested parser inventory refresh`; ACP/MCP rows own behavior. |
-| `sessions` | `list`, `export`, `delete`, `prune`, `stats`, `rename`, `browse` | Stale: `resume` is represented as a parser command, but current resume is a browse/exec behavior; `prune`, `stats`, and `browse` need capture. | `Hermes CLI nested parser inventory refresh`; session rows own handlers. |
-| `claw` | `migrate`, `cleanup`/`clean` | Mostly captured; `clean` alias needs explicit coverage. | `Hermes CLI nested parser inventory refresh`; OpenClaw migration rows own behavior. |
-| `profile` | `list`, `use`, `create`, `delete`, `show`, `alias`, `rename`, `export`, `import` | Stale: old `set` path is represented; most current profile subcommands are missing. | `Hermes CLI nested parser inventory refresh`; config/profile rows own behavior. |
+| `cron` | `list`, `create`/`add`, `edit`, `pause`, `resume`, `run`, `remove`/`rm`/`delete`, `status`, `tick` | Captured. | Handler work remains under `Gateway, platform, webhook, and cron management CLI`. |
+| `webhook` | `subscribe`/`add`, `list`/`ls`, `remove`/`rm`, `test` | Captured; stale `serve` is not active. | Platform/webhook behavior remains row-backed. |
+| `hooks` | `list`/`ls`, `test`, `revoke`/`remove`/`rm`, `doctor` | Captured; stale `run` is not active. | Hook behavior remains row-backed. |
+| `debug` | `share`, `delete` | Captured; stale `doctor`, `paste`, and `sweep` are not active parser commands. | Diagnostics rows own behavior. |
+| `config` | `show`, `edit`, `set`, `path`, `env-path`, `check`, `migrate` | Captured. | Config behavior rows own handlers. |
+| `pairing` | `list`, `approve`, `revoke`, `clear-pending` | Captured; stale `deny`/`reset` are not active. | Platform pairing behavior remains row-backed. |
+| `skills` | `browse`, `search`, `install`, `inspect`, `list`, `check`, `update`, `audit`, `uninstall`, `reset`, `publish`, `snapshot export`, `snapshot import`, `tap list`, `tap add`, `tap remove`, `config` | Captured including nested `snapshot` and `tap` subcommands. | Skill manager/runtime rows own behavior. |
+| `plugins` | `install`, `update`, `remove`/`rm`/`uninstall`, `list`/`ls`, `enable`, `disable` | Captured; stale `doctor` is not active. | Plugin SDK owns behavior. |
+| `memory` | `setup`, `status`, `off`, `reset` | Captured; plugin-style memory command discovery remains a dynamic plugin class. | Memory/Goncho rows own implementation. |
+| `tools` | `list`, `disable`, `enable`; bare `tools` opens interactive config; `--summary` prints summary | Captured. | Tool runtime/security rows own behavior. |
+| `mcp` | `serve`, `add`, `remove`/`rm`, `list`/`ls`, `test`, `configure`/`config`, `login` | Captured; stale `call` and `auth` are not active parser commands. | ACP/MCP rows own behavior. |
+| `sessions` | `list`, `export`, `delete`, `prune`, `stats`, `rename`, `browse` | Captured; stale `resume` is not active as a parser command. | Session rows own handlers. |
+| `claw` | `migrate`, `cleanup`/`clean` | Captured. | OpenClaw migration rows own behavior. |
+| `profile` | `list`, `use`, `create`, `delete`, `show`, `alias`, `rename`, `export`, `import` | Captured; stale `set` is not active. | Config/profile rows own behavior. |
 | `logs` | No subparser; optional `log_name` argument accepts `agent`, `errors`, `gateway`, or `list`. | Top-level row-backed only. | Diagnostics rows own log viewing/filtering behavior. |
 
 ## Hermes top-level parity matrix
