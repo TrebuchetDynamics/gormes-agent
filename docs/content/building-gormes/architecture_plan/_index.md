@@ -720,7 +720,7 @@ classification and row-backed implementation queue.
 - [ ] Backup/update opt-in and exclusion policy
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
-- [ ] Custom provider model-switch key_env write guard
+- [x] Custom provider model-switch key_env write guard
 - [x] CLI log redactor for known secret shapes
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge

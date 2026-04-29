@@ -18805,9 +18805,9 @@
             {
               "name": "Custom provider model-switch key_env write guard",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cli exposes a pure model-switch patch helper that accepts an in-memory custom provider ref plus a target model and returns the config patch/evidence for default_model changes while preserving original credential storage: providers that relied on key_env and had no inline api_key/api_key_ref must not gain an api_key entry, while providers that already had inline plaintext or `${VAR}` api_key may keep that existing value without writing resolved plaintext",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -18840,7 +18840,7 @@
                 "TestCustomProviderModelSwitchPatch_MissingCredentialStillUpdatesModelWithEvidence proves model changes remain possible while credential_missing evidence is returned for setup/status guidance.",
                 "Existing TestResolveCustomProviderSecret_* fixtures remain green; this row does not redefine resolver semantics."
               ],
-              "note": "Refined 2026-04-27T13:21:48Z: credential resolver vocabulary is a read-only dependency. Keep the slice limited to a new internal/cli custom-provider model-switch patch helper and its tests; no config reader, command wiring, provider probing, TUI picker, plaintext resolution, or custom_provider_secret edits.",
+              "note": "Complete: added a pure internal/cli model-switch patch helper that updates default_model while preserving existing credential storage shape. key_env-backed providers do not synthesize api_key; inline ${VAR} references and existing plaintext are preserved without resolving secret values; missing credentials still update the model with credential_missing evidence.",
               "write_scope": [
                 "internal/cli/custom_provider_model_switch.go",
                 "internal/cli/custom_provider_model_switch_test.go",
@@ -18879,6 +18879,10 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:8258f4dc hermes_cli/main.py",
                 "note": "Hermes owns the named custom-provider write-shape regression; Gormes adapts it as a pure internal/cli patch helper before CLI/TUI model-switch command binding."
+              },
+              "evidence": {
+                "implementation": "internal/cli/custom_provider_model_switch.go, internal/cli/custom_provider_model_switch_test.go",
+                "tests": "go test ./internal/cli -run 'TestCustomProviderModelSwitchPatch_|TestResolveCustomProviderSecret_' -count=1; go test ./internal/cli -count=1; go run ./cmd/progress validate; go test ./... -count=1; git diff --check"
               }
             },
             {
