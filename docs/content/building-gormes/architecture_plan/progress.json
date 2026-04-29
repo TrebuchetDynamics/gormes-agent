@@ -17360,7 +17360,11 @@
               ],
               "done_signal": [
                 "Provider-flag fixtures prove endpoint/model/provider/api-key precedence, redaction, no config mutation, and unchanged ambiguity errors for oneshot and TUI startup."
-              ]
+              ],
+              "evidence": {
+                "implementation": "cmd/gormes/main.go, cmd/gormes/provider_flag_resolution_test.go, internal/config/config.go, internal/config/config_test.go; follow-up hardening reads Hermes profile config.yaml model.default/model.provider into HermesCfg and ResolveInference so gateway/TUI/oneshot do not fall back to localhost-only default provider semantics when the active Hermes profile carries provider metadata.",
+                "tests": "go test ./internal/config -run TestLoad_HermesConfigYAMLModelProviderParity|TestLoad_GormesEnvOverridesHermesConfigYAML -count=1; go test ./cmd/gormes ./internal/config -run Test.*Provider.*Flag|Test.*Endpoint|Test.*APIKey|Test.*OneshotInference|Test.*TUI.*Model -count=1; go test ./cmd/gormes ./internal/config -count=1; go test ./... -count=1; go run ./cmd/progress validate; git diff --check"
+              }
             },
             {
               "name": "Hermes config.yaml Telegram compatibility bridge",

@@ -10,6 +10,23 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+func TestMain(m *testing.M) {
+	hermesHome, err := os.MkdirTemp("", "gormes-config-test-hermes-home-*")
+	if err != nil {
+		panic(err)
+	}
+	oldHermesHome, hadHermesHome := os.LookupEnv("HERMES_HOME")
+	os.Setenv("HERMES_HOME", hermesHome)
+	code := m.Run()
+	if hadHermesHome {
+		os.Setenv("HERMES_HOME", oldHermesHome)
+	} else {
+		os.Unsetenv("HERMES_HOME")
+	}
+	_ = os.RemoveAll(hermesHome)
+	os.Exit(code)
+}
+
 func TestLoad_BuiltinDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("GORMES_ENDPOINT", "")
@@ -364,12 +381,54 @@ streaming:
 	}
 }
 
+func TestLoad_HermesConfigYAMLModelProviderParity(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+model:
+  default: gpt-5.5
+  provider: openai-codex
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Hermes.Model != "gpt-5.5" {
+		t.Fatalf("Hermes.Model = %q, want model.default from Hermes config.yaml", cfg.Hermes.Model)
+	}
+	if cfg.Hermes.Provider != "openai-codex" {
+		t.Fatalf("Hermes.Provider = %q, want model.provider from Hermes config.yaml", cfg.Hermes.Provider)
+	}
+
+	resolved, err := ResolveInference(InferenceRequest{Config: cfg, CommandLabel: "gormes gateway"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Model != "gpt-5.5" || resolved.ModelSource != InferenceValueSourceConfig {
+		t.Fatalf("resolved model/source = %q/%s, want gpt-5.5/config", resolved.Model, resolved.ModelSource)
+	}
+	if resolved.Provider != "openai-codex" || resolved.ProviderSource != InferenceValueSourceConfig {
+		t.Fatalf("resolved provider/source = %q/%s, want openai-codex/config", resolved.Provider, resolved.ProviderSource)
+	}
+	if resolved.ProviderAutoDetectRequired {
+		t.Fatal("ProviderAutoDetectRequired = true, want false when provider comes from Hermes config.yaml")
+	}
+}
+
 func TestLoad_GormesEnvOverridesHermesConfigYAML(t *testing.T) {
 	hermesHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HERMES_HOME", hermesHome)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "env-token")
+	t.Setenv("GORMES_MODEL", "env-model")
 	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+model:
+  default: yaml-model
+  provider: yaml-provider
 platforms:
   telegram:
     token: yaml-token
@@ -383,6 +442,12 @@ platforms:
 	}
 	if cfg.Telegram.BotToken != "env-token" {
 		t.Fatalf("Telegram.BotToken = %q, want env override", cfg.Telegram.BotToken)
+	}
+	if cfg.Hermes.Model != "env-model" {
+		t.Fatalf("Hermes.Model = %q, want env override", cfg.Hermes.Model)
+	}
+	if cfg.Hermes.Provider != "yaml-provider" {
+		t.Fatalf("Hermes.Provider = %q, want Hermes config.yaml provider when no Gormes override is set", cfg.Hermes.Provider)
 	}
 }
 

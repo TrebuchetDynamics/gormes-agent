@@ -217,6 +217,7 @@ type HermesCfg struct {
 	Endpoint string `toml:"endpoint"`
 	APIKey   string `toml:"api_key"`
 	Model    string `toml:"model"`
+	Provider string `toml:"provider"`
 }
 
 type GatewayCfg struct {
@@ -293,6 +294,7 @@ func ResolveInference(req InferenceRequest) (InferenceResolution, error) {
 	provider, providerSource := firstInferenceValue(
 		inferenceCandidate{value: req.ProviderFlag, source: InferenceValueSourceFlag},
 		inferenceCandidate{value: lookupInferenceEnv(lookupEnv, "GORMES_INFERENCE_PROVIDER"), source: InferenceValueSourceEnv},
+		inferenceCandidate{value: req.Config.Hermes.Provider, source: InferenceValueSourceConfig},
 	)
 
 	resolution := InferenceResolution{
@@ -479,8 +481,14 @@ func loadFile(cfg *Config) error {
 }
 
 type hermesConfigYAML struct {
+	Model     hermesModelConfigYAML               `yaml:"model"`
 	Platforms map[string]hermesPlatformConfigYAML `yaml:"platforms"`
 	Streaming hermesStreamingConfigYAML           `yaml:"streaming"`
+}
+
+type hermesModelConfigYAML struct {
+	Default  string `yaml:"default"`
+	Provider string `yaml:"provider"`
 }
 
 type hermesPlatformConfigYAML struct {
@@ -512,8 +520,18 @@ func loadHermesConfigYAML(cfg *Config) error {
 	if err := yaml.Unmarshal(data, &hc); err != nil {
 		return fmt.Errorf("decode %s: %w", path, err)
 	}
+	applyHermesModelConfig(cfg, hc.Model)
 	applyHermesTelegramConfig(cfg, hc.Platforms["telegram"], hc.Streaming)
 	return nil
+}
+
+func applyHermesModelConfig(cfg *Config, model hermesModelConfigYAML) {
+	if defaultModel := strings.TrimSpace(model.Default); defaultModel != "" {
+		cfg.Hermes.Model = defaultModel
+	}
+	if provider := strings.TrimSpace(model.Provider); provider != "" {
+		cfg.Hermes.Provider = provider
+	}
 }
 
 func applyHermesTelegramConfig(cfg *Config, platform hermesPlatformConfigYAML, streaming hermesStreamingConfigYAML) {
