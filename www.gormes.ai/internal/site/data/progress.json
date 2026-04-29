@@ -12621,9 +12621,9 @@
             {
               "name": "Image input mode router + native content parts",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/hermes exposes a pure image input routing helper that resolves agent.image_input_mode auto/native/text from model vision capability and auxiliary vision override, then builds native provider content parts with text plus data-url image_url entries without invoking a live provider",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -12660,7 +12660,7 @@
                 "TestBuildNativeImageContentParts_TextAndImages emits one text part plus image_url data-url parts in input order, skipping unreadable paths with evidence.",
                 "TestBuildNativeImageContentParts_DefaultPrompt inserts a short default prompt when user text is empty and at least one image is present."
               ],
-              "note": "Added after Hermes ec671c41 introduced agent.image_input_mode auto/native/text and native content-part construction. Gormes keeps this as a pure provider-routing helper before wiring CLI/TUI/gateway image ingestion.",
+              "note": "Complete: TDD added internal/hermes/image_routing.go with DecideImageInputMode resolving auto via the active model's ModelVisionCapability and AuxiliaryVisionConfig override, plus BuildNativeImageContentParts emitting a text + image_url data-url multimodal list with unreadable-path evidence and a short default prompt when user text is empty. Auto mode chooses native only when ModelCapabilitySupported is set and no auxiliary vision provider/model/base_url override is configured. Pure provider-routing helper; no run_agent, kernel, gateway, or HTTP-client wiring is touched.",
               "write_scope": [
                 "internal/hermes/image_routing.go",
                 "internal/hermes/image_routing_test.go",

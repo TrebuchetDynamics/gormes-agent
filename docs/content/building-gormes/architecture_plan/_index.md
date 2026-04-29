@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 41/77 subphases shipped · 22 in progress · 14 planned
+**Overall:** 41/77 subphases shipped · 23 in progress · 13 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -571,10 +571,10 @@ classification and row-backed implementation queue.
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 
-### 5.D — Vision + Image Generation ⏳
+### 5.D — Vision + Image Generation 🔨
 
 - [ ] Multimodal in/out
-- [ ] Image input mode router + native content parts
+- [x] Image input mode router + native content parts
 - [ ] Image-too-large shrink retry helper
 - [ ] Image generation result contract
 

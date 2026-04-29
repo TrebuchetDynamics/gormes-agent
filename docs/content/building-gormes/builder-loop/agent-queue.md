@@ -62,28 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard
 - Why now: Unblocks Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard.
 
-## 3. Image input mode router + native content parts
-
-- Phase: 5 / 5.D
-- Owner: `provider`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: internal/hermes exposes a pure image input routing helper that resolves agent.image_input_mode auto/native/text from model vision capability and auxiliary vision override, then builds native provider content parts with text plus data-url image_url entries without invoking a live provider
-- Trust class: operator, system
-- Ready when: The worker can add a pure helper under internal/hermes with injected model capability and auxiliary-vision config values; no run_agent, kernel, gateway, or config-file binding is required., Tests create temp fixture image bytes and inspect generated data URLs; no provider request, image resizing, OCR, or external binary is required., Auto mode must choose native only when the active model is known to support vision and no auxiliary vision provider/model/base_url override is configured.
-- Not ready when: The slice changes provider HTTP request builders, kernel message history, TUI file-drop behavior, gateway media ingestion, or image generation tools., The slice implements text OCR/vision-tool fallback, image resizing, or shrink retry., The slice treats unknown model capability as native vision support in auto mode.
-- Degraded mode: Multimodal status reports image_input_text_fallback, image_input_native_forced, image_input_native_unavailable, or image_input_auxiliary_vision_override instead of silently dropping images.
-- Fixture: `internal/hermes/image_routing_test.go::TestImageInputRouting_*`
-- Write scope: `internal/hermes/image_routing.go`, `internal/hermes/image_routing_test.go`, `internal/hermes/client.go`, `internal/hermes/model_registry.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run '^TestImageInputRouting_\|^TestBuildNativeImageContentParts_' -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/progress validate`
-- Done signal: Image routing fixtures prove auto/native/text selection, auxiliary-vision fallback, model capability handling, native data-url content part construction, unreadable-image evidence, and default prompt behavior without live providers.
-- Acceptance: TestImageInputRouting_AutoNativeWhenModelSupportsVision proves auto mode returns native for a vision-capable active model with no auxiliary vision override., TestImageInputRouting_AutoTextWhenAuxVisionConfigured proves auxiliary vision provider/model/base_url config forces text fallback even when the active model supports vision., TestImageInputRouting_AutoTextForUnknownOrNonVisionModel proves unknown and non-vision model capabilities choose text fallback., TestBuildNativeImageContentParts_TextAndImages emits one text part plus image_url data-url parts in input order, skipping unreadable paths with evidence., TestBuildNativeImageContentParts_DefaultPrompt inserts a short default prompt when user text is empty and at least one image is present.
-- Source refs: ../hermes-agent/agent/image_routing.py@ec671c41, ../hermes-agent/tests/agent/test_image_routing.py@ec671c41, ../hermes-agent/run_agent.py@ec671c41:_model_supports_vision, ../hermes-agent/run_agent.py@ec671c41:vision-aware preprocessing, internal/hermes/client.go:MessageContentPart, internal/hermes/model_registry.go
-- Unblocks: Image-too-large shrink retry helper
-- Why now: Unblocks Image-too-large shrink retry helper.
-
-## 4. ACP server side
+## 3. ACP server side
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -102,7 +81,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Backup/update opt-in and exclusion policy
+## 4. Backup/update opt-in and exclusion policy
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -123,7 +102,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Backup manifest dry-run contract
 - Why now: Unblocks Backup manifest dry-run contract.
 
-## 6. OCI image
+## 5. OCI image
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -142,7 +121,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Homebrew
+## 6. Homebrew
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -161,7 +140,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Yuanbao protocol envelope + markdown fixtures
+## 7. Yuanbao protocol envelope + markdown fixtures
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
