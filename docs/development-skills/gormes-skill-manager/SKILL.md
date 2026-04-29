@@ -37,6 +37,9 @@ Pick the primary intent:
   code changes are needed. This route must check Hermes behavior first, then
   inspect local Go references such as GoClaw/Plandex/Nanobot/trpc-agent-go/ADK-Go
   for implementation patterns while preserving Hermes parity as P0.
+- **Browser automation, Browser Use, browser-harness, CDP, or `/browser connect` parity**:
+  use `gormes-browser-harness`, then `gormes-parity-auditor`/`gormes-planner`
+  for rows or `gormes-builder` + `gormes-tdd-slice` for a single runtime slice.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.

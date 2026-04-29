@@ -13930,9 +13930,6 @@
                 "The slice tries to parse every raw provider transcript without first locking parser identities and unsupported-family evidence.",
                 "The slice calls live providers or runs Python parser code at runtime."
               ],
-              "blocked_by": [
-                "Environment interface + file sync contract"
-              ],
               "unblocks": [
                 "OpenRouter",
                 "Gemini",
@@ -14135,7 +14132,8 @@
               "unblocks": [
                 "Chromedp",
                 "Rod",
-                "Browser provider bridge + Firecrawl fallback"
+                "Browser provider bridge + Firecrawl fallback",
+                "Browser Use cloud + browser-harness bridge"
               ],
               "acceptance": [
                 "Action-schema fixtures validate navigation, click/type, snapshot, content extraction, wait, and invalid-action errors without a browser backend.",
@@ -14273,6 +14271,91 @@
               }
             },
             {
+              "name": "Browser Use cloud + browser-harness bridge",
+              "status": "planned",
+              "contract": "Fakeable Browser Use provider and browser-harness command bridge implements Hermes' BrowserUseProvider session shape and browser-harness operator workflow without starting a live browser: config detects direct BROWSER_USE_API_KEY or managed gateway state, CreateSession records id, cdpUrl/connectUrl, liveUrl, feature flags, timeout/proxy/profile inputs, and external_call_id with redacted evidence; Stop/Cleanup PATCHes action=stop; the command runner builds argv as browser-harness -c plus a sanitized BU_NAME environment; browser-harness stdout/stderr and screenshot/text outputs normalize into BrowserResultEnvelope with artifact budgeting.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Unavailable Browser Use credentials, missing browser-harness binary, session create failures, stale CDP/connectUrl resolution, cleanup failures, and command-runner failures return typed evidence such as browser_use_unconfigured, browser_harness_unavailable, browser_use_session_create_failed, browser_use_cleanup_failed, and browser_harness_command_failed without leaking API keys, profile IDs, cookies, CDP URLs, or unbounded provider response bodies.",
+              "fixture": "internal/tools/browser_use_harness_bridge_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/browser_providers/browser_use.py:BrowserUseProvider",
+                "../hermes-agent/tools/browser_tool.py:_get_cloud_provider,_resolve_cdp_override,_run_browser_command",
+                "../hermes-agent/tools/browser_cdp_tool.py",
+                "../hermes-agent/hermes_cli/browser_connect.py",
+                "../hermes-agent/cli.py:_handle_browser_command",
+                "../hermes-agent/tests/cli/test_cli_browser_connect.py",
+                "../browser-harness/SKILL.md",
+                "../browser-harness/install.md",
+                "../browser-harness/agent-workspace/agent_helpers.py",
+                "Context7:/llmstxt/browser-use_llms-full_txt cloud browser profile/CDP docs",
+                "internal/tools/browser_contract.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "internal/tools/result_budget.go"
+              ],
+              "ready_when": [
+                "Browser action contract, private-URL local sidecar routing, and SSRF quoted-false guard are validated.",
+                "../browser-harness is present as the local reference checkout and its SKILL.md/install.md workflow has been mapped into docs/development-skills/gormes-browser-harness/SKILL.md.",
+                "Tests can inject fake HTTP transports, fake command runners, and synthetic browser-harness stdout/stderr; no DNS, Chrome, CDP socket, Browser Use cloud call, browser-harness daemon, or Python package import is required."
+              ],
+              "not_ready_when": [
+                "The slice starts Chrome, opens a real tab, runs browser-harness against a live browser, calls Browser Use cloud, imports browser-harness Python packages into Go, or sends a private/LAN URL to a cloud browser path.",
+                "The bridge exposes a non-Hermes tool name instead of preserving the browser_* descriptor surface.",
+                "Errors include raw BROWSER_USE_API_KEY values, profile/cookie material, CDP/connect URLs, live browser URLs, session IDs without redaction, or unbounded HTML/provider response bodies."
+              ],
+              "blocked_by": [
+                "Browser action contract",
+                "Browser hybrid private-URL local sidecar routing",
+                "Browser SSRF quoted-false guard"
+              ],
+              "unblocks": [
+                "Browser action runtime provider selection",
+                "Browser /browser connect CDP parity",
+                "Browser provider status reporting",
+                "Browser-harness optional live smoke docs"
+              ],
+              "acceptance": [
+                "TestBrowserUseConfigGates proves Browser Use requires BROWSER_USE_API_KEY or managed gateway evidence, missing config returns browser_use_unconfigured, and provider selection prefers Browser Use before Browserbase when configured.",
+                "TestBrowserUseCreateSessionMapsCDP proves fake /browsers responses map id, cdpUrl/connectUrl, liveUrl, timeout/proxy/profile inputs, features, and external_call_id into a redacted session result.",
+                "TestBrowserUseStopCleanup proves close and emergency cleanup send PATCH action=stop, tolerate missing sessions, and redact credentials/session URLs in errors.",
+                "TestBrowserHarnessCommandRunner proves browser-harness execution uses argv not shell concatenation, sets sanitized BU_NAME from the Gormes session key, preserves BROWSER_USE_API_KEY only in env, and converts stdout/stderr into BrowserResultEnvelope with artifact budgeting.",
+                "TestBrowserHarnessNoLiveRuntimeInUnitTests proves the required tests use fakes only and do not start Chrome, open CDP, call browser-harness, or contact Browser Use."
+              ],
+              "note": "Planner split added after cloning ../browser-harness and updating ../hermes-agent to upstream on 2026-04-29. This row keeps Browser Use/browser-harness separate from the Browserbase/Firecrawl bridge so builders can ship the operator-facing harness path without diluting Hermes provider semantics.",
+              "write_scope": [
+                "internal/tools/browser_use_harness_bridge.go",
+                "internal/tools/browser_use_harness_bridge_test.go",
+                "internal/tools/browser_contract.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestBrowserUse|^TestBrowserHarness' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Browser Use/browser-harness fixtures prove credential gates, session create/stop mapping, sanitized BU_NAME command execution, artifact-budgeted result envelopes, and redacted degraded evidence without live browser or cloud calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/browser_providers/browser_use.py",
+                  "hermes:tools/browser_tool.py",
+                  "hermes:hermes_cli/browser_connect.py",
+                  "browser-use/browser-harness:SKILL.md",
+                  "browser-use/browser-harness:install.md"
+                ],
+                "note": "Hermes owns the browser_* tool and BrowserUseProvider contracts; browser-harness supplies the Browser Use/CDP operator workflow that Gormes can bridge behind Go-native interfaces."
+              }
+            },
+            {
               "name": "Browser hybrid private-URL local sidecar routing",
               "priority": "P2",
               "status": "complete",
@@ -14400,8 +14483,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T03:17:39Z",
-            "origin_decision": "Hermes 42c076d3 added browser cloud/local hybrid routing for private URLs, and 7317d69f tightened quoted-false handling in SSRF guard config. Gormes still lacks native browser runtime wiring, so Phase 5.C stays upstream-led and now carries pure route-key and SSRF-config guard rows before browser provider bridge work."
+            "last_upstream_check": "2026-04-29T00:00:00Z",
+            "origin_decision": "Hermes 42c076d3 added browser cloud/local hybrid routing for private URLs, 7317d69f tightened quoted-false handling in SSRF guard config, and the 2026-04-29 upstream refresh added Browser Use/CDP/browser-connect evidence that should be paired with the local ../browser-harness checkout. Gormes still lacks native browser runtime wiring, so Phase 5.C stays upstream-led and now carries pure route-key, SSRF-config, Browserbase/Firecrawl, and Browser Use/browser-harness rows before browser action runtime work."
           }
         },
         "5.D": {

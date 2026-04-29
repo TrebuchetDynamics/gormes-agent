@@ -582,6 +582,7 @@ classification and row-backed implementation queue.
 - [ ] Chromedp
 - [ ] Rod
 - [ ] Browser provider bridge + Firecrawl fallback
+- [ ] Browser Use cloud + browser-harness bridge
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 

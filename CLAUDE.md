@@ -37,6 +37,7 @@ Default routing:
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
 | Mapping Hermes/Honcho/GBrain parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
+| Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |

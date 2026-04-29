@@ -41,6 +41,7 @@ Use these skills as the default routing surface:
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
 | Mapping Hermes/Honcho/GBrain parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
+| Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
@@ -114,6 +115,7 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
 | Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `docs/development-skills/gormes-provider-parity/SKILL.md` |
+| Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `docs/development-skills/gormes-browser-harness/SKILL.md` |
 | Stuck on a Go implementation shape and want a donor file before writing code | `docs/development-skills/gormes-references/SKILL.md` |
 | Refreshing README.md or public repository claims from current evidence | `docs/development-skills/gormes-readme/SKILL.md` |
 | Improving the public landing page content or UI | `docs/development-skills/gormes-landing-web/SKILL.md` |

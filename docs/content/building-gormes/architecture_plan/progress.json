@@ -13930,9 +13930,6 @@
                 "The slice tries to parse every raw provider transcript without first locking parser identities and unsupported-family evidence.",
                 "The slice calls live providers or runs Python parser code at runtime."
               ],
-              "blocked_by": [
-                "Environment interface + file sync contract"
-              ],
               "unblocks": [
                 "OpenRouter",
                 "Gemini",
@@ -14135,7 +14132,8 @@
               "unblocks": [
                 "Chromedp",
                 "Rod",
-                "Browser provider bridge + Firecrawl fallback"
+                "Browser provider bridge + Firecrawl fallback",
+                "Browser Use cloud + browser-harness bridge"
               ],
               "acceptance": [
                 "Action-schema fixtures validate navigation, click/type, snapshot, content extraction, wait, and invalid-action errors without a browser backend.",
@@ -14273,6 +14271,91 @@
               }
             },
             {
+              "name": "Browser Use cloud + browser-harness bridge",
+              "status": "planned",
+              "contract": "Fakeable Browser Use provider and browser-harness command bridge implements Hermes' BrowserUseProvider session shape and browser-harness operator workflow without starting a live browser: config detects direct BROWSER_USE_API_KEY or managed gateway state, CreateSession records id, cdpUrl/connectUrl, liveUrl, feature flags, timeout/proxy/profile inputs, and external_call_id with redacted evidence; Stop/Cleanup PATCHes action=stop; the command runner builds argv as browser-harness -c plus a sanitized BU_NAME environment; browser-harness stdout/stderr and screenshot/text outputs normalize into BrowserResultEnvelope with artifact budgeting.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Unavailable Browser Use credentials, missing browser-harness binary, session create failures, stale CDP/connectUrl resolution, cleanup failures, and command-runner failures return typed evidence such as browser_use_unconfigured, browser_harness_unavailable, browser_use_session_create_failed, browser_use_cleanup_failed, and browser_harness_command_failed without leaking API keys, profile IDs, cookies, CDP URLs, or unbounded provider response bodies.",
+              "fixture": "internal/tools/browser_use_harness_bridge_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/browser_providers/browser_use.py:BrowserUseProvider",
+                "../hermes-agent/tools/browser_tool.py:_get_cloud_provider,_resolve_cdp_override,_run_browser_command",
+                "../hermes-agent/tools/browser_cdp_tool.py",
+                "../hermes-agent/hermes_cli/browser_connect.py",
+                "../hermes-agent/cli.py:_handle_browser_command",
+                "../hermes-agent/tests/cli/test_cli_browser_connect.py",
+                "../browser-harness/SKILL.md",
+                "../browser-harness/install.md",
+                "../browser-harness/agent-workspace/agent_helpers.py",
+                "Context7:/llmstxt/browser-use_llms-full_txt cloud browser profile/CDP docs",
+                "internal/tools/browser_contract.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "internal/tools/result_budget.go"
+              ],
+              "ready_when": [
+                "Browser action contract, private-URL local sidecar routing, and SSRF quoted-false guard are validated.",
+                "../browser-harness is present as the local reference checkout and its SKILL.md/install.md workflow has been mapped into docs/development-skills/gormes-browser-harness/SKILL.md.",
+                "Tests can inject fake HTTP transports, fake command runners, and synthetic browser-harness stdout/stderr; no DNS, Chrome, CDP socket, Browser Use cloud call, browser-harness daemon, or Python package import is required."
+              ],
+              "not_ready_when": [
+                "The slice starts Chrome, opens a real tab, runs browser-harness against a live browser, calls Browser Use cloud, imports browser-harness Python packages into Go, or sends a private/LAN URL to a cloud browser path.",
+                "The bridge exposes a non-Hermes tool name instead of preserving the browser_* descriptor surface.",
+                "Errors include raw BROWSER_USE_API_KEY values, profile/cookie material, CDP/connect URLs, live browser URLs, session IDs without redaction, or unbounded HTML/provider response bodies."
+              ],
+              "blocked_by": [
+                "Browser action contract",
+                "Browser hybrid private-URL local sidecar routing",
+                "Browser SSRF quoted-false guard"
+              ],
+              "unblocks": [
+                "Browser action runtime provider selection",
+                "Browser /browser connect CDP parity",
+                "Browser provider status reporting",
+                "Browser-harness optional live smoke docs"
+              ],
+              "acceptance": [
+                "TestBrowserUseConfigGates proves Browser Use requires BROWSER_USE_API_KEY or managed gateway evidence, missing config returns browser_use_unconfigured, and provider selection prefers Browser Use before Browserbase when configured.",
+                "TestBrowserUseCreateSessionMapsCDP proves fake /browsers responses map id, cdpUrl/connectUrl, liveUrl, timeout/proxy/profile inputs, features, and external_call_id into a redacted session result.",
+                "TestBrowserUseStopCleanup proves close and emergency cleanup send PATCH action=stop, tolerate missing sessions, and redact credentials/session URLs in errors.",
+                "TestBrowserHarnessCommandRunner proves browser-harness execution uses argv not shell concatenation, sets sanitized BU_NAME from the Gormes session key, preserves BROWSER_USE_API_KEY only in env, and converts stdout/stderr into BrowserResultEnvelope with artifact budgeting.",
+                "TestBrowserHarnessNoLiveRuntimeInUnitTests proves the required tests use fakes only and do not start Chrome, open CDP, call browser-harness, or contact Browser Use."
+              ],
+              "note": "Planner split added after cloning ../browser-harness and updating ../hermes-agent to upstream on 2026-04-29. This row keeps Browser Use/browser-harness separate from the Browserbase/Firecrawl bridge so builders can ship the operator-facing harness path without diluting Hermes provider semantics.",
+              "write_scope": [
+                "internal/tools/browser_use_harness_bridge.go",
+                "internal/tools/browser_use_harness_bridge_test.go",
+                "internal/tools/browser_contract.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestBrowserUse|^TestBrowserHarness' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Browser Use/browser-harness fixtures prove credential gates, session create/stop mapping, sanitized BU_NAME command execution, artifact-budgeted result envelopes, and redacted degraded evidence without live browser or cloud calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/browser_providers/browser_use.py",
+                  "hermes:tools/browser_tool.py",
+                  "hermes:hermes_cli/browser_connect.py",
+                  "browser-use/browser-harness:SKILL.md",
+                  "browser-use/browser-harness:install.md"
+                ],
+                "note": "Hermes owns the browser_* tool and BrowserUseProvider contracts; browser-harness supplies the Browser Use/CDP operator workflow that Gormes can bridge behind Go-native interfaces."
+              }
+            },
+            {
               "name": "Browser hybrid private-URL local sidecar routing",
               "priority": "P2",
               "status": "complete",
@@ -14400,8 +14483,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T03:17:39Z",
-            "origin_decision": "Hermes 42c076d3 added browser cloud/local hybrid routing for private URLs, and 7317d69f tightened quoted-false handling in SSRF guard config. Gormes still lacks native browser runtime wiring, so Phase 5.C stays upstream-led and now carries pure route-key and SSRF-config guard rows before browser provider bridge work."
+            "last_upstream_check": "2026-04-29T00:00:00Z",
+            "origin_decision": "Hermes 42c076d3 added browser cloud/local hybrid routing for private URLs, 7317d69f tightened quoted-false handling in SSRF guard config, and the 2026-04-29 upstream refresh added Browser Use/CDP/browser-connect evidence that should be paired with the local ../browser-harness checkout. Gormes still lacks native browser runtime wiring, so Phase 5.C stays upstream-led and now carries pure route-key, SSRF-config, Browserbase/Firecrawl, and Browser Use/browser-harness rows before browser action runtime work."
           }
         },
         "5.D": {
@@ -20031,13 +20114,13 @@
                 "Gormes auth add openai-codex strict isolation contract",
                 "Gormes auth add bedrock open-question planning note",
                 "Gormes top-level logout provider shortcut",
-                "Gormes login deprecated-redirect contract",
+                "Gormes login removed-command typo suggestion contract",
                 "Gormes model interactive provider/model picker",
                 "Gormes setup minimal sectioned wizard slice",
                 "Gormes uninstall dry-run command contract",
                 "Gormes mcp login OAuth re-auth bridge"
               ],
-              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, deprecated login redirect, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login bridge). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. Do not assign this umbrella row directly."
+              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, login removed-command typo suggestion, profile command binding, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login interface seam + noninteractive default, mcp login browser callback flow, model and profile selector seam). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. The 2026-04-29 omnibus update renamed the prior `Gormes login deprecated-redirect contract` row to `Gormes login removed-command typo suggestion contract` (Q1B decision: typo guide via Cobra unknown-command, not a deprecated subparser shim) and renamed the prior `Gormes mcp login OAuth re-auth bridge` to a split pair (`Gormes mcp login interface seam + noninteractive default` and `Gormes mcp login browser callback flow`). Do not assign this umbrella row directly."
             },
             {
               "name": "Gormes auth bare interactive credential-pool readout",
@@ -20312,7 +20395,7 @@
                 "Hermes auth command-tree manifest refresh"
               ],
               "unblocks": [
-                "Gormes login deprecated-redirect contract"
+                "Gormes login removed-command typo suggestion contract"
               ],
               "acceptance": [
                 "TestLogoutTopLevelAcceptsAllowedProviders proves `--provider nous`, `--provider openai-codex`, and `--provider spotify` each invoke the shared logout helper and clear only the named provider's auth state.",
@@ -20343,35 +20426,36 @@
               }
             },
             {
-              "name": "Gormes login deprecated-redirect contract",
+              "name": "Gormes login removed-command typo suggestion contract",
               "status": "planned",
               "priority": "P2",
-              "contract": "`gormes login` is registered as a deprecated subparser that accepts every legacy flag (`--provider {nous,openai-codex}`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`) without argparse-style errors, performs no OAuth work, prints a deterministic three-line deprecation message redirecting to `gormes auth`, `gormes model`, and `gormes setup`, and exits 0. It must follow the typo-suggestion pattern (parity with `gormes migrate ooenclaw -> gormes migrate openclaw`), not a silent alias.",
+              "contract": "`gormes login` is NOT registered as a Cobra command. When an operator types `gormes login` (with or without legacy flags such as `--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`), Cobra surfaces unknown-command, and Gormes emits a deterministic suggestion `did you mean \"gormes auth add <provider> --type oauth\"?` (parallel to the `gormes migrate ooenclaw -> gormes migrate openclaw` typo-suggestion contract). The legacy Hermes `--provider` flag set is recognized contextually in the suggestion message but not parsed.",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Unknown legacy flag values are accepted silently (the entire flag set is no-op); `--help` prints the deprecation message and the parser shape so old scripts can detect the redirect; downstream invocation parsers continue to resolve real subcommands without interference.",
-              "fixture": "cmd/gormes/login_deprecated_test.go",
+              "degraded_mode": "`unknown_command_login_suggested_auth_add` typed evidence is emitted; the suggestion redacts any provider name strings that could leak through if the operator passed `--provider <secret>`-shaped tokens; downstream invocation parsers continue to resolve real subcommands without interference.",
+              "fixture": "cmd/gormes/login_typo_suggestion_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/auth.py:3848-3853:login_command",
                 "../hermes-agent/hermes_cli/main.py:8186-8227:login_parser",
                 "cmd/gormes/main.go:newRootCommandWithRuntime",
+                "cmd/gormes/hermes_cli_parity.go:55",
                 "internal/cli/typo_suggestions.go",
                 "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
               ],
               "ready_when": [
-                "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/deprecated guidance.",
-                "Gormes top-level logout provider shortcut row defines the parallelism between deprecated `login` and live `logout`.",
+                "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/excluded guidance (parity manifest line 55 already encodes this with hermesCLIExcluded).",
+                "Gormes top-level logout provider shortcut row defines the parallelism between removed `login` and live `logout`.",
                 "Tests can capture stdout/stderr from a Cobra invocation; no live OAuth or provider network is required."
               ],
               "not_ready_when": [
-                "The slice silently aliases `gormes login` to any of `gormes auth`, `gormes model`, or `gormes setup` (parity rule: never silent).",
-                "The slice rejects legacy flags with argparse-style errors instead of accepting them as no-ops (would break old shell scripts).",
+                "The slice registers a Cobra command named \"login\" instead of relying on Cobra's unknown-command path.",
+                "The slice silently aliases gormes login to gormes auth add without a deterministic suggestion message.",
                 "The slice performs OAuth work, opens browsers, contacts portal_url, or mutates auth.json.",
-                "The deprecation message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
+                "The suggestion message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
               ],
               "blocked_by": [
                 "Hermes auth command-tree manifest refresh",
@@ -20381,31 +20465,33 @@
                 "Gormes model interactive provider/model picker"
               ],
               "acceptance": [
-                "TestLoginDeprecatedAcceptsLegacyFlags proves `gormes login --provider openai-codex --client-id x --no-browser --timeout 30` exits 0 with no Cobra unknown-flag error.",
-                "TestLoginDeprecatedPrintsRedirectMessage proves stdout matches the exact three-line deprecation envelope: `(1) The 'gormes login' command has been removed.`, `(2) Use 'gormes auth' to manage credentials,`, `(3) 'gormes model' to select a provider, or 'gormes setup' for full setup.` (byte-equal).",
-                "TestLoginDeprecatedDoesNotPerformOAuth proves a fake OAuth transport is never invoked and no auth.json mutation occurs even with valid `--client-id`.",
-                "TestLoginDeprecatedTypoSuggestionParity proves the deprecation pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, exit 0, no silent execution of the suggested command.",
-                "TestLoginDeprecatedHelpShowsParserShape proves `gormes login --help` prints the legacy flag set so old scripts can introspect the redirect."
+                "TestGormesLoginUnknownCommandEmitsTypoSuggestion proves `gormes login` returns a non-zero exit with the deterministic suggestion message `did you mean \"gormes auth add <provider> --type oauth\"?`.",
+                "TestGormesLoginWithProviderFlagsEmitsSuggestion proves `gormes login --provider openai-codex` produces the same suggestion (the legacy flags are recognized contextually in the suggestion text, not parsed by Cobra).",
+                "TestGormesLoginIsNotRegisteredAsCobraCommand proves `cobra.Command.Find` for `login` returns unknown — there is no registered `login` subcommand on the root.",
+                "TestGormesLoginSuggestionParityWithMigrateTypo proves the suggestion pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, no silent execution of the suggested command, no OAuth side effects.",
+                "TestGormesLoginSuggestionRedactsProviderArgValues proves no fixture provider-name string passed via `--provider <value>` leaks into stdout/stderr beyond the literal suggestion template."
               ],
-              "note": "Encodes auditor surprise (f): Hermes deliberately registers the deprecated parser with all old flags so `hermes login --provider openai-codex` exits cleanly with the deprecation message rather than an argparse error. Gormes must replicate that shim. Parity rule with `gormes migrate ooenclaw`: never silent, always explicit redirect.",
+              "note": "Encodes the Q1B decision (typo guide, not deprecation shim): rather than registering a deprecated `login` subparser that accepts the legacy flag set, Gormes leans on Cobra's unknown-command path and emits the same kind of typo suggestion already used for `gormes migrate ooenclaw -> gormes migrate openclaw`. Manifest line 55 in `cmd/gormes/hermes_cli_parity.go` already classifies `login` as `hermesCLIExcluded`; this row is the operator-facing typo-suggestion contract that closes the parity loop without resurrecting a deprecated subparser. Parallel pattern: the `migrate ooenclaw` row in the parity manifest (line 92).",
               "write_scope": [
-                "cmd/gormes/login.go",
-                "cmd/gormes/login_deprecated_test.go",
+                "cmd/gormes/login_typo_suggestion_test.go",
                 "cmd/gormes/main.go",
+                "internal/cli/typo_suggestions.go",
+                "internal/cli/typo_suggestions_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestLoginDeprecated' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesLogin' -count=1",
+                "go test ./internal/cli -run '^TestTypoSuggestion' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Deprecated-login fixtures prove legacy-flag acceptance without argparse error, byte-equal three-line redirect message, no OAuth side effects, typo-suggestion parity, and help-text parser-shape disclosure."
+                "Login typo-suggestion fixtures prove no Cobra `login` registration, deterministic unknown-command suggestion message with and without legacy `--provider` tokens, parity with `migrate ooenclaw`, and provider-arg-value redaction."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:hermes_cli/auth.py:3848-3853 login_command + main.py:8186-8227 login_parser shim",
-                "note": "Hermes keeps the deprecated parser as a deliberate shim so legacy scripts get a clean redirect; Gormes mirrors the shim and adopts the typo-suggestion parity rule."
+                "upstream_ref": "hermes:hermes_cli/auth.py:3848-3853 login_command + main.py:8186-8227 login_parser shim (Q1B decision: do not port the shim — use Cobra unknown-command typo suggestion instead)",
+                "note": "Hermes keeps a deprecated parser as a deliberate shim; Gormes' Q1B decision is to provide a typo guide via Cobra's unknown-command path rather than register a `login` subparser. The parity rule with `gormes migrate ooenclaw` (never silent, always explicit redirect) still holds."
               }
             },
             {

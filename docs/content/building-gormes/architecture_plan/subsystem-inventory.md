@@ -121,7 +121,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Mini SWE runner | `mini_swe_runner.py` | 5.M or 5.O | ⏳ planned |
 | RL training CLI + compressor | `rl_cli.py`, `trajectory_compressor.py` | 5.M | ⏳ deferred (research) |
 | Runtime shared helpers | `hermes_constants.py`, `hermes_logging.py`, `hermes_state.py`, `hermes_time.py`, `utils.py` | 5.O | ⏳ planned |
-| Per-model tool-call parsers | `environments/tool_call_parsers/{deepseek_v3_parser,deepseek_v3_1_parser,glm45_parser,glm47_parser,hermes_parser,kimi_k2_parser,llama_parser,longcat_parser,mistral_parser,qwen3_coder_parser,qwen_parser}.py` | 4.A / 5.B | 🔨 manifest shipped; parser families remain row-backed until golden fixtures land |
+| Per-model tool-call parsers | `environments/tool_call_parsers/{deepseek_v3_parser,deepseek_v3_1_parser,glm45_parser,glm47_parser,hermes_parser,kimi_k2_parser,llama_parser,longcat_parser,mistral_parser,qwen3_coder_parser,qwen_parser}.py` | 4.A / 5.B | ✅ manifest validated; Hermes XML and DeepSeek v3.1 golden fixtures exist, while remaining parser-family execution fixtures stay row-backed |
 | Agent loop environment | `environments/agent_loop.py`, `environments/tool_context.py`, `environments/patches.py`, `environments/hermes_base_env.py`, `environments/agentic_opd_env.py`, `environments/web_research_env.py` | 4.C / 5.A | ⏳ planned |
 
 ### Brain (Phase 4 — sub-phases 4.A–4.H)
@@ -169,7 +169,7 @@ The biggest single file upstream is `run_agent.py` at **12,113 lines** — the `
 | Category | Upstream tools | Target phase | Status |
 |---|---|---|---|
 | Sandboxing backends | `tools/environments/{base,local,docker,modal,managed_modal,modal_utils,daytona,singularity,ssh,file_sync}.py` | 5.B | ⏳ planned |
-| Browser automation | `tools/browser_tool.py`, `browser_camofox*.py`, `browser_providers/{base,browserbase,browser_use,firecrawl}.py` | 5.C | ⏳ planned |
+| Browser automation | `tools/browser_tool.py`, `browser_camofox*.py`, `browser_providers/{base,browserbase,browser_use,firecrawl}.py`, `hermes_cli/browser_connect.py`, `../browser-harness/SKILL.md` | 5.C | ⏳ planned; Browser Use/browser-harness split is row-backed |
 | Vision | `tools/vision_tools.py` | 5.D | ⏳ planned |
 | Image generation | `tools/image_generation_tool.py` | 5.D | ⏳ planned |
 | TTS / voice / transcription | `tools/{tts_tool,voice_mode,transcription_tools,neutts_synth}.py` + `neutts_samples/` | 5.E | ⏳ planned |
