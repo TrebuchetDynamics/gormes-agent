@@ -43,7 +43,23 @@ External Go projects are implementation references, not the product contract.
      - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/adk-go`
 5. Only then write or update Gormes code/tests.
 
-Juan has stated that GoClaw is permitted as a reference source. Still keep provenance clear: use it to learn and adapt patterns; do not blindly copy UX/config choices that would break Hermes parity.
+### GoClaw porting recipe (2026-04-29 permission update)
+
+Juan granted Gormes explicit permission to use GoClaw code, not just patterns. The earlier CC BY-NC 4.0 caution is superseded for Gormes' use. When porting GoClaw code into Gormes:
+
+1. Add a provenance comment on the receiving Gormes file naming the source file and function:
+
+   ```go
+   // Adapted from goclaw/internal/oauth/openai.go::ExchangeCode
+   // Reason: Gormes needed PKCE + pasted-redirect support to match Hermes Codex login UX.
+   ```
+
+2. Convert types and imports to Gormes-native names; never let `goclaw_*` symbols leak into Gormes' public surfaces. The donor's package layout is informational only.
+3. Apply the Hermes parity filter: GoClaw UX/config choices that diverge from Hermes get adapted, not adopted wholesale.
+4. Add Gormes tests covering the ported behavior (do not rely on the donor's tests as proof).
+5. Verify `go doc ./<package> | grep -iE "(goclaw|nextlevelbuilder)"` returns nothing before merging.
+
+Other reference repos (`nanobot`, `plandex`, `engram`, `trpc-agent-go`, `adk-go`, `axe`, `agentcontrolplane`, `uzi`) stay patterns-only unless individually authorized — see `references/go-agent-os/README.md` for the per-donor permission map. When in doubt about whether a donor file is a pattern source or a code source, consult the `gormes-references` skill before porting.
 
 ## Workflow
 
