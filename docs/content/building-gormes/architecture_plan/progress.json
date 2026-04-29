@@ -14133,7 +14133,7 @@
                 "Chromedp",
                 "Rod",
                 "Browser provider bridge + Firecrawl fallback",
-                "Browser Use cloud + browser-harness bridge"
+                "Browser Use cloud + Go browser harness bridge"
               ],
               "acceptance": [
                 "Action-schema fixtures validate navigation, click/type, snapshot, content extraction, wait, and invalid-action errors without a browser backend.",
@@ -14204,7 +14204,7 @@
               ],
               "blocked_by": [
                 "Browser action contract + event transcript",
-                "Browser-harness Hermes browser_* tool wrappers"
+                "Go browser-harness Hermes browser_* tool wrappers"
               ],
               "unblocks": [
                 "Browser /browser connect CDP parity",
@@ -14345,7 +14345,7 @@
               }
             },
             {
-              "name": "Browser Use cloud + browser-harness bridge",
+              "name": "Browser Use cloud + Go browser harness bridge",
               "status": "complete",
               "contract": "Fakeable Browser Use provider and Go browser harness command bridge implements Hermes' BrowserUseProvider session shape and browser operator workflow without starting a live browser: config detects direct BROWSER_USE_API_KEY or managed gateway state, CreateSession records id, cdpUrl/connectUrl, liveUrl, feature flags, timeout/proxy/profile inputs, and external_call_id with redacted evidence; Stop/Cleanup PATCHes action=stop; the default command runner builds argv as go-browser-harness --action-json gormes.browser.action.v1 plus a sanitized BU_NAME environment, while browser-harness -c remains explicit legacy compatibility only; harness stdout/stderr and screenshot/text outputs normalize into BrowserResultEnvelope with artifact budgeting.",
               "contract_status": "validated",
@@ -14471,7 +14471,7 @@
               ],
               "ready_when": [
                 "Browser action contract + event transcript is validated.",
-                "Browser Use cloud + browser-harness bridge is validated.",
+                "Browser Use cloud + Go browser harness bridge is validated.",
                 "../go-browser-harness exposes the gormes.browser.action.v1 contract used by the default command runner.",
                 "Tests can inject fake BrowserHarnessProcessRunner outputs; no live browser runtime is required."
               ],
@@ -14483,7 +14483,7 @@
               ],
               "blocked_by": [
                 "Browser action contract + event transcript",
-                "Browser Use cloud + browser-harness bridge"
+                "Browser Use cloud + Go browser harness bridge"
               ],
               "unblocks": [
                 "Browser /browser connect CDP parity",
