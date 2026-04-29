@@ -17881,9 +17881,9 @@
             },
             {
               "name": "Gormes config edit/check/native schema-migrate closeout",
-              "status": "planned",
+              "status": "complete",
               "contract": "cmd/gormes completes Hermes config-command parity for the native Gormes config surface by adding `gormes config edit`, `gormes config check`, and `gormes config migrate` over XDG TOML/dotenv files, while keeping `gormes migrate hermes` and `gormes migrate openclaw` as the only cross-product import commands.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -17926,7 +17926,7 @@
                 "The command help distinguishes `config migrate` (native schema update) from `migrate hermes` and `migrate openclaw` (cross-product imports).",
                 "All output redacts dotenv/API-key values and keeps explicit-empty values visible as configured-but-empty evidence."
               ],
-              "note": "Added 2026-04-28 after the explicit config parity pass. Hermes exposes config show/edit/set/path/env-path/check/migrate; the prior Gormes config row covers the first four operator-critical pieces, and this row closes the remaining native config lifecycle without mixing in Hermes/OpenClaw imports.",
+              "note": "Complete: TDD added `cmd/gormes/config_closeout_test.go` (edit/check/migrate cobra fixtures swap a `stubEditorRunner` into the package-level `configEditorRunner` injection seam via `withConfigEditorRunner`, so no real shell ever spawns) and `internal/config/check_test.go` (Check return-value table tests against `t.TempDir()` XDG sandboxes). Production code lives in `internal/config/check.go` (`Check`, `CheckReport`, `MigrateConfigFile`, `MigrateResult`), with atomic temp-file-then-rename helpers `writeTOMLAtomic` and `EnsureConfigFile` added to `internal/config/writer.go`, and the new cobra subtree wired in `cmd/gormes/config.go` (`newConfigEditCommand`, `newConfigCheckCommand`, `newConfigMigrateCommand`, `pickEditor`, `osEditorRunner`). Locked invariants: `config edit` ensures config.toml exists before delegating to EDITOR>VISUAL>nano|vim|vi|code|notepad through the injected runner and falls back to a no-editor message that includes the config path; `config check` is read-only, surfaces _config_version vs CurrentConfigVersion, dotenv presence, missing vs configured-but-empty issues per [hermes].endpoint and [hermes].model, redacts dotenv/api_key bytes, and exits non-zero on errors; `config migrate` is bit-identical no-op at CurrentConfigVersion, atomically stamps unversioned files, and rejects future-version files without rewriting them; the migrate help long-form names native scope and points operators at `gormes migrate hermes`/`gormes migrate openclaw` for cross-product imports.",
               "write_scope": [
                 "cmd/gormes/config.go",
                 "cmd/gormes/config_closeout_test.go",

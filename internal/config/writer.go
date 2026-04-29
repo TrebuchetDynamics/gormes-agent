@@ -204,14 +204,59 @@ func readTOMLDoc(path string) (map[string]any, error) {
 }
 
 func writeTOMLDoc(path string, doc map[string]any) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("config: mkdir %s: %w", filepath.Dir(path), err)
+	return writeTOMLAtomic(path, doc)
+}
+
+// writeTOMLAtomic marshals doc and writes it to path via a temp-file-then-
+// rename so a partially-written config can never replace the previous one.
+// The dotenv parent dir is created with 0o700 and the TOML file with 0o600.
+func writeTOMLAtomic(path string, doc map[string]any) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("config: mkdir %s: %w", dir, err)
 	}
 	body, err := toml.Marshal(doc)
 	if err != nil {
 		return fmt.Errorf("config: marshal toml: %w", err)
 	}
-	return os.WriteFile(path, body, 0o600)
+	tmp, err := os.CreateTemp(dir, ".config.toml.*")
+	if err != nil {
+		return fmt.Errorf("config: tempfile: %w", err)
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(body); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("config: write temp: %w", err)
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("config: chmod temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("config: close temp: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("config: rename temp -> %s: %w", path, err)
+	}
+	return nil
+}
+
+// EnsureConfigFile creates an empty TOML file at path stamped with the
+// current schema version when it does not exist. It is a no-op when path
+// already exists. Used by `gormes config edit` so operators never open a
+// missing file.
+func EnsureConfigFile(path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("config: stat %s: %w", path, err)
+	}
+	doc := map[string]any{"_config_version": int64(CurrentConfigVersion)}
+	return writeTOMLAtomic(path, doc)
 }
 
 // coerceTOMLScalar applies the same string→typed coercions as Hermes's

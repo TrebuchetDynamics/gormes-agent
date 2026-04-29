@@ -703,7 +703,7 @@ classification and row-backed implementation queue.
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface
-- [ ] Gormes config edit/check/native schema-migrate closeout
+- [x] Gormes config edit/check/native schema-migrate closeout
 - [ ] Hermes config migration dry-run manifest
 - [ ] Hermes config migration writer
 - [ ] OpenClaw migration dry-run manifest
