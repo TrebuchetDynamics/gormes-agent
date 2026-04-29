@@ -34,6 +34,10 @@ passes.
 maps upstream Hermes and Honcho feature families to Go packages, implementation
 strategy, proof gates, and `progress.json` anchors.
 
+**CLI parity matrix:** [Hermes Command Surface Parity Matrix](./hermes-command-surface-parity/)
+records the operator-visible Hermes command tree, current Gormes state, and the
+`progress.json` rows that own remaining command/auth gaps.
+
 **Runtime plan:** [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
 reconciles the feature map, source-class ledger, swarm audit, nested coverage
 matrix, and progress rows into one implementation-ready subsystem plan.
