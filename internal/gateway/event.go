@@ -25,6 +25,8 @@ const (
 	EventRestart
 	// EventSteer queues operator guidance for the active turn fallback path.
 	EventSteer
+	// EventUsage renders runtime and provider account-usage evidence.
+	EventUsage
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
 	EventThreadLifecycle
 )
@@ -44,6 +46,8 @@ func (k EventKind) String() string {
 		return "restart"
 	case EventSteer:
 		return "steer"
+	case EventUsage:
+		return "usage"
 	case EventThreadLifecycle:
 		return "thread_lifecycle"
 	default:

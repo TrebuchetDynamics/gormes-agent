@@ -67,6 +67,9 @@ type ManagerConfig struct {
 	// that returns an error causes the command to fall back to a session-only
 	// override and surface PersistFailed=true to the caller.
 	PersistReasoningGlobal func(ReasoningEffort) error
+	// AccountUsage renders /usage provider account-limit evidence. Runtime token
+	// telemetry is read from the manager's latest render frame.
+	AccountUsage AccountUsageProvider
 }
 
 type kernelSubmitter interface {
@@ -94,6 +97,7 @@ type Manager struct {
 	turnCancelled  bool
 	shuttingDown   bool
 	followUps      []InboundEvent
+	lastUsageFrame kernel.RenderFrame
 
 	reasoningMu    sync.Mutex
 	reasoningState map[string]SessionReasoningState
@@ -582,6 +586,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventSteer:
 		m.handleSteerCommand(ctx, ch, ev)
 		return nil
+	case EventUsage:
+		m.handleUsageCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
 		if m.kernel == nil {
 			return nil
@@ -667,6 +674,7 @@ func (m *Manager) recordInboundDedupEvidence(ev InboundEvent, evidence MessageDe
 }
 
 func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **coalescer, coCancel *context.CancelFunc) {
+	m.rememberUsageFrame(f)
 	m.turnMu.Lock()
 	platform := m.turnPlatform
 	chatID := m.turnChatID

@@ -520,7 +520,7 @@ classification and row-backed implementation queue.
 - [x] Provider timeout config fail-closed helper
 - [ ] Prompt-cache capability guard
 - [x] Provider account usage read model + renderer
-- [ ] Gateway /usage command binding over provider account usage
+- [x] Gateway /usage command binding over provider account usage
 - [x] Provider rate guard + budget telemetry
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence

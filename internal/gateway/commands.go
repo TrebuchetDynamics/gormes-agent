@@ -66,6 +66,12 @@ var CommandRegistry = []CommandDef{
 		Kind:             EventSteer,
 		ActiveTurnPolicy: CommandActiveTurnPolicyDrain,
 	},
+	{
+		Name:             "usage",
+		Description:      "Show runtime and provider account usage",
+		Kind:             EventUsage,
+		ActiveTurnPolicy: CommandActiveTurnPolicyImmediate,
+	},
 }
 
 var commandLookup = buildCommandLookup()

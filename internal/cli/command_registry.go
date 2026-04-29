@@ -148,7 +148,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "toolsets", Description: "List available toolsets", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "undo", Description: "Remove the last user/assistant exchange", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "update", Description: "Update Gormes to the latest version", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "usage", Description: "Show token usage and rate limits", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "usage", Description: "Show token usage and rate limits", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "verbose", Description: "Cycle tool progress display", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "voice", Description: "Toggle voice mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "yolo", Description: "Toggle YOLO mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

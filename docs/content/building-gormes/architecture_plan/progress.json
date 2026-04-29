@@ -10788,9 +10788,9 @@
             },
             {
               "name": "Gateway /usage command binding over provider account usage",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes binds Hermes CLI and gateway `/usage` behavior to the provider account-usage read model, preserving running-agent versus cached-agent precedence, transcript usage fallback, account-limit rendering, and redacted unavailable output without adding provider-client state.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -10834,7 +10834,7 @@
                 "Tests cover no-agent, running-agent, cached-agent, history-only, unsupported-provider, and degraded-provider cases with no live network calls.",
                 "The command binding does not mutate token vaults, config files, transcripts, memory, provider clients, or gateway channel state."
               ],
-              "note": "swarm_origin: 2026-04-28/hermes-mapper. This row holds the command-dispatch behavior intentionally removed from `Provider account usage read model + renderer`; it cites `cli.py` and `gateway/run.py` exact command sources so the read-model row no longer overclaims Cobra/gateway scope.",
+              "note": "Complete: TDD landed gateway /usage command binding and the Cobra gormes usage command over the shared provider account-usage read model. Gateway fixtures prove shared registry exposure, active running-turn telemetry precedence over cached frames, cached-frame fallback when idle, provider account-limit rendering, and redacted unavailable output when no account provider is configured. CLI fixtures prove gormes usage renders unsupported-provider evidence without starting TUI/gateway health checks. Live provider calls remain behind fakeable AccountUsageProvider and HTTP seams.",
               "write_scope": [
                 "internal/gateway/usage_command.go",
                 "internal/gateway/usage_command_test.go",
@@ -10853,7 +10853,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Usage-command fixtures prove running-agent, cached-agent, transcript-history, account-limit, unsupported, degraded, and redacted output behavior through CLI/gateway command bindings backed by the shared account-usage read model."
+                "Gateway and CLI usage-command fixtures prove registry binding, running-vs-cached runtime token output, provider account-limit rendering, unsupported/degraded output, and no TUI/channel startup for CLI usage."
               ],
               "provenance": {
                 "origin_type": "upstream",
