@@ -20114,13 +20114,13 @@
                 "Gormes auth add openai-codex strict isolation contract",
                 "Gormes auth add bedrock open-question planning note",
                 "Gormes top-level logout provider shortcut",
-                "Gormes login deprecated-redirect contract",
+                "Gormes login removed-command typo suggestion contract",
                 "Gormes model interactive provider/model picker",
                 "Gormes setup minimal sectioned wizard slice",
                 "Gormes uninstall dry-run command contract",
                 "Gormes mcp login OAuth re-auth bridge"
               ],
-              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, deprecated login redirect, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login bridge). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. Do not assign this umbrella row directly."
+              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, login removed-command typo suggestion, profile command binding, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login interface seam + noninteractive default, mcp login browser callback flow, model and profile selector seam). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. The 2026-04-29 omnibus update renamed the prior `Gormes login deprecated-redirect contract` row to `Gormes login removed-command typo suggestion contract` (Q1B decision: typo guide via Cobra unknown-command, not a deprecated subparser shim) and renamed the prior `Gormes mcp login OAuth re-auth bridge` to a split pair (`Gormes mcp login interface seam + noninteractive default` and `Gormes mcp login browser callback flow`). Do not assign this umbrella row directly."
             },
             {
               "name": "Gormes auth bare interactive credential-pool readout",
@@ -20348,10 +20348,8 @@
                 "A builder treats this row as an implementation row instead of a planner-owned open-question note.",
                 "The row is closed without an explicit decision recorded for whether `gormes auth add bedrock` is supported, refused, or deferred."
               ],
-              "unblocks": [
-                "Gormes auth bedrock binding follow-up (deferred)"
-              ],
-              "note": "Open-question planning note (no contract, no test_commands). Auditor surprise (c): Hermes' `auth add bedrock` has no handler at all — Bedrock surfaces only in the bare-`auth` Bedrock STS print path which depends on optional `boto3` (`hermes_cli/auth_commands.py:457-476`). The catch-all at `auth_commands.py:336` rejects `--type oauth`, and `auth_type=aws_sdk` bypasses the API-key handler. Gormes default decision (planner): match the Hermes gap — `gormes auth add bedrock` must refuse with bedrock_use_aws_sdk_chain evidence pointing operators to AWS env vars / profile / SSO. A future `Gormes auth bedrock binding follow-up (deferred)` row may revisit closing the gap with `gormes auth add bedrock --profile <name>` over the existing 8345 SigV4 seam, but that work is intentionally not part of the initial Phase 5.O auth split. TODO: confirm with operator before promoting the deferred row to planned status.",
+              "unblocks": [],
+              "note": "Open-question planning note (no contract, no test_commands). Auditor surprise (c): Hermes' `auth add bedrock` has no handler at all — Bedrock surfaces only in the bare-`auth` Bedrock STS print path which depends on optional `boto3` (`hermes_cli/auth_commands.py:457-476`). The catch-all at `auth_commands.py:336` rejects `--type oauth`, and `auth_type=aws_sdk` bypasses the API-key handler. Gormes default decision (planner): match the Hermes gap — `gormes auth add bedrock` must refuse with bedrock_use_aws_sdk_chain evidence pointing operators to AWS env vars / profile / SSO. Decision 2026-04-29: A — match Hermes gap permanently. The deferred Gormes-owned binding follow-up row will not be added unless Hermes upstream adds hermes auth add bedrock.",
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/auth_commands.py:336 catch-all + auth_commands.py:457-476 bedrock STS",
@@ -20395,7 +20393,7 @@
                 "Hermes auth command-tree manifest refresh"
               ],
               "unblocks": [
-                "Gormes login deprecated-redirect contract"
+                "Gormes login removed-command typo suggestion contract"
               ],
               "acceptance": [
                 "TestLogoutTopLevelAcceptsAllowedProviders proves `--provider nous`, `--provider openai-codex`, and `--provider spotify` each invoke the shared logout helper and clear only the named provider's auth state.",
@@ -20426,35 +20424,36 @@
               }
             },
             {
-              "name": "Gormes login deprecated-redirect contract",
+              "name": "Gormes login removed-command typo suggestion contract",
               "status": "planned",
               "priority": "P2",
-              "contract": "`gormes login` is registered as a deprecated subparser that accepts every legacy flag (`--provider {nous,openai-codex}`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`) without argparse-style errors, performs no OAuth work, prints a deterministic three-line deprecation message redirecting to `gormes auth`, `gormes model`, and `gormes setup`, and exits 0. It must follow the typo-suggestion pattern (parity with `gormes migrate ooenclaw -> gormes migrate openclaw`), not a silent alias.",
+              "contract": "`gormes login` is NOT registered as a Cobra command. When an operator types `gormes login` (with or without legacy flags such as `--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`), Cobra surfaces unknown-command, and Gormes emits a deterministic suggestion `did you mean \"gormes auth add <provider> --type oauth\"?` (parallel to the `gormes migrate ooenclaw -> gormes migrate openclaw` typo-suggestion contract). The legacy Hermes `--provider` flag set is recognized contextually in the suggestion message but not parsed.",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Unknown legacy flag values are accepted silently (the entire flag set is no-op); `--help` prints the deprecation message and the parser shape so old scripts can detect the redirect; downstream invocation parsers continue to resolve real subcommands without interference.",
-              "fixture": "cmd/gormes/login_deprecated_test.go",
+              "degraded_mode": "`unknown_command_login_suggested_auth_add` typed evidence is emitted; the suggestion redacts any provider name strings that could leak through if the operator passed `--provider <secret>`-shaped tokens; downstream invocation parsers continue to resolve real subcommands without interference.",
+              "fixture": "cmd/gormes/login_typo_suggestion_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/auth.py:3848-3853:login_command",
                 "../hermes-agent/hermes_cli/main.py:8186-8227:login_parser",
                 "cmd/gormes/main.go:newRootCommandWithRuntime",
+                "cmd/gormes/hermes_cli_parity.go:55",
                 "internal/cli/typo_suggestions.go",
                 "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
               ],
               "ready_when": [
-                "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/deprecated guidance.",
-                "Gormes top-level logout provider shortcut row defines the parallelism between deprecated `login` and live `logout`.",
+                "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/excluded guidance (parity manifest line 55 already encodes this with hermesCLIExcluded).",
+                "Gormes top-level logout provider shortcut row defines the parallelism between removed `login` and live `logout`.",
                 "Tests can capture stdout/stderr from a Cobra invocation; no live OAuth or provider network is required."
               ],
               "not_ready_when": [
-                "The slice silently aliases `gormes login` to any of `gormes auth`, `gormes model`, or `gormes setup` (parity rule: never silent).",
-                "The slice rejects legacy flags with argparse-style errors instead of accepting them as no-ops (would break old shell scripts).",
+                "The slice registers a Cobra command named \"login\" instead of relying on Cobra's unknown-command path.",
+                "The slice silently aliases gormes login to gormes auth add without a deterministic suggestion message.",
                 "The slice performs OAuth work, opens browsers, contacts portal_url, or mutates auth.json.",
-                "The deprecation message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
+                "The suggestion message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
               ],
               "blocked_by": [
                 "Hermes auth command-tree manifest refresh",
@@ -20464,31 +20463,33 @@
                 "Gormes model interactive provider/model picker"
               ],
               "acceptance": [
-                "TestLoginDeprecatedAcceptsLegacyFlags proves `gormes login --provider openai-codex --client-id x --no-browser --timeout 30` exits 0 with no Cobra unknown-flag error.",
-                "TestLoginDeprecatedPrintsRedirectMessage proves stdout matches the exact three-line deprecation envelope: `(1) The 'gormes login' command has been removed.`, `(2) Use 'gormes auth' to manage credentials,`, `(3) 'gormes model' to select a provider, or 'gormes setup' for full setup.` (byte-equal).",
-                "TestLoginDeprecatedDoesNotPerformOAuth proves a fake OAuth transport is never invoked and no auth.json mutation occurs even with valid `--client-id`.",
-                "TestLoginDeprecatedTypoSuggestionParity proves the deprecation pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, exit 0, no silent execution of the suggested command.",
-                "TestLoginDeprecatedHelpShowsParserShape proves `gormes login --help` prints the legacy flag set so old scripts can introspect the redirect."
+                "TestGormesLoginUnknownCommandEmitsTypoSuggestion proves `gormes login` returns a non-zero exit with the deterministic suggestion message `did you mean \"gormes auth add <provider> --type oauth\"?`.",
+                "TestGormesLoginWithProviderFlagsEmitsSuggestion proves `gormes login --provider openai-codex` produces the same suggestion (the legacy flags are recognized contextually in the suggestion text, not parsed by Cobra).",
+                "TestGormesLoginIsNotRegisteredAsCobraCommand proves `cobra.Command.Find` for `login` returns unknown — there is no registered `login` subcommand on the root.",
+                "TestGormesLoginSuggestionParityWithMigrateTypo proves the suggestion pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, no silent execution of the suggested command, no OAuth side effects.",
+                "TestGormesLoginSuggestionRedactsProviderArgValues proves no fixture provider-name string passed via `--provider <value>` leaks into stdout/stderr beyond the literal suggestion template."
               ],
-              "note": "Encodes auditor surprise (f): Hermes deliberately registers the deprecated parser with all old flags so `hermes login --provider openai-codex` exits cleanly with the deprecation message rather than an argparse error. Gormes must replicate that shim. Parity rule with `gormes migrate ooenclaw`: never silent, always explicit redirect.",
+              "note": "Encodes the Q1B decision (typo guide, not deprecation shim): rather than registering a deprecated `login` subparser that accepts the legacy flag set, Gormes leans on Cobra's unknown-command path and emits the same kind of typo suggestion already used for `gormes migrate ooenclaw -> gormes migrate openclaw`. Manifest line 55 in `cmd/gormes/hermes_cli_parity.go` already classifies `login` as `hermesCLIExcluded`; this row is the operator-facing typo-suggestion contract that closes the parity loop without resurrecting a deprecated subparser. Parallel pattern: the `migrate ooenclaw` row in the parity manifest (line 92).",
               "write_scope": [
-                "cmd/gormes/login.go",
-                "cmd/gormes/login_deprecated_test.go",
+                "cmd/gormes/login_typo_suggestion_test.go",
                 "cmd/gormes/main.go",
+                "internal/cli/typo_suggestions.go",
+                "internal/cli/typo_suggestions_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestLoginDeprecated' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesLogin' -count=1",
+                "go test ./internal/cli -run '^TestTypoSuggestion' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Deprecated-login fixtures prove legacy-flag acceptance without argparse error, byte-equal three-line redirect message, no OAuth side effects, typo-suggestion parity, and help-text parser-shape disclosure."
+                "Login typo-suggestion fixtures prove no Cobra `login` registration, deterministic unknown-command suggestion message with and without legacy `--provider` tokens, parity with `migrate ooenclaw`, and provider-arg-value redaction."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:hermes_cli/auth.py:3848-3853 login_command + main.py:8186-8227 login_parser shim",
-                "note": "Hermes keeps the deprecated parser as a deliberate shim so legacy scripts get a clean redirect; Gormes mirrors the shim and adopts the typo-suggestion parity rule."
+                "upstream_ref": "hermes:hermes_cli/auth.py:3848-3853 login_command + main.py:8186-8227 login_parser shim (Q1B decision: do not port the shim — use Cobra unknown-command typo suggestion instead)",
+                "note": "Hermes keeps a deprecated parser as a deliberate shim; Gormes' Q1B decision is to provide a typo guide via Cobra's unknown-command path rather than register a `login` subparser. The parity rule with `gormes migrate ooenclaw` (never silent, always explicit redirect) still holds."
               }
             },
             {

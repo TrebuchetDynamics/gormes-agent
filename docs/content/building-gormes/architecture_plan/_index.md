@@ -721,7 +721,7 @@ classification and row-backed implementation queue.
 - [ ] Gormes auth add openai-codex strict isolation contract
 - [ ] Gormes auth add bedrock open-question planning note
 - [ ] Gormes top-level logout provider shortcut
-- [ ] Gormes login deprecated-redirect contract
+- [ ] Gormes login removed-command typo suggestion contract
 - [ ] Gormes model interactive provider/model picker
 - [ ] Gormes setup minimal sectioned wizard slice
 - [ ] Gormes uninstall dry-run command contract

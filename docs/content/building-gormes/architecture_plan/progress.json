@@ -20348,10 +20348,8 @@
                 "A builder treats this row as an implementation row instead of a planner-owned open-question note.",
                 "The row is closed without an explicit decision recorded for whether `gormes auth add bedrock` is supported, refused, or deferred."
               ],
-              "unblocks": [
-                "Gormes auth bedrock binding follow-up (deferred)"
-              ],
-              "note": "Open-question planning note (no contract, no test_commands). Auditor surprise (c): Hermes' `auth add bedrock` has no handler at all — Bedrock surfaces only in the bare-`auth` Bedrock STS print path which depends on optional `boto3` (`hermes_cli/auth_commands.py:457-476`). The catch-all at `auth_commands.py:336` rejects `--type oauth`, and `auth_type=aws_sdk` bypasses the API-key handler. Gormes default decision (planner): match the Hermes gap — `gormes auth add bedrock` must refuse with bedrock_use_aws_sdk_chain evidence pointing operators to AWS env vars / profile / SSO. A future `Gormes auth bedrock binding follow-up (deferred)` row may revisit closing the gap with `gormes auth add bedrock --profile <name>` over the existing 8345 SigV4 seam, but that work is intentionally not part of the initial Phase 5.O auth split. TODO: confirm with operator before promoting the deferred row to planned status.",
+              "unblocks": [],
+              "note": "Open-question planning note (no contract, no test_commands). Auditor surprise (c): Hermes' `auth add bedrock` has no handler at all — Bedrock surfaces only in the bare-`auth` Bedrock STS print path which depends on optional `boto3` (`hermes_cli/auth_commands.py:457-476`). The catch-all at `auth_commands.py:336` rejects `--type oauth`, and `auth_type=aws_sdk` bypasses the API-key handler. Gormes default decision (planner): match the Hermes gap — `gormes auth add bedrock` must refuse with bedrock_use_aws_sdk_chain evidence pointing operators to AWS env vars / profile / SSO. Decision 2026-04-29: A — match Hermes gap permanently. The deferred Gormes-owned binding follow-up row will not be added unless Hermes upstream adds hermes auth add bedrock.",
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/auth_commands.py:336 catch-all + auth_commands.py:457-476 bedrock STS",
