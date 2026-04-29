@@ -22,5 +22,7 @@ Use this page when choosing implementation work. If a row is too broad, split
 the row in `progress.json` before assigning it.
 
 <!-- PROGRESS:START kind=next-slices -->
-_No contract-ready progress rows are available._
+| Phase | Slice | Contract | Trust class | Fixture | Why now |
+|---|---|---|---|---|---|
+| 4 / 4.G | Multi-account auth | Gormes exposes a provider-neutral multi-account credential-pool helper that can load persisted credential records, select an available credential by Hermes-compatible strategy, mark an active credential exhausted with redacted evidence, and rotate without reading live provider tokens or contacting provider/keychain services. | operator, system | `internal/config/credential_pool_test.go` | P0 handoff; needs contract proof before closeout. |
 <!-- PROGRESS:END -->

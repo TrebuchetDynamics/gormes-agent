@@ -10565,16 +10565,75 @@
             {
               "name": "Multi-account auth",
               "status": "planned",
-              "note": "TDD: port `agent/credential_pool.py` account selection and rotation semantics with fake credential records before any provider adapter relies on account pools.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "priority": "P0",
+              "contract": "Gormes exposes a provider-neutral multi-account credential-pool helper that can load persisted credential records, select an available credential by Hermes-compatible strategy, mark an active credential exhausted with redacted evidence, and rotate without reading live provider tokens or contacting provider/keychain services.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Empty pools, exhausted credentials, invalid strategy names, corrupt records, and unsafe credential payloads return structured redacted evidence while preserving the persisted pool for operator recovery.",
+              "fixture": "internal/config/credential_pool_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/credential_pool.py:PooledCredential,CredentialPool.select,mark_exhausted_and_rotate,acquire_lease,release_lease,reset_statuses",
+                "../hermes-agent/agent/credential_pool.py:get_pool_strategy,_exhausted_until,_normalize_error_context",
+                "../hermes-agent/hermes_cli/auth.py:read_credential_pool,write_credential_pool",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:provider routing and credential parity",
+                "internal/config/token_vault.go"
+              ],
+              "ready_when": [
+                "Token vault is complete and provides XDG/profile-scoped credential-file safety; this slice may share internal/config profile/path helpers but must not mount or read live secrets.",
+                "The builder can model credential records with neutral placeholder tokens in temp HOME/HERMES_HOME/XDG fixtures only.",
+                "The first public seam is a pure Go helper for pool persistence, selection, exhaustion cooldown, and lease accounting; provider-specific refresh flows stay in later rows."
+              ],
+              "not_ready_when": [
+                "The slice imports, launches, shells out to, or calls hermes-agent runtime services instead of porting the contract natively in Go.",
+                "Tests read Juan's live ~/.hermes auth.json/config.yaml, platform keychains, Claude/Codex credential files, or make provider/network calls.",
+                "The implementation wires Anthropic, Codex, Nous, OpenRouter, or Google refresh/auth flows instead of only creating provider-neutral pool semantics.",
+                "Error/status evidence prints access_token, refresh_token, API key bytes, host secret paths, or raw provider payloads."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Anthropic OAuth/keychain credential discovery",
+                "Codex OAuth state + stale-token relogin",
+                "Provider auth selection for native gateway turns"
+              ],
+              "acceptance": [
+                "TestCredentialPoolLoadRoundTrip stores and reloads neutral credential records under a temp Hermes profile while redacting token-bearing fields from status evidence.",
+                "TestCredentialPoolSelectStrategies proves fill_first, round_robin, least_used, and random strategies select only non-exhausted records with deterministic fixtures for non-random paths.",
+                "TestCredentialPoolExhaustedCooldownAndRotate marks the current credential exhausted with reason/code/reset_at metadata, skips it until the cooldown expires, then rotates to the next available credential.",
+                "TestCredentialPoolLeaseAccounting proves acquire/release prefers the least-leased available credential and never exceeds the soft cap when another credential is below cap.",
+                "TestCredentialPoolCorruptStoreEvidence preserves the corrupt pool file and returns credential_pool_corrupt or credential_pool_empty evidence without leaking file contents or secret-looking fields."
+              ],
+              "note": "Planner split: replace the former inventory-only multi-account-auth placeholder with a builder-ready provider-neutral credential-pool helper slice. This is intentionally narrower than provider-specific OAuth refresh or keychain discovery; it ports Hermes account selection/rotation semantics with temp fixtures only so later Anthropic/Codex rows have a safe native pool seam.",
+              "write_scope": [
+                "internal/config/credential_pool.go",
+                "internal/config/credential_pool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run '^TestCredentialPool' -count=1",
+                "go test ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Credential-pool fixtures prove native provider-neutral load/select/exhaust/rotate/lease behavior with redacted evidence and no live credential/provider access."
+              ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-29T06:20:00Z",
+                "last_outcome": "builder_ready"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes-agent/agent/credential_pool.py",
+                  "go-agent-os audit Row A native runtime/provider wiring prerequisite"
+                ],
+                "note": "Plans the provider-neutral pool seam required before wiring provider-specific OAuth refresh and live native gateway account failover."
+              }
             },
             {
               "name": "Google OAuth flow + refresh seam",
