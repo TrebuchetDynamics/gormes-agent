@@ -91,23 +91,6 @@ var CommandRegistry = []CommandDef{
 
 var commandLookup = buildCommandLookup()
 
-var recognizedUnavailableCommands = []PlatformCommand{
-	{Name: "retry", Description: "Retry the last turn (not yet implemented)"},
-	{Name: "undo", Description: "Undo the last action (not yet implemented)"},
-	{Name: "title", Description: "Set or show the session title (not yet implemented)"},
-	{Name: "branch", Description: "Show or switch branches (not yet implemented)"},
-	{Name: "compress", Description: "Compress session context (not yet implemented)"},
-	{Name: "rollback", Description: "Rollback recent changes (not yet implemented)"},
-	{Name: "snapshot", Description: "Create a session snapshot (not yet implemented)"},
-	{Name: "approve", Description: "Approve a pending action (not yet implemented)"},
-	{Name: "deny", Description: "Deny a pending action (not yet implemented)"},
-	{Name: "background", Description: "Send a turn to background work (not yet implemented)"},
-	{Name: "btw", Description: "Add side guidance to the active turn (not yet implemented)"},
-	{Name: "agents", Description: "List or manage agents (not yet implemented)"},
-	{Name: "queue", Description: "Show queued work (not yet implemented)"},
-	{Name: "status", Description: "Show gateway status (not yet implemented)"},
-}
-
 var recognizedUnavailableSlashCommands = buildRecognizedUnavailableSlashCommands()
 
 func buildCommandLookup() map[string]CommandDef {
@@ -122,9 +105,15 @@ func buildCommandLookup() map[string]CommandDef {
 }
 
 func buildRecognizedUnavailableSlashCommands() map[string]struct{} {
-	lookup := make(map[string]struct{}, len(recognizedUnavailableCommands))
-	for _, cmd := range recognizedUnavailableCommands {
+	lookup := make(map[string]struct{}, len(CommandRegistry))
+	for _, cmd := range CommandRegistry {
+		if cmd.ActiveTurnPolicy != CommandActiveTurnPolicyUnavailable {
+			continue
+		}
 		lookup[slashCommandName(cmd.Name)] = struct{}{}
+		for _, alias := range cmd.Aliases {
+			lookup[slashCommandName(alias)] = struct{}{}
+		}
 	}
 	return lookup
 }
@@ -190,18 +179,10 @@ func gatewayHelpText() string {
 }
 
 // TelegramBotCommands returns the canonical Telegram command menu in registry
-// order, followed by recognized Hermes commands that are safe to expose but not
-// implemented in this build. Aliases are intentionally excluded from the menu
-// surface.
+// order. Aliases are intentionally excluded from the menu surface.
 func TelegramBotCommands() []PlatformCommand {
-	out := make([]PlatformCommand, 0, len(CommandRegistry)+len(recognizedUnavailableCommands))
+	out := make([]PlatformCommand, 0, len(CommandRegistry))
 	for _, cmd := range CommandRegistry {
-		out = append(out, PlatformCommand{
-			Name:        strings.ReplaceAll(cmd.Name, "-", "_"),
-			Description: cmd.Description,
-		})
-	}
-	for _, cmd := range recognizedUnavailableCommands {
 		out = append(out, PlatformCommand{
 			Name:        strings.ReplaceAll(cmd.Name, "-", "_"),
 			Description: cmd.Description,

@@ -17,7 +17,7 @@ func FormatStreamPlain(f kernel.RenderFrame) string {
 	if len(f.SoulEvents) > 0 {
 		last := f.SoulEvents[len(f.SoulEvents)-1]
 		if last.Text != "" && last.Text != "idle" {
-			tail = "\n\n🔧 " + last.Text
+			tail = "\n\n" + formatToolTracePlain(last.Text)
 		}
 	}
 	if f.Phase == kernel.PhaseReconnecting {
@@ -53,7 +53,7 @@ func FormatStreamTelegram(f kernel.RenderFrame) string {
 	if len(f.SoulEvents) > 0 {
 		last := f.SoulEvents[len(f.SoulEvents)-1]
 		if last.Text != "" && last.Text != "idle" {
-			tail = "\n\n_" + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "🔧 "+last.Text) + "_"
+			tail = "\n\n_" + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, formatToolTracePlain(last.Text)) + "_"
 		}
 	}
 	if f.Phase == kernel.PhaseReconnecting {
@@ -79,6 +79,51 @@ func FormatErrorTelegram(f kernel.RenderFrame) string {
 		text = "❌ cancelled"
 	}
 	return truncate(tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, text))
+}
+
+func formatToolTracePlain(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	if strings.HasPrefix(text, "tool: ") {
+		payload := strings.TrimSpace(strings.TrimPrefix(text, "tool: "))
+		name, arg, ok := strings.Cut(payload, ":")
+		if ok {
+			name = strings.TrimSpace(name)
+			arg = strings.TrimSpace(arg)
+			return toolTraceIcon(name) + " " + name + ": " + quoteAndTruncate(arg, 96)
+		}
+	}
+	return "🔧 " + text
+}
+
+func toolTraceIcon(name string) string {
+	switch strings.TrimSpace(name) {
+	case "memory", "honcho_context", "honcho_search", "honcho_profile", "honcho_conclude", "session_search":
+		return "🧠"
+	case "search_files", "browser_navigate", "browser_snapshot", "web_search":
+		return "🔎"
+	case "read_file":
+		return "📖"
+	case "patch", "write_file":
+		return "🔧"
+	case "terminal", "execute_code", "process":
+		return "🖥"
+	default:
+		return "🔧"
+	}
+}
+
+func quoteAndTruncate(s string, limit int) string {
+	s = strings.ReplaceAll(strings.TrimSpace(s), "\n", " ")
+	if limit > 0 {
+		runes := []rune(s)
+		if len(runes) > limit {
+			s = string(runes[:limit-1]) + "…"
+		}
+	}
+	return `"` + s + `"`
 }
 
 func sanitizeProviderErrorText(s string) string {

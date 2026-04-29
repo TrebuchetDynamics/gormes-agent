@@ -275,6 +275,8 @@ func mapGatewayPolicyToCLI(p gateway.CommandActiveTurnPolicy) ActiveTurnPolicy {
 		return ActiveTurnPolicyBypass
 	case gateway.CommandActiveTurnPolicyReject:
 		return ActiveTurnPolicyBusyReject
+	case gateway.CommandActiveTurnPolicyUnavailable:
+		return ActiveTurnPolicyUnavailable
 	}
 	return ""
 }

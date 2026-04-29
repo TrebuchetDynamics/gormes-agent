@@ -16,16 +16,19 @@ func TestFormatStreamPlain_DraftPassThrough(t *testing.T) {
 	}
 }
 
-func TestFormatStreamPlain_IncludesSoulLine(t *testing.T) {
+func TestFormatStreamPlain_IncludesHermesStyleToolTrace(t *testing.T) {
 	f := kernel.RenderFrame{
 		DraftText: "draft",
 		SoulEvents: []kernel.SoulEntry{
-			{At: time.Now(), Text: "running tool foo"},
+			{At: time.Now(), Text: "tool: search_files: Approval mode config normalization"},
 		},
 	}
 	got := FormatStreamPlain(f)
-	if !strings.Contains(got, "draft") || !strings.Contains(got, "running tool foo") {
-		t.Errorf("FormatStreamPlain = %q", got)
+	if !strings.Contains(got, "draft") {
+		t.Fatalf("FormatStreamPlain lost draft body: %q", got)
+	}
+	if !strings.Contains(got, `🔎 search_files: "Approval mode config normalization"`) {
+		t.Fatalf("FormatStreamPlain = %q, want Hermes-style search_files trace", got)
 	}
 }
 
