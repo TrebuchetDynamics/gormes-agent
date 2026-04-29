@@ -22,7 +22,5 @@ Use this page when choosing implementation work. If a row is too broad, split
 the row in `progress.json` before assigning it.
 
 <!-- PROGRESS:START kind=next-slices -->
-| Phase | Slice | Contract | Trust class | Fixture | Why now |
-|---|---|---|---|---|---|
-| 2 / 2.F.4 | Home channel ownership resolver fixtures | Add a channel-neutral home-channel ownership resolver for platform-only delivery targets. The resolver must prefer an explicit target chat/thread, then a Hermes-compatible per-platform home_channel.chat_id/thread/name setting bridged through Gormes config, then a discovery/pairing-owned source only when discovery is explicitly enabled for that platform. It must be callable by delivery routing without Telegram-specific branches and must preserve explicit endpoint/source routing semantics. | operator, gateway | `internal/gateway/home_channel_resolver_test.go with temp config structs and fake SessionSource records only; no live platform SDK or Hermes runtime service.` | P0 handoff; needs contract proof before closeout. |
+_No contract-ready progress rows are available._
 <!-- PROGRESS:END -->

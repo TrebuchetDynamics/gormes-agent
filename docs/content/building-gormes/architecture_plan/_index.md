@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 44/78 subphases shipped · 24 in progress · 10 planned
+**Overall:** 44/78 subphases shipped · 25 in progress · 9 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -278,9 +278,9 @@ classification and row-backed implementation queue.
 - [x] Session expiry hook cleanup retry evidence
 - [x] Channel lifecycle writers into status model
 
-### 2.F.4 — Home Channel + Operator Surfaces ⏳
+### 2.F.4 — Home Channel + Operator Surfaces 🔨
 
-- [ ] Home channel ownership resolver fixtures
+- [x] Home channel ownership resolver fixtures
 - [ ] Notify-to delivery routing
 - [ ] Channel directory atomic persistence + lookup
 - [ ] Channel directory refresh + stale-target invalidation
