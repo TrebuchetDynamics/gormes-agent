@@ -14993,9 +14993,9 @@
             {
               "name": "Background review toolset restriction",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Background review workers run with an explicit allowlist limited to memory and skills toolsets, deny executable/file/network toolsets by default, and surface restriction evidence in review telemetry",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -15030,7 +15030,7 @@
                 "TestBackgroundReviewToolsetRestriction_TelemetryIncludesEvidence proves review telemetry/status includes the allowlist and denied toolset names without prompt content.",
                 "Foreground subagent policy fixtures remain unchanged."
               ],
-              "note": "Added after Hermes 8ad29a93 restricted background review agents to memory and skills. Gormes should make the background review policy explicit before review automation gains broader tool access.",
+              "note": "Complete: TDD added internal/subagent/background_review_toolset.go and internal/subagent/background_review_toolset_test.go. Locked invariants: BackgroundReviewToolsetConfig is a positive allowlist of memory+skills only; CheckToolset returns background_review_toolset_restricted for execute_code/shell/browser/file_write/provider_management plus any unknown toolset and background_review_toolset_unavailable for empty/whitespace names; Telemetry never embeds prompt content (PromptContent always empty, String() omits the prompt body) and surfaces sorted allowlist plus deduped/sorted denied toolset names; AllowedToolsets returns a defensive copy so callers cannot mutate the policy; foreground subagent BlockedTools and runner allowlist behaviour are untouched.",
               "write_scope": [
                 "internal/subagent/background_review_toolset.go",
                 "internal/subagent/background_review_toolset_test.go",
