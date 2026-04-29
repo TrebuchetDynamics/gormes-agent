@@ -79,6 +79,7 @@ type gatewayChannelFactories struct {
 	Telegram gatewayChannelFactory
 	Discord  gatewayChannelFactory
 	Slack    gatewayChannelFactory
+	Yuanbao  gatewayChannelFactory
 }
 
 func runGateway(cmd *cobra.Command, _ []string) error {
@@ -86,8 +87,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
-	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled {
-		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], or [slack] in config.toml")
+	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Yuanbao.Enabled {
+		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 	}
 
 	smap, err := session.OpenBolt(config.SessionDBPath())
@@ -154,7 +155,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if registeredChannels == 0 {
-		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], or [slack] in config.toml")
+		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 	}
 
 	go k.Run(rootCtx)
@@ -200,6 +201,9 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 		},
 		Slack: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
 			return slack.NewChannel(slack.NewRealClient(cfg.Slack.BotToken, cfg.Slack.AppToken), log), nil
+		},
+		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
+			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
 		},
 	}
 }
@@ -291,35 +295,64 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 		log.Info("gateway: discord channel enabled", "allowed_channel_id", cfg.Discord.AllowedChannelID)
 	}
 
-	if !cfg.Slack.Enabled {
-		return registered, nil
-	}
-	if cfg.Slack.AllowedChannelID != "" {
-		allowedChats["slack"] = cfg.Slack.AllowedChannelID
-	}
-	allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
+	if cfg.Slack.Enabled {
+		if cfg.Slack.AllowedChannelID != "" {
+			allowedChats["slack"] = cfg.Slack.AllowedChannelID
+		}
+		allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
 
-	if missing := missingSlackCredentials(cfg.Slack); len(missing) > 0 {
-		errText := "slack: missing " + strings.Join(missing, ",")
-		writeGatewayChannelDegraded(status, "slack", errText)
-		log.Warn("gateway: slack channel disabled by missing credentials", "missing", strings.Join(missing, ","))
-		return registered, nil
+		if missing := missingSlackCredentials(cfg.Slack); len(missing) > 0 {
+			errText := "slack: missing " + strings.Join(missing, ",")
+			writeGatewayChannelDegraded(status, "slack", errText)
+			log.Warn("gateway: slack channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+		} else {
+			if factories.Slack == nil {
+				return registered, fmt.Errorf("register slack: missing channel factory")
+			}
+			ch, err := factories.Slack(cfg, log)
+			if err != nil {
+				errText := "slack: startup failed: " + err.Error()
+				writeGatewayChannelDegraded(status, "slack", errText)
+				log.Warn("gateway: slack channel startup failed", "err", err)
+			} else {
+				if err := mgr.Register(ch); err != nil {
+					return registered, fmt.Errorf("register slack: %w", err)
+				}
+				registered++
+				log.Info("gateway: slack channel enabled", "allowed_channel_id", cfg.Slack.AllowedChannelID)
+			}
+		}
 	}
-	if factories.Slack == nil {
-		return registered, fmt.Errorf("register slack: missing channel factory")
+
+	if cfg.Yuanbao.Enabled {
+		if cfg.Yuanbao.AllowedConversationID != "" {
+			allowedChats["yuanbao"] = cfg.Yuanbao.AllowedConversationID
+		}
+		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
+
+		if missing := cfg.Yuanbao.MissingCredentials(); len(missing) > 0 {
+			errText := "yuanbao: missing " + strings.Join(missing, ",")
+			writeGatewayChannelDegraded(status, "yuanbao", errText)
+			log.Warn("gateway: yuanbao channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+			return registered, nil
+		}
+		if factories.Yuanbao == nil {
+			return registered, fmt.Errorf("register yuanbao: missing channel factory")
+		}
+		ch, err := factories.Yuanbao(cfg, log)
+		if err != nil {
+			errText := "yuanbao: startup failed: " + err.Error()
+			writeGatewayChannelDegraded(status, "yuanbao", errText)
+			log.Warn("gateway: yuanbao channel startup failed", "err", err)
+			return registered, nil
+		}
+		if err := mgr.Register(ch); err != nil {
+			return registered, fmt.Errorf("register yuanbao: %w", err)
+		}
+		registered++
+		log.Info("gateway: yuanbao channel enabled", "allowed_conversation_id", cfg.Yuanbao.AllowedConversationID)
 	}
-	ch, err := factories.Slack(cfg, log)
-	if err != nil {
-		errText := "slack: startup failed: " + err.Error()
-		writeGatewayChannelDegraded(status, "slack", errText)
-		log.Warn("gateway: slack channel startup failed", "err", err)
-		return registered, nil
-	}
-	if err := mgr.Register(ch); err != nil {
-		return registered, fmt.Errorf("register slack: %w", err)
-	}
-	registered++
-	log.Info("gateway: slack channel enabled", "allowed_channel_id", cfg.Slack.AllowedChannelID)
+
 	return registered, nil
 }
 

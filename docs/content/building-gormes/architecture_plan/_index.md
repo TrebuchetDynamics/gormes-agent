@@ -866,7 +866,7 @@ classification and row-backed implementation queue.
 - [x] DingTalk media (image/file) attachment routing
 - [x] Yuanbao protocol envelope + markdown fixtures
 - [x] Yuanbao media/sticker attachment normalization
-- [ ] Yuanbao gateway runtime + toolset registration
+- [x] Yuanbao gateway runtime + toolset registration
 - [ ] QQ Bot transport/bootstrap layer
 
 <!-- PROGRESS:END -->

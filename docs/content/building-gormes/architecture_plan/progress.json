@@ -23165,9 +23165,9 @@
             {
               "name": "Yuanbao gateway runtime + toolset registration",
               "priority": "P4",
-              "status": "planned",
+              "status": "complete",
               "contract": "Yuanbao runtime registration exposes a disabled-by-default gateway platform and toolset surface over the existing shared gateway manager without widening default enabled tools",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -23207,7 +23207,7 @@
                 "Fake runtime fixtures prove inbound normalized events enter the shared gateway manager and outbound sends call a fake Yuanbao client without live network access.",
                 "Toolset fixtures expose Yuanbao-specific tools only when the platform is enabled and do not add them to default CLI/cron toolsets."
               ],
-              "note": "Final Yuanbao planning slice for the current upstream drift. It keeps runtime registration behind fake clients and disabled-by-default config after protocol/media fixtures, matching Gormes' thin-adapter policy.",
+              "note": "Complete: TDD added internal/config/yuanbao_config.go (disabled-by-default YuanbaoCfg with credential redaction), internal/channels/yuanbao/runtime.go (Channel + Client seam over the shared gateway), platform-scoped yuanbao toolset routing in internal/cli/toolset_config.go, and Yuanbao registration in cmd/gormes/gateway.go. Locked invariants: Yuanbao stays disabled by default and surfaces missing_login_token/hy_source/agent_id evidence; the shared registerConfiguredGatewayChannels rejects live transport (yuanbao_runtime_unavailable) until a future slice; the yuanbao toolset is rejected outside platform=yuanbao and never enters defaultRuntimeToolsets; the runtime fixture proves fake-client inbound delivery and outbound Send through the shared Manager without any live network call.",
               "write_scope": [
                 "internal/channels/yuanbao/",
                 "internal/config/",

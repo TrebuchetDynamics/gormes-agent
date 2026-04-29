@@ -34,6 +34,7 @@ type Config struct {
 	Telegram   TelegramCfg   `toml:"telegram"`
 	Discord    DiscordCfg    `toml:"discord"`
 	Slack      SlackCfg      `toml:"slack"`
+	Yuanbao    YuanbaoCfg    `toml:"yuanbao"`
 	Cron       CronCfg       `toml:"cron"`
 	Skills     SkillsCfg     `toml:"skills"`
 	Delegation DelegationCfg `toml:"delegation"`
