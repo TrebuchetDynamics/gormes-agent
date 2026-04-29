@@ -13787,9 +13787,9 @@
           "items": [
             {
               "name": "Browser action contract + event transcript",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes freezes the native browser tool contract before binding Chromedp or Rod: action schema, page-state transcript events, screenshot/result envelope, console/content-none guards, private-URL safety handoff, oversized artifact pointer behavior, and unavailable-backend errors are represented as pure Go types and fixtures.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -13825,12 +13825,12 @@
                 "Browser provider bridge + Firecrawl fallback"
               ],
               "acceptance": [
-                "Action-schema fixtures validate navigation, click/type, screenshot, content extraction, wait, and invalid-action errors without a browser backend.",
+                "Action-schema fixtures validate navigation, click/type, snapshot, content extraction, wait, and invalid-action errors without a browser backend.",
                 "Transcript fixtures preserve page URL/title/text/console/error/screenshot metadata and handle None/empty content without panics.",
                 "Screenshot and oversized text results route through a bounded artifact pointer shape instead of embedding unbounded bytes in tool output.",
                 "Unavailable backend and private URL sidecar decisions produce typed degraded evidence and reuse the existing SSRF guard contracts."
               ],
-              "note": "Donor-backed row: Hermes defines the browser user/tool contract. Nanobot and Axe only inform artifact-pointer and bounded-result shapes; do not adopt their config or UX.",
+              "note": "Complete: TDD landed internal/tools/browser_contract.go and browser_contract_test.go. BrowserAction validation covers navigate, click/type, snapshot, extract, wait, back, and scroll without starting a browser. Result envelopes reuse FormatToolResult for bounded artifact pointers, preserve URL/title/text/console/error/screenshot state, expose unavailable-backend evidence, and reuse the SSRF/private-URL sidecar guard instead of adding a provider- or channel-specific bypass.",
               "write_scope": [
                 "internal/tools/browser_contract.go",
                 "internal/tools/browser_contract_test.go",

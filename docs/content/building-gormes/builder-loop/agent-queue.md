@@ -42,27 +42,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 2. Browser action contract + event transcript
-
-- Phase: 5 / 5.C
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes freezes the native browser tool contract before binding Chromedp or Rod: action schema, page-state transcript events, screenshot/result envelope, console/content-none guards, private-URL safety handoff, oversized artifact pointer behavior, and unavailable-backend errors are represented as pure Go types and fixtures.
-- Trust class: operator, child-agent, system
-- Ready when: Browser hybrid private-URL local sidecar routing and Browser SSRF quoted-false guard are validated on main., The worker can build pure action/result/transcript fixtures with fake screenshots and fake page state; no Chromedp, Rod, Browserbase, Firecrawl, Camofox, DNS, or live browser dependency is required.
-- Not ready when: The slice starts a browser, follows redirects, opens network connections, chooses Chromedp versus Rod, or implements provider bridges., The slice bypasses the existing private-host and quoted-false SSRF guard helpers.
-- Degraded mode: Browser status returns browser_backend_unavailable, browser_action_invalid, browser_result_truncated, or private_url_local_sidecar evidence instead of starting a browser, contacting cloud providers, or dumping screenshots/transcripts into model context.
-- Fixture: `internal/tools/browser_contract_test.go`
-- Write scope: `internal/tools/browser_contract.go`, `internal/tools/browser_contract_test.go`, `internal/tools/browser_hybrid_routing.go`, `internal/tools/browser_ssrf_guard.go`, `internal/tools/result_budget.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run 'TestBrowserContract\|TestBrowserResultEnvelope\|TestBrowserTranscript' -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`
-- Done signal: Browser contract fixtures prove action validation, transcript/result envelopes, artifact-pointer behavior, unavailable backend errors, and reuse of private-URL guard decisions without starting a browser.
-- Acceptance: Action-schema fixtures validate navigation, click/type, screenshot, content extraction, wait, and invalid-action errors without a browser backend., Transcript fixtures preserve page URL/title/text/console/error/screenshot metadata and handle None/empty content without panics., Screenshot and oversized text results route through a bounded artifact pointer shape instead of embedding unbounded bytes in tool output., Unavailable backend and private URL sidecar decisions produce typed degraded evidence and reuse the existing SSRF guard contracts.
-- Source refs: ../hermes-agent/tools/browser_tool.py, ../hermes-agent/tests/tools/test_browser_content_none_guard.py, ../hermes-agent/tests/tools/test_browser_console.py, ../hermes-agent/tests/tools/test_browser_hardening.py, ../hermes-agent/tests/tools/test_browser_hybrid_routing.py, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/axe/internal/artifact/tracker.go, internal/tools/browser_hybrid_routing.go, internal/tools/browser_ssrf_guard.go, internal/tools/result_budget.go
-- Unblocks: Chromedp, Rod, Browser provider bridge + Firecrawl fallback
-- Why now: Unblocks Chromedp, Rod, Browser provider bridge + Firecrawl fallback.
-
-## 3. Debug helpers
+## 2. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -82,7 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 4. Feishu transport/bootstrap layer
+## 3. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -102,7 +82,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 5. Tool-result pruning + protected head/tail summary
+## 4. Tool-result pruning + protected head/tail summary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -121,7 +101,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Prompt-cache capability guard
+## 5. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -140,7 +120,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Clarify
+## 6. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

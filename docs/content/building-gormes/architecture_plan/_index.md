@@ -571,7 +571,7 @@ classification and row-backed implementation queue.
 
 ### 5.C — Browser Automation 🔨
 
-- [ ] Browser action contract + event transcript
+- [x] Browser action contract + event transcript
 - [ ] Chromedp
 - [ ] Rod
 - [ ] Browser provider bridge + Firecrawl fallback
