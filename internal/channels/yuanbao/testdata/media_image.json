@@ -1,0 +1,25 @@
+[
+  {
+    "msg_type": "TIMImageElem",
+    "msg_content": {
+      "uuid": "img-uuid-001",
+      "image_format": 1,
+      "image_info_array": [
+        {
+          "type": 1,
+          "size": 204800,
+          "width": 1024,
+          "height": 768,
+          "url": "https://cos.example.com/orig/img-001.jpg"
+        },
+        {
+          "type": 2,
+          "size": 51200,
+          "width": 256,
+          "height": 192,
+          "url": "https://cos.example.com/medium/img-001.jpg"
+        }
+      ]
+    }
+  }
+]

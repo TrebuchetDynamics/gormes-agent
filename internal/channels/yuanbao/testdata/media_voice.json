@@ -1,0 +1,11 @@
+[
+  {
+    "msg_type": "TIMSoundElem",
+    "msg_content": {
+      "uuid": "voice-uuid-003",
+      "size": 32768,
+      "second": 5,
+      "url": "https://cos.example.com/voice/clip-003.amr"
+    }
+  }
+]

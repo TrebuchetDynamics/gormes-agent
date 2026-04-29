@@ -1,0 +1,13 @@
+[
+  {
+    "msg_type": "TIMTextElem",
+    "msg_content": {"text": "Have an animated one."}
+  },
+  {
+    "msg_type": "TIMFaceElem",
+    "msg_content": {
+      "index": 0,
+      "data": "{\"sticker_id\":\"999\",\"package_id\":\"1003\",\"width\":256,\"height\":256,\"formats\":\"apng\",\"name\":\"animated-cheer\"}"
+    }
+  }
+]

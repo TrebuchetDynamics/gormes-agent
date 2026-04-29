@@ -23098,9 +23098,9 @@
             {
               "name": "Yuanbao media/sticker attachment normalization",
               "priority": "P4",
-              "status": "planned",
+              "status": "complete",
               "contract": "Yuanbao image, file, voice, and sticker payloads normalize into gateway attachments with bounded metadata and explicit unavailable evidence before live downloads are enabled",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -23138,7 +23138,7 @@
                 "Oversized or malformed media metadata is rejected with yuanbao_media_unavailable evidence and keeps the text body.",
                 "No test performs network fetches or depends on real Yuanbao credentials."
               ],
-              "note": "Split after the Yuanbao protocol row: media/sticker payload shape is fixture-lockable without the platform login/send loop, and it prevents later workers from mixing binary handling with runtime registration.",
+              "note": "Complete: TDD added internal/channels/yuanbao/media.go, sticker.go, media_test.go, sticker_test.go, and testdata/{media_image,media_file,media_voice,media_missing_url,media_oversized,sticker_static,sticker_animated,sticker_malformed}.json so NormalizeMedia and NormalizeStickers lift TIM image/file/voice/face elements into gateway-neutral Attachment/Sticker descriptors with bounded metadata. Locked invariants: oversized, malformed, or URL-less media yield yuanbao_media_unavailable evidence while ExtractTextBody preserves the inbound text body; image_info_array prefers the medium variant (index 1) and SourceID always carries the TIM uuid for diagnostics; only static raster sticker formats render directly while apng/gif/lottie or unparseable face data surfaces yuanbao_sticker_unsupported instead of dropping the event; the package still imports nothing from net/http and has zero live download paths.",
               "write_scope": [
                 "internal/channels/yuanbao/media.go",
                 "internal/channels/yuanbao/media_test.go",
