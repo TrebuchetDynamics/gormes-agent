@@ -10564,10 +10564,10 @@
             },
             {
               "name": "Multi-account auth",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Gormes exposes a provider-neutral multi-account credential-pool helper that can load persisted credential records, select an available credential by Hermes-compatible strategy, mark an active credential exhausted with redacted evidence, and rotate without reading live provider tokens or contacting provider/keychain services.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -10607,7 +10607,7 @@
                 "TestCredentialPoolLeaseAccounting proves acquire/release prefers the least-leased available credential and never exceeds the soft cap when another credential is below cap.",
                 "TestCredentialPoolCorruptStoreEvidence preserves the corrupt pool file and returns credential_pool_corrupt or credential_pool_empty evidence without leaking file contents or secret-looking fields."
               ],
-              "note": "Planner split: replace the former inventory-only multi-account-auth placeholder with a builder-ready provider-neutral credential-pool helper slice. This is intentionally narrower than provider-specific OAuth refresh or keychain discovery; it ports Hermes account selection/rotation semantics with temp fixtures only so later Anthropic/Codex rows have a safe native pool seam.",
+              "note": "Complete: internal/config credential pool now stores and reloads provider-neutral credential records from fixture Hermes auth.json files, selects only available entries with fill_first, round_robin, least_used, and random strategies, marks exhausted credentials with redacted reason/code/reset_at evidence, clears expired cooldowns, tracks soft leases, and preserves corrupt stores for operator recovery. The slice uses temp Hermes profiles only and does not read live credentials, contact providers, or import hermes-agent runtime services.",
               "write_scope": [
                 "internal/config/credential_pool.go",
                 "internal/config/credential_pool_test.go",
@@ -10619,12 +10619,12 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Credential-pool fixtures prove native provider-neutral load/select/exhaust/rotate/lease behavior with redacted evidence and no live credential/provider access."
+                "Credential-pool fixtures prove native provider-neutral load/round-trip, redacted status evidence, fill_first/round_robin/least_used/random selection, exhaustion cooldown rotation, lease accounting, corrupt-store preservation, and no live credential/provider access."
               ],
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-29T06:20:00Z",
-                "last_outcome": "builder_ready"
+                "last_outcome": "validated"
               },
               "provenance": {
                 "origin_type": "upstream",
