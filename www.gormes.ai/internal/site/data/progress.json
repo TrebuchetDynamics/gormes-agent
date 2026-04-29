@@ -1841,6 +1841,80 @@
               }
             },
             {
+              "name": "Hermes prompt-builder guidance constants port (data-only, byte-equivalent)",
+              "status": "planned",
+              "priority": "P2",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system",
+                "operator"
+              ],
+              "contract": "Port the seven unbranded Hermes prompt-builder guidance constants from `../hermes-agent/agent/prompt_builder.py` to Go as exported package-level identifiers in a new file `internal/hermes/guidance_constants.go`: MEMORY_GUIDANCE -> MemoryGuidance, SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance, SKILLS_GUIDANCE -> SkillsGuidance, TOOL_USE_ENFORCEMENT_GUIDANCE -> ToolUseEnforcementGuidance, TOOL_USE_ENFORCEMENT_MODELS -> ToolUseEnforcementModels ([]string), DEVELOPER_ROLE_MODELS -> DeveloperRoleModels ([]string), WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint. Each constant must be byte-equivalent to its Hermes upstream when concatenated (Python parenthesised string literals concatenate adjacent strings into one). The slice is data-only — no wiring into live-turn prompt assembly, no provider routing change, no runtime behavior change. Subsequent slices will wire each constant into `assembleLiveTurnPrompt` gated on the relevant condition (tools loaded, model substring match, WSL detected).",
+              "contract_status": "draft",
+              "degraded_mode": "Constants are pure data; no runtime path is affected. If Hermes drifts upstream the byte-equivalence test fails loudly so a follow-up port row can land the new value.",
+              "fixture": "internal/hermes/guidance_constants_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:144-156 MEMORY_GUIDANCE",
+                "../hermes-agent/agent/prompt_builder.py:158-162 SESSION_SEARCH_GUIDANCE",
+                "../hermes-agent/agent/prompt_builder.py:164-171 SKILLS_GUIDANCE",
+                "../hermes-agent/agent/prompt_builder.py:173-186 TOOL_USE_ENFORCEMENT_GUIDANCE",
+                "../hermes-agent/agent/prompt_builder.py:190 TOOL_USE_ENFORCEMENT_MODELS",
+                "../hermes-agent/agent/prompt_builder.py:283 DEVELOPER_ROLE_MODELS",
+                "../hermes-agent/agent/prompt_builder.py:466-475 WSL_ENVIRONMENT_HINT",
+                "internal/hermes/self_help_guidance.go (existing precedent for hermes/<constant>.go file shape)"
+              ],
+              "ready_when": [
+                "Sibling repository `../hermes-agent` is checked out at the active commit so byte-equivalence tests can read the upstream source.",
+                "Tests can read `../hermes-agent/agent/prompt_builder.py` from a relative path or a fixture path injected at test time.",
+                "No live network, model call, or provider adapter is required."
+              ],
+              "not_ready_when": [
+                "The slice wires any constant into `assembleLiveTurnPrompt`, `gateway.Manager`, kernel, or any channel adapter — wiring is reserved for follow-up rows.",
+                "The slice ports DEFAULT_AGENT_IDENTITY, HERMES_AGENT_HELP_GUIDANCE (already shipped as GormesSelfHelpGuidanceForPrompt), OPENAI_MODEL_EXECUTION_GUIDANCE, GOOGLE_MODEL_OPERATIONAL_GUIDANCE, or PLATFORM_HINTS — those need explicit Gormes branding decisions or per-block adaptation rows.",
+                "The slice deviates from the upstream byte sequence for any constant (slack, missing whitespace, stripped trailing newline) — drift here would silently change a future wiring slice's prompt text.",
+                "The slice exposes the constants under names that conflict with existing internal/hermes identifiers (verify by `grep -rn` before naming)."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated)",
+                "Live-turn tool-use enforcement guidance block (model-substring gated)",
+                "Live-turn environment hints block (WSL/Termux/Docker gated)"
+              ],
+              "acceptance": [
+                "TestGuidanceConstants_MemoryGuidance_ByteEquivalent: extracts MEMORY_GUIDANCE concatenated string from `../hermes-agent/agent/prompt_builder.py` and asserts equality to `hermes.MemoryGuidance`. Use a deterministic Python concatenation reproduction (parse the parenthesised literal block) so the test is self-contained without invoking Python.",
+                "TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent: same shape for SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance.",
+                "TestGuidanceConstants_SkillsGuidance_ByteEquivalent: same shape for SKILLS_GUIDANCE -> SkillsGuidance.",
+                "TestGuidanceConstants_ToolUseEnforcementGuidance_ByteEquivalent: same shape for TOOL_USE_ENFORCEMENT_GUIDANCE -> ToolUseEnforcementGuidance.",
+                "TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream: parses the TOOL_USE_ENFORCEMENT_MODELS tuple literal from upstream and asserts equality to `hermes.ToolUseEnforcementModels` []string with deterministic order.",
+                "TestGuidanceConstants_DeveloperRoleModels_MatchesUpstream: same shape for DEVELOPER_ROLE_MODELS -> DeveloperRoleModels []string.",
+                "TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent: same shape for WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint.",
+                "TestGuidanceConstants_NoRuntimeImport: a static check (e.g. via `go vet ./internal/hermes` or a deliberate `grep` in the test) confirms guidance_constants.go imports nothing beyond stdlib — no internal/gateway, internal/kernel, internal/channels, internal/runtime, or internal/provider import."
+              ],
+              "note": "Pure parity-data slice that runs in parallel with wiring slices. Each constant becomes a building block for a future block-wiring slice in the live-turn prompt assembly umbrella. The byte-equivalence tests are the durable contract: when Hermes changes a constant upstream, our test fails and a follow-up row lands the new value. Fixtures should pin the upstream commit hash in a comment alongside each constant so divergence is auditable. Naming convention follows Go idiom (CamelCase exported names) rather than Python's UPPER_SNAKE since these are exported Go identifiers; a comment in guidance_constants.go documents the upstream Python name for grep-ability.",
+              "write_scope": [
+                "internal/hermes/guidance_constants.go",
+                "internal/hermes/guidance_constants_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run GuidanceConstants -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Seven byte-equivalence fixtures + the no-runtime-import static check pass; `internal/hermes/guidance_constants.go` exports MemoryGuidance, SessionSearchGuidance, SkillsGuidance, ToolUseEnforcementGuidance, ToolUseEnforcementModels, DeveloperRoleModels, WSLEnvironmentHint as documented; no live-turn or kernel file is modified."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:agent/prompt_builder.py module-level guidance constants",
+                "note": "Hermes ships these constants as part of the agent runtime. Gormes ports them as parity data so subsequent live-turn wiring slices can compose them into the system prompt without re-deriving the Hermes wording. DEFAULT_AGENT_IDENTITY is intentionally excluded because Gormes needs a Gormes-branded identity that is a separate parity-decision row. PLATFORM_HINTS is intentionally excluded because it overlaps with existing per-channel session-context guidance (BlueBubbles iMessage row) and warrants per-channel decisions in dedicated rows."
+              }
+            },
+            {
               "name": "BlueBubbles iMessage session-context prompt guidance",
               "priority": "P1",
               "status": "complete",
