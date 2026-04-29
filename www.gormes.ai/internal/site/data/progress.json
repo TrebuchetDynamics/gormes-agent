@@ -14194,9 +14194,9 @@
             },
             {
               "name": "Browser provider bridge + Firecrawl fallback",
-              "status": "planned",
+              "status": "complete",
               "contract": "Fakeable cloud browser provider bridge implements Hermes' CloudBrowserProvider shape for Browserbase and Firecrawl without starting a browser: provider registration is gated by explicit config/env credentials, CreateSession returns session_name, provider_session_id, bb_session_id compatibility evidence, cdp_url, and feature flags; Browserbase 402 responses retry deterministically by stripping keepAlive then proxies before failing; Firecrawl honors configured API URL and browser TTL; CloseSession and EmergencyCleanup are idempotent and redact API keys, project IDs, session URLs, and response bodies in errors.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -14244,7 +14244,11 @@
                 "TestBrowserProviderCloseAndEmergencyCleanup proves close and cleanup are idempotent, use fake clients, tolerate missing sessions, and surface cleanup evidence without panics.",
                 "TestBrowserProviderErrorsRedacted proves provider errors redact API keys, bearer headers, project IDs, CDP/session URLs, and truncate long response bodies."
               ],
-              "note": "Builder-ready tool/provider bridge slice. Hermes supplies the Browserbase/Firecrawl provider contract; Go donor files suggest narrow fakeable tool/provider interfaces and artifact evidence, but no donor runtime code is needed.",
+              "note": "Complete: TDD landed internal/tools/browser_provider_bridge.go and browser_provider_bridge_test.go. Gormes now has fakeable Browserbase and Firecrawl cloud browser provider bridges with config gates, Browserbase 402 fallback that strips keepAlive then proxies, Firecrawl TTL/base URL handling, Hermes-compatible bb_session_id-style session IDs, idempotent close/emergency cleanup, and secret/URL/body-redacted provider errors. Tests use fake HTTP only and never start a browser or call Browserbase, Firecrawl, Browser Use, Chromium, chromedp, Rod, Camofox, DNS, or browser-harness.",
+              "outputs": [
+                "internal/tools/browser_provider_bridge.go",
+                "internal/tools/browser_provider_bridge_test.go"
+              ],
               "write_scope": [
                 "internal/tools/browser_provider_bridge.go",
                 "internal/tools/browser_provider_bridge_test.go",
@@ -14255,6 +14259,13 @@
                 "go test ./internal/tools -run '^TestBrowserProvider' -count=1",
                 "go test ./internal/tools -count=1",
                 "go run ./cmd/progress validate"
+              ],
+              "evidence": [
+                "TestBrowserProviderBridgeConfigGates proves Browserbase requires API key plus project ID, Firecrawl requires API key, and missing config returns browser_provider_unconfigured without HTTP calls.",
+                "TestBrowserbaseCreateSessionFallbacks proves fake Browserbase 402 responses retry by removing keepAlive, then proxies, and record browserbase_plan_fallback while preserving a stable cdp_url/session result.",
+                "TestFirecrawlCreateSessionTTLAndURL proves configured Firecrawl base URL and browser TTL flow into /v2/browser and maps id/cdpUrl/features.",
+                "TestBrowserProviderCloseAndEmergencyCleanup proves Browserbase and Firecrawl close/cleanup are idempotent, tolerate missing sessions/credentials in emergency cleanup, and use fake clients only.",
+                "TestBrowserProviderErrorsRedacted proves API keys, bearer tokens, project IDs, CDP/session URLs, provider session IDs, and long response bodies are redacted or bounded."
               ],
               "done_signal": [
                 "Browser provider fixtures prove config gates, Browserbase 402 fallback, Firecrawl TTL/base URL handling, idempotent cleanup, private-URL handoff safety, and secret-redacted errors using fake HTTP only."
