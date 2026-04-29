@@ -1881,7 +1881,7 @@
             },
             {
               "name": "Hermes prompt-builder guidance constants port (data-only, byte-equivalent)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -1890,7 +1890,7 @@
                 "operator"
               ],
               "contract": "Port the seven unbranded Hermes prompt-builder guidance constants from `../hermes-agent/agent/prompt_builder.py` to Go as exported package-level identifiers in a new file `internal/hermes/guidance_constants.go`: MEMORY_GUIDANCE -> MemoryGuidance, SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance, SKILLS_GUIDANCE -> SkillsGuidance, TOOL_USE_ENFORCEMENT_GUIDANCE -> ToolUseEnforcementGuidance, TOOL_USE_ENFORCEMENT_MODELS -> ToolUseEnforcementModels ([]string), DEVELOPER_ROLE_MODELS -> DeveloperRoleModels ([]string), WSL_ENVIRONMENT_HINT -> WSLEnvironmentHint. Each constant must be byte-equivalent to its Hermes upstream when concatenated (Python parenthesised string literals concatenate adjacent strings into one). The slice is data-only — no wiring into live-turn prompt assembly, no provider routing change, no runtime behavior change. Subsequent slices will wire each constant into `assembleLiveTurnPrompt` gated on the relevant condition (tools loaded, model substring match, WSL detected).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "Constants are pure data; no runtime path is affected. If Hermes drifts upstream the byte-equivalence test fails loudly so a follow-up port row can land the new value.",
               "fixture": "internal/hermes/guidance_constants_test.go",
               "source_refs": [
@@ -1947,6 +1947,35 @@
               "done_signal": [
                 "Seven byte-equivalence fixtures + the no-runtime-import static check pass; `internal/hermes/guidance_constants.go` exports MemoryGuidance, SessionSearchGuidance, SkillsGuidance, ToolUseEnforcementGuidance, ToolUseEnforcementModels, DeveloperRoleModels, WSLEnvironmentHint as documented; no live-turn or kernel file is modified."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:MemoryGuidance (string)",
+                  "internal/hermes/guidance_constants.go:SessionSearchGuidance (string)",
+                  "internal/hermes/guidance_constants.go:SkillsGuidance (string)",
+                  "internal/hermes/guidance_constants.go:ToolUseEnforcementGuidance (string)",
+                  "internal/hermes/guidance_constants.go:ToolUseEnforcementModels ([]string)",
+                  "internal/hermes/guidance_constants.go:DeveloperRoleModels ([]string)",
+                  "internal/hermes/guidance_constants.go:WSLEnvironmentHint (string)"
+                ],
+                "tests": [
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent",
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_SkillsGuidance_ByteEquivalent",
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_ToolUseEnforcementGuidance_ByteEquivalent",
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream",
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_DeveloperRoleModels_MatchesUpstream",
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_WSLEnvironmentHint_ByteEquivalent",
+                  "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_NoRuntimeImport"
+                ],
+                "upstream_pin": "hermes-agent commit 69d4800db77d001ca5b1500ac68a6c76e612c533 (../hermes-agent/agent/prompt_builder.py); byte-equivalence tests parse the upstream parenthesised literal blocks via a stdlib-only Python literal scanner and compare against the Go constants.",
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run GuidanceConstants -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "porting",
                 "upstream_ref": "hermes:agent/prompt_builder.py module-level guidance constants",
