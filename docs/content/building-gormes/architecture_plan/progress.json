@@ -14432,9 +14432,9 @@
           "items": [
             {
               "name": "ACP server side",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes maps Hermes ACP adapter entry/auth/session/tools/permissions/events into a Go-native manifest and stdio/server protocol fixture before editor integrations are advertised.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -14469,7 +14469,7 @@
                 "Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification.",
                 "Editor integration docs remain row-backed until protocol fixtures exist."
               ],
-              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad `acp_adapter/**` planning with exact adapter files and protocol-fixture boundaries.",
+              "note": "Complete: TDD added `internal/acp/server_manifest.go` and `internal/acp/server_manifest_test.go` classifying upstream `acp_adapter/{auth,entry,session,tools,permissions,events,server}.py` and `acp_registry/agent.json` as row_backed against `internal/acp` with exact upstream files, planned Go symbols, and `acp_server_surface_row_backed` evidence. Locked invariants: `MissingUpstreamFiles` flags any new `acp_adapter/*.py` or `acp_registry/agent.json` drift, `PermissionOutcomeForKind` maps ACP `allow_once`/`allow_always`/`reject_once`/`reject_always` to Hermes once/always/deny/deny with an unknown-kind deny fallback, `ToolKindFor` maps Hermes tool names to ACP `read`/`edit`/`search`/`execute`/`fetch`/`think`/`other` with `_thinking` returning think and unknown tools returning other, `DefaultAgentRegistryEntry` matches the upstream `acp_registry/agent.json` shape (schema_version 1, name hermes-agent, distribution.type command, distribution.command hermes, distribution.args [acp]), `DefaultSessionLifecycle` returns the ordered initialize/authenticate/new/load/resume/prompt/cancel phases, and no surface may claim implemented before live ACP rows. No live ACP server, editor subprocess, or Hermes/Python shell-out runs from this slice.",
               "write_scope": [
                 "internal/acp/server_manifest.go",
                 "internal/acp/server_manifest_test.go",

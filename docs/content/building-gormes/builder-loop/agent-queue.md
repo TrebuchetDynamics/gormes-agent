@@ -64,26 +64,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Live @gormes_bot normal turn, Channel-neutral native runtime binding, Provider-tool-memory golden transcript suite
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. ACP server side
-
-- Phase: 5 / 5.H
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes maps Hermes ACP adapter entry/auth/session/tools/permissions/events into a Go-native manifest and stdio/server protocol fixture before editor integrations are advertised.
-- Trust class: operator, system
-- Ready when: MCP schema normalization and managed gateway bridge rows are validated enough to reuse tool/permission descriptors., This slice can remain a manifest/protocol fixture package without starting an editor or spawning subprocesses.
-- Not ready when: The slice starts a live ACP server, shells out to Hermes/Python, or registers editor integrations before auth/session/tool/permission event shapes are fixture-backed., The slice claims ACP parity from broad acp_adapter/** coverage without exact auth, entry, session, tool, permission, and event refs.
-- Degraded mode: Unsupported ACP provider detection, missing auth, and permission prompt paths return explicit acp_row_backed evidence instead of silently registering an incomplete editor bridge.
-- Fixture: `internal/acp/server_manifest_test.go`
-- Write scope: `internal/acp/server_manifest.go`, `internal/acp/server_manifest_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `docs/upstream_coverage_test.go`
-- Test commands: `go test ./internal/acp -run TestACPServerManifest -count=1`, `go test ./docs -run TestNestedUpstreamFeatureCoverage -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: ACP manifest fixtures prove exact upstream auth, entry, session, tool, permission, event, and registry surfaces are classified before live ACP server work starts.
-- Acceptance: ACP manifest fixtures classify auth provider detection, stdio entry startup, session lifecycle, tool rendering, permission prompts, and event streaming as implemented, row-backed, owned, or excluded., The Go target names future internal/acp package boundaries and adapter event structs without importing Python., Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification., Editor integration docs remain row-backed until protocol fixtures exist.
-- Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Backup/update opt-in and exclusion policy
+## 3. OCI image
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -104,7 +85,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Backup manifest dry-run contract
 - Why now: Unblocks Backup manifest dry-run contract.
 
-## 5. Homebrew
+## 4. Homebrew
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -123,7 +104,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Yuanbao protocol envelope + markdown fixtures
+## 5. Tool output budget persisted artifact pointer
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -144,7 +125,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery
 - Why now: Unblocks 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery.
 
-## 7. Gormes-native MCP host runtime boundary
+## 6. Gormes-native MCP host runtime boundary
 
 - Phase: 5 / 5.G
 - Owner: `tools`
@@ -165,7 +146,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer
 - Why now: Unblocks MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer.
 
-## 8. Goncho serialized write queue + relation candidates
+## 7. Goncho serialized write queue + relation candidates
 
 - Phase: 5 / 5.N
 - Owner: `memory`
