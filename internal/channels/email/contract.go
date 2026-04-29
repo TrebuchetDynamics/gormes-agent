@@ -11,6 +11,7 @@ import (
 	"net/mail"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
@@ -199,4 +200,52 @@ func replyReferences(existing, messageID string) string {
 	default:
 		return existing + " " + messageID
 	}
+}
+
+// Delivery captures the outbound email payload BuildDelivery serializes
+// into RFC 5322 byte form.
+type Delivery struct {
+	From       string
+	To         string
+	Subject    string
+	InReplyTo  string
+	References string
+	Body       string
+	// Date is preserved verbatim when non-empty; otherwise BuildDelivery
+	// supplies an RFC 5322 Date from the injected clock.
+	Date string
+}
+
+// BuildDelivery serializes an outbound email reply to RFC 5322 bytes. It
+// always emits exactly one Date header: caller-supplied Date is preserved,
+// otherwise a Date is computed from now() (or time.Now when nil).
+func BuildDelivery(d Delivery, now func() time.Time) []byte {
+	if now == nil {
+		now = time.Now
+	}
+	var b bytes.Buffer
+	if d.From != "" {
+		fmt.Fprintf(&b, "From: %s\r\n", d.From)
+	}
+	if d.To != "" {
+		fmt.Fprintf(&b, "To: %s\r\n", d.To)
+	}
+	if d.Subject != "" {
+		fmt.Fprintf(&b, "Subject: %s\r\n", d.Subject)
+	}
+	if d.InReplyTo != "" {
+		fmt.Fprintf(&b, "In-Reply-To: %s\r\n", d.InReplyTo)
+	}
+	if d.References != "" {
+		fmt.Fprintf(&b, "References: %s\r\n", d.References)
+	}
+	date := strings.TrimSpace(d.Date)
+	if date == "" {
+		date = now().Format(time.RFC1123Z)
+	}
+	fmt.Fprintf(&b, "Date: %s\r\n", date)
+	fmt.Fprintf(&b, "Content-Type: text/plain; charset=UTF-8\r\n")
+	fmt.Fprintf(&b, "\r\n")
+	fmt.Fprint(&b, d.Body)
+	return b.Bytes()
 }

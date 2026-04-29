@@ -2596,9 +2596,9 @@
             {
               "name": "Email outbound Date header contract",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Email outbound message construction always supplies an RFC 5322 Date header with an injectable clock when one is absent, while preserving caller-supplied Date values and leaving reply threading unchanged",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [

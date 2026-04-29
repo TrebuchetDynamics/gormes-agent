@@ -261,7 +261,7 @@ Full progress: [docs.gormes.ai/building-gormes/architecture_plan](https://docs.g
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 16/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 17/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 1/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |

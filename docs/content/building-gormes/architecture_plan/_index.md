@@ -77,12 +77,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 40/77 subphases shipped · 23 in progress · 14 planned
+**Overall:** 41/77 subphases shipped · 22 in progress · 14 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 16/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 17/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 1/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
@@ -167,7 +167,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing 🔨
+### 2.B.5 — Session Context + Delivery Routing ✅
 
 - [x] Gateway session store + SessionSource parity
 - [x] SessionContext prompt injection
@@ -189,7 +189,7 @@ classification and row-backed implementation queue.
 - [x] Gateway message deduplicator bounded helper
 - [x] Gateway inbound dedup key helper
 - [x] Gateway inbound dedup manager binding
-- [ ] Email outbound Date header contract
+- [x] Email outbound Date header contract
 
 ### 2.B.10 — WeChat Adapter ✅
 
