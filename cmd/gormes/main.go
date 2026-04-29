@@ -487,7 +487,15 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		SessionExport: newTUISaveExportFunc(),
 		OfflineSmoke:  offline,
 	})
-	programOptions := []tea.ProgramOption{tea.WithAltScreen()}
+	// Hermes runs prompt_toolkit Application(full_screen=False) so the TUI
+	// lives in normal terminal scrollback. The Bubble Tea port mirrors that:
+	// no alt-screen unless tui.HermesChromeUseAltScreen() flips, which today
+	// always returns false. Output stays after exit and resize history is
+	// preserved, matching the bottom-pinned Hermes operator feel.
+	var programOptions []tea.ProgramOption
+	if tui.HermesChromeUseAltScreen() {
+		programOptions = append(programOptions, tea.WithAltScreen())
+	}
 	if cfg.TUI.MouseTracking {
 		programOptions = append(programOptions, tea.WithMouseAllMotion())
 	}

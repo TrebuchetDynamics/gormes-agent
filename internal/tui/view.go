@@ -12,19 +12,18 @@ import (
 
 var (
 	border    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
-	header    = lipgloss.NewStyle().Bold(true)
 	muted     = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
 	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("69")).Bold(true)
 	botStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
 	errStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 )
 
-// View renders the Dashboard. Three size regimes:
-//
-//	width ≥ 100: full layout, sidebar width 28
-//	80 ≤ width < 100: full layout, sidebar width 24
-//	20 ≤ width < 80: sidebar collapses into a one-line status strip
-//	width < 20 OR height < 10: single-line fallback banner
+// View renders the bottom-pinned Hermes-compatible chrome. Layout matches
+// cli.py:_build_tui_layout_children: scrollback/conversation, optional
+// spinner/hint row, single-line status footer, bronze input rule, prompt +
+// input area, optional bottom rule (dropped on minimal widths), and reserved
+// voice/image/completion slots. The TUI runs in normal scrollback rather
+// than alt-screen so output persists after exit, matching Hermes.
 //
 // View never panics on any non-negative (width, height) input.
 func (m Model) View() string {
@@ -32,76 +31,66 @@ func (m Model) View() string {
 		return "terminal too narrow — resize to at least 20×10"
 	}
 
-	sidebarW := 0
-	switch {
-	case m.width >= 100:
-		sidebarW = 28
-	case m.width >= 80:
-		sidebarW = 24
-	}
-
-	// Account for border chars around the main pane and the sidebar plus a
-	// 2-cell gap. Clamp to a minimum so sub-width scenarios still render.
-	gap := 0
-	if sidebarW > 0 {
-		gap = 2
-	}
-	mainW := m.width - sidebarW - gap - 4 // 2 borders on each pane
-	if mainW < 10 {
-		mainW = 10
-	}
-	// Height budget: main pane (border adds 2) + editor pane (textarea +
-	// border = editor.Height()+2) + status line (1) = m.height total.
-	// So topH = m.height - (editor.Height() + 2) - 1 - 2 (outer borders).
 	editorHeight := m.editor.Height()
 	if editorHeight < 1 {
 		editorHeight = 1
 	}
-	topH := m.height - editorHeight - 5
-	if topH < 3 {
-		topH = 3
+	editorBlockH := editorHeight + 2 // border adds 2 rows
+	chromeOverhead := 1 + 1 + 1      // status bar + top rule + bottom rule
+	if DefaultHermesSkin().UseMinimalChrome(m.width) {
+		chromeOverhead = 1 + 1 // status bar + top rule (bottom rule dropped)
+	}
+	convH := m.height - editorBlockH - chromeOverhead - 1 // -1 for spinner/hint reserve
+	if convH < 3 {
+		convH = 3
 	}
 
-	main := border.Width(mainW).Height(topH).Render(renderConv(m.frame, mainW, topH))
-
-	var top string
-	if sidebarW > 0 {
-		sidebar := border.Width(sidebarW).Height(topH).Render(renderSidebar(m.frame, sidebarW))
-		top = lipgloss.JoinHorizontal(lipgloss.Top, main, "  ", sidebar)
-	} else {
-		// Collapsed: main pane full width + one-line status strip above the editor.
-		top = main
+	convW := m.width
+	if convW < 4 {
+		convW = 4
 	}
+
+	conv := conversationViewportTail(m.frame, convW, convH)
 
 	editorW := m.width - 2
 	if editorW < 10 {
 		editorW = 10
 	}
-	editor := border.Width(editorW).Render(m.editor.View())
+	prompt := border.Width(editorW).Render(m.editor.View())
 
-	var status string
-	if sidebarW > 0 {
-		status = muted.Render(fmt.Sprintf(
-			"phase: %s · model: %s · session: %s · %s%s",
-			m.frame.Phase, m.frame.Model, shortSessionID(m.frame.SessionID), m.mouseStatus(), statusSuffix(m.statusMessage),
-		))
-	} else {
-		// Collapsed mode includes the telemetry in the status line.
-		t := m.frame.Telemetry
-		status = muted.Render(fmt.Sprintf(
-			"phase: %s · model: %s · tok/s: %.1f · lat: %dms · in/out: %d/%d · %s%s",
-			m.frame.Phase, m.frame.Model, t.TokensPerSec, t.LatencyMsLast,
-			t.TokensInTotal, t.TokensOutTotal, m.mouseStatus(), statusSuffix(m.statusMessage),
-		))
-	}
+	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	return lipgloss.JoinVertical(lipgloss.Left, top, editor, status)
+	hint := muted.Render(fmt.Sprintf(
+		"phase: %s · session: %s · %s%s",
+		m.frame.Phase, shortSessionID(m.frame.SessionID), m.mouseStatus(), statusSuffix(m.statusMessage),
+	))
+
+	return RenderHermesChrome(HermesChromeInput{
+		Width:        m.width,
+		Conversation: conv,
+		Spinner:      hint,
+		StatusBar:    statusBar,
+		Prompt:       prompt,
+	})
 }
 
-// renderConv renders the conversation pane bounded to the caller-provided
-// width and height budget. It delegates to conversationViewportTail so each
-// Bubble Tea frame shows only the visible tail of history plus DraftText and
-// LastError, with a deterministic omitted-history sentinel when clipped.
+// hermesStatusModelFromFrame projects the kernel render frame onto the data
+// shape expected by RenderHermesStatusBar.
+func hermesStatusModelFromFrame(f kernel.RenderFrame) HermesStatusModel {
+	out := HermesStatusModel{
+		ModelName: f.Model,
+	}
+	if f.ContextStatus != nil {
+		out.ContextTokens = f.ContextStatus.LastTotalTokens
+		out.ContextLength = f.ContextStatus.ContextLength
+	}
+	return out
+}
+
+// renderConv is the legacy entry point retained for tests that pre-date the
+// bottom-pinned chrome. It delegates to the same viewport tail helper View
+// uses and keeps the (width, height) call shape so existing fixtures stay
+// addressable.
 func renderConv(f kernel.RenderFrame, width, height int) string {
 	return conversationViewportTail(f, width, height)
 }
@@ -174,7 +163,7 @@ func conversationDraftBlock(draft string, wrap lipgloss.Style, compact bool) str
 	} else {
 		draft = wrap.Render(draft)
 	}
-	return botStyle.Render("gormes:") + " " + draft
+	return botStyle.Render(HermesChromeAssistantLabel()) + " " + draft
 }
 
 func conversationErrorBlock(lastError string, compact bool) string {
@@ -199,38 +188,12 @@ func renderedLineCount(s string) int {
 	return strings.Count(s, "\n") + 1
 }
 
-// renderSidebar renders the Telemetry + Soul Monitor pane.
-func renderSidebar(f kernel.RenderFrame, width int) string {
-	if width < 8 {
-		width = 8
-	}
-	sep := strings.Repeat("─", width-4)
-
-	var b strings.Builder
-	b.WriteString(header.Render("Telemetry") + "\n")
-	b.WriteString(fmt.Sprintf(" model: %s\n", truncateEllipsis(f.Telemetry.Model, width-8)))
-	b.WriteString(fmt.Sprintf(" tok/s: %.1f\n", f.Telemetry.TokensPerSec))
-	b.WriteString(fmt.Sprintf(" latency: %d ms\n", f.Telemetry.LatencyMsLast))
-	b.WriteString(fmt.Sprintf(" in/out: %d/%d\n", f.Telemetry.TokensInTotal, f.Telemetry.TokensOutTotal))
-	b.WriteString(sep + "\n")
-	b.WriteString(header.Render("Soul Monitor") + "\n")
-	if len(f.SoulEvents) == 0 {
-		b.WriteString(muted.Render(" (idle)") + "\n")
-	} else {
-		for _, s := range f.SoulEvents {
-			line := fmt.Sprintf(" [%s] %s", s.At.Format("15:04:05"), s.Text)
-			b.WriteString(truncateEllipsis(line, width-2) + "\n")
-		}
-	}
-	return b.String()
-}
-
 func roleTag(role string) string {
 	switch role {
 	case "user":
 		return userStyle.Render("you:")
 	case "assistant":
-		return botStyle.Render("gormes:")
+		return botStyle.Render(HermesChromeAssistantLabel())
 	case "system":
 		return muted.Render("sys:")
 	}

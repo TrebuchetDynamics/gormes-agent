@@ -118,6 +118,11 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	ta := textarea.New()
 	ta.Placeholder = "Type a message and hit Enter…"
 	ta.ShowLineNumbers = false
+	// Match Hermes prompt_toolkit prompt symbol so the bottom-pinned chrome
+	// shows the operator-recognisable `❯ ` glyph at the start of every input
+	// line instead of the textarea default cursor marker.
+	normalPrompt, _ := DefaultHermesSkin().PromptSymbols("default")
+	ta.Prompt = normalPrompt
 	ta.Focus()
 	return Model{
 		editor:        ta,

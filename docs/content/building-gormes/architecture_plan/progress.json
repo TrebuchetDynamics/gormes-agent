@@ -21018,9 +21018,9 @@
             {
               "name": "Native TUI Hermes bottom-pinned chrome layout",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: scrollback/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, and no Telemetry/Soul side pane. The TUI should run in normal terminal scrollback like Hermes prompt_toolkit, not as a full-screen dashboard, while preserving Go-native RenderFrame consumption.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21056,10 +21056,11 @@
                 "TestHermesChrome_MinimalWidthDropsBottomRule proves narrow widths keep prompt/status usable and hide low-value chrome like Hermes.",
                 "A cmd/gormes test proves local TUI startup no longer forces alt-screen when running the Hermes-compatible local chrome, unless a future explicit config flag opts back in."
               ],
-              "note": "This is the visual pivot the user asked for: exact Hermes operator feel means bottom-pinned chat, not the current Bubble Tea dashboard. Keep it as one medium integration row after pure renderer fixtures land.",
+              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go; dropped tea.WithAltScreen from cmd/gormes/main.go behind tui.HermesChromeUseAltScreen so the TUI runs in normal scrollback; added cmd/gormes/tui_hermes_chrome_test.go to lock the no-alt-screen invariant. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows render under the Hermes response label rather than `gormes:`, the bottom input rule is dropped below the 64-column minimal-chrome threshold, and gormes never enters the terminal alt-screen by default.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",
+                "internal/tui/hermes_chrome.go",
                 "internal/tui/hermes_chrome_test.go",
                 "cmd/gormes/main.go",
                 "cmd/gormes/tui_*_test.go",
