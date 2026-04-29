@@ -722,7 +722,7 @@ classification and row-backed implementation queue.
 - [ ] Gormes auth add openai-codex strict isolation contract
 - [ ] Gormes auth add bedrock open-question planning note
 - [ ] Gormes profile command binding
-- [ ] Model and profile selector seam (Cobra + gateway)
+- [x] Model and profile selector seam (Cobra + gateway)
 - [ ] Gormes top-level logout provider shortcut
 - [ ] Gormes login removed-command typo suggestion contract
 - [ ] Gormes model interactive provider/model picker

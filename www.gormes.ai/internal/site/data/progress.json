@@ -20545,7 +20545,7 @@
             },
             {
               "name": "Model and profile selector seam (Cobra + gateway)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -20554,7 +20554,7 @@
                 "system"
               ],
               "contract": "Defines `type ModelSelector interface { Select(ctx context.Context, kind SelectionKind) (Selection, error) }` and `type ProfileSelector interface { Select(ctx context.Context) (Profile, error) }` in `internal/cli/selector.go`. Default implementations consume the existing rows: `Hermes config.yaml model/provider runtime bridge` for live config, `TUI launch model override + static alias resolver` for alias resolution, and the three profile helpers (`CLI profile name validator`, `CLI profile root resolver`, `CLI active-profile store`). The seam returns a `(provider, model, account)` triple for model selection and a profile descriptor for profile selection; consumers decide what to do with the result. The seam is the canonical entry point for both the Cobra `gormes model` / `gormes profile` commands and the gateway slash commands `/model` / `/profile`.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "`selector_no_match` typed evidence is returned when no provider/model alias resolves; `selector_helper_unavailable` when one of the helper rows is not yet wired; `selector_alias_resolution_failed` when the static alias resolver returns an error.",
               "fixture": "internal/cli/selector_test.go",
               "source_refs": [
@@ -20596,7 +20596,7 @@
                 "TestProfileSelectorDefaultConsumesProfileHelpers proves the default `ProfileSelector` implementation calls the CLI profile name validator → CLI profile root resolver → CLI active-profile store helpers in that order.",
                 "TestSelectorReturnsTypedErrorOnNoMatch proves a no-match scenario returns `selector_no_match` typed evidence (not a panic, not a nil result, not a generic error)."
               ],
-              "note": "Q7B decision: the seam is the canonical entry point for both Cobra (`gormes model`, `gormes profile`) and gateway slash (`/model`, `/profile`) commands. When the gateway handler bindings (`_handle_model_command`, `_handle_profile_command` — currently row-backed under `Gateway, platform, webhook, and cron management CLI` per `cmd/gormes/hermes_cli_parity.go:286`) land in their own row, those rows must blocked_by this seam. Captured here as a note rather than an `unblocks` entry to avoid over-blocking the small seam against the gateway umbrella.",
+              "note": "Complete: TDD shipped `internal/cli/selector.go` and `internal/cli/selector_test.go` exposing `ModelSelector`/`ProfileSelector` interfaces with `Selection` and `Profile` result records and the `SelectionKindModel|Provider|Account` enum. Default implementations consume the existing helper rows through function-shaped seams (`ReadInferenceDefaultsFunc` over the Hermes config.yaml model/provider runtime bridge, `ResolveAliasFunc` over the TUI launch model override + static alias resolver, `ReadActiveProfileNameFunc`/`ValidateProfileNameFunc`/`ResolveProfileRootFunc` over the three profile helper rows) — no alias resolution, config loading, or profile root logic is re-derived in this package. Tests inject fakes only; no live config files, no live provider endpoints, no network. Q7B decision preserved: the seam is the canonical entry point for both Cobra (`gormes model`, `gormes profile`) and gateway slash (`/model`, `/profile`) commands. When the gateway handler bindings (`_handle_model_command`, `_handle_profile_command` — currently row-backed under `Gateway, platform, webhook, and cron management CLI` per `cmd/gormes/hermes_cli_parity.go:286`) land in their own row, those rows must blocked_by this seam.",
               "write_scope": [
                 "internal/cli/selector.go",
                 "internal/cli/selector_test.go",
@@ -20610,6 +20610,11 @@
               "done_signal": [
                 "Selector-seam fixtures prove the interface signatures, default-implementation delegation to the existing helper rows, profile-helper call order, and `selector_no_match` typed evidence on a no-match scenario."
               ],
+              "evidence": {
+                "implementation": "internal/cli/selector.go",
+                "tests": "internal/cli/selector_test.go (TestModelSelectorContract, TestModelSelectorDefaultConsumesExistingResolverRows, TestProfileSelectorDefaultConsumesProfileHelpers, TestSelectorReturnsTypedErrorOnNoMatch with model_no_match/model_helper_unavailable/model_alias_resolution_failed/profile_no_match/profile_helper_unavailable subtests)",
+                "note": "Default selectors take function-shaped seams (ReadInferenceDefaultsFunc, ResolveAliasFunc, ReadActiveProfileNameFunc, ValidateProfileNameFunc, ResolveProfileRootFunc) so they consume — not re-derive — the Hermes config.yaml runtime bridge, TUI launch model override + static alias resolver, and the three profile helper rows. Cobra/gateway wiring lives in the next slice."
+              },
               "provenance": {
                 "origin_type": "owned",
                 "upstream_ref": "Q7B planner decision: a single Go-native selector interface for both Cobra and gateway model/profile selection, derived from the Hermes parity scope without porting a Python helper",
