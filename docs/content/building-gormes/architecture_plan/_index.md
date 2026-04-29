@@ -81,12 +81,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 44/78 subphases shipped · 26 in progress · 8 planned
+**Overall:** 45/78 subphases shipped · 25 in progress · 8 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 18/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 19/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
@@ -200,11 +200,11 @@ classification and row-backed implementation queue.
 - [x] WeCom + WeiXin shared-chassis bot seam
 - [x] WeCom + WeiXin transport/bootstrap layer
 
-### 2.B.11 — Discord Forum Channels 🔨
+### 2.B.11 — Discord Forum Channels ✅
 
 - [x] Discord forum channel ingress + thread lifecycle
 - [x] Discord SessionSource guild/parent/message evidence
-- [ ] Discord forum media + polish parity
+- [x] Discord forum media + polish parity
 
 ### 2.B.12 — Channel-Neutral Native Runtime Adapter 🔨
 
@@ -582,7 +582,7 @@ classification and row-backed implementation queue.
 - [ ] Chromedp
 - [ ] Rod
 - [ ] Browser provider bridge + Firecrawl fallback
-- [ ] Browser Use cloud + browser-harness bridge
+- [x] Browser Use cloud + browser-harness bridge
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 
@@ -720,12 +720,15 @@ classification and row-backed implementation queue.
 - [ ] Gormes auth status per-provider aggregator
 - [ ] Gormes auth add openai-codex strict isolation contract
 - [ ] Gormes auth add bedrock open-question planning note
+- [ ] Gormes profile command binding
+- [ ] Model and profile selector seam (Cobra + gateway)
 - [ ] Gormes top-level logout provider shortcut
 - [ ] Gormes login removed-command typo suggestion contract
 - [ ] Gormes model interactive provider/model picker
 - [ ] Gormes setup minimal sectioned wizard slice
 - [ ] Gormes uninstall dry-run command contract
-- [ ] Gormes mcp login OAuth re-auth bridge
+- [ ] Gormes mcp login interface seam + noninteractive default
+- [ ] Gormes mcp login browser callback flow
 - [ ] Hermes fallback provider chain CLI commands
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge

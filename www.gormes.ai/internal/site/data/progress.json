@@ -2754,9 +2754,9 @@
             },
             {
               "name": "Discord forum media + polish parity",
-              "status": "planned",
+              "status": "complete",
               "contract": "Discord forum sends preserve Hermes forum-post semantics on top of the shipped Discord adapter: outbound text to a forum parent creates a starter thread post, follow-up chunks route through the created thread, file-bearing sends use create_thread(file=...) with deterministic thread names, failures are returned as SendResult warnings/errors, and forum thread metadata keeps parent_chat_id/thread_id/message_id intact for shared gateway delivery.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -14272,9 +14272,9 @@
             },
             {
               "name": "Browser Use cloud + browser-harness bridge",
-              "status": "planned",
+              "status": "complete",
               "contract": "Fakeable Browser Use provider and browser-harness command bridge implements Hermes' BrowserUseProvider session shape and browser-harness operator workflow without starting a live browser: config detects direct BROWSER_USE_API_KEY or managed gateway state, CreateSession records id, cdpUrl/connectUrl, liveUrl, feature flags, timeout/proxy/profile inputs, and external_call_id with redacted evidence; Stop/Cleanup PATCHes action=stop; the command runner builds argv as browser-harness -c plus a sanitized BU_NAME environment; browser-harness stdout/stderr and screenshot/text outputs normalize into BrowserResultEnvelope with artifact budgeting.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -14321,13 +14321,13 @@
                 "Browser-harness optional live smoke docs"
               ],
               "acceptance": [
-                "TestBrowserUseConfigGates proves Browser Use requires BROWSER_USE_API_KEY or managed gateway evidence, missing config returns browser_use_unconfigured, and provider selection prefers Browser Use before Browserbase when configured.",
-                "TestBrowserUseCreateSessionMapsCDP proves fake /browsers responses map id, cdpUrl/connectUrl, liveUrl, timeout/proxy/profile inputs, features, and external_call_id into a redacted session result.",
-                "TestBrowserUseStopCleanup proves close and emergency cleanup send PATCH action=stop, tolerate missing sessions, and redact credentials/session URLs in errors.",
-                "TestBrowserHarnessCommandRunner proves browser-harness execution uses argv not shell concatenation, sets sanitized BU_NAME from the Gormes session key, preserves BROWSER_USE_API_KEY only in env, and converts stdout/stderr into BrowserResultEnvelope with artifact budgeting.",
-                "TestBrowserHarnessNoLiveRuntimeInUnitTests proves the required tests use fakes only and do not start Chrome, open CDP, call browser-harness, or contact Browser Use."
+                "TestBrowserUseConfigGates proves direct Browser Use credentials, managed gateway credentials, unconfigured degraded evidence, and deterministic cloud-provider preference without live network calls.",
+                "TestBrowserUseCreateSessionMapsCDP proves managed /browsers creation maps provider id, CDP/live URLs, feature flags, idempotency, profile presence bits, and external-call evidence without leaking profile values.",
+                "TestBrowserUseStopCleanup proves stop/cleanup requests map to Browser Use PATCH actions, skipped cleanup handles empty session IDs, and failed cleanup errors are bounded/redacted.",
+                "TestBrowserHarnessCommandRunner proves the browser-harness runner receives argv without shell concatenation, sanitized BU_NAME, redacted env evidence, and artifact-budgeted output envelopes.",
+                "TestBrowserHarnessNoLiveRuntimeInUnitTests proves Browser Use and browser-harness unit tests use injected fake runners/transports and never require a live browser, cloud session, or provider account."
               ],
-              "note": "Planner split added after cloning ../browser-harness and updating ../hermes-agent to upstream on 2026-04-29. This row keeps Browser Use/browser-harness separate from the Browserbase/Firecrawl bridge so builders can ship the operator-facing harness path without diluting Hermes provider semantics.",
+              "note": "Validated browser runtime bridge slice: Gormes now has a fakeable Browser Use lifecycle bridge plus browser-harness command runner with credential gates, managed-session idempotency, sanitized task namespaces, cleanup evidence, artifact-budgeted outputs, and redacted degraded errors. No Chrome, Browser Use cloud, Browserbase, Firecrawl, or Hermes runtime is started by the required tests.",
               "write_scope": [
                 "internal/tools/browser_use_harness_bridge.go",
                 "internal/tools/browser_use_harness_bridge_test.go",
@@ -14343,6 +14343,14 @@
               "done_signal": [
                 "Browser Use/browser-harness fixtures prove credential gates, session create/stop mapping, sanitized BU_NAME command execution, artifact-budgeted result envelopes, and redacted degraded evidence without live browser or cloud calls."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T16:59:30Z",
+                "last_success": "2026-04-29T16:59:30Z",
+                "backends_tried": [
+                  "codex"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_refs": [
@@ -18893,7 +18901,7 @@
                 "Diagnostics, backup, logs, and status CLI",
                 "Gormes config command surface",
                 "Gormes model interactive provider/model picker",
-                "Gormes mcp login OAuth re-auth bridge",
+                "Gormes mcp login interface seam + noninteractive default",
                 "Plugin SDK",
                 "Tool/runtime/security rows",
                 "Session shutdown memory transcript handoff"
@@ -19147,7 +19155,8 @@
                 "The slice calls live OAuth endpoints, opens browsers, polls real device-code flows, reads live ~/.claude ~/.codex ~/.qwen credentials, or contacts provider model catalogs in unit tests.",
                 "Nous OAuth writes only credential_pool.nous but not providers.nous; Hermes requires both for later 401 recovery.",
                 "OpenAI Codex relink leaves a stale device_code suppression marker in auth.json.",
-                "Provider errors or status output include access_token, refresh_token, agent_key, auth code, client secret, device code, raw callback URL, or raw provider body."
+                "Provider errors or status output include access_token, refresh_token, agent_key, auth code, client secret, device code, raw callback URL, or raw provider body.",
+                "OAuth-capable provider lookup is hard-coded as a literal set instead of derived from ProviderConfig.AuthType field. (Hermes _OAUTH_CAPABLE_PROVIDERS is duplicated at auth_commands.py:36 and 173 — Gormes must avoid that drift by deriving from ProviderConfig.)"
               ],
               "unblocks": [
                 "Provider auth selection for native gateway turns",
@@ -20118,7 +20127,10 @@
                 "Gormes model interactive provider/model picker",
                 "Gormes setup minimal sectioned wizard slice",
                 "Gormes uninstall dry-run command contract",
-                "Gormes mcp login OAuth re-auth bridge"
+                "Gormes mcp login interface seam + noninteractive default",
+                "Gormes mcp login browser callback flow",
+                "Gormes profile command binding",
+                "Model and profile selector seam (Cobra + gateway)"
               ],
               "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, login removed-command typo suggestion, profile command binding, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login interface seam + noninteractive default, mcp login browser callback flow, model and profile selector seam). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. The 2026-04-29 omnibus update renamed the prior `Gormes login deprecated-redirect contract` row to `Gormes login removed-command typo suggestion contract` (Q1B decision: typo guide via Cobra unknown-command, not a deprecated subparser shim) and renamed the prior `Gormes mcp login OAuth re-auth bridge` to a split pair (`Gormes mcp login interface seam + noninteractive default` and `Gormes mcp login browser callback flow`). Do not assign this umbrella row directly."
             },
@@ -20274,7 +20286,7 @@
               "name": "Gormes auth add openai-codex strict isolation contract",
               "status": "planned",
               "priority": "P1",
-              "contract": "`gormes auth add openai-codex` runs only the device-code OAuth flow against the Gormes-owned Codex auth.json under the credential pool; it never imports tokens from `~/.codex/auth.json`, never reads Codex CLI / VS Code refresh tokens, and prints an explicit `(Hermes will keep working independently with its own session)` envelope so the Codex CLI / VS Code extension cannot rotate Gormes tokens. The legacy import path remains reachable only through the separate `Gormes model interactive provider/model picker` row.",
+              "contract": "`gormes auth add openai-codex` runs only the device-code OAuth flow against the Gormes-owned Codex auth.json under the credential pool; it never imports tokens from `~/.codex/auth.json` by default, never reads Codex CLI / VS Code refresh tokens by default, and prints an explicit `(Hermes will keep working independently with its own session)` envelope so the Codex CLI / VS Code extension cannot rotate Gormes tokens. When the explicit flag --emergency-import-from-codex-cli <path> is set, performs vendor-CLI import from the given path with a screen-filling warning about the Codex CLI / VS Code refresh-token race envelope; refuses if the JWT access token in the imported file is expired (matches existing 8908 row contract). Without the flag, default device-code-only behavior is preserved unchanged.",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -20282,7 +20294,7 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Device-code start failures return codex_device_code_failed; mid-flow callback errors return codex_callback_failed; an attempt to reuse an existing `~/.codex/auth.json` returns codex_external_import_blocked with the operator-facing redirect (`use 'gormes model' if you want to import the Codex CLI session`).",
+              "degraded_mode": "Device-code start failures return codex_device_code_failed; mid-flow callback errors return codex_callback_failed; an unlabeled attempt to reuse an existing `~/.codex/auth.json` returns codex_external_import_blocked with the operator-facing redirect (`use 'gormes auth add openai-codex --emergency-import-from-codex-cli <path>' if you accept the refresh-token race envelope`); the explicit emergency-import path returns codex_emergency_import_jwt_expired when the imported access token is past its expiry.",
               "fixture": "cmd/gormes/auth_add_codex_strict_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command:openai-codex",
@@ -20291,7 +20303,8 @@
                 "../hermes-agent/hermes_cli/auth.py:CODEX_VENDOR_CLI_ISOLATION_NOTE",
                 "internal/config/codex_oauth_state.go",
                 "internal/config/credential_pool.go",
-                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
+                "docs/content/building-gormes/architecture_plan/codex-vendor-cli-isolation.md"
               ],
               "ready_when": [
                 "Hermes auth OAuth provider adapters row provides the injectable Codex device-code seam.",
@@ -20299,10 +20312,10 @@
                 "Tests can inject a fake device-code transport, a fake `~/.codex/auth.json` shadow file, and a fake clock; no live ChatGPT/Codex backend is required."
               ],
               "not_ready_when": [
-                "The slice imports `~/.codex/auth.json` tokens into the Gormes credential pool when running `auth add openai-codex` (must be rejected with codex_external_import_blocked).",
+                "The slice imports `~/.codex/auth.json` tokens into the Gormes credential pool when running `auth add openai-codex` without the explicit --emergency-import-from-codex-cli flag (default path must remain device-code only and reject any silent import attempt with codex_external_import_blocked).",
                 "The slice duplicates backend OAuth state row 8908 (Codex OAuth state + stale-token relogin) by re-deriving the auth.json shape locally instead of delegating.",
                 "Output prints the fake access_token, refresh_token, device_code, or user-code substrings.",
-                "The slice removes the legacy `_login_openai_codex` import path from `gormes model`; that path stays reachable through the model picker row."
+                "The --emergency-import-from-codex-cli flag is enabled by default, falls back to it silently without an explicit invocation, or omits the screen-filling race warning."
               ],
               "blocked_by": [
                 "Hermes auth OAuth provider adapters",
@@ -20312,13 +20325,14 @@
                 "Gormes model interactive provider/model picker"
               ],
               "acceptance": [
-                "TestAuthAddCodexAlwaysRunsDeviceCode proves a fake `~/.codex/auth.json` containing valid tokens is ignored and the device-code transport is invoked exactly once.",
-                "TestAuthAddCodexRejectsExternalImportFlag proves any attempt to pass an explicit import flag (or env override mimicking the Codex CLI path) returns codex_external_import_blocked with the redirect message pointing operators to `gormes model`.",
+                "TestAuthAddCodexAlwaysRunsDeviceCode proves a fake `~/.codex/auth.json` containing valid tokens is ignored on the default code path and the device-code transport is invoked exactly once.",
+                "TestAuthAddCodexRejectsExternalImportFlag proves any attempt to pass an unlabeled import flag (or env override mimicking the Codex CLI path, without the explicit --emergency-import-from-codex-cli flag) returns codex_external_import_blocked with the redirect message pointing operators to the explicit override flag.",
                 "TestAuthAddCodexEnvelopeMessage proves the success output contains the explicit isolation envelope sentence so the Codex CLI / VS Code extension operator is warned the Gormes session is independent.",
                 "TestAuthAddCodexFailureLeavesPoolUntouched proves a failed fake device-code flow leaves the credential pool byte-identical and returns codex_device_code_failed.",
-                "TestAuthAddCodexClearsDeviceCodeSuppression proves a successful relink unsets the `device_code` source-suppression marker so future inference picks up the new entry."
+                "TestAuthAddCodexClearsDeviceCodeSuppression proves a successful relink unsets the `device_code` source-suppression marker so future inference picks up the new entry.",
+                "TestAuthAddCodexEmergencyImportFlagRequiresExplicitInvocation proves the `--emergency-import-from-codex-cli` flag is opt-in only, emits the screen-filling race-envelope warning, and refuses an imported file whose JWT is expired."
               ],
-              "note": "Encodes auditor surprise (a): Hermes' pooled `auth add openai-codex` path is stricter than `hermes model`. The Codex CLI / VS Code refresh-token race makes import-during-add unsafe. The legacy import path stays available only through `gormes model`. Backend Codex auth store (row 8908) is already shipped; this is the strict CLI binding contract.",
+              "note": "Encodes auditor surprise (a): Hermes' pooled `auth add openai-codex` path is stricter than `hermes model`. The Codex CLI / VS Code refresh-token race makes silent import-during-add unsafe. Backend Codex auth store (row 8908) is already shipped; this is the strict CLI binding contract. Q6 decision (2026-04-29): legacy import via gormes model is dropped; the --emergency-import-from-codex-cli flag is the only labeled override path. See codex-vendor-cli-isolation.md for the race envelope explainer.",
               "write_scope": [
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_add_codex_strict_test.go",
@@ -20354,6 +20368,152 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/auth_commands.py:336 catch-all + auth_commands.py:457-476 bedrock STS",
                 "note": "Hermes-side gap: planner records the open question rather than inventing a Gormes-only handler that has no Hermes parity counterpart."
+              }
+            },
+            {
+              "name": "Gormes profile command binding",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Implements `gormes profile show|set|list` over the existing CLI profile name validator (`CLI profile name validator` row), root resolver (`CLI profile root resolver` row), and active-profile store (`CLI active-profile store` row). `show` renders the active profile name plus redacted root path; `set <name>` validates the name first → updates the active-profile store → swaps the root resolver; `list` enumerates known profiles with a current marker. User-facing selection (when invoked without an explicit name) delegates to the new `Model and profile selector seam (Cobra + gateway)` row's `ProfileSelector` interface once that lands; until then `set` requires an explicit name argument.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Invalid profile name returns `profile_name_invalid` typed evidence and the active-profile store is left untouched. An unwritable profile root returns `profile_root_unwritable`. A corrupt active-profile store returns `active_profile_corrupt`. A partial failure (e.g. store updated but root resolver swap fails) returns `profile_set_partial_failure` with the prior active profile name in the evidence so operators can recover.",
+              "fixture": "cmd/gormes/profile_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/profiles.py:validate_profile_name",
+                "../hermes-agent/hermes_cli/profiles.py:list_profiles",
+                "../hermes-agent/hermes_cli/profiles.py:get_profile_dir",
+                "../hermes-agent/hermes_cli/main.py:profile_subparsers",
+                "cmd/gormes/hermes_cli_parity.go:81",
+                "cmd/gormes/hermes_cli_parity.go:111",
+                "internal/cli/profile_name.go",
+                "internal/cli/profile_root.go",
+                "internal/cli/active_profile.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "CLI profile name validator row is complete and exposes a Go-native validator.",
+                "CLI profile root resolver row is complete and exposes a Go-native resolver that can be swapped at runtime.",
+                "CLI active-profile store row is complete and exposes read/write/replace primitives over the active-profile pointer.",
+                "Model and profile selector seam (Cobra + gateway) row is at least planned so the bare-invocation selector path is documented.",
+                "Tests inject fake validator/resolver/store seams and a temp profile root; no live ~/.hermes or ~/.gormes profile state is read."
+              ],
+              "not_ready_when": [
+                "The slice re-implements profile name validation, root resolution, or active-profile storage instead of delegating to rows 19851/19910/19971.",
+                "The slice mutates the active-profile store before validating the name.",
+                "Test fixtures read live ~/.hermes or ~/.gormes profile state.",
+                "Output prints raw root paths in a way that could leak auth tokens stored under the profile root."
+              ],
+              "blocked_by": [
+                "CLI profile name validator",
+                "CLI profile root resolver",
+                "CLI active-profile store",
+                "Model and profile selector seam (Cobra + gateway)"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestGormesProfileShowRendersActivePathRedacted proves `gormes profile show` outputs the active profile name and a redacted root path; the test asserts that no raw filesystem path string that could contain an auth token slug appears in stdout/stderr.",
+                "TestGormesProfileSetValidatesNameThenUpdatesStore proves the validator (CLI profile name validator) is called before the active-profile store; an invalid name returns `profile_name_invalid` typed evidence and the store is byte-identical after the failed call.",
+                "TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker proves `gormes profile list` output marks the active profile (`*` or equivalent) and lists all profiles returned by the root resolver in stable order.",
+                "TestGormesProfileSetUpdatesRootResolver proves the root resolver swap happens after the store update succeeds, not before; a fake store-write failure leaves the resolver pointing at the prior root.",
+                "TestGormesProfileSetPartialFailureReportsTypedEvidence proves a fake resolver-swap failure after a successful store update returns `profile_set_partial_failure` evidence containing the prior active profile name."
+              ],
+              "note": "Encodes the Q4B-P1 decision: three helper rows (CLI profile name validator, CLI profile root resolver, CLI active-profile store) are complete and currently have zero callers. This row converts that into operator-visible behavior. Coordinates with the gateway `_handle_profile_command` overlap noted in the `Gateway, platform, webhook, and cron management CLI` umbrella via the new selector seam (`Model and profile selector seam (Cobra + gateway)`) so the same selection logic powers both Cobra `gormes profile` and the gateway slash command. Hermes-side parity reference: `hermes_cli/profiles.py` — Hermes' profile command lives there and exposes list/use/create/delete/show/alias/rename/export/import; this row lands a minimal `show|set|list` slice and tracks the remaining verbs as future row-backed work.",
+              "write_scope": [
+                "cmd/gormes/profile.go",
+                "cmd/gormes/profile_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestGormesProfile' -count=1",
+                "go test ./cmd/gormes ./internal/cli -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Profile command-binding fixtures prove redacted show, validator-before-store ordering on set, current-marker list, ordered resolver swap on set, and partial-failure typed evidence."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/profiles.py + hermes_cli/main.py:profile_subparsers (Q4B-P1 decision: minimal show|set|list slice over the three already-shipped helper rows)",
+                "note": "Hermes ships a fuller profile command surface (list/use/create/delete/show/alias/rename/export/import); Gormes lands the show|set|list slice first to materialize the existing helper rows into operator-visible behavior, with remaining verbs row-backed for follow-up."
+              }
+            },
+            {
+              "name": "Model and profile selector seam (Cobra + gateway)",
+              "status": "planned",
+              "priority": "P1",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "contract": "Defines `type ModelSelector interface { Select(ctx context.Context, kind SelectionKind) (Selection, error) }` and `type ProfileSelector interface { Select(ctx context.Context) (Profile, error) }` in `internal/cli/selector.go`. Default implementations consume the existing rows: `Hermes config.yaml model/provider runtime bridge` for live config, `TUI launch model override + static alias resolver` for alias resolution, and the three profile helpers (`CLI profile name validator`, `CLI profile root resolver`, `CLI active-profile store`). The seam returns a `(provider, model, account)` triple for model selection and a profile descriptor for profile selection; consumers decide what to do with the result. The seam is the canonical entry point for both the Cobra `gormes model` / `gormes profile` commands and the gateway slash commands `/model` / `/profile`.",
+              "contract_status": "draft",
+              "degraded_mode": "`selector_no_match` typed evidence is returned when no provider/model alias resolves; `selector_helper_unavailable` when one of the helper rows is not yet wired; `selector_alias_resolution_failed` when the static alias resolver returns an error.",
+              "fixture": "internal/cli/selector_test.go",
+              "source_refs": [
+                "internal/hermes/model_alias_resolver.go",
+                "internal/config/config.go:HermesCfg",
+                "internal/cli/profile_name.go",
+                "internal/cli/profile_root.go",
+                "internal/cli/active_profile.go",
+                "cmd/gormes/hermes_cli_parity.go:286",
+                "../hermes-agent/gateway/run.py:_handle_model_command",
+                "../hermes-agent/gateway/run.py:_handle_profile_command",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Hermes config.yaml model/provider runtime bridge row is complete and exposes a typed read model.",
+                "TUI launch model override + static alias resolver row is complete and exposes the alias resolver as a callable.",
+                "CLI profile name validator, CLI profile root resolver, and CLI active-profile store rows are complete and expose Go-native helpers.",
+                "Tests can inject fake helper-row implementations and a fake alias resolver; no live config files or live provider endpoints are needed."
+              ],
+              "not_ready_when": [
+                "The selector duplicates alias resolution, config loading, or profile root resolution that already lives in the Hermes config.yaml model/provider runtime bridge, TUI launch model override + static alias resolver, CLI profile name validator, CLI profile root resolver, or CLI active-profile store rows.",
+                "The seam returns concrete struct types instead of small interface-friendly result records.",
+                "Tests require live config files or live provider endpoints."
+              ],
+              "blocked_by": [
+                "Hermes config.yaml model/provider runtime bridge",
+                "TUI launch model override + static alias resolver",
+                "CLI profile name validator",
+                "CLI profile root resolver",
+                "CLI active-profile store"
+              ],
+              "unblocks": [
+                "Gormes model interactive provider/model picker",
+                "Gormes profile command binding"
+              ],
+              "acceptance": [
+                "TestModelSelectorContract proves the `ModelSelector` interface signature `Select(ctx context.Context, kind SelectionKind) (Selection, error)` and the `ProfileSelector` interface signature `Select(ctx context.Context) (Profile, error)` are exported from `internal/cli/selector.go`.",
+                "TestModelSelectorDefaultConsumesExistingResolverRows proves the default `ModelSelector` implementation calls into the Hermes config.yaml model/provider runtime bridge and the TUI launch model override + static alias resolver without re-deriving alias logic.",
+                "TestProfileSelectorDefaultConsumesProfileHelpers proves the default `ProfileSelector` implementation calls the CLI profile name validator → CLI profile root resolver → CLI active-profile store helpers in that order.",
+                "TestSelectorReturnsTypedErrorOnNoMatch proves a no-match scenario returns `selector_no_match` typed evidence (not a panic, not a nil result, not a generic error)."
+              ],
+              "note": "Q7B decision: the seam is the canonical entry point for both Cobra (`gormes model`, `gormes profile`) and gateway slash (`/model`, `/profile`) commands. When the gateway handler bindings (`_handle_model_command`, `_handle_profile_command` — currently row-backed under `Gateway, platform, webhook, and cron management CLI` per `cmd/gormes/hermes_cli_parity.go:286`) land in their own row, those rows must blocked_by this seam. Captured here as a note rather than an `unblocks` entry to avoid over-blocking the small seam against the gateway umbrella.",
+              "write_scope": [
+                "internal/cli/selector.go",
+                "internal/cli/selector_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run '^TestModelSelector|^TestProfileSelector' -count=1",
+                "go test ./internal/cli -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Selector-seam fixtures prove the interface signatures, default-implementation delegation to the existing helper rows, profile-helper call order, and `selector_no_match` typed evidence on a no-match scenario."
+              ],
+              "provenance": {
+                "origin_type": "owned",
+                "upstream_ref": "Q7B planner decision: a single Go-native selector interface for both Cobra and gateway model/profile selection, derived from the Hermes parity scope without porting a Python helper",
+                "note": "Hermes routes model/profile selection through ad-hoc helpers per command; Gormes consolidates them behind a single interface so Cobra and gateway slash commands share the same code path."
               }
             },
             {
@@ -20496,7 +20656,7 @@
               "name": "Gormes model interactive provider/model picker",
               "status": "planned",
               "priority": "P2",
-              "contract": "`gormes model [--portal-url URL] [--inference-url URL] [--client-id ID] [--scope S] [--no-browser] [--timeout SEC] [--ca-bundle PATH] [--insecure]` runs an interactive provider+model picker over the existing model registry and static alias resolver: it requires a TTY, shows current provider/model, presents the provider menu, runs the per-provider login flow only when no Gormes-owned credentials exist (including the legacy `~/.codex/auth.json` import path for `openai-codex`), fetches the model catalog, prompts model selection, and persists `model.default` and `model.provider` to the active config.",
+              "contract": "`gormes model [--portal-url URL] [--inference-url URL] [--client-id ID] [--scope S] [--no-browser] [--timeout SEC] [--ca-bundle PATH] [--insecure]` runs an interactive provider+model picker over the existing model registry, static alias resolver, and the new `Model and profile selector seam (Cobra + gateway)` interface: it requires a TTY, shows current provider/model, presents the provider menu (selection-only — no provider auth flow is triggered from this command), fetches the model catalog, prompts model selection, and persists `model.default` and `model.provider` to the active config. Provider auth is the responsibility of `gormes auth add` (including the explicit `--emergency-import-from-codex-cli` override) — `gormes model` never offers OAuth, device-code, or vendor-CLI import flows.",
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -20523,15 +20683,17 @@
                 "Gateway `_handle_model_command` overlap is coordinated with the Gateway management CLI umbrella row so the same handler is not rowed twice."
               ],
               "not_ready_when": [
-                "The slice mutates auth.json directly instead of delegating to the per-provider OAuth adapters.",
+                "The slice mutates auth.json or runs any provider auth flow.",
                 "The slice runs interactive prompts in non-TTY tests (must use injected TTY/menu seam).",
                 "The slice ports the full Hermes setup wizard logic (that lives in the separate `Gormes setup minimal sectioned wizard slice` row).",
-                "The slice duplicates gateway `_handle_model_command` instead of sharing the single handler implementation."
+                "The slice duplicates gateway `_handle_model_command` instead of sharing the single handler implementation.",
+                "The picker offers any provider auth flow (OAuth, device-code, vendor-CLI import); auth flows belong to gormes auth add only."
               ],
               "blocked_by": [
                 "Provider endpoint/API-key root flags + runtime resolution",
                 "TUI launch model override + static alias resolver",
                 "Hermes config.yaml model/provider runtime bridge",
+                "Model and profile selector seam (Cobra + gateway)",
                 "Hermes auth OAuth provider adapters",
                 "Gormes auth add openai-codex strict isolation contract"
               ],
@@ -20542,12 +20704,11 @@
               "acceptance": [
                 "TestModelPickerRequiresTTY proves a non-TTY invocation returns model_picker_requires_tty exit code 2 and does not read the model catalog.",
                 "TestModelPickerProviderMenuShowsCurrent proves the menu fixture renders the active provider/model first and lists all providers from the registry.",
-                "TestModelPickerInvokesLoginOnlyWhenCredentialsAbsent proves the per-provider login seam is invoked when the credential pool is empty for the chosen provider and is not invoked when a credential exists.",
-                "TestModelPickerLegacyCodexImportRespected proves selecting `openai-codex` with no Gormes credentials but a present `~/.codex/auth.json` calls the legacy import path (parity with `_login_openai_codex`), distinct from `auth add openai-codex` strict isolation.",
+                "TestModelPickerSelectionOnlyDoesNotInvokeAuthFlow proves no fixture provider-auth seam (OAuth, device-code, vendor-CLI import) is invoked when the credential pool is empty for the chosen provider; instead the picker emits operator guidance pointing at `gormes auth add <provider>`.",
                 "TestModelPickerPersistsModelAndProvider proves successful selection writes `model.default` and `model.provider` to the active Hermes config.yaml-compatible store with redacted output.",
                 "TestModelPickerCancellationLeavesConfigUntouched proves Ctrl-C / cancel mid-prompt does not mutate any config file."
               ],
-              "note": "Reuses the already-shipped Provider endpoint flag row (19324), TUI launch model override + static alias resolver (21722), and Hermes config.yaml model/provider runtime bridge (21051). Auditor surprise (a) clarifies that `gormes model` is the only path that imports `~/.codex/auth.json`; `gormes auth add openai-codex` stays strict. Coordinates with gateway `_handle_model_command` overlap noted in the Gateway, platform, webhook, and cron management CLI umbrella.",
+              "note": "Reuses the already-shipped Provider endpoint flag row (19324), TUI launch model override + static alias resolver (21722), Hermes config.yaml model/provider runtime bridge (21051), and the new `Model and profile selector seam (Cobra + gateway)` interface. Q6 decision: gormes model is selection-only; Codex CLI import is dropped from this row and lives only behind the explicit --emergency-import-from-codex-cli flag in the strict-isolation row. Coordinates with gateway `_handle_model_command` overlap noted in the Gateway, platform, webhook, and cron management CLI umbrella — both the Cobra command and the gateway slash command consume the same selector seam.",
               "write_scope": [
                 "cmd/gormes/model.go",
                 "cmd/gormes/model_picker_test.go",
@@ -20706,10 +20867,10 @@
               }
             },
             {
-              "name": "Gormes mcp login OAuth re-auth bridge",
+              "name": "Gormes mcp login interface seam + noninteractive default",
               "status": "planned",
               "priority": "P2",
-              "contract": "`gormes mcp login <name>` forces re-authentication for an OAuth-based MCP server: it looks up the server in MCP config, refuses with mcp_auth_not_oauth when `auth != \"oauth\"` or when the server URL is missing, removes the persisted MCP OAuth state for `<name>`, and re-runs the OAuth flow via the existing MCP OAuth refresh seam. On success the command reports the resulting tool count; on failure it reports a typed mcp_oauth_relogin_failed envelope without leaving the MCP state in an inconsistent half-cleared form.",
+              "contract": "`gormes mcp login <name>` is registered as a Cobra command that delegates to a `MCPLoginFlow` interface defined in `internal/tools/mcp_login.go` with signature `type MCPLoginFlow interface { Login(ctx context.Context, server MCPServer) (*MCPSession, error) }`. The default implementation `noninteractiveLoginFlow` returns `noninteractive_required` typed evidence with operator guidance text (pointing at `gormes mcp remove` + `gormes mcp add` and the future browser-flow row) and never opens a browser, callback server, or live token-exchange request. Tests inject fake successful, failed, and noninteractive flows to prove the seam supports a future browser implementation. Existing rows 15458 (MCP OAuth state store) and 15522 (MCP OAuth refresh) supply the OAuth state store and refresh seams; this row only ports the command + interface seam.",
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -20717,8 +20878,8 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Unknown MCP server name returns mcp_server_unknown with the configured server list; non-OAuth auth modes (header/stdio) return mcp_auth_not_oauth with the operator-facing redirect (`use 'gormes mcp remove' + 'gormes mcp add'`); OAuth refresh failures return mcp_oauth_relogin_failed and the prior state is restored atomically.",
-              "fixture": "cmd/gormes/mcp_login_test.go",
+              "degraded_mode": "Default flow returns `noninteractive_required` typed evidence; injected flows can additionally return `mcp_login_state_store_unwritable` when the OAuth state store is read-only and `mcp_login_flow_failed` when an injected flow returns an error. Unknown MCP server name returns mcp_server_unknown with the configured server list. Non-OAuth auth modes (header/stdio) return mcp_auth_not_oauth with the operator-facing redirect (`use 'gormes mcp remove' + 'gormes mcp add'`).",
+              "fixture": "internal/tools/mcp_login_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/main.py:9278-9282:mcp_login_parser",
                 "../hermes-agent/hermes_cli/mcp_config.py:582-636:mcp_login_handler",
@@ -20728,14 +20889,14 @@
                 "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
               ],
               "ready_when": [
-                "MCP OAuth state store + noninteractive auth errors row exposes the persisted state and remove helper.",
-                "MCP OAuth refresh + 401 session-expired recovery row exposes the OAuth-refresh seam the relogin command can drive.",
-                "Tests inject a fake MCP config loader, fake OAuth refresh transport, and fake clock; no live MCP server, browser callback, or localhost socket is required.",
-                "Open question (see acceptance below): planner+operator decide whether the initial slice ships a fake-callback fixture or stays noninteractive-only."
+                "MCP OAuth state store + noninteractive auth errors row exposes the persisted state and remove helper (row 15458).",
+                "MCP OAuth refresh + 401 session-expired recovery row exposes the OAuth-refresh seam the relogin command can drive (row 15522).",
+                "Tests inject a fake MCP config loader, fake OAuth refresh transport, fake `MCPLoginFlow`, and fake clock; no live MCP server, browser callback, or localhost socket is required."
               ],
               "not_ready_when": [
-                "The slice opens a real browser, binds a localhost callback socket, or contacts a live MCP server URL during unit tests.",
-                "The slice duplicates backend MCP OAuth state row 15458 or refresh row 15522 by re-deriving the persisted state shape.",
+                "The slice opens a localhost callback server, real browser, or live token-exchange request.",
+                "The default flow returns success or attempts a real network call.",
+                "The slice duplicates existing rows 15458 (MCP OAuth state store) or 15522 (MCP OAuth refresh) instead of consuming their interfaces.",
                 "Output prints raw access_token, refresh_token, or authorization code values.",
                 "Non-OAuth servers are auto-converted to OAuth instead of returning mcp_auth_not_oauth with the redirect."
               ],
@@ -20744,33 +20905,103 @@
                 "MCP OAuth refresh + 401 session-expired recovery"
               ],
               "unblocks": [
+                "Gormes mcp login browser callback flow",
                 "Diagnostics, backup, logs, and status CLI"
               ],
               "acceptance": [
+                "TestMCPLoginInterfaceContract proves the `MCPLoginFlow` interface exposes `Login(ctx context.Context, server MCPServer) (*MCPSession, error)` and is exported from `internal/tools/mcp_login.go`.",
+                "TestMCPLoginNoninteractiveDefaultReturnsTypedEvidence proves the default `noninteractiveLoginFlow` returns `noninteractive_required` evidence with operator guidance text and never opens a browser, socket, or live request.",
+                "TestMCPLoginInjectedSuccessStoresSession proves a fake successful flow writes the session to the OAuth state store via row 15458's interface.",
+                "TestMCPLoginInjectedFailureEmitsTypedError proves a fake failure does not mutate the OAuth state store and returns `mcp_login_flow_failed` typed evidence.",
                 "TestMCPLoginUnknownServer proves `gormes mcp login does-not-exist` returns mcp_server_unknown exit 2 and lists configured server names.",
-                "TestMCPLoginRejectsNonOAuth proves a header-auth and stdio-auth fixture each return mcp_auth_not_oauth with the redirect (`use 'gormes mcp remove' + 'gormes mcp add'`) and do not touch the OAuth state store.",
-                "TestMCPLoginRemovesStateThenRefreshes proves a successful relogin removes the prior persisted MCP OAuth state and then runs the refresh seam exactly once, reporting the resulting tool count.",
-                "TestMCPLoginAtomicOnFailure proves a fake refresh failure restores the prior persisted state byte-identical and returns mcp_oauth_relogin_failed without leaving the server in a half-cleared state.",
-                "TestMCPLoginInitialSliceDecision documents the planner+operator decision (TODO marker in note): the initial slice either (a) ships a fake-callback fixture proving end-to-end OAuth refresh through an injected transport, or (b) stays noninteractive-only and explicitly returns mcp_oauth_interactive_required when the refresh seam needs a live callback. Default planner verdict: option (b) until operator confirms."
+                "TestMCPLoginRejectsNonOAuth proves a header-auth and stdio-auth fixture each return mcp_auth_not_oauth with the redirect (`use 'gormes mcp remove' + 'gormes mcp add'`) and do not invoke the `MCPLoginFlow` seam."
               ],
-              "note": "Builder-ready CLI bridge over already-shipped MCP OAuth state (row 15458) and refresh (row 15522). Open question recorded in acceptance criterion 5: initial slice is noninteractive-only by default; promote to fake-callback fixture only if operator confirms. TODO: confirm noninteractive-only vs fake-callback choice with operator before builder pickup.",
+              "note": "Encodes the Q3C decision (interface seam now, browser flow as separate row): the seam matches the pattern used in the Codex strict-isolation row which delegates to existing OAuth adapters. The companion `Gormes mcp login browser callback flow` row implements the localhost-callback variant of `MCPLoginFlow` once an operator demand surfaces. Builder-ready CLI bridge over already-shipped MCP OAuth state (row 15458) and refresh (row 15522).",
               "write_scope": [
+                "internal/tools/mcp_login.go",
+                "internal/tools/mcp_login_test.go",
                 "cmd/gormes/mcp_login.go",
-                "cmd/gormes/mcp_login_test.go",
+                "cmd/gormes/mcp_login_command_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
+                "go test ./internal/tools -run '^TestMCPLogin' -count=1",
                 "go test ./cmd/gormes -run '^TestMCPLogin' -count=1",
-                "go test ./cmd/gormes ./internal/plugins -count=1",
+                "go test ./cmd/gormes ./internal/plugins ./internal/tools -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "MCP login fixtures prove unknown-server rejection, non-OAuth redirect, atomic state-then-refresh sequence, atomic failure restore, and the planner-recorded noninteractive-vs-fake-callback decision."
+                "MCP login interface-seam fixtures prove the `MCPLoginFlow` contract, noninteractive-default typed evidence, injected success writes through row 15458, injected failure emits typed evidence with no store mutation, unknown-server rejection, and non-OAuth redirect."
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:hermes_cli/mcp_config.py:582-636 mcp_login_handler",
-                "note": "Hermes scopes mcp_login to OAuth-only and routes header/stdio servers to remove+add; Gormes mirrors the scope and lands a noninteractive-first slice."
+                "upstream_ref": "hermes:hermes_cli/mcp_config.py:582-636 mcp_login_handler (Q3C: interface-seam first, browser flow split into its own row)",
+                "note": "Hermes scopes mcp_login to OAuth-only and routes header/stdio servers to remove+add; Gormes mirrors the scope, ships a noninteractive-default seam first, and tracks the localhost browser callback flow under a separate row."
+              }
+            },
+            {
+              "name": "Gormes mcp login browser callback flow",
+              "status": "planned",
+              "priority": "P3",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "contract": "Implements `MCPLoginFlow.Login` over a localhost callback server (ephemeral `http.Server` bound to 127.0.0.1 with an OS-assigned port), a browser launch hook (default `os.exec` opens the system browser; tests inject a recording fake), and a code-for-token exchange transport (tests inject a fake `http.RoundTripper` so no live token endpoint is contacted). On success, the resulting MCP session is stored through row 15458's interface; on failure, the OAuth state store is left byte-identical. Donor pattern (pattern-only, not copied verbatim): `references/go-agent-os/goclaw/internal/oauth/openai.go` localhost-callback shape; donor pattern (Hermes-side): `hermes-agent/hermes_cli/auth.py:_make_spotify_callback_handler`.",
+              "contract_status": "draft",
+              "fixture": "internal/tools/mcp_login_browser_test.go",
+              "degraded_mode": "Port collision returns `mcp_login_port_collision`; callback timeout returns `mcp_login_callback_timeout`; token exchange error returns `mcp_login_token_exchange_failed`; redirect-URI mismatch returns `mcp_login_redirect_uri_mismatch`. None of these failure modes panic, hang, or leak access tokens / refresh tokens / authorization codes into stdout/stderr.",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth.py:_make_spotify_callback_handler",
+                "../hermes-agent/hermes_cli/mcp_config.py:582-636:mcp_login_handler",
+                "references/go-agent-os/goclaw/internal/oauth/openai.go",
+                "internal/tools/mcp_login.go",
+                "internal/plugins/mcp_oauth_state.go"
+              ],
+              "ready_when": [
+                "Gormes mcp login interface seam + noninteractive default row is complete and exposes `MCPLoginFlow`.",
+                "Tests can inject a fake browser-open hook (records URL only), a fake code-for-token transport, and a fake clock; no live MCP server, real browser, or live token endpoint is contacted.",
+                "Localhost server lifecycle is testable through context cancellation and explicit shutdown."
+              ],
+              "not_ready_when": [
+                "The slice opens a real browser or makes a live token-exchange call in tests.",
+                "The redirect-URI is not validated against the launched URL.",
+                "Port collision or callback timeout panics or hangs the process."
+              ],
+              "blocked_by": [
+                "Gormes mcp login interface seam + noninteractive default"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestMCPLoginBrowserLifecycleStartsAndShutsDown proves the localhost server acquires a port, accepts the test callback request, and shuts down on completion and on context-cancel without leaking goroutines.",
+                "TestMCPLoginBrowserHookRecordsLaunchURL proves the injected fake browser-open hook records the launched URL and the URL contains the redirect_uri matching the localhost listener; the URL is not opened in a real browser.",
+                "TestMCPLoginBrowserTokenExchangeStoresSession proves a successful fake code-for-token exchange writes the resulting MCP session through row 15458's interface and emits no raw token text.",
+                "TestMCPLoginBrowserRedirectURIMismatchTypedEvidence proves a callback whose redirect_uri does not match the launched URL returns `mcp_login_redirect_uri_mismatch` and leaves the OAuth state store byte-identical.",
+                "TestMCPLoginBrowserPortCollisionTypedEvidence proves a fixture forcing port collision returns `mcp_login_port_collision` without panic and without leaking ports.",
+                "TestMCPLoginBrowserCallbackTimeoutTypedEvidence proves an injected slow-callback fixture returns `mcp_login_callback_timeout` after the configured deadline without leaking goroutines or tokens."
+              ],
+              "note": "Q3 decision split — captures the future browser-flow work without forcing it now; stays P3 until an operator demand surfaces. Donor patterns are pattern-only: `goclaw/internal/oauth/openai.go` is the closest in-repo Go donor for localhost-callback shape, and `_make_spotify_callback_handler` is the Hermes-side parity reference. Goclaw provenance comments may appear in the Go file per `gormes-references` skill rules; other donors stay patterns-only.",
+              "write_scope": [
+                "internal/tools/mcp_login_browser.go",
+                "internal/tools/mcp_login_browser_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestMCPLoginBrowser' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Browser-callback fixtures prove server lifecycle (acquire/shutdown, ctx-cancel), recorded launch URL, fake token-exchange success path through row 15458, redirect-URI mismatch typed evidence, port-collision typed evidence, and callback-timeout typed evidence — all without leaking secrets."
+              ],
+              "references": [
+                "references/go-agent-os/goclaw/internal/oauth/openai.go",
+                "hermes-agent/hermes_cli/auth.py:_make_spotify_callback_handler"
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/auth.py _make_spotify_callback_handler (Hermes-side localhost-callback parity); references/go-agent-os/goclaw/internal/oauth/openai.go (Go donor pattern)",
+                "note": "Q3C decision split: this row captures the future localhost-callback browser flow as a separate P3 row so the interface seam can land first and stay green without forcing the full browser implementation."
               }
             },
             {
@@ -20785,7 +21016,7 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Empty chain renders an empty-state list and exits 0; corrupt fallback config returns fallback_chain_corrupt without partial mutation; remove/rm/clear without explicit confirmation flag in non-TTY tests return fallback_destructive_unconfirmed; remove against an unknown index/id/label returns fallback_target_missing with the current chain echoed for operator context; the model picker dependency being unavailable in the add path returns fallback_picker_unavailable rather than re-implementing the picker locally.",
+              "degraded_mode": "Empty chain renders an empty-state list and exits 0; corrupt fallback config returns fallback_chain_corrupt without partial mutation; remove/rm/clear without explicit confirmation flag in non-TTY tests return fallback_destructive_unconfirmed; remove against an unknown index/id/label returns fallback_target_missing with the current chain echoed for operator context; the model picker dependency being unavailable in the add path returns fallback_picker_unavailable rather than re-implementing the picker locally; appending a (provider, model, account) tuple already present at index N still mutates the chain but additionally emits fallback_duplicate_unreachable informational evidence naming the existing index so the operator is warned.",
               "fixture": "cmd/gormes/fallback_command_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_list",
@@ -20805,7 +21036,8 @@
                 "The slice re-implements the model picker instead of delegating to `Gormes model interactive provider/model picker`.",
                 "The slice mutates `fallback_providers` config without backing up or recording dry-run intent.",
                 "Destructive subcommands (`remove`, `rm`, `clear`) execute without confirmation in non-TTY tests.",
-                "The slice silently treats `ls` and `rm` as separate commands instead of aliases of `list` and `remove`."
+                "The slice silently treats `ls` and `rm` as separate commands instead of aliases of `list` and `remove`.",
+                "The slice silently accepts a duplicate (provider, model, account) tuple without emitting fallback_duplicate_unreachable evidence on stdout/stderr."
               ],
               "blocked_by": [
                 "Gormes model interactive provider/model picker"
@@ -20818,7 +21050,8 @@
                 "TestGormesFallbackClearRequiresConfirmation proves `gormes fallback clear` without an explicit confirmation flag returns fallback_destructive_unconfirmed exit code 2 and does not mutate the chain.",
                 "TestGormesFallbackAliasResolution proves `ls` resolves to `list` and `rm` resolves to `remove` as pure aliases (no divergent code path).",
                 "TestGormesFallbackEmptyChainRendersEmptyState proves an empty `fallback_providers` exits 0 with an empty-state message and no error.",
-                "TestGormesFallbackPickerUnavailableTypedEvidence proves a fake picker-unavailable seam in `add` returns fallback_picker_unavailable and leaves the chain untouched."
+                "TestGormesFallbackPickerUnavailableTypedEvidence proves a fake picker-unavailable seam in `add` returns fallback_picker_unavailable and leaves the chain untouched.",
+                "TestFallbackAddEmitsDuplicateEvidenceForUnreachableEntries proves appending an exact (provider, model, account) tuple already present at index N causes the new entry to be appended AND the command to emit fallback_duplicate_unreachable evidence naming the existing index. The chain is mutated; the operator is warned but not blocked."
               ],
               "note": "Materializes the parity-manifest residual `Hermes fallback provider chain CLI commands` referenced from `cmd/gormes/hermes_cli_parity.go:hermesFallbackCommands`. The row name is matched verbatim to the manifest `Row:` label so the existing `TestHermesCLIParityManifestFallbackCommandsMatchHermes` test continues to pass without Go changes for this gap. The `internal/config/fallback.go` write_scope path is intentionally a not-yet-existing file so this row claims fresh ownership rather than overlapping with the credential-pool file.",
               "write_scope": [
@@ -21898,7 +22131,7 @@
                 "Cron management CLI over native store",
                 "Webhook/platform management CLI helpers"
               ],
-              "note": "Umbrella only: status, pairing, platform toolsets, webhook helpers, and cron admin commands must consume existing Gormes stores instead of copying Hermes' Python command tree wholesale."
+              "note": "Umbrella only: status, pairing, platform toolsets, webhook helpers, and cron admin commands must consume existing Gormes stores instead of copying Hermes' Python command tree wholesale. When _handle_model_command and _handle_profile_command gateway handlers are split into their own rows, those rows must blocked_by the Model and profile selector seam (Cobra + gateway) row so the gateway slash commands share the same Go-native selection path as the Cobra `gormes model` and `gormes profile` commands."
             },
             {
               "name": "Gateway management CLI read-model closeout",

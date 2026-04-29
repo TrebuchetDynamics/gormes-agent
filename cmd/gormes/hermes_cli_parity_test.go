@@ -248,8 +248,19 @@ func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
 			if entry.Target == "" {
 				t.Fatalf("%v implemented entry missing target: %+v", path, entry)
 			}
-		} else if entry.Row != "Hermes provider auth CLI commands" {
-			t.Fatalf("%v row = %q, want Hermes provider auth CLI commands: %+v", path, entry.Row, entry)
+			continue
+		}
+		var wantRow string
+		switch entry.Path[1] {
+		case "add":
+			wantRow = "Hermes auth OAuth provider adapters"
+		case "spotify":
+			wantRow = "Hermes auth Spotify service-provider subcommand"
+		default:
+			wantRow = "Hermes auth credential-pool command surface"
+		}
+		if entry.Row != wantRow {
+			t.Fatalf("%v row = %q, want %q: %+v", path, entry.Row, wantRow, entry)
 		}
 	}
 	for _, implemented := range [][]string{{"auth", "list"}, {"auth", "remove"}, {"auth", "reset"}, {"auth", "status"}, {"auth", "logout"}} {

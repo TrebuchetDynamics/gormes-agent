@@ -78,7 +78,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("update", "gateway/run.py:_handle_update_command", "Backup/update opt-in and exclusion policy", "self-update command remains row-backed"),
 		hermesRowCommand("uninstall", "hermes_cli/main.py:uninstall", "Backup/update opt-in and exclusion policy", "uninstaller remains row-backed and destructive"),
 		hermesRowCommand("acp", "hermes_cli/main.py:acp", "ACP server side", "ACP server/client command remains row-backed"),
-		hermesRowCommand("profile", "hermes_cli/main.py:profile", "Gormes config command surface", "profile command remains row-backed"),
+		hermesRowCommand("profile", "hermes_cli/main.py:profile", "Gormes profile command binding", "profile command binding remains row-backed pending Cobra wiring over the validator/root/store helpers and the selector seam"),
 		hermesRowCommand("completion", "hermes_cli/main.py:completion", "Hermes CLI command-tree parity manifest", "shell completion command remains manifest-classified only"),
 		hermesRowCommand("dashboard", "hermes_cli/main.py:dashboard", "Dashboard theme/plugin extension status contract", "dashboard launch/status command remains row-backed"),
 		hermesRowCommand("logs", "hermes_cli/main.py:logs", "Diagnostics, backup, logs, and status CLI", "log snapshot command remains row-backed"),
@@ -142,7 +142,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries = append(entries, hermesNestedCommands("sessions", "hermes_cli/main.py:sessions_subparsers", "Session shutdown memory transcript handoff", []string{"list", "export", "delete", "prune", "stats", "rename", "browse"})...)
 	entries = append(entries, hermesNestedCommands("claw", "hermes_cli/claw.py", "OpenClaw migration dry-run manifest", []string{"migrate", "cleanup"})...)
 	entries = append(entries, hermesNestedAlias("claw", "clean", "cleanup", "hermes_cli/main.py:claw_subparsers:cleanup aliases", "OpenClaw migration dry-run manifest"))
-	entries = append(entries, hermesNestedCommands("profile", "hermes_cli/main.py:profile_subparsers", "Gormes config command surface", []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import"})...)
+	entries = append(entries, hermesNestedCommands("profile", "hermes_cli/main.py:profile_subparsers", "Gormes profile command binding", []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import"})...)
 
 	entries = append(entries, hermesGatewayHandlers()...)
 	entries = append(entries, hermesSlashRegistryEntries()...)
@@ -174,7 +174,7 @@ func hermesExcludedCommand(name, sourceRef, residual string) hermesCLIParityEntr
 }
 
 func hermesProviderLogoutCommand() hermesCLIParityEntry {
-	entry := hermesRowCommand("logout", "hermes_cli/auth.py:logout_command", "Hermes provider auth CLI commands", "top-level provider logout remains row-backed; clears auth state and resets provider config")
+	entry := hermesRowCommand("logout", "hermes_cli/auth.py:logout_command", "Gormes top-level logout provider shortcut", "top-level provider logout remains row-backed; clears auth state and resets provider config")
 	entry.RedactsSecrets = true
 	entry.Destructive = true
 	return entry
@@ -246,12 +246,14 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 		target      string
 		destructive bool
 		redacts     bool
+		rowOverride string
 	}{
 		{
-			name:      "add",
-			sourceRef: "hermes_cli/auth_commands.py:auth_add_command",
-			residual:  "non-deprecated provider login/add flow is partially implemented: API keys and openai-codex device-code OAuth are native; anthropic, nous, qwen-oauth, and google-gemini-cli OAuth remain row-backed",
-			redacts:   true,
+			name:        "add",
+			sourceRef:   "hermes_cli/auth_commands.py:auth_add_command",
+			residual:    "non-deprecated provider login/add flow is partially implemented: API keys and openai-codex device-code OAuth are native; anthropic, nous, qwen-oauth, and google-gemini-cli OAuth remain row-backed",
+			redacts:     true,
+			rowOverride: "Hermes auth OAuth provider adapters",
 		},
 		{
 			name:      "list",
@@ -293,15 +295,20 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 			redacts:     true,
 		},
 		{
-			name:      "spotify",
-			sourceRef: "hermes_cli/auth_commands.py:auth_spotify_command",
-			residual:  "Spotify PKCE auth actions login|status|logout remain row-backed under provider auth CLI parity",
-			redacts:   true,
+			name:        "spotify",
+			sourceRef:   "hermes_cli/auth_commands.py:auth_spotify_command",
+			residual:    "Spotify PKCE auth actions login|status|logout remain row-backed under provider auth CLI parity",
+			redacts:     true,
+			rowOverride: "Hermes auth Spotify service-provider subcommand",
 		},
 	}
 	out := make([]hermesCLIParityEntry, 0, len(commands))
 	for _, command := range commands {
-		entry := hermesRowPath([]string{"auth", command.name}, hermesCLICommand, command.sourceRef, "Hermes provider auth CLI commands", command.residual)
+		rowLabel := command.rowOverride
+		if rowLabel == "" {
+			rowLabel = "Hermes auth credential-pool command surface"
+		}
+		entry := hermesRowPath([]string{"auth", command.name}, hermesCLICommand, command.sourceRef, rowLabel, command.residual)
 		if command.status != "" {
 			entry.Status = command.status
 			entry.Target = command.target
