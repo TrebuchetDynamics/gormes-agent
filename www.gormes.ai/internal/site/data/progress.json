@@ -23029,9 +23029,9 @@
             {
               "name": "Yuanbao protocol envelope + markdown fixtures",
               "priority": "P4",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes parses Yuanbao websocket/protobuf-style envelopes and Markdown message fragments into gateway-neutral events using fixture data only",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -23067,7 +23067,7 @@
                 "Malformed/unknown envelope fixtures return typed degraded evidence and do not panic.",
                 "No test imports a generated protobuf runtime unless a local generated fixture file is checked in under internal/channels/yuanbao."
               ],
-              "note": "Hermes ab687963 added a full Yuanbao platform with proto, markdown, pipeline, media, sticker, tools, skill, and docs. Gormes should start with the protocol/markdown fixture contract so later runtime slices do not rediscover payload shapes.",
+              "note": "Complete: TDD added internal/channels/yuanbao/proto.go and markdown.go with proto_test.go, markdown_test.go, and captured ConnMsg testdata fixtures (inbound_text_c2c.pb, inbound_text_group.pb). Locked invariants: DecodeInboundEnvelope reads ConnMsg field 2 then InboundMessagePush fields 2/6/12/13 to lift Source=yuanbao, ConversationID (group_code or from_account), MessageID (msg_id), AuthorRole=user, and concatenated TIMTextElem text from a hand-rolled protobuf wire reader without third-party runtime; malformed/unknown envelopes return typed *DegradedError with code protocol_unavailable and never panic; RenderPromptSafe flattens links, images, mentions, lists, fenced code, and emphasis to prompt-safe text while preserving URLs verbatim; RenderPromptSafeStrict surfaces markdown_parse_failed for empty content.",
               "write_scope": [
                 "internal/channels/yuanbao/proto.go",
                 "internal/channels/yuanbao/proto_test.go",

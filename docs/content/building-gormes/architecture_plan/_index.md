@@ -864,7 +864,7 @@ classification and row-backed implementation queue.
 - [x] DingTalk AI Cards streaming-update contract
 - [x] DingTalk emoji reaction send/receive parity
 - [x] DingTalk media (image/file) attachment routing
-- [ ] Yuanbao protocol envelope + markdown fixtures
+- [x] Yuanbao protocol envelope + markdown fixtures
 - [ ] Yuanbao media/sticker attachment normalization
 - [ ] Yuanbao gateway runtime + toolset registration
 - [ ] QQ Bot transport/bootstrap layer
