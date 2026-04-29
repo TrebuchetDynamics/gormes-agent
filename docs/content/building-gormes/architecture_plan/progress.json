@@ -1643,7 +1643,7 @@
             },
             {
               "name": "Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -1652,7 +1652,7 @@
                 "system"
               ],
               "contract": "gateway.Manager assembles a durable user-context block from `<GormesHome>/memory/USER.md` (produced by the shipped Memory Mirror, row 3.D.5) and `<GormesHome>/memory/MEMORY.md` (openclaw-migrated under internal/migrate/openclaw or operator-authored), threat-scans and truncates each file using the same patterns internal/hermes/context_files.go uses for SOUL.md / project context, and prepends the rendered block ahead of the platform/session block but after the existing context-files block. The wiring lives inside gateway.Manager — never inside any channel adapter — so all channels inherit it. A new helper internal/hermes/durable_user_context.go (or an extension under internal/hermes) exposes BuildDurableUserContextPrompt(opts) (string, DurableUserContextReport) with hermetic options for the memory dir; the rendered block carries USER.md before MEMORY.md so durable user identity precedes durable session memory.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "Missing USER.md and missing MEMORY.md return an empty block — captured kernel.PlatformEvent.SessionContext is byte-identical to the slice-1 (SOUL+project + platform/session) output. A USER.md or MEMORY.md that trips the threat-pattern scan is rendered with the existing `[BLOCKED:` marker and never reaches the provider as raw threat content. A truncated USER.md or MEMORY.md carries the existing `[...truncated ... kept H+T of N chars ...]` marker. A failed file read is logged via gateway telemetry and the file is dropped from the block for that turn (the other file still renders if present).",
               "fixture": "internal/gateway/live_turn_prompt_test.go + internal/hermes/durable_user_context_test.go",
               "source_refs": [
@@ -1717,6 +1717,44 @@
               "done_signal": [
                 "Six BuildDurableUserContextPrompt fixtures + six gateway live-turn fixtures pass; gateway.Manager prepends the USER/MEMORY block ahead of the platform/session block at the existing assembleLiveTurnPrompt site; no channel adapter under internal/channels/ is modified; existing slice-1 fixtures pass byte-identical when the memory dir is empty."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/durable_user_context.go:DurableUserContextOptions (hermetic memory-dir + MaxChars options struct)",
+                  "internal/hermes/durable_user_context.go:DurableUserContextReport (per-file ContextFileEvidence shape: User + Memory)",
+                  "internal/hermes/durable_user_context.go:BuildDurableUserContextPrompt (loads USER.md + MEMORY.md, threat-scans + truncates via the existing scanContextContent / truncateContextContent helpers, renders USER-before-MEMORY block; empty memory dir returns empty block with both files Missing=true)",
+                  "internal/hermes/durable_user_context.go:loadDurableContextFile (per-file reader + scan + truncate; missing/empty files return ContextFileEvidence{Missing:true})",
+                  "internal/gateway/live_turn_prompt.go:liveTurnPromptSeams (extended with MemoryDir func + BuildDurable func seams)",
+                  "internal/gateway/live_turn_prompt.go:defaultLiveTurnPromptSeams (production wiring: MemoryDir=filepath.Join(config.GormesHome(),\"memory\") + hermes.BuildDurableUserContextPrompt)",
+                  "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (now returns three values: assembled prompt + ContextFilesReport + DurableUserContextReport; pieces joined in fixed order context-files / durable-user / session, empty pieces elided so missing-memory output stays byte-identical to slice 1)",
+                  "internal/gateway/manager.go:ManagerConfig.ContextFilesMemoryDir (caller-supplied seam override; empty falls back to <GormesHome>/memory)",
+                  "internal/gateway/manager.go:newManagerInternal (resolves cfg.ContextFilesMemoryDir into seams.MemoryDir at construction)",
+                  "internal/gateway/manager.go:submitPinned (assembleLiveTurnPrompt's three-return signature consumed at the existing channel-neutral assembly site)"
+                ],
+                "tests": [
+                  "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_LoadsUserMD",
+                  "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_LoadsMemoryMD",
+                  "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_OrdersUserBeforeMemory",
+                  "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_TruncatesLargeFiles",
+                  "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_BlocksThreats",
+                  "internal/hermes/durable_user_context_test.go:TestBuildDurableUserContextPrompt_MissingFilesReturnsEmpty",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesUserMD",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_IncludesMemoryMD",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_DurableUserBlockOrder",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_DurableUserBlockChannelNeutral (sub-tests: telegram, slack, bluebubbles, whatsapp, discord)",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_DurableUserMissingNoPanic",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_DurableUserThreatBlocked"
+                ],
+                "captured_session_context_for_soul_user_memory_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\n## AGENTS.md\n\nProject: Gormes — native Go Hermes parity agent.\nYou are Gormes, not ChatGPT.\n\n# Durable User Context\n\nThe following durable user/memory files have been loaded and should be considered when responding:\n\n## USER.md\n\n# User\nName: Juan\n\n## MEMORY.md\n\n# Memory\nLast topic: live prompt parity.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
+                "threat_scan_strategy": "Reused the existing private scanContextContent / truncateContextContent / contextThreatPatterns / contextInvisibleChars helpers from internal/hermes/context_files.go via package-internal access. No duplication and no factoring change to context_files.go was needed because the new helper lives in the same internal/hermes package; context_files.go's public API is unchanged.",
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run DurableUserContext -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel ./internal/memory -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok (validated 7 phases)",
+                  "git diff --check -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "porting",
                 "upstream_ref": "hermes:run_agent.py + agent/prompt_builder.py USER/MEMORY durable context block",

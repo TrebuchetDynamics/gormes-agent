@@ -78,6 +78,11 @@ type ManagerConfig struct {
 	// discovery (HERMES.md / .hermes.md / AGENTS.md / CLAUDE.md / .cursorrules).
 	// Empty falls back to os.Getwd() at call time.
 	ContextFilesCWD string
+	// ContextFilesMemoryDir overrides the memory directory used for live-turn
+	// USER.md and MEMORY.md durable user-context discovery. Empty falls back
+	// to <config.GormesHome()>/memory at call time. Tests inject hermetic
+	// temp directories so no live ~/.gormes/memory state is read.
+	ContextFilesMemoryDir string
 }
 
 type kernelSubmitter interface {
@@ -267,6 +272,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 	if cwd := strings.TrimSpace(cfg.ContextFilesCWD); cwd != "" {
 		seams.CWD = func() string { return cwd }
+	}
+	if memDir := strings.TrimSpace(cfg.ContextFilesMemoryDir); memDir != "" {
+		seams.MemoryDir = func() string { return memDir }
 	}
 	return &Manager{
 		cfg:                 cfg,
@@ -1560,7 +1568,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
-	sessionContext, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, sessionBlock)
+	sessionContext, _, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, sessionBlock)
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,
