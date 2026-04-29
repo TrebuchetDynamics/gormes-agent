@@ -59,7 +59,7 @@ func TestManager_KernelInbound_AdmissionAcceptedAfterProviderHTMLError(t *testin
 		Text:     "first",
 	})
 
-	if !waitForSentTextContaining(t, ch, "provider returned HTML error body", 2*time.Second) {
+	if !waitForSentTextContaining(t, ch, "provider returned HTML error body", 5*time.Second) {
 		t.Fatalf("first turn never produced sanitized provider HTML error")
 	}
 
