@@ -21626,10 +21626,10 @@
             },
             {
               "name": "Gormes mcp login interface seam + noninteractive default",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "`gormes mcp login <name>` is registered as a Cobra command that delegates to a `MCPLoginFlow` interface defined in `internal/tools/mcp_login.go` with signature `type MCPLoginFlow interface { Login(ctx context.Context, server MCPServer) (*MCPSession, error) }`. The default implementation `noninteractiveLoginFlow` returns `noninteractive_required` typed evidence with operator guidance text (pointing at `gormes mcp remove` + `gormes mcp add` and the future browser-flow row) and never opens a browser, callback server, or live token-exchange request. Tests inject fake successful, failed, and noninteractive flows to prove the seam supports a future browser implementation. Existing rows 15458 (MCP OAuth state store) and 15522 (MCP OAuth refresh) supply the OAuth state store and refresh seams; this row only ports the command + interface seam.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21671,7 +21671,7 @@
                 "TestMCPLoginUnknownServer proves `gormes mcp login does-not-exist` returns mcp_server_unknown exit 2 and lists configured server names.",
                 "TestMCPLoginRejectsNonOAuth proves a header-auth and stdio-auth fixture each return mcp_auth_not_oauth with the redirect (`use 'gormes mcp remove' + 'gormes mcp add'`) and do not invoke the `MCPLoginFlow` seam."
               ],
-              "note": "Encodes the Q3C decision (interface seam now, browser flow as separate row): the seam matches the pattern used in the Codex strict-isolation row which delegates to existing OAuth adapters. The companion `Gormes mcp login browser callback flow` row implements the localhost-callback variant of `MCPLoginFlow` once an operator demand surfaces. Builder-ready CLI bridge over already-shipped MCP OAuth state (row 15458) and refresh (row 15522).",
+              "note": "Complete: TDD landed internal/tools/mcp_login.go with the exported MCPLoginFlow interface, MCPSession result type, RunMCPLogin helper, and a noninteractive default that returns noninteractive_required operator guidance without opening a browser, callback socket, live MCP server, or token exchange. cmd/gormes now registers gormes mcp login <name> through a fresh Cobra constructor. Focused fixtures cover interface contract, noninteractive default evidence, injected success storing into the existing MCP OAuth state store, injected failure redaction/no mutation, unknown server exit 2 with available names, and header/stdio non-OAuth redirect to gormes mcp remove + gormes mcp add.",
               "write_scope": [
                 "internal/tools/mcp_login.go",
                 "internal/tools/mcp_login_test.go",
