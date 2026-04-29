@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -29,35 +30,115 @@ func newMigrateCommand() *cobra.Command {
 
 func newMigrateHermesCommand() *cobra.Command {
 	var (
-		source string
-		dryRun bool
+		source    string
+		dest      string
+		dryRun    bool
+		yes       bool
+		overwrite bool
 	)
 	cmd := &cobra.Command{
 		Use:          "hermes",
-		Short:        "Build a dry-run manifest for migrating Hermes config.yaml + .env into Gormes",
+		Short:        "Migrate Hermes config.yaml + .env into Gormes (dry-run manifest or --yes apply)",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if !dryRun {
-				return newExitCodeError(2, errors.New("gormes migrate hermes: --dry-run is required in this slice; the writer subcommand is not implemented yet"))
+			if dryRun && yes {
+				return newExitCodeError(2, errors.New("gormes migrate hermes: --dry-run and --yes are mutually exclusive"))
 			}
-			m, err := migratehermes.BuildManifest(migratehermes.Options{
-				Source:            strings.TrimSpace(source),
-				ExistingGormesEnv: collectGormesEnvSnapshot(),
-			})
-			if err != nil {
-				return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
+			if !dryRun && !yes {
+				return newExitCodeError(2, errors.New("gormes migrate hermes: use --yes to apply or --dry-run to inspect"))
 			}
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			if err := enc.Encode(m); err != nil {
-				return fmt.Errorf("gormes migrate hermes: encode manifest: %w", err)
+			if dryRun {
+				return runMigrateHermesDryRun(cmd, source)
 			}
-			return nil
+			return runMigrateHermesApply(cmd, source, dest, overwrite)
 		},
 	}
 	cmd.Flags().StringVar(&source, "source", "", "explicit Hermes home directory; preferred over $HERMES_HOME and ~/.hermes")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the migration manifest without writing any Gormes file (required in this slice)")
+	cmd.Flags().StringVar(&dest, "dest", "", "explicit Gormes destination config dir; defaults to XDG_CONFIG_HOME/gormes")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the migration manifest without writing any Gormes file")
+	cmd.Flags().BoolVar(&yes, "yes", false, "apply the migration manifest into the destination Gormes config dir + dotenv")
+	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "overwrite existing destination keys flagged as conflict in the manifest")
 	return cmd
+}
+
+// runMigrateHermesDryRun preserves the existing JSON manifest output for
+// `gormes migrate hermes --dry-run` so dry-run callers see the same
+// fixture-validated payload after the writer slice lands.
+func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
+	m, err := migratehermes.BuildManifest(migratehermes.Options{
+		Source:            strings.TrimSpace(source),
+		ExistingGormesEnv: collectGormesEnvSnapshot(),
+	})
+	if err != nil {
+		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
+	}
+	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(m); err != nil {
+		return fmt.Errorf("gormes migrate hermes: encode manifest: %w", err)
+	}
+	return nil
+}
+
+// runMigrateHermesApply binds the manifest builder to the writer. The
+// destination defaults to the XDG config dir; tests pass --dest to keep
+// writes inside t.TempDir().
+func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bool) error {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return newExitCodeError(2, errors.New("gormes migrate hermes --yes: --source is required"))
+	}
+	existingEnv := collectGormesEnvSnapshot()
+	manifest, err := migratehermes.BuildManifest(migratehermes.Options{
+		Source:            source,
+		ExistingGormesEnv: existingEnv,
+	})
+	if err != nil {
+		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
+	}
+
+	cfgBody, _ := os.ReadFile(filepath.Join(source, "config.yaml"))
+	envBody, _ := os.ReadFile(filepath.Join(source, ".env"))
+
+	destDir := strings.TrimSpace(dest)
+	if destDir == "" {
+		destDir = filepath.Dir(gormesConfigPath())
+	}
+	destEnv := filepath.Join(destDir, ".env")
+
+	out, err := migratehermes.ApplyManifest(migratehermes.WriteRequest{
+		Manifest:          *manifest,
+		DestConfigDir:     destDir,
+		DestEnvFile:       destEnv,
+		ExistingGormesEnv: existingEnv,
+		Overwrite:         overwrite,
+		Yes:               true,
+		SourceConfigBytes: map[string][]byte{
+			"config.yaml": cfgBody,
+			".env":        envBody,
+		},
+	})
+	if err != nil {
+		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
+	}
+	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		return fmt.Errorf("gormes migrate hermes: encode outcome: %w", err)
+	}
+	return nil
+}
+
+// gormesConfigPath returns the destination config.toml path used when
+// `--dest` is not set. Mirrors internal/config.ConfigPath() rather than
+// importing it so cmd/gormes/migrate.go stays independent of the config
+// package's runtime initialization concerns.
+func gormesConfigPath() string {
+	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
+		return filepath.Join(v, "gormes", "config.toml")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "gormes", "config.toml")
 }
 
 func newMigrateOpenClawCommand() *cobra.Command {

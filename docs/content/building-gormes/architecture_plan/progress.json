@@ -18028,9 +18028,9 @@
             },
             {
               "name": "Hermes config migration writer",
-              "status": "planned",
+              "status": "complete",
               "contract": "`gormes migrate hermes --yes` applies the validated Hermes migration manifest into Gormes config.toml and .env with backups, conflict handling, redaction, and an import report; session and memory imports remain archived/skipped unless their target rows are complete.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
