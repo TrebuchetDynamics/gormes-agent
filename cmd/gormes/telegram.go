@@ -44,7 +44,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("config: %w", err)
 	}
 	if p, ok := config.LegacyHermesHome(); ok {
-		slog.Info("detected upstream Hermes home — Gormes uses XDG paths and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
+		slog.Info("detected upstream Hermes home — Gormes uses GormesHome and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
 	}
 
 	if cfg.Telegram.BotToken == "" {

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -211,19 +210,7 @@ func snapshotShellEnv() map[string]struct{} {
 // dotenvCandidatePaths returns the list of dotenv files to load, in
 // increasing precedence order (last write wins for unset keys).
 func dotenvCandidatePaths() []string {
-	var paths []string
-	// Legacy Hermes first — lowest dotenv precedence.
-	if hermesHome := os.Getenv("HERMES_HOME"); hermesHome != "" {
-		paths = append(paths, filepath.Join(hermesHome, ".env"))
-	} else {
-		home, err := os.UserHomeDir()
-		if err == nil && home != "" {
-			paths = append(paths, filepath.Join(home, ".hermes", ".env"))
-		}
-	}
-	// Gormes-native last — wins within the dotenv layer.
-	paths = append(paths, filepath.Join(xdgConfigHome(), "gormes", ".env"))
-	return paths
+	return []string{EnvPath()}
 }
 
 // applyDotenvFile opens path, parses it, and sets env vars for keys

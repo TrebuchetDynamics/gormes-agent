@@ -13,9 +13,10 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
-func TestTokenScopedGatewayLockPathUsesXDGStateHash(t *testing.T) {
-	stateRoot := t.TempDir()
-	t.Setenv("XDG_STATE_HOME", stateRoot)
+func TestTokenScopedGatewayLockPathUsesGormesHomeHash(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(t.TempDir(), "xdg-state"))
 	credential := "123456:ABC-raw-token"
 	store := newTokenLockTestStore(t, config.GatewayLockDir(), 1001, 501, nil)
 
@@ -31,7 +32,7 @@ func TestTokenScopedGatewayLockPathUsesXDGStateHash(t *testing.T) {
 	if len(hash) != 64 {
 		t.Fatalf("TokenCredentialHash length = %d, want full sha256 hex", len(hash))
 	}
-	wantPath := filepath.Join(stateRoot, "gormes", "gateway-locks", "telegram-"+hash+".lock")
+	wantPath := filepath.Join(gormesHome, "gateway-locks", "telegram-"+hash+".lock")
 	if lock.Path() != wantPath {
 		t.Fatalf("lock path = %q, want %q", lock.Path(), wantPath)
 	}

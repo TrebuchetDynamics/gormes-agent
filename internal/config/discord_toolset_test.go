@@ -10,6 +10,7 @@ import (
 func TestDiscordToolsetConfigLoadsServerActionAllowlist(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	cfgDir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		t.Fatal(err)

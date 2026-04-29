@@ -12,10 +12,11 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
-func TestStartSessionIndexMirror_WritesToXDGPath(t *testing.T) {
+func TestStartSessionIndexMirror_WritesToGormesHomePath(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(dataHome, "gormes"))
 
 	smap, err := session.OpenBolt(config.SessionDBPath())
 	if err != nil {

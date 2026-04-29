@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	migratehermes "github.com/TrebuchetDynamics/gormes-agent/internal/migrate/hermes"
 	openclawmigrate "github.com/TrebuchetDynamics/gormes-agent/internal/migrate/openclaw"
 )
@@ -54,7 +55,7 @@ func newMigrateHermesCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&source, "source", "", "explicit Hermes home directory; preferred over $HERMES_HOME and ~/.hermes")
-	cmd.Flags().StringVar(&dest, "dest", "", "explicit Gormes destination config dir; defaults to XDG_CONFIG_HOME/gormes")
+	cmd.Flags().StringVar(&dest, "dest", "", "explicit Gormes destination config dir; defaults to GormesHome")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the migration manifest without writing any Gormes file")
 	cmd.Flags().BoolVar(&yes, "yes", false, "apply the migration manifest into the destination Gormes config dir + dotenv")
 	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "overwrite existing destination keys flagged as conflict in the manifest")
@@ -81,7 +82,7 @@ func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
 }
 
 // runMigrateHermesApply binds the manifest builder to the writer. The
-// destination defaults to the XDG config dir; tests pass --dest to keep
+// destination defaults to GormesHome; tests pass --dest to keep
 // writes inside t.TempDir().
 func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bool) error {
 	source = strings.TrimSpace(source)
@@ -130,15 +131,9 @@ func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bo
 }
 
 // gormesConfigPath returns the destination config.toml path used when
-// `--dest` is not set. Mirrors internal/config.ConfigPath() rather than
-// importing it so cmd/gormes/migrate.go stays independent of the config
-// package's runtime initialization concerns.
+// `--dest` is not set.
 func gormesConfigPath() string {
-	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
-		return filepath.Join(v, "gormes", "config.toml")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "gormes", "config.toml")
+	return config.ConfigPath()
 }
 
 func newMigrateOpenClawCommand() *cobra.Command {
@@ -168,7 +163,7 @@ func newMigrateOpenClawCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&source, "source", "", "explicit OpenClaw home directory; preferred over ~/.openclaw, ~/.clawdbot, and ~/.moltbot")
-	cmd.Flags().StringVar(&dest, "dest", "", "explicit Gormes destination config dir; defaults to XDG_CONFIG_HOME/gormes")
+	cmd.Flags().StringVar(&dest, "dest", "", "explicit Gormes destination config dir; defaults to GormesHome")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the migration manifest without writing any Gormes file")
 	cmd.Flags().BoolVar(&yes, "yes", false, "apply the migration manifest into the destination Gormes config dir, dotenv, memory dir, and skills dir")
 	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "overwrite existing destination keys flagged as conflict in the manifest")
@@ -284,30 +279,17 @@ func newMigrateOpenClawCleanupCommand() *cobra.Command {
 }
 
 // gormesSkillsDir returns the destination skills directory path used
-// when migrating OpenClaw skills. Mirrors XDG_DATA_HOME conventions
-// without importing internal/config so this file stays decoupled.
+// when migrating OpenClaw skills.
 func gormesSkillsDir() string {
-	if v := os.Getenv("XDG_DATA_HOME"); v != "" {
-		return filepath.Join(v, "gormes", "skills")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "gormes", "skills")
+	return filepath.Join(config.GormesHome(), "skills")
 }
 
 func gormesMemoryDir() string {
-	if v := os.Getenv("XDG_DATA_HOME"); v != "" {
-		return filepath.Join(v, "gormes", "memory")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "gormes", "memory")
+	return filepath.Join(config.GormesHome(), "memory")
 }
 
 func gormesMigrationReportRoot() string {
-	if v := os.Getenv("XDG_STATE_HOME"); v != "" {
-		return filepath.Join(v, "gormes", "migrations", "openclaw")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "state", "gormes", "migrations", "openclaw")
+	return filepath.Join(config.GormesHome(), "migrations", "openclaw")
 }
 
 // collectGormesEnvSnapshot returns the GORMES_* env keys currently set

@@ -65,6 +65,7 @@ func seedTranscriptDB(t *testing.T, sessionID, chatID string) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(dataHome, "gormes"))
 	store, err := memory.OpenSqlite(config.MemoryDBPath(), 8, nil)
 	if err != nil {
 		t.Fatalf("OpenSqlite: %v", err)

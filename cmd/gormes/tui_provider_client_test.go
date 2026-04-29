@@ -12,8 +12,8 @@ import (
 
 func TestTUIUsesCodexCredentialPoolWhenEndpointEmpty(t *testing.T) {
 	setupNativeTUITestEnv(t)
-	hermesHome := t.TempDir()
-	t.Setenv("HERMES_HOME", hermesHome)
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
 
 	var sawHealth bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +25,7 @@ func TestTUIUsesCodexCredentialPoolWhenEndpointEmpty(t *testing.T) {
 	}))
 	defer server.Close()
 
-	store := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{HermesHome: hermesHome})
+	store := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{HermesHome: gormesHome})
 	if _, err := store.SaveTokens(config.CodexOAuthTokens{
 		AccountID:    "acct-tui",
 		Label:        "TUI Account",

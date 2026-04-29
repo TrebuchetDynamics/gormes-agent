@@ -12,8 +12,8 @@ import (
 )
 
 func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolWhenEndpointEmpty(t *testing.T) {
-	hermesHome := t.TempDir()
-	t.Setenv("HERMES_HOME", hermesHome)
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
 
 	var sawResponsesPath bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +29,7 @@ func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolWhenEndpointEmpty(t *tes
 	}))
 	defer server.Close()
 
-	store := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{HermesHome: hermesHome})
+	store := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{HermesHome: gormesHome})
 	if _, err := store.SaveTokens(config.CodexOAuthTokens{
 		AccountID:    "acct-pool",
 		Label:        "Pool Account",
@@ -69,7 +69,7 @@ func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolWhenEndpointEmpty(t *tes
 }
 
 func TestProviderHTTPClient_CodexMissingCredentialFailsBeforeRelativeURL(t *testing.T) {
-	t.Setenv("HERMES_HOME", t.TempDir())
+	t.Setenv("GORMES_HOME", t.TempDir())
 	client, err := newProviderHTTPClient(config.Config{Hermes: config.HermesCfg{
 		Model:    "gpt-5.5",
 		Provider: "openai-codex",

@@ -56,7 +56,7 @@ func withConfigEditorRunner(t interface{ Cleanup(func()) }, runner editorRunner)
 
 // newConfigCommand builds the `gormes config` subtree. It exposes the
 // Hermes-aliased command surface — show, path, env-path, set, edit, check,
-// migrate — over the native Gormes XDG TOML/dotenv files. Writes route
+// migrate — over the native GormesHome TOML/dotenv files. Writes route
 // through internal/config helpers so secrets never land in config.toml.
 // `config migrate` applies only Gormes-native schema migrations; importing
 // upstream Hermes/OpenClaw state is owned by the separate `gormes migrate`

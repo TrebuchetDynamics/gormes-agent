@@ -106,6 +106,7 @@ func setupNativeTUITestEnv(t *testing.T) {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("GORMES_HOME", filepath.Join(root, "gormes"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
 	t.Setenv("GORMES_ENDPOINT", "")

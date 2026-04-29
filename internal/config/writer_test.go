@@ -7,12 +7,12 @@ import (
 	"testing"
 )
 
-func TestConfigWriter_EnvPathHonorsXDG(t *testing.T) {
-	cfgHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+func TestConfigWriter_EnvPathHonorsGormesHome(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
 
 	got := EnvPath()
-	want := filepath.Join(cfgHome, "gormes", ".env")
+	want := filepath.Join(gormesHome, ".env")
 	if got != want {
 		t.Fatalf("EnvPath() = %q, want %q", got, want)
 	}

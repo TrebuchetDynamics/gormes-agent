@@ -99,6 +99,7 @@ func TestParseDotenv_TrailingWhitespaceStrippedFromUnquoted(t *testing.T) {
 func TestLoadDotenvFiles_SetsUnsetEnvVars(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("HERMES_HOME", "")
 
 	cfgDir := filepath.Join(cfgHome, "gormes")
@@ -122,6 +123,7 @@ func TestLoadDotenvFiles_SetsUnsetEnvVars(t *testing.T) {
 func TestLoadDotenvFiles_DoesNotOverrideExistingEnv(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("HERMES_HOME", "")
 
 	cfgDir := filepath.Join(cfgHome, "gormes")
@@ -144,6 +146,7 @@ func TestLoadDotenvFiles_GormesBeatsHermes(t *testing.T) {
 	cfgHome := t.TempDir()
 	hermesHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("HERMES_HOME", hermesHome)
 
 	gormesDir := filepath.Join(cfgHome, "gormes")
@@ -162,30 +165,31 @@ func TestLoadDotenvFiles_GormesBeatsHermes(t *testing.T) {
 	_ = os.Unsetenv("GORMES_DOTENV_PREC_TEST")
 }
 
-func TestLoadDotenvFiles_HermesFallsBackToDefaultHome(t *testing.T) {
-	cfgHome := t.TempDir()
+func TestLoadDotenvFiles_DefaultHomeDotGormes(t *testing.T) {
 	fakeHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", cfgHome)
-	t.Setenv("HERMES_HOME", "") // unset => fall back to ~/.hermes/.env
-	t.Setenv("HOME", fakeHome)  // so ~/.hermes = fakeHome/.hermes
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("GORMES_HOME", "")
+	t.Setenv("HERMES_HOME", "")
+	t.Setenv("HOME", fakeHome)
 
-	hermesDir := filepath.Join(fakeHome, ".hermes")
-	_ = os.MkdirAll(hermesDir, 0o755)
-	_ = os.WriteFile(filepath.Join(hermesDir, ".env"),
-		[]byte("GORMES_DOTENV_LEGACY_TEST=from-legacy\n"), 0o600)
+	gormesDir := filepath.Join(fakeHome, ".gormes")
+	_ = os.MkdirAll(gormesDir, 0o755)
+	_ = os.WriteFile(filepath.Join(gormesDir, ".env"),
+		[]byte("GORMES_DOTENV_HOME_TEST=from-gormes-home\n"), 0o600)
 
-	_ = os.Unsetenv("GORMES_DOTENV_LEGACY_TEST")
+	_ = os.Unsetenv("GORMES_DOTENV_HOME_TEST")
 	loadDotenvFiles()
 
-	if got := os.Getenv("GORMES_DOTENV_LEGACY_TEST"); got != "from-legacy" {
-		t.Errorf("legacy ~/.hermes/.env load = %q, want 'from-legacy'", got)
+	if got := os.Getenv("GORMES_DOTENV_HOME_TEST"); got != "from-gormes-home" {
+		t.Errorf("~/.gormes/.env load = %q, want 'from-gormes-home'", got)
 	}
-	_ = os.Unsetenv("GORMES_DOTENV_LEGACY_TEST")
+	_ = os.Unsetenv("GORMES_DOTENV_HOME_TEST")
 }
 
 func TestLoadDotenvFiles_MissingFilesAreSilentNoop(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("HERMES_HOME", "")
 	// No .env file exists. Must not error, must not panic.
 	loadDotenvFiles() // expected: silent return
@@ -214,6 +218,7 @@ func TestOptionalEnvAnyReportsMissingAirtableCredentialWithoutSecret(t *testing.
 func TestOptionalEnvAnyLoadsDotenvAndRedactsPresentSecret(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("HERMES_HOME", "")
 	clearTestEnvVars(t, "AIRTABLE_API_KEY", "AIRTABLE_PAT")
 

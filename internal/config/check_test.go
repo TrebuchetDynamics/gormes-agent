@@ -13,6 +13,7 @@ import (
 func TestConfigCheck_ReportsCurrentVersionWhenComplete(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(root, "config", "gormes"))
 
 	configDir := filepath.Join(root, "config", "gormes")
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
@@ -52,6 +53,7 @@ model = "test-model"
 func TestConfigCheck_FlagsExplicitEmptyAsConfiguredButEmpty(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(root, "config", "gormes"))
 
 	configDir := filepath.Join(root, "config", "gormes")
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
@@ -93,6 +95,7 @@ model = ""
 func TestConfigCheck_FutureVersionReturnsError(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(root, "config", "gormes"))
 
 	configDir := filepath.Join(root, "config", "gormes")
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
@@ -126,6 +129,7 @@ model = "test-model"
 func TestConfigCheck_DotenvPresenceFlagIsTrueWhenFileExists(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(root, "config", "gormes"))
 
 	configDir := filepath.Join(root, "config", "gormes")
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
@@ -157,6 +161,7 @@ model = "m"
 func TestConfigCheck_DoesNotMutateAnyFile(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(root, "config", "gormes"))
 
 	configDir := filepath.Join(root, "config", "gormes")
 	if err := os.MkdirAll(configDir, 0o700); err != nil {

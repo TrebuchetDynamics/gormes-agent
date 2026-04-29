@@ -53,7 +53,7 @@ func TestTUISaveBinding_LocalModelReceivesSessionExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SessionExportFunc: %v", err)
 	}
-	wantDir := filepath.Join(os.Getenv("XDG_DATA_HOME"), "gormes", "sessions", "exports")
+	wantDir := filepath.Join(config.GormesHome(), "sessions", "exports")
 	if filepath.Dir(path) != wantDir {
 		t.Fatalf("export dir = %q, want %q", filepath.Dir(path), wantDir)
 	}

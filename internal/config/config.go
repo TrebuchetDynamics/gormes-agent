@@ -348,14 +348,12 @@ func providerRequiresExplicitModelError(commandLabel string, source InferenceVal
 }
 
 // Load resolves configuration from (in precedence order) CLI flags, env vars,
-// a TOML file at $XDG_CONFIG_HOME/gormes/config.toml, and built-in defaults.
+// a TOML file at GormesHome()/config.toml, and built-in defaults.
 // Pass os.Args[1:] as args; pass nil to skip flag parsing entirely (useful in tests).
 //
-// Before anything else, dotenv files at (in decreasing precedence) the
-// Gormes XDG config dir and the legacy Hermes home are read into the
-// process environment — any key NOT already in the shell env is set
-// from the file. This lets operators migrating from Hermes keep their
-// `~/.hermes/.env` working without re-keying ~170 secrets.
+// Before anything else, the dotenv file at GormesHome()/.env is read into the
+// process environment. Any key NOT already in the shell env is set from the
+// file.
 func Load(args []string) (Config, error) {
 	loadDotenvFiles() // populates os.Setenv for unset keys BEFORE loadEnv reads them
 	cfg := defaults()
@@ -398,7 +396,7 @@ func defaults() Config {
 			RecallDepth:            2,
 			RecallDecayHorizonDays: 180,
 			MirrorEnabled:          true,
-			MirrorPath:             filepath.Join(xdgDataHome(), "gormes", "memory", "USER.md"),
+			MirrorPath:             filepath.Join(GormesHome(), "memory", "USER.md"),
 			MirrorInterval:         30 * time.Second,
 			SemanticEnabled:        false,
 			SemanticEndpoint:       "",
@@ -976,81 +974,87 @@ func xdgStateHome() string {
 	return filepath.Join(home, ".local", "state")
 }
 
-// ConfigPath returns the Gormes TOML config file path resolved from XDG rules.
+// GormesHome returns the native Gormes state/config root. GORMES_HOME wins;
+// otherwise Gormes uses ~/.gormes so it never needs to share Hermes runtime
+// state such as ~/.hermes/auth.json or ~/.hermes/gateway_state.json.
+func GormesHome() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_HOME")); v != "" {
+		return v
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".gormes")
+}
+
+// ConfigPath returns the Gormes TOML config file path.
 func ConfigPath() string {
-	return filepath.Join(xdgConfigHome(), "gormes", "config.toml")
+	return filepath.Join(GormesHome(), "config.toml")
 }
 
 // LogPath returns the default path for the Gormes log file.
 func LogPath() string {
-	return filepath.Join(xdgDataHome(), "gormes", "gormes.log")
+	return filepath.Join(GormesHome(), "gormes.log")
 }
 
 // CrashLogDir returns the directory where TUI panic dumps are written.
 func CrashLogDir() string {
-	return filepath.Join(xdgDataHome(), "gormes")
+	return GormesHome()
 }
 
 // SessionDBPath returns the default location of the bbolt sessions map.
-// Honors XDG_DATA_HOME; falls back to ~/.local/share/gormes/sessions.db.
 func SessionDBPath() string {
-	return filepath.Join(xdgDataHome(), "gormes", "sessions.db")
+	return filepath.Join(GormesHome(), "sessions.db")
 }
 
 // SessionIndexMirrorPath returns the default location of the read-only YAML
 // mirror for the bbolt session map.
 func SessionIndexMirrorPath() string {
-	return filepath.Join(xdgDataHome(), "gormes", "sessions", "index.yaml")
+	return filepath.Join(GormesHome(), "sessions", "index.yaml")
 }
 
 // MemoryDBPath returns the default location of the Phase-3.A SQLite
-// memory database. Honors XDG_DATA_HOME; falls back to
-// ~/.local/share/gormes/memory.db.
+// memory database.
 func MemoryDBPath() string {
-	return filepath.Join(xdgDataHome(), "gormes", "memory.db")
+	return filepath.Join(GormesHome(), "memory.db")
 }
 
 // CronMirrorPath returns the resolved CRON.md path — either
-// cfg.Cron.MirrorPath (explicit override) or the XDG default
-// $XDG_DATA_HOME/gormes/cron/CRON.md.
+// cfg.Cron.MirrorPath (explicit override) or the Gormes home default.
 func (c Config) CronMirrorPath() string {
 	if c.Cron.MirrorPath != "" {
 		return c.Cron.MirrorPath
 	}
-	return filepath.Join(xdgDataHome(), "gormes", "cron", "CRON.md")
+	return filepath.Join(GormesHome(), "cron", "CRON.md")
 }
 
 // SkillsRoot returns the root directory of the static skills runtime.
-// Explicit override wins; otherwise the XDG default is used.
+// Explicit override wins; otherwise the Gormes home default is used.
 func (c Config) SkillsRoot() string {
 	if c.Skills.Root != "" {
 		return c.Skills.Root
 	}
-	return filepath.Join(xdgDataHome(), "gormes", "skills")
+	return filepath.Join(GormesHome(), "skills")
 }
 
 // HooksRoot returns the root directory for gateway HOOK.yaml hook directories.
-// Gormes uses XDG data paths for live state instead of ~/.hermes/.
 func HooksRoot() string {
-	return filepath.Join(xdgDataHome(), "gormes", "hooks")
+	return filepath.Join(GormesHome(), "hooks")
 }
 
 // GatewayRuntimeStatusPath returns the shared gateway_state.json read-model
 // path for live gateway lifecycle status.
 func GatewayRuntimeStatusPath() string {
-	return filepath.Join(xdgDataHome(), "gormes", "gateway_state.json")
+	return filepath.Join(GormesHome(), "gateway_state.json")
 }
 
 // GatewayLockDir returns the machine-local directory for token-scoped gateway
-// credential locks. It uses XDG state because these locks describe live process
-// ownership rather than durable user data.
+// credential locks.
 func GatewayLockDir() string {
-	return filepath.Join(xdgStateHome(), "gormes", "gateway-locks")
+	return filepath.Join(GormesHome(), "gateway-locks")
 }
 
 // BootPath returns the BOOT.md path used by the built-in gateway startup hook.
 func BootPath() string {
-	return filepath.Join(xdgDataHome(), "gormes", "BOOT.md")
+	return filepath.Join(GormesHome(), "BOOT.md")
 }
 
 // SkillsUsageLogPath returns the append-only JSONL path for skill usage.
@@ -1065,24 +1069,23 @@ func (c Config) SkillsUsageLogPath() string {
 // ToolAuditLogPath returns the append-only JSONL path for tool execution
 // audit records.
 func ToolAuditLogPath() string {
-	return filepath.Join(xdgDataHome(), "gormes", "tools", "audit.jsonl")
+	return filepath.Join(GormesHome(), "tools", "audit.jsonl")
 }
 
 // ResolvedRunLogPath returns the JSONL path for append-only subagent run logs.
-// An explicit TOML override wins; otherwise Gormes writes under XDG_DATA_HOME.
+// An explicit TOML override wins; otherwise Gormes writes under GormesHome.
 func (d DelegationCfg) ResolvedRunLogPath() string {
 	if d.RunLogPath != "" {
 		return d.RunLogPath
 	}
-	return filepath.Join(xdgDataHome(), "gormes", "subagents", "runs.jsonl")
+	return filepath.Join(GormesHome(), "subagents", "runs.jsonl")
 }
 
 // LegacyHermesHome reports an upstream Hermes state directory if one is
 // discoverable. Returns the path and true when either $HERMES_HOME is
-// set OR ~/.hermes/ exists. Gormes does NOT read state from this path
-// at runtime — it uses XDG directories exclusively — but surfacing the
-// detection at startup lets operators know their Hermes state wasn't
-// silently ignored.
+// set OR ~/.hermes/ exists. Gormes does NOT read state from this path at
+// runtime; it uses GormesHome instead. Surfacing the detection at startup lets
+// operators know their Hermes state wasn't silently ignored.
 //
 // Planned: Phase 5.O will add a `gormes migrate --from-hermes` command
 // that copies relevant state (sessions, memory snapshots) across.

@@ -13,11 +13,9 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// EnvPath returns the Gormes-native dotenv file path under XDG_CONFIG_HOME.
-// Mirrors the gormes-side branch of dotenvCandidatePaths so the writer
-// targets the same file Load() reads on the next run.
+// EnvPath returns the Gormes-native dotenv file path under GormesHome.
 func EnvPath() string {
-	return filepath.Join(xdgConfigHome(), "gormes", ".env")
+	return filepath.Join(GormesHome(), ".env")
 }
 
 // allowedTOMLSections is the closed set of top-level TOML tables this binary

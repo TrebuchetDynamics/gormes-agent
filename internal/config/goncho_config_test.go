@@ -253,6 +253,7 @@ func isolateGonchoConfig(t *testing.T) string {
 	t.Helper()
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("HERMES_HOME", "")
