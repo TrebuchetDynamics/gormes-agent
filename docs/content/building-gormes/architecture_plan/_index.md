@@ -183,7 +183,7 @@ classification and row-backed implementation queue.
 - [x] Telegram fresh-final delete and config exposure
 - [x] Telegram group bot-command mention gate helper
 - [x] Telegram require-mention config fields
-- [ ] Telegram group require-mention bot binding
+- [x] Telegram group require-mention bot binding
 - [x] Slack rich-text quotes/lists + link-unfurl ingress
 - [x] Slack thread-parent context + team-scoped cache key
 - [x] Gateway message deduplicator bounded helper

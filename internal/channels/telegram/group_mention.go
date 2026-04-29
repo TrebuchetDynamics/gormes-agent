@@ -7,6 +7,17 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+func telegramIsGroupChat(chat *tgbotapi.Chat) bool {
+	if chat == nil {
+		return false
+	}
+	switch chat.Type {
+	case "group", "supergroup":
+		return true
+	}
+	return false
+}
+
 func telegramGroupMentionGateAddressed(text string, entities []tgbotapi.MessageEntity, expectedBotUsername string, requireMention bool) bool {
 	if !requireMention {
 		return true

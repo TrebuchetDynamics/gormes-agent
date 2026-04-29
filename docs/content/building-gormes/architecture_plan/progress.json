@@ -2159,9 +2159,9 @@
             {
               "name": "Telegram group require-mention bot binding",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/channels/telegram applies the validated group mention helper to synthetic group updates using parsed require_mention/bot_username settings, dropping unaddressed group text and bare slash commands while preserving DMs, allowed-chat gating, first-run discovery, and fresh-final streaming",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [

@@ -17,6 +17,11 @@ import (
 type Config struct {
 	AllowedChatID     int64
 	FirstRunDiscovery bool
+	// RequireMention gates group inbound messages so only those addressed to
+	// BotUsername (mention or bot_command @suffix) reach the gateway.
+	RequireMention bool
+	// BotUsername is the bare bot handle used to recognise group mentions.
+	BotUsername string
 }
 
 // Bot implements gateway.Channel plus the editing capabilities the shared
@@ -73,6 +78,13 @@ func (b *Bot) toInboundEvent(u tgbotapi.Update) (gateway.InboundEvent, bool) {
 
 	chatID := u.Message.Chat.ID
 	text := strings.TrimSpace(u.Message.Text)
+
+	if b.cfg.RequireMention && telegramIsGroupChat(u.Message.Chat) {
+		if !telegramGroupMentionGateAddressed(text, u.Message.Entities, b.cfg.BotUsername, true) {
+			return gateway.InboundEvent{}, false
+		}
+	}
+
 	kind, body := gateway.ParseInboundText(text)
 
 	var userID string
