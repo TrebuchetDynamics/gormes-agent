@@ -21248,9 +21248,9 @@
             {
               "name": "Native TUI Hermes tool progress + modal panel renderers",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/tui adds Hermes-compatible renderer primitives for tool progress and interactive modal panels: live spinner text with elapsed timer, stacked tool-completion scrollback lines for all/new modes, dangerous-command approval panels with once/session/always/deny/view choices, clarify question panels with numbered options and Other, and sudo/secret panels with countdown/hint text. This row renders state injected by tests; live tool/approval/clarify wiring remains dependent work.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
