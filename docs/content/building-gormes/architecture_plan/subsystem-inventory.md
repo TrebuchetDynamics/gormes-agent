@@ -280,7 +280,7 @@ Equally important as the code inventory above is the **runtime contract surface*
 
 | Path (upstream default) | Format | Upstream source | Gormes equivalent |
 |---|---|---|---|
-| `~/.hermes/config.yaml` | YAML | `hermes_cli/config.py` (`DEFAULT_CONFIG`, 117 top-level keys; `_config_version` for migrations) | `~/.config/gormes/config.toml` (TOML, simpler schema; `internal/config/config.go`) |
+| `~/.hermes/config.yaml` | YAML | `hermes_cli/config.py` (`DEFAULT_CONFIG`, 117 top-level keys; `_config_version` for migrations) | Read-compatible bridge in `internal/config/config.go` for Telegram dogfood settings; native `~/.config/gormes/config.toml` remains a higher-precedence interim override until config-command parity converges writes toward Hermes semantics. |
 | `~/.hermes/.env` | `KEY=value` pairs | `hermes_cli/env_loader.py` (read on startup) | `GORMES_*` env vars + stdlib `os.Getenv` (no dotenv by default) |
 | `~/.hermes/auth.json` | JSON | `hermes_cli/auth.py` + `agent/credential_pool.py` | Planned 4.G — token vault |
 | `~/.hermes/.anthropic_oauth.json` | JSON | `hermes_cli/auth.py` | Planned 4.G — per-provider token files |

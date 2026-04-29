@@ -13,6 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
 
 // CurrentConfigVersion is the schema version this binary writes + accepts.
@@ -355,6 +356,9 @@ func providerRequiresExplicitModelError(commandLabel string, source InferenceVal
 func Load(args []string) (Config, error) {
 	loadDotenvFiles() // populates os.Setenv for unset keys BEFORE loadEnv reads them
 	cfg := defaults()
+	if err := loadHermesConfigYAML(&cfg); err != nil {
+		return cfg, err
+	}
 	if err := loadFile(&cfg); err != nil {
 		return cfg, err
 	}
@@ -472,6 +476,121 @@ func loadFile(cfg *Config) error {
 		cfg.ConfigVersion = 1
 	}
 	return migrateConfig(cfg)
+}
+
+type hermesConfigYAML struct {
+	Platforms map[string]hermesPlatformConfigYAML `yaml:"platforms"`
+	Streaming hermesStreamingConfigYAML           `yaml:"streaming"`
+}
+
+type hermesPlatformConfigYAML struct {
+	Enabled     bool                   `yaml:"enabled"`
+	Token       string                 `yaml:"token"`
+	APIKey      string                 `yaml:"api_key"`
+	HomeChannel hermesHomeChannelYAML  `yaml:"home_channel"`
+	Extra       map[string]interface{} `yaml:"extra"`
+}
+
+type hermesHomeChannelYAML struct {
+	ChatID interface{} `yaml:"chat_id"`
+}
+
+type hermesStreamingConfigYAML struct {
+	FreshFinalAfterSeconds *float64 `yaml:"fresh_final_after_seconds"`
+}
+
+func loadHermesConfigYAML(cfg *Config) error {
+	path := hermesConfigPath()
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	var hc hermesConfigYAML
+	if err := yaml.Unmarshal(data, &hc); err != nil {
+		return fmt.Errorf("decode %s: %w", path, err)
+	}
+	applyHermesTelegramConfig(cfg, hc.Platforms["telegram"], hc.Streaming)
+	return nil
+}
+
+func applyHermesTelegramConfig(cfg *Config, platform hermesPlatformConfigYAML, streaming hermesStreamingConfigYAML) {
+	if token := strings.TrimSpace(firstNonEmpty(platform.Token, platform.APIKey)); token != "" {
+		cfg.Telegram.BotToken = token
+	}
+	if chatID, ok := coerceHermesChatID(platform.HomeChannel.ChatID); ok {
+		cfg.Telegram.AllowedChatID = chatID
+	}
+	if v, ok := boolFromInterface(platform.Extra["require_mention"]); ok {
+		cfg.Telegram.RequireMention = v
+	}
+	if username := strings.TrimSpace(stringFromInterface(platform.Extra["bot_username"])); username != "" {
+		cfg.Telegram.BotUsername = username
+	}
+	if streaming.FreshFinalAfterSeconds != nil {
+		cfg.Telegram.FreshFinalAfterSeconds = *streaming.FreshFinalAfterSeconds
+	}
+}
+
+func hermesConfigPath() string {
+	if hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME")); hermesHome != "" {
+		return filepath.Join(hermesHome, "config.yaml")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	return filepath.Join(home, ".hermes", "config.yaml")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func coerceHermesChatID(value interface{}) (int64, bool) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), true
+	case int64:
+		return v, true
+	case float64:
+		return int64(v), v == float64(int64(v))
+	case string:
+		parsed, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		return parsed, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func boolFromInterface(value interface{}) (bool, bool) {
+	switch v := value.(type) {
+	case bool:
+		return v, true
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(v))
+		return parsed, err == nil
+	default:
+		return false, false
+	}
+}
+
+func stringFromInterface(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return ""
+	}
 }
 
 // migrateConfig applies version-gated schema migrations in sequence,

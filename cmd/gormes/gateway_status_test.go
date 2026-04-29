@@ -153,6 +153,7 @@ func setupGatewayStatusTestEnv(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes"))
 }
 
 func writeGatewayStatusConfig(t *testing.T, data []byte) {

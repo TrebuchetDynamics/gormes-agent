@@ -200,6 +200,7 @@ func setupOneshotFlagTestEnv(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes"))
 	t.Setenv("GORMES_ENDPOINT", "")
 	t.Setenv("GORMES_MODEL", "")
 	t.Setenv("GORMES_API_KEY", "")

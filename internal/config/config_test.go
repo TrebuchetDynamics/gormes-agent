@@ -322,6 +322,70 @@ func TestLoad_TelegramEnvOverride(t *testing.T) {
 	}
 }
 
+func TestLoad_HermesConfigYAMLTelegramTokenParity(t *testing.T) {
+	cfgHome := t.TempDir()
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+platforms:
+  telegram:
+    enabled: true
+    token: yaml-token
+    home_channel:
+      chat_id: "123456"
+    extra:
+      require_mention: true
+      bot_username: gormes_bot
+streaming:
+  fresh_final_after_seconds: 17.5
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.BotToken != "yaml-token" {
+		t.Fatalf("Telegram.BotToken = %q, want Hermes config.yaml token", cfg.Telegram.BotToken)
+	}
+	if cfg.Telegram.AllowedChatID != 123456 {
+		t.Fatalf("Telegram.AllowedChatID = %d, want home_channel chat_id", cfg.Telegram.AllowedChatID)
+	}
+	if !cfg.Telegram.RequireMention {
+		t.Fatal("Telegram.RequireMention = false, want true from Hermes config.yaml extra.require_mention")
+	}
+	if cfg.Telegram.BotUsername != "gormes_bot" {
+		t.Fatalf("Telegram.BotUsername = %q, want gormes_bot", cfg.Telegram.BotUsername)
+	}
+	if cfg.Telegram.FreshFinalAfterSeconds != 17.5 {
+		t.Fatalf("Telegram.FreshFinalAfterSeconds = %v, want 17.5", cfg.Telegram.FreshFinalAfterSeconds)
+	}
+}
+
+func TestLoad_GormesEnvOverridesHermesConfigYAML(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "env-token")
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+platforms:
+  telegram:
+    token: yaml-token
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.BotToken != "env-token" {
+		t.Fatalf("Telegram.BotToken = %q, want env override", cfg.Telegram.BotToken)
+	}
+}
+
 func TestLoad_DiscordDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg, err := Load(nil)

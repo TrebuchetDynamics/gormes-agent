@@ -695,6 +695,7 @@ classification and row-backed implementation queue.
 - [x] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
 - [ ] Provider endpoint/API-key root flags + runtime resolution
+- [x] Hermes config.yaml Telegram compatibility bridge
 - [ ] Gormes config command surface
 - [ ] Gormes config edit/check/native schema-migrate closeout
 - [ ] Hermes config migration dry-run manifest
