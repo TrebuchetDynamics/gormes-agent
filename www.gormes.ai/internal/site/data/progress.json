@@ -9784,7 +9784,7 @@
                 "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces"
               ],
               "ready_when": [
-                "Trajectory compression, provider usage, and Phase 3 insights rows define local usage/status vocabulary.",
+                "Trajectory compression, Goncho webhook delivery, and Phase 3 insights rows are validated; provider usage remains the final local usage/status vocabulary dependency.",
                 "Goncho memory and queue rows expose deterministic event inputs that can be fixture-tested without live providers, Prometheus, Sentry, Redis, or hosted Honcho.",
                 "The slice can keep external exporters as owned/excluded divergence while preserving the event names, trace IDs, queue/dream/reconciliation evidence, and redaction semantics needed by local Gormes diagnostics."
               ],
@@ -9794,9 +9794,7 @@
                 "The slice collapses Honcho reasoning traces into generic log lines without preserving event name, reasoning tree ID, level, parent/child relationship, and redaction evidence."
               ],
               "blocked_by": [
-                "Trajectory compressor + compressed-evidence lineage",
-                "Provider account usage read model + renderer",
-                "Goncho webhook delivery retry worker contract"
+                "Provider account usage read model + renderer"
               ],
               "acceptance": [
                 "SelfMonitoringBridge accepts injected TelemetrySink, AuditSink, and InsightsRecorder implementations so telemetry, audit, and insights behavior can be tested without global state.",
@@ -10720,6 +10718,7 @@
             },
             {
               "name": "Provider account usage read model + renderer",
+              "priority": "P0",
               "status": "planned",
               "contract": "Gormes exposes a Hermes-compatible provider account-usage read model with internal/hermes.AccountUsageSnapshot and AccountUsageWindow, fakeable Codex/Anthropic/OpenRouter fetchers, and a shared redacted renderer that later CLI/status and gateway `/usage` command rows can bind without rediscovering provider payload semantics.",
               "contract_status": "fixture_ready",
