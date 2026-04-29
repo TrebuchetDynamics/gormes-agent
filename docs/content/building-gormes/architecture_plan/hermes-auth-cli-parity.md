@@ -9,7 +9,7 @@ weight: 95
 Read-only audit of the operator-visible CLI surface for **provider auth and
 provider lifecycle** in canonical Python Hermes
 (`workspace-mineru/hermes-agent/`). Captured for downstream Gormes planner
-splits — no Hermes or Gormes runtime code changed by this pass.
+splits - no Hermes or Gormes runtime code changed by this pass.
 
 Scope: only commands that authenticate, configure, or remove an inference
 provider (or the Spotify control-plane provider). Out of scope: chat, gateway,
@@ -28,7 +28,7 @@ broken MCP OAuth session.
 | Command form | Behavior summary | Source: file:lines |
 |---|---|---|
 | `hermes auth` | Bare invocation. Prints the credential pool (per provider, with current pick markers and exhaustion status), prints AWS Bedrock identity if boto3 resolves credentials, then enters an interactive menu: add / remove / reset cooldowns / set rotation strategy / exit. | `hermes_cli/auth_commands.py:449-507`, `hermes_cli/auth_commands.py:632-656`; parser at `hermes_cli/main.py:8245-8307` |
-| `hermes auth add <provider> [--type oauth\|api-key] [--label LBL] [--api-key VAL] [--portal-url URL] [--inference-url URL] [--client-id ID] [--scope S] [--no-browser] [--timeout SEC] [--insecure] [--ca-bundle PATH]` | Add a pooled credential for `<provider>`. Default type is `oauth` for `anthropic|nous|openai-codex|qwen-oauth|google-gemini-cli` and `api-key` for everyone else (and for `custom:*` pools). API-key path: prompt securely (or use `--api-key`), label-or-prompt, write `PooledCredential(auth_type=api_key, source=manual, base_url=PROVIDER_REGISTRY[provider].inference_base_url)`. OAuth path dispatches per provider (see matrix in §3). On any add, all suppressed credential sources for that provider are unsuppressed. | parser `hermes_cli/main.py:8250-8282`; impl `hermes_cli/auth_commands.py:161-336` |
+| `hermes auth add <provider> [--type oauth\|api-key] [--label LBL] [--api-key VAL] [--portal-url URL] [--inference-url URL] [--client-id ID] [--scope S] [--no-browser] [--timeout SEC] [--insecure] [--ca-bundle PATH]` | Add a pooled credential for `<provider>`. Default type is `oauth` for `anthropic|nous|openai-codex|qwen-oauth|google-gemini-cli` and `api-key` for everyone else (and for `custom:*` pools). API-key path: prompt securely (or use `--api-key`), label-or-prompt, write `PooledCredential(auth_type=api_key, source=manual, base_url=PROVIDER_REGISTRY[provider].inference_base_url)`. OAuth path dispatches per provider (see section 3). On any add, all suppressed credential sources for that provider are unsuppressed. | parser `hermes_cli/main.py:8250-8282`; impl `hermes_cli/auth_commands.py:161-336` |
 | `hermes auth list [provider]` | List pooled credentials for one provider (filter) or every provider in `PROVIDER_REGISTRY + {openrouter} + list_custom_pool_providers()`. Marks the currently-selected entry with `<-`, shows label, auth type, source, and exhaustion status with retry-window hints. | parser `hermes_cli/main.py:8283-8284`; impl `hermes_cli/auth_commands.py:339-363` |
 | `hermes auth remove <provider> <target>` | Remove a credential by index, entry id, or exact label. After pool removal, dispatches the unified `find_removal_step` from `agent.credential_sources` which performs source-specific cleanup (env vars, external OAuth files like `~/.codex/auth.json`, gh-cli copilot tokens, claude-code, qwen-cli, etc.) and may suppress that source so it does not get re-imported. | parser `hermes_cli/main.py:8285-8291`; impl `hermes_cli/auth_commands.py:366-401` |
 | `hermes auth reset <provider>` | Clear exhaustion / rate-limit / auth-failure status on every credential for `<provider>` so they are eligible to be picked again on the next inference call. | parser `hermes_cli/main.py:8292-8295`; impl `hermes_cli/auth_commands.py:404-408` |
@@ -41,10 +41,10 @@ broken MCP OAuth session.
 
 Notes:
 - `hermes auth` and `hermes model` together are the operator-visible auth surface. `hermes setup model` reaches the same `select_provider_and_model` path as `hermes model`, but routes through the wizard's defaults/quick logic.
-- `hermes logout` (top-level, not `hermes auth logout`) still exists and is **not** in the deprecation note below — it is supported but narrowly scoped (`--provider` choices: `nous`, `openai-codex`, `spotify`). It dispatches to the same `logout_command` as `hermes auth logout`. Parser at `hermes_cli/main.py:8232-8243`.
-  - This is an open question for parity: see §5.
+- `hermes logout` (top-level, not `hermes auth logout`) still exists and is **not** in the deprecation note below - it is supported but narrowly scoped (`--provider` choices: `nous`, `openai-codex`, `spotify`). It dispatches to the same `logout_command` as `hermes auth logout`. Parser at `hermes_cli/main.py:8232-8243`.
+  - This is an open question for parity: see section 5.
 
-## 2. Deprecation note — `hermes login`
+## 2. Deprecation note - `hermes login`
 
 `hermes login` is the historical entry point that the Gormes README must
 **not** recommend. The parser is still registered (so `hermes login --help`
@@ -69,9 +69,9 @@ flag is ignored): `hermes_cli/main.py:8186-8227`. Flags accepted but no-op:
 `--insecure`.
 
 Redirect targets:
-- `hermes auth` — pooled credentials.
-- `hermes model` — provider + model picker (and the OAuth flow for that provider).
-- `hermes setup` — full or sectioned wizard.
+- `hermes auth` - pooled credentials.
+- `hermes model` - provider + model picker (and the OAuth flow for that provider).
+- `hermes setup` - full or sectioned wizard.
 
 **Gormes parity rule.** Gormes must replicate the deprecation, not the legacy
 behavior. The Gormes equivalent (`gormes login` if registered at all) must
@@ -91,9 +91,9 @@ must not perform any OAuth work. README and docs should never tell a user to
 | `openai-codex` | OAuth device code | `auth.py:_codex_device_code_login` (`auth.py:3930+`); pool persistence at `auth_commands.py:270-293` | `PooledCredential(auth_type=oauth, source="manual:device_code", access_token, refresh_token, base_url="https://chatgpt.com/backend-api/codex"  / `DEFAULT_CODEX_BASE_URL`, last_refresh)` | Pre-add: `unsuppress_credential_source("openai-codex", "device_code")` so a re-link after `auth remove` is not skipped. | **Vendor CLI conflict.** Hermes maintains its own Codex OAuth session separate from the Codex CLI / VS Code extension to avoid refresh-token rotation collisions where one app's refresh invalidates the other (`auth.py:2120-2126`). The non-pooled `_login_openai_codex` (`auth.py:3856+`) prompts to import `~/.codex/auth.json` if found but warns "a separate login is recommended" and "Hermes will keep working independently with its own session" (`auth.py:3897-3909`). The pooled `auth add` path (`auth_commands.py:270-293`) **does not** reuse `~/.codex/`; it always runs a fresh device-code flow. Removal step (`agent.credential_sources` for `openai-codex`/`device_code`) wipes the Hermes-owned tokens and suppresses the source. |
 | `qwen-oauth` | Vendor CLI import (no fresh OAuth) | `auth.py:resolve_qwen_runtime_credentials(refresh_if_expiring=False)` invoked from `auth_commands.py:316-334`; tokens read from Qwen-CLI's `~/.qwen/oauth_creds.json` via `_read_qwen_cli_tokens` (`auth.py:1278+`). | `PooledCredential(auth_type=oauth, source="manual:qwen_cli", access_token=<api_key>, base_url=<resolved>)` | Token refresh handled by Hermes via `_refresh_qwen_cli_tokens` (`auth.py:1321+`). | If Qwen CLI is not installed or `~/.qwen/oauth_creds.json` is missing, the call raises and `auth add qwen-oauth` fails. There is no Hermes-native Qwen OAuth flow. |
 | `google-gemini-cli` | OAuth (browser PKCE) | `agent.google_oauth.run_gemini_oauth_login_pure` invoked from `auth_commands.py:295-314` | `PooledCredential(auth_type=oauth, source="manual:google_pkce", access_token, refresh_token)`; default label is the user's email if returned. | Status / refresh via `resolve_gemini_oauth_runtime_credentials` (`auth.py:1453+`) and `get_gemini_oauth_auth_status` (`auth.py:1495+`). | Endpoint: `DEFAULT_GEMINI_CLOUDCODE_BASE_URL` (Google CloudCode endpoint), distinct from `gemini` (Google AI Studio). |
-| `spotify` | Browser PKCE (control-plane, not inference) | `auth.login_spotify_command` (`auth.py:2018-2108`) — entered via `hermes auth spotify [login]`, not `hermes auth add spotify`. | provider state under `providers.spotify` (NOT `set_active=True`). Stored: client_id, redirect_uri, scope list, accounts/api base URLs, access/refresh tokens, expiry. | Single Spotify session per Hermes home. `spotify` is not in `PROVIDER_REGISTRY`; trying `hermes auth add spotify` is rejected. | If `client_id` is not configured anywhere, prompts an interactive developer-app setup wizard (`_spotify_interactive_setup`, `auth.py:1957+`). Honors `HERMES_SPOTIFY_CLIENT_ID` env. Redirect URI must be allow-listed in the user's Spotify app. |
+| `spotify` | Browser PKCE (control-plane, not inference) | `auth.login_spotify_command` (`auth.py:2018-2108`) - entered via `hermes auth spotify [login]`, not `hermes auth add spotify`. | provider state under `providers.spotify` (NOT `set_active=True`). Stored: client_id, redirect_uri, scope list, accounts/api base URLs, access/refresh tokens, expiry. | Single Spotify session per Hermes home. `spotify` is not in `PROVIDER_REGISTRY`; trying `hermes auth add spotify` is rejected. | If `client_id` is not configured anywhere, prompts an interactive developer-app setup wizard (`_spotify_interactive_setup`, `auth.py:1957+`). Honors `HERMES_SPOTIFY_CLIENT_ID` env. Redirect URI must be allow-listed in the user's Spotify app. |
 | `copilot` | API key | env-var resolution via `ProviderConfig.api_key_env_vars=("COPILOT_GITHUB_TOKEN","GH_TOKEN","GITHUB_TOKEN")`; `hermes auth add copilot --type api-key` writes a manual entry. | `PooledCredential(auth_type=api_key, source="manual", access_token=<paste>, base_url=DEFAULT_GITHUB_MODELS_BASE_URL)` | Standard pool. | `gh_cli` source is a separate auto-detected source with its own RemovalStep. |
-| `copilot-acp` | external_process (vendor CLI) | `auth_type="external_process"` (`auth.py:170-176`). `auth add` of api-key is allowed but routes through API-key handler. | base URL `DEFAULT_COPILOT_ACP_BASE_URL` (override `COPILOT_ACP_BASE_URL`). | n/a — process-managed auth. | Treated as an API-key provider for pool purposes. |
+| `copilot-acp` | external_process (vendor CLI) | `auth_type="external_process"` (`auth.py:170-176`). `auth add` of api-key is allowed but routes through API-key handler. | base URL `DEFAULT_COPILOT_ACP_BASE_URL` (override `COPILOT_ACP_BASE_URL`). | n/a - process-managed auth. | Treated as an API-key provider for pool purposes. |
 | `gemini` | API key | env vars `GOOGLE_API_KEY`, `GEMINI_API_KEY`. | manual entry, base `https://generativelanguage.googleapis.com/v1beta`, override `GEMINI_BASE_URL`. | Standard pool. | Distinct from `google-gemini-cli`. |
 | `zai` | API key | env vars `GLM_API_KEY`, `ZAI_API_KEY`, `Z_AI_API_KEY`. | manual entry, base `https://api.z.ai/api/paas/v4`, override `GLM_BASE_URL`. | Standard pool. | `detect_zai_endpoint` (`auth.py:514`) auto-rewrites base for some keys. |
 | `kimi-coding` | API key | env vars `KIMI_API_KEY`, `KIMI_CODING_API_KEY`; base `https://api.moonshot.ai/v1`, override `KIMI_BASE_URL`. | manual entry. | Standard pool. | `_resolve_kimi_base_url` (`auth.py:409`) auto-redirects `sk-kimi-` keys to `api.kimi.com/coding`. |
@@ -114,14 +114,14 @@ must not perform any OAuth work. README and docs should never tell a user to
 | `huggingface` | API key | `HF_TOKEN`, base `https://router.huggingface.co/v1`. | manual entry. | Standard pool. | |
 | `xiaomi` | API key | `XIAOMI_API_KEY`, base `https://api.xiaomimimo.com/v1`. | manual entry. | Standard pool. | |
 | `ollama-cloud` | API key | `OLLAMA_API_KEY`, base `DEFAULT_OLLAMA_CLOUD_BASE_URL`, override `OLLAMA_BASE_URL`. | manual entry. | Standard pool. | |
-| `bedrock` | AWS SDK (boto3 chain) | `auth_type="aws_sdk"` (`auth.py:351-358`). `hermes auth add bedrock` is not handled — bedrock surfaces in the bare `hermes auth` summary via boto3 STS (`auth_commands.py:457-476`). | n/a — credentials come from boto3 chain (env vars, profiles, SSO, role). | n/a | No `--type api-key` path because pool dispatch falls through `auth_commands.py:336` for unrecognized OAuth and never gets here for AWS SDK. **Open question** in §5. |
-| `azure-foundry` | API key | `AZURE_FOUNDRY_API_KEY`, base set per-deployment via `AZURE_FOUNDRY_BASE_URL`. | manual entry. | Standard pool. | Inference base intentionally empty in registry — user must provide it. |
+| `bedrock` | AWS SDK (boto3 chain) | `auth_type="aws_sdk"` (`auth.py:351-358`). `hermes auth add bedrock` is not handled - bedrock surfaces in the bare `hermes auth` summary via boto3 STS (`auth_commands.py:457-476`). | n/a - credentials come from boto3 chain (env vars, profiles, SSO, role). | n/a | No `--type api-key` path because pool dispatch falls through `auth_commands.py:336` for unrecognized OAuth and never gets here for AWS SDK. **Open question** in section 5. |
+| `azure-foundry` | API key | `AZURE_FOUNDRY_API_KEY`, base set per-deployment via `AZURE_FOUNDRY_BASE_URL`. | manual entry. | Standard pool. | Inference base intentionally empty in registry - user must provide it. |
 | `openrouter` (alias `or`, `open-router`) | API key | `auth_commands._normalize_provider` rewrites to `openrouter`. Not in `PROVIDER_REGISTRY`; base URL hardcoded to `OPENROUTER_BASE_URL` in `_provider_base_url`. | `PooledCredential(auth_type=api_key, source="manual", access_token, base_url=OPENROUTER_BASE_URL)`. | Standard pool. | Special-cased in `_normalize_provider`. |
 | `custom:<name>` | API key | matches `custom_providers` config entries; resolved via `_resolve_custom_provider_input` and `_get_custom_provider_config`. | `PooledCredential(auth_type=api_key, source="manual", access_token, base_url=<from custom_providers>)`. | Standard pool. | Display name vs `provider_key` both accepted. |
 
 ## 4. `auth list` / `status` / `logout` / `reset` / `spotify` behavior
 
-**`auth list [provider]`** — Resolves the filter via `_normalize_provider` (so
+**`auth list [provider]`** - Resolves the filter via `_normalize_provider` (so
 aliases like `or` become `openrouter`). With no filter, iterates over
 `sorted(PROVIDER_REGISTRY.keys() + {"openrouter"} + list_custom_pool_providers())`.
 For each provider with at least one entry, prints a header
@@ -131,7 +131,7 @@ exhaustion status (`_format_exhausted_status` distinguishes rate-limited /
 auth-failed / exhausted with retry-window math), and a `<-` marker on the
 currently-selected entry. Source: `hermes_cli/auth_commands.py:339-363`.
 
-**`auth status <provider>`** — Required positional. Calls
+**`auth status <provider>`** - Required positional. Calls
 `auth.get_auth_status(provider)` (`auth.py:3419-3446`) which dispatches to per-
 provider status helpers (`get_nous_auth_status` `auth.py:3256+`,
 `get_codex_auth_status` `auth.py:3309+`, `get_qwen_auth_status` `auth.py:1425+`,
@@ -143,7 +143,7 @@ provider status helpers (`get_nous_auth_status` `auth.py:3256+`,
 or `<provider>: logged out (<reason>)` on failure. Source:
 `hermes_cli/auth_commands.py:411-428`.
 
-**`auth logout <provider>`** — Wraps `auth.logout_command` with a
+**`auth logout <provider>`** - Wraps `auth.logout_command` with a
 `SimpleNamespace`. The underlying command (`auth.py:4334-4360`) validates
 `is_known_auth_provider`, picks the target as `provider or active or config_provider`, calls
 `clear_provider_auth(target)` to wipe `providers.<target>` from `auth.json` and
@@ -154,13 +154,13 @@ when it matched, and prints
 `Run 'hermes model' or configure an API key to use Hermes.`. Source:
 `hermes_cli/auth_commands.py:431-432`.
 
-**`auth reset <provider>`** — Calls `pool.reset_statuses()` on the named
+**`auth reset <provider>`** - Calls `pool.reset_statuses()` on the named
 provider's pool, which clears every entry's exhaustion / cooldown so all
 credentials are eligible again on the next inference call. Prints
 `Reset status on <N> <provider> credentials`. Source:
 `hermes_cli/auth_commands.py:404-408`.
 
-**`auth spotify [login|status|logout]`** — Default action is `login`
+**`auth spotify [login|status|logout]`** - Default action is `login`
 (no subcommand). `login` runs PKCE: builds an authorize URL, opens a browser
 unless `--no-browser` or remote-session detected, waits for the localhost
 callback (`_spotify_wait_for_callback`, default 180s), exchanges code+verifier
@@ -186,7 +186,7 @@ the generic `auth_status_command` / `auth_logout_command` with
    prints both pool state and an AWS Bedrock STS identity (`auth_commands.py:457-476`)
    that depends on optional `boto3`. Gormes parity needs a Go path that prints
    the same pool table; the AWS STS print can be a separate row gated on AWS
-   SDK availability — confirm whether the planner wants AWS bedrock identity
+   SDK availability - confirm whether the planner wants AWS bedrock identity
    in the Goncho equivalent or carved off.
 
 3. **`auth add bedrock`.** Source has no explicit handler. The catch-all at
@@ -207,9 +207,9 @@ the generic `auth_status_command` / `auth_logout_command` with
    `auth add openai-codex` path always runs a fresh device-code flow and
    stores tokens in `~/.hermes/auth.json`, rejecting reuse of `~/.codex/`.
    Only the legacy `_login_openai_codex` flow (still reachable via
-   `hermes model` → OpenAI Codex provider when no Hermes credentials exist)
+   `hermes model` -> OpenAI Codex provider when no Hermes credentials exist)
    prompts to import `~/.codex/auth.json`. Gormes parity must replicate the
-   isolation contract — but the planner needs to decide whether
+   isolation contract - but the planner needs to decide whether
    `gormes auth add openai-codex` keeps offering import (parity with
    `cmd_model`) or stays strict (parity with `auth add`). This is the surface
    the user flagged as the README error.
