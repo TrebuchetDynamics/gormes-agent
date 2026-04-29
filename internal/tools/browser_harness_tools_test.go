@@ -51,15 +51,15 @@ func TestBrowserHarnessNavigateUsesNewTabAndEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if got := strings.Join(runner.argv, "\x00"); !strings.Contains(got, "browser-harness\x00-c\x00") {
-		t.Fatalf("argv = %q, want browser-harness -c", got)
+	if got, wantPrefix := strings.Join(runner.argv[:2], "\x00"), "go-browser-harness\x00--action-json"; got != wantPrefix {
+		t.Fatalf("argv prefix = %q, want %q", got, wantPrefix)
 	}
-	code := runner.argv[2]
-	if !strings.Contains(code, `new_tab("https://example.com")`) {
-		t.Fatalf("navigate code = %s, want new_tab(url)", code)
+	action := decodeHarnessAction(t, runner.argv[2])
+	if action.SchemaVersion != browserHarnessActionSchemaVersion || action.Kind != BrowserActionNavigate || action.URL != "https://example.com" {
+		t.Fatalf("navigate action = %#v", action)
 	}
-	if strings.Contains(code, "goto_url(") {
-		t.Fatalf("navigate code must not use goto_url: %s", code)
+	if !action.NewTab {
+		t.Fatalf("navigate action must request a new tab: %#v", action)
 	}
 	if runner.env["BU_NAME"] != "gormes_Browser_Task" {
 		t.Fatalf("BU_NAME = %q, want sanitized task id", runner.env["BU_NAME"])
@@ -77,18 +77,18 @@ func TestBrowserHarnessClickAndTypeUseSnapshotRefs(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		args       string
-		wantCode   []string
+		wantAction BrowserHarnessActionRequest
 		shouldDeny bool
 	}{
 		{
-			name:     "browser_click",
-			args:     `{"ref":"@e3","task_id":"task-1"}`,
-			wantCode: []string{`_gormes_ref_center("@e3")`, "click_at_xy("},
+			name:       "browser_click",
+			args:       `{"ref":"@e3","task_id":"task-1"}`,
+			wantAction: BrowserHarnessActionRequest{Kind: BrowserActionClick, Ref: "@e3", TaskID: "task-1"},
 		},
 		{
-			name:     "browser_type",
-			args:     `{"ref":"@e3","text":"hello","task_id":"task-1"}`,
-			wantCode: []string{`_gormes_ref_center("@e3")`, `type_text("hello")`},
+			name:       "browser_type",
+			args:       `{"ref":"@e3","text":"hello","task_id":"task-1"}`,
+			wantAction: BrowserHarnessActionRequest{Kind: BrowserActionType, Ref: "@e3", Text: "hello", TaskID: "task-1"},
 		},
 		{
 			name:       "browser_click",
@@ -112,25 +112,65 @@ func TestBrowserHarnessClickAndTypeUseSnapshotRefs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Execute: %v", err)
 			}
-			for _, want := range tc.wantCode {
-				if !strings.Contains(runner.argv[2], want) {
-					t.Fatalf("code missing %q:\n%s", want, runner.argv[2])
-				}
+			action := decodeHarnessAction(t, runner.argv[2])
+			if action.Kind != tc.wantAction.Kind || action.Ref != tc.wantAction.Ref || action.Text != tc.wantAction.Text || action.TaskID != tc.wantAction.TaskID {
+				t.Fatalf("action = %#v, want %#v", action, tc.wantAction)
 			}
 		})
 	}
 }
 
-func TestBrowserHarnessCDPConsoleAndVisionBuildExpectedSnippets(t *testing.T) {
+func TestBrowserHarnessCDPConsoleAndVisionBuildExpectedActions(t *testing.T) {
 	tests := []struct {
-		name     string
-		args     string
-		contains []string
+		name       string
+		args       string
+		wantKind   string
+		wantFields func(t *testing.T, action BrowserHarnessActionRequest)
 	}{
-		{name: "browser_cdp", args: `{"method":"Target.getTargets","params":{"discover":true}}`, contains: []string{`cdp("Target.getTargets"`, `_gormes_params = json.loads(`}},
-		{name: "browser_console", args: `{"expression":"document.title"}`, contains: []string{`js("document.title")`}},
-		{name: "browser_vision", args: `{"question":"what is visible?"}`, contains: []string{"capture_screenshot(", "browser_harness_screenshot_captured"}},
-		{name: "browser_dialog", args: `{"action":"accept","prompt_text":"ok"}`, contains: []string{`Page.handleJavaScriptDialog`, `promptText`}},
+		{
+			name:     "browser_cdp",
+			args:     `{"method":"Target.getTargets","params":{"discover":true}}`,
+			wantKind: "cdp",
+			wantFields: func(t *testing.T, action BrowserHarnessActionRequest) {
+				t.Helper()
+				if action.Method != "Target.getTargets" || action.Params["discover"] != true {
+					t.Fatalf("cdp action = %#v", action)
+				}
+			},
+		},
+		{
+			name:     "browser_console",
+			args:     `{"expression":"document.title"}`,
+			wantKind: "console",
+			wantFields: func(t *testing.T, action BrowserHarnessActionRequest) {
+				t.Helper()
+				if action.Expression != "document.title" {
+					t.Fatalf("console action = %#v", action)
+				}
+			},
+		},
+		{
+			name:     "browser_vision",
+			args:     `{"question":"what is visible?"}`,
+			wantKind: "vision",
+			wantFields: func(t *testing.T, action BrowserHarnessActionRequest) {
+				t.Helper()
+				if action.Question != "what is visible?" {
+					t.Fatalf("vision action = %#v", action)
+				}
+			},
+		},
+		{
+			name:     "browser_dialog",
+			args:     `{"action":"accept","prompt_text":"ok"}`,
+			wantKind: "dialog",
+			wantFields: func(t *testing.T, action BrowserHarnessActionRequest) {
+				t.Helper()
+				if action.DialogAction != "accept" || action.PromptText != "ok" {
+					t.Fatalf("dialog action = %#v", action)
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -142,11 +182,41 @@ func TestBrowserHarnessCDPConsoleAndVisionBuildExpectedSnippets(t *testing.T) {
 			if _, err := tool.Execute(context.Background(), json.RawMessage(tt.args)); err != nil {
 				t.Fatalf("Execute: %v", err)
 			}
-			for _, want := range tt.contains {
-				if !strings.Contains(runner.argv[2], want) {
-					t.Fatalf("%s code missing %q:\n%s", tt.name, want, runner.argv[2])
-				}
+			action := decodeHarnessAction(t, runner.argv[2])
+			if action.Kind != tt.wantKind {
+				t.Fatalf("action kind = %q, want %q: %#v", action.Kind, tt.wantKind, action)
+			}
+			if tt.wantFields != nil {
+				tt.wantFields(t, action)
 			}
 		})
 	}
+}
+
+func TestBrowserHarnessLegacyPythonCommandStillExplicit(t *testing.T) {
+	runner := &recordingHarnessRunner{result: BrowserHarnessProcessResult{Stdout: []byte(`{"ok":true}`)}}
+	tool := NewBrowserHarnessTool("browser_navigate", BrowserHarnessToolsConfig{
+		Command:  legacyBrowserHarnessCommand,
+		Protocol: BrowserHarnessProtocolLegacy,
+		Runner:   runner,
+		Budget:   ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+	})
+	if _, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.com","task_id":"Browser Task"}`)); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if got, want := strings.Join(runner.argv[:2], "\x00"), "browser-harness\x00-c"; got != want {
+		t.Fatalf("argv prefix = %q, want %q", got, want)
+	}
+	if code := runner.argv[2]; !strings.Contains(code, `new_tab("https://example.com")`) || strings.Contains(code, "goto_url(") {
+		t.Fatalf("legacy navigate code should preserve new_tab and avoid goto_url:\n%s", code)
+	}
+}
+
+func decodeHarnessAction(t *testing.T, raw string) BrowserHarnessActionRequest {
+	t.Helper()
+	var action BrowserHarnessActionRequest
+	if err := json.Unmarshal([]byte(raw), &action); err != nil {
+		t.Fatalf("decode action JSON: %v\n%s", err, raw)
+	}
+	return action
 }

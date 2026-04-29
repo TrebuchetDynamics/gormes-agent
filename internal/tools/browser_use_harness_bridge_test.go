@@ -159,8 +159,8 @@ func TestBrowserHarnessCommandRunner(t *testing.T) {
 	bridge := BrowserHarnessBridge{Runner: runner}
 
 	result, err := bridge.Run(context.Background(), BrowserHarnessCommandRequest{
-		TaskID: "Task 7 / Login",
-		Code:   `new_tab("https://example.com")`,
+		TaskID:     "Task 7 / Login",
+		ActionJSON: []byte(`{"schema_version":"gormes.browser.action.v1","kind":"navigate","url":"https://example.com"}`),
 		Env: map[string]string{
 			"BROWSER_USE_API_KEY": "bu-secret",
 			"OTHER":               "ok",
@@ -175,7 +175,7 @@ func TestBrowserHarnessCommandRunner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if got, want := strings.Join(runner.argv, "\x00"), "browser-harness\x00-c\x00"+`new_tab("https://example.com")`; got != want {
+	if got, want := strings.Join(runner.argv, "\x00"), "go-browser-harness\x00--action-json\x00"+`{"schema_version":"gormes.browser.action.v1","kind":"navigate","url":"https://example.com"}`; got != want {
 		t.Fatalf("argv = %q, want %q", got, want)
 	}
 	if runner.env["BU_NAME"] != "gormes_Task_7_Login" {
@@ -195,11 +195,35 @@ func TestBrowserHarnessCommandRunner(t *testing.T) {
 	}
 }
 
+func TestBrowserHarnessLegacyCommandRunnerExplicit(t *testing.T) {
+	runner := &recordingHarnessRunner{result: BrowserHarnessProcessResult{Stdout: []byte("legacy ok\n")}}
+	bridge := BrowserHarnessBridge{Command: legacyBrowserHarnessCommand, Protocol: BrowserHarnessProtocolLegacy, Runner: runner}
+
+	result, err := bridge.Run(context.Background(), BrowserHarnessCommandRequest{
+		TaskID: "legacy task",
+		Code:   `new_tab("https://example.com")`,
+		Budget: ToolResultBudgetConfig{
+			OutputDir:       t.TempDir(),
+			TextBudgetBytes: 256,
+			PreviewBytes:    128,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if got, want := strings.Join(runner.argv, "\x00"), "browser-harness\x00-c\x00"+`new_tab("https://example.com")`; got != want {
+		t.Fatalf("argv = %q, want %q", got, want)
+	}
+	if result.Evidence != BrowserHarnessEvidenceCommandOK || !strings.Contains(result.Envelope.Text, "legacy ok") {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
 func TestBrowserHarnessNoLiveRuntimeInUnitTests(t *testing.T) {
 	harness := BrowserHarnessBridge{Runner: &recordingHarnessRunner{err: errors.New("synthetic failure")}}
 	result, err := harness.Run(context.Background(), BrowserHarnessCommandRequest{
-		TaskID: "unit test",
-		Code:   "print(page_info())",
+		TaskID:     "unit test",
+		ActionJSON: []byte(`{"schema_version":"gormes.browser.action.v1","kind":"snapshot"}`),
 		Budget: ToolResultBudgetConfig{
 			OutputDir:       t.TempDir(),
 			TextBudgetBytes: 128,

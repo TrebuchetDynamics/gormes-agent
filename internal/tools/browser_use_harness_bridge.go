@@ -25,7 +25,8 @@ const (
 	defaultBrowserUseBaseURL                    = "https://api.browser-use.com/api/v3"
 	defaultBrowserUseManagedTimeoutMinutes      = 5
 	defaultBrowserUseManagedProxyCountryCode    = "us"
-	defaultBrowserHarnessCommand                = "browser-harness"
+	defaultBrowserHarnessCommand                = "go-browser-harness"
+	legacyBrowserHarnessCommand                 = "browser-harness"
 	defaultBrowserHarnessTimeout                = 2 * time.Minute
 	defaultBrowserUseHTTPBodyLimit              = 4 * 1024
 	defaultBrowserUseRedactedErrorPreviewLength = 512
@@ -44,6 +45,9 @@ const (
 	BrowserHarnessEvidenceCommandOK     = "browser_harness_command_ok"
 	BrowserHarnessEvidenceUnavailable   = "browser_harness_unavailable"
 	BrowserHarnessEvidenceCommandFailed = "browser_harness_command_failed"
+
+	BrowserHarnessProtocolGo     = "go-browser-harness-v1"
+	BrowserHarnessProtocolLegacy = "python-browser-harness"
 )
 
 // BrowserCloudProviderCandidate is the minimal provider-selection record used
@@ -412,17 +416,21 @@ func BrowserUseErrorEvidence(err error) string {
 	return ""
 }
 
-// BrowserHarnessCommandRequest describes one browser-harness execution. The
-// bridge always invokes the external command as argv: browser-harness -c CODE.
+// BrowserHarnessCommandRequest describes one browser harness execution. The
+// default Go-native protocol invokes argv as go-browser-harness --action-json
+// ACTION_JSON. The legacy protocol is explicit and invokes browser-harness -c
+// CODE for the Python reference harness.
 type BrowserHarnessCommandRequest struct {
-	Command   string
-	Code      string
-	TaskID    string
-	Action    BrowserAction
-	Env       map[string]string
-	Timeout   time.Duration
-	MediaType string
-	Budget    ToolResultBudgetConfig
+	Command    string
+	Protocol   string
+	Code       string
+	ActionJSON []byte
+	TaskID     string
+	Action     BrowserAction
+	Env        map[string]string
+	Timeout    time.Duration
+	MediaType  string
+	Budget     ToolResultBudgetConfig
 }
 
 // BrowserHarnessProcessResult is the raw fakeable process output.
@@ -446,17 +454,18 @@ type BrowserHarnessCommandResult struct {
 	Redacted bool
 }
 
-// BrowserHarnessBridge maps browser-harness into Gormes' browser result
-// envelope contract without importing browser-harness Python packages.
+// BrowserHarnessBridge maps a browser harness command into Gormes' browser
+// result envelope contract without importing Python packages.
 type BrowserHarnessBridge struct {
-	Command string
-	Runner  BrowserHarnessProcessRunner
+	Command  string
+	Protocol string
+	Runner   BrowserHarnessProcessRunner
 }
 
 func (b BrowserHarnessBridge) Run(ctx context.Context, req BrowserHarnessCommandRequest) (BrowserHarnessCommandResult, error) {
 	command := strings.TrimSpace(firstNonEmpty(req.Command, b.Command, defaultBrowserHarnessCommand))
-	code := req.Code
-	argv := []string{command, "-c", code}
+	protocol := normalizeBrowserHarnessProtocol(firstNonEmpty(req.Protocol, b.Protocol), command)
+	argv, missingReason := buildBrowserHarnessArgv(command, protocol, req)
 	action := req.Action
 	if action.Kind == "" {
 		action = BrowserAction{Kind: BrowserActionSnapshot, TaskID: req.TaskID}
@@ -471,10 +480,14 @@ func (b BrowserHarnessBridge) Run(ctx context.Context, req BrowserHarnessCommand
 		Env:      safeEnv,
 		Redacted: true,
 	}
-	if strings.TrimSpace(code) == "" {
+	if missingReason != "" {
 		result.Evidence = BrowserHarnessEvidenceCommandFailed
-		result.Envelope = browserHarnessUnavailableEnvelope(action, "missing_code", result.Evidence)
-		return result, errors.New("browser-harness: code is required")
+		reason := "missing_action_json"
+		if protocol == BrowserHarnessProtocolLegacy {
+			reason = "missing_code"
+		}
+		result.Envelope = browserHarnessUnavailableEnvelope(action, reason, result.Evidence)
+		return result, errors.New(missingReason)
 	}
 	runner := b.Runner
 	if runner == nil {
@@ -554,6 +567,34 @@ func buildBrowserHarnessEnv(req BrowserHarnessCommandRequest) map[string]string 
 	}
 	env["BU_NAME"] = sanitizeBrowserHarnessName(req.TaskID)
 	return env
+}
+
+func normalizeBrowserHarnessProtocol(protocol, command string) string {
+	protocol = strings.TrimSpace(protocol)
+	if protocol != "" {
+		return protocol
+	}
+	if strings.TrimSpace(command) == legacyBrowserHarnessCommand {
+		return BrowserHarnessProtocolLegacy
+	}
+	return BrowserHarnessProtocolGo
+}
+
+func buildBrowserHarnessArgv(command, protocol string, req BrowserHarnessCommandRequest) ([]string, string) {
+	switch protocol {
+	case BrowserHarnessProtocolLegacy:
+		code := strings.TrimSpace(req.Code)
+		if code == "" {
+			return []string{command, "-c", req.Code}, "browser-harness: code is required"
+		}
+		return []string{command, "-c", req.Code}, ""
+	default:
+		actionJSON := strings.TrimSpace(string(req.ActionJSON))
+		if actionJSON == "" {
+			return []string{command, "--action-json", string(req.ActionJSON)}, "go-browser-harness: action_json is required"
+		}
+		return []string{command, "--action-json", string(req.ActionJSON)}, ""
+	}
 }
 
 func sanitizeBrowserHarnessName(taskID string) string {

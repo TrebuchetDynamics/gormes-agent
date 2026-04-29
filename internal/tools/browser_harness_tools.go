@@ -23,14 +23,17 @@ const (
 	BrowserToolVision    = "browser_vision"
 	BrowserToolCDP       = "browser_cdp"
 	BrowserToolDialog    = "browser_dialog"
+
+	browserHarnessActionSchemaVersion = "gormes.browser.action.v1"
 )
 
 // BrowserHarnessToolsConfig wires Hermes-visible browser_* tools onto the
-// browser-harness command bridge. Runner stays injectable so required tests do
-// not launch Chrome, browser-harness, Browser Use cloud, or CDP sockets.
+// Go browser harness command bridge. Runner stays injectable so required tests
+// do not launch Chrome, browser-harness, Browser Use cloud, or CDP sockets.
 type BrowserHarnessToolsConfig struct {
 	Runner    BrowserHarnessProcessRunner
 	Command   string
+	Protocol  string
 	Env       map[string]string
 	Budget    ToolResultBudgetConfig
 	Timeout   time.Duration
@@ -49,9 +52,31 @@ type BrowserHarnessToolResponse struct {
 	ToolEvidence   ToolResultEvidence `json:"tool_evidence"`
 }
 
+// BrowserHarnessActionRequest is the Go-native action JSON contract consumed
+// by go-browser-harness. It mirrors the sibling harness package without adding
+// a module dependency from Gormes to the CLI repo.
+type BrowserHarnessActionRequest struct {
+	SchemaVersion string         `json:"schema_version"`
+	Kind          string         `json:"kind"`
+	TaskID        string         `json:"task_id,omitempty"`
+	URL           string         `json:"url,omitempty"`
+	NewTab        bool           `json:"new_tab,omitempty"`
+	Ref           string         `json:"ref,omitempty"`
+	Text          string         `json:"text,omitempty"`
+	Key           string         `json:"key,omitempty"`
+	Direction     string         `json:"direction,omitempty"`
+	Expression    string         `json:"expression,omitempty"`
+	Method        string         `json:"method,omitempty"`
+	Params        map[string]any `json:"params,omitempty"`
+	DialogAction  string         `json:"dialog_action,omitempty"`
+	PromptText    string         `json:"prompt_text,omitempty"`
+	Full          bool           `json:"full,omitempty"`
+	Question      string         `json:"question,omitempty"`
+}
+
 // BrowserHarnessTool is one Hermes-visible browser_* tool backed by
-// browser-harness. It preserves public tool names while hiding snippet
-// generation and result budgeting behind the shared Tool interface.
+// go-browser-harness by default. It preserves public tool names while hiding
+// protocol generation and result budgeting behind the shared Tool interface.
 type BrowserHarnessTool struct {
 	name   string
 	cfg    BrowserHarnessToolsConfig
@@ -59,7 +84,7 @@ type BrowserHarnessTool struct {
 	desc   string
 }
 
-// NewBrowserHarnessTools returns the browser-harness backed Hermes browser
+// NewBrowserHarnessTools returns the go-browser-harness backed Hermes browser
 // tool surface in stable sorted-by-name order for deterministic descriptors.
 func NewBrowserHarnessTools(cfg BrowserHarnessToolsConfig) []Tool {
 	names := []string{
@@ -83,7 +108,7 @@ func NewBrowserHarnessTools(cfg BrowserHarnessToolsConfig) []Tool {
 	return out
 }
 
-// NewBrowserHarnessTool creates one named browser-harness tool. Unknown names
+// NewBrowserHarnessTool creates one named browser harness tool. Unknown names
 // still produce a Tool whose Execute fails, which keeps tests explicit.
 func NewBrowserHarnessTool(name string, cfg BrowserHarnessToolsConfig) *BrowserHarnessTool {
 	desc, schema := browserHarnessToolDescriptor(name)
@@ -112,23 +137,35 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 	} else if err := json.Unmarshal(args, &in); err != nil {
 		return nil, fmt.Errorf("%s: invalid args: %w", t.name, err)
 	}
-	code, action, err := t.buildCode(in)
+	request, action, err := t.buildCommandRequest(in)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", t.name, err)
 	}
 	taskID := stringArg(in, "task_id")
 	bridge := BrowserHarnessBridge{
-		Command: t.cfg.Command,
-		Runner:  t.cfg.Runner,
+		Command:  t.cfg.Command,
+		Protocol: t.cfg.Protocol,
+		Runner:   t.cfg.Runner,
 	}
+	request.Command = t.cfg.Command
+	request.Protocol = t.cfg.Protocol
+	request.TaskID = taskID
+	request.Action = action
+	request.Env = cloneStringMap(t.cfg.Env)
+	request.Timeout = t.cfg.Timeout
+	request.MediaType = firstNonEmpty(t.cfg.MediaType, "application/json")
+	request.Budget = t.cfg.Budget
 	result, err := bridge.Run(ctx, BrowserHarnessCommandRequest{
-		Code:      code,
-		TaskID:    taskID,
-		Action:    action,
-		Env:       cloneStringMap(t.cfg.Env),
-		Timeout:   t.cfg.Timeout,
-		MediaType: firstNonEmpty(t.cfg.MediaType, "application/json"),
-		Budget:    t.cfg.Budget,
+		Command:    request.Command,
+		Protocol:   request.Protocol,
+		Code:       request.Code,
+		ActionJSON: request.ActionJSON,
+		TaskID:     request.TaskID,
+		Action:     request.Action,
+		Env:        request.Env,
+		Timeout:    request.Timeout,
+		MediaType:  request.MediaType,
+		Budget:     request.Budget,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", t.name, err)
@@ -142,6 +179,107 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 		Bytes:          result.Envelope.Tool.Bytes,
 		ToolEvidence:   result.Envelope.Tool,
 	})
+}
+
+func (t *BrowserHarnessTool) buildCommandRequest(args map[string]any) (BrowserHarnessCommandRequest, BrowserAction, error) {
+	protocol := normalizeBrowserHarnessProtocol(t.cfg.Protocol, firstNonEmpty(t.cfg.Command, defaultBrowserHarnessCommand))
+	if protocol == BrowserHarnessProtocolLegacy {
+		code, action, err := t.buildCode(args)
+		return BrowserHarnessCommandRequest{Code: code}, action, err
+	}
+	actionReq, action, err := t.buildActionRequest(args)
+	if err != nil {
+		return BrowserHarnessCommandRequest{}, action, err
+	}
+	raw, err := json.Marshal(actionReq)
+	if err != nil {
+		return BrowserHarnessCommandRequest{}, action, err
+	}
+	return BrowserHarnessCommandRequest{ActionJSON: raw}, action, nil
+}
+
+func (t *BrowserHarnessTool) buildActionRequest(args map[string]any) (BrowserHarnessActionRequest, BrowserAction, error) {
+	taskID := stringArg(args, "task_id")
+	req := BrowserHarnessActionRequest{SchemaVersion: browserHarnessActionSchemaVersion, TaskID: taskID}
+	switch t.name {
+	case BrowserToolNavigate:
+		url := stringArg(args, "url")
+		if strings.TrimSpace(url) == "" {
+			return req, BrowserAction{}, errors.New("url is required")
+		}
+		action := BrowserAction{Kind: BrowserActionNavigate, TaskID: taskID, URL: url}
+		if decision := ValidateBrowserAction(action); !decision.Allowed {
+			return req, action, fmt.Errorf("browser action denied: %s", decision.Evidence)
+		}
+		req.Kind = BrowserActionNavigate
+		req.URL = url
+		req.NewTab = true
+		return req, action, nil
+	case BrowserToolSnapshot:
+		req.Kind = BrowserActionSnapshot
+		req.Full = boolArg(args, "full")
+		return req, BrowserAction{Kind: BrowserActionSnapshot, TaskID: taskID}, nil
+	case BrowserToolClick:
+		ref := stringArg(args, "ref")
+		if strings.TrimSpace(ref) == "" {
+			return req, BrowserAction{}, errors.New("ref is required")
+		}
+		req.Kind = BrowserActionClick
+		req.Ref = ref
+		return req, BrowserAction{Kind: BrowserActionClick, TaskID: taskID, Selector: ref}, nil
+	case BrowserToolType:
+		ref := stringArg(args, "ref")
+		text := stringArg(args, "text")
+		if strings.TrimSpace(ref) == "" {
+			return req, BrowserAction{}, errors.New("ref is required")
+		}
+		req.Kind = BrowserActionType
+		req.Ref = ref
+		req.Text = text
+		return req, BrowserAction{Kind: BrowserActionType, TaskID: taskID, Selector: ref, Text: text}, nil
+	case BrowserToolScroll:
+		req.Kind = BrowserActionScroll
+		req.Direction = strings.ToLower(firstNonEmpty(stringArg(args, "direction"), "down"))
+		return req, BrowserAction{Kind: BrowserActionScroll, TaskID: taskID}, nil
+	case BrowserToolBack:
+		req.Kind = BrowserActionBack
+		return req, BrowserAction{Kind: BrowserActionBack, TaskID: taskID}, nil
+	case BrowserToolPress:
+		key := stringArg(args, "key")
+		if strings.TrimSpace(key) == "" {
+			return req, BrowserAction{}, errors.New("key is required")
+		}
+		req.Kind = "press"
+		req.Key = key
+		return req, BrowserAction{Kind: BrowserActionWait, TaskID: taskID, Text: key}, nil
+	case BrowserToolConsole:
+		req.Kind = "console"
+		req.Expression = stringArg(args, "expression")
+		return req, BrowserAction{Kind: BrowserActionExtract, TaskID: taskID}, nil
+	case BrowserToolGetImages:
+		req.Kind = "get_images"
+		return req, BrowserAction{Kind: BrowserActionExtract, TaskID: taskID}, nil
+	case BrowserToolVision:
+		req.Kind = "vision"
+		req.Question = stringArg(args, "question")
+		return req, BrowserAction{Kind: BrowserActionSnapshot, TaskID: taskID}, nil
+	case BrowserToolCDP:
+		method := stringArg(args, "method")
+		if strings.TrimSpace(method) == "" {
+			return req, BrowserAction{}, errors.New("method is required")
+		}
+		req.Kind = "cdp"
+		req.Method = method
+		req.Params = mapArg(args, "params")
+		return req, BrowserAction{Kind: BrowserActionExtract, TaskID: taskID}, nil
+	case BrowserToolDialog:
+		req.Kind = "dialog"
+		req.DialogAction = strings.ToLower(firstNonEmpty(stringArg(args, "action"), "accept"))
+		req.PromptText = stringArg(args, "prompt_text")
+		return req, BrowserAction{Kind: BrowserActionWait, TaskID: taskID}, nil
+	default:
+		return req, BrowserAction{}, fmt.Errorf("unsupported browser harness tool %q", t.name)
+	}
 }
 
 func (t *BrowserHarnessTool) buildCode(args map[string]any) (string, BrowserAction, error) {
@@ -287,7 +425,7 @@ func (t *BrowserHarnessTool) buildCode(args map[string]any) (string, BrowserActi
 func browserHarnessToolDescriptor(name string) (string, json.RawMessage) {
 	switch name {
 	case BrowserToolNavigate:
-		return "Navigate to a URL in the browser using browser-harness. Opens a new tab and returns a compact snapshot with @e refs.", json.RawMessage(`{"type":"object","properties":{"url":{"type":"string"},"task_id":{"type":"string"}},"required":["url"]}`)
+		return "Navigate to a URL in the browser using go-browser-harness. Opens a new tab and returns a compact snapshot with @e refs.", json.RawMessage(`{"type":"object","properties":{"url":{"type":"string"},"task_id":{"type":"string"}},"required":["url"]}`)
 	case BrowserToolSnapshot:
 		return "Get a text snapshot of the current browser page with @e refs for follow-up click/type actions.", json.RawMessage(`{"type":"object","properties":{"full":{"type":"boolean"},"task_id":{"type":"string"}},"required":[]}`)
 	case BrowserToolClick:
@@ -305,9 +443,9 @@ func browserHarnessToolDescriptor(name string) (string, json.RawMessage) {
 	case BrowserToolGetImages:
 		return "List images on the current page with src, alt, and dimensions.", json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string"}},"required":[]}`)
 	case BrowserToolVision:
-		return "Capture a screenshot through browser-harness and return the artifact path for visual inspection.", json.RawMessage(`{"type":"object","properties":{"question":{"type":"string"},"annotate":{"type":"boolean"},"task_id":{"type":"string"}},"required":["question"]}`)
+		return "Capture a screenshot through go-browser-harness and return the artifact path for visual inspection.", json.RawMessage(`{"type":"object","properties":{"question":{"type":"string"},"annotate":{"type":"boolean"},"task_id":{"type":"string"}},"required":["question"]}`)
 	case BrowserToolCDP:
-		return "Send a raw Chrome DevTools Protocol command through browser-harness.", json.RawMessage(`{"type":"object","properties":{"method":{"type":"string"},"params":{"type":"object"},"task_id":{"type":"string"}},"required":["method"]}`)
+		return "Send a raw Chrome DevTools Protocol command through go-browser-harness.", json.RawMessage(`{"type":"object","properties":{"method":{"type":"string"},"params":{"type":"object"},"task_id":{"type":"string"}},"required":["method"]}`)
 	case BrowserToolDialog:
 		return "Accept or dismiss the current JavaScript dialog.", json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","enum":["accept","dismiss"]},"prompt_text":{"type":"string"},"task_id":{"type":"string"}},"required":["action"]}`)
 	default:
