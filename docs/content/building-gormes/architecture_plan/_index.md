@@ -599,7 +599,7 @@ classification and row-backed implementation queue.
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
 - [x] Bundled Airtable productivity skill contract
-- [ ] Bundled TouchDesigner MCP skill catalog contract
+- [x] Bundled TouchDesigner MCP skill catalog contract
 
 ### 5.G — MCP Integration 🔨
 

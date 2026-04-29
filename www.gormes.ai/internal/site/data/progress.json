@@ -13658,9 +13658,9 @@
             {
               "name": "Bundled TouchDesigner MCP skill catalog contract",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes treats upstream TouchDesigner MCP as reviewed bundled creative skill content, not an optional-skill install, while exposing missing TouchDesigner/MCP prerequisites as visible availability evidence and never starting a TouchDesigner or MCP process during skill catalog tests",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -13699,7 +13699,7 @@
                 "TestTouchDesignerSkill_PromptExcludedWhenUnavailable proves BuildSkillBlock excludes the skill until prerequisite evidence is satisfied.",
                 "Reference files are recorded as inert skill assets and are not executed or parsed as live MCP descriptors."
               ],
-              "note": "Added after upstream Hermes 853ed609 moved touchdesigner-mcp from optional-skills into bundled skills and updated the public skills catalog. Gormes should mirror the catalog/status contract as reviewed local skill content before any MCP runtime integration.",
+              "note": "Complete: TDD added skills/creative/touchdesigner-mcp/SKILL.md, skills/creative/touchdesigner-mcp/references/mcp-tools.md, and internal/skills/touchdesigner_skill_test.go. Locked invariants: touchdesigner-mcp parses as bundled reviewed creative skill content with TouchDesigner/MCP/twozero hermes tags; the catalog row reports source=builtin trust=system category=creative and is absent from hub and local sources; missing TOUCHDESIGNER_MCP_URL and TWOZERO_MCP_URL surface as missing-prerequisite evidence while the catalog row stays visible; BuildSkillBlock excludes the skill until either prerequisite env var is set; references/mcp-tools.md ships as inert documentation that is rejected by Parse and never promoted as its own skill row; no setup.sh, .tox download, or live MCP runtime ships in the bundled skill.",
               "write_scope": [
                 "skills/creative/touchdesigner-mcp/",
                 "internal/skills/touchdesigner_skill_test.go",
