@@ -89,9 +89,6 @@ type ManagerConfig struct {
 	// wiring should set this to time.Now (or an equivalent UTC/zone-aware
 	// closure); tests wire a fixed clock.
 	LiveTurnNow func() time.Time
-	// LiveTurnActiveSessionID returns the active session id rendered on the
-	// `Session ID: ...` line. Nil or empty result drops the line.
-	LiveTurnActiveSessionID func() string
 	// LiveTurnActiveModel returns the active model name rendered on the
 	// `Model: ...` line. Nil or empty result drops the line.
 	LiveTurnActiveModel func() string
@@ -294,9 +291,6 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 	if cfg.LiveTurnNow != nil {
 		seams.Now = cfg.LiveTurnNow
-	}
-	if cfg.LiveTurnActiveSessionID != nil {
-		seams.ActiveSessionID = cfg.LiveTurnActiveSessionID
 	}
 	if cfg.LiveTurnActiveModel != nil {
 		seams.ActiveModel = cfg.LiveTurnActiveModel
@@ -1596,7 +1590,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
-	sessionContext, _, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, submitText, sessionBlock)
+	sessionContext, _, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, submitText, resolved.SessionID, sessionBlock)
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,

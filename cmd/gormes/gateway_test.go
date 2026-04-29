@@ -151,6 +151,36 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	}
 }
 
+func TestGatewayManagerConfig_LiveTurnMetadataProductionWiring(t *testing.T) {
+	mgrCfg := gatewayManagerConfig(
+		config.Config{Hermes: config.HermesCfg{
+			Model:    "gpt-5.5",
+			Provider: "openai-codex",
+		}},
+		map[string]string{},
+		map[string]bool{},
+		nil,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+	if mgrCfg.LiveTurnNow == nil {
+		t.Fatal("LiveTurnNow is nil; production gateway metadata block would omit timestamp")
+	}
+	if got := mgrCfg.LiveTurnActiveModel; got == nil || got() != "gpt-5.5" {
+		if got == nil {
+			t.Fatal("LiveTurnActiveModel is nil")
+		}
+		t.Fatalf("LiveTurnActiveModel() = %q, want configured model", got())
+	}
+	if got := mgrCfg.LiveTurnActiveProvider; got == nil || got() != "openai-codex" {
+		if got == nil {
+			t.Fatal("LiveTurnActiveProvider is nil")
+		}
+		t.Fatalf("LiveTurnActiveProvider() = %q, want configured provider", got())
+	}
+}
+
 func TestGatewayManagerConfig_UsageProviderInfersProviderFromConfiguredModel(t *testing.T) {
 	var sawAuthorization bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

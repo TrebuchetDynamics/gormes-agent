@@ -360,7 +360,11 @@ func (h *liveTurnHarness) dispatchFixture(f liveTurnFixture) string {
 	tg := newFakeChannel(platform)
 	fk := &fakeKernel{}
 	smap := session.NewMemMap()
-	if err := smap.Put(context.Background(), platform+":42", "sess-stored"); err != nil {
+	sessionID := "sess-stored"
+	if f.activeSessionID != "" {
+		sessionID = f.activeSessionID
+	}
+	if err := smap.Put(context.Background(), platform+":42", sessionID); err != nil {
 		h.t.Fatalf("Put: %v", err)
 	}
 	cfg := ManagerConfig{
@@ -373,10 +377,6 @@ func (h *liveTurnHarness) dispatchFixture(f liveTurnFixture) string {
 	if !f.now.IsZero() {
 		clock := f.now
 		cfg.LiveTurnNow = func() time.Time { return clock }
-	}
-	if f.activeSessionID != "" {
-		sid := f.activeSessionID
-		cfg.LiveTurnActiveSessionID = func() string { return sid }
 	}
 	if f.activeModel != "" {
 		mod := f.activeModel

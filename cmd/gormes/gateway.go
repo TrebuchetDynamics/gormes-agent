@@ -242,6 +242,15 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		Hooks:           hooks,
 		RuntimeStatus:   runtimeStatus,
 		Restart:         restart,
+		LiveTurnNow:     func() time.Time { return time.Now() },
+		LiveTurnActiveModel: func() string {
+			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
+			return firstUsageString(resolution.Model, cfg.Hermes.Model)
+		},
+		LiveTurnActiveProvider: func() string {
+			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
+			return firstUsageString(resolution.Provider, cfg.Hermes.Provider)
+		},
 		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
 			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))

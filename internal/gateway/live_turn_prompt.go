@@ -14,7 +14,7 @@ import (
 //
 // Slice 1 (SOUL/AGENTS context-files) and slice 2 (USER.md/MEMORY.md durable
 // user context) provide ProfileDir/CWD/MemoryDir + Build/BuildDurable.
-// Slice 4 adds Now/ActiveSessionID/ActiveModel/ActiveProvider seams plus the
+// Slice 4 adds Now/ActiveModel/ActiveProvider seams plus the
 // BuildMetadata renderer and the SelfHelpGate gate function so the gateway
 // can inject a Hermes-format timestamp/session/model/provider block and the
 // pre-shipped GormesSelfHelpGuidanceForPrompt body without a model call.
@@ -24,9 +24,12 @@ import (
 // hermetic temp directories. Build / BuildDurable / BuildMetadata are seams
 // so tests can stub them without reaching into the hermes package internals.
 //
-// Now/ActiveSessionID/ActiveModel/ActiveProvider default to nil so the
-// metadata block is fully elided unless production wiring (or a test
-// fixture) supplies them — this keeps the slice-1+2 byte output stable.
+// Now/ActiveModel/ActiveProvider default to nil so the metadata block is fully
+// elided unless production wiring (or a test fixture) supplies them — this
+// keeps the slice-1+2 byte output stable. Active session id is not a global
+// seam: submitPinned passes the resolved per-turn session id into
+// assembleLiveTurnPrompt so resumed/non-resumable turns render the same id the
+// kernel receives.
 type liveTurnPromptSeams struct {
 	ProfileDir   func() string
 	CWD          func() string
@@ -35,11 +38,10 @@ type liveTurnPromptSeams struct {
 	BuildDurable func(opts hermes.DurableUserContextOptions) (string, hermes.DurableUserContextReport)
 
 	// Slice 4: turn-metadata seams.
-	Now             func() time.Time
-	ActiveSessionID func() string
-	ActiveModel     func() string
-	ActiveProvider  func() string
-	BuildMetadata   func(opts hermes.TurnMetadataOptions) string
+	Now            func() time.Time
+	ActiveModel    func() string
+	ActiveProvider func() string
+	BuildMetadata  func(opts hermes.TurnMetadataOptions) string
 
 	// Slice 4: self-help guidance gate.
 	SelfHelpGate func(submitText string) (string, bool)
@@ -49,9 +51,9 @@ type liveTurnPromptSeams struct {
 // config.GormesHome(), CWD from os.Getwd(), memory dir from
 // <config.GormesHome()>/memory, and the real hermes entry points.
 //
-// The slice-4 metadata clock and active-session/model/provider getters
-// default to nil so callers that have not configured them produce an empty
-// metadata block. The default SelfHelpGate uses the shipped helper.
+// The slice-4 metadata clock and active model/provider getters default to nil
+// so callers that have not configured them produce an empty metadata block.
+// The default SelfHelpGate uses the shipped helper.
 // BuildMetadata always points at hermes.BuildTurnMetadataBlock so the gate
 // (Now != zero or any field set) is the only switch that controls whether
 // the block actually appears.
@@ -85,7 +87,7 @@ func defaultLiveTurnPromptSeams() liveTurnPromptSeams {
 // when neither the metadata seams nor the self-help gate produce content.
 // When all pieces are empty the result is "" (callers pass sessionBlock != ""
 // in production).
-func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, sessionBlock string) (string, hermes.ContextFilesReport, hermes.DurableUserContextReport) {
+func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSessionID, sessionBlock string) (string, hermes.ContextFilesReport, hermes.DurableUserContextReport) {
 	var (
 		contextBlock  string
 		contextReport hermes.ContextFilesReport
@@ -112,7 +114,7 @@ func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, sessionBlock 
 		durableBlock, durableReport = seams.BuildDurable(opts)
 	}
 
-	metadataBlock := buildMetadataFromSeams(seams)
+	metadataBlock := buildMetadataFromSeams(seams, activeSessionID)
 	selfHelpBlock := buildSelfHelpFromSeams(seams, submitText)
 
 	pieces := make([]string, 0, 5)
@@ -137,16 +139,16 @@ func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, sessionBlock 
 	return strings.Join(pieces, "\n\n"), contextReport, durableReport
 }
 
-func buildMetadataFromSeams(seams liveTurnPromptSeams) string {
+func buildMetadataFromSeams(seams liveTurnPromptSeams, activeSessionID string) string {
 	if seams.BuildMetadata == nil {
 		return ""
 	}
-	opts := hermes.TurnMetadataOptions{}
+	if seams.Now == nil && seams.ActiveModel == nil && seams.ActiveProvider == nil {
+		return ""
+	}
+	opts := hermes.TurnMetadataOptions{SessionID: strings.TrimSpace(activeSessionID)}
 	if seams.Now != nil {
 		opts.Now = seams.Now()
-	}
-	if seams.ActiveSessionID != nil {
-		opts.SessionID = strings.TrimSpace(seams.ActiveSessionID())
 	}
 	if seams.ActiveModel != nil {
 		opts.Model = strings.TrimSpace(seams.ActiveModel())

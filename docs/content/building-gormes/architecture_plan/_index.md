@@ -180,7 +180,7 @@ classification and row-backed implementation queue.
 - [x] Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)
 - [x] Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)
 - [x] Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
-- [ ] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
+- [x] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
 - [x] BlueBubbles iMessage session-context prompt guidance
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
