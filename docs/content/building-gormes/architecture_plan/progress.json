@@ -13362,9 +13362,9 @@
             {
               "name": "Skills hub direct URL install name/category guard",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "The `gormes skills install <https://.../SKILL.md>` flow uses URLSkillCandidate evidence to require an explicit `--name` on noninteractive URL installs when no safe name is resolved, rejects invalid name overrides, optionally accepts a category on interactive/CLI surfaces, and stages the downloaded SKILL.md through quarantine/scan before activation",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
