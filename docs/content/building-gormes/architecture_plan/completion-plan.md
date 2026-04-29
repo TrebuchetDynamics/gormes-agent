@@ -6,8 +6,9 @@ weight: 15
 # Gormes Completion Plan
 
 This is the execution plan for finishing `gormes-agent`. The finish line is not
-an MVP and not a partial wrapper: **Gormes is complete when it is Hermes in Go,
-with Goncho as the Honcho-compatible Go port inside Gormes.**
+an MVP, not a partial wrapper, and not only "enough to improve itself from
+Telegram": **Gormes is complete when it is Hermes in Go, with Goncho as the
+Honcho-compatible Go port inside Gormes.**
 
 The canonical backlog remains
 [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json).
@@ -40,19 +41,28 @@ Use this page with:
    routing, tool execution, memory, skills, plugins, API, TUI, gateway,
    channels, cron, packaging, observability, and operations must have Go-native
    equivalents or explicit tested divergences.
-2. **Goncho is in-process Gormes memory.** Internal code stays `goncho`; public
+2. **Config, commands, providers, and operator experience are core parity
+   lanes.** Hermes-compatible config precedence, command names, slash commands,
+   gateway commands, provider routing/auth/usage, error surfaces, status
+   output, and local interactive behavior are not polish. They are part of the
+   runtime contract an operator depends on while running long coding turns.
+3. **Divergence must be deliberate, visible, and tested.** A Go-native
+   replacement is acceptable only when the docs and tests name the upstream
+   Hermes behavior, explain why Gormes owns a different contract, and prove the
+   operator-visible result.
+4. **Goncho is in-process Gormes memory.** Internal code stays `goncho`; public
    compatibility can expose `honcho_*` names when tools, MCP clients, or
    existing users depend on them.
-3. **`progress.json` is the only backlog.** Missing work becomes a row. Broad
+5. **`progress.json` is the only backlog.** Missing work becomes a row. Broad
    work becomes an umbrella row until split. No side TODOs, private queues, or
    agent-local task lists.
-4. **Rows must be builder-executable.** A runnable row names source refs,
+6. **Rows must be builder-executable.** A runnable row names source refs,
    write scope, test commands, acceptance, ready/not-ready conditions, and a
    done signal.
-5. **Every runtime claim needs tests.** Prefer hermetic fixtures. Live provider,
+7. **Every runtime claim needs tests.** Prefer hermetic fixtures. Live provider,
    live platform, and live cloud checks are opt-in smoke tests, not row-local
    proof.
-6. **Planning is bounded.** Planner passes map parity and sharpen rows. They do
+8. **Planning is bounded.** Planner passes map parity and sharpen rows. They do
    not run indefinitely and do not implement runtime code.
 
 ## Current Finish Ledger
@@ -73,7 +83,10 @@ agent, Goncho, tool, and release lanes.
 | Phase 7 — Paused Channels | 16 | Explicit backlog. Build only fixture-ready slices or channel dependencies that unblock Lane 4. |
 
 The first closure target is not "all green"; it is a **Python-free normal
-agent turn** with local Goncho memory and tested tool-call continuation:
+agent turn** with local Goncho memory and tested tool-call continuation. That is
+a dogfood gate, not a reduced finish line. Once it works, Gormes still must keep
+closing Hermes parity across config, commands, providers, tools, TUI/API,
+gateway, release, and operator experience:
 
 ```text
 CLI/API/gateway input
@@ -84,10 +97,12 @@ CLI/API/gateway input
   -> Go final response + audit/status evidence
 ```
 
-## Telegram Dogfood Closure Plan ("Gormes finishes itself")
+## Telegram Dogfood Milestone ("Gormes finishes itself")
 
 Goal: operate Gormes from Telegram as the primary operator surface while Gormes
-continues shipping the remaining parity rows.
+continues shipping the remaining parity rows. This milestone proves that the
+runtime can steer and validate its own work; it does not redefine completion as
+"Telegram works."
 
 Execution sequence:
 
@@ -100,10 +115,25 @@ Execution sequence:
    - Finish command-tree manifest (`5.O.1`) and migrate/config rows
      (`5.O.18`..`5.O.23`) so Telegram-driven sessions can rely on the same
      deterministic runtime/config behavior as Hermes.
-3. **Tool/runtime closure (Phase 5.A/B/J).**
+   - Treat Hermes command names, aliases, root flags, profile/model/provider
+     selection, config show/path/env-path/set/check/edit/migrate, auth, logs,
+     status, backup, update, and dynamic plugin commands as parity targets
+     unless a row explicitly marks an owned Gormes divergence.
+3. **Provider and account-control closure (Phase 4.A/4.G/4.H).**
+   - Keep at least one coding-capable provider and one fallback provider stable
+     for dogfood, but continue toward Hermes provider parity: streaming,
+     tool-call continuation, auth/token refresh, retries, rate evidence,
+     context limits, model quirks, usage/cost reporting, and visible failure
+     classification.
+4. **Tool/runtime closure (Phase 5.A/B/J).**
    - Complete remaining core tool registry and sandbox-policy rows before broad
      channel expansion.
-4. **Operator e2e gate.**
+5. **Operator experience closure (Phase 5.Q plus gateway/TUI rows).**
+   - Match the Hermes operator feel where it matters: slash completion,
+     busy-turn steering, status/footer evidence, prompt symbols, tool progress,
+     approval prompts, interrupt/edit helpers, gateway status/usage, and
+     recoverable failure output.
+6. **Operator e2e gate.**
    - Prove one full “plan -> build -> validate -> report” loop executed from
      Telegram without Python fallbacks, using only Gormes runtime and Goncho
      memory surfaces.
@@ -112,8 +142,9 @@ Definition of done for this lane:
 
 - Telegram session can start work, steer active work, inspect status/usage, and
   receive validated completion evidence.
-- Remaining implementation rows are then executed through that same Telegram
-  surface as the default operator workflow.
+- Remaining implementation rows can then be executed through that same Telegram
+  surface as the default operator workflow, while the finish line remains broad
+  Hermes parity with explicit tested divergences only.
 
 ## Docs Spine
 

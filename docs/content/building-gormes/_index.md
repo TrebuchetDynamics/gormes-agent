@@ -18,13 +18,15 @@ queue, and upstream-porting research. If you want to **use** Gormes, start at
 - **Tool Execution** — typed Go interfaces, in-process registry, no Python bounce ([Phase 2.A](./architecture_plan/phase-2-gateway/)).
 - **Gateway** — one runtime, many interfaces: TUI plus shipped Telegram/Discord, with Slack and long-tail adapters advancing as contract-first Phase 2 slices ([Phase 2.B](./architecture_plan/phase-2-gateway/)).
 
-Gormes ports upstream contracts, not upstream monoliths. Hermes proves the
-breadth of the agent runtime: gateway, prompt assembly, provider routing, tool
-continuations, memory providers, plugins, skills, cron, and operator commands.
-GBrain proves the value of contract-first operations, durable jobs, graph
-provenance, and skills as auditable runtime knowledge. Gormes absorbs those
-durable contracts into a small Go runtime instead of copying Python mega-files
-or TypeScript database gravity.
+Gormes ports upstream contracts, not upstream monoliths. The default rule is
+Hermes parity for almost every operator-visible surface: config, command tree,
+slash commands, gateway handlers, provider routing/auth/usage, tool
+continuations, plugins, skills, cron, status, TUI/API behavior, packaging, and
+recovery. Go-native divergence is allowed only when it is explicit, tested, and
+visible to operators. GBrain proves the value of contract-first operations,
+durable jobs, graph provenance, and skills as auditable runtime knowledge.
+Gormes absorbs those durable contracts into a small Go runtime instead of
+copying Python mega-files or TypeScript database gravity.
 
 ## Section map
 

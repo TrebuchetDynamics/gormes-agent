@@ -6,7 +6,14 @@ weight: 20
 # Hermes/Honcho To Gormes Go Runtime Plan
 
 This is the canonical implementation plan for making Gormes a Go-native
-runtime for the useful Hermes-Agent and Honcho surfaces.
+runtime for Hermes-Agent parity and Honcho-compatible Goncho memory.
+
+The default expectation is broad parity, not a reduced "self-improvement MVP."
+Config, command, provider, tool, gateway, TUI/API, plugin, skill, cron,
+observability, release, and recovery behavior stay in scope unless this plan
+classifies a narrow Go-native divergence as `owned` or an upstream-only surface
+as `excluded` with tests or source-backed rationale. Telegram self-improvement
+is an early proof path through the runtime, not the boundary of completion.
 
 It reconciles the feature map, upstream coverage ledger, swarm audit, and
 `progress.json`. It is not a side backlog. Any implementation work named here
@@ -105,9 +112,10 @@ implementation and row splitting, not rediscovery.
 | 3 | Goncho SDK-style harness | `internal/goncho`, `internal/gonchotools`, `internal/memory` | Proves Honcho compatibility against local storage before normal turns depend on it. |
 | 4 | Prompt/context/compression spine | `internal/hermes`, `internal/kernel`, `internal/transcript`, `internal/skills` | Prevents provider/tool rows from inventing their own prompt assembly. |
 | 5 | Descriptor-first tool surface | `internal/tools`, `internal/doctor`, `internal/audit` | Lets every handler expose schema, trust, availability, and audit evidence uniformly. |
-| 6 | Gateway/API/TUI consumers | `internal/gateway`, `internal/apiserver`, `internal/tui`, `internal/tuigateway`, `internal/channels/*` | UI and channels consume typed events instead of owning agent logic. |
-| 7 | CLI/release/packaging | `cmd/gormes`, `internal/cli`, installers, `www.gormes.ai` | Public install and operations promises should follow proven runtime behavior. |
-| 8 | Learning/research modes | `internal/skills`, `internal/subagent`, future research packages | Higher-level automation depends on stable turns, tools, memory, and release flow. |
+| 6 | Operator-control parity | `cmd/gormes`, `internal/cli`, `internal/config`, `internal/gateway`, `internal/tui`, `internal/tuigateway`, `internal/doctor` | Hermes command/config/provider-control and local interactive behavior define how operators run, steer, inspect, and recover long turns; these rows stay near the front even when their phase is 5.O/5.Q. |
+| 7 | Gateway/API/TUI consumers | `internal/gateway`, `internal/apiserver`, `internal/tui`, `internal/tuigateway`, `internal/channels/*` | UI and channels consume typed events instead of owning agent logic, while preserving Hermes-visible status, usage, slash, approval, interrupt, and progress behavior. |
+| 8 | Release/packaging | installers, service units, OCI/Homebrew/Nix docs, `cmd/repoctl`, `www.gormes.ai` | Public install and operations promises should follow proven runtime, command, config, and provider behavior. |
+| 9 | Learning/research modes | `internal/skills`, `internal/subagent`, future research packages | Higher-level automation depends on stable turns, tools, memory, command/config control, and release flow. |
 
 ## Nested Feature-Level Coverage Matrix
 

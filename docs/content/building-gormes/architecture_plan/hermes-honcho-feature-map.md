@@ -8,6 +8,14 @@ weight: 18
 This is the planner map for finishing Gormes as Hermes in Go, with Goncho as
 the Honcho-compatible Go memory port inside the same runtime.
 
+Hard rule: assume Hermes parity is required for almost every operator-visible
+surface. Config files, env precedence, commands, slash commands, gateway
+handlers, provider routing/auth/usage, retries, TUI behavior, API shape, tools,
+plugins, skills, cron, release, and recovery paths remain parity targets unless
+this map or `progress.json` marks a narrow Go-native divergence with tests.
+Telegram self-improvement is a proof milestone for that runtime, not the limit
+of the product.
+
 Use this page before splitting or building rows. It maps upstream feature
 families to the Go packages, implementation strategy, proof gates, and
 `progress.json` anchors that should own the work. It is not a side backlog:
@@ -40,6 +48,10 @@ still too vague for builder work.
   and must be split before a builder skill takes it.
 - **Missing** means no useful Go surface or progress row was found.
 - **Owned** means Gormes intentionally diverges with a Go-native contract.
+- **Owned is rare.** Do not mark config, command, provider, or operator
+  experience drift as owned just because the first Go implementation is
+  simpler; owned divergence needs source-backed rationale, tests, and
+  operator-visible docs.
 
 Planner passes should convert vague or missing P0/P1 behavior into one
 builder-sized row. Builder passes should not rediscover this map.
@@ -178,24 +190,33 @@ flows, or users depend on them.
 
 ## Implementation Order
 
-The feature map collapses into this order:
+The feature map collapses into this order. The order prioritizes proof of the
+normal turn, but it does not demote CLI/config/provider/operator experience
+parity to nice-to-have work:
 
 1. **Prove the normal Go turn.** Build `Python-free normal agent turn e2e
    harness` before expanding broad provider or tool ports. It is the first
    product-level proof that Gormes is replacing Hermes, not wrapping it.
-2. **Prove Goncho drop-in behavior.** Build `Goncho Honcho SDK compatibility
+2. **Lock operator-control parity early.** Keep command-tree, config
+   lifecycle, provider account/usage, status, slash-command, gateway-command,
+   and TUI interaction rows near the front whenever they affect how long coding
+   turns are configured, steered, inspected, or recovered.
+3. **Prove Goncho drop-in behavior.** Build `Goncho Honcho SDK compatibility
    e2e harness`, then bind Goncho into the normal turn. That is the point at
    which Goncho can be evaluated as Honcho-in-Go.
-3. **Split Phase 4 broad rows.** Provider adapters, context compression,
+4. **Split Phase 4 broad rows.** Provider adapters, context compression,
    prompt assembly, model metadata, credentials, retry, and prompt cache should
    be small transcript-backed rows.
-4. **Descriptor-first tools.** Do not port 61 tools by hand. Port the registry,
+5. **Descriptor-first tools.** Do not port 61 tools by hand. Port the registry,
    toolset, trust, availability, audit, and doctor contract first; then port
    handlers by category.
-5. **Expose through API/TUI/gateway only after the core turn is stable.**
-   Channels and UI should consume typed turn events, not recreate agent logic.
-6. **Release and learning loop last.** Public install promises and automatic
-   skill generation must wait for normal-turn, memory, tool, and release gates.
+6. **Expose through API/TUI/gateway from typed events.** Channels and UI should
+   consume typed turn events, not recreate agent logic, while still matching
+   Hermes' operator-facing commands, slash completion, progress, approvals,
+   interrupt, status, and usage behavior.
+7. **Release packaging and learning loop last.** Public install promises and
+   automatic skill generation must wait for normal-turn, memory, tool, command,
+   config, and provider-control gates.
 
 ## Rows That Must Stay Near The Top
 
@@ -205,6 +226,10 @@ The feature map collapses into this order:
 | `Goncho Honcho SDK compatibility e2e harness` | Product-level proof for Honcho-in-Go memory compatibility. |
 | `Goncho memory integration into normal agent turn` | Binds memory to the real agent spine. |
 | `Provider-tool-memory golden transcript suite` | Keeps future provider/tool/memory changes from drifting. |
+| `Hermes CLI command-tree parity manifest` | Prevents command, slash, gateway-handler, flag, alias, and plugin-command drift from becoming invisible. |
+| `Provider endpoint/API-key root flags + runtime resolution` | Makes provider/model/account selection deterministic before dogfood coding turns rely on it. |
+| `Gormes config command surface` | Closes the config lifecycle operators use to inspect and repair the running runtime. |
+| `Native TUI Hermes slash completion helpers` | Keeps the local operator experience aligned with Hermes while Gormes stays Go-native. |
 | `Skill-manager selection matrix hardening` | Keeps future agents on the skill-driven control plane. |
 | `ContextEngine compression-boundary callback vocabulary` | Unblocks compression/kernel binding with a narrow fixture. |
 

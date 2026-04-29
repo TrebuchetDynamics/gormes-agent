@@ -6,7 +6,10 @@ weight: 16
 # Completion Lane Roadmap
 
 The phase pages describe historical delivery order. Completion lanes describe
-the remaining product work required for Gormes to become Hermes in Go.
+the remaining product work required for Gormes to become Hermes in Go. The
+default rule is parity with Hermes across runtime behavior, config, commands,
+providers, and operator experience; any Go-native divergence must be explicit,
+tested, and visible to operators.
 
 Use this page when deciding what to audit, plan, or build next. Use
 [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/content/building-gormes/architecture_plan/progress.json)
@@ -40,8 +43,11 @@ Lane 0 Control Plane
 ```
 
 The graph is directional for planning priority, not a total freeze. A row may
-advance out of order only when it is fixture-ready and either unblocks an
-earlier lane or is clearly isolated from the normal agent turn.
+advance out of order when it is fixture-ready and either unblocks an earlier
+lane, closes an operator-control parity gap, or is clearly isolated from the
+normal agent turn. In particular, CLI/config/provider/TUI parity rows are not
+late polish just because some of them live in Lane 5; they define how operators
+configure, run, steer, inspect, and recover Gormes.
 
 ## Lane Pressure
 
@@ -52,7 +58,7 @@ earlier lane or is clearly isolated from the normal agent turn.
 | 2 | Phase 3 now has explicit 3.G Goncho drop-in closure rows. | Close peer-card hints, then build the SDK-style harness and normal-turn memory integration. |
 | 3 | Phase 5 has many tool/security umbrellas. | Convert umbrellas into descriptor-first rows before handler ports. |
 | 4 | Phase 2/7 channel backlog remains large. | Keep long-tail adapters paused unless fixture-ready or dependency-unblocking. |
-| 5 | API/TUI/packaging rows are mixed with helper umbrellas. | Separate operator-visible CLI/API/TUI behavior from helper-file inventory. |
+| 5 | API/TUI/packaging rows are mixed with helper umbrellas, but CLI/config/TUI experience parity is part of the core Hermes contract. | Separate operator-visible CLI/API/TUI behavior from helper-file inventory, and keep command/config/provider-control rows eligible whenever they unblock dogfood or reduce operator drift from Hermes. |
 | 6 | All learning rows remain planned. | Build only after skill storage/retrieval rows have fixture proof. |
 
 ### Lane 0 — Control Plane Discipline
@@ -145,8 +151,16 @@ go test ./internal/gateway ./internal/cron ./internal/discord ./internal/slack .
 
 Exit when:
 
-- the `gormes` binary covers operator CLI, API, TUI, service, installer, and
-  release workflows without Python or Node runtime requirements;
+- the `gormes` binary covers Hermes-compatible operator CLI, API, TUI, service,
+  installer, and release workflows without Python or Node runtime requirements;
+- command names, aliases, root flags, slash commands, gateway handlers,
+  dynamic plugin commands, config precedence, profiles, provider/model
+  selection, logs/status/doctor/backup/update flows, and secret redaction have
+  Go-native equivalents or explicit tested divergences;
+- the local TUI and gateway surfaces preserve the Hermes operator experience
+  for long coding turns: slash completion, busy-turn steering, status/footer
+  evidence, tool progress, approvals, interrupts, edits, and recoverable
+  failure messages;
 - public docs and `www.gormes.ai` match the shipped install/runtime behavior.
 
 Gate:
@@ -174,10 +188,12 @@ go test ./internal/skills ./internal/memory ./internal/kernel -count=1
 ## Next-Lane Priority
 
 Until Lane 1 and Lane 2 are closed, prefer work that removes Python from the
-normal agent turn or makes Goncho/Honcho compatibility testable. The current
-closure rows are Phase 4.I and Phase 3.G. Channel
-expansion, browser/media tools, plugins, and release polish should not outrun
-those two lanes unless a dependency row explicitly requires them.
+normal agent turn, makes Goncho/Honcho compatibility testable, or closes a
+Hermes operator-control gap needed to run that work safely. The current closure
+rows are Phase 4.I and Phase 3.G plus the Phase 5.O/5.Q command, config,
+provider-control, and TUI-experience rows they depend on. Channel expansion,
+browser/media tools, plugins, and release packaging should not outrun those
+lanes unless a dependency row explicitly requires them.
 
 ## Planner Split Rules
 
