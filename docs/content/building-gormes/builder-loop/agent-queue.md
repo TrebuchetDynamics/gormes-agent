@@ -22,7 +22,26 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Model-specific role and tool-use guidance
+## 1. Tool-result pruning + protected head/tail summary
+
+- Phase: 4 / 4.B
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Contract: Gormes freezes the pure context-compression pruning pass before kernel mutation: protect system and first-turn head messages, choose the recent tail by token budget with at least three messages, keep assistant tool_calls paired with their tool results, prune old oversized tool result content without cutting tool-call arguments or JSON payloads, and emit summary-prefix-compatible replacement messages.
+- Trust class: operator, system
+- Ready when: ContextEngine interface, compression token-budget sizing, auxiliary headroom, provider-aware cap, and single-prompt threshold rows are validated on main., The worker can test the pruning pass with synthetic message arrays, fake token counters, and existing tool-result budget helpers; no summarizer, provider call, or kernel history mutation is required.
+- Not ready when: The slice calls a summarizer, changes provider routing, edits live kernel history, ports manual compression feedback, or rewrites persisted transcripts instead of freezing the pure pruning transform., The implementation trims assistant tool-call arguments as text, emits partial JSON, or leaves orphaned tool_result messages without their assistant call.
+- Degraded mode: Context status reports pruning_skipped, prune_budget_unavailable, or invalid_tool_pair evidence instead of silently truncating JSON arguments, dropping required tool results, or mutating live history.
+- Fixture: `internal/hermes/context_compressor_pruning_test.go`
+- Write scope: `internal/hermes/context_compressor_pruning.go`, `internal/hermes/context_compressor_pruning_test.go`, `internal/hermes/context_compressor_budget.go`, `internal/tools/result_budget.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run TestContextCompressorPruning -count=1`, `go test ./internal/hermes ./internal/tools -count=1`, `go run ./cmd/progress validate`
+- Done signal: Context-pruning fixtures prove token-budget tail selection, tool-call/result pairing, non-truncated JSON arguments, oversized-result pruning, and degraded evidence without provider calls.
+- Acceptance: Fixtures prove oversized historical tool results are pruned while recent tail messages are selected by token budget and still preserve at least three messages., Assistant tool_calls and tool result messages remain paired after pruning; no tool result starts the tail without its matching assistant call., Tool-call argument JSON is never substring-truncated; invalid or unparseable argument boundaries cause visible degraded evidence instead of mutation., Summary replacement content uses the existing Hermes summary prefix rules and does not create impossible consecutive-role collisions.
+- Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 2. Model-specific role and tool-use guidance
 
 - Phase: 4 / 4.C
 - Owner: `provider`
@@ -42,7 +61,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity
 - Why now: Unblocks Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity.
 
-## 2. Stateful tool migration queue
+## 3. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -62,7 +81,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 3. Transcription tool contract
+## 4. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -82,7 +101,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 4. Debug helpers
+## 5. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -102,7 +121,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 5. Feishu transport/bootstrap layer
+## 6. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -121,25 +140,6 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/feishu.py:FeishuAdapter, ../hermes-agent/tests/gateway/test_feishu.py:test_build_event_handler_registers_reaction_and_card_processors, ../hermes-agent/tests/gateway/test_feishu.py:TestLoopNotReadyRace, ../hermes-agent/tests/gateway/test_feishu.py:test_webhook_signature, ../hermes-agent/tests/gateway/test_feishu.py:test_url_verification, ../hermes-agent/tests/gateway/test_feishu.py:test_normalize_interactive_card_preserves_title_body_and_actions, internal/channels/feishu/, internal/gateway/event.go, references/go-agent-os/trpc-agent-go/agent/callbacks.go, references/go-agent-os/engram/internal/mcp/activity.go
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
-
-## 6. Tool-result pruning + protected head/tail summary
-
-- Phase: 4 / 4.B
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes freezes the pure context-compression pruning pass before kernel mutation: protect system and first-turn head messages, choose the recent tail by token budget with at least three messages, keep assistant tool_calls paired with their tool results, prune old oversized tool result content without cutting tool-call arguments or JSON payloads, and emit summary-prefix-compatible replacement messages.
-- Trust class: operator, system
-- Ready when: ContextEngine interface, compression token-budget sizing, auxiliary headroom, provider-aware cap, and single-prompt threshold rows are validated on main., The worker can test the pruning pass with synthetic message arrays, fake token counters, and existing tool-result budget helpers; no summarizer, provider call, or kernel history mutation is required.
-- Not ready when: The slice calls a summarizer, changes provider routing, edits live kernel history, ports manual compression feedback, or rewrites persisted transcripts instead of freezing the pure pruning transform., The implementation trims assistant tool-call arguments as text, emits partial JSON, or leaves orphaned tool_result messages without their assistant call.
-- Degraded mode: Context status reports pruning_skipped, prune_budget_unavailable, or invalid_tool_pair evidence instead of silently truncating JSON arguments, dropping required tool results, or mutating live history.
-- Fixture: `internal/hermes/context_compressor_pruning_test.go`
-- Write scope: `internal/hermes/context_compressor_pruning.go`, `internal/hermes/context_compressor_pruning_test.go`, `internal/hermes/context_compressor_budget.go`, `internal/tools/result_budget.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run TestContextCompressorPruning -count=1`, `go test ./internal/hermes ./internal/tools -count=1`, `go run ./cmd/progress validate`
-- Done signal: Context-pruning fixtures prove token-budget tail selection, tool-call/result pairing, non-truncated JSON arguments, oversized-result pruning, and degraded evidence without provider calls.
-- Acceptance: Fixtures prove oversized historical tool results are pruned while recent tail messages are selected by token budget and still preserve at least three messages., Assistant tool_calls and tool result messages remain paired after pruning; no tool result starts the tail without its matching assistant call., Tool-call argument JSON is never substring-truncated; invalid or unparseable argument boundaries cause visible degraded evidence instead of mutation., Summary replacement content uses the existing Hermes summary prefix rules and does not create impossible consecutive-role collisions.
-- Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 7. Prompt-cache capability guard
 

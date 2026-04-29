@@ -9603,7 +9603,7 @@
               "name": "Tool-result pruning + protected head/tail summary",
               "status": "planned",
               "contract": "Gormes freezes the pure context-compression pruning pass before kernel mutation: protect system and first-turn head messages, choose the recent tail by token budget with at least three messages, keep assistant tool_calls paired with their tool results, prune old oversized tool result content without cutting tool-call arguments or JSON payloads, and emit summary-prefix-compatible replacement messages.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
