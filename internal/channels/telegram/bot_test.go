@@ -139,6 +139,37 @@ func TestBot_Send(t *testing.T) {
 	}
 }
 
+func TestBot_SendReplySetsTelegramReplyToMessageID(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+
+	sender, ok := any(b).(interface {
+		SendReply(context.Context, string, string, string) (string, error)
+	})
+	if !ok {
+		t.Fatal("Bot does not expose SendReply for gateway reply quoting")
+	}
+	id, err := sender.SendReply(context.Background(), "42", "99", "hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id == "" {
+		t.Fatal("empty msg ID")
+	}
+
+	sent := mc.sentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d", len(sent))
+	}
+	msg, ok := sent[0].(tgbotapi.MessageConfig)
+	if !ok {
+		t.Fatalf("sent type = %T want MessageConfig", sent[0])
+	}
+	if msg.ReplyToMessageID != 99 {
+		t.Fatalf("ReplyToMessageID = %d, want 99", msg.ReplyToMessageID)
+	}
+}
+
 func TestBot_SendPlaceholder(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)

@@ -137,8 +137,31 @@ func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {
 	return strconv.Itoa(msg.MessageID), nil
 }
 
+func (b *Bot) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
+	_ = ctx
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	replyID, err := strconv.Atoi(replyToMsgID)
+	if err != nil {
+		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+	}
+	msgCfg := tgbotapi.NewMessage(id, text)
+	msgCfg.ReplyToMessageID = replyID
+	msg, err := b.client.Send(msgCfg)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(msg.MessageID), nil
+}
+
 func (b *Bot) SendPlaceholder(ctx context.Context, chatID string) (string, error) {
 	return b.Send(ctx, chatID, "⏳")
+}
+
+func (b *Bot) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
+	return b.SendReply(ctx, chatID, replyToMsgID, "⏳")
 }
 
 func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error {

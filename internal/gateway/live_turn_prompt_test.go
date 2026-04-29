@@ -10,7 +10,10 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
 // liveTurnHarness wires a Manager with a fakeKernel and a fake channel and
@@ -574,5 +577,100 @@ func TestLiveTurn_SystemPrompt_SelfHelpGuidanceChannelNeutral(t *testing.T) {
 				t.Fatalf("[%s] SessionContext does not contain self-help guidance body.\nwant:\n%s\n\ngot:\n%s", platform, wantGuidance, got)
 			}
 		})
+	}
+}
+
+func TestLiveTurn_TelegramFinalProviderRequestIncludesOperatorContext(t *testing.T) {
+	operatorRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(operatorRoot, "SOUL.md"), []byte("You are Gormes, not ChatGPT."), 0o600); err != nil {
+		t.Fatalf("write SOUL.md: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(operatorRoot, "USER.md"), []byte("# User\nName: Juan"), 0o600); err != nil {
+		t.Fatalf("write USER.md: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(operatorRoot, "MEMORY.md"), []byte("# Memory\nGormes identity must persist."), 0o600); err != nil {
+		t.Fatalf("write MEMORY.md: %v", err)
+	}
+	workdir := filepath.Join(operatorRoot, "gormes-agent")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(workdir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(oldwd)
+	})
+	t.Setenv("TERMINAL_CWD", workdir)
+	t.Setenv("GORMES_HOME", filepath.Join(t.TempDir(), "empty-gormes-home"))
+	t.Setenv("HERMES_HOME", "")
+
+	provider := hermes.NewMockClient()
+	provider.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "ok"},
+		{Kind: hermes.EventDone, FinishReason: "stop"},
+	}, "sess-provider")
+	k := kernel.New(kernel.Config{
+		Model:     "gpt-5.5",
+		Endpoint:  "http://mock-provider",
+		Admission: kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+	}, provider, store.NewNoop(), telemetry.New(), slog.Default())
+
+	ch := newFakeChannel("telegram")
+	smap := session.NewMemMap()
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		LiveTurnNow:  func() time.Time { return time.Date(2026, 4, 29, 16, 55, 0, 0, time.UTC) },
+		LiveTurnActiveModel: func() string {
+			return "gpt-5.5"
+		},
+		LiveTurnActiveProvider: func() string {
+			return "openai-codex"
+		},
+	}, k, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go func() { _ = k.Run(ctx) }()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "user-juan",
+		MsgID:    "tg-msg-1",
+		Kind:     EventSubmit,
+		Text:     "who are you?",
+	})
+
+	waitFor(t, time.Second, func() bool {
+		return len(provider.Requests()) == 1
+	})
+	req := provider.Requests()[0]
+	if len(req.Messages) < 2 || req.Messages[0].Role != "system" {
+		t.Fatalf("provider request messages = %#v, want leading system context before user", req.Messages)
+	}
+	system := req.Messages[0].Content
+	for _, want := range []string{
+		"You are Gormes, not ChatGPT.",
+		"# User\nName: Juan",
+		"# Memory\nGormes identity must persist.",
+		"## Current Session Context",
+		"**Source:** telegram chat `42`",
+	} {
+		if !strings.Contains(system, want) {
+			t.Fatalf("provider system prompt missing %q in:\n%s", want, system)
+		}
+	}
+	if req.Messages[len(req.Messages)-1].Role != "user" || req.Messages[len(req.Messages)-1].Content != "who are you?" {
+		t.Fatalf("provider final user message = %+v, want Telegram submit", req.Messages[len(req.Messages)-1])
 	}
 }

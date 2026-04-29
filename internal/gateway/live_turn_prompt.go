@@ -19,10 +19,11 @@ import (
 // can inject a Hermes-format timestamp/session/model/provider block and the
 // pre-shipped GormesSelfHelpGuidanceForPrompt body without a model call.
 //
-// Production wiring resolves ProfileDir from config.GormesHome(), CWD from
-// os.Getwd(), and MemoryDir from <config.GormesHome()>/memory; tests inject
-// hermetic temp directories. Build / BuildDurable / BuildMetadata are seams
-// so tests can stub them without reaching into the hermes package internals.
+// Production wiring resolves ProfileDir/CWD/MemoryDir from explicit context
+// environment first, then configured homes and workspace ancestors; tests
+// inject hermetic temp directories. Build / BuildDurable / BuildMetadata are
+// seams so tests can stub them without reaching into the hermes package
+// internals.
 //
 // Now/ActiveModel/ActiveProvider default to nil so the metadata block is fully
 // elided unless production wiring (or a test fixture) supplies them — this
@@ -47,9 +48,9 @@ type liveTurnPromptSeams struct {
 	SelfHelpGate func(submitText string) (string, bool)
 }
 
-// defaultLiveTurnPromptSeams returns the production wiring: profile dir from
-// config.GormesHome(), CWD from os.Getwd(), memory dir from
-// <config.GormesHome()>/memory, and the real hermes entry points.
+// defaultLiveTurnPromptSeams returns the production wiring: context dirs from
+// explicit env/config locations or workspace ancestors, CWD from TERMINAL_CWD
+// or os.Getwd(), and the real hermes entry points.
 //
 // The slice-4 metadata clock and active model/provider getters default to nil
 // so callers that have not configured them produce an empty metadata block.
@@ -59,19 +60,156 @@ type liveTurnPromptSeams struct {
 // the block actually appears.
 func defaultLiveTurnPromptSeams() liveTurnPromptSeams {
 	return liveTurnPromptSeams{
-		ProfileDir: func() string { return config.GormesHome() },
-		CWD: func() string {
-			if wd, err := os.Getwd(); err == nil {
-				return wd
-			}
-			return ""
-		},
-		MemoryDir:     func() string { return filepath.Join(config.GormesHome(), "memory") },
+		ProfileDir:    func() string { return defaultLiveTurnProfileDir(defaultLiveTurnCWD()) },
+		CWD:           defaultLiveTurnCWD,
+		MemoryDir:     func() string { return defaultLiveTurnMemoryDir(defaultLiveTurnCWD()) },
 		Build:         hermes.BuildContextFilesPrompt,
 		BuildDurable:  hermes.BuildDurableUserContextPrompt,
 		BuildMetadata: hermes.BuildTurnMetadataBlock,
 		SelfHelpGate:  hermes.GormesSelfHelpGuidanceForPrompt,
 	}
+}
+
+func defaultLiveTurnCWD() string {
+	if cwd := strings.TrimSpace(os.Getenv("TERMINAL_CWD")); cwd != "" {
+		return cwd
+	}
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return ""
+}
+
+func defaultLiveTurnProfileDir(cwd string) string {
+	if override := strings.TrimSpace(os.Getenv("GORMES_CONTEXT_HOME")); override != "" {
+		return override
+	}
+	gormesHome := config.GormesHome()
+	if hasLiveTurnFile(gormesHome, "SOUL.md") {
+		return gormesHome
+	}
+	if migrated := filepath.Join(gormesHome, "memory"); hasLiveTurnFile(migrated, "SOUL.md") {
+		return migrated
+	}
+	if hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME")); hermesHome != "" && hasLiveTurnFile(hermesHome, "SOUL.md") {
+		return hermesHome
+	}
+	if root := findLiveTurnAncestorWith(cwd, "SOUL.md"); root != "" {
+		return root
+	}
+	return gormesHome
+}
+
+func defaultLiveTurnMemoryDir(cwd string) string {
+	if override := strings.TrimSpace(os.Getenv("GORMES_CONTEXT_MEMORY_DIR")); override != "" {
+		return override
+	}
+	gormesHome := config.GormesHome()
+	if dir := filepath.Join(gormesHome, "memory"); hasAnyLiveTurnFile(dir, "USER.md", "MEMORY.md") {
+		return dir
+	}
+	if dir := filepath.Join(gormesHome, "memories"); hasAnyLiveTurnFile(dir, "USER.md", "MEMORY.md") {
+		return dir
+	}
+	if hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME")); hermesHome != "" {
+		if dir := filepath.Join(hermesHome, "memories"); hasAnyLiveTurnFile(dir, "USER.md", "MEMORY.md") {
+			return dir
+		}
+		if dir := filepath.Join(hermesHome, "memory"); hasAnyLiveTurnFile(dir, "USER.md", "MEMORY.md") {
+			return dir
+		}
+		if hasAnyLiveTurnFile(hermesHome, "USER.md", "MEMORY.md") {
+			return hermesHome
+		}
+	}
+	if root := findLiveTurnAncestorWithAny(cwd, "USER.md", "MEMORY.md"); root != "" {
+		return root
+	}
+	if root := findLiveTurnAncestorSubdirWithAny(cwd, "memory", "USER.md", "MEMORY.md"); root != "" {
+		return root
+	}
+	return filepath.Join(gormesHome, "memory")
+}
+
+func findLiveTurnAncestorWith(start, name string) string {
+	start = strings.TrimSpace(start)
+	if start == "" {
+		return ""
+	}
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		dir = start
+	}
+	for {
+		if hasLiveTurnFile(dir, name) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func findLiveTurnAncestorWithAny(start string, names ...string) string {
+	start = strings.TrimSpace(start)
+	if start == "" {
+		return ""
+	}
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		dir = start
+	}
+	for {
+		if hasAnyLiveTurnFile(dir, names...) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func findLiveTurnAncestorSubdirWithAny(start, subdir string, names ...string) string {
+	start = strings.TrimSpace(start)
+	if start == "" {
+		return ""
+	}
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		dir = start
+	}
+	for {
+		candidate := filepath.Join(dir, subdir)
+		if hasAnyLiveTurnFile(candidate, names...) {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func hasAnyLiveTurnFile(dir string, names ...string) bool {
+	for _, name := range names {
+		if hasLiveTurnFile(dir, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasLiveTurnFile(dir, name string) bool {
+	if strings.TrimSpace(dir) == "" || strings.TrimSpace(name) == "" {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(dir, name))
+	return err == nil && !info.IsDir()
 }
 
 // assembleLiveTurnPrompt composes the live-turn system prompt from five

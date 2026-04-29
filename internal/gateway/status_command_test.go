@@ -12,6 +12,17 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
+type statusReplyChannel struct {
+	*fakeChannel
+
+	replyTo []string
+}
+
+func (c *statusReplyChannel) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
+	c.replyTo = append(c.replyTo, replyToMsgID)
+	return c.fakeChannel.Send(ctx, chatID, text)
+}
+
 func TestParseInboundTextStatus(t *testing.T) {
 	kind, body := ParseInboundText("/status")
 	if kind != EventStatus || body != "" {
@@ -139,8 +150,47 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 	if meta.Source != "telegram" || meta.ChatID != "42" || meta.UserID != "user-juan" || meta.UpdatedAt != now.Unix() {
 		t.Fatalf("metadata = %+v, want telegram/42/user-juan updated_at=%d", meta, now.Unix())
 	}
+	if strings.TrimSpace(meta.Title) == "" {
+		t.Fatalf("metadata title = %q, want status-created sessions to carry a real title", meta.Title)
+	}
+	if !strings.Contains(got, "Title: "+meta.Title) {
+		t.Fatalf("status response missing metadata title %q in:\n%s", meta.Title, got)
+	}
 	if submits := k.submitsSnapshot(); len(submits) != 0 {
 		t.Fatalf("/status submitted to kernel: %#v", submits)
+	}
+}
+
+func TestManagerStatusCommandRepliesToInboundTelegramMessage(t *testing.T) {
+	ctx := context.Background()
+	k := &fakeKernel{}
+	smap := session.NewMemMap()
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC) },
+	}, k, slog.Default())
+	ch := &statusReplyChannel{fakeChannel: newFakeChannel("telegram")}
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	ev := InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "user-juan",
+		MsgID:    "status-message-77",
+		Kind:     EventStatus,
+	}
+	if err := m.handleInbound(ctx, ev); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(ch.replyTo) != 1 || ch.replyTo[0] != ev.MsgID {
+		t.Fatalf("status reply_to = %#v, want one reply to %q", ch.replyTo, ev.MsgID)
+	}
+	if len(ch.sentSnapshot()) != 1 {
+		t.Fatalf("sent messages = %d, want 1", len(ch.sentSnapshot()))
 	}
 }
 

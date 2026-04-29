@@ -12,7 +12,7 @@ import (
 )
 
 func (m *Manager) handleStatusCommand(ctx context.Context, ch Channel, ev InboundEvent) {
-	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, m.formatGatewayStatus(ctx, ev))
+	_, _ = m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID, m.formatGatewayStatus(ctx, ev))
 }
 
 func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) string {
@@ -142,8 +142,13 @@ func (m *Manager) ensureStatusSessionMetadata(ctx context.Context, ev InboundEve
 		return
 	}
 	source := sessionSourceFromInbound(ev)
+	title := statusSessionTitle(ev)
+	if existing, ok := m.lookupSessionMetadata(ctx, sessionID); ok && strings.TrimSpace(existing.Title) != "" {
+		title = strings.TrimSpace(existing.Title)
+	}
 	meta := session.Metadata{
 		SessionID: sessionID,
+		Title:     title,
 		CreatedAt: m.now().Unix(),
 		UpdatedAt: m.now().Unix(),
 	}
@@ -155,6 +160,21 @@ func (m *Manager) ensureStatusSessionMetadata(ctx context.Context, ev InboundEve
 	if err := writer.PutMetadata(ctx, meta); err != nil {
 		m.log.Warn("write session metadata for status", "session_id", sessionID, "err", err)
 	}
+}
+
+func statusSessionTitle(ev InboundEvent) string {
+	platform := strings.TrimSpace(ev.Platform)
+	if platform == "" {
+		platform = "gateway"
+	}
+	platform = strings.ToUpper(platform[:1]) + platform[1:]
+	if userID := strings.TrimSpace(ev.UserID); userID != "" {
+		return platform + " conversation with " + userID
+	}
+	if chatID := strings.TrimSpace(ev.ChatID); chatID != "" {
+		return platform + " chat " + chatID
+	}
+	return platform + " gateway session"
 }
 
 func (m *Manager) lookupSessionMetadata(ctx context.Context, sessionID string) (session.Metadata, bool) {

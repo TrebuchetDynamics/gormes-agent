@@ -142,9 +142,10 @@ type channelRunFailure struct {
 }
 
 type hookedPlaceholderEditor struct {
-	base     placeholderEditor
-	manager  *Manager
-	platform string
+	base         placeholderEditor
+	manager      *Manager
+	platform     string
+	replyToMsgID string
 }
 
 func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID string) (string, error) {
@@ -157,7 +158,19 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 		Text:     placeholderText,
 	})
 
-	msgID, err := h.base.SendPlaceholder(ctx, chatID)
+	var (
+		msgID string
+		err   error
+	)
+	if h.replyToMsgID != "" {
+		if replySender, ok := h.base.(ReplyPlaceholderCapable); ok {
+			msgID, err = replySender.SendReplyPlaceholder(ctx, chatID, h.replyToMsgID)
+		} else {
+			msgID, err = h.base.SendPlaceholder(ctx, chatID)
+		}
+	} else {
+		msgID, err = h.base.SendPlaceholder(ctx, chatID)
+	}
 	if err != nil {
 		h.manager.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 			Platform:      h.platform,
@@ -201,7 +214,19 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 		Text:     text,
 	})
 
-	msgID, err := sender.Send(ctx, chatID, text)
+	var (
+		msgID string
+		err   error
+	)
+	if h.replyToMsgID != "" {
+		if replySender, ok := h.base.(ReplySender); ok {
+			msgID, err = replySender.SendReply(ctx, chatID, h.replyToMsgID, text)
+		} else {
+			msgID, err = sender.Send(ctx, chatID, text)
+		}
+	} else {
+		msgID, err = sender.Send(ctx, chatID, text)
+	}
 	if err != nil {
 		h.manager.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 			Platform:      h.platform,
@@ -283,11 +308,18 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	if dir := strings.TrimSpace(cfg.ContextFilesProfile); dir != "" {
 		seams.ProfileDir = func() string { return dir }
 	}
+	explicitContextFixture := strings.TrimSpace(cfg.ContextFilesProfile) != "" || strings.TrimSpace(cfg.ContextFilesCWD) != ""
 	if cwd := strings.TrimSpace(cfg.ContextFilesCWD); cwd != "" {
 		seams.CWD = func() string { return cwd }
 	}
 	if memDir := strings.TrimSpace(cfg.ContextFilesMemoryDir); memDir != "" {
 		seams.MemoryDir = func() string { return memDir }
+	} else if explicitContextFixture {
+		// Tests and callers that provide explicit profile/CWD fixtures without a
+		// memory fixture expect durable USER.md/MEMORY.md context to be absent.
+		// Production gateway wiring leaves these fields empty and uses the default
+		// workspace/profile discovery above.
+		seams.MemoryDir = func() string { return "" }
 	}
 	if cfg.LiveTurnNow != nil {
 		seams.Now = cfg.LiveTurnNow
@@ -828,6 +860,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	m.turnMu.Lock()
 	platform := m.turnPlatform
 	chatID := m.turnChatID
+	replyToMsgID := m.turnMsgID
 	staleInitialIdle := platform != "" && chatID != "" && !m.turnFrameSeen && isStartupIdleFrame(f)
 	if !staleInitialIdle && platform != "" && chatID != "" {
 		m.turnFrameSeen = true
@@ -847,7 +880,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	}
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
-		if m.sendNoEdit(ctx, ch, f, chatID) {
+		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
 			m.drainNextFollowUp(ctx)
 		}
 		return
@@ -880,9 +913,10 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			cCtx, cancel := context.WithCancel(ctx)
 			*coCancel = cancel
 			nc := newCoalescer(hookedPlaceholderEditor{
-				base:     pe,
-				manager:  m,
-				platform: platform,
+				base:         pe,
+				manager:      m,
+				platform:     platform,
+				replyToMsgID: replyToMsgID,
 			}, time.Duration(m.cfg.CoalesceMs)*time.Millisecond, chatID,
 				coalescerFreshFinalAfter(m.cfg.FreshFinalAfter),
 				coalescerNow(m.now),
@@ -895,23 +929,27 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	}
 }
 
-func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID string) bool {
+func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID string) bool {
 	switch f.Phase {
 	case kernel.PhaseIdle:
-		_, _ = m.sendWithHooks(ctx, ch, chatID, m.formatFinal(ch.Name(), f))
+		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatFinal(ch.Name(), f))
 		return true
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
-		_, _ = m.sendWithHooks(ctx, ch, chatID, m.formatError(ch.Name(), f))
+		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatError(ch.Name(), f))
 		return true
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
 		if text := m.formatStream(ch.Name(), f); text != "" {
-			_, _ = m.sendWithHooks(ctx, ch, chatID, text)
+			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, text)
 		}
 	}
 	return false
 }
 
 func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text string) (string, error) {
+	return m.sendWithHooksReply(ctx, ch, chatID, "", text)
+}
+
+func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, replyToMsgID, text string) (string, error) {
 	if ch == nil {
 		return "", nil
 	}
@@ -923,7 +961,19 @@ func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text st
 	}
 	m.fireHook(ctx, ev)
 
-	msgID, err := ch.Send(ctx, chatID, text)
+	var (
+		msgID string
+		err   error
+	)
+	if replyToMsgID != "" {
+		if replySender, ok := ch.(ReplySender); ok {
+			msgID, err = replySender.SendReply(ctx, chatID, replyToMsgID, text)
+		} else {
+			msgID, err = ch.Send(ctx, chatID, text)
+		}
+	} else {
+		msgID, err = ch.Send(ctx, chatID, text)
+	}
 	if err != nil {
 		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 			Platform:      ch.Name(),

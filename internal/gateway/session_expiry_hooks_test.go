@@ -239,8 +239,11 @@ func TestSessionExpiryHooks_ResumeSubmitDoesNotLaunchMemoryFlushOrExtractorWork(
 	kernel := &fakeKernel{}
 	hooks := &sessionExpiryHookFixture{}
 	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats: map[string]string{"telegram": "42"},
-		SessionMap:   smap,
+		AllowedChats:          map[string]string{"telegram": "42"},
+		SessionMap:            smap,
+		ContextFilesProfile:   t.TempDir(),
+		ContextFilesCWD:       t.TempDir(),
+		ContextFilesMemoryDir: t.TempDir(),
 		SessionExpiry: SessionExpiryConfig{
 			Scanner:   &sessionExpiryScannerFixture{store: smap, keys: map[string]string{"telegram:42": "sess-finalized"}},
 			Finalizer: hooks,

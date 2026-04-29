@@ -449,6 +449,58 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	}
 }
 
+type replyPlaceholderFakeChannel struct {
+	*fakeChannel
+
+	replyPlaceholders []fakeReplyPlaceholder
+}
+
+type fakeReplyPlaceholder struct{ ChatID, ReplyToMsgID string }
+
+func (f *replyPlaceholderFakeChannel) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
+	f.replyPlaceholders = append(f.replyPlaceholders, fakeReplyPlaceholder{ChatID: chatID, ReplyToMsgID: replyToMsgID})
+	return f.fakeChannel.SendPlaceholder(ctx, chatID)
+}
+
+func TestManager_Outbound_StreamingPlaceholderRepliesToInboundMessage(t *testing.T) {
+	tg := &replyPlaceholderFakeChannel{fakeChannel: newFakeChannel("telegram")}
+	frames := make(chan kernel.RenderFrame, 2)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "u",
+		MsgID:    "telegram-user-msg-1",
+		Kind:     EventSubmit,
+		Text:     "hello",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseConnecting, SessionID: "sess-1", StatusText: "connecting"}
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.replyPlaceholders) == 1
+	})
+
+	if got := tg.replyPlaceholders[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" {
+		t.Fatalf("reply placeholder = %+v, want chat 42 replying to inbound message", got)
+	}
+}
+
 func TestManager_Outbound_NonEditableChannelUsesPlainSendForInterimAndFinal(t *testing.T) {
 	ch := newChannelOnlyFake("plainchat")
 	if _, ok := any(ch).(placeholderEditor); ok {

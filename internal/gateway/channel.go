@@ -17,6 +17,12 @@ type Channel interface {
 	Send(ctx context.Context, chatID, text string) (msgID string, err error)
 }
 
+// ReplySender is implemented by channels that can send a message as a native
+// reply/quote to an inbound platform message.
+type ReplySender interface {
+	SendReply(ctx context.Context, chatID, replyToMsgID, text string) (msgID string, err error)
+}
+
 // DisconnectCapable is implemented by channels that can release resources
 // outside their Run loop after a failed startup.
 type DisconnectCapable interface {
@@ -44,6 +50,12 @@ type MessageDeleter interface {
 // placeholder for subsequent streaming edits.
 type PlaceholderCapable interface {
 	SendPlaceholder(ctx context.Context, chatID string) (msgID string, err error)
+}
+
+// ReplyPlaceholderCapable is implemented by editable channels that can create
+// their initial streaming placeholder as a native reply to the inbound message.
+type ReplyPlaceholderCapable interface {
+	SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (msgID string, err error)
 }
 
 // TypingCapable is implemented by channels that can show a typing indicator.
