@@ -920,3 +920,36 @@ func (c *startupFailedChannel) disconnectCount() int {
 	defer c.mu.Unlock()
 	return c.disconnects
 }
+
+func TestManager_FailedProviderFrameSanitizesAndClearsActiveTurn(t *testing.T) {
+	ch := newChannelOnlyFake("telegram")
+	m := NewManager(ManagerConfig{}, nil, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	m.pinTurn("telegram", "42", "msg-1")
+	var co *coalescer
+	var coCancel context.CancelFunc
+	m.dispatchFrame(context.Background(), kernel.RenderFrame{
+		Phase:     kernel.PhaseFailed,
+		LastError: "Forbidden: <html><body><svg>bad</svg> secret sk-test-123</body></html>",
+	}, &co, &coCancel)
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("failed provider frame should send exactly one error reply, got %d", len(sent))
+	}
+	got := sent[0].Text
+	for _, forbidden := range []string{"<html", "<svg", "sk-test-123", "secret"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("gateway leaked provider HTML/secret marker %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "provider returned HTML error body") {
+		t.Fatalf("gateway error reply = %q, want sanitized provider HTML evidence", got)
+	}
+	if m.hasActiveTurn() {
+		t.Fatalf("failed provider frame must clear active turn so admission does not wedge")
+	}
+}

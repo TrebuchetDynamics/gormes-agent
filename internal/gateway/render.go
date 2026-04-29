@@ -1,6 +1,8 @@
 package gateway
 
 import (
+	"strings"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -36,7 +38,7 @@ func FormatFinalPlain(f kernel.RenderFrame) string {
 
 // FormatErrorPlain renders a terminal error frame.
 func FormatErrorPlain(f kernel.RenderFrame) string {
-	text := "❌ " + f.LastError
+	text := "❌ " + sanitizeProviderErrorText(f.LastError)
 	if f.LastError == "" {
 		text = "❌ cancelled"
 	}
@@ -72,11 +74,29 @@ func FormatFinalTelegram(f kernel.RenderFrame) string {
 
 // FormatErrorTelegram renders an error frame for Telegram MarkdownV2.
 func FormatErrorTelegram(f kernel.RenderFrame) string {
-	text := "❌ " + f.LastError
+	text := "❌ " + sanitizeProviderErrorText(f.LastError)
 	if f.LastError == "" {
 		text = "❌ cancelled"
 	}
 	return truncate(tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, text))
+}
+
+func sanitizeProviderErrorText(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return ""
+	}
+	lower := strings.ToLower(trimmed)
+	if strings.Contains(lower, "<html") || strings.Contains(lower, "<!doctype html") || strings.Contains(lower, "<svg") {
+		if idx := strings.Index(trimmed, ":"); idx > 0 {
+			prefix := strings.TrimSpace(trimmed[:idx])
+			if prefix != "" && !strings.ContainsAny(prefix, "<>\n\r") {
+				return prefix + ": provider returned HTML error body"
+			}
+		}
+		return "provider returned HTML error body"
+	}
+	return trimmed
 }
 
 func truncate(s string) string {

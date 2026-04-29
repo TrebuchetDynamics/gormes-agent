@@ -59,3 +59,29 @@ func TestFormatStreamTelegram_EscapesAndEmits(t *testing.T) {
 		t.Errorf("telegram output lost body: %q", tg)
 	}
 }
+
+func TestFormatErrorPlain_SanitizesProviderHTMLBody(t *testing.T) {
+	f := kernel.RenderFrame{LastError: "Forbidden: <html><body><svg>bad</svg> secret sk-test-123</body></html>"}
+	got := FormatErrorPlain(f)
+	for _, forbidden := range []string{"<html", "<svg", "sk-test-123", "secret"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatErrorPlain leaked provider HTML/secret marker %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "Forbidden: provider returned HTML error body") {
+		t.Fatalf("FormatErrorPlain = %q, want sanitized provider HTML evidence", got)
+	}
+}
+
+func TestFormatErrorTelegram_SanitizesProviderHTMLBody(t *testing.T) {
+	f := kernel.RenderFrame{LastError: "Forbidden: <html><body><svg>bad</svg> secret sk-test-123</body></html>"}
+	got := FormatErrorTelegram(f)
+	for _, forbidden := range []string{"<html", "<svg", "sk-test-123", "secret"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatErrorTelegram leaked provider HTML/secret marker %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "provider returned HTML error body") {
+		t.Fatalf("FormatErrorTelegram = %q, want sanitized provider HTML evidence", got)
+	}
+}
