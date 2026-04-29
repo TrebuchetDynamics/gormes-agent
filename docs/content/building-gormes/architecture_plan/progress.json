@@ -16489,9 +16489,9 @@
             {
               "name": "Cron run resource release executor binding",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cron Executor.Run pushes per-run *sql.DB session stores, tool subprocess handles, and outbound RoundTripper idle-closables into the validated Cron run resource release ledger before returning, so the next Scheduler tick observes no leaked fds; success, kernel-error, ctx-cancel, and timeout paths all release through the same ledger exactly once.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -16528,19 +16528,20 @@
                 "TestExecutorRunReleasesPerRunResources_NoRegisteredResources runs a minimal job with no registrations and proves the ledger reports cron_release_skipped_no_resource without errors.",
                 "Existing internal/cron Executor, run_completion, heartbeat, integration_test, and durable_ledger tests remain green without editing run_completion.go, heartbeat.go, scheduler.go, or kernel package code."
               ],
-              "note": "Dependent binding: keep this draft until the helper-only ledger row is validated, so workers cannot collapse the helper and the Executor wiring into one umbrella diff. Hermes had to land both pieces over multiple PRs for the same reason (#16598 + earlier shutdown fixes).",
+              "note": "Complete: TDD landed internal/cron/release_binding_test.go and extended internal/cron/executor.go with two ExecutorConfig fields (SubprocessKiller, RegisterRelease) and a new public Executor.RunWithRelease(ctx, job) ([]ReleaseEvidence, error) method. Run() now delegates through RunWithRelease so every exit path (success, kernel-Submit error, ctx-cancel, timeout) constructs a fresh RunReleaseLedger per call, runs the registration seam, and defers ledger.Release through the configured SubprocessKiller. Tests use fake io.Closer plus fake SubprocessKiller fixtures (no goroutines, no real DB, no real HTTP, no real os.Process) to prove all three release evidence codes fire on success, the kernel error is surfaced with full evidence on kernel-error, ctx cancellation still drains registered resources, an empty ledger emits exactly one cron_release_skipped_no_resource entry, and aggregated Release errors do not mask the kernel error. internal/cron/run_release.go was not modified. Existing cron/Executor/run_completion/heartbeat/durable_ledger tests stay green and `go build ./...` succeeds.",
               "write_scope": [
                 "internal/cron/executor.go",
-                "internal/cron/executor_release_test.go",
+                "internal/cron/executor_test.go",
+                "internal/cron/release_binding_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/cron -run '^TestExecutorRunReleasesPerRunResources_' -count=1",
+                "go test ./internal/cron -run '^TestExecutorRun_' -count=1",
                 "go test ./internal/cron -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "internal/cron/executor_release_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
+                "internal/cron/release_binding_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
               ],
               "provenance": {
                 "origin_type": "hybrid",

@@ -40,6 +40,20 @@ type ExecutorConfig struct {
 	LiveDelivery  LiveDeliveryAdapter
 	Directory     DeliveryTargetDirectory
 	CallTimeout   time.Duration // default 60s when zero
+
+	// SubprocessKiller is the optional reaper used by the per-run release
+	// ledger to terminate tool subprocesses registered during the kernel
+	// turn. When nil, registered PIDs are recorded as evidence with a
+	// "no killer supplied" field instead of being killed.
+	SubprocessKiller SubprocessKiller
+
+	// RegisterRelease is the optional registration seam for the kernel /
+	// inner runner. It is called once at the start of each Run with the
+	// per-run ledger and the active job, so callers can register session
+	// DB io.Closers, HTTP idle closables, and tool subprocess PIDs that
+	// should be reaped at run end. Nil is allowed (Run will record a
+	// cron_release_skipped_no_resource evidence entry).
+	RegisterRelease func(ctx context.Context, ledger *RunReleaseLedger, job Job)
 }
 
 func (c *ExecutorConfig) withDefaults() {
@@ -67,8 +81,43 @@ func NewExecutor(cfg ExecutorConfig, log *slog.Logger) *Executor {
 
 // Run fires one job end-to-end. Blocks until the turn completes or
 // times out. Safe to call concurrently (the kernel serialises via its
-// mailbox).
+// mailbox). Discards the per-run release evidence; callers that need
+// it should use RunWithRelease.
 func (e *Executor) Run(ctx context.Context, job Job) {
+	_, _ = e.RunWithRelease(ctx, job)
+}
+
+// RunWithRelease fires one job end-to-end and returns the per-run release
+// ledger evidence and the kernel-side error (if any) from the turn. All
+// four exit paths — success, kernel Submit error, parent ctx cancel, and
+// CallTimeout — go through the same deferred ledger.Release so registered
+// session DBs, HTTP idle closables, and tool subprocess PIDs are reaped
+// exactly once. Release errors are recorded on the executor log and shown
+// in the returned evidence, but they do not mask the kernel error
+// returned to the caller.
+func (e *Executor) RunWithRelease(ctx context.Context, job Job) (evidence []ReleaseEvidence, kernelErr error) {
+	ledger := NewRunReleaseLedger()
+	if e.cfg.RegisterRelease != nil {
+		e.cfg.RegisterRelease(ctx, ledger, job)
+	}
+	defer func() {
+		releaseEvidence, releaseErr := ledger.Release(e.cfg.SubprocessKiller)
+		evidence = releaseEvidence
+		if releaseErr != nil {
+			e.log.Warn("cron: release ledger reported errors",
+				"job_id", job.ID, "err", releaseErr)
+		}
+	}()
+
+	kernelErr = e.runOneTurn(ctx, job)
+	return
+}
+
+// runOneTurn executes the kernel turn and the post-turn delivery /
+// recording bookkeeping. It returns the kernel-side error (Submit error,
+// timeout, or ctx-cancel) so RunWithRelease can surface it to callers
+// alongside the release evidence; success paths return nil.
+func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 	startedAt := time.Now().Unix()
 	sessionID := fmt.Sprintf("cron:%s:%d", job.ID, startedAt)
 	promptHash := shortHash(job.Prompt)
@@ -125,7 +174,7 @@ func (e *Executor) Run(ctx context.Context, job Job) {
 		}
 		e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
 		e.recordAndUpdateJob(ctx, job, run)
-		return
+		return submitErr
 	}
 
 	// Wait for final text or timeout.
@@ -133,7 +182,7 @@ func (e *Executor) Run(ctx context.Context, job Job) {
 	select {
 	case finalText = <-done:
 	case <-callCtx.Done():
-		// Timeout — deliver a short failure notice.
+		// Timeout or parent ctx cancel — deliver a short failure notice.
 		notice := fmt.Sprintf("Cron job %s timed out after %s.", job.Name, e.cfg.CallTimeout)
 		_ = e.cfg.Sink.Deliver(context.Background(), notice)
 		run := Run{
@@ -148,7 +197,7 @@ func (e *Executor) Run(ctx context.Context, job Job) {
 		}
 		e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
 		e.recordAndUpdateJob(ctx, job, run)
-		return
+		return callCtx.Err()
 	}
 
 	finished := time.Now().Unix()
@@ -166,7 +215,7 @@ func (e *Executor) Run(ctx context.Context, job Job) {
 		}
 		e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 		e.recordAndUpdateJob(ctx, job, run)
-		return
+		return nil
 	}
 
 	// Empty response? Deliver failure notice.
@@ -186,7 +235,7 @@ func (e *Executor) Run(ctx context.Context, job Job) {
 		}
 		e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
 		e.recordAndUpdateJob(ctx, job, run)
-		return
+		return nil
 	}
 
 	// Normal delivery.
@@ -209,6 +258,7 @@ func (e *Executor) Run(ctx context.Context, job Job) {
 	run = applyDeliveryOutcome(run, outcome)
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 	e.recordAndUpdateJob(ctx, job, run)
+	return nil
 }
 
 func (e *Executor) startDurableCronRun(ctx context.Context, id string, job Job, promptHash, workerID string) bool {
