@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"strings"
 	"time"
 
@@ -44,14 +45,25 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 }
 
 func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, frame kernel.RenderFrame) string {
+	key := strings.TrimSpace(ev.ChatKey())
 	sessionID := ""
-	resolved, err := resolveSession(ctx, m.cfg.SessionMap, ev.ChatKey())
-	if err != nil {
-		m.log.Warn("resolve session for status", "key", ev.ChatKey(), "err", err)
+	if key != "" && m.cfg.SessionMap != nil {
+		stored, err := m.cfg.SessionMap.Get(ctx, key)
+		if err != nil {
+			m.log.Warn("resolve session for status", "key", key, "err", err)
+		} else if strings.TrimSpace(stored) != "" {
+			resolved, err := resolveSession(ctx, m.cfg.SessionMap, key)
+			if err != nil {
+				m.log.Warn("resolve session lineage for status", "key", key, "err", err)
+			}
+			sessionID = strings.TrimSpace(resolved.SessionID)
+		}
 	}
-	sessionID = strings.TrimSpace(resolved.SessionID)
 	if sessionID == "" {
 		sessionID = strings.TrimSpace(frame.SessionID)
+	}
+	if sessionID == "" && key != "" {
+		sessionID = generateStatusSessionID(m.now(), ev)
 	}
 	if sessionID == "" {
 		return ""
@@ -59,6 +71,15 @@ func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, fra
 	m.persistStatusSession(ctx, ev, sessionID)
 	m.ensureStatusSessionMetadata(ctx, ev, sessionID)
 	return sessionID
+}
+
+func generateStatusSessionID(now time.Time, ev InboundEvent) string {
+	stamp := now.Format("20060102_150405")
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(strings.TrimSpace(ev.ChatKey())))
+	_, _ = h.Write([]byte("\x00"))
+	_, _ = h.Write([]byte(strings.TrimSpace(ev.UserID)))
+	return fmt.Sprintf("%s_%08x", stamp, h.Sum32())
 }
 
 func (m *Manager) persistStatusSession(ctx context.Context, ev InboundEvent, sessionID string) {

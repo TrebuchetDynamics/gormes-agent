@@ -110,7 +110,7 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 	got := sent[0].Text
 	wantActivity := "Last Activity: " + time.Unix(now.Unix(), 0).Format("2006-01-02 15:04")
 	for _, want := range []string{
-		"Session ID:\ntelegram:42",
+		"Session ID:\n20260429_094200_",
 		wantActivity,
 		"Connected Platforms: telegram",
 	} {
@@ -118,17 +118,17 @@ func TestManagerStatusCommandInitializesMissingChatSession(t *testing.T) {
 			t.Fatalf("status response missing %q in:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "Session ID:\n(none)") {
-		t.Fatalf("status response returned no session id:\n%s", got)
+	if strings.Contains(got, "Session ID:\n(none)") || strings.Contains(got, "Session ID:\ntelegram:42") {
+		t.Fatalf("status response returned invalid session id:\n%s", got)
 	}
 	mapped, err := smap.Get(ctx, "telegram:42")
 	if err != nil {
 		t.Fatalf("Get session map: %v", err)
 	}
-	if mapped != "telegram:42" {
-		t.Fatalf("session map = %q, want telegram:42", mapped)
+	if !strings.HasPrefix(mapped, "20260429_094200_") {
+		t.Fatalf("session map = %q, want generated Hermes-style session id", mapped)
 	}
-	meta, ok, err := smap.GetMetadata(ctx, "telegram:42")
+	meta, ok, err := smap.GetMetadata(ctx, mapped)
 	if err != nil {
 		t.Fatalf("GetMetadata: %v", err)
 	}
