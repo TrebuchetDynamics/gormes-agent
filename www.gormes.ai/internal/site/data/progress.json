@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-29T00:00:00Z",
+    "last_updated": "2026-04-28T02:56:53Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -2771,75 +2771,6 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
-            }
-          ]
-        },
-        "2.B.12": {
-          "name": "Channel-Neutral Native Runtime Adapter",
-          "priority": "P0",
-          "items": [
-            {
-              "name": "Channel-neutral native runtime turn adapter",
-              "priority": "P0",
-              "status": "complete",
-              "contract": "Telegram, Slack, Discord, WhatsApp, BlueBubbles, and future channels enter the same native Gormes turn adapter so provider/runtime fixes preserve Hermes channel parity instead of hard-coding Telegram behavior",
-              "contract_status": "validated",
-              "slice_size": "small",
-              "execution_owner": "gateway",
-              "trust_class": [
-                "gateway",
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Provider/runtime failures are rendered through the shared external-channel safe error helper without leaking raw error text and active turn state is cleared so subsequent inbound traffic is not blocked.",
-              "fixture": "internal/gateway/channel_neutral_turn_adapter_test.go",
-              "source_refs": [
-                "internal/gateway/turn_adapter.go",
-                "internal/gateway/channel_neutral_turn_adapter_test.go",
-                "internal/gateway/manager.go",
-                "internal/gateway/event.go",
-                "internal/gateway/session_context.go",
-                "internal/channels/fakes/channel.go"
-              ],
-              "ready_when": [
-                "Gateway InboundEvent, SessionSource, and SessionContext are validated enough to expose a channel-neutral request envelope without changing channel-specific identity, require-mention, delivery, or thread rules.",
-                "Tests can use fixture channels only \u2014 no live Telegram, Slack, Discord, WhatsApp, BlueBubbles, or other SDK is required."
-              ],
-              "not_ready_when": [
-                "The slice adds a Telegram-only provider/runtime bypass.",
-                "The slice changes channel-specific identity safety, require-mention, delivery, or thread rules outside adapter boundaries.",
-                "The slice sends raw provider errors to external channels instead of using the shared external-channel safe error helper."
-              ],
-              "acceptance": [
-                "TurnRequest carries channel, chat/thread, sender identity, session source, media references, command/admission metadata, and reply route fields without inspecting the originating platform name.",
-                "A single test driver exercises the same TurnAdapter dispatch path with both a Telegram-shape fixture and a fake non-Telegram channel fixture.",
-                "Runtime failure renders a sanitized safe-error reply via SafeExternalChannelError and clears active turn state for both fixtures."
-              ],
-              "note": "Complete: TDD landed internal/gateway/turn_adapter.go with channel-neutral TurnRequest/TurnAdapter and a SafeExternalChannelError helper. The shared driver in internal/gateway/channel_neutral_turn_adapter_test.go runs both a telegram-named fixture and a non-telegram fakechannel fixture through the same dispatch path, asserts both produce a single kernel.PlatformEventSubmit, asserts the channel-neutral fields, and asserts runtime failures render a sanitized busy reply (no raw provider error text) while clearing active turn state via OnTurnFailure. The internal/channels/fakes package is added as a future test helper for channel-side tests.",
-              "write_scope": [
-                "internal/gateway/turn_adapter.go",
-                "internal/gateway/channel_neutral_turn_adapter_test.go",
-                "internal/channels/fakes/channel.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/gateway ./internal/channels/... -run 'ChannelNeutral|TurnAdapter|Admission|AwaitUserReply' -count=1",
-                "go test ./internal/gateway ./internal/channels/... -count=1",
-                "go run ./cmd/progress validate"
-              ],
-              "done_signal": [
-                "Channel-neutral turn adapter fixtures prove Telegram and non-Telegram channels dispatch through the same native runtime path and runtime failures emit only the shared sanitized busy reply."
-              ],
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-29T00:00:00Z",
-                "last_success": "2026-04-29T00:00:00Z"
-              },
-              "provenance": {
-                "origin_type": "gormes",
-                "owned_since": "2026-04-29T00:00:00Z",
-                "note": "Channel-neutral turn adapter is Gormes-owned shared-chassis infrastructure that prevents Telegram-only runtime bypasses; the helper has no direct upstream Hermes analog because Hermes routes are channel-specific Python modules."
-              }
             }
           ]
         },
@@ -9892,9 +9823,9 @@
             {
               "name": "Self-monitoring telemetry",
               "priority": "P0",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes bridges Hermes turn/provider/tool telemetry and Honcho telemetry/reasoning traces into local redacted telemetry, audit, and insights evidence through SelfMonitoringBridge, TelemetryEventMatrix, ReasoningTraceRecord, TelemetrySink, AuditSink, and InsightsRecorder interfaces without changing the local usage.jsonl schema until compatibility tests pass.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -9941,7 +9872,7 @@
                 "Telemetry failures return nonfatal degraded evidence and do not interrupt turns, memory writes, webhook delivery, queue processing, or dream scheduling.",
                 "Tests classify hosted Prometheus/Sentry/exporter-only behavior as owned/excluded divergence and prove local event emission remains deterministic."
               ],
-              "note": "TDD landed: SelfMonitoringBridge now records injected telemetry/audit/insights sinks with nonfatal degradation, TelemetryEventMatrix maps Hermes usage/tool events plus Honcho agent/dream/reconciliation/representation/reasoning events, ReasoningTraceRecord preserves trace/tree/timing evidence with redacted payload summaries, and hosted Prometheus/Sentry/CloudEvents exporters are explicit owned/excluded divergence.",
+              "note": "swarm_origin: 2026-04-28/honcho-mapper. This enriches the prior bare `Self-monitoring telemetry` note into a builder-ready row-backed classification for Honcho `src/telemetry/reasoning_traces.py` and Hermes usage/trajectory telemetry. External hosted metrics exporters remain owned/excluded; local reasoning/event evidence is required.",
               "write_scope": [
                 "internal/telemetry/self_monitoring.go",
                 "internal/telemetry/self_monitoring_test.go",
@@ -10118,9 +10049,9 @@
             },
             {
               "name": "Auto-naming sessions",
-              "status": "complete",
+              "status": "planned",
               "contract": "Session auto-naming persists exactly one generated title for eligible untitled sessions after the native title helper succeeds, respects manual title overrides, preserves historical transcript content, and records skip/failure evidence without retry storms",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -11761,80 +11692,6 @@
                 "upstream_ref": "swarm feature-level parity audit gaps",
                 "note": "Follows up on the top-level ledger test, which intentionally cannot prove nested feature-level coverage by itself."
               }
-            },
-            {
-              "name": "Native runtime provider gateway binding",
-              "priority": "P0",
-              "status": "complete",
-              "contract": "Gormes gateway constructs a native Go runtime/provider binding from Hermes-compatible config when no explicit endpoint is configured, so live Telegram and other channel turns do not default to a dead localhost backend while explicit OpenAI-compatible endpoints remain supported. The binding must flow through shared gateway/runtime seams rather than Telegram-specific conditionals.",
-              "contract_status": "validated",
-              "slice_size": "medium",
-              "execution_owner": "gateway",
-              "trust_class": [
-                "gateway",
-                "operator",
-                "system"
-              ],
-              "fixture": "internal/runtime/native_provider_gateway_binding_test.go",
-              "degraded_mode": "If native provider credentials or model routing are incomplete, gateway status and channel replies report provider_config_missing/native_runtime_unavailable evidence. They must not silently dial http://127.0.0.1:8642, require a Python/Hermes runtime service, or hide the configured provider/model behind secret-bearing logs.",
-              "source_refs": [
-                "references/go-agent-os/GORMES-REUSE-AUDIT.md#1-native-runtime-wiring",
-                "references/go-agent-os/nanobot/pkg/runtime/runtime.go",
-                "references/go-agent-os/nanobot/pkg/tools/service.go",
-                "cmd/gormes/main.go",
-                "cmd/gormes/gateway.go",
-                "internal/config/config.go",
-                "internal/hermes/http_client.go",
-                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#providers-models-and-credentials",
-                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli",
-                "references/go-agent-os/GORMES-REUSE-AUDIT.md:Row A Native runtime wiring replaces dead localhost backend assumption",
-                "internal/hermes/http_client.go:NewHTTPClientWithProvider",
-                "internal/gateway/proxy_mode_test.go"
-              ],
-              "ready_when": [
-                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
-                "Hermes config.yaml model/provider bridge and provider endpoint/API-key root flag resolution are complete enough to build temp-config fixtures without printing secrets.",
-                "A failing test proves provider/model config without an explicit endpoint no longer resolves to the implicit 127.0.0.1:8642 HTTP backend for gateway turns.",
-                "A separate test proves an explicit endpoint/proxy URL still uses the OpenAI-compatible HTTP client/proxy path."
-              ],
-              "not_ready_when": [
-                "The implementation starts, shells out to, imports, or requires hermes-agent runtime services.",
-                "The implementation changes Hermes config precedence or removes explicit endpoint support.",
-                "The implementation solves only Telegram while bypassing the shared gateway/channel runtime path.",
-                "The slice rewrites provider adapters, tool execution, Goncho memory, or proxy mode beyond the minimal runtime-client binding seam."
-              ],
-              "unblocks": [
-                "Live @gormes_bot normal turn",
-                "Channel-neutral native runtime binding",
-                "Provider-tool-memory golden transcript suite"
-              ],
-              "acceptance": [
-                "With Hermes YAML model.provider/model.default and no endpoint/proxy configured, a gateway turn builds a provider-aware native runtime client and does not attempt 127.0.0.1:8642.",
-                "With an explicit endpoint/proxy URL, gateway preserves the OpenAI-compatible/proxy path and records that the endpoint was explicit.",
-                "The binding is exercised through a shared gateway/runtime factory used by channel adapters, preserving Telegram/Slack/Discord/WhatsApp/BlueBubbles/iMessage parity.",
-                "Redacted runtime status names provider, model, endpoint_source, and degraded reason without exposing secrets."
-              ],
-              "write_scope": [
-                "internal/runtime/",
-                "internal/hermes/",
-                "internal/config/",
-                "cmd/gormes/",
-                "internal/gateway/",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/runtime ./internal/config ./internal/hermes ./internal/gateway ./cmd/gormes -run 'NativeRuntime|ResolveInference|Gateway.*Provider|ExplicitEndpoint' -count=1",
-                "go test ./cmd/gormes ./internal/gateway -count=1",
-                "go run ./cmd/progress validate",
-                "git diff --check",
-                "go test ./... -count=1"
-              ],
-              "done_signal": [
-                "Gateway native runtime binding tests prove absent endpoint no longer dials 127.0.0.1:8642.",
-                "Explicit endpoint/proxy fixtures still use OpenAI-compatible forwarding.",
-                "Progress evidence records channel-neutral native runtime binding without claiming provider/tool/memory loop completion."
-              ],
-              "note": "Complete: TDD added internal/runtime/binding.go with a pure ResolveBinding helper plus StatusEvidence redactor, and internal/runtime/native_provider_gateway_binding_test.go covering all four acceptance bullets. Locked invariants: with no explicit endpoint or proxy URL the resolver routes through the injectable NativeClientFactory and never invokes the OpenAI-compatible HTTP factory; explicit endpoint or proxy URL stays on the OpenAI-compatible path with EndpointSource explicit_endpoint; incomplete provider/model/api_key resolution returns EndpointSource unconfigured plus stable provider_config_missing/native_runtime_unavailable codes with a nil client and no implicit 127.0.0.1:8642 dial; the resolver is channel-neutral and StatusEvidence exposes provider, model, endpoint_source, and degraded_reasons without echoing api keys or proxy keys."
             }
           ],
           "drift_state": {
@@ -12283,63 +12140,6 @@
                 "upstream_ref": "hermes:97d54f0e tools/process_registry.py",
                 "note": "Hermes defines the watch-pattern flood-control behavior; Gormes should port it as Go-native process-tool policy before exposing a terminal runner."
               }
-            },
-            {
-              "name": "Tool output budget persisted artifact pointer",
-              "priority": "P1",
-              "status": "complete",
-              "contract": "Native tool execution bounds large tool results by persisting full output as a session artifact and returning a short text pointer to the model/channel, preserving Hermes operator readability and channel safety.",
-              "contract_status": "validated",
-              "note": "Complete: TDD landed internal/tools/result_budget.go and result_budget_test.go. FormatToolResult truncates over-budget text, persists full bytes to a sha256-derived artifact under the session OutputDir, and returns a short pointer of the form [tool_output_artifact path=<rel> media=<mt> bytes=<n>]\\n<preview>. Evidence codes tool_output_truncated, tool_output_persisted, tool_output_persistence_failed, and tool_output_under_budget are stable for callers. Persistence_failed degrades to bounded inline preview without leaking secrets or over-budget bytes. Path sanitization derives filenames from a content hash and confirms the joined path stays inside OutputDir.",
-              "slice_size": "small",
-              "execution_owner": "tools",
-              "trust_class": [
-                "gateway",
-                "operator",
-                "system"
-              ],
-              "fixture": "internal/tools/result_budget_test.go",
-              "degraded_mode": "If artifact persistence fails, the result is still bounded and includes a safe warning without exposing raw oversized payloads to external channels.",
-              "source_refs": [
-                "references/go-agent-os/GORMES-REUSE-AUDIT.md#2-tool-output-truncation",
-                "references/go-agent-os/nanobot/pkg/agents/truncate.go",
-                "references/go-agent-os/axe/internal/artifact/tracker.go",
-                "internal/tools/",
-                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
-              ],
-              "ready_when": [
-                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
-                "A small pure package can be tested without live providers, channels, or filesystem outside temp dirs.",
-                "Artifact path policy uses Gormes data/session dirs, not reference repo paths."
-              ],
-              "not_ready_when": [
-                "The row changes individual tool handlers before a shared result-budget helper exists.",
-                "The row sends full oversized output to Telegram or provider context.",
-                "The row stores artifacts outside a sanitized Gormes session/run directory."
-              ],
-              "unblocks": [
-                "61-tool registry port",
-                "Native runtime provider gateway binding",
-                "MCP stdio transport + tool/list discovery"
-              ],
-              "acceptance": [
-                "Text output over budget is truncated and full output is written to a sanitized artifact path.",
-                "JSON/non-text output is persisted as JSON and represented by a short pointer.",
-                "Callers receive evidence for truncated, persisted, and persistence_failed cases."
-              ],
-              "write_scope": [
-                "internal/tools/",
-                "internal/hermes/",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/tools ./internal/hermes -run 'Tool.*Budget|Truncat|Artifact' -count=1",
-                "go test ./internal/tools -count=1",
-                "go run ./cmd/progress validate"
-              ],
-              "done_signal": [
-                "Tool-result budget tests prove oversized outputs become safe artifact pointers with sanitized paths and no channel/provider flooding."
-              ]
             }
           ],
           "drift_state": {
@@ -12353,9 +12153,9 @@
           "items": [
             {
               "name": "Environment interface + file sync contract",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes ports Hermes sandbox environment and file-sync contracts into a Go Environment interface with path mapping, upload/download, timeout, cleanup, and parser-family inventory fixtures before backend-specific Docker/SSH/Modal/Daytona/Singularity execution lands.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -12399,7 +12199,7 @@
                 "Parser manifest fixtures classify hermes_parser.py, deepseek_v3_1_parser.py, and the remaining parser family as implemented, row-backed, or excluded before raw parser execution parity is claimed.",
                 "No test starts Docker, SSH, Modal, Daytona, Singularity, browsers, or provider clients."
               ],
-              "note": "Complete: TDD landed a Go Environment contract with fake and unsupported backends, host-to-environment path mapping, file upload/download/delete intent planning, timeout propagation, reverse cleanup evidence, and a parser-family manifest that keeps every upstream tool_call_parsers file explicitly row-backed until raw parser execution fixtures land. No Docker, SSH, Modal, Daytona, Singularity, browser, provider, or runtime Python backend is started in this slice.",
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces the prior note-only row so `tools/environments/*`, root `environments/*`, and nested `environments/tool_call_parsers/*` no longer hide behind broad glob coverage.",
               "write_scope": [
                 "internal/tools/environment_contract.go",
                 "internal/tools/environment_contract_test.go",
@@ -12415,11 +12215,6 @@
               "done_signal": [
                 "Environment contract fixtures prove fake backend path/file-sync/timeout/cleanup behavior and parser-family manifest coverage without real sandbox backends."
               ],
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-29T00:00:00Z",
-                "last_success": "2026-04-29T00:00:00Z"
-              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:tools/environments/base.py + environments/tool_call_parsers",
@@ -12429,9 +12224,9 @@
             {
               "name": "Terminal snapshot source stdout suppression guard",
               "priority": "P4",
-              "status": "complete",
+              "status": "planned",
               "contract": "The future Go terminal-environment snapshot wrapper suppresses stdout and stderr while loading persisted shell environment snapshots so macOS bash declare -x output cannot leak environment variables into terminal tool responses",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -12465,7 +12260,7 @@
                 "TestEnvironmentSnapshotSource_DoesNotRedactUserCommandOutput proves only snapshot loading is suppressed, not the actual command output.",
                 "No test executes a real shell or inspects the developer environment."
               ],
-              "note": "Complete: pure Go BuildShellWrapper string-builder emits a `source <path> >/dev/null 2>&1 || true` line before the user command when SnapshotEnabled, and returns the user command verbatim with snapshot_disabled or snapshot_path_missing evidence otherwise. Hermetic tests prove both stdout AND stderr are redirected on the snapshot-load line only, so the macOS bash declare -x leak (Hermes 2e6699b3) cannot reach tool responses while real command output stays visible. No subprocess, real shell, Docker/SSH backend, or developer environment is touched.",
+              "note": "Added from Hermes 2e6699b3. Keep draft/blocked until the native environment wrapper exists; this prevents the macOS declare -x leak from being forgotten when sandbox backends start.",
               "write_scope": [
                 "internal/tools/environment_snapshot.go",
                 "internal/tools/environment_snapshot_test.go",
@@ -12479,11 +12274,6 @@
               "done_signal": [
                 "Environment snapshot wrapper fixtures prove persisted snapshot sourcing suppresses stdout/stderr while preserving real command output."
               ],
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-29T00:00:00Z",
-                "last_success": "2026-04-29T00:00:00Z"
-              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:2e6699b3 tools/environments/base.py",
@@ -12492,9 +12282,9 @@
             },
             {
               "name": "Raw tool-call parser fixture matrix",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes owns a source-backed manifest and fake-output fixture matrix for every Hermes root `environments/tool_call_parsers/*.py` parser before claiming raw model-output tool-call parity.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -12536,7 +12326,7 @@
                 "The docs test fails if a new upstream parser file appears without a classification.",
                 "No runtime Python parser invocation or live model output is required."
               ],
-              "note": "Complete: TDD added `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, and golden fixtures under `internal/hermes/testdata/tool_call_parsers/` (hermes_basic.json, hermes_multi.json, hermes_malformed.json, deepseek_v3_1_basic.json, deepseek_v3_1_malformed.json). The manifest classifies every upstream `environments/tool_call_parsers/*.py` file with model_family, expected_input_style, mapped|row_backed status, and target Go parser package; Hermes XML and DeepSeek v3.1 entries are mapped with golden raw-output fixtures plus malformed-call degraded evidence, while remaining families stay row_backed with no fixtures. The fixture-coverage test fails if a new upstream parser file appears unclassified, fixtures lack a malformed/degraded case, or any entry references a python or live-model runtime, and the manifest is sorted and stable across calls so no live provider or python invocation is needed.",
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Splits the parser-specific hidden surface from broad root `environments/**` coverage.",
               "write_scope": [
                 "internal/hermes/tool_call_parser_manifest.go",
                 "internal/hermes/tool_call_parser_manifest_test.go",
@@ -12963,9 +12753,9 @@
             {
               "name": "Image-too-large shrink retry helper",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/hermes exposes a pure image retry planner that, after a provider image_too_large classification, returns a single bounded retry plan with smaller image content parts and explicit no-retry evidence when shrinking is unavailable",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -13026,9 +12816,9 @@
             {
               "name": "Image generation result contract",
               "priority": "P3",
-              "status": "complete",
+              "status": "planned",
               "contract": "Image-generation tool results use a stable local artifact envelope with provider name, model, prompt hash, media type, output path, and redacted error evidence before any live image model call is wired",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -13362,9 +13152,9 @@
             {
               "name": "Skills hub direct URL install name/category guard",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "The `gormes skills install <https://.../SKILL.md>` flow uses URLSkillCandidate evidence to require an explicit `--name` on noninteractive URL installs when no safe name is resolved, rejects invalid name overrides, optionally accepts a category on interactive/CLI surfaces, and stages the downloaded SKILL.md through quarantine/scan before activation",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -13687,9 +13477,9 @@
             {
               "name": "Bundled TouchDesigner MCP skill catalog contract",
               "priority": "P3",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes treats upstream TouchDesigner MCP as reviewed bundled creative skill content, not an optional-skill install, while exposing missing TouchDesigner/MCP prerequisites as visible availability evidence and never starting a TouchDesigner or MCP process during skill catalog tests",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -13728,7 +13518,7 @@
                 "TestTouchDesignerSkill_PromptExcludedWhenUnavailable proves BuildSkillBlock excludes the skill until prerequisite evidence is satisfied.",
                 "Reference files are recorded as inert skill assets and are not executed or parsed as live MCP descriptors."
               ],
-              "note": "Complete: TDD added skills/creative/touchdesigner-mcp/SKILL.md, skills/creative/touchdesigner-mcp/references/mcp-tools.md, and internal/skills/touchdesigner_skill_test.go. Locked invariants: touchdesigner-mcp parses as bundled reviewed creative skill content with TouchDesigner/MCP/twozero hermes tags; the catalog row reports source=builtin trust=system category=creative and is absent from hub and local sources; missing TOUCHDESIGNER_MCP_URL and TWOZERO_MCP_URL surface as missing-prerequisite evidence while the catalog row stays visible; BuildSkillBlock excludes the skill until either prerequisite env var is set; references/mcp-tools.md ships as inert documentation that is rejected by Parse and never promoted as its own skill row; no setup.sh, .tox download, or live MCP runtime ships in the bundled skill.",
+              "note": "Added after upstream Hermes 853ed609 moved touchdesigner-mcp from optional-skills into bundled skills and updated the public skills catalog. Gormes should mirror the catalog/status contract as reviewed local skill content before any MCP runtime integration.",
               "write_scope": [
                 "skills/creative/touchdesigner-mcp/",
                 "internal/skills/touchdesigner_skill_test.go",
@@ -14387,62 +14177,66 @@
             {
               "name": "Gormes-native MCP host runtime boundary",
               "priority": "P1",
-              "status": "planned",
-              "contract": "Gormes exposes a native MCP/tool host boundary with explicit tool declarations, filtering, audit evidence, and channel/runtime-safe execution without adopting a non-Hermes config surface.",
-              "contract_status": "draft",
-              "slice_size": "medium",
+              "status": "complete",
+              "contract": "Gormes exposes a Go-native MCP/tool host boundary (interface plus audit) with single-source tool declarations, channel/trust/toolset filters, and audit evidence for invocation status without vendoring a full MCP framework or importing Nanobot config semantics.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
-                "gateway",
                 "operator",
                 "system"
               ],
+              "degraded_mode": "Filter exclusions, invoke errors, and unavailable MCP servers emit audit events with mcp_host_unavailable evidence and arguments-redaction status instead of leaking secret/argument substrings.",
               "fixture": "internal/tools/mcp_host_boundary_test.go",
-              "degraded_mode": "Unavailable MCP servers/tools produce structured unavailable/unauthorized evidence while core Hermes-parity tools and channel commands continue to work.",
               "source_refs": [
-                "references/go-agent-os/GORMES-REUSE-AUDIT.md#3-runtime-service-wiring-via-explicit-optionsmergecomplete",
-                "references/go-agent-os/nanobot/pkg/tools/service.go",
-                "references/go-agent-os/nanobot/pkg/runtime/runtime.go",
-                "references/go-agent-os/trpc-agent-go/tool/tool.go",
-                "references/go-agent-os/trpc-agent-go/tool/filter.go",
-                "internal/tools/",
-                "internal/plugins/",
-                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security"
+                "../hermes-agent/tools/mcp_tool.py",
+                "internal/tools/mcp_config.go",
+                "internal/tools/mcp_client.go",
+                "internal/tools/managed_tool_gateway.go",
+                "internal/tools/tool.go"
               ],
               "ready_when": [
-                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
-                "The interface design identifies caller-facing tool declaration/call/filter types before transport implementation.",
-                "Hermes toolset/config semantics remain the source of truth for what tools are enabled."
+                "MCP server config/env resolver, MCP stdio/HTTP transport + tool/list discovery, MCP schema normalization, MCP OAuth state/refresh recovery, and Managed tool gateway bridge are validated on main, so the boundary can be tested as pure types and a thin wrapper.",
+                "The slice can stay in internal/tools and use a fake MCPHost (in-memory map) and fake auditor; no real MCP transport is required."
               ],
               "not_ready_when": [
-                "The row imports Nanobot config semantics or changes Hermes config.yaml precedence.",
-                "The row vendors a full MCP framework instead of creating a tested Gormes boundary.",
-                "The row bypasses channel/tool trust classes."
+                "The slice imports Nanobot config semantics or any package that changes Hermes config.yaml precedence.",
+                "The slice vendors a full MCP framework instead of a tested Gormes boundary.",
+                "The slice bypasses channel or tool trust classes when filtering tool declarations.",
+                "The slice opens stdio/HTTP transports, spawns goroutines, or starts real MCP servers from the boundary."
               ],
-              "unblocks": [
-                "MCP stdio transport + tool/list discovery",
-                "Managed tool gateway bridge",
-                "Tool output budget persisted artifact pointer"
+              "blocked_by": [
+                "MCP server config/env resolver",
+                "MCP schema normalization + structured-content adapter",
+                "Managed tool gateway bridge"
               ],
               "acceptance": [
-                "A Gormes tool declaration interface can render provider JSON schema and MCP metadata from one source.",
-                "Include/exclude filters can restrict tools by channel, trust class, and configured toolset.",
-                "Audit evidence records server/tool name, arguments redaction status, result status, and unavailable errors."
+                "TestToolDeclaration_RendersProviderSchemaAndMCPMetadata proves a single ToolDeclaration source struct renders both the provider JSON-schema view (matching the existing tool registry shape) and the MCP metadata view, with defensive copies preventing source mutation.",
+                "TestToolFilter_ChannelTrustToolsetRestriction proves include/exclude filters restrict tools by channel name, trust class enum, and configured toolset list; mismatched declarations are excluded.",
+                "TestMCPHostAudit_RecordsServerToolNameAndRedactionStatus proves fake-host invocations emit audit events with server name, tool name, args-redaction status, and result status (ok, unavailable, error).",
+                "TestMCPHostAudit_UnavailableEvidence proves unavailable MCP servers produce mcp_host_unavailable evidence in the audit reason and never leak secret or argument substrings.",
+                "TestMCPHost_NoNanobotImport asserts via go/parser that mcp_host.go imports no nanobot config package and no full MCP framework."
               ],
+              "note": "Complete: TDD landed internal/tools/mcp_host.go and internal/tools/mcp_host_boundary_test.go as pure types plus a thin RunFiltered wrapper. ToolDeclaration renders provider JSON-schema and MCPToolMetadata from one source with defensive copies; ToolFilter applies channel, trust class, and toolset restrictions; MCPHost is a small interface (List/Invoke) tested with an in-memory fake; MCPAuditor receives audit events that include server, tool, args-redaction status, status, reason, and unavailable flag; unavailable results carry the mcp_host_unavailable evidence marker without echoing argument values. A go/parser test pins out Nanobot and full MCP framework imports.",
               "write_scope": [
-                "internal/tools/",
-                "internal/plugins/",
-                "internal/gateway/",
+                "internal/tools/mcp_host.go",
+                "internal/tools/mcp_host_boundary_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools ./internal/plugins -run 'ToolDeclaration|ToolFilter|MCPHost|Audit' -count=1",
+                "go test ./internal/tools -run 'ToolDeclaration|ToolFilter|MCPHost|Audit' -count=1",
                 "go test ./internal/tools ./internal/plugins -count=1",
+                "go build ./...",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "A native Gormes tool/MCP boundary exists behind Hermes-compatible toolset/config semantics with filter and audit tests."
-              ]
+                "MCP host boundary fixtures prove single-source tool declarations, channel/trust/toolset filtering, audit redaction, mcp_host_unavailable evidence, and no Nanobot or full-MCP-framework imports."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:tools/mcp_tool.py + internal/tools managed gateway and MCP client",
+                "note": "Hermes informs MCP tool surface expectations; Gormes owns a Go-native boundary that keeps provider and MCP renderers single-source without vendoring a full MCP framework."
+              }
             }
           ],
           "drift_state": {
@@ -14456,9 +14250,9 @@
           "items": [
             {
               "name": "ACP server side",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes maps Hermes ACP adapter entry/auth/session/tools/permissions/events into a Go-native manifest and stdio/server protocol fixture before editor integrations are advertised.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -14493,7 +14287,7 @@
                 "Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification.",
                 "Editor integration docs remain row-backed until protocol fixtures exist."
               ],
-              "note": "Complete: TDD added `internal/acp/server_manifest.go` and `internal/acp/server_manifest_test.go` classifying upstream `acp_adapter/{auth,entry,session,tools,permissions,events,server}.py` and `acp_registry/agent.json` as row_backed against `internal/acp` with exact upstream files, planned Go symbols, and `acp_server_surface_row_backed` evidence. Locked invariants: `MissingUpstreamFiles` flags any new `acp_adapter/*.py` or `acp_registry/agent.json` drift, `PermissionOutcomeForKind` maps ACP `allow_once`/`allow_always`/`reject_once`/`reject_always` to Hermes once/always/deny/deny with an unknown-kind deny fallback, `ToolKindFor` maps Hermes tool names to ACP `read`/`edit`/`search`/`execute`/`fetch`/`think`/`other` with `_thinking` returning think and unknown tools returning other, `DefaultAgentRegistryEntry` matches the upstream `acp_registry/agent.json` shape (schema_version 1, name hermes-agent, distribution.type command, distribution.command hermes, distribution.args [acp]), `DefaultSessionLifecycle` returns the ordered initialize/authenticate/new/load/resume/prompt/cancel phases, and no surface may claim implemented before live ACP rows. No live ACP server, editor subprocess, or Hermes/Python shell-out runs from this slice.",
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad `acp_adapter/**` planning with exact adapter files and protocol-fixture boundaries.",
               "write_scope": [
                 "internal/acp/server_manifest.go",
                 "internal/acp/server_manifest_test.go",
@@ -14775,9 +14569,9 @@
             {
               "name": "First-party Google Meet plugin metadata fixture",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "First-party Google Meet plugin manifests, tool metadata, realtime/node capability flags, and safety constraints load as disabled plugin inventory through the Plugin SDK without importing Python, starting Chrome, joining meetings, or registering built-in Go tools",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -14822,7 +14616,7 @@
                 "TestGoogleMeetPluginMetadata_SafetyEvidence proves URL gate, no calendar auto-dial, one-active-meeting constraint, and meet_say realtime requirement are represented in status/degraded evidence.",
                 "No test imports Python, starts Chrome, starts a node server, opens audio devices, calls OpenAI Realtime, or joins a meeting."
               ],
-              "note": "Complete: TDD added internal/plugins/google_meet_plugin_test.go and the inert internal/plugins/google_meet_plugin.go fixture (canonical YAML + tool-package constants and a LoadGoogleMeet augmenter). Manifest now carries a Platforms field, plugin name validation accepts underscored names, and capability kinds include realtime and remote_node. Locked invariants: google_meet plugin loads as disabled with linux/macos platforms; meet_join, meet_leave, meet_say, meet_status, meet_transcript surface as disabled tool capabilities with json-string envelopes and google_meet_runtime_unavailable plus browser_profile_required evidence; realtime audio and remote-node capabilities expose google_meet_realtime_unconfigured (OPENAI_API_KEY, audio_bridge) and node_auth_required (bearer_token); safety evidence records meet_url_gate, meet_no_calendar_auto_dial, meet_one_active_meeting on the plugin and meet_say_realtime_required on the meet_say capability; no test imports Python, starts Chrome, opens audio, calls OpenAI Realtime, or joins a meeting.",
+              "note": "Added after Hermes df3c9593 introduced a large Google Meet plugin. Gormes should first extend plugin metadata/status coverage so workers do not try to port browser, audio, realtime, and remote-node runtime behavior in one slice.",
               "write_scope": [
                 "internal/plugins/google_meet_plugin_test.go",
                 "internal/plugins/",
@@ -15263,9 +15057,9 @@
             {
               "name": "Background review toolset restriction",
               "priority": "P3",
-              "status": "complete",
+              "status": "planned",
               "contract": "Background review workers run with an explicit allowlist limited to memory and skills toolsets, deny executable/file/network toolsets by default, and surface restriction evidence in review telemetry",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -15300,7 +15094,7 @@
                 "TestBackgroundReviewToolsetRestriction_TelemetryIncludesEvidence proves review telemetry/status includes the allowlist and denied toolset names without prompt content.",
                 "Foreground subagent policy fixtures remain unchanged."
               ],
-              "note": "Complete: TDD added internal/subagent/background_review_toolset.go and internal/subagent/background_review_toolset_test.go. Locked invariants: BackgroundReviewToolsetConfig is a positive allowlist of memory+skills only; CheckToolset returns background_review_toolset_restricted for execute_code/shell/browser/file_write/provider_management plus any unknown toolset and background_review_toolset_unavailable for empty/whitespace names; Telemetry never embeds prompt content (PromptContent always empty, String() omits the prompt body) and surfaces sorted allowlist plus deduped/sorted denied toolset names; AllowedToolsets returns a defensive copy so callers cannot mutate the policy; foreground subagent BlockedTools and runner allowlist behaviour are untouched.",
+              "note": "Added after Hermes 8ad29a93 restricted background review agents to memory and skills. Gormes should make the background review policy explicit before review automation gains broader tool access.",
               "write_scope": [
                 "internal/subagent/background_review_toolset.go",
                 "internal/subagent/background_review_toolset_test.go",
@@ -15773,9 +15567,9 @@
             {
               "name": "Session shutdown memory transcript handoff",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "Session-end memory handoff receives the completed transcript/message slice explicitly, while skip_memory, interrupted turns, and expiry-only cleanup still prevent hidden GONCHO or Honcho-compatible memory writes",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": [
@@ -15817,7 +15611,7 @@
                 "TestShutdownMemoryHandoff_InterruptedSuppressesProvider proves interrupted sessions do not write GONCHO conclusions or call external Honcho-compatible memory hooks.",
                 "Existing session-expiry hook tests keep proving expiry cleanup does not perform hidden memory flushes."
               ],
-              "note": "Complete: TDD added internal/memory/shutdown_handoff.go with PerformShutdownHandoff invoking ShutdownMemoryProvider.Shutdown exactly once with an explicit (possibly empty) ShutdownMessage slice. SkipMemory short-circuits with shutdown_memory_skipped, Interrupted short-circuits with shutdown_memory_interrupted, and a nil provider is treated as skip. Provider errors propagate verbatim while ShutdownMemoryStatus still records the call was attempted. Pure helper; gateway/CLI runtime binding stays a dependent row. internal GONCHO names and external honcho_* compatibility are unchanged.",
+              "note": "Moved to Phase 5.N on 2026-04-27T13:57:25Z after progress tests confirmed Phase 3 is intentionally closed. Added after Hermes 500774e3/a59a98b1 fixed gateway and CLI shutdown paths that lost session messages before calling shutdown_memory_provider. Gormes should encode the transcript handoff as an internal memory contract first while preserving internal GONCHO naming and external honcho_* compatibility.",
               "write_scope": [
                 "internal/memory/shutdown_handoff.go",
                 "internal/memory/shutdown_handoff_test.go",
@@ -16426,9 +16220,9 @@
             {
               "name": "Cron run resource release contract",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/cron exposes a typed per-run resource-release ledger helper that records spawned subprocess PIDs (via an injected killer interface), io.Closer values for SQLite session DBs, and outbound HTTP RoundTripper idle-closables. The helper guarantees deterministic close ordering, idempotent re-entry, partial-failure continuation, and explicit evidence vocabulary so a later Executor binding can release every per-run resource exactly once. The helper does not start a kernel turn, hit a provider, manage MCP stdio runtimes, or change the Scheduler goroutine lifecycle.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -16474,7 +16268,7 @@
                 "TestRunReleaseLedger_IsIdempotent calls the helper twice on the same ledger and proves the second call is a no-op with cron_release_skipped_no_resource evidence (no double-close, no double-kill).",
                 "Existing internal/cron Executor, run_completion, heartbeat, and integration tests remain green without editing executor.go, run_completion.go, heartbeat.go, or scheduler.go."
               ],
-              "note": "Complete: TDD added internal/cron/run_release.go exposing RunReleaseLedger with RegisterCloser, RegisterIdleClosable, RegisterSubprocess, and Release(SubprocessKiller). Release closes each registered resource in registration order, continues past errors via errors.Join, and emits cron_release_session_db_closed, cron_release_http_idle_closed, cron_release_subprocess_killed evidence with structured Fields. The session-db and http-idle paths emit *_failed codes when Close() returns an error. Empty ledgers and second Release calls return cron_release_skipped_no_resource exactly once. Executor binding stays a dependent row; scheduler goroutines, kernel turns, MCP stdio runtimes, and run_completion/heartbeat ordering are unchanged.",
+              "note": "Added 2026-04-27T14:55:00Z after Hermes 9b55365f added agent.close() + ThreadPoolExecutor event-loop httpx-client reaping in Python cron run_job and gateway shutdown, citing #10200 fd-leak (\"too many open files\") on long-running cron tickers. Gormes does not have Python's threadlocal httpx accumulation problem, but it does have spawned tool subprocess and SQLite session-DB lifetimes that must be released per-run. This first slice is helper-only: a typed release ledger with deterministic close ordering and explicit evidence vocabulary. Executor binding (so Executor.Run actually pushes its closables/PIDs into the ledger) is a dependent row.",
               "write_scope": [
                 "internal/cron/run_release.go",
                 "internal/cron/run_release_test.go",
@@ -16497,9 +16291,9 @@
             {
               "name": "Cron run resource release executor binding",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/cron Executor.Run pushes per-run *sql.DB session stores, tool subprocess handles, and outbound RoundTripper idle-closables into the validated Cron run resource release ledger before returning, so the next Scheduler tick observes no leaked fds; success, kernel-error, ctx-cancel, and timeout paths all release through the same ledger exactly once.",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -16536,20 +16330,19 @@
                 "TestExecutorRunReleasesPerRunResources_NoRegisteredResources runs a minimal job with no registrations and proves the ledger reports cron_release_skipped_no_resource without errors.",
                 "Existing internal/cron Executor, run_completion, heartbeat, integration_test, and durable_ledger tests remain green without editing run_completion.go, heartbeat.go, scheduler.go, or kernel package code."
               ],
-              "note": "Complete: TDD landed internal/cron/release_binding_test.go and extended internal/cron/executor.go with two ExecutorConfig fields (SubprocessKiller, RegisterRelease) and a new public Executor.RunWithRelease(ctx, job) ([]ReleaseEvidence, error) method. Run() now delegates through RunWithRelease so every exit path (success, kernel-Submit error, ctx-cancel, timeout) constructs a fresh RunReleaseLedger per call, runs the registration seam, and defers ledger.Release through the configured SubprocessKiller. Tests use fake io.Closer plus fake SubprocessKiller fixtures (no goroutines, no real DB, no real HTTP, no real os.Process) to prove all three release evidence codes fire on success, the kernel error is surfaced with full evidence on kernel-error, ctx cancellation still drains registered resources, an empty ledger emits exactly one cron_release_skipped_no_resource entry, and aggregated Release errors do not mask the kernel error. internal/cron/run_release.go was not modified. Existing cron/Executor/run_completion/heartbeat/durable_ledger tests stay green and `go build ./...` succeeds.",
+              "note": "Dependent binding: keep this draft until the helper-only ledger row is validated, so workers cannot collapse the helper and the Executor wiring into one umbrella diff. Hermes had to land both pieces over multiple PRs for the same reason (#16598 + earlier shutdown fixes).",
               "write_scope": [
                 "internal/cron/executor.go",
-                "internal/cron/executor_test.go",
-                "internal/cron/release_binding_test.go",
+                "internal/cron/executor_release_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/cron -run '^TestExecutorRun_' -count=1",
+                "go test ./internal/cron -run '^TestExecutorRunReleasesPerRunResources_' -count=1",
                 "go test ./internal/cron -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "internal/cron/release_binding_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
+                "internal/cron/executor_release_test.go fixtures prove success, kernel-error, and ctx-cancel paths all release per-run closers/PIDs through the validated ledger exactly once with stable evidence, while existing executor/run_completion/heartbeat/durable_ledger tests stay green."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -16702,63 +16495,6 @@
                 "upstream_ref": "hermes:755a2804 cron/scheduler.py",
                 "note": "Hermes defines cron multi-target/media delivery behavior; Gormes adapts it to the native DeliverySink/gateway abstractions and keeps channel-directory creation separate."
               }
-            },
-            {
-              "name": "Goncho serialized write queue + relation candidates",
-              "priority": "P1",
-              "status": "complete",
-              "contract": "Goncho serializes memory/conclusion writes and records pending relation candidates for possible conflicts or supersession without blocking the originating memory write.",
-              "contract_status": "validated",
-              "slice_size": "medium",
-              "execution_owner": "memory",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "fixture": "internal/goncho/write_queue_relation_test.go",
-              "degraded_mode": "If candidate search or relation insertion fails, the memory write still succeeds with degraded evidence; queue-full returns a retryable typed error.",
-              "source_refs": [
-                "references/go-agent-os/GORMES-REUSE-AUDIT.md#5-deterministic-serialized-mcpmemory-write-queue",
-                "references/go-agent-os/engram/internal/mcp/write_queue.go",
-                "references/go-agent-os/engram/internal/store/relations.go",
-                "references/go-agent-os/engram/internal/store/store.go",
-                "internal/goncho/",
-                "internal/memory/",
-                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
-              ],
-              "ready_when": [
-                "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
-                "Existing Goncho storage/tests identify the write entrypoints to serialize.",
-                "The relation vocabulary is mapped to Honcho-compatible public behavior or explicitly kept internal."
-              ],
-              "not_ready_when": [
-                "The row exposes Engram-specific API names as public Gormes/Honcho names.",
-                "The row fails the original memory write because candidate detection is unavailable.",
-                "The row adds an LLM judge before pending relation storage is deterministic."
-              ],
-              "unblocks": [
-                "Goncho memory integration into normal agent turn",
-                "Goncho operator diagnostics contract"
-              ],
-              "acceptance": [
-                "Concurrent memory writes execute in deterministic queue order under test.",
-                "Queued cancellation before start does not mutate storage; started writes complete deterministically.",
-                "Saving a memory can create pending relation candidates with verbs such as related, conflicts_with, supersedes, compatible, scoped, or not_conflict for later judgment."
-              ],
-              "write_scope": [
-                "internal/goncho/",
-                "internal/memory/",
-                "internal/gonchotools/",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/goncho ./internal/memory -run 'WriteQueue|Relation|Conflict|Supersede' -count=1",
-                "go test ./internal/goncho ./internal/memory -count=1",
-                "go run ./cmd/progress validate"
-              ],
-              "done_signal": [
-                "Goncho tests prove serialized writes and nonblocking pending relation candidates without changing Honcho-compatible external names."
-              ]
             }
           ],
           "drift_state": {
@@ -17200,9 +16936,9 @@
             {
               "name": "CLI slow bracketed-paste diagnostic threshold",
               "priority": "P3",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/cli exposes a pure slow-paste diagnostic helper that emits structured evidence only when bracketed-paste handling exceeds a 500ms threshold and never logs pasted content bytes",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -17236,7 +16972,7 @@
                 "TestSlowBracketedPasteDiagnostic_CustomThreshold proves callers can inject a threshold while default remains 500ms.",
                 "No test opens a terminal, reads from stdin, sleeps, or depends on prompt_toolkit."
               ],
-              "note": "Complete: TDD added internal/cli/paste_diagnostic.go with SlowBracketedPasteDiagnostic.Record emitting paste_handler_slow events only when SlowBracketedPasteSample.Duration >= the threshold (default 500ms, override via NewSlowBracketedPasteDiagnostic). Events carry duration_ms and threshold_ms only; PastedContent and PastedFilePaths on the sample are dropped before emission. PasteEventLogger is the narrow logging seam, no TTY or prompt_toolkit timer. CLI bracketed-paste sanitizer behavior is unchanged.",
+              "note": "Added after Hermes ac0325c2 added diagnostics for bracketed-paste handlers slower than 500ms. Gormes keeps this as a pure diagnostic helper so terminal input wiring remains separate.",
               "write_scope": [
                 "internal/cli/paste_diagnostic.go",
                 "internal/cli/paste_diagnostic_test.go",
@@ -17828,9 +17564,9 @@
             },
             {
               "name": "Gormes config command surface",
-              "status": "complete",
+              "status": "planned",
               "contract": "cmd/gormes exposes `gormes config show`, `path`, `env-path`, and `set <key> <value>` over the native XDG config surfaces: non-secret dotpaths write config.toml, secret aliases such as api_key and *_API_KEY/*_TOKEN write the Gormes .env file, and show output redacts every secret.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -17873,7 +17609,7 @@
                 "`gormes config show` prints endpoint/model and redacted credential status without exposing raw secret bytes.",
                 "Empty strings and falsy values behave like Hermes config set: missing value is an error, but an explicit empty string is accepted."
               ],
-              "note": "Complete: TDD added cmd/gormes/config.go (cobra subtree show/path/env-path/set), cmd/gormes/config_command_test.go, internal/config/writer.go (EnvPath, IsSecretKey, SecretEnvName, WriteTOMLValue, WriteEnvValue), and internal/config/writer_test.go; wired newConfigCommand into cmd/gormes/main.go's root.AddCommand. Locked invariants: bare keys map to [hermes]; only the closed allow-list of TOML sections (hermes/gateway/tui/input/telegram/discord/slack/cron/skills/delegation/goncho) accepts writes; api_key alias, *_API_KEY, and *_TOKEN suffixes always route to the XDG dotenv at $XDG_CONFIG_HOME/gormes/.env (0o600, 0o700 parent dir); explicit empty string is persisted but a missing value argument is rejected by cobra Args; show prints endpoint/model/provider plus redacted api_key/GORMES_API_KEY status without exposing raw secret bytes.",
+              "note": "Added by planner pass 2026-04-28. This is the native answer to the README's persistent-configuration example. Gormes should keep Cobra plus internal/config for now; Viper is not present in go.mod and is not required for this bounded command surface.",
               "write_scope": [
                 "cmd/gormes/config.go",
                 "cmd/gormes/config_command_test.go",
@@ -17895,9 +17631,9 @@
             },
             {
               "name": "Gormes config edit/check/native schema-migrate closeout",
-              "status": "complete",
+              "status": "planned",
               "contract": "cmd/gormes completes Hermes config-command parity for the native Gormes config surface by adding `gormes config edit`, `gormes config check`, and `gormes config migrate` over XDG TOML/dotenv files, while keeping `gormes migrate hermes` and `gormes migrate openclaw` as the only cross-product import commands.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -17940,7 +17676,7 @@
                 "The command help distinguishes `config migrate` (native schema update) from `migrate hermes` and `migrate openclaw` (cross-product imports).",
                 "All output redacts dotenv/API-key values and keeps explicit-empty values visible as configured-but-empty evidence."
               ],
-              "note": "Complete: TDD added `cmd/gormes/config_closeout_test.go` (edit/check/migrate cobra fixtures swap a `stubEditorRunner` into the package-level `configEditorRunner` injection seam via `withConfigEditorRunner`, so no real shell ever spawns) and `internal/config/check_test.go` (Check return-value table tests against `t.TempDir()` XDG sandboxes). Production code lives in `internal/config/check.go` (`Check`, `CheckReport`, `MigrateConfigFile`, `MigrateResult`), with atomic temp-file-then-rename helpers `writeTOMLAtomic` and `EnsureConfigFile` added to `internal/config/writer.go`, and the new cobra subtree wired in `cmd/gormes/config.go` (`newConfigEditCommand`, `newConfigCheckCommand`, `newConfigMigrateCommand`, `pickEditor`, `osEditorRunner`). Locked invariants: `config edit` ensures config.toml exists before delegating to EDITOR>VISUAL>nano|vim|vi|code|notepad through the injected runner and falls back to a no-editor message that includes the config path; `config check` is read-only, surfaces _config_version vs CurrentConfigVersion, dotenv presence, missing vs configured-but-empty issues per [hermes].endpoint and [hermes].model, redacts dotenv/api_key bytes, and exits non-zero on errors; `config migrate` is bit-identical no-op at CurrentConfigVersion, atomically stamps unversioned files, and rejects future-version files without rewriting them; the migrate help long-form names native scope and points operators at `gormes migrate hermes`/`gormes migrate openclaw` for cross-product imports.",
+              "note": "Added 2026-04-28 after the explicit config parity pass. Hermes exposes config show/edit/set/path/env-path/check/migrate; the prior Gormes config row covers the first four operator-critical pieces, and this row closes the remaining native config lifecycle without mixing in Hermes/OpenClaw imports.",
               "write_scope": [
                 "cmd/gormes/config.go",
                 "cmd/gormes/config_closeout_test.go",
@@ -17965,9 +17701,9 @@
             },
             {
               "name": "Hermes config migration dry-run manifest",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/migrate/hermes builds a deterministic dry-run manifest for `gormes migrate hermes` by reading an explicit source directory, $HERMES_HOME, or ~/.hermes, parsing config.yaml and .env, classifying every supported key as importable, skipped, conflict, or archived, and printing a report without writing Gormes state.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -18009,7 +17745,7 @@
                 "The dry-run command prints migrated/skipped/conflict/error counts and exits non-zero only for an unreadable or invalid requested source.",
                 "No file under XDG_CONFIG_HOME, XDG_DATA_HOME, or XDG_STATE_HOME changes during dry-run tests."
               ],
-              "note": "Complete: TDD added internal/migrate/hermes/manifest.go, internal/migrate/hermes/manifest_test.go, cmd/gormes/migrate.go, and cmd/gormes/migrate_hermes_test.go. BuildManifest resolves Hermes home in the order --source, $HERMES_HOME, ~/.hermes and records every candidate path with a Found flag, classifies config.yaml model/providers/custom_provider/terminal/display/gateway/memory as importable into hermes.model/hermes.providers/hermes.custom_provider/terminal/tui.display/gateway/memory, archives _config_version, marks unsupported top-level sections as skipped with explicit reason text, classifies .env keys against a Telegram/Discord/Slack and *_API_KEY/*_TOKEN target map, never serializes raw secret bytes (RedactedValue=[REDACTED]), reports conflict_with_existing when a Gormes target env is already set, and surfaces invalid YAML as an Errors entry instead of panicking. The migrate cobra command requires --dry-run, errors non-zero on missing/non-directory --source, prints the manifest as indented JSON, and writes nothing under XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_STATE_HOME. Locked invariants: read-only filesystem behavior, redacted-only env values, deterministic config-key sorting, and explicit candidate-path reporting for every discovery origin. Root command wiring is deferred to the writer slice, which already owns cmd/gormes/migrate.go in its write_scope.",
+              "note": "Added by planner pass 2026-04-28 to make the planned `gormes migrate hermes` explicit. Gormes must not silently read HERMES_HOME at runtime; Hermes state is consumed only through this operator-run migration path.",
               "write_scope": [
                 "cmd/gormes/migrate.go",
                 "cmd/gormes/migrate_hermes_test.go",
@@ -18028,9 +17764,9 @@
             },
             {
               "name": "Hermes config migration writer",
-              "status": "complete",
+              "status": "planned",
               "contract": "`gormes migrate hermes --yes` applies the validated Hermes migration manifest into Gormes config.toml and .env with backups, conflict handling, redaction, and an import report; session and memory imports remain archived/skipped unless their target rows are complete.",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -18089,9 +17825,9 @@
             },
             {
               "name": "OpenClaw migration dry-run manifest",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/migrate/openclaw builds a deterministic dry-run manifest for `gormes migrate openclaw` by reading ~/.openclaw, ~/.clawdbot, ~/.moltbot, or --source, mapping OpenClaw config, .env, memory, skills, MCP, channels, model providers, TTS, tools, approvals, session reset, and archive-only surfaces into Gormes destinations without writing state.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -18118,7 +17854,10 @@
                 "The slice relies on the Python openclaw_to_hermes.py script at runtime instead of porting the mapping to Go.",
                 "The slice treats broad optional-skills coverage as proof without field-level manifest fixtures."
               ],
-              "blocked_by": [],
+              "blocked_by": [
+                "Gormes config command surface",
+                "Hermes CLI command-tree parity manifest"
+              ],
               "unblocks": [
                 "OpenClaw migration writer and cleanup command"
               ],
@@ -18145,18 +17884,13 @@
               ],
               "done_signal": [
                 "OpenClaw dry-run fixtures prove source discovery, field-level mapping coverage, redacted report output, explicit archive/manual reasons, and zero writes."
-              ],
-              "evidence": {
-                "implementation": "cmd/gormes/migrate.go, cmd/gormes/migrate_openclaw_test.go, internal/migrate/openclaw/manifest.go, internal/migrate/openclaw/manifest_test.go",
-                "tests": "go test ./internal/migrate/hermes ./internal/migrate/openclaw ./cmd/gormes -run 'Migrate|OpenClaw' -count=1; go run ./cmd/progress validate; git diff --check",
-                "note": "Gormes-native OpenClaw dry-run manifest now covers source discovery, config/env/file classification, manual SecretRef evidence, redacted counts, dry-run-only CLI behavior, and ooenclaw typo rejection without invoking Hermes/OpenClaw Python runtime."
-              }
+              ]
             },
             {
               "name": "OpenClaw migration writer and cleanup command",
-              "status": "planned",
+              "status": "complete",
               "contract": "`gormes migrate openclaw --yes` applies the validated OpenClaw manifest into Gormes config, dotenv, memories, skills, and archive report directories with backups and conflict policies; `gormes migrate openclaw cleanup` archives leftover OpenClaw directories after warning about running processes.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -18209,7 +17943,12 @@
               ],
               "done_signal": [
                 "OpenClaw apply/cleanup fixtures prove manifest-only writes, backup/conflict policy, secret opt-in, explicit archive reports, cleanup dry-run/apply behavior, and injected running-process warnings."
-              ]
+              ],
+              "evidence": {
+                "implementation": "cmd/gormes/migrate.go, cmd/gormes/migrate_openclaw_apply_test.go, internal/migrate/openclaw/apply.go, internal/migrate/openclaw/apply_test.go",
+                "tests": "go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup' -count=1; go test ./... -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "OpenClaw migrate apply writes config/dotenv/memory/skills under injected XDG roots, emits a timestamped report.json under XDG_STATE_HOME/gormes/migrations/openclaw, refuses without --yes, conflicts skip-by-default with --overwrite flipping to migrated and creating .bak.<timestamp> files, secrets gate behind --secrets, and cleanup is its own sub-subcommand that renames ~/.openclaw, ~/.clawdbot, and ~/.moltbot into .pre-migration archives without deleting data; running-process warnings flow through an injected ProcessDetector seam."
+              }
             },
             {
               "name": "CLI profile name validator",
@@ -19009,9 +18748,9 @@
             {
               "name": "Backup/update opt-in and exclusion policy",
               "priority": "P3",
-              "status": "complete",
+              "status": "planned",
               "contract": "CLI backup/update policy defaults pre-update backups off unless explicitly requested, honors --no-backup over --backup, and excludes checkpoints plus SQLite WAL/SHM/journal sidecars from backup manifests",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -19047,7 +18786,7 @@
                 "TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars proves checkpoints/, *.db-wal, *.db-shm, and *.db-journal are excluded while ordinary .db files remain eligible.",
                 "Tests use synthetic paths/temp dirs only and do not create archives or invoke git."
               ],
-              "note": "Complete: TDD added internal/cli/backup_policy.go and internal/cli/backup_policy_test.go. The pure ResolveBackupPolicy(BackupPolicyFlags) BackupDecision helper locks in the precedence rules NoBackup > Backup > ConfigEnabled > default-off, surfaces backup_skipped_default / backup_forced / backup_disabled_by_flag / backup_config_enabled evidence strings, and exposes IsExcludedFromBackup plus PartitionBackupCandidates so any path under checkpoints/ and any *.db-wal / *.db-shm / *.db-journal sidecar is dropped from a manifest while plain *.db files remain eligible. No archive writes, no git, no real Gormes home are touched.",
+              "note": "Added after Hermes ea3c5a14 made pre-update backups opt-in, a9033c92 excluded checkpoints, and 817633bc excluded SQLite sidecars. Gormes should pin the policy before update/backup commands are wired.",
               "write_scope": [
                 "internal/cli/backup_policy.go",
                 "internal/cli/backup_policy_test.go",
@@ -19480,9 +19219,9 @@
           "items": [
             {
               "name": "OCI image",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes ships an OCI image contract that mirrors upstream Docker entrypoint/config volume operational behavior while proving the final image contains the Go binary and no required Python runtime path.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -19516,7 +19255,7 @@
                 "Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies.",
                 "A smoke command can run `gormes doctor --offline` with fake config volume inputs."
               ],
-              "note": "Complete: TDD added Dockerfile, docker/entrypoint.sh, and docs/install/oci_image_test.go. Locked invariants: two-stage Go build into distroless/static with no Python/Node/Playwright deps, /opt/data config volume seeded by entrypoint with offline-safe config.yaml, deterministic CMD doctor --offline smoke and gormes \"$@\" forwarding, and explicit divergence comments classifying hosted-Honcho compose/Prometheus/Grafana files as docs-only.",
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad Docker/packaging evidence with exact Dockerfile and entrypoint/config refs for Hermes and Honcho.",
               "write_scope": [
                 "Dockerfile",
                 "docker/entrypoint.sh",
@@ -19539,9 +19278,9 @@
             },
             {
               "name": "Homebrew",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes ports Hermes Homebrew/release artifact expectations into a Go-native formula fixture with version, checksum, binary install layout, and doctor smoke contract.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -19569,7 +19308,7 @@
                 "Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths.",
                 "Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row."
               ],
-              "note": "Complete: TDD added packaging/homebrew/gormes-agent.rb and docs/install/homebrew_formula_test.go. Locked invariants: Formula class GormesAgent < Formula with explicit version, GitHub release-asset url and 64-hex sha256 sharing the same semver; static Go binary install via bin.install \"gormes\" with no Python virtualenv/pip/PyPI/Node/Playwright dependencies; offline doctor smoke via shell_output(\"#{bin}/gormes doctor --offline\") plus a version smoke; embedded release-asset script fixture emits per-platform tar.gz archives (darwin-arm64, darwin-amd64, linux-amd64, linux-arm64) checksummed by shasum -a 256 and built via go build ./cmd/gormes \u2014 no Hermes Python packaging paths and no Nix/flake inputs.",
+              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad packaging/homebrew coverage with the exact upstream formula and release script references.",
               "write_scope": [
                 "packaging/homebrew/gormes-agent.rb",
                 "docs/install/homebrew_formula_test.go",
@@ -20797,9 +20536,9 @@
             {
               "name": "Native TUI queued-message edit helper",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/tui owns a pure queued-message buffer helper that can enqueue, dequeue, select an item for edit, replace edited text, cancel edit without mutation, delete the edited item, and compute a stable three-row visible window before any Bubble Tea keybinding or kernel submission wiring lands",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20840,7 +20579,7 @@
                 "TestQueuedMessages_ReplaceEditingItem proves replacing the selected item updates only that item and keeps queue order.",
                 "TestQueuedMessages_WindowCentersEditedItem proves the visible three-row window matches Hermes' start/end/lead/tail behavior for head, middle, tail, and empty queues."
               ],
-              "note": "Complete: TDD added internal/tui/queued_messages.go and internal/tui/queued_messages_test.go. The pure QueuedMessages helper locks five invariants the dependent runtime bindings can rely on: RemoveAt mutates the queue only for in-range indexes and slides or clears the edit selection so Ctrl+X bindings need no bounds checks; CancelEdit clears edit state without removing queued text, preserving the contract that only DeleteEditing or RemoveAt may mutate the buffer; DeleteEditing on edit index 1 of [a,b,c] yields [a,c] without dequeuing the head and clears the selection; ReplaceEditing only mutates the edited slot and refuses without a selection; and ComputeQueueWindow returns the same start/end/showLead/showTail shape as Hermes getQueueWindow for empty, head, middle, tail, and shorter-than-window queues.",
+              "note": "Added after upstream Hermes ea1012f5 made queued-message editing discoverable with Ctrl+X delete and Escape cancel. Gormes does not yet have the same Node/Ink queue runtime, so the first Go slice freezes a pure helper contract before any Bubble Tea binding changes.",
               "write_scope": [
                 "internal/tui/queued_messages.go",
                 "internal/tui/queued_messages_test.go",
@@ -20863,9 +20602,9 @@
             {
               "name": "Native TUI renderConv viewport budget binding",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/tui renderConv uses the validated conversation viewport helper with the caller-provided frame height/width budget so each Bubble Tea frame renders only the visible conversation tail plus draft/error status",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20897,7 +20636,7 @@
                 "TestRenderConvViewportBinding_NoKernelOrTranscriptMutation is covered by write scope and package tests; only internal/tui/view.go plus tests change.",
                 "Existing internal/tui rendering and slash command tests remain green."
               ],
-              "note": "Complete: TDD added internal/tui/viewport_render_test.go and bound renderConv in internal/tui/view.go to conversationViewportTail with the caller-provided width/height budget. Fixtures lock the latest-tail-plus-omitted-sentinel invariant for 120 turns, draft/error preservation under clipping, the tiny-terminal compact fallback retaining DraftText and LastError, the rendered-line budget under height+3, and the empty-frame placeholder. View now passes topH so each Bubble Tea frame renders only the visible conversation tail; kernel.RenderFrame, session persistence, transcript storage, remote TUI SSE, and API server remain untouched.",
+              "note": "Dependent binding half of the bounded viewport split. Keep this row to internal/tui view wiring only.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/viewport_render_test.go",
@@ -20981,9 +20720,9 @@
             {
               "name": "Native TUI Hermes status bar renderer",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/tui renders a Hermes-compatible single-line footer/status bar from the latest RenderFrame plus local timing state: short model name, context used/total, context percentage with threshold styles, session duration, per-prompt elapsed timer, width-aware collapse at <52 and <76 columns, and no wrapping or duplicated ghost rows.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -21016,7 +20755,7 @@
                 "TestHermesStatusBar_TrimsToWidth proves long model names and wide glyphs never wrap past the announced width.",
                 "TestHermesStatusBar_ContextThresholdStyles proves >=95 critical, >80 bad, >=50 warn, and lower good classifications."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_status_bar.go and internal/tui/hermes_status_bar_test.go porting Hermes cli.py:_get_status_bar_snapshot/_build_status_bar_text/_status_bar_context_style as pure helpers. Locked invariants: \u2695-prefixed model + ` \u2502 ` separators above 76 columns with model/ctx-used/ctx-total/percent/duration/prompt-elapsed; ` \u00b7 ` mid tier collapses to model/percent/duration below 76; narrow tier below 52 collapses to model/duration; lipgloss.Width-based ellipsis trim guarantees the rendered line never exceeds the announced terminal width even with CJK glyphs; context severity matches Hermes' nil/<50/50\u201380/81\u201394/\u226595 dim/good/warn/bad/critical bands.",
+              "note": "Second exact-look slice. Gormes currently shows `phase/model/session/mouse`; Hermes shows a compact model/context/duration footer. Keep this renderer isolated before replacing View chrome.",
               "write_scope": [
                 "internal/tui/hermes_status_bar.go",
                 "internal/tui/hermes_status_bar_test.go",
@@ -21045,9 +20784,9 @@
             {
               "name": "Native TUI Hermes bottom-pinned chrome layout",
               "priority": "P1",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: scrollback/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, and no Telemetry/Soul side pane. The TUI should run in normal terminal scrollback like Hermes prompt_toolkit, not as a full-screen dashboard, while preserving Go-native RenderFrame consumption.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21083,11 +20822,10 @@
                 "TestHermesChrome_MinimalWidthDropsBottomRule proves narrow widths keep prompt/status usable and hide low-value chrome like Hermes.",
                 "A cmd/gormes test proves local TUI startup no longer forces alt-screen when running the Hermes-compatible local chrome, unless a future explicit config flag opts back in."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go; dropped tea.WithAltScreen from cmd/gormes/main.go behind tui.HermesChromeUseAltScreen so the TUI runs in normal scrollback; added cmd/gormes/tui_hermes_chrome_test.go to lock the no-alt-screen invariant. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows render under the Hermes response label rather than `gormes:`, the bottom input rule is dropped below the 64-column minimal-chrome threshold, and gormes never enters the terminal alt-screen by default.",
+              "note": "This is the visual pivot the user asked for: exact Hermes operator feel means bottom-pinned chat, not the current Bubble Tea dashboard. Keep it as one medium integration row after pure renderer fixtures land.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",
-                "internal/tui/hermes_chrome.go",
                 "internal/tui/hermes_chrome_test.go",
                 "cmd/gormes/main.go",
                 "cmd/gormes/tui_*_test.go",
@@ -21120,9 +20858,9 @@
             {
               "name": "Native TUI Hermes input keybinding semantics",
               "priority": "P1",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes TUI key handling matches Hermes prompt_toolkit behavior for normal input and active turns: Enter submits/reroutes by state, Alt+Enter and Ctrl+J insert newlines, Up/Down browse history only at line boundaries, Ctrl+C cancels modal/active turn or clears idle draft before exiting on empty input, Ctrl+D deletes under cursor and exits only when input is empty, Ctrl+L forces a clean redraw, and running-agent text honors busy_input_mode interrupt/queue/steer semantics.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21158,7 +20896,7 @@
                 "TestHermesKeybindings_CtrlDDeletesCharOrExitsOnlyWhenEmpty proves readline-style EOF behavior.",
                 "TestHermesKeybindings_BusyModeUnavailableDoesNotSubmitSlash proves unported busy slash text is consumed with evidence and never reaches kernel.Submit."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_keybindings_test.go covering Alt+Enter / Ctrl+J newline insertion, idle draft clearing then exit on Ctrl+C, in-flight cancel with double-press force-quit windowed at 2s, Ctrl+D delete-or-EOF, Ctrl+L forced redraw, busy_input_mode interrupt/queue/steer routing, modal Ctrl+C cancel ahead of process exit, history boundary Up/Down, and HermesHistory ring; pure helpers ResolveHermesKey + HermesHistory landed in internal/tui/update.go and internal/tui/history.go. Locked invariants: ResolveHermesKey is pure (no IO, no goroutines, no kernel mutation); unported slash text resolves to HermesActionConsumeWithEvidence via cli.EvaluateActiveTurnVerdict so the model never sees the slash body; Ctrl+C never exits while a draft is present or a turn is in flight on the first press.",
+              "note": "Exact behavior is not just rendering. Hermes input routing is rich and stateful; this row keeps key semantics separate from visual chrome and from actual slash handler ports.",
               "write_scope": [
                 "internal/tui/update.go",
                 "internal/tui/model.go",
@@ -21191,9 +20929,9 @@
             {
               "name": "Native TUI Hermes slash completion helpers",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/tui exposes pure completion and autosuggest helpers backed by internal/cli.CommandRegistry so the local TUI can complete Hermes-compatible slash commands, aliases, subcommands, and unavailable-but-recognized commands without submitting unknown slash text to the model. Runtime completion-menu binding remains a dependent visual row.",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -21225,7 +20963,7 @@
                 "TestHermesSlashCompletion_AutoSuggest returns the suffix Hermes would ghost for a unique command or subcommand prefix.",
                 "Helper is deterministic and has no provider/config/plugin filesystem dependency."
               ],
-              "note": "Complete: TDD added internal/tui/slash_completion.go and internal/tui/slash_completion_test.go covering command-prefix completion, alias surfacing, recognized-but-unavailable commands, Hermes-ordered /reasoning subcommand completion, and unique-prefix autosuggest, all driven by internal/cli.CommandRegistry; the registry now carries an ordered Subcommands slice with a parity test in internal/cli/command_registry_policy_test.go pinning the Hermes order. Locked invariants: HermesSlashCommandCompletions / HermesSlashSubcommandCompletions / HermesSlashAutoSuggest are pure (no IO, no goroutines, no provider/config/plugin filesystem dependency); recognized-but-unavailable commands complete with Available=false while still dispatching as ActiveTurnPolicyUnavailable so /model and friends never leak to kernel.Submit; subcommand suggestions only resolve on the first sub-token of registry-defined inventories \u2014 dynamic /model, /skin, /personality menus stay out of this slice.",
+              "note": "Hermes prompt_toolkit surface proves feature richness through completion before commands are read. Gormes should match that feel without using prompt_toolkit or duplicating registries.",
               "write_scope": [
                 "internal/tui/slash_completion.go",
                 "internal/tui/slash_completion_test.go",
@@ -21256,9 +20994,9 @@
             {
               "name": "Native TUI Hermes tool progress + modal panel renderers",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "internal/tui adds Hermes-compatible renderer primitives for tool progress and interactive modal panels: live spinner text with elapsed timer, stacked tool-completion scrollback lines for all/new modes, dangerous-command approval panels with once/session/always/deny/view choices, clarify question panels with numbered options and Other, and sudo/secret panels with countdown/hint text. This row renders state injected by tests; live tool/approval/clarify wiring remains dependent work.",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21767,9 +21505,9 @@
             {
               "name": "API server detailed health endpoint",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "Native API server binds the validated DetailedHealthSnapshot value model to unauthenticated GET /health/detailed and /v1/health/detailed routes while preserving existing flat /health and /v1/health behavior",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -21804,12 +21542,12 @@
               ],
               "acceptance": [
                 "TestAPIServerDetailedHealthEndpoint_OK GETs /health/detailed and /v1/health/detailed and decodes provider, response_store, run_events, gateway, and cron sections.",
-                "TestAPIServerDetailedHealthEndpoint_NoAuthRequired configures an API key and proves both detailed health routes return 200 without Authorization or X-API-Key headers.",
+                "TestAPIServerDetailedHealthEndpoint_NoAuthRequired configures APIKey=\"sk-test\" and proves both detailed health routes return 200 without Authorization or X-API-Key headers.",
                 "TestAPIServerDetailedHealthEndpoint_MethodNotAllowed reuses the shared OpenAI-style method-not-allowed error envelope.",
                 "TestAPIServerDetailedHealthEndpoint_RedactsSecrets proves the HTTP response body omits provider keys, cron script bodies, gateway tokens, and raw request payloads.",
                 "Existing /health and /v1/health tests continue to report status/platform/responses/runs as before."
               ],
-              "note": "Complete: TDD added internal/apiserver/detailed_health_endpoint_test.go and bound GET /health/detailed and /v1/health/detailed in internal/apiserver/server.go via a Config.DetailedHealth provider. The endpoint reuses the validated DetailedHealthSnapshot value model so provider/response_store/run_events/gateway/cron sections render through stable JSON. Invariants locked in by httptest fixtures: (1) both routes return 200 with all five sections decodable as application/json; (2) no Authorization or X-API-Key header is required even when APIKey is configured; (3) non-GET requests return the shared OpenAI-style invalid_request_error envelope with code method_not_allowed; (4) the response body redacts provider keys, raw request payloads, gateway tokens, and cron script bodies; (5) the existing flat /health and /v1/health responses keep their status/platform/responses/runs shape and do not gain a provider section.",
+              "note": "Refined 2026-04-27T13:57:25Z after repeated worker_error attempts: the snapshot row is complete and now an explicit blocked_by dependency. Workers should bind only GET /health/detailed and /v1/health/detailed in server.go plus endpoint tests, may adjust the existing flat-health fixture in chat_completions_test.go if route registration requires it, must not edit detailed_health.go, must prove no-auth behavior even when APIKey is configured, and must preserve flat /health behavior.",
               "write_scope": [
                 "internal/apiserver/detailed_health_endpoint_test.go",
                 "internal/apiserver/server.go",
@@ -21854,9 +21592,9 @@
             {
               "name": "API server cron admin read-only endpoints",
               "priority": "P2",
-              "status": "complete",
+              "status": "planned",
               "contract": "Native API server exposes authenticated read-only cron admin endpoints for list/get/run-history over the existing cron store and run audit without creating a second scheduler control plane",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -21913,7 +21651,7 @@
               "planner_verdict": {
                 "reshape_count": 1,
                 "last_reshape": "2026-04-27T04:18:56Z",
-                "last_outcome": "complete"
+                "last_outcome": "no_attempts_yet"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -21924,9 +21662,9 @@
             {
               "name": "API server cron admin mutating endpoints",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native API server exposes authenticated cron admin create/update/delete/pause/resume/trigger endpoints that reuse the native cron action envelope, schedule parser, safety policy, and delivery plan",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -23062,9 +22800,9 @@
             {
               "name": "Yuanbao protocol envelope + markdown fixtures",
               "priority": "P4",
-              "status": "complete",
+              "status": "planned",
               "contract": "Gormes parses Yuanbao websocket/protobuf-style envelopes and Markdown message fragments into gateway-neutral events using fixture data only",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -23100,7 +22838,7 @@
                 "Malformed/unknown envelope fixtures return typed degraded evidence and do not panic.",
                 "No test imports a generated protobuf runtime unless a local generated fixture file is checked in under internal/channels/yuanbao."
               ],
-              "note": "Complete: TDD added internal/channels/yuanbao/proto.go and markdown.go with proto_test.go, markdown_test.go, and captured ConnMsg testdata fixtures (inbound_text_c2c.pb, inbound_text_group.pb). Locked invariants: DecodeInboundEnvelope reads ConnMsg field 2 then InboundMessagePush fields 2/6/12/13 to lift Source=yuanbao, ConversationID (group_code or from_account), MessageID (msg_id), AuthorRole=user, and concatenated TIMTextElem text from a hand-rolled protobuf wire reader without third-party runtime; malformed/unknown envelopes return typed *DegradedError with code protocol_unavailable and never panic; RenderPromptSafe flattens links, images, mentions, lists, fenced code, and emphasis to prompt-safe text while preserving URLs verbatim; RenderPromptSafeStrict surfaces markdown_parse_failed for empty content.",
+              "note": "Hermes ab687963 added a full Yuanbao platform with proto, markdown, pipeline, media, sticker, tools, skill, and docs. Gormes should start with the protocol/markdown fixture contract so later runtime slices do not rediscover payload shapes.",
               "write_scope": [
                 "internal/channels/yuanbao/proto.go",
                 "internal/channels/yuanbao/proto_test.go",
@@ -23126,9 +22864,9 @@
             {
               "name": "Yuanbao media/sticker attachment normalization",
               "priority": "P4",
-              "status": "complete",
+              "status": "planned",
               "contract": "Yuanbao image, file, voice, and sticker payloads normalize into gateway attachments with bounded metadata and explicit unavailable evidence before live downloads are enabled",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -23166,7 +22904,7 @@
                 "Oversized or malformed media metadata is rejected with yuanbao_media_unavailable evidence and keeps the text body.",
                 "No test performs network fetches or depends on real Yuanbao credentials."
               ],
-              "note": "Complete: TDD added internal/channels/yuanbao/media.go, sticker.go, media_test.go, sticker_test.go, and testdata/{media_image,media_file,media_voice,media_missing_url,media_oversized,sticker_static,sticker_animated,sticker_malformed}.json so NormalizeMedia and NormalizeStickers lift TIM image/file/voice/face elements into gateway-neutral Attachment/Sticker descriptors with bounded metadata. Locked invariants: oversized, malformed, or URL-less media yield yuanbao_media_unavailable evidence while ExtractTextBody preserves the inbound text body; image_info_array prefers the medium variant (index 1) and SourceID always carries the TIM uuid for diagnostics; only static raster sticker formats render directly while apng/gif/lottie or unparseable face data surfaces yuanbao_sticker_unsupported instead of dropping the event; the package still imports nothing from net/http and has zero live download paths.",
+              "note": "Split after the Yuanbao protocol row: media/sticker payload shape is fixture-lockable without the platform login/send loop, and it prevents later workers from mixing binary handling with runtime registration.",
               "write_scope": [
                 "internal/channels/yuanbao/media.go",
                 "internal/channels/yuanbao/media_test.go",
@@ -23192,9 +22930,9 @@
             {
               "name": "Yuanbao gateway runtime + toolset registration",
               "priority": "P4",
-              "status": "complete",
+              "status": "planned",
               "contract": "Yuanbao runtime registration exposes a disabled-by-default gateway platform and toolset surface over the existing shared gateway manager without widening default enabled tools",
-              "contract_status": "validated",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -23234,7 +22972,7 @@
                 "Fake runtime fixtures prove inbound normalized events enter the shared gateway manager and outbound sends call a fake Yuanbao client without live network access.",
                 "Toolset fixtures expose Yuanbao-specific tools only when the platform is enabled and do not add them to default CLI/cron toolsets."
               ],
-              "note": "Complete: TDD added internal/config/yuanbao_config.go (disabled-by-default YuanbaoCfg with credential redaction), internal/channels/yuanbao/runtime.go (Channel + Client seam over the shared gateway), platform-scoped yuanbao toolset routing in internal/cli/toolset_config.go, and Yuanbao registration in cmd/gormes/gateway.go. Locked invariants: Yuanbao stays disabled by default and surfaces missing_login_token/hy_source/agent_id evidence; the shared registerConfiguredGatewayChannels rejects live transport (yuanbao_runtime_unavailable) until a future slice; the yuanbao toolset is rejected outside platform=yuanbao and never enters defaultRuntimeToolsets; the runtime fixture proves fake-client inbound delivery and outbound Send through the shared Manager without any live network call.",
+              "note": "Final Yuanbao planning slice for the current upstream drift. It keeps runtime registration behind fake clients and disabled-by-default config after protocol/media fixtures, matching Gormes' thin-adapter policy.",
               "write_scope": [
                 "internal/channels/yuanbao/",
                 "internal/config/",
