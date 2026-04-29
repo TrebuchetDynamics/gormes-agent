@@ -30,7 +30,6 @@ and acceptance checks before assigning them to an implementation agent.
 | 4 / 4.B | Tool-result pruning + protected head/tail summary | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.B | Manual compression feedback + context references | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.C | System + memory + tools + history assembly | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 4 / 4.C | Context-file discovery + injection scan | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.C | Model-specific role and tool-use guidance | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.C | Toolset-aware skills prompt snapshot | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.C | Memory and session-search guidance assembly | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
