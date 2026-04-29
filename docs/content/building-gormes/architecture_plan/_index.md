@@ -770,7 +770,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard API client contract
 - [x] Dashboard PTY chat sidecar contract
 - [x] API server detailed health snapshot contract
-- [ ] API server detailed health endpoint
+- [x] API server detailed health endpoint
 - [ ] API server cron admin read-only endpoints
 - [ ] API server cron admin mutating endpoints
 
