@@ -43,28 +43,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Provider auth selection for native gateway turns, Qwen OAuth provider runtime binding, Google Gemini CLI provider runtime binding, Nous provider auth refresh and agent-key recovery
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 2. Hermes gateway platform registry manifest
-
-- Phase: 2 / 2.B.12
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Gormes owns a source-backed gateway platform manifest that enumerates every current Hermes Platform enum value and connector file, classifies each platform as implemented, partial, row-backed, excluded, or Gormes-owned, and records command, config, credential, inbound, outbound, media, toolset, pairing, and delivery status without requiring live platform credentials.
-- Trust class: gateway, operator, system
-- Ready when: Channel-neutral native runtime turn adapter is complete and provides a shared channel boundary for fake fixtures., Subsystem inventory records the current gateway platform list including Yuanbao., The builder can compare static source files and local manifests without live Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Home Assistant, email, SMS, DingTalk, Feishu, WeCom, Weixin, BlueBubbles, QQ, Yuanbao, API server, or webhook credentials.
-- Not ready when: The slice implements live transport behavior, opens sockets/webhooks, downloads media, mutates platform credentials, or changes shared gateway runtime admission., The manifest treats local, api_server, webhook, wecom_callback, or disabled regional adapters as absent because they are not enabled in current Gormes help., The slice collapses all platform-specific media, pairing, home-channel, command, and toolset gaps into one broad completed row.
-- Degraded mode: Unknown platform enum values, connector files, or platform-specific command/toolset surfaces fail the manifest test. Unsupported platforms remain visible as row-backed or excluded entries with source refs instead of disappearing from docs, gateway status, or future command planning.
-- Fixture: `internal/gateway/platform_manifest_test.go::TestHermesGatewayPlatformManifestCoversUpstream`
-- Write scope: `internal/gateway/platform_manifest.go`, `internal/gateway/platform_manifest_test.go`, `docs/content/building-gormes/architecture_plan/subsystem-inventory.md`, `docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway -run TestHermesGatewayPlatformManifest -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Gateway platform manifest fixtures prove every Hermes platform enum value and connector file is classified with row-backed, excluded, partial, implemented, or owned evidence and no live credentials.
-- Acceptance: TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao., Each manifest row records source file, current Gormes package or row-backed target, inbound/outbound/media/commands/toolset/config/pairing status, and whether live credentials are required., The manifest distinguishes external channels from non-channel runtime surfaces such as local, api_server, webhook, and wecom_callback instead of dropping them., The docs matrix and subsystem inventory stay in sync with the manifest and mention unsupported/paused platforms explicitly., No test starts a real channel SDK, websocket, webhook listener, browser, QR flow, or HTTP client.
-- Source refs: ../hermes-agent/gateway/config.py:Platform, ../hermes-agent/gateway/platforms/base.py, ../hermes-agent/gateway/platforms/telegram.py, ../hermes-agent/gateway/platforms/discord.py, ../hermes-agent/gateway/platforms/whatsapp.py, ../hermes-agent/gateway/platforms/slack.py, ../hermes-agent/gateway/platforms/signal.py, ../hermes-agent/gateway/platforms/mattermost.py, ../hermes-agent/gateway/platforms/matrix.py, ../hermes-agent/gateway/platforms/homeassistant.py, ../hermes-agent/gateway/platforms/email.py, ../hermes-agent/gateway/platforms/sms.py, ../hermes-agent/gateway/platforms/dingtalk.py, ../hermes-agent/gateway/platforms/api_server.py, ../hermes-agent/gateway/platforms/webhook.py, ../hermes-agent/gateway/platforms/feishu.py, ../hermes-agent/gateway/platforms/wecom.py, ../hermes-agent/gateway/platforms/wecom_callback.py, ../hermes-agent/gateway/platforms/weixin.py, ../hermes-agent/gateway/platforms/bluebubbles.py, ../hermes-agent/gateway/platforms/qqbot/, ../hermes-agent/gateway/platforms/yuanbao.py, ../hermes-agent/tools/yuanbao_tools.py, docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Gateway platforms, docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:Provider, channel, and tool-calling guardrails
-- Unblocks: Gateway, platform, webhook, and cron management CLI, Channel directory atomic persistence + lookup, Paused adapter channel health/status readout, Yuanbao gateway runtime + toolset registration, QQ Bot bootstrap + token/gateway fake transport, Matrix shared-chassis adapter, Mattermost shared-chassis adapter
-- Why now: Unblocks Gateway, platform, webhook, and cron management CLI, Channel directory atomic persistence + lookup, Paused adapter channel health/status readout, Yuanbao gateway runtime + toolset registration, QQ Bot bootstrap + token/gateway fake transport, Matrix shared-chassis adapter, Mattermost shared-chassis adapter.
-
-## 3. Model-specific role and tool-use guidance
+## 2. Model-specific role and tool-use guidance
 
 - Phase: 4 / 4.C
 - Owner: `provider`
@@ -84,7 +63,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity
 - Why now: Unblocks Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity.
 
-## 4. Stateful tool migration queue
+## 3. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -104,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 5. Transcription tool contract
+## 4. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -124,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 6. Debug helpers
+## 5. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -144,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 7. Feishu transport/bootstrap layer
+## 6. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -164,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 8. Tool-result pruning + protected head/tail summary
+## 7. Tool-result pruning + protected head/tail summary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -183,7 +162,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Prompt-cache capability guard
+## 8. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -202,7 +181,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Clarify
+## 9. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

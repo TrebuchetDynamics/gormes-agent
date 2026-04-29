@@ -81,12 +81,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 45/78 subphases shipped · 25 in progress · 8 planned
+**Overall:** 46/78 subphases shipped · 24 in progress · 8 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 19/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
@@ -206,10 +206,10 @@ classification and row-backed implementation queue.
 - [x] Discord SessionSource guild/parent/message evidence
 - [x] Discord forum media + polish parity
 
-### 2.B.12 — Channel-Neutral Native Runtime Adapter 🔨
+### 2.B.12 — Channel-Neutral Native Runtime Adapter ✅
 
 - [x] Channel-neutral native runtime turn adapter
-- [ ] Hermes gateway platform registry manifest
+- [x] Hermes gateway platform registry manifest
 
 ### 2.C — Thin Mapping Persistence ✅
 

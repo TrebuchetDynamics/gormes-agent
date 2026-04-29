@@ -27,6 +27,8 @@ If a subsystem crosses lanes, split the row before assigning it to a builder.
 
 ### Gateway platforms (18 connectors plus local runtime)
 
+`internal/gateway/platform_manifest.go` is now the drift-checked source-backed inventory for Hermes `gateway.config.Platform` enum values and connector files. It classifies external channels, local runtime, `api_server`, `webhook`, and `wecom_callback` separately so paused or unsupported platforms remain visible to status/docs planning without live credentials.
+
 | Platform | Upstream file | Target phase | Status | Landed Go surface |
 |---|---|---|---|---|
 | Telegram | `gateway/platforms/telegram.py` | 2.B.1 | ✅ shipped | Shared gateway adapter with long-poll ingress and edit coalescing |

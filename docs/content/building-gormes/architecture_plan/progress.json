@@ -2901,10 +2901,10 @@
             },
             {
               "name": "Hermes gateway platform registry manifest",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gormes owns a source-backed gateway platform manifest that enumerates every current Hermes Platform enum value and connector file, classifies each platform as implemented, partial, row-backed, excluded, or Gormes-owned, and records command, config, credential, inbound, outbound, media, toolset, pairing, and delivery status without requiring live platform credentials.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2962,12 +2962,12 @@
               ],
               "acceptance": [
                 "TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao.",
-                "Each manifest row records source file, current Gormes package or row-backed target, inbound/outbound/media/commands/toolset/config/pairing status, and whether live credentials are required.",
+                "Each manifest row records source file, current Gormes package or row-backed target, inbound/outbound/media/commands/toolset/config/pairing status, live-credential requirement, backlog owner, and delivery status.",
                 "The manifest distinguishes external channels from non-channel runtime surfaces such as local, api_server, webhook, and wecom_callback instead of dropping them.",
-                "The docs matrix and subsystem inventory stay in sync with the manifest and mention unsupported/paused platforms explicitly.",
+                "The subsystem inventory and command-surface parity matrix now point at internal/gateway/platform_manifest.go as the drift-checked source-backed inventory.",
                 "No test starts a real channel SDK, websocket, webhook listener, browser, QR flow, or HTTP client."
               ],
-              "note": "Added 2026-04-29 after the planner audit found command coverage was stronger than provider/channel coverage. Promoted to fixture_ready after Channel-neutral native runtime turn adapter was validated; this is the channel equivalent of the CLI manifest and keeps every Hermes platform visible even when Gormes only has a paused row, fixture contract, or disabled-by-default adapter.",
+              "note": "Complete: internal/gateway now owns a source-backed Hermes gateway platform manifest with drift fixtures for every current Platform enum value and connector file. The manifest keeps channel, runtime, webhook, and local surfaces visible with per-capability status, backlog owners, live-credential flags, and no live SDK or credential access.",
               "write_scope": [
                 "internal/gateway/platform_manifest.go",
                 "internal/gateway/platform_manifest_test.go",
