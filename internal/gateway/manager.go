@@ -590,6 +590,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		m.handleUsageCommand(ctx, ch, ev)
 		return nil
 	case EventSubmit:
+		if m.handleSlashSubmitCommand(ctx, ch, ev) {
+			return nil
+		}
 		if m.kernel == nil {
 			return nil
 		}
@@ -612,6 +615,85 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	}
 	return nil
+}
+
+func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev InboundEvent) bool {
+	body := strings.TrimSpace(ev.Text)
+	if !strings.HasPrefix(body, "/") {
+		return false
+	}
+
+	cmd, ok := ResolveCommand(body)
+	if !ok {
+		name := slashCommandName(body)
+		if isRecognizedUnavailableSlashCommand(name) {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+name+" is recognized but unavailable in this build")
+		} else {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command — no slash command by that name is available")
+		}
+		return true
+	}
+	if m.hasActiveTurn() && cmd.ActiveTurnPolicy == CommandActiveTurnPolicyReject {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Gormes is busy — finish the current turn or send /stop before /"+cmd.Name)
+		return true
+	}
+	commandEvent := ev
+	commandEvent.Kind = cmd.Kind
+	if cmd.Kind == EventSteer {
+		commandEvent.Text = body
+	} else {
+		commandEvent.Text = ""
+	}
+	return m.dispatchCommandEvent(ctx, ch, commandEvent)
+}
+
+func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev InboundEvent) bool {
+	switch ev.Kind {
+	case EventStart:
+		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
+			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
+		}
+		return true
+	case EventCancel:
+		m.markTurnCancelled()
+		if m.kernel != nil {
+			_ = m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
+		}
+		return true
+	case EventReset:
+		if m.kernel == nil {
+			return true
+		}
+		if err := m.kernel.ResetSession(); err != nil {
+			if errors.Is(err, kernel.ErrResetDuringTurn) {
+				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cannot reset during active turn — send /stop first.")
+			} else {
+				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
+			}
+			return true
+		}
+		if m.cfg.SessionMap != nil {
+			if err := m.cfg.SessionMap.Put(ctx, ev.ChatKey(), ""); err != nil {
+				m.log.Warn("clear session mapping", "key", ev.ChatKey(), "err", err)
+			}
+		}
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
+		return true
+	case EventRestart:
+		_ = m.handleRestartCommand(ctx, ch, ev)
+		return true
+	case EventSteer:
+		m.handleSteerCommand(ctx, ch, ev)
+		return true
+	case EventUsage:
+		m.handleUsageCommand(ctx, ch, ev)
+		return true
+	case EventUnknown:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *Manager) handleSteerCommand(ctx context.Context, ch Channel, ev InboundEvent) {

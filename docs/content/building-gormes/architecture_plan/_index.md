@@ -77,12 +77,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 44/78 subphases shipped · 25 in progress · 9 planned
+**Overall:** 45/78 subphases shipped · 24 in progress · 9 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 18/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 19/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
@@ -287,12 +287,12 @@ classification and row-backed implementation queue.
 - [ ] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
 
-### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy 🔨
+### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
 
 - [x] Steer slash command parser + preview helper
 - [x] Steer slash command registry + queue fallback
 - [x] Mid-run steer injection between tool calls
-- [ ] Gateway-handled slash commands bypass active-session guard
+- [x] Gateway-handled slash commands bypass active-session guard
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 

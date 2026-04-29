@@ -76,6 +76,10 @@ var CommandRegistry = []CommandDef{
 
 var commandLookup = buildCommandLookup()
 
+var recognizedUnavailableSlashCommands = map[string]struct{}{
+	"status": {},
+}
+
 func buildCommandLookup() map[string]CommandDef {
 	lookup := make(map[string]CommandDef, len(CommandRegistry)*2)
 	for _, cmd := range CommandRegistry {
@@ -89,13 +93,23 @@ func buildCommandLookup() map[string]CommandDef {
 
 // ResolveCommand maps a slash command or alias to its canonical definition.
 func ResolveCommand(name string) (CommandDef, bool) {
+	key := slashCommandName(name)
+	cmd, ok := commandLookup[key]
+	return cmd, ok
+}
+
+func slashCommandName(name string) string {
 	key := strings.ToLower(strings.TrimSpace(name))
 	key = strings.TrimPrefix(key, "/")
 	if i := strings.IndexAny(key, " \t\r\n"); i >= 0 {
 		key = key[:i]
 	}
-	cmd, ok := commandLookup[key]
-	return cmd, ok
+	return key
+}
+
+func isRecognizedUnavailableSlashCommand(name string) bool {
+	_, ok := recognizedUnavailableSlashCommands[slashCommandName(name)]
+	return ok
 }
 
 // ParseInboundText normalizes a channel message into a shared EventKind/body

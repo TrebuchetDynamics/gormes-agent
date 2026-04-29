@@ -22,7 +22,5 @@ Use this page when choosing implementation work. If a row is too broad, split
 the row in `progress.json` before assigning it.
 
 <!-- PROGRESS:START kind=next-slices -->
-| Phase | Slice | Contract | Trust class | Fixture | Why now |
-|---|---|---|---|---|---|
-| 2 / 2.F.5 | Gateway-handled slash commands bypass active-session guard | Active-turn command bypass contract | operator, gateway | `internal/gateway/active_turn_command_bypass_test.go` | P0 handoff; needs contract proof before closeout. |
+_No contract-ready progress rows are available._
 <!-- PROGRESS:END -->
