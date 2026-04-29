@@ -10452,16 +10452,69 @@
             {
               "name": "Token vault",
               "status": "planned",
-              "note": "TDD: port credential-file discovery and storage from `tools/credential_files.py` into XDG-scoped paths with permission, missing-file, and profile-isolation tests before providers read tokens.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "priority": "P0",
+              "contract": "Gormes owns an XDG-scoped, Hermes-compatible credential file vault that resolves declared relative credential paths without path traversal, missing-file leaks, or cross-profile bleed.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing, absolute, traversal, symlink-escaped, or unreadable credential files return structured redacted evidence and do not mount or expose host paths outside the active profile.",
+              "fixture": "internal/config/token_vault_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/credential_files.py:register_credential_file,register_credential_files,get_credential_file_mounts,clear_credential_files",
+                "../hermes-agent/tools/path_security.py:validate_within_dir",
+                "../hermes-agent/hermes_constants.py:get_hermes_home",
+                "internal/config/config.go:hermesConfigPath,xdgConfigHome,xdgDataHome"
+              ],
+              "ready_when": [
+                "The builder restates that Hermes is the parity contract only and no hermes-agent runtime services may be imported, launched, or called.",
+                "The slice can use temp HOME, HERMES_HOME, XDG_CONFIG_HOME, and XDG_DATA_HOME fixtures only; no live profile, keychain, provider credential, or network access is required.",
+                "The public seam is a small Go helper under internal/config that callers can later use for provider auth, skill required_credential_files, and remote terminal mounts."
+              ],
+              "not_ready_when": [
+                "The slice reads Juan's live ~/.hermes credential files or prints any token/API key bytes in test output.",
+                "The implementation accepts absolute paths, .. traversal, or symlink escapes outside the resolved Hermes profile home.",
+                "The slice wires provider adapters, Google/Anthropic/Codex OAuth flows, remote terminal backends, or MCP transports instead of only creating the credential-vault helper."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestTokenVaultRegisterCredentialFile accepts an existing relative file below a temp Hermes home and returns a mount with host_path inside that home and container_path under /root/.hermes.",
+                "TestTokenVaultRejectsUnsafePaths proves absolute paths, .. traversal, and symlink escapes are rejected with redacted reason codes and no host_path in external evidence.",
+                "TestTokenVaultSessionIsolation proves independent vault instances do not share registered files across sessions or profiles.",
+                "TestTokenVaultConfigCredentialFiles loads terminal.credential_files from a temp Hermes config.yaml, skips missing files, rejects unsafe entries, and deduplicates skill-registered and config-declared mounts by container path.",
+                "TestTokenVaultClear removes only the current vault's registered files and preserves deterministic config-derived mounts."
+              ],
+              "note": "Refined from an inventory placeholder after the Go reference audit prioritized provider/auth reliability. This is the minimal native credential-file vault needed before Anthropic, Google, Codex, remote terminal, and skill credential rows can consume tokens safely.",
+              "write_scope": [
+                "internal/config/token_vault.go",
+                "internal/config/token_vault_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run '^TestTokenVault' -count=1",
+                "go test ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Token vault fixtures prove safe relative credential resolution, unsafe-path rejection, session isolation, config credential-file loading, dedupe, clear semantics, redacted evidence, and no live credential access."
+              ],
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-29T05:16:00Z",
+                "last_outcome": "builder_ready"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes-agent/tools/credential_files.py",
+                  "hermes-agent/tools/path_security.py",
+                  "go-agent-os audit Row A provider reliability prerequisites"
+                ],
+                "note": "Ports Hermes credential-file safety semantics into a Gormes-native helper without depending on the Python runtime."
+              }
             },
             {
               "name": "Anthropic OAuth/keychain credential discovery",
