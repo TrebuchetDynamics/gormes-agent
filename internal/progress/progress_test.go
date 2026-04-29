@@ -475,8 +475,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.B.5 stream fanout status = %q, want complete", streamFanout.Status)
 	}
 	bluePrompt := routingItems["BlueBubbles iMessage session-context prompt guidance"]
-	if bluePrompt.Status != StatusPlanned {
-		t.Fatalf("Phase 2.B.5 BlueBubbles prompt guidance status = %q, want planned", bluePrompt.Status)
+	if bluePrompt.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.5 BlueBubbles prompt guidance status = %q, want complete", bluePrompt.Status)
 	}
 	if bluePrompt.ContractStatus != ContractStatusValidated || !containsString(bluePrompt.BlockedBy, "BlueBubbles iMessage bubble formatting parity") {
 		t.Fatalf("Phase 2.B.5 BlueBubbles prompt guidance metadata = contract_status %q blocked_by %v, want validated blocked by formatter", bluePrompt.ContractStatus, bluePrompt.BlockedBy)

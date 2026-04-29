@@ -171,7 +171,7 @@ classification and row-backed implementation queue.
 
 - [x] Gateway session store + SessionSource parity
 - [x] SessionContext prompt injection
-- [ ] BlueBubbles iMessage session-context prompt guidance
+- [x] BlueBubbles iMessage session-context prompt guidance
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
 - [x] Non-editable gateway progress/commentary send fallback

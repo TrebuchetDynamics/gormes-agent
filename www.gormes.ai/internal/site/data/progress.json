@@ -1487,7 +1487,7 @@
             {
               "name": "BlueBubbles iMessage session-context prompt guidance",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway session-context prompts tell the agent when the origin is BlueBubbles/iMessage and ask for short, blank-line-separated message bubbles",
               "contract_status": "validated",
               "slice_size": "small",

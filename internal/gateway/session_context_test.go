@@ -82,3 +82,34 @@ func TestBuildSessionContextPrompt(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildSessionContextPrompt_BlueBubblesGuidanceIncludesShortBubbleHint(t *testing.T) {
+	got := BuildSessionContextPrompt(SessionContext{
+		Source: SessionSource{
+			Platform: "bluebubbles",
+			ChatID:   "iMessage;-;+15555550100",
+		},
+		SessionKey: "bluebubbles:+15555550100",
+		SessionID:  "sess-bb",
+	})
+	for _, want := range []string{
+		"**Platform notes:**",
+		"iMessage",
+		"short",
+		"blank line",
+		"1-3 sentences",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("BuildSessionContextPrompt missing %q for bluebubbles platform:\n%s", want, got)
+		}
+	}
+}
+
+func TestBuildSessionContextPrompt_NonBlueBubblesOmitsPlatformNotes(t *testing.T) {
+	got := BuildSessionContextPrompt(SessionContext{
+		Source: SessionSource{Platform: "telegram", ChatID: "42"},
+	})
+	if strings.Contains(got, "**Platform notes:**") {
+		t.Fatalf("BuildSessionContextPrompt leaked Platform notes section into telegram prompt:\n%s", got)
+	}
+}

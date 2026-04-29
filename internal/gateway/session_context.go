@@ -203,6 +203,20 @@ func BuildSessionContextPrompt(ctx SessionContext) string {
 		lines = append(lines, "**Non-Resumable Reason:** `"+blockedReason+"`")
 	}
 
+	if platform == "bluebubbles" {
+		lines = append(lines,
+			"",
+			"**Platform notes:** You are responding via iMessage. "+
+				"Keep responses short and conversational - think texts, not essays. "+
+				"Structure longer replies as separate short thoughts, each separated "+
+				"by a blank line (double newline). Each block between blank lines "+
+				"will be delivered as its own iMessage bubble, so write accordingly: "+
+				"one idea per bubble, 1-3 sentences each. "+
+				"If the user needs a detailed answer, give the short version first "+
+				"and offer to elaborate.",
+		)
+	}
+
 	targets := []string{"`origin`", "`local`"}
 	if len(ctx.ConnectedPlatforms) > 0 {
 		seen := make(map[string]struct{}, len(ctx.ConnectedPlatforms))
