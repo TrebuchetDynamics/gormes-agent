@@ -251,7 +251,9 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 		{
 			name:        "add",
 			sourceRef:   "hermes_cli/auth_commands.py:auth_add_command",
-			residual:    "non-deprecated provider login/add flow is partially implemented: API keys plus openai-codex, anthropic, nous, and google-gemini-cli OAuth are native; qwen-oauth remains row-backed",
+			residual:    "non-deprecated provider login/add flow is implemented for API keys plus openai-codex, anthropic, nous, google-gemini-cli, and qwen-oauth native OAuth adapters; Spotify remains a separate service-provider subcommand",
+			status:      hermesCLIImplemented,
+			target:      "cmd/gormes auth add",
 			redacts:     true,
 			rowOverride: "Hermes auth OAuth provider adapters",
 		},

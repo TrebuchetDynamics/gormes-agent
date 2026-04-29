@@ -22,28 +22,7 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Hermes auth OAuth provider adapters
-
-- Phase: 5 / 5.O
-- Owner: `provider`
-- Size: `medium`
-- Status: `in_progress`
-- Priority: `P1`
-- Contract: Implement non-deprecated provider login through `gormes auth add <provider> --type oauth` with injectable provider login seams for Hermes OAuth-capable inference providers: anthropic uses Hermes PKCE credentials, nous uses device-code state and mirrors providers.nous plus credential_pool.nous, openai-codex uses Codex device-code tokens and clears device_code suppression on relink, google-gemini-cli stores Google Code Assist OAuth credentials, and qwen-oauth imports/refreshes local Qwen CLI credentials into a pool entry. Each adapter returns the Hermes source label, base URL, expiry/refresh metadata, and redacted status evidence without requiring live credentials in tests.
-- Trust class: operator, system
-- Ready when: Hermes auth credential-pool command surface is fixture-ready or complete so command routing, storage, redaction, and suppression semantics exist., Codex OAuth state + stale-token relogin, Anthropic OAuth/keychain credential discovery, Multi-account auth, and Google OAuth flow + refresh seam are complete enough to provide native stores or fake login seams., Tests can inject fake OAuth/device-code/Qwen clients and temp auth stores; no browser, localhost callback, keychain, Qwen CLI, Google OAuth server, Codex endpoint, Nous portal, or Anthropic network is required.
-- Not ready when: The slice calls live OAuth endpoints, opens browsers, polls real device-code flows, reads live ~/.claude ~/.codex ~/.qwen credentials, or contacts provider model catalogs in unit tests., Nous OAuth writes only credential_pool.nous but not providers.nous; Hermes requires both for later 401 recovery., OpenAI Codex relink leaves a stale device_code suppression marker in auth.json., Provider errors or status output include access_token, refresh_token, agent_key, auth code, client secret, device code, raw callback URL, or raw provider body., OAuth-capable provider lookup is hard-coded as a literal set instead of derived from ProviderConfig.AuthType field. (Hermes _OAUTH_CAPABLE_PROVIDERS is duplicated at auth_commands.py:36 and 173 — Gormes must avoid that drift by deriving from ProviderConfig.)
-- Degraded mode: OAuth provider login failures return provider-specific evidence such as anthropic_oauth_failed, nous_device_code_failed, nous_provider_mirror_missing, codex_device_code_failed, google_gemini_oauth_failed, qwen_cli_auth_missing, qwen_cli_refresh_failed, auth_suppression_cleared, and auth_secret_redacted while preserving any existing auth store unless a fake successful login is committed.
-- Fixture: `cmd/gormes/auth_oauth_command_test.go`
-- Write scope: `cmd/gormes/auth.go`, `cmd/gormes/auth_codex_oauth.go`, `cmd/gormes/auth_oauth_command_test.go`, `internal/config/credential_pool.go`, `internal/config/codex_oauth_state.go`, `internal/config/google_oauth_state.go`, `internal/config/anthropic_auth_state.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run 'Test(GormesAuthAddCodexOAuthStoresDeviceCodeCredential\|RunCodexDeviceCodeLoginUsesHermesDeviceFlow)' -count=1`, `go test ./cmd/gormes -run '^TestGormesAuthAdd.*OAuth\|^TestGormesAuthOAuth' -count=1`, `go test ./cmd/gormes ./internal/config ./internal/hermes -count=1`, `go run ./cmd/progress validate`
-- Done signal: OAuth auth command fixtures prove anthropic, nous, openai-codex, google-gemini-cli, and qwen-oauth add flows through fake clients, atomic failure handling, suppression cleanup, provider/pool mirroring, and redacted output.
-- Acceptance: TestGormesAuthAddAnthropicOAuth stores a manual:hermes_pkce entry with label derived from fake token claims, refresh token, expiry metadata, and no live keychain access., TestGormesAuthAddNousOAuthMirrorsProviderAndPool proves fake device-code login writes providers.nous and exactly one credential_pool.nous device_code entry with label preservation and no manual:device_code duplicate., TestGormesAuthAddCodexOAuthClearsSuppression proves relinking openai-codex removes device_code suppression, stores manual:device_code access/refresh/base_url metadata, and redacts tokens in output., TestGormesAuthAddGoogleGeminiOAuth stores google_pkce source, email/default label, access/refresh metadata, and redacted status without using live Google endpoints., TestGormesAuthAddQwenOAuth imports fake Qwen CLI credentials as manual:qwen_cli, preserves base_url, classifies missing/expired Qwen CLI credentials, and does not shell out., TestGormesAuthOAuthErrorsAreAtomic proves failed fake OAuth logins leave existing credential_pool/provider state byte-identical and return provider-specific redacted evidence.
-- Source refs: ../hermes-agent/hermes_cli/auth_commands.py:_OAUTH_CAPABLE_PROVIDERS, ../hermes-agent/hermes_cli/auth_commands.py:auth_add_command, ../hermes-agent/hermes_cli/auth.py:_nous_device_code_login, ../hermes-agent/hermes_cli/auth.py:persist_nous_credentials, ../hermes-agent/hermes_cli/auth.py:_codex_device_code_login, ../hermes-agent/hermes_cli/auth.py:resolve_qwen_runtime_credentials, ../hermes-agent/agent/anthropic_adapter.py:run_hermes_oauth_login_pure, ../hermes-agent/agent/google_oauth.py:run_gemini_oauth_login_pure, ../hermes-agent/tests/hermes_cli/test_auth_commands.py, ../hermes-agent/tests/hermes_cli/test_auth_nous_provider.py, ../hermes-agent/tests/hermes_cli/test_auth_qwen_provider.py, internal/config/anthropic_auth_state.go, internal/config/codex_oauth_state.go, internal/config/google_oauth_state.go, internal/config/credential_pool.go, references/go-agent-os/goclaw/internal/oauth/openai.go, references/go-agent-os/goclaw/internal/oauth/token.go
-- Unblocks: Provider auth selection for native gateway turns, Qwen OAuth provider runtime binding, Google Gemini CLI provider runtime binding, Nous provider auth refresh and agent-key recovery
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. Model-specific role and tool-use guidance
+## 1. Model-specific role and tool-use guidance
 
 - Phase: 4 / 4.C
 - Owner: `provider`
@@ -63,7 +42,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity
 - Why now: Unblocks Memory and session-search guidance assembly, Native full prompt assembly, Codex/Gemini prompt parity.
 
-## 3. Stateful tool migration queue
+## 2. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -83,7 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 4. Transcription tool contract
+## 3. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -103,7 +82,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 5. Debug helpers
+## 4. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -123,7 +102,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 6. Feishu transport/bootstrap layer
+## 5. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -143,7 +122,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 7. Tool-result pruning + protected head/tail summary
+## 6. Tool-result pruning + protected head/tail summary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -162,7 +141,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Prompt-cache capability guard
+## 7. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -181,7 +160,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Clarify
+## 8. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

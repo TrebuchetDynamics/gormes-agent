@@ -700,7 +700,7 @@ classification and row-backed implementation queue.
 - [x] Hermes CLI nested parser inventory refresh
 - [x] Hermes auth command-tree manifest refresh
 - [x] Hermes auth credential-pool command surface
-- [ ] Hermes auth OAuth provider adapters
+- [x] Hermes auth OAuth provider adapters
 - [ ] Hermes auth Spotify service-provider subcommand
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
@@ -721,7 +721,7 @@ classification and row-backed implementation queue.
 - [x] Gormes auth status per-provider aggregator
 - [ ] Gormes auth add openai-codex strict isolation contract
 - [ ] Gormes auth add bedrock open-question planning note
-- [ ] Gormes profile command binding
+- [x] Gormes profile command binding
 - [x] Model and profile selector seam (Cobra + gateway)
 - [ ] Gormes top-level logout provider shortcut
 - [ ] Gormes login removed-command typo suggestion contract

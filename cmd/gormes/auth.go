@@ -250,6 +250,32 @@ func runGoogleGeminiOAuthLoginUnavailable(context.Context, googleGeminiOAuthLogi
 	return googleGeminiOAuthTokens{}, errors.New("native Google Gemini CLI PKCE login is unavailable in this slice; inject OAuth login seam before calling Google endpoints")
 }
 
+type qwenOAuthImportRequest struct {
+	Label string
+	Out   interface{ Write([]byte) (int, error) }
+}
+
+type qwenOAuthTokens struct {
+	AccountID    string
+	Label        string
+	AccessToken  string
+	RefreshToken string
+	BaseURL      string
+	ExpiresAtMS  int64
+	Source       string
+}
+
+var authQwenOAuthImport func(context.Context, qwenOAuthImportRequest) (qwenOAuthTokens, error)
+
+var (
+	errQwenCLIAuthMissing   = errors.New("qwen_cli_auth_missing")
+	errQwenCLIRefreshFailed = errors.New("qwen_cli_refresh_failed")
+)
+
+func runQwenOAuthImportUnavailable(context.Context, qwenOAuthImportRequest) (qwenOAuthTokens, error) {
+	return qwenOAuthTokens{}, errQwenCLIAuthMissing
+}
+
 func runAuthBareCommand(cmd *cobra.Command) error {
 	providers, err := config.ListCredentialPoolProviders(config.CredentialPoolOptions{})
 	if err != nil {
@@ -291,6 +317,8 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 			return runAuthAddCodexOAuthCommand(cmd, opts)
 		case "google-gemini-cli":
 			return runAuthAddGoogleGeminiOAuthCommand(cmd, opts)
+		case "qwen-oauth":
+			return runAuthAddQwenOAuthCommand(cmd, opts)
 		default:
 			return fmt.Errorf("gormes auth add %s --type oauth: provider OAuth adapters are planned; use --type api-key for API-key providers", provider)
 		}
@@ -430,6 +458,55 @@ func runAuthAddGoogleGeminiOAuthCommand(cmd *cobra.Command, opts authAddOptions)
 	tokens.BaseURL = firstNonEmpty(strings.TrimRight(strings.TrimSpace(tokens.BaseURL), "/"), providerBaseURL(provider, ""))
 	if strings.TrimSpace(tokens.AccessToken) == "" {
 		return fmt.Errorf("gormes auth add %s --type oauth: google_gemini_oauth_failed: oauth_access_token_missing", provider)
+	}
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: provider})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", provider)
+	}
+	entries := pool.Entries()
+	id := firstNonEmpty(strings.TrimSpace(tokens.AccountID), nextCredentialID(provider, entries))
+	entry := config.PooledCredential{
+		ID:               id,
+		Label:            tokens.Label,
+		AuthType:         config.CredentialAuthOAuth,
+		Source:           "manual:" + tokens.Source,
+		AccessToken:      tokens.AccessToken,
+		RefreshToken:     tokens.RefreshToken,
+		BaseURL:          tokens.BaseURL,
+		InferenceBaseURL: tokens.BaseURL,
+		ExpiresAtMS:      tokens.ExpiresAtMS,
+		LastStatus:       config.CredentialStatusOK,
+	}
+	entries = append(entries, entry)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", provider, entry.ID, entry.Label, tokens.Source)
+	return nil
+}
+
+func runAuthAddQwenOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
+	const provider = "qwen-oauth"
+	importer := authQwenOAuthImport
+	if importer == nil {
+		importer = runQwenOAuthImportUnavailable
+	}
+	tokens, err := importer(context.Background(), qwenOAuthImportRequest{
+		Label: strings.TrimSpace(opts.Label),
+		Out:   cmd.OutOrStdout(),
+	})
+	if err != nil {
+		code := "qwen_cli_auth_missing"
+		if errors.Is(err, errQwenCLIRefreshFailed) {
+			code = "qwen_cli_refresh_failed"
+		}
+		return fmt.Errorf("gormes auth add %s --type oauth: %s: %s", provider, code, sanitizeAuthCommandError(err.Error()))
+	}
+	tokens.Label = firstNonEmpty(strings.TrimSpace(opts.Label), strings.TrimSpace(tokens.Label), "Qwen CLI")
+	tokens.Source = firstNonEmpty(strings.TrimSpace(tokens.Source), "qwen_cli")
+	tokens.BaseURL = firstNonEmpty(strings.TrimRight(strings.TrimSpace(tokens.BaseURL), "/"), providerBaseURL(provider, opts.InferenceURL))
+	if strings.TrimSpace(tokens.AccessToken) == "" {
+		return fmt.Errorf("gormes auth add %s --type oauth: qwen_cli_auth_missing: oauth_access_token_missing", provider)
 	}
 	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: provider})
 	if err != nil {
@@ -642,6 +719,8 @@ func providerBaseURL(provider, override string) string {
 		return "https://inference-api.nousresearch.com/v1"
 	case "google-gemini-cli":
 		return "cloudcode-pa://google"
+	case "qwen-oauth":
+		return "https://portal.qwen.ai/v1"
 	default:
 		return ""
 	}

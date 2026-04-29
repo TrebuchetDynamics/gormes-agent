@@ -273,6 +273,90 @@ func TestGormesAuthAddGoogleGeminiOAuthStoresGooglePKCECredential(t *testing.T) 
 	}
 }
 
+func TestGormesAuthAddQwenOAuthImportsCLIcredential(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := authQwenOAuthImport
+	authQwenOAuthImport = func(_ context.Context, req qwenOAuthImportRequest) (qwenOAuthTokens, error) {
+		if req.Label != "qwen-team" {
+			t.Fatalf("import request label = %q, want qwen-team", req.Label)
+		}
+		return qwenOAuthTokens{
+			AccountID:    "qwen-cli-1",
+			Label:        "qwen-cli-profile",
+			AccessToken:  "qwen-access-secret",
+			RefreshToken: "qwen-refresh-secret",
+			BaseURL:      "https://portal.qwen.example.test/v1",
+			ExpiresAtMS:  1_900_000_000_000,
+			Source:       "qwen_cli",
+		}, nil
+	}
+	t.Cleanup(func() { authQwenOAuthImport = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "qwen-oauth",
+		"--type", "oauth",
+		"--label", "qwen-team",
+	)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, leak := range []string{"qwen-access-secret", "qwen-refresh-secret"} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("auth add qwen leaked %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+	if !strings.Contains(stdout, "auth_oauth_saved") || !strings.Contains(stdout, "provider=qwen-oauth") || !strings.Contains(stdout, "source=qwen_cli") || !strings.Contains(stdout, "redacted=true") {
+		t.Fatalf("stdout = %q, want redacted qwen auth_oauth_saved evidence", stdout)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "qwen-oauth"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one Qwen OAuth credential", entries)
+	}
+	entry := entries[0]
+	if entry.ID != "qwen-cli-1" || entry.Label != "qwen-team" || entry.AuthType != config.CredentialAuthOAuth || entry.Source != "manual:qwen_cli" {
+		t.Fatalf("entry metadata = %#v", entry)
+	}
+	if entry.AccessToken != "qwen-access-secret" || entry.RefreshToken != "qwen-refresh-secret" {
+		t.Fatalf("entry tokens not persisted for runtime use: %#v", entry)
+	}
+	if entry.BaseURL != "https://portal.qwen.example.test/v1" || entry.InferenceBaseURL != "https://portal.qwen.example.test/v1" || entry.ExpiresAtMS != 1_900_000_000_000 {
+		t.Fatalf("entry runtime metadata = %#v", entry)
+	}
+}
+
+func TestGormesAuthAddQwenOAuthMissingAndExpiredAreRedacted(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := authQwenOAuthImport
+	t.Cleanup(func() { authQwenOAuthImport = prev })
+
+	authQwenOAuthImport = func(context.Context, qwenOAuthImportRequest) (qwenOAuthTokens, error) {
+		return qwenOAuthTokens{}, errQwenCLIAuthMissing
+	}
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", "qwen-oauth", "--type", "oauth")
+	if err == nil || !strings.Contains(err.Error(), "qwen_cli_auth_missing") {
+		t.Fatalf("missing err = %v stdout=%s stderr=%s, want qwen_cli_auth_missing", err, stdout, stderr)
+	}
+
+	authQwenOAuthImport = func(context.Context, qwenOAuthImportRequest) (qwenOAuthTokens, error) {
+		return qwenOAuthTokens{}, errQwenCLIRefreshFailed
+	}
+	cmd = newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err = executeOneshotFlagCommand(cmd, "auth", "add", "qwen-oauth", "--type", "oauth")
+	if err == nil || !strings.Contains(err.Error(), "qwen_cli_refresh_failed") {
+		t.Fatalf("expired err = %v stdout=%s stderr=%s, want qwen_cli_refresh_failed", err, stdout, stderr)
+	}
+	if strings.Contains(err.Error()+stdout+stderr, "access_token") || strings.Contains(err.Error()+stdout+stderr, "refresh_token") {
+		t.Fatalf("qwen failure leaked token field names: err=%v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+}
+
 func TestGormesAuthOAuthErrorsAreAtomic(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seed := []config.PooledCredential{{
