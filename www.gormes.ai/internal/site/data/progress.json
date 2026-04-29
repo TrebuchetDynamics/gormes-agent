@@ -21104,9 +21104,9 @@
             {
               "name": "Native TUI Hermes input keybinding semantics",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes TUI key handling matches Hermes prompt_toolkit behavior for normal input and active turns: Enter submits/reroutes by state, Alt+Enter and Ctrl+J insert newlines, Up/Down browse history only at line boundaries, Ctrl+C cancels modal/active turn or clears idle draft before exiting on empty input, Ctrl+D deletes under cursor and exits only when input is empty, Ctrl+L forces a clean redraw, and running-agent text honors busy_input_mode interrupt/queue/steer semantics.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21142,7 +21142,7 @@
                 "TestHermesKeybindings_CtrlDDeletesCharOrExitsOnlyWhenEmpty proves readline-style EOF behavior.",
                 "TestHermesKeybindings_BusyModeUnavailableDoesNotSubmitSlash proves unported busy slash text is consumed with evidence and never reaches kernel.Submit."
               ],
-              "note": "Exact behavior is not just rendering. Hermes input routing is rich and stateful; this row keeps key semantics separate from visual chrome and from actual slash handler ports.",
+              "note": "Complete: TDD added internal/tui/hermes_keybindings_test.go covering Alt+Enter / Ctrl+J newline insertion, idle draft clearing then exit on Ctrl+C, in-flight cancel with double-press force-quit windowed at 2s, Ctrl+D delete-or-EOF, Ctrl+L forced redraw, busy_input_mode interrupt/queue/steer routing, modal Ctrl+C cancel ahead of process exit, history boundary Up/Down, and HermesHistory ring; pure helpers ResolveHermesKey + HermesHistory landed in internal/tui/update.go and internal/tui/history.go. Locked invariants: ResolveHermesKey is pure (no IO, no goroutines, no kernel mutation); unported slash text resolves to HermesActionConsumeWithEvidence via cli.EvaluateActiveTurnVerdict so the model never sees the slash body; Ctrl+C never exits while a draft is present or a turn is in flight on the first press.",
               "write_scope": [
                 "internal/tui/update.go",
                 "internal/tui/model.go",

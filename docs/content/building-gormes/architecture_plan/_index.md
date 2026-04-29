@@ -762,9 +762,9 @@ classification and row-backed implementation queue.
 - [x] Native TUI queued-message edit helper
 - [x] Native TUI renderConv viewport budget binding
 - [x] Native TUI Hermes skin token renderer
-- [x] Native TUI Hermes status bar renderer
-- [x] Native TUI Hermes bottom-pinned chrome layout
-- [ ] Native TUI Hermes input keybinding semantics
+- [ ] Native TUI Hermes status bar renderer
+- [ ] Native TUI Hermes bottom-pinned chrome layout
+- [x] Native TUI Hermes input keybinding semantics
 - [ ] Native TUI Hermes slash completion helpers
 - [ ] Native TUI Hermes tool progress + modal panel renderers
 - [x] SSE streaming to Bubble Tea TUI
