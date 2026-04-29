@@ -19512,9 +19512,9 @@
             },
             {
               "name": "Homebrew",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes Homebrew/release artifact expectations into a Go-native formula fixture with version, checksum, binary install layout, and doctor smoke contract.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -19542,7 +19542,7 @@
                 "Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths.",
                 "Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row."
               ],
-              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces broad packaging/homebrew coverage with the exact upstream formula and release script references.",
+              "note": "Complete: TDD added packaging/homebrew/gormes-agent.rb and docs/install/homebrew_formula_test.go. Locked invariants: Formula class GormesAgent < Formula with explicit version, GitHub release-asset url and 64-hex sha256 sharing the same semver; static Go binary install via bin.install \"gormes\" with no Python virtualenv/pip/PyPI/Node/Playwright dependencies; offline doctor smoke via shell_output(\"#{bin}/gormes doctor --offline\") plus a version smoke; embedded release-asset script fixture emits per-platform tar.gz archives (darwin-arm64, darwin-amd64, linux-amd64, linux-arm64) checksummed by shasum -a 256 and built via go build ./cmd/gormes — no Hermes Python packaging paths and no Nix/flake inputs.",
               "write_scope": [
                 "packaging/homebrew/gormes-agent.rb",
                 "docs/install/homebrew_formula_test.go",
