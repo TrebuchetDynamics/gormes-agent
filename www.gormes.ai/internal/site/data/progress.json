@@ -20304,10 +20304,10 @@
             },
             {
               "name": "Gormes auth status per-provider aggregator",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "`gormes auth status <provider>` renders an aggregated read model over the existing token vault, multi-account credential pool, and per-provider OAuth state rows: it prints `<provider>: logged in` plus indented metadata (auth_type, client_id, redirect_uri, scope list, expires_at_ms, api_base_url, account label) when any source is present, falls back to `<provider>: logged out (<typed-reason>)` otherwise, and never reads or echoes raw access/refresh tokens.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20359,7 +20359,7 @@
                 "TestAuthStatusRedactsTokens proves status output never contains the fake access_token, refresh_token, or device_code substrings even when stores are populated.",
                 "TestAuthStatusDispatchUsesAuthTypeRegistry proves the aggregator picks per-provider readers (oauth/api_key/aws_sdk/external_process) from ProviderConfig.auth_type rather than a hard-coded provider list."
               ],
-              "note": "Materializes the prior placeholder `CLI auth status read model before provider setup`. Builder-ready CLI binding only over already-shipped backend OAuth state rows. The auditor flagged that Hermes hard-codes _OAUTH_CAPABLE_PROVIDERS in two places; Gormes derives the dispatch table from auth_type instead.",
+              "note": "Complete: TDD added internal/cli auth-status aggregation over the provider registry manifest and credential-pool/OAuth read models, then bound `gormes auth status <provider>` to the shared renderer. Fixtures cover redacted logged-in credential metadata, logged-out typed reasons, Codex OAuth status, injected Anthropic read models, unknown-provider rejection, and command output without live keychain, browser, provider, or network access.",
               "write_scope": [
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_status_command_test.go",

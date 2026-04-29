@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
@@ -405,17 +406,8 @@ func runAuthResetCommand(cmd *cobra.Command, providerInput string) error {
 }
 
 func runAuthStatusCommand(cmd *cobra.Command, providerInput string) error {
-	provider := normalizeAuthProvider(providerInput)
-	entries, err := loadAuthEntries(provider)
-	if err != nil {
-		return err
-	}
-	if len(entries) == 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s: logged out redacted=true\n", provider)
-		return nil
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s: logged in credentials=%d redacted=true\n", provider, len(entries))
-	return nil
+	_, err := cli.RenderAuthStatus(context.Background(), cmd.OutOrStdout(), providerInput, cli.AuthStatusOptions{})
+	return err
 }
 
 func runAuthLogoutCommand(cmd *cobra.Command, providerInput string) error {

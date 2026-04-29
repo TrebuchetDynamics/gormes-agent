@@ -157,7 +157,7 @@ func TestGormesAuthStatusAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("status: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "openrouter: logged in") || strings.Contains(stdout+stderr, "plain-token-a") {
+	if !strings.Contains(stdout, "provider=openrouter status=logged_in") || strings.Contains(stdout+stderr, "plain-token-a") {
 		t.Fatalf("status output = stdout:%q stderr:%q", stdout, stderr)
 	}
 
@@ -175,7 +175,7 @@ func TestGormesAuthStatusAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("status after logout: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "openrouter: logged out") {
+	if !strings.Contains(stdout, "provider=openrouter status=logged_out") {
 		t.Fatalf("status after logout stdout = %q", stdout)
 	}
 }

@@ -718,7 +718,7 @@ classification and row-backed implementation queue.
 - [x] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
 - [ ] Gormes auth bare interactive credential-pool readout
-- [ ] Gormes auth status per-provider aggregator
+- [x] Gormes auth status per-provider aggregator
 - [ ] Gormes auth add openai-codex strict isolation contract
 - [ ] Gormes auth add bedrock open-question planning note
 - [ ] Gormes profile command binding
