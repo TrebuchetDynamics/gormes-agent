@@ -2,9 +2,12 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
 func TestSteerCommandRegistry_RegisteredAsBusyAware(t *testing.T) {
@@ -23,7 +26,42 @@ func TestSteerCommandRegistry_RegisteredAsBusyAware(t *testing.T) {
 	}
 }
 
-func TestSteerCommandRegistry_NoRunningAgentQueuesGuidance(t *testing.T) {
+func TestSteerCommandRegistry_NoActiveTurnReportsUnavailable(t *testing.T) {
+	ch := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	err := m.handleInbound(context.Background(), InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		MsgID:    "steer-msg",
+		Kind:     EventSteer,
+		Text:     "/steer   keep working the selected slice   ",
+	})
+	if err != nil {
+		t.Fatalf("handleInbound(/steer): %v", err)
+	}
+	if got := fk.submitsSnapshot(); len(got) != 0 {
+		t.Fatalf("/steer submitted to kernel without active turn: %#v", got)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent messages = %d, want 1 ack", len(sent))
+	}
+	for _, want := range []string{"steer_unavailable", "steer_preview", "keep working the selected slice"} {
+		if !strings.Contains(sent[0].Text, want) {
+			t.Fatalf("ack %q missing %q", sent[0].Text, want)
+		}
+	}
+}
+
+func TestSteerCommandRegistry_RunningAgentInjectsChannelNeutralEvent(t *testing.T) {
 	ch := newFakeChannel("telegram")
 	fk := &fakeKernel{}
 	m := NewManagerWithSubmitter(ManagerConfig{
@@ -39,40 +77,33 @@ func TestSteerCommandRegistry_NoRunningAgentQueuesGuidance(t *testing.T) {
 		ChatID:   "42",
 		MsgID:    "steer-msg",
 		Kind:     EventSteer,
-		Text:     "/steer   keep working the selected slice   ",
+		Text:     "/steer inspect the failing test before editing",
 	})
 	if err != nil {
 		t.Fatalf("handleInbound(/steer): %v", err)
 	}
-	if got := fk.submitsSnapshot(); len(got) != 0 {
-		t.Fatalf("/steer submitted to kernel immediately: %#v", got)
+	got := fk.submitsSnapshot()
+	if len(got) != 1 {
+		t.Fatalf("running-agent steer submits = %d, want 1", len(got))
 	}
-
-	next, ok := m.popNextFollowUpAsActive()
-	if !ok {
-		t.Fatal("/steer did not queue a follow-up event")
-	}
-	if next.Kind != EventSubmit {
-		t.Fatalf("queued Kind = %v, want EventSubmit", next.Kind)
-	}
-	if next.Text != "keep working the selected slice" {
-		t.Fatalf("queued Text = %q, want trimmed guidance", next.Text)
+	if got[0].Kind != kernel.PlatformEventSteer || got[0].Text != "inspect the failing test before editing" {
+		t.Fatalf("kernel steer event = %#v", got[0])
 	}
 
 	sent := ch.sentSnapshot()
 	if len(sent) != 1 {
 		t.Fatalf("sent messages = %d, want 1 ack", len(sent))
 	}
-	for _, want := range []string{"steer_queued", "steer_preview", "keep working the selected slice"} {
+	for _, want := range []string{"steer_injected", "steer_preview"} {
 		if !strings.Contains(sent[0].Text, want) {
-			t.Fatalf("ack %q missing %q", sent[0].Text, want)
+			t.Fatalf("ack %q missing degraded evidence %q", sent[0].Text, want)
 		}
 	}
 }
 
-func TestSteerCommandRegistry_RunningAgentFallbackDoesNotInject(t *testing.T) {
+func TestSteerCommandRegistry_RunningAgentSubmitFailureQueuesFallback(t *testing.T) {
 	ch := newFakeChannel("telegram")
-	fk := &fakeKernel{}
+	fk := &fakeKernel{submitErr: errors.New("mailbox full")}
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats: map[string]string{"telegram": "42"},
 	}, fk, slog.Default())

@@ -108,6 +108,7 @@ type Kernel struct {
 	activeReasoning hermes.ReasoningEffortEvidence
 	lastError       string
 	retryStatus     RetryStatus
+	pendingSteers   []string
 }
 
 func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log *slog.Logger) *Kernel {
@@ -225,6 +226,9 @@ func (k *Kernel) Run(ctx context.Context) error {
 				}
 			case PlatformEventQuit:
 				return nil
+			case PlatformEventSteer:
+				// No active turn or tool boundary: ignore here. Gateway keeps
+				// its existing queue/degraded fallback for non-active turns.
 			}
 		}
 	}
@@ -238,6 +242,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 // to the store.Command payload and is otherwise opaque to the kernel.
 func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, model, reasoningOverride string) {
 	prov := newProvenance(k.cfg.Endpoint)
+	defer func() { k.pendingSteers = nil }()
 	turnKey := prov.LocalRunID
 	model = selectTurnModel(k.cfg.Model, model)
 	providerStatus := hermes.ProviderStatusOf(k.client)
@@ -488,6 +493,7 @@ toolLoop:
 			break toolLoop
 		}
 		results := toolOutcome.Results
+		k.applyPendingSteersToToolResults(results)
 
 		// Append the assistant's tool-requesting message plus one tool-result
 		// message per call. The draft so far is captured in the assistant
@@ -582,7 +588,36 @@ toolLoop:
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model
 	k.activeReasoning = hermes.ReasoningEffortEvidence{}
+	k.pendingSteers = nil
 	k.emitFrame("idle")
+}
+
+const steerToolResultMarker = "\n\n[Gormes operator /steer guidance before next provider call]\n"
+
+func (k *Kernel) queueSteerGuidance(text string) {
+	guidance := strings.TrimSpace(text)
+	if guidance == "" {
+		return
+	}
+	const maxSteerGuidanceBytes = 4096
+	if len(guidance) > maxSteerGuidanceBytes {
+		guidance = guidance[:maxSteerGuidanceBytes]
+	}
+	k.pendingSteers = append(k.pendingSteers, guidance)
+	k.addSoul("steer queued")
+	k.emitFrame("steer queued")
+}
+
+func (k *Kernel) applyPendingSteersToToolResults(results []toolResult) {
+	if len(k.pendingSteers) == 0 || len(results) == 0 {
+		return
+	}
+	guidance := strings.Join(k.pendingSteers, "\n\n")
+	last := len(results) - 1
+	results[last].Content += steerToolResultMarker + guidance
+	k.pendingSteers = nil
+	k.addSoul("steer applied")
+	k.emitFrame("steer applied")
 }
 
 func (k *Kernel) updateContextEngineUsage(ev hermes.Event) {
@@ -658,6 +693,8 @@ func (k *Kernel) handleRetryEvent(e PlatformEvent) bool {
 		if e.ack != nil {
 			e.ack <- ErrResetDuringTurn
 		}
+	case PlatformEventSteer:
+		k.queueSteerGuidance(e.Text)
 	}
 	return false
 }
@@ -741,6 +778,8 @@ streamLoop:
 				cancelRun()
 				outcome = streamOutcomeCancelled
 				break streamLoop
+			case PlatformEventSteer:
+				k.queueSteerGuidance(e.Text)
 			}
 
 		case res, ok := <-deltaCh:

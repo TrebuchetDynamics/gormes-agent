@@ -621,6 +621,15 @@ func (m *Manager) handleSteerCommand(ctx context.Context, ch Channel, ev Inbound
 		return
 	}
 
+	if m.hasActiveTurn() {
+		if m.kernel != nil {
+			if err := m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSteer, Text: parsed.Guidance}); err == nil {
+				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(SteerEvidenceInjected)+": pending for next tool-result boundary; "+string(SteerEvidencePreview)+": "+parsed.Preview)
+				return
+			}
+		}
+	}
+
 	followUp := ev
 	followUp.Kind = EventSubmit
 	followUp.Text = parsed.Guidance

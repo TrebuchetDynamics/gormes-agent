@@ -291,7 +291,7 @@ classification and row-backed implementation queue.
 
 - [x] Steer slash command parser + preview helper
 - [x] Steer slash command registry + queue fallback
-- [ ] Mid-run steer injection between tool calls
+- [x] Mid-run steer injection between tool calls
 - [ ] Gateway-handled slash commands bypass active-session guard
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅

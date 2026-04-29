@@ -92,6 +92,8 @@ func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []h
 				if e.ack != nil {
 					e.ack <- ErrResetDuringTurn
 				}
+			case PlatformEventSteer:
+				k.queueSteerGuidance(e.Text)
 			}
 		case res := <-resultCh:
 			remaining--

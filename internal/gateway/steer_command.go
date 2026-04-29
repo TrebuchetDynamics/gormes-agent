@@ -14,6 +14,7 @@ const (
 	SteerEvidenceUsage              SteerEvidence = "steer_usage"
 	SteerEvidencePayloadUnsupported SteerEvidence = "steer_payload_unsupported"
 	SteerEvidenceQueued             SteerEvidence = "steer_queued"
+	SteerEvidenceInjected           SteerEvidence = "steer_injected"
 	SteerEvidenceUnavailable        SteerEvidence = "steer_unavailable"
 	SteerEvidencePreview            SteerEvidence = "steer_preview"
 )

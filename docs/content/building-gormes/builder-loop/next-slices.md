@@ -22,7 +22,5 @@ Use this page when choosing implementation work. If a row is too broad, split
 the row in `progress.json` before assigning it.
 
 <!-- PROGRESS:START kind=next-slices -->
-| Phase | Slice | Contract | Trust class | Fixture | Why now |
-|---|---|---|---|---|---|
-| 2 / 2.F.5 | Mid-run steer injection between tool calls | Gateway /steer guidance can be delivered into an in-flight native Gormes turn after the current tool batch, preserving provider message-role alternation by appending a clear user-guidance marker to the last tool-result message before the next provider request; no Telegram-only path, hermes-agent runtime call, or next-turn duplicate is introduced. | operator, gateway, system | `internal/kernel/tool_interrupt_test.go and internal/gateway/steer_queue_test.go` | P0 handoff; needs contract proof before closeout. |
+_No contract-ready progress rows are available._
 <!-- PROGRESS:END -->
