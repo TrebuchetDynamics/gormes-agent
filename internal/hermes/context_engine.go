@@ -21,6 +21,7 @@ type ContextEngine interface {
 	UpdateFromResponse(ContextUsage)
 	ShouldCompress(promptTokens int) bool
 	Compress(ctx context.Context, messages []Message, req CompressionRequest) ([]Message, CompressionReport, error)
+	OnCompressionBoundary(ctx context.Context, boundary CompressionBoundary) error
 	ShouldCompressPreflight(messages []Message) bool
 	HasContentToCompress(messages []Message) bool
 	OnSessionStart(ctx context.Context, sessionID string, meta ContextSessionMeta) error
@@ -64,6 +65,13 @@ type CompressionReport struct {
 	FocusTopic     string `json:"focus_topic,omitempty"`
 }
 
+type CompressionBoundary struct {
+	OldSessionID string `json:"old_session_id,omitempty"`
+	NewSessionID string `json:"new_session_id,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	CompressedAt string `json:"compressed_at,omitempty"`
+}
+
 type ContextSessionMeta struct {
 	Model         string
 	ContextLength int
@@ -87,6 +95,7 @@ type ContextStatus struct {
 	CompressionCount     int                      `json:"compression_count"`
 	Budget               ContextBudgetStatus      `json:"budget"`
 	Compression          ContextCompressionStatus `json:"compression"`
+	Boundary             ContextBoundaryStatus    `json:"boundary"`
 	Tools                ContextToolStatus        `json:"tools"`
 	Replay               ContextReplayStatus      `json:"replay"`
 }
@@ -103,6 +112,20 @@ type ContextCompressionStatus struct {
 	CooldownSeconds int    `json:"cooldown_seconds"`
 	DisabledReason  string `json:"disabled_reason,omitempty"`
 	LastError       string `json:"last_error,omitempty"`
+}
+
+type ContextBoundaryStatusCode string
+
+const (
+	ContextBoundaryStatusUnavailable ContextBoundaryStatusCode = "compression_boundary_unavailable"
+	ContextBoundaryStatusMissing     ContextBoundaryStatusCode = "last_boundary_missing"
+	ContextBoundaryStatusRecorded    ContextBoundaryStatusCode = "last_boundary_recorded"
+)
+
+type ContextBoundaryStatus struct {
+	Status  ContextBoundaryStatusCode `json:"status"`
+	Message string                    `json:"message,omitempty"`
+	Last    *CompressionBoundary      `json:"last,omitempty"`
 }
 
 type ContextToolStatus struct {
@@ -147,6 +170,10 @@ func NewDisabledContextEngine(reason string) *DisabledContextEngine {
 				ShouldCompress: false,
 				DisabledReason: reason,
 			},
+			Boundary: ContextBoundaryStatus{
+				Status:  ContextBoundaryStatusMissing,
+				Message: "no compression boundary recorded",
+			},
 			Tools: ContextToolStatus{
 				StatusTool: ContextStatusToolName,
 			},
@@ -182,6 +209,18 @@ func (e *DisabledContextEngine) Compress(_ context.Context, messages []Message, 
 	}, ErrCompressionDisabled
 }
 
+func (e *DisabledContextEngine) OnCompressionBoundary(_ context.Context, boundary CompressionBoundary) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.status.CompressionCount++
+	e.status.Boundary = ContextBoundaryStatus{
+		Status: ContextBoundaryStatusRecorded,
+		Last:   cloneCompressionBoundary(boundary),
+	}
+	e.refreshLocked()
+	return nil
+}
+
 func (e *DisabledContextEngine) ShouldCompressPreflight([]Message) bool { return false }
 
 func (e *DisabledContextEngine) HasContentToCompress([]Message) bool { return false }
@@ -201,6 +240,7 @@ func (e *DisabledContextEngine) OnSessionReset() {
 	e.status.LastCompletionTokens = 0
 	e.status.LastTotalTokens = 0
 	e.status.CompressionCount = 0
+	e.status.Boundary = ContextBoundaryStatus{}
 	e.status.Tools.UnknownToolErrors = nil
 	e.refreshLocked()
 }
@@ -298,6 +338,12 @@ func (e *DisabledContextEngine) refreshLocked() {
 	e.status.Budget = classifyContextBudget(e.status.LastPromptTokens, e.status.ThresholdTokens, e.status.ContextLength)
 	e.status.Compression.Enabled = false
 	e.status.Compression.ShouldCompress = false
+	if e.status.Boundary.Status == "" {
+		e.status.Boundary = ContextBoundaryStatus{
+			Status:  ContextBoundaryStatusMissing,
+			Message: "no compression boundary recorded",
+		}
+	}
 	e.status.Tools.StatusTool = ContextStatusToolName
 }
 
@@ -330,6 +376,11 @@ func unknownContextToolError(name string) ContextToolError {
 		Tool:    name,
 		Message: "Unknown context engine tool: " + name,
 	}
+}
+
+func cloneCompressionBoundary(boundary CompressionBoundary) *CompressionBoundary {
+	copied := boundary
+	return &copied
 }
 
 func roundPercent(v float64) float64 {

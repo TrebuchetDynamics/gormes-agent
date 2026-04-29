@@ -8965,9 +8965,9 @@
             {
               "name": "ContextEngine compression-boundary callback vocabulary",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/hermes defines a compression-boundary callback vocabulary on ContextEngine with stable lineage evidence and status fields, without binding kernel compression execution yet",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -9004,7 +9004,7 @@
                 "Existing context_status tool fixtures remain stable except for the added boundary evidence fields.",
                 "The disabled_pressure_unknown_tool.json fixture is updated only as needed to include explicit missing-boundary or unavailable-boundary evidence."
               ],
-              "note": "Refined 2026-04-27T13:57:25Z after report validation showed the worker needed to update internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json but the fixture was outside write_scope. This row is hermes package vocabulary plus that one declared status fixture only; kernel binding stays in the existing dependent row.",
+              "note": "Complete: TDD added internal/hermes/context_engine_boundary_test.go and extended ContextEngine with CompressionBoundary plus OnCompressionBoundary callback vocabulary. DisabledContextEngine records one boundary with old_session_id, new_session_id, reason, compressed_at, increments compression_count, exposes last_boundary_recorded through Status, and resets to last_boundary_missing on session reset. The disabled_pressure_unknown_tool.json fixture now carries explicit last_boundary_missing evidence. This slice stayed inside internal/hermes and did not bind kernel compression execution, mutate transcript history, or touch Goncho memory behavior.",
               "write_scope": [
                 "internal/hermes/context_engine.go",
                 "internal/hermes/context_engine_test.go",

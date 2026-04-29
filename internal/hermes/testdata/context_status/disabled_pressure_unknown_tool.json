@@ -9,6 +9,10 @@
   "last_total_tokens": 5920,
   "usage_percent": 72.5,
   "compression_count": 0,
+  "boundary": {
+    "status": "last_boundary_missing",
+    "message": "no compression boundary recorded"
+  },
   "budget": {
     "state": "pressure",
     "remaining_tokens": 200,
