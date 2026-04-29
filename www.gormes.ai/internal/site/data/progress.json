@@ -16825,22 +16825,22 @@
           "items": [
             {
               "name": "Todo",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes todo_tool as a small stateful native tool: items validate id/content/status, duplicate IDs keep the last entry while preserving list order, replace vs merge semantics match Hermes, only pending/in_progress items are injected into prompts, summary counts include pending/in_progress/completed/cancelled, and storage is deterministic under an injected per-session root.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Invalid status/content, missing store, corrupt JSON, or state-root denial returns todo_invalid_args, todo_store_unavailable, or todo_store_corrupt evidence without touching file-tools or global session state.",
+              "degraded_mode": "Malformed tool args, missing store, corrupt JSON, or state-root denial returns todo_invalid_args, todo_store_unavailable, or todo_store_corrupt evidence without touching file-tools or global session state; Hermes-compatible item normalization defaults invalid status to pending and empty content to (no description).",
               "fixture": "internal/tools/todo_tool_test.go",
               "source_refs": [
                 "../hermes-agent/tools/todo_tool.py:TodoStore",
                 "../hermes-agent/tools/todo_tool.py:todo_tool",
                 "../hermes-agent/tools/todo_tool.py:TODO_SCHEMA",
                 "../hermes-agent/tests/tools/test_todo_tool.py",
-                "internal/tools/registry.go",
+                "internal/tools/tool.go",
                 "references/go-agent-os/engram/internal/mcp/write_queue.go",
                 "references/go-agent-os/nanobot/pkg/tools/flows.go"
               ],
@@ -16858,17 +16858,17 @@
                 "TUI todo panel"
               ],
               "acceptance": [
-                "TestTodoToolValidateAndDedupe proves status normalization, empty-content rejection, duplicate ID last-wins behavior, and stable priority order.",
+                "TestTodoToolValidateAndDedupe proves status normalization, Hermes empty-content placeholder behavior, duplicate ID last-wins behavior, and stable priority order.",
                 "TestTodoToolReplaceAndMerge proves replace overwrites the store while merge updates existing items and appends new ones according to Hermes fixtures.",
                 "TestTodoToolFormatForInjectionOnlyActive proves pending and in_progress items inject with Hermes markers while completed/cancelled items are omitted.",
                 "TestTodoToolSummaryCounts proves JSON output contains todo list plus pending/in_progress/completed/cancelled counts.",
                 "TestTodoToolStoreCorruptionDegrades proves malformed persisted JSON returns safe evidence and does not panic or delete the file."
               ],
-              "note": "Builder-ready small stateful tool row. Hermes defines schema/store/result parity; Engram write queue and Nanobot tool-output conversion are pattern references only.",
+              "note": "Complete: TDD landed internal/tools/todo_tool.go with a native schema-backed todo tool, temp-root TodoStore persistence, Hermes duplicate last-occurrence ordering, replace-vs-merge semantics, active-only context-compression injection, summary counts, and corrupt-store degraded evidence. Hermes defines schema/store/result parity; Engram write queue and Nanobot tool-output conversion were consulted as pattern references only.",
               "write_scope": [
                 "internal/tools/todo_tool.go",
                 "internal/tools/todo_tool_test.go",
-                "internal/tools/registry.go",
+                "internal/tools/tool.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -16887,6 +16887,11 @@
                   "nanobot:pkg/tools/flows.go"
                 ],
                 "note": "Hermes defines todo behavior; Engram/Nanobot provide write-queue and tool-output pattern references."
+              },
+              "evidence": {
+                "implementation": "internal/tools/todo_tool.go, internal/tools/todo_tool_test.go",
+                "tests": "go test ./internal/tools -run TestTodoTool -count=1; go test ./internal/tools -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "Native todo fixtures prove Hermes-compatible item normalization, duplicate last-occurrence ordering, replace/merge persistence, active-only prompt injection, Tool registry registration, summary JSON, and corrupt-store degradation without file-tools dependency."
               }
             },
             {

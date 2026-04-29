@@ -62,27 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Chromedp, Rod, Browser provider bridge + Firecrawl fallback
 - Why now: Unblocks Chromedp, Rod, Browser provider bridge + Firecrawl fallback.
 
-## 3. Todo
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Contract: Gormes ports Hermes todo_tool as a small stateful native tool: items validate id/content/status, duplicate IDs keep the last entry while preserving list order, replace vs merge semantics match Hermes, only pending/in_progress items are injected into prompts, summary counts include pending/in_progress/completed/cancelled, and storage is deterministic under an injected per-session root.
-- Trust class: operator
-- Ready when: Native tool registry can register a schema-backed pure/stateful tool with fake store injection., The slice uses temp roots in tests and does not depend on the full file-tools port., Stateful tool migration queue is either complete or this row limits persistence to a small per-session store with explicit path tests.
-- Not ready when: The slice implements unrelated task planning UX, file_tools, process tools, or cross-session syncing., Completed/cancelled todos are injected back into prompts., Duplicate ID behavior keeps the first entry or reorders the priority list differently from Hermes fixtures.
-- Degraded mode: Invalid status/content, missing store, corrupt JSON, or state-root denial returns todo_invalid_args, todo_store_unavailable, or todo_store_corrupt evidence without touching file-tools or global session state.
-- Fixture: `internal/tools/todo_tool_test.go`
-- Write scope: `internal/tools/todo_tool.go`, `internal/tools/todo_tool_test.go`, `internal/tools/registry.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestTodoTool -count=1`, `go run ./cmd/progress validate`
-- Done signal: Todo fixtures prove schema validation, replace/merge, duplicate last-wins, active-only injection, summary counts, and corrupt-store degradation without file-tools dependency.
-- Acceptance: TestTodoToolValidateAndDedupe proves status normalization, empty-content rejection, duplicate ID last-wins behavior, and stable priority order., TestTodoToolReplaceAndMerge proves replace overwrites the store while merge updates existing items and appends new ones according to Hermes fixtures., TestTodoToolFormatForInjectionOnlyActive proves pending and in_progress items inject with Hermes markers while completed/cancelled items are omitted., TestTodoToolSummaryCounts proves JSON output contains todo list plus pending/in_progress/completed/cancelled counts., TestTodoToolStoreCorruptionDegrades proves malformed persisted JSON returns safe evidence and does not panic or delete the file.
-- Source refs: ../hermes-agent/tools/todo_tool.py:TodoStore, ../hermes-agent/tools/todo_tool.py:todo_tool, ../hermes-agent/tools/todo_tool.py:TODO_SCHEMA, ../hermes-agent/tests/tools/test_todo_tool.py, internal/tools/registry.go, references/go-agent-os/engram/internal/mcp/write_queue.go, references/go-agent-os/nanobot/pkg/tools/flows.go
-- Unblocks: TUI todo panel
-- Why now: Unblocks TUI todo panel.
-
-## 4. Debug helpers
+## 3. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -102,7 +82,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 5. Feishu transport/bootstrap layer
+## 4. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -122,7 +102,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 6. Tool-result pruning + protected head/tail summary
+## 5. Tool-result pruning + protected head/tail summary
 
 - Phase: 4 / 4.B
 - Owner: `provider`
@@ -141,7 +121,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/context_compressor.py:_prune_old_tool_results, ../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens, ../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget, ../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/nanobot/pkg/agents/tokencount.go, references/go-agent-os/axe/internal/budget/budget.go, internal/hermes/context_compressor_budget.go, internal/tools/result_budget.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Prompt-cache capability guard
+## 6. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -160,7 +140,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Clarify
+## 7. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

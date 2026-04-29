@@ -662,7 +662,7 @@ classification and row-backed implementation queue.
 
 ### 5.N — Misc Operator Tools 🔨
 
-- [ ] Todo
+- [x] Todo
 - [ ] Clarify
 - [x] Session search tool schema and argument validation
 - [x] Session search tool execution wrapper
