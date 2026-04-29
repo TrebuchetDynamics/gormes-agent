@@ -20,15 +20,23 @@ const (
 )
 
 const (
-	EvidenceExecutionDisabled         = "execution_disabled"
-	EvidenceIncompatibleVersion       = "incompatible_version"
-	EvidenceInvalidName               = "invalid_name"
-	EvidenceMalformedManifest         = "malformed_manifest"
-	EvidenceMissingCredential         = "missing_credential"
-	EvidenceMissingRequiredField      = "missing_required_field"
-	EvidenceProjectPluginsDisabled    = "project_plugins_disabled"
-	EvidenceThemeRuntimeUnavailable   = "theme_runtime_unavailable"
-	EvidenceUnsupportedCapabilityKind = "unsupported_capability_kind"
+	EvidenceExecutionDisabled              = "execution_disabled"
+	EvidenceIncompatibleVersion            = "incompatible_version"
+	EvidenceInvalidName                    = "invalid_name"
+	EvidenceMalformedManifest              = "malformed_manifest"
+	EvidenceMissingCredential              = "missing_credential"
+	EvidenceMissingRequiredField           = "missing_required_field"
+	EvidenceProjectPluginsDisabled         = "project_plugins_disabled"
+	EvidenceThemeRuntimeUnavailable        = "theme_runtime_unavailable"
+	EvidenceUnsupportedCapabilityKind      = "unsupported_capability_kind"
+	EvidenceGoogleMeetRuntimeUnavailable   = "google_meet_runtime_unavailable"
+	EvidenceGoogleMeetRealtimeUnconfigured = "google_meet_realtime_unconfigured"
+	EvidenceNodeAuthRequired               = "node_auth_required"
+	EvidenceBrowserProfileRequired         = "browser_profile_required"
+	EvidenceMeetURLGate                    = "meet_url_gate"
+	EvidenceNoCalendarAutoDial             = "meet_no_calendar_auto_dial"
+	EvidenceOneActiveMeeting               = "meet_one_active_meeting"
+	EvidenceMeetSayRealtimeRequired        = "meet_say_realtime_required"
 )
 
 // CapabilityKind is the metadata-only declaration for plugin extension points.
@@ -39,6 +47,8 @@ const (
 	CapabilityHook         CapabilityKind = "hook"
 	CapabilityDashboard    CapabilityKind = "dashboard"
 	CapabilityBackendRoute CapabilityKind = "backend_route"
+	CapabilityRealtime     CapabilityKind = "realtime"
+	CapabilityRemoteNode   CapabilityKind = "remote_node"
 )
 
 // Evidence explains why a plugin or capability is unavailable.
@@ -67,6 +77,7 @@ type Manifest struct {
 	RequiresGormes string       `json:"requires_gormes,omitempty"`
 	RequiresEnv    []string     `json:"requires_env,omitempty"`
 	RequiresAuth   []string     `json:"requires_auth,omitempty"`
+	Platforms      []string     `json:"platforms,omitempty"`
 	Capabilities   []Capability `json:"capabilities,omitempty"`
 }
 

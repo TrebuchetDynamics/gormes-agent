@@ -14746,9 +14746,9 @@
             {
               "name": "First-party Google Meet plugin metadata fixture",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "First-party Google Meet plugin manifests, tool metadata, realtime/node capability flags, and safety constraints load as disabled plugin inventory through the Plugin SDK without importing Python, starting Chrome, joining meetings, or registering built-in Go tools",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -14793,7 +14793,7 @@
                 "TestGoogleMeetPluginMetadata_SafetyEvidence proves URL gate, no calendar auto-dial, one-active-meeting constraint, and meet_say realtime requirement are represented in status/degraded evidence.",
                 "No test imports Python, starts Chrome, starts a node server, opens audio devices, calls OpenAI Realtime, or joins a meeting."
               ],
-              "note": "Added after Hermes df3c9593 introduced a large Google Meet plugin. Gormes should first extend plugin metadata/status coverage so workers do not try to port browser, audio, realtime, and remote-node runtime behavior in one slice.",
+              "note": "Complete: TDD added internal/plugins/google_meet_plugin_test.go and the inert internal/plugins/google_meet_plugin.go fixture (canonical YAML + tool-package constants and a LoadGoogleMeet augmenter). Manifest now carries a Platforms field, plugin name validation accepts underscored names, and capability kinds include realtime and remote_node. Locked invariants: google_meet plugin loads as disabled with linux/macos platforms; meet_join, meet_leave, meet_say, meet_status, meet_transcript surface as disabled tool capabilities with json-string envelopes and google_meet_runtime_unavailable plus browser_profile_required evidence; realtime audio and remote-node capabilities expose google_meet_realtime_unconfigured (OPENAI_API_KEY, audio_bridge) and node_auth_required (bearer_token); safety evidence records meet_url_gate, meet_no_calendar_auto_dial, meet_one_active_meeting on the plugin and meet_say_realtime_required on the meet_say capability; no test imports Python, starts Chrome, opens audio, calls OpenAI Realtime, or joins a meeting.",
               "write_scope": [
                 "internal/plugins/google_meet_plugin_test.go",
                 "internal/plugins/",

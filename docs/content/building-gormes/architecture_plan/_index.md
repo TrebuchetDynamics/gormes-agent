@@ -626,7 +626,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
 - [x] First-party Spotify plugin fixture
-- [ ] First-party Google Meet plugin metadata fixture
+- [x] First-party Google Meet plugin metadata fixture
 - [ ] Hindsight memory setup blank-input preservation
 
 ### 5.J — Approval / Security Guards 🔨

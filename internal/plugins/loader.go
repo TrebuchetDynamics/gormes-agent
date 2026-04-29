@@ -15,7 +15,7 @@ import (
 
 const defaultGormesVersion = "1.0.0"
 
-var pluginNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+var pluginNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 var pluginToolRowRE = regexp.MustCompile(`\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,`)
 var pluginToolsetRE = regexp.MustCompile(`toolset\s*=\s*["']([^"']+)["']`)
 var pluginCheckRE = regexp.MustCompile(`check_fn\s*=\s*([A-Za-z_][A-Za-z0-9_]*)`)
@@ -35,6 +35,7 @@ type rawPluginManifest struct {
 	RequiresEnv    stringList      `yaml:"requires_env"`
 	RequiresAuth   stringList      `yaml:"requires_auth"`
 	Auth           stringList      `yaml:"auth"`
+	Platforms      stringList      `yaml:"platforms"`
 	ProvidesTools  stringList      `yaml:"provides_tools"`
 	ProvidesHooks  stringList      `yaml:"provides_hooks"`
 	Hooks          stringList      `yaml:"hooks"`
@@ -211,6 +212,7 @@ func manifestFromRaw(raw rawPluginManifest) Manifest {
 		RequiresGormes: strings.TrimSpace(raw.RequiresGormes),
 		RequiresEnv:    cleanStrings([]string(raw.RequiresEnv)),
 		RequiresAuth:   cleanStrings(append([]string(raw.RequiresAuth), []string(raw.Auth)...)),
+		Platforms:      cleanStrings([]string(raw.Platforms)),
 	}
 	if manifest.Kind == "" {
 		manifest.Kind = "standalone"
@@ -609,7 +611,8 @@ func sortPluginStatus(status PluginStatus) PluginStatus {
 
 func supportedCapabilityKind(kind CapabilityKind) bool {
 	switch kind {
-	case CapabilityTool, CapabilityHook, CapabilityDashboard, CapabilityBackendRoute:
+	case CapabilityTool, CapabilityHook, CapabilityDashboard, CapabilityBackendRoute,
+		CapabilityRealtime, CapabilityRemoteNode:
 		return true
 	default:
 		return false
