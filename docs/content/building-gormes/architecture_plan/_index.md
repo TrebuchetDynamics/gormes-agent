@@ -475,7 +475,7 @@ classification and row-backed implementation queue.
 ### 4.C — Native Prompt Builder 🔨
 
 - [ ] System + memory + tools + history assembly
-- [ ] Context-file discovery + injection scan
+- [x] Context-file discovery + injection scan
 - [ ] Model-specific role and tool-use guidance
 - [ ] Toolset-aware skills prompt snapshot
 - [ ] Memory and session-search guidance assembly

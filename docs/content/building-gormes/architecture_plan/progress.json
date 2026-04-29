@@ -9502,9 +9502,9 @@
             {
               "name": "Context-file discovery + injection scan",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native prompt assembly exposes a pure context-file discovery helper that mirrors Hermes project-context precedence: load SOUL.md from the Hermes/Gormes profile unless skipped, then load exactly one project context source in order .hermes.md/HERMES.md walking up to git root, AGENTS.md/agents.md in cwd, CLAUDE.md/claude.md in cwd, then .cursorrules plus sorted .cursor/rules/*.mdc in cwd. Each loaded source is scanned for Hermes-compatible injection/invisible-character patterns and head/tail truncated to the context-file budget before being rendered into a deterministic prompt block.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -9538,7 +9538,7 @@
                 "TestContextFilesTruncatesHeadTail proves over-budget content keeps deterministic head/tail text and a middle marker naming the source and original length.",
                 "The rendered block starts with the Hermes-compatible Project Context heading and remains deterministic for prompt snapshots."
               ],
-              "note": "Planner refinement 2026-04-29: split the previous umbrella into a builder-ready pure prompt-context helper. This is the next prompt/context stability slice after native provider gateway binding and channel-neutral turn adapter completion; it prepares normal Go turns without broad provider/tool/memory rewrites.",
+              "note": "Complete: TDD added internal/hermes/context_files.go with a pure BuildContextFilesPrompt helper and hermetic fixtures in internal/hermes/context_files_test.go. Locked invariants: profile SOUL.md loads independently unless skip_soul is set; project context uses Hermes first-match precedence (.hermes.md/HERMES.md walking to git root, then cwd AGENTS.md/agents.md, CLAUDE.md/claude.md, and .cursorrules plus sorted .cursor/rules/*.mdc); .hermes.md/HERMES.md YAML frontmatter is stripped before prompt rendering; invisible Unicode and prompt-injection patterns produce a safe blocked marker without injecting source content; oversized context uses deterministic head/tail truncation with source and original-length evidence; tests use only temp fixtures and no Python Hermes runtime services, live profiles, providers, channel SDKs, network calls, or model calls.",
               "write_scope": [
                 "internal/hermes/context_files.go",
                 "internal/hermes/context_files_test.go",
