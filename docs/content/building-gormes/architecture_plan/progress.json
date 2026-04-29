@@ -16706,9 +16706,9 @@
             {
               "name": "Goncho serialized write queue + relation candidates",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho serializes memory/conclusion writes and records pending relation candidates for possible conflicts or supersession without blocking the originating memory write.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
