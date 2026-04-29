@@ -815,9 +815,12 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.4 = %q, want planned", got)
 	}
 	operatorItems := itemsByName(operator.Items)
-	homeRules := operatorItems["Home channel ownership rules"]
+	homeRules := operatorItems["Home channel ownership resolver fixtures"]
 	if homeRules.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 home channel ownership status = %q, want planned", homeRules.Status)
+		t.Fatalf("Phase 2.F.4 home channel ownership resolver status = %q, want planned", homeRules.Status)
+	}
+	if homeRules.ContractStatus != ContractStatusFixtureReady || len(homeRules.WriteScope) == 0 || len(homeRules.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 home channel resolver readiness = %q scope=%d tests=%d, want fixture-ready builder row", homeRules.ContractStatus, len(homeRules.WriteScope), len(homeRules.TestCommands))
 	}
 	notifyRoute := operatorItems["Notify-to delivery routing"]
 	if notifyRoute.Status != StatusPlanned {

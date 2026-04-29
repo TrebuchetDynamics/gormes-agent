@@ -280,7 +280,7 @@ classification and row-backed implementation queue.
 
 ### 2.F.4 — Home Channel + Operator Surfaces ⏳
 
-- [ ] Home channel ownership rules
+- [ ] Home channel ownership resolver fixtures
 - [ ] Notify-to delivery routing
 - [ ] Channel directory atomic persistence + lookup
 - [ ] Channel directory refresh + stale-target invalidation

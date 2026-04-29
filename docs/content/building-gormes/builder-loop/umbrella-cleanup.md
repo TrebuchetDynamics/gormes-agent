@@ -15,7 +15,6 @@ and acceptance checks before assigning them to an implementation agent.
 | Phase | Umbrella row | Owner | Not ready when | Split into |
 |---|---|---|---|---|
 | 2 / 2.B.11 | Discord forum media + polish parity | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 2 / 2.F.4 | Home channel ownership rules | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Notify-to delivery routing | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Channel directory atomic persistence + lookup | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Channel directory refresh + stale-target invalidation | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
