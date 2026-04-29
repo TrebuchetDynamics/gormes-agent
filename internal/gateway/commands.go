@@ -86,7 +86,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "btw", Description: "Ephemeral side question using session context (no tools, not persisted)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "agents", Description: "Show active agents and running tasks", Kind: EventUnknown, Aliases: []string{"tasks"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "queue", Description: "Queue a prompt for the next turn (doesn't interrupt)", Kind: EventUnknown, Aliases: []string{"q"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "status", Description: "Show session info", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "status", Description: "Show session info", Kind: EventStatus, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 }
 
 var commandLookup = buildCommandLookup()

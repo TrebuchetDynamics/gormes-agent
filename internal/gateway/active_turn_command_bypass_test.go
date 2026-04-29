@@ -91,7 +91,7 @@ func TestManager_ActiveTurnSlashCommandDeniedDoesNotLeak(t *testing.T) {
 		wantText string
 	}{
 		{name: "busy reject mutator", command: "/new", wantText: "Gormes is busy"},
-		{name: "unavailable command", command: "/status", wantText: "/status is recognized but unavailable"},
+		{name: "unavailable command", command: "/retry", wantText: "/retry is recognized but unavailable"},
 		{name: "unknown command", command: "/does-not-exist", wantText: "unknown command"},
 	}
 

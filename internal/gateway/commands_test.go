@@ -70,6 +70,7 @@ func TestParseInboundText(t *testing.T) {
 		{name: "new", text: "/new", wantKind: EventReset, wantBody: ""},
 		{name: "stop", text: "/stop", wantKind: EventCancel, wantBody: ""},
 		{name: "steer", text: "/steer keep going", wantKind: EventSteer, wantBody: "/steer keep going"},
+		{name: "status", text: "/status", wantKind: EventStatus, wantBody: ""},
 		{name: "unknown slash", text: "/wat", wantKind: EventUnknown, wantBody: ""},
 		{name: "submit", text: "hello there", wantKind: EventSubmit, wantBody: "hello there"},
 	}

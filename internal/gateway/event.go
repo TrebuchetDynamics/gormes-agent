@@ -27,6 +27,9 @@ const (
 	EventSteer
 	// EventUsage renders runtime and provider account-usage evidence.
 	EventUsage
+	// EventStatus renders Hermes-style gateway/session status directly in the
+	// channel, without submitting the slash text to the model.
+	EventStatus
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
 	EventThreadLifecycle
 )
@@ -48,6 +51,8 @@ func (k EventKind) String() string {
 		return "steer"
 	case EventUsage:
 		return "usage"
+	case EventStatus:
+		return "status"
 	case EventThreadLifecycle:
 		return "thread_lifecycle"
 	default:

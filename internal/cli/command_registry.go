@@ -147,7 +147,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "skills", Description: "Search, install, inspect, or manage skills", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "skin", Description: "Show or change the display skin/theme", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "snapshot", Description: "Create or restore state snapshots", Aliases: []string{"snap"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "status", Description: "Show session info", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "status", Description: "Show session info", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "statusbar", Description: "Toggle the context/model status bar", Aliases: []string{"sb"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "steer", Description: "Inject a message after the next tool call", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "title", Description: "Set a title for the current session", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

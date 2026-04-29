@@ -589,6 +589,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventUsage:
 		m.handleUsageCommand(ctx, ch, ev)
 		return nil
+	case EventStatus:
+		m.handleStatusCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
 			return nil
@@ -691,6 +694,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventUsage:
 		m.handleUsageCommand(ctx, ch, ev)
+		return true
+	case EventStatus:
+		m.handleStatusCommand(ctx, ch, ev)
 		return true
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
