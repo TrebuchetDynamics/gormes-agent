@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 type fakeShutdownManager struct {
@@ -92,6 +94,57 @@ func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 				t.Fatalf("FreshFinalAfter = %s, want %s", mgrCfg.FreshFinalAfter, tc.want)
 			}
 		})
+	}
+}
+
+func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
+	var sawResponsesPath bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/responses" {
+			t.Fatalf("request path = %q, want provider-native /v1/responses", r.URL.Path)
+		}
+		sawResponsesPath = true
+		if r.Header.Get("Authorization") != "Bearer gateway-token" {
+			t.Fatalf("Authorization = %q, want configured API key", r.Header.Get("Authorization"))
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"completed","output_text":"ok from codex"}`))
+	}))
+	defer server.Close()
+
+	client := newGatewayHermesClient(config.Config{Hermes: config.HermesCfg{
+		Endpoint: server.URL,
+		APIKey:   "gateway-token",
+		Model:    "gpt-5.5",
+		Provider: "openai-codex",
+	}})
+	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+		Model:    "gpt-5.5",
+		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("OpenStream error = %v", err)
+	}
+	defer stream.Close()
+	event, err := stream.Recv(context.Background())
+	if err != nil {
+		t.Fatalf("Recv error = %v", err)
+	}
+	if event.Kind != hermes.EventToken || event.Token != "ok from codex" {
+		t.Fatalf("event = %+v, want codex token event", event)
+	}
+	done, err := stream.Recv(context.Background())
+	if err != nil {
+		t.Fatalf("Recv done error = %v", err)
+	}
+	if done.Kind != hermes.EventDone || done.FinishReason != "stop" {
+		t.Fatalf("done event = %+v, want stop", done)
+	}
+	if _, err := stream.Recv(context.Background()); err != io.EOF {
+		t.Fatalf("third Recv err = %v, want EOF", err)
+	}
+	if !sawResponsesPath {
+		t.Fatal("provider-native responses endpoint was not called")
 	}
 }
 

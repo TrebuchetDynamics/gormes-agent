@@ -68,9 +68,11 @@ jobs:
       - name: Verify homepage content
         working-directory: www.gormes.ai
         run: |
-          grep -F "One Go Binary. No Python. No Drift." dist/index.html >/dev/null
+          grep -F "Run AI Agents as One Go Binary." dist/index.html >/dev/null
+          grep -F "One static binary. No Python runtime. No Hermes process." dist/index.html >/dev/null
           grep -F 'href="/static/favicon.ico"' dist/index.html >/dev/null
           grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
+          ! grep -F "One Go Binary. No Python. No Drift." dist/index.html >/dev/null
           ! grep -F "Same Hermes Brain" dist/index.html >/dev/null
           ! grep -F "Why a Go layer matters" dist/index.html >/dev/null
 

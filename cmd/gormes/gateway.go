@@ -110,7 +110,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	hc := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
+	hc := newGatewayHermesClient(cfg)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 1)
@@ -170,6 +170,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 
 	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued)
 	return mgr.Run(rootCtx)
+}
+
+func newGatewayHermesClient(cfg config.Config) hermes.Client {
+	return hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, cfg.Hermes.Provider)
 }
 
 func defaultGatewayChannelFactories() gatewayChannelFactories {
