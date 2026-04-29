@@ -1954,6 +1954,78 @@
               }
             },
             {
+              "name": "Live-turn metadata production wiring (cmd/gormes -> Manager seams)",
+              "status": "planned",
+              "priority": "P1",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "contract": "cmd/gormes wires the slice-4 metadata seams (`LiveTurnNow`, `LiveTurnActiveModel`, `LiveTurnActiveProvider`) into the production gateway.ManagerConfig at the existing construction site `cmd/gormes/gateway.go:gatewayManagerConfig`. Active session ID is passed through `assembleLiveTurnPrompt` as a direct parameter (mirroring submitText) instead of through a closure seam, because the per-turn session ID is not in scope at seam-construction time; the `LiveTurnActiveSessionID` closure field is removed. After this slice lands, live Telegram/Slack/WhatsApp/BlueBubbles/Discord turns emit the Hermes-format `Conversation started: <weekday>, <Month> <D>, <YYYY> <HH:MM AM/PM>\\nSession ID: <id>\\nModel: <model>\\nProvider: <provider>` block per run_agent.py:3770-3779.",
+              "contract_status": "draft",
+              "degraded_mode": "If `cfg.Hermes.Model` or `cfg.Hermes.Provider` is empty in production config, the corresponding line is omitted from the metadata block (slice-4's BuildTurnMetadataBlock already handles empty fields). If the gateway cannot resolve a session ID at the call site, the SessionID line is omitted. The clock fallback is deterministic via `time.Now`. No raw provider credentials, base URLs, or API keys are rendered.",
+              "fixture": "internal/gateway/live_turn_prompt_test.go (existing) + cmd/gormes/gateway_test.go (new wiring test)",
+              "source_refs": [
+                "cmd/gormes/gateway.go:235 gatewayManagerConfig (construction site)",
+                "internal/gateway/manager.go:LiveTurnNow|LiveTurnActiveModel|LiveTurnActiveProvider|LiveTurnActiveSessionID (slice-4 ManagerConfig fields)",
+                "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (signature change: add activeSessionID parameter)",
+                "internal/gateway/manager.go:1599 (call site where resolved.SessionID is in scope)",
+                "../hermes-agent/run_agent.py:3770-3779 (timestamp/session/model/provider format)"
+              ],
+              "ready_when": [
+                "Live-turn timestamp + model/provider/session metadata block + self-help guidance is complete (verified — slice 4 shipped at 1827463b0).",
+                "Tests can assert that the production gatewayManagerConfig wires non-nil clock + model + provider getters and that `assembleLiveTurnPrompt` accepts an activeSessionID parameter.",
+                "No live Telegram/Slack/etc. transport is required for tests."
+              ],
+              "not_ready_when": [
+                "The slice changes BuildTurnMetadataBlock or the slice-4 seam shape beyond removing LiveTurnActiveSessionID and adding the activeSessionID parameter to assembleLiveTurnPrompt.",
+                "The slice ports skills, tool guidance, environment hints, or other Hermes blocks — those are sibling slices.",
+                "The slice converts the per-piece struct-field seams into a `[]liveTurnPiece` slice — that's the seam-refactor row, scheduled for after slice 5+ pieces land.",
+                "The slice exposes raw provider credentials or API keys."
+              ],
+              "blocked_by": [
+                "Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestGatewayManagerConfig_LiveTurnNow_NonNil: a production-style call to `gatewayManagerConfig(cfg, ...)` with a populated cfg returns a ManagerConfig where `LiveTurnNow != nil` and calling it returns a non-zero time within 10ms of the wall clock.",
+                "TestGatewayManagerConfig_LiveTurnActiveModel_ReturnsConfiguredModel: production config with cfg.Hermes.Model='claude-opus-4-7' produces a ManagerConfig where LiveTurnActiveModel() == 'claude-opus-4-7'.",
+                "TestGatewayManagerConfig_LiveTurnActiveProvider_ReturnsConfiguredProvider: cfg.Hermes.Provider='anthropic' produces a ManagerConfig where LiveTurnActiveProvider() == 'anthropic'.",
+                "TestGatewayManagerConfig_LiveTurnActiveSessionID_NotWiredAsClosure: the production gatewayManagerConfig sets `LiveTurnActiveSessionID = nil` (or removes the field entirely if the slice deletes it from ManagerConfig); a static check or grep test confirms cmd/gormes does not assign a closure to this field because session-id is parameter-passed.",
+                "TestAssembleLiveTurnPrompt_ActiveSessionIDParameter: the new signature `assembleLiveTurnPrompt(seams, submitText, activeSessionID, sessionBlock)` accepts a non-empty activeSessionID and routes it into hermes.TurnMetadataOptions.SessionID; an empty activeSessionID falls back to the closure seam (if retained) or produces an empty Session ID line.",
+                "TestSubmitPinned_PassesResolvedSessionIDIntoMetadata: a fake gateway turn dispatched with resolved.SessionID='sess-prod-123' produces a captured kernel.PlatformEvent.SessionContext containing 'Session ID: sess-prod-123' in the metadata block.",
+                "TestLiveTurn_SystemPrompt_ProductionWiringE2E: a fake-cfg-driven test that constructs the Manager via gatewayManagerConfig with cfg.Hermes={Model: 'claude-opus-4-7', Provider: 'anthropic'}, dispatches a turn with resolved.SessionID='sess-1', and asserts the captured SessionContext contains 'Conversation started:' + 'Session ID: sess-1' + 'Model: claude-opus-4-7' + 'Provider: anthropic'."
+              ],
+              "note": "Closes the slice-4 silent-no-op gap: without this wiring, the production binary's metadata block is byte-empty because LiveTurnNow/Active* seams default to nil. The SessionID-as-parameter refactor is a small adjustment to slice 4's seam shape — slice 4's other tests pass byte-identical when activeSessionID is empty. Recommend the builder verify slice-4's TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic still passes byte-identical with the new parameter signature. The seam-refactor row (struct fields -> []liveTurnPiece slice) remains a separate scheduled row to land after slice 5+ pieces.",
+              "write_scope": [
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/live_turn_prompt_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run GatewayManagerConfig_LiveTurn -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/hermes -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Seven cmd/gormes + gateway fixtures pass; production-style gatewayManagerConfig produces non-nil LiveTurnNow + LiveTurnActiveModel + LiveTurnActiveProvider getters; assembleLiveTurnPrompt accepts activeSessionID as a parameter; submitPinned passes resolved.SessionID through; existing slice-1+2+4 byte-identity fixtures pass unchanged when seams produce empty values; live restart smoke confirms the metadata block appears in a captured Telegram turn."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:run_agent.py:3770-3779 (parity is materialized in production after this wiring lands)",
+                "note": "Slice 4 shipped the helper + seam shape but defaulted the active-state seams to nil so existing tests stayed byte-identical without cmd/ touched. This row closes the production gap and adjusts the SessionID flow to use a direct parameter — closure-style was a slice-4 design quirk because per-turn session ID is not in seam-construction scope."
+              }
+            },
+            {
               "name": "BlueBubbles iMessage session-context prompt guidance",
               "priority": "P1",
               "status": "complete",
