@@ -14,16 +14,10 @@ and acceptance checks before assigning them to an implementation agent.
 <!-- PROGRESS:START kind=umbrella-cleanup -->
 | Phase | Umbrella row | Owner | Not ready when | Split into |
 |---|---|---|---|---|
-| 2 / 2.B.11 | Discord forum media + polish parity | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Notify-to delivery routing | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 2 / 2.F.4 | Channel directory atomic persistence + lookup | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 2 / 2.F.4 | Channel directory refresh + stale-target invalidation | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Manager remember-source hook | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 2 / 2.F.4 | Mirror + sticker cache surfaces | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.A | Bedrock | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 4 / 4.A | Gemini | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 4 / 4.A | OpenRouter | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 4 / 4.A | Google Code Assist | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 4 / 4.A | Codex | `provider` | The row is assigned as one large Codex provider implementation instead of the Responses conversion, auth, and stream-repair slices below. | Codex Responses pure conversion harness, Codex Responses assistant content role types, Codex Responses HTTP client binding, Codex OAuth state + stale-token relogin, Codex stream repair + tool-call leak sanitizer |
 | 4 / 4.B | Long session management | `provider` | The row is assigned as one implementation task instead of being split through context engine, token-budget, reference, and compression slices. | ContextEngine interface + status tool contract, Compression token-budget trigger + summary sizing, Manual compression feedback + context references |
 | 4 / 4.B | Context compression | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
@@ -36,7 +30,6 @@ and acceptance checks before assigning them to an implementation agent.
 | 4 / 4.E | Trajectory writer + redaction gates | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.A | 61-tool registry port | `tools` | The row is treated as a bulk 61-handler port before descriptor parity and trust classes are frozen. | Tool registry inventory + schema parity harness, Pure core tools first, Stateful tool migration queue |
 | 5 / 5.A | Pure core tools first | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 5 / 5.A | Stateful tool migration queue | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.B | Docker | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.B | Modal | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.B | Daytona | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
@@ -56,7 +49,6 @@ and acceptance checks before assigning them to an implementation agent.
 | 5 / 5.J | Cron dangerous-command approval mode | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.J | Tirith, path, URL, and website policy integration | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.L | Atomic checkpoints | `tools` | The row is assigned as one checkpoint/file/patch migration instead of the checkpoint policy, read-dedup guard, and patch/write slices below. | Checkpoint shadow-repo GC policy, File read dedup cache invalidation and wrapper guard |
-| 5 / 5.M | Multi-model coordination | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.N | Todo | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.N | Debug helpers | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.N | Cronjob tool API + schedule parser parity | `tools` | The row is assigned as one combined cronjob tool, schedule parser, safety, context chaining, and delivery-port slice instead of the dependency-ordered rows below. | Cron schedule parser + repeat state fixtures, Cron prompt/script safety + pre-run script contract, Cronjob tool action envelope over native store, Cron context_from output chaining, Cron multi-target delivery + media/live-adapter fallback |
@@ -79,8 +71,6 @@ and acceptance checks before assigning them to an implementation agent.
 | 6 / 6.E | Skill effectiveness scoring | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 6 / 6.F | TUI + Telegram browsing | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 7 / 7.A | Signal transport/bootstrap layer | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 7 / 7.C | Matrix shared-chassis bot seam | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 7 / 7.C | Mattermost shared-chassis bot seam | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 7 / 7.C | Matrix real client/bootstrap layer | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 7 / 7.C | Mattermost REST/WS bootstrap layer | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 7 / 7.E | Feishu transport/bootstrap layer | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |

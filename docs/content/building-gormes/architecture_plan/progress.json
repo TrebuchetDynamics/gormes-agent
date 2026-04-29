@@ -2755,22 +2755,80 @@
             {
               "name": "Discord forum media + polish parity",
               "status": "planned",
+              "contract": "Discord forum sends preserve Hermes forum-post semantics on top of the shipped Discord adapter: outbound text to a forum parent creates a starter thread post, follow-up chunks route through the created thread, file-bearing sends use create_thread(file=...) with deterministic thread names, failures are returned as SendResult warnings/errors, and forum thread metadata keeps parent_chat_id/thread_id/message_id intact for shared gateway delivery.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Discord forum create/send/upload failures produce send_warning or send_failed evidence while non-forum channel sends continue through the existing shared-chassis contract.",
+              "fixture": "internal/channels/discord/forum_media_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/discord.py:_send_to_forum",
+                "../hermes-agent/gateway/platforms/discord.py:_forum_post_file",
+                "../hermes-agent/gateway/platforms/discord.py:_parent_channel_id",
+                "../hermes-agent/tests/gateway/test_discord_send.py:test_send_to_forum_creates_thread_post",
+                "../hermes-agent/tests/gateway/test_discord_send.py:test_send_to_forum_sends_remaining_chunks",
+                "../hermes-agent/tests/gateway/test_discord_send.py:test_forum_post_file_creates_thread_with_attachment",
+                "../hermes-agent/tests/gateway/test_discord_send.py:test_forum_post_file_uses_filename_when_no_content",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/forum_test.go",
+                "internal/channels/discord/session_source_metadata_test.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go"
+              ],
               "ready_when": [
-                "Discord forum ingress and thread lifecycle fixtures are green on top of the shipped Discord adapter"
+                "Discord forum ingress and thread lifecycle fixtures are green on top of the shipped Discord adapter.",
+                "The builder can use mocked Discord client/channel/thread/file types and existing testdata; no live Discord token, guild, upload, or network call is required.",
+                "Gateway SessionSource metadata fixtures already preserve parent_chat_id, thread_id, and message_id."
               ],
               "blocked_by": [
                 "Discord forum channel ingress + thread lifecycle"
               ],
-              "note": "TDD: port upstream PR #607be54a (forum channel media + polish) after the ingress slice is green — attachment flow for forum posts, initial-post vs reply differences, and deterministic outbound routing to forum threads. Keep the shared-chassis send contract intact so non-forum Discord behavior cannot regress.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
               "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+                "The slice changes Discord gateway admission, slash-command registration, voice bridge behavior, or non-forum send paths.",
+                "Tests require discord.py, live Discord APIs, real CDN URLs, or actual file uploads.",
+                "Forum parent IDs are overwritten with thread IDs, losing parent_chat_id or the starter message ID."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "unblocks": [
+                "Discord forum operator delivery polish",
+                "Channel directory refresh + stale-target invalidation"
+              ],
+              "acceptance": [
+                "TestDiscordForumSendCreatesThreadPost proves sending to a forum parent calls the forum create-thread path once, returns the starter message ID, and records the created thread ID for follow-up chunks.",
+                "TestDiscordForumSendFollowUpWarnings proves follow-up chunk failures are collected as warnings without marking the successful starter post failed.",
+                "TestDiscordForumPostFileCreatesThreadWithAttachment proves file-bearing sends route through create-thread with file metadata and preserve the returned starter message ID.",
+                "TestDiscordForumPostFileUsesFilenameFallback proves empty content derives a stable thread name from the attachment filename.",
+                "Existing non-forum send, forum ingress, and session-source metadata tests remain green."
+              ],
+              "note": "Planner-ready port of Hermes Discord forum media/polish behavior. Axe artifact tracking is a pattern reference for bounded attachment evidence; trpc callbacks are a pattern reference for isolating channel-specific before/after delivery hooks from the core turn.",
+              "write_scope": [
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/client.go",
+                "internal/channels/discord/forum_media_test.go",
+                "internal/channels/discord/testdata/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/discord -run 'TestDiscordForum(Send|PostFile)' -count=1",
+                "go test ./internal/channels/discord ./internal/gateway -run 'TestDiscordForum|TestDiscordSessionSourceMetadata' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Discord forum media fixtures prove forum starter posts, follow-up warning collection, file-thread creation, filename fallback, and unchanged non-forum delivery without live Discord APIs."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/discord.py",
+                  "hermes:tests/gateway/test_discord_send.py",
+                  "axe:internal/artifact/tracker.go",
+                  "trpc-agent-go:agent/callbacks.go"
+                ],
+                "note": "Hermes defines Discord forum media parity; Axe/trpc-agent-go provide pattern references for attachment evidence and delivery hook boundaries."
+              }
             }
           ]
         },
@@ -4452,30 +4510,156 @@
             {
               "name": "Channel directory atomic persistence + lookup",
               "status": "planned",
-              "note": "TDD: port upstream `gateway/channel_directory.py` as an atomic `channel_directory.json` read model with composite `chat_id:thread_id` keys and human name/type lookup before periodic refresh or operator UX.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports the Hermes channel_directory.json read model as a channel-neutral gateway component: writes are atomic under the Gormes state/home directory, entries preserve platform, id, name, type, guild, chat_id, thread_id, chat_topic, and composite chat_id:thread_id targets, lookups resolve exact IDs, exact names, Discord guild-qualified names, unambiguous case-insensitive prefixes, and type queries without consulting live adapters.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing, malformed, or ambiguous directory state returns channel_directory_missing, channel_directory_invalid, or channel_target_ambiguous evidence without falling back to adapter-specific cache side effects.",
+              "fixture": "internal/gateway/channel_directory_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/channel_directory.py:DIRECTORY_PATH",
+                "../hermes-agent/gateway/channel_directory.py:_entry_from_session",
+                "../hermes-agent/gateway/channel_directory.py:resolve_channel_name",
+                "../hermes-agent/gateway/channel_directory.py:lookup_channel_type",
+                "../hermes-agent/gateway/channel_directory.py:format_directory_for_display",
+                "../hermes-agent/tests/gateway/test_channel_directory.py:TestResolveChannelName",
+                "../hermes-agent/tests/gateway/test_channel_directory.py:TestFormatDirectoryForDisplay",
+                "internal/gateway/delivery.go",
+                "internal/gateway/event.go",
+                "references/go-agent-os/engram/internal/mcp/write_queue.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
+              ],
+              "ready_when": [
+                "Home-channel resolver fixtures are green and explicit delivery-target parsing is stable.",
+                "The slice can write to a temp state/home root in tests and must not inspect the real operator home directory.",
+                "No live channel adapters are needed; fixture directories drive all lookup behavior."
+              ],
+              "not_ready_when": [
+                "The slice starts periodic refresh, calls Slack/Discord APIs, changes cron delivery execution, or persists inbound SessionSource records from Manager.",
+                "Directory writes are non-atomic or can leave partially written JSON after an injected write failure.",
+                "Ambiguous human-name prefixes resolve arbitrarily instead of returning no target/evidence."
+              ],
+              "blocked_by": [
+                "Home-channel ownership resolver"
+              ],
+              "unblocks": [
+                "Channel directory refresh + stale-target invalidation",
+                "Manager remember-source hook",
+                "Cron delivery target planner"
+              ],
+              "acceptance": [
+                "TestChannelDirectoryAtomicWriteAndLoad writes fixture entries through a temp root and proves reload sees either the old complete file or the new complete file, never a partial JSON body.",
+                "TestChannelDirectoryResolveCompositeThreadTarget proves chat_id:thread_id targets and topic display names resolve exactly as Hermes fixtures.",
+                "TestChannelDirectoryResolveDiscordGuildQualifiedName proves ServerA/general and ServerB/general disambiguate duplicate Discord channel names.",
+                "TestChannelDirectoryResolveAmbiguousPrefixReturnsMissing proves ambiguous lowercase prefixes do not pick a random channel.",
+                "TestChannelDirectoryLookupTypeAndDisplay proves forum/channel/dm/group type lookup and display formatting match Hermes fixture expectations."
+              ],
+              "note": "Builder-ready first channel-directory slice. Engram's write queue is a pattern reference for deterministic serialized writes; Axe's artifact tracker is a pattern reference for bounded path/evidence recording. Runtime refresh remains a dependent row.",
+              "write_scope": [
+                "internal/gateway/channel_directory.go",
+                "internal/gateway/channel_directory_test.go",
+                "internal/gateway/testdata/channel_directory/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestChannelDirectory -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Channel directory fixtures prove atomic persistence, composite thread targets, exact/name/guild/prefix lookup, type/display behavior, and safe degraded evidence without live adapters."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/channel_directory.py",
+                  "hermes:tests/gateway/test_channel_directory.py",
+                  "engram:internal/mcp/write_queue.go",
+                  "axe:internal/artifact/tracker.go"
+                ],
+                "note": "Hermes defines directory semantics; Engram/Axe provide Go pattern references for serialized writes and bounded filesystem evidence."
+              }
             },
             {
               "name": "Channel directory refresh + stale-target invalidation",
               "status": "planned",
-              "note": "TDD: add deterministic refresh/stale-target behavior after manager-source persistence exists, so send-target resolution never depends on adapter-specific cache side effects.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes adds deterministic refresh and stale-target invalidation around the channel directory: Manager-owned source records and adapter inventory snapshots update the directory through one serialized writer, stale entries are marked or removed after adapter refresh failures according to fixture policy, and delivery lookup returns explicit stale-target evidence instead of silently dispatching to cached IDs.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Refresh failures preserve the last known-good directory with channel_directory_refresh_failed evidence; stale delivery targets return channel_target_stale rather than invoking an adapter with obsolete routing.",
+              "fixture": "internal/gateway/channel_directory_refresh_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/channel_directory.py:refresh_channel_directory",
+                "../hermes-agent/gateway/channel_directory.py:_build_discord",
+                "../hermes-agent/gateway/channel_directory.py:_build_slack",
+                "../hermes-agent/gateway/channel_directory.py:_build_from_sessions",
+                "../hermes-agent/tests/gateway/test_channel_directory.py:test_build_slack",
+                "../hermes-agent/tests/gateway/test_channel_directory.py:test_topic_name_resolves_to_composite_id",
+                "internal/gateway/manager.go",
+                "internal/gateway/delivery.go",
+                "internal/gateway/channel_directory.go",
+                "references/go-agent-os/engram/internal/mcp/write_queue.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go"
+              ],
+              "ready_when": [
+                "Channel directory atomic persistence + lookup is complete and exposes a fakeable write/load API.",
+                "Manager remember-source hook is complete or this slice limits itself to injected source fixtures and leaves Manager wiring for the blocked row.",
+                "Refresh tests can inject adapter inventory snapshots and failures without live Slack/Discord clients."
+              ],
+              "not_ready_when": [
+                "The slice reaches out to live Slack/Discord APIs, starts background tickers, or mutates delivery execution beyond returning stale/missing evidence.",
+                "A failed refresh deletes the last known-good directory.",
+                "Stale targets are silently accepted because the ID still exists in an adapter cache."
+              ],
+              "blocked_by": [
+                "Channel directory atomic persistence + lookup",
+                "Manager remember-source hook"
+              ],
+              "unblocks": [
+                "Notify-to delivery routing",
+                "Discord forum media + polish parity",
+                "Cron delivery target planner"
+              ],
+              "acceptance": [
+                "TestChannelDirectoryRefreshMergesAdapterInventory proves Discord/Slack inventory and remembered session sources merge into a deterministic, sorted directory.",
+                "TestChannelDirectoryRefreshFailurePreservesLastGood proves an injected adapter failure records evidence and leaves the previous complete directory intact.",
+                "TestChannelDirectoryStaleTargetInvalidation proves a target missing from a successful refresh returns channel_target_stale and is not dispatched.",
+                "TestChannelDirectoryRefreshSerializesWrites proves concurrent refresh requests run through one writer and do not interleave JSON output.",
+                "Existing delivery target parsing and atomic lookup tests stay green."
+              ],
+              "note": "Builder-ready second channel-directory slice. It deliberately excludes background scheduling and live adapter calls; builders should prove refresh semantics with injected snapshots and reuse Engram-style serialized writer patterns.",
+              "write_scope": [
+                "internal/gateway/channel_directory.go",
+                "internal/gateway/channel_directory_refresh.go",
+                "internal/gateway/channel_directory_refresh_test.go",
+                "internal/gateway/delivery.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestChannelDirectory(Refresh|Stale|Atomic)' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Channel directory refresh fixtures prove deterministic merge, last-known-good preservation, stale-target evidence, serialized writes, and unchanged delivery parsing without live adapters."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/channel_directory.py",
+                  "hermes:tests/gateway/test_channel_directory.py",
+                  "engram:internal/mcp/write_queue.go",
+                  "trpc-agent-go:agent/callbacks.go"
+                ],
+                "note": "Hermes defines refresh/directory behavior; Engram/trpc-agent-go provide pattern references for serialized mutation and callback isolation."
+              }
             },
             {
               "name": "Manager remember-source hook",
@@ -8228,46 +8412,234 @@
               }
             },
             {
-              "name": "Gemini",
+              "name": "Gemini Cloud Code request/stream mapper",
               "status": "planned",
-              "note": "TDD: port `agent/gemini_cloudcode_adapter.py` with content-part normalization, tool-call mapping, safety/error payload handling, and no live Google credential dependency in unit tests.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports the pure OpenAI-to-Code-Assist Gemini mapper from Hermes: message content becomes Gemini contents with systemInstruction separation, tool calls and tool results preserve ID/name/JSON arguments, tool_choice becomes Gemini toolConfig, Code Assist envelopes wrap requests with model/project metadata, non-stream responses normalize back into ChatResponse, and stream events unwrap into shared text/tool/error chunks.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Google safety/error envelopes return structured code_assist_error evidence with status, reason, Retry-After, and quota hints; tests never require Google OAuth or network access.",
+              "fixture": "internal/hermes/testdata/gemini_cloudcode/*.json",
+              "source_refs": [
+                "../hermes-agent/agent/gemini_cloudcode_adapter.py:build_gemini_request",
+                "../hermes-agent/agent/gemini_cloudcode_adapter.py:wrap_code_assist_request",
+                "../hermes-agent/agent/gemini_cloudcode_adapter.py:_translate_gemini_response",
+                "../hermes-agent/agent/gemini_cloudcode_adapter.py:_translate_stream_event",
+                "../hermes-agent/agent/gemini_cloudcode_adapter.py:_gemini_http_error",
+                "../hermes-agent/agent/google_code_assist.py:CodeAssistError",
+                "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md",
+                "references/go-agent-os/goclaw/internal/oauth/openai_quota_transport.go",
+                "references/go-agent-os/plandex/app/server/model/model_error.go",
+                "internal/hermes/provider_transport_contract_test.go"
+              ],
+              "ready_when": [
+                "Provider interface + stream fixture harness can drive fake HTTP responses and shared stream events.",
+                "Tool-call normalization + continuation contract is available so Gemini tool calls reuse the shared transcript shape.",
+                "The slice stays pure mapper/client facade; Google project discovery and OAuth token refresh are supplied by fakes."
+              ],
+              "not_ready_when": [
+                "Tests require Google OAuth credentials, cloudcode-pa network calls, a real GCP project, or the google Code Assist CLI.",
+                "The implementation invents a separate tool-call type instead of adapting to internal/hermes shared descriptors.",
+                "Safety, quota, 404, and Retry-After details are collapsed into unknown provider errors."
+              ],
+              "blocked_by": [
+                "Provider interface + stream fixture harness",
+                "Tool-call normalization + continuation contract"
+              ],
+              "unblocks": [
+                "Google Code Assist project/quota resolver",
+                "Gemini Cloud Code provider transport"
+              ],
+              "acceptance": [
+                "TestGeminiCloudCodeBuildRequestMapsMessagesAndSystem proves system, user, assistant, tool-call, and tool-result messages map to Gemini contents without losing IDs or JSON arguments.",
+                "TestGeminiCloudCodeWrapsCodeAssistEnvelope proves model, project, request, and metadata fields match Hermes fixture output.",
+                "TestGeminiCloudCodeStreamEventNormalization proves text deltas, function calls, usage, safety blocks, and terminal chunks normalize through the shared stream contract.",
+                "TestGeminiCloudCodeHTTPErrorClassification proves 400/401/403/404/429/5xx Google error envelopes preserve safe status/reason/quota evidence and Retry-After."
+              ],
+              "note": "This is the pure mapper slice for Gemini-on-Code-Assist. OAuth, project onboarding, and quota lookup are kept in the separate Google Code Assist row so builders can land fixture-backed provider parity without live Google dependencies.",
+              "write_scope": [
+                "internal/hermes/gemini_cloudcode.go",
+                "internal/hermes/gemini_cloudcode_test.go",
+                "internal/hermes/testdata/gemini_cloudcode/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestGeminiCloudCode -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Gemini Cloud Code fixtures prove request/envelope, response, stream, tool-call, and safe-error parity with fake credentials only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:agent/gemini_cloudcode_adapter.py",
+                  "hermes:agent/google_code_assist.py",
+                  "goclaw:internal/oauth/openai_quota_transport.go",
+                  "plandex:app/server/model/model_error.go"
+                ],
+                "note": "Hermes defines Code Assist Gemini behavior; GoClaw/Plandex are provider error and quota transport pattern references."
+              }
             },
             {
-              "name": "OpenRouter",
+              "name": "OpenRouter compatible-provider routing",
               "status": "planned",
-              "note": "Not landed on main. Five codexu/* worker attempts on 2026-04-23 (`343ec085` / `c009045d` / `e7b271a7` / `f00010b1` / `b3b0c366`) produced candidate OpenRouter adapters but none merged — no `openrouter_*.go` file is tracked in `internal/hermes/` and `grep -i openrouter` over that package returns zero matches. Prior planner note incorrectly cited `agent/openrouter_client.py`, which does not exist upstream: `tools/openrouter_client.py` is only a 33-line async-client getter that delegates to `agent/auxiliary_client.py`. TDD scope: OpenRouter is not a standalone adapter upstream — it is one of several OpenAI-compatible providers routed through the shared provider resolver. Pin the behavior by porting against the real upstream surfaces: `agent/auxiliary_client.py:815 _try_openrouter`, `agent/auxiliary_client.py:2069 _is_openrouter_client`, the `X-OpenRouter-Title` / `X-OpenRouter-Categories` / `HTTP-Referer` app-attribution headers around `agent/auxiliary_client.py:170`, `agent/model_metadata.py:214 _is_openrouter_base_url`, `agent/usage_pricing.py:411 _openrouter_pricing_entry`, and `hermes_cli/runtime_provider.py:429 _resolve_openrouter_runtime`. Fixture-only unit tests must prove (a) base URL and model-family selection over the OpenAI-compatible client seam, (b) attribution-header emission, (c) retryable vs fatal error mapping through `internal/hermes/errors.go`, and (d) usage/pricing accounting against captured response fixtures — no live `OPENROUTER_API_KEY` in tests. Land after `Provider interface + stream fixture harness` and `Tool-call normalization + continuation contract` closeout so this slice reuses the shared transcript harness rather than inventing its own.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports Hermes OpenRouter as an OpenAI-compatible provider route, not a standalone bespoke adapter: runtime resolution honors explicit openrouter/custom/base-url choices, emits Hermes app attribution headers, preserves model suffixes such as :free and :nitro, detects OpenRouter base URLs for model metadata and pricing, and maps retryable/fatal provider errors through the shared error classifier.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing keys, non-OpenRouter custom URLs, rate limits, and upstream HTML/error bodies produce sanitized provider_setup or provider_unavailable evidence; no test uses a live OPENROUTER_API_KEY.",
+              "fixture": "internal/hermes/testdata/openrouter/*.json",
+              "source_refs": [
+                "../hermes-agent/agent/auxiliary_client.py:_try_openrouter",
+                "../hermes-agent/agent/auxiliary_client.py:_is_openrouter_client",
+                "../hermes-agent/agent/auxiliary_client.py:OPENROUTER_APP_ATTRIBUTION_HEADERS",
+                "../hermes-agent/agent/model_metadata.py:_is_openrouter_base_url",
+                "../hermes-agent/agent/usage_pricing.py:_openrouter_pricing_entry",
+                "../hermes-agent/hermes_cli/runtime_provider.py:_resolve_openrouter_runtime",
+                "../hermes-agent/tools/openrouter_client.py:get_openrouter_client",
+                "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md",
+                "references/go-agent-os/plandex/app/server/model/client.go",
+                "references/go-agent-os/plandex/app/server/model/model_error.go",
+                "internal/hermes/errors.go"
+              ],
+              "ready_when": [
+                "Provider resolver tests can inject fake env/config and fake OpenAI-compatible transports.",
+                "Shared provider error classifier accepts Retry-After and sanitized upstream bodies.",
+                "Usage/pricing tests can load captured OpenRouter model metadata without network access."
+              ],
+              "not_ready_when": [
+                "The slice creates a second OpenAI-compatible client stack instead of using the shared provider resolver.",
+                "Tests require OPENROUTER_API_KEY, openrouter.ai network access, or official model API calls.",
+                "The implementation silently relabels custom OpenRouter-compatible URLs to openrouter when Hermes keeps them custom."
+              ],
+              "blocked_by": [
+                "Provider interface + stream fixture harness",
+                "Tool-call normalization + continuation contract"
+              ],
+              "unblocks": [
+                "Multi-model coordination",
+                "OpenRouter pricing cache refresh",
+                "OpenRouter provider health probe"
+              ],
+              "acceptance": [
+                "TestOpenRouterRuntimeResolutionHonorsProviderAndCustomBase proves provider=openrouter, provider=custom+OpenRouter URL, env base URL, and missing-key cases match Hermes runtime selection.",
+                "TestOpenRouterAttributionHeaders proves HTTP-Referer, X-OpenRouter-Title, and X-OpenRouter-Categories are attached only on OpenRouter routes.",
+                "TestOpenRouterModelMetadataAndPricing proves :free/:nitro suffixes and OpenRouter base-url detection preserve billing route and pricing lookup keys.",
+                "TestOpenRouterErrorClassification proves Retry-After, 401/403/429/5xx, and HTML bodies become safe structured provider errors."
+              ],
+              "note": "Prior attempts treated OpenRouter as a standalone adapter and cited a nonexistent `agent/openrouter_client.py`. This row is now pinned to the real Hermes resolver, metadata, pricing, and small tool-client surfaces plus Plandex retry/error references.",
+              "write_scope": [
+                "internal/hermes/openrouter_compatible.go",
+                "internal/hermes/openrouter_compatible_test.go",
+                "internal/hermes/testdata/openrouter/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes ./internal/config -run TestOpenRouter -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "OpenRouter fixtures prove runtime resolution, attribution headers, metadata/pricing keys, model suffix preservation, and safe retry/error classification with fake transports only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:agent/auxiliary_client.py",
+                  "hermes:agent/model_metadata.py",
+                  "hermes:agent/usage_pricing.py",
+                  "hermes:hermes_cli/runtime_provider.py",
+                  "plandex:app/server/model/client.go",
+                  "plandex:app/server/model/model_error.go"
+                ],
+                "note": "Hermes defines OpenRouter resolver, billing, and header behavior; Plandex supplies OpenRouter-compatible retry/error pattern references only."
+              }
             },
             {
-              "name": "Google Code Assist",
+              "name": "Google Code Assist project/quota resolver",
               "status": "planned",
-              "note": "TDD: port `agent/google_code_assist.py` only after OAuth/token-store seams are testable; freeze request shaping, quota/error handling, and credential refresh behavior with fake token providers.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports the Google Code Assist control-plane helpers that Gemini Cloud Code depends on: build Google API headers from a token provider, discover/load Code Assist tier and managed project, run onboarding with free-vs-paid project requirements, retrieve quota buckets for /gquota-style status, resolve configured/env/managed project context, and classify VPC-SC/quota/Retry-After errors safely.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing token, paid-tier project requirement, VPC-SC denial, quota exhaustion, and HTTP failures return code_assist_* evidence with sanitized response text and Retry-After; fake token providers keep unit tests hermetic.",
+              "fixture": "internal/hermes/testdata/google_code_assist/*.json",
+              "source_refs": [
+                "../hermes-agent/agent/google_code_assist.py:CodeAssistError",
+                "../hermes-agent/agent/google_code_assist.py:_build_headers",
+                "../hermes-agent/agent/google_code_assist.py:load_code_assist",
+                "../hermes-agent/agent/google_code_assist.py:onboard_user",
+                "../hermes-agent/agent/google_code_assist.py:retrieve_user_quota",
+                "../hermes-agent/agent/google_code_assist.py:resolve_project_context",
+                "../hermes-agent/agent/gemini_cloudcode_adapter.py:GeminiCloudCodeClient",
+                "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md",
+                "references/go-agent-os/goclaw/internal/oauth/openai.go",
+                "references/go-agent-os/goclaw/internal/oauth/openai_quota_transport.go",
+                "references/go-agent-os/plandex/app/server/model/model_error.go"
+              ],
+              "ready_when": [
+                "A Gormes token-provider interface exists or can be added under internal/hermes without binding to a real browser OAuth flow.",
+                "Builder can drive all HTTP paths through httptest/fake RoundTripper and temp config/home directories.",
+                "Gemini Cloud Code request mapper has a fake project/context seam to consume this resolver later."
+              ],
+              "not_ready_when": [
+                "The slice launches browser OAuth, stores real refresh tokens, calls Google APIs, or requires a GCP project.",
+                "Paid-tier project requirement is silently downgraded to free tier.",
+                "Retry-After and VPC-SC evidence is discarded or logged as raw Google response bodies."
+              ],
+              "blocked_by": [
+                "Provider credential resolver seam"
+              ],
+              "unblocks": [
+                "Gemini Cloud Code provider transport",
+                "Google Code Assist OAuth login/import",
+                "Code Assist /gquota operator command"
+              ],
+              "acceptance": [
+                "TestGoogleCodeAssistHeadersUseTokenProvider proves auth, content type, user agent model, and request metadata are derived from fakes without leaking tokens.",
+                "TestGoogleCodeAssistProjectContextPrecedence proves configured project beats env project, managed free-tier project is accepted, and paid tiers require explicit project IDs.",
+                "TestGoogleCodeAssistOnboardingAndQuotaFixtures prove load/onboard/quota request bodies and response parsing match Hermes fixtures, including LRO-style onboarding responses.",
+                "TestGoogleCodeAssistErrorClassification proves Retry-After, VPC-SC, quota, 401/403/429/5xx, and malformed JSON produce safe structured errors."
+              ],
+              "note": "This is the Code Assist control-plane slice, not the Gemini content mapper and not a browser OAuth implementation. GoClaw OAuth/quota files are donor patterns for token-provider and safe error transport shape.",
+              "write_scope": [
+                "internal/hermes/google_code_assist.go",
+                "internal/hermes/google_code_assist_test.go",
+                "internal/hermes/testdata/google_code_assist/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes ./internal/config -run TestGoogleCodeAssist -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Google Code Assist fixtures prove headers, project resolution, onboarding, quota parsing, and safe error handling with fake token and HTTP providers only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:agent/google_code_assist.py",
+                  "hermes:agent/gemini_cloudcode_adapter.py",
+                  "goclaw:internal/oauth/openai.go",
+                  "goclaw:internal/oauth/openai_quota_transport.go",
+                  "plandex:app/server/model/model_error.go"
+                ],
+                "note": "Hermes defines Code Assist project/quota behavior; GoClaw/Plandex supply OAuth, quota transport, and retry-safe error pattern references."
+              }
             },
             {
               "name": "Codex",
@@ -12699,16 +13071,81 @@
             {
               "name": "Stateful tool migration queue",
               "status": "planned",
-              "note": "TDD: group file/session/checkpoint/process tools by shared state contracts and prove XDG/path isolation plus rollback semantics before exposing write-capable tools to the native agent loop.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes defines the migration queue and execution guard for stateful Hermes tools before exposing write-capable tools to the native loop: file, session, checkpoint, and process tools declare state domains, XDG roots, rollback/audit behavior, concurrency policy, and degraded evidence; the first implementation is a registry/read-model contract that lets builders add one stateful tool at a time without bypassing path isolation.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Stateful tools without a validated queue entry return tool_state_contract_missing, tool_path_denied, tool_rollback_unavailable, or tool_concurrency_blocked evidence instead of mutating files, sessions, checkpoints, or processes.",
+              "fixture": "internal/tools/stateful_migration_queue_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/file_tools.py",
+                "../hermes-agent/tools/terminal_tool.py",
+                "../hermes-agent/tools/process_registry.py",
+                "../hermes-agent/tools/checkpoint_manager.py",
+                "../hermes-agent/tests/tools/test_file_tools.py",
+                "../hermes-agent/tests/tools/test_watch_patterns.py",
+                "internal/tools/registry.go",
+                "internal/tools/environment_contract.go",
+                "internal/cli/pty_bridge.go",
+                "references/go-agent-os/engram/internal/mcp/write_queue.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go",
+                "references/go-agent-os/nanobot/pkg/tools/flows.go"
+              ],
+              "ready_when": [
+                "Pure core tools first has identified side-effect-light tools separately from stateful write/process tools.",
+                "Environment and path-denial contracts under internal/tools are green.",
+                "The slice does not port the full file/process/checkpoint tools; it only freezes queue metadata and guard decisions for future rows."
+              ],
+              "not_ready_when": [
+                "The slice implements write_file, patch, restore, terminal process spawning, live checkpoint restoration, or shell execution.",
+                "A tool can declare write/process behavior without a state domain, rollback policy, and focused test command.",
+                "Paths outside the injected Gormes roots can be accepted in tests."
+              ],
+              "blocked_by": [
+                "Pure core tools first"
+              ],
+              "unblocks": [
+                "File write/patch tool port",
+                "Checkpoint restore tool port",
+                "Terminal process execution port"
+              ],
+              "acceptance": [
+                "TestStatefulToolMigrationQueueRegistersDomains proves file/session/checkpoint/process tool plans declare state domain, root policy, rollback policy, concurrency policy, and owner row.",
+                "TestStatefulToolMigrationQueueRejectsMissingRollback proves write-capable tools cannot become selectable without rollback/audit evidence.",
+                "TestStatefulToolMigrationQueuePathIsolation proves injected XDG roots are the only accepted mutation roots and traversal/absolute foreign paths return tool_path_denied.",
+                "TestStatefulToolMigrationQueueSerializedWrites proves write-domain tools run through one deterministic queue while read-only tools can remain concurrent.",
+                "TestStatefulToolMigrationQueueNoRuntimePort proves the queue contract does not execute shell/file/process mutations."
+              ],
+              "note": "Builder-ready planning/contract row for stateful tool migration. Engram supplies the serialized write-queue pattern, Axe supplies bounded artifact/path evidence, and Nanobot supplies tool registry/hook ordering patterns; Hermes tool files define the parity surface.",
+              "write_scope": [
+                "internal/tools/stateful_migration_queue.go",
+                "internal/tools/stateful_migration_queue_test.go",
+                "internal/tools/registry.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestStatefulToolMigrationQueue -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Stateful tool queue fixtures prove domains, path isolation, rollback requirements, serialized write policy, and no hidden runtime mutations."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/file_tools.py",
+                  "hermes:tools/terminal_tool.py",
+                  "hermes:tools/process_registry.py",
+                  "hermes:tools/checkpoint_manager.py",
+                  "engram:internal/mcp/write_queue.go",
+                  "axe:internal/artifact/tracker.go",
+                  "nanobot:pkg/tools/flows.go"
+                ],
+                "note": "Hermes defines stateful tool behavior; Engram/Axe/Nanobot provide queue, artifact, and registry pattern references."
+              }
             },
             {
               "name": "Terminal process watch notification throttle contract",
@@ -16143,16 +16580,78 @@
             {
               "name": "Multi-model coordination",
               "status": "planned",
-              "note": "TDD: port `tools/mixture_of_agents_tool.py` only after provider routing and subagent envelopes are stable, using fake child model outputs to prove fan-out, aggregation, and failure isolation.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports Hermes mixture_of_agents as a gated tool over the native provider router: reference models run in bounded parallel with retry/failure isolation, at least one successful reference is required before aggregation, the aggregator prompt includes all successful references in deterministic order, debug evidence records counts/models/errors without trace spam, and OpenRouter requirements degrade safely when credentials/routing are unavailable.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing OpenRouter routing, insufficient successful references, empty model outputs, or aggregator failure returns moa_unavailable, moa_insufficient_references, or moa_aggregator_failed evidence without launching live provider calls in tests.",
+              "fixture": "internal/tools/mixture_of_agents_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/mixture_of_agents_tool.py:mixture_of_agents_tool",
+                "../hermes-agent/tools/mixture_of_agents_tool.py:_run_reference_model_safe",
+                "../hermes-agent/tools/mixture_of_agents_tool.py:_run_aggregator_model",
+                "../hermes-agent/tools/mixture_of_agents_tool.py:_construct_aggregator_prompt",
+                "../hermes-agent/tests/tools/test_mixture_of_agents_tool.py",
+                "docs/content/building-gormes/architecture_plan/progress.json:OpenRouter compatible-provider routing",
+                "references/go-agent-os/adk-go/agent/workflowagents/parallelagent/agent.go",
+                "references/go-agent-os/adk-go/agent/workflowagents/parallelagent/agent_test.go",
+                "references/go-agent-os/nanobot/pkg/tools/flows.go",
+                "references/go-agent-os/axe/internal/budget/budget.go"
+              ],
+              "ready_when": [
+                "OpenRouter compatible-provider routing is complete or the tool can inject a fake provider router and report moa_unavailable for missing live routing.",
+                "Native tool registry can express requires_env/requires_provider metadata without enabling MOA by default.",
+                "Tests can use fake child model outputs and fake clocks; no OPENROUTER_API_KEY or network is required."
+              ],
+              "not_ready_when": [
+                "The slice calls live OpenRouter, requires real API keys, or spawns child agents through a production kernel in unit tests.",
+                "Reference-model failures cancel all other successful references unless the minimum success threshold cannot be met.",
+                "Aggregator prompts include failed model errors as reference answers or produce nondeterministic ordering."
+              ],
+              "blocked_by": [
+                "OpenRouter compatible-provider routing",
+                "Debug helpers"
+              ],
+              "unblocks": [
+                "Agentic model/tool features",
+                "Provider fan-out policy controls"
+              ],
+              "acceptance": [
+                "TestMixtureOfAgentsReferenceFanoutUsesFakes proves reference models run through the fake provider router in bounded parallel and collect deterministic per-model results.",
+                "TestMixtureOfAgentsRetryWarningsStayConcise proves retry warnings are recorded once per retry path and terminal failures include safe evidence without duplicate tracebacks.",
+                "TestMixtureOfAgentsRequiresMinimumSuccessfulReferences proves failed/empty references are tolerated until the min-success threshold is missed.",
+                "TestMixtureOfAgentsAggregatorPromptDeterministic proves only successful reference outputs are included in stable order and the aggregator model receives the expected system prompt.",
+                "TestMixtureOfAgentsMissingOpenRouterDegrades proves default runtime returns moa_unavailable without reading live env secrets or network."
+              ],
+              "note": "Builder-ready MOA slice. ADK parallel agent is a pattern reference for bounded fan-out and result acknowledgement; Nanobot flows inform tool call output shape; Axe budget tracking informs bounded call/usage evidence.",
+              "write_scope": [
+                "internal/tools/mixture_of_agents.go",
+                "internal/tools/mixture_of_agents_test.go",
+                "internal/tools/registry.go",
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools ./internal/hermes -run TestMixtureOfAgents -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "MOA fixtures prove fake-router fan-out, retry/failure isolation, min-success gating, deterministic aggregation prompts, debug evidence, and safe missing-provider degradation."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/mixture_of_agents_tool.py",
+                  "hermes:tests/tools/test_mixture_of_agents_tool.py",
+                  "adk-go:agent/workflowagents/parallelagent/agent.go",
+                  "nanobot:pkg/tools/flows.go",
+                  "axe:internal/budget/budget.go"
+                ],
+                "note": "Hermes defines MOA behavior; ADK/Nanobot/Axe provide fan-out, tool-output, and budget-evidence pattern references."
+              }
             }
           ]
         },
@@ -23348,16 +23847,79 @@
             {
               "name": "Matrix shared-chassis bot seam",
               "status": "planned",
-              "note": "TDD: land a Matrix-specific bot seam on top of `internal/channels/threadtext` that freezes canonical thread reply targets, root-message thread defaults, and placeholder/edit hooks before auth/sync/E2EE transport work.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes adds a Matrix-specific seam over internal/channels/threadtext before live Matrix auth/sync: normalize room messages into gateway events with canonical thread roots, resolve reply targets for flat vs thread mode, model placeholder/edit/reaction hooks as fakeable callbacks, and preserve mention/free-room/DM gating inputs without importing a Matrix SDK.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Matrix status reports matrix_transport_unavailable while seam fixtures still prove routing, thread, and hook contracts; no live homeserver is required.",
+              "fixture": "internal/channels/matrix/seam_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter",
+                "../hermes-agent/gateway/platforms/matrix.py:send",
+                "../hermes-agent/gateway/platforms/matrix.py:_handle_text_message",
+                "../hermes-agent/gateway/platforms/matrix.py:on_processing_start",
+                "../hermes-agent/gateway/platforms/matrix.py:on_processing_complete",
+                "../hermes-agent/tests/gateway/test_matrix.py:test_send_reaction",
+                "../hermes-agent/tests/gateway/test_matrix.py:test_on_processing_start_sends_eyes",
+                "../hermes-agent/tests/gateway/test_matrix.py:test_thread",
+                "internal/channels/threadtext/contract.go",
+                "internal/channels/threadtext/contract_test.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/trpc-agent-go/model/callbacks.go"
+              ],
+              "ready_when": [
+                "Threaded text adapter contract suite is complete.",
+                "The slice can create internal/channels/matrix with pure structs and fake hook callbacks.",
+                "Matrix self/bridge sender drop helper remains blocked until this seam exists, so the seam should expose a narrow place for sender filters to attach."
+              ],
+              "not_ready_when": [
+                "The slice logs in, syncs rooms, joins invites, handles E2EE, uploads media, starts network clients, or imports a Matrix SDK.",
+                "Thread roots are derived from reply message IDs when an explicit Matrix thread root is present.",
+                "Placeholder/edit/reaction hooks mutate gateway state directly instead of flowing through fakeable before/after callbacks."
+              ],
+              "blocked_by": [
+                "Threaded text adapter contract suite"
+              ],
+              "unblocks": [
+                "Matrix self/bridge sender drop helper",
+                "Matrix real client/bootstrap layer",
+                "Matrix E2EE device-id crypto-store binding"
+              ],
+              "acceptance": [
+                "TestMatrixSeamNormalizeInboundThreadRoot proves Matrix room ID, sender, message ID, thread root, reply-to, display name, and text normalize through threadtext without losing canonical thread ID.",
+                "TestMatrixSeamResolveReplyTargetModes proves flat mode omits thread metadata and thread mode starts from root messages only when configured.",
+                "TestMatrixSeamMentionAndFreeRoomInputs proves DM/free-room/require-mention decisions are represented as pure inputs without inspecting env at send time.",
+                "TestMatrixSeamProcessingHooks proves start/complete/failure/cancel callbacks are ordered and fakeable, with cancellation suppressing terminal reactions.",
+                "Existing internal/channels/threadtext tests remain green."
+              ],
+              "note": "Builder-ready Matrix seam slice. trpc-agent-go callback files are pattern references for before/after hook ordering and panic isolation; Hermes Matrix remains the parity contract for thread/reaction behavior.",
+              "write_scope": [
+                "internal/channels/matrix/seam.go",
+                "internal/channels/matrix/seam_test.go",
+                "internal/channels/threadtext/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/matrix ./internal/channels/threadtext -run 'TestMatrixSeam|TestThreadText' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Matrix seam fixtures prove inbound normalization, reply-target modes, mention/free-room inputs, processing hooks, and unchanged threadtext behavior with no Matrix SDK or homeserver."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/matrix.py",
+                  "hermes:tests/gateway/test_matrix.py",
+                  "trpc-agent-go:agent/callbacks.go",
+                  "trpc-agent-go:model/callbacks.go"
+                ],
+                "note": "Hermes defines Matrix gateway behavior; trpc-agent-go supplies callback-pipeline pattern references."
+              }
             },
             {
               "name": "Matrix self/bridge sender drop helper",
@@ -23429,16 +23991,78 @@
             {
               "name": "Mattermost shared-chassis bot seam",
               "status": "planned",
-              "note": "TDD: land a Mattermost-specific bot seam on top of `internal/channels/threadtext` that freezes canonical reply targets, flat-vs-thread root reply defaults, and placeholder/edit hooks before REST/WS transport work.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes adds a Mattermost-specific seam over internal/channels/threadtext before REST/websocket transport: parse posted-event payloads into gateway events, ignore self/system/duplicate posts, preserve root_id as canonical thread_id, model reply_mode=thread vs off for outbound root_id decisions, and keep upload/edit/status hooks fakeable.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Mattermost status reports mattermost_transport_unavailable while seam fixtures prove event parsing, dedup, mention gating, and reply-target behavior without REST or websocket sessions.",
+              "fixture": "internal/channels/mattermost/seam_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter",
+                "../hermes-agent/gateway/platforms/mattermost.py:send",
+                "../hermes-agent/gateway/platforms/mattermost.py:_handle_ws_event",
+                "../hermes-agent/tests/gateway/test_mattermost.py:test_send_with_thread_reply",
+                "../hermes-agent/tests/gateway/test_mattermost.py:test_send_without_thread_no_root_id",
+                "../hermes-agent/tests/gateway/test_mattermost.py:test_parse_posted_event",
+                "../hermes-agent/tests/gateway/test_mattermost.py:test_thread_id_from_root_id",
+                "../hermes-agent/tests/gateway/test_mattermost.py:test_duplicate_post_ignored",
+                "internal/channels/threadtext/contract.go",
+                "internal/channels/threadtext/contract_test.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/engram/internal/mcp/activity.go"
+              ],
+              "ready_when": [
+                "Threaded text adapter contract suite is complete.",
+                "The slice can create internal/channels/mattermost with pure event parser and fake delivery hooks.",
+                "No REST/websocket client is required; tests inject double-encoded posted event JSON and fake post/upload responses."
+              ],
+              "not_ready_when": [
+                "The slice opens websocket sessions, calls Mattermost REST APIs, uploads files, reads real env/config, or implements live reconnect.",
+                "System posts or bot self posts can enter gateway dispatch.",
+                "reply_mode=off still sets root_id, or reply_mode=thread drops root_id for replies."
+              ],
+              "blocked_by": [
+                "Threaded text adapter contract suite"
+              ],
+              "unblocks": [
+                "Mattermost REST/WS bootstrap layer",
+                "Mattermost media upload contract"
+              ],
+              "acceptance": [
+                "TestMattermostSeamParsePostedEvent proves double-encoded posted events yield gateway text, channel ID, sender ID, message ID, chat type, and canonical root_id thread ID.",
+                "TestMattermostSeamDropsSelfSystemAndDuplicatePosts proves self, system, malformed, duplicate, and non-posted events do not dispatch.",
+                "TestMattermostSeamMentionGatingInputs proves DM, require-mention, and free-channel decisions are pure inputs and match Hermes fixture cases.",
+                "TestMattermostSeamReplyModeThreadSetsRootID proves reply_mode=thread sets root_id and reply_mode=off omits it.",
+                "Existing internal/channels/threadtext tests remain green."
+              ],
+              "note": "Builder-ready Mattermost seam slice. trpc-agent-go callbacks are a hook-ordering pattern reference; Engram activity tracking is a pattern reference for bounded per-session evidence without hidden writes.",
+              "write_scope": [
+                "internal/channels/mattermost/seam.go",
+                "internal/channels/mattermost/seam_test.go",
+                "internal/channels/threadtext/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/mattermost ./internal/channels/threadtext -run 'TestMattermostSeam|TestThreadText' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Mattermost seam fixtures prove posted-event parsing, self/system/duplicate drops, mention gating, reply-mode root_id behavior, and unchanged threadtext behavior without live Mattermost APIs."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/mattermost.py",
+                  "hermes:tests/gateway/test_mattermost.py",
+                  "trpc-agent-go:agent/callbacks.go",
+                  "engram:internal/mcp/activity.go"
+                ],
+                "note": "Hermes defines Mattermost gateway behavior; trpc-agent-go/Engram provide callback and bounded activity-evidence pattern references."
+              }
             },
             {
               "name": "Matrix real client/bootstrap layer",

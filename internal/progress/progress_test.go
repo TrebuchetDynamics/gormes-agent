@@ -620,15 +620,21 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if matrixBot.Status != StatusPlanned {
 		t.Fatalf("Phase 7.C matrix bot status = %q, want planned", matrixBot.Status)
 	}
-	if !strings.Contains(matrixBot.Note, "internal/channels/threadtext") || !strings.Contains(matrixBot.Note, "thread") {
-		t.Fatalf("Phase 7.C matrix bot note = %q, want threadtext/thread detail", matrixBot.Note)
+	if matrixBot.ContractStatus != ContractStatusDraft || len(matrixBot.WriteScope) == 0 || len(matrixBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C matrix bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", matrixBot.ContractStatus, len(matrixBot.WriteScope), len(matrixBot.TestCommands))
+	}
+	if !containsString(matrixBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(matrixBot.Contract, "thread roots") {
+		t.Fatalf("Phase 7.C matrix bot refs=%v contract=%q, want threadtext/thread detail", matrixBot.SourceRefs, matrixBot.Contract)
 	}
 	mattermostBot := matrixItems["Mattermost shared-chassis bot seam"]
 	if mattermostBot.Status != StatusPlanned {
 		t.Fatalf("Phase 7.C mattermost bot status = %q, want planned", mattermostBot.Status)
 	}
-	if !strings.Contains(mattermostBot.Note, "internal/channels/threadtext") || !strings.Contains(mattermostBot.Note, "REST/WS") {
-		t.Fatalf("Phase 7.C mattermost bot note = %q, want threadtext/REST-WS detail", mattermostBot.Note)
+	if mattermostBot.ContractStatus != ContractStatusDraft || len(mattermostBot.WriteScope) == 0 || len(mattermostBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C mattermost bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", mattermostBot.ContractStatus, len(mattermostBot.WriteScope), len(mattermostBot.TestCommands))
+	}
+	if !containsString(mattermostBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(mattermostBot.Contract, "REST/websocket") {
+		t.Fatalf("Phase 7.C mattermost bot refs=%v contract=%q, want threadtext/REST-WS detail", mattermostBot.SourceRefs, mattermostBot.Contract)
 	}
 	matrixBootstrap := matrixItems["Matrix real client/bootstrap layer"]
 	if matrixBootstrap.Status != StatusPlanned {
@@ -830,8 +836,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if directory.Status != StatusPlanned {
 		t.Fatalf("Phase 2.F.4 channel directory contract status = %q, want planned", directory.Status)
 	}
-	if !strings.Contains(directory.Note, "gateway/channel_directory.py") || !strings.Contains(directory.Note, "channel_directory.json") {
-		t.Fatalf("Phase 2.F.4 channel directory contract note = %q, want channel-directory-donor/json detail", directory.Note)
+	if directory.ContractStatus != ContractStatusDraft || len(directory.WriteScope) == 0 || len(directory.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 channel directory readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", directory.ContractStatus, len(directory.WriteScope), len(directory.TestCommands))
+	}
+	if !containsString(directory.SourceRefs, "../hermes-agent/gateway/channel_directory.py:DIRECTORY_PATH") || !strings.Contains(directory.Contract, "channel_directory.json") {
+		t.Fatalf("Phase 2.F.4 channel directory contract refs=%v contract=%q, want channel-directory donor/json detail", directory.SourceRefs, directory.Contract)
 	}
 	rememberSource := operatorItems["Manager remember-source hook"]
 	if rememberSource.Status != StatusPlanned {
