@@ -17803,9 +17803,9 @@
             },
             {
               "name": "Gormes config command surface",
-              "status": "planned",
+              "status": "complete",
               "contract": "cmd/gormes exposes `gormes config show`, `path`, `env-path`, and `set <key> <value>` over the native XDG config surfaces: non-secret dotpaths write config.toml, secret aliases such as api_key and *_API_KEY/*_TOKEN write the Gormes .env file, and show output redacts every secret.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -17848,7 +17848,7 @@
                 "`gormes config show` prints endpoint/model and redacted credential status without exposing raw secret bytes.",
                 "Empty strings and falsy values behave like Hermes config set: missing value is an error, but an explicit empty string is accepted."
               ],
-              "note": "Added by planner pass 2026-04-28. This is the native answer to the README's persistent-configuration example. Gormes should keep Cobra plus internal/config for now; Viper is not present in go.mod and is not required for this bounded command surface.",
+              "note": "Complete: TDD added cmd/gormes/config.go (cobra subtree show/path/env-path/set), cmd/gormes/config_command_test.go, internal/config/writer.go (EnvPath, IsSecretKey, SecretEnvName, WriteTOMLValue, WriteEnvValue), and internal/config/writer_test.go; wired newConfigCommand into cmd/gormes/main.go's root.AddCommand. Locked invariants: bare keys map to [hermes]; only the closed allow-list of TOML sections (hermes/gateway/tui/input/telegram/discord/slack/cron/skills/delegation/goncho) accepts writes; api_key alias, *_API_KEY, and *_TOKEN suffixes always route to the XDG dotenv at $XDG_CONFIG_HOME/gormes/.env (0o600, 0o700 parent dir); explicit empty string is persisted but a missing value argument is rejected by cobra Args; show prints endpoint/model/provider plus redacted api_key/GORMES_API_KEY status without exposing raw secret bytes.",
               "write_scope": [
                 "cmd/gormes/config.go",
                 "cmd/gormes/config_command_test.go",

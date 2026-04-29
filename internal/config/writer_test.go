@@ -1,0 +1,173 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestConfigWriter_EnvPathHonorsXDG(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+
+	got := EnvPath()
+	want := filepath.Join(cfgHome, "gormes", ".env")
+	if got != want {
+		t.Fatalf("EnvPath() = %q, want %q", got, want)
+	}
+}
+
+func TestConfigWriter_IsSecretKeyClassification(t *testing.T) {
+	secret := []string{
+		"api_key",
+		"API_KEY",
+		"OPENROUTER_API_KEY",
+		"GITHUB_TOKEN",
+		"telegram.bot_token",
+	}
+	notSecret := []string{
+		"endpoint",
+		"model",
+		"hermes.endpoint",
+		"hermes.model",
+		"telegram.coalesce_ms",
+		"goncho.enabled",
+	}
+	for _, k := range secret {
+		if !IsSecretKey(k) {
+			t.Errorf("IsSecretKey(%q) = false, want true", k)
+		}
+	}
+	for _, k := range notSecret {
+		if IsSecretKey(k) {
+			t.Errorf("IsSecretKey(%q) = true, want false", k)
+		}
+	}
+}
+
+func TestConfigWriter_WriteTOMLValueSetsTopLevelHermesField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	if err := WriteTOMLValue(path, "endpoint", "https://example.invalid/v1"); err != nil {
+		t.Fatalf("WriteTOMLValue endpoint: %v", err)
+	}
+	if err := WriteTOMLValue(path, "model", "test-model"); err != nil {
+		t.Fatalf("WriteTOMLValue model: %v", err)
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	got := string(body)
+	if !strings.Contains(got, "endpoint = 'https://example.invalid/v1'") &&
+		!strings.Contains(got, `endpoint = "https://example.invalid/v1"`) {
+		t.Fatalf("config.toml missing endpoint field:\n%s", got)
+	}
+	if !strings.Contains(got, "model = 'test-model'") &&
+		!strings.Contains(got, `model = "test-model"`) {
+		t.Fatalf("config.toml missing model field:\n%s", got)
+	}
+	if !strings.Contains(got, "[hermes]") {
+		t.Fatalf("config.toml missing [hermes] section header:\n%s", got)
+	}
+}
+
+func TestConfigWriter_WriteTOMLValueDottedSectionRoutesToTable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	if err := WriteTOMLValue(path, "telegram.bot_username", "gormesbot"); err != nil {
+		t.Fatalf("WriteTOMLValue: %v", err)
+	}
+	body, _ := os.ReadFile(path)
+	got := string(body)
+	if !strings.Contains(got, "[telegram]") {
+		t.Fatalf("config.toml missing [telegram] section:\n%s", got)
+	}
+	if !strings.Contains(got, "bot_username = 'gormesbot'") &&
+		!strings.Contains(got, `bot_username = "gormesbot"`) {
+		t.Fatalf("config.toml missing telegram.bot_username:\n%s", got)
+	}
+}
+
+func TestConfigWriter_WriteTOMLValueRejectsUnknownSection(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	err := WriteTOMLValue(path, "weatherman.endpoint", "x")
+	if err == nil {
+		t.Fatalf("WriteTOMLValue unknown section: err = nil, want typed error")
+	}
+	if !strings.Contains(err.Error(), "weatherman") {
+		t.Fatalf("error %q does not name the offending section", err)
+	}
+	if _, statErr := os.Stat(path); statErr == nil {
+		t.Fatalf("config.toml created on rejection, want no write")
+	}
+}
+
+func TestConfigWriter_WriteTOMLValueAcceptsExplicitEmptyButRejectsMissingValue(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	if err := WriteTOMLValue(path, "endpoint", ""); err != nil {
+		t.Fatalf("WriteTOMLValue empty: %v", err)
+	}
+	body, _ := os.ReadFile(path)
+	if !strings.Contains(string(body), "endpoint = ''") &&
+		!strings.Contains(string(body), `endpoint = ""`) {
+		t.Fatalf("explicit empty endpoint not persisted:\n%s", string(body))
+	}
+}
+
+func TestConfigWriter_WriteEnvValueAppendsAndUpdatesKey(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	if err := WriteEnvValue(path, "GORMES_API_KEY", "sk-test"); err != nil {
+		t.Fatalf("WriteEnvValue create: %v", err)
+	}
+	if err := WriteEnvValue(path, "OTHER_TOKEN", "abc"); err != nil {
+		t.Fatalf("WriteEnvValue append: %v", err)
+	}
+	if err := WriteEnvValue(path, "GORMES_API_KEY", "sk-updated"); err != nil {
+		t.Fatalf("WriteEnvValue update: %v", err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	pairs, err := parseDotenv(strings.NewReader(string(body)))
+	if err != nil {
+		t.Fatalf("parseDotenv: %v", err)
+	}
+	if pairs["GORMES_API_KEY"] != "sk-updated" {
+		t.Fatalf("GORMES_API_KEY = %q, want sk-updated", pairs["GORMES_API_KEY"])
+	}
+	if pairs["OTHER_TOKEN"] != "abc" {
+		t.Fatalf("OTHER_TOKEN = %q, want abc", pairs["OTHER_TOKEN"])
+	}
+	count := strings.Count(string(body), "GORMES_API_KEY=")
+	if count != 1 {
+		t.Fatalf("GORMES_API_KEY occurrences = %d, want 1 (no duplicate lines)\nbody:\n%s", count, string(body))
+	}
+}
+
+func TestConfigWriter_WriteEnvValueCreatesParentDirAndUsesRestrictivePerms(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "nested", "deeper", ".env")
+
+	if err := WriteEnvValue(path, "GORMES_API_KEY", "sk-test"); err != nil {
+		t.Fatalf("WriteEnvValue: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		t.Fatalf("env perms = %o, want group/other unreadable", perm)
+	}
+}

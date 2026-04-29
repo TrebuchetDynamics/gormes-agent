@@ -1,0 +1,279 @@
+package config
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/pelletier/go-toml/v2"
+)
+
+// EnvPath returns the Gormes-native dotenv file path under XDG_CONFIG_HOME.
+// Mirrors the gormes-side branch of dotenvCandidatePaths so the writer
+// targets the same file Load() reads on the next run.
+func EnvPath() string {
+	return filepath.Join(xdgConfigHome(), "gormes", ".env")
+}
+
+// allowedTOMLSections is the closed set of top-level TOML tables this binary
+// writes. Hermes parity work that introduces a new section must add it here.
+// Keep in sync with the Config struct in config.go.
+var allowedTOMLSections = map[string]struct{}{
+	"hermes":     {},
+	"gateway":    {},
+	"tui":        {},
+	"input":      {},
+	"telegram":   {},
+	"discord":    {},
+	"slack":      {},
+	"cron":       {},
+	"skills":     {},
+	"delegation": {},
+	"goncho":     {},
+}
+
+// secretAliases maps user-typed secret aliases (e.g. `api_key`) to the
+// canonical environment variable name written into the dotenv file.
+var secretAliases = map[string]string{
+	"api_key": "GORMES_API_KEY",
+}
+
+// IsSecretKey reports whether the user-supplied dotted key targets the
+// dotenv file rather than config.toml. Mirrors the Hermes set_config_value
+// classifier: known aliases, *_API_KEY, and *_TOKEN suffixes are secrets.
+// Section-prefixed keys ending in `_token` (e.g. telegram.bot_token) are
+// also routed to .env so raw secrets never land in config.toml.
+func IsSecretKey(key string) bool {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return false
+	}
+	if _, ok := secretAliases[strings.ToLower(key)]; ok {
+		return true
+	}
+	upper := strings.ToUpper(key)
+	if strings.HasSuffix(upper, "_API_KEY") || upper == "API_KEY" {
+		return true
+	}
+	if strings.HasSuffix(upper, "_TOKEN") {
+		return true
+	}
+	return false
+}
+
+// SecretEnvName returns the canonical environment variable name a secret
+// alias persists under. For non-alias secret keys the upper-cased key is
+// returned unchanged.
+func SecretEnvName(key string) string {
+	if mapped, ok := secretAliases[strings.ToLower(strings.TrimSpace(key))]; ok {
+		return mapped
+	}
+	return strings.ToUpper(strings.TrimSpace(key))
+}
+
+// WriteTOMLValue persists a single dotted key/value pair into the TOML file
+// at path. The dotted key may be a top-level field (interpreted as
+// hermes.<name> for the small Hermes-aliased set) or a `<section>.<field>`
+// pair. Unknown top-level sections are rejected before any write so a typo
+// cannot create an unbounded namespace.
+func WriteTOMLValue(path, key, value string) error {
+	section, field, err := splitTOMLDotPath(key)
+	if err != nil {
+		return err
+	}
+	if _, ok := allowedTOMLSections[section]; !ok {
+		return fmt.Errorf("config: unknown section %q in key %q (allowed: %s)", section, key, allowedSectionsList())
+	}
+
+	doc, err := readTOMLDoc(path)
+	if err != nil {
+		return err
+	}
+	table, ok := doc[section].(map[string]any)
+	if !ok {
+		table = map[string]any{}
+	}
+	coerced, err := coerceTOMLScalar(value)
+	if err != nil {
+		return fmt.Errorf("config: %s: %w", key, err)
+	}
+	table[field] = coerced
+	doc[section] = table
+	return writeTOMLDoc(path, doc)
+}
+
+// WriteEnvValue persists a KEY=VALUE pair into the dotenv file at path.
+// An existing line for the same key is replaced in place; otherwise the
+// pair is appended. Parent directories are created with 0o700 and the
+// dotenv file is written 0o600 so secrets stay operator-readable only.
+func WriteEnvValue(path, key, value string) error {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return fmt.Errorf("config: empty env key")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("config: mkdir %s: %w", filepath.Dir(path), err)
+	}
+	encoded := encodeEnvLine(key, value)
+
+	existing, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("config: read %s: %w", path, err)
+	}
+
+	var out bytes.Buffer
+	replaced := false
+	if len(existing) > 0 {
+		sc := bufio.NewScanner(bytes.NewReader(existing))
+		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for sc.Scan() {
+			line := sc.Text()
+			if envLineMatchesKey(line, key) {
+				out.WriteString(encoded)
+				out.WriteByte('\n')
+				replaced = true
+				continue
+			}
+			out.WriteString(line)
+			out.WriteByte('\n')
+		}
+		if err := sc.Err(); err != nil {
+			return fmt.Errorf("config: scan %s: %w", path, err)
+		}
+	}
+	if !replaced {
+		if out.Len() > 0 && !bytes.HasSuffix(out.Bytes(), []byte("\n")) {
+			out.WriteByte('\n')
+		}
+		out.WriteString(encoded)
+		out.WriteByte('\n')
+	}
+	return os.WriteFile(path, out.Bytes(), 0o600)
+}
+
+func splitTOMLDotPath(key string) (section, field string, err error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", "", fmt.Errorf("config: empty key")
+	}
+	parts := strings.Split(key, ".")
+	for _, p := range parts {
+		if strings.TrimSpace(p) == "" {
+			return "", "", fmt.Errorf("config: malformed key %q", key)
+		}
+	}
+	switch len(parts) {
+	case 1:
+		// Bare top-level keys map to the [hermes] section to mirror Hermes
+		// `hermes config set endpoint ...` ergonomics.
+		return "hermes", parts[0], nil
+	case 2:
+		return parts[0], parts[1], nil
+	default:
+		return "", "", fmt.Errorf("config: nested key %q is unsupported (use <section>.<field>)", key)
+	}
+}
+
+func allowedSectionsList() string {
+	names := make([]string, 0, len(allowedTOMLSections))
+	for n := range allowedTOMLSections {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
+}
+
+func readTOMLDoc(path string) (map[string]any, error) {
+	doc := map[string]any{}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return doc, nil
+		}
+		return nil, fmt.Errorf("config: read %s: %w", path, err)
+	}
+	if err := toml.Unmarshal(body, &doc); err != nil {
+		return nil, fmt.Errorf("config: parse %s: %w", path, err)
+	}
+	return doc, nil
+}
+
+func writeTOMLDoc(path string, doc map[string]any) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("config: mkdir %s: %w", filepath.Dir(path), err)
+	}
+	body, err := toml.Marshal(doc)
+	if err != nil {
+		return fmt.Errorf("config: marshal toml: %w", err)
+	}
+	return os.WriteFile(path, body, 0o600)
+}
+
+// coerceTOMLScalar applies the same string→typed coercions as Hermes's
+// set_config_value: explicit empty stays as "", on/off/yes/no/true/false
+// become bool, integers become int64, floats become float64. Anything else
+// is preserved as a string.
+func coerceTOMLScalar(value string) (any, error) {
+	switch strings.ToLower(value) {
+	case "true", "yes", "on":
+		return true, nil
+	case "false", "no", "off":
+		return false, nil
+	}
+	if value == "" {
+		return "", nil
+	}
+	if i, err := strconv.ParseInt(value, 10, 64); err == nil {
+		return i, nil
+	}
+	if f, err := strconv.ParseFloat(value, 64); err == nil {
+		return f, nil
+	}
+	return value, nil
+}
+
+func encodeEnvLine(key, value string) string {
+	needsQuoting := strings.ContainsAny(value, " \t#\"'\\\n\r")
+	if !needsQuoting {
+		return key + "=" + value
+	}
+	var b strings.Builder
+	b.Grow(len(value) + 4)
+	b.WriteByte('"')
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		switch c {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\r':
+			b.WriteString(`\r`)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	b.WriteByte('"')
+	return key + "=" + b.String()
+}
+
+func envLineMatchesKey(line, key string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	if strings.HasPrefix(trimmed, "export ") || strings.HasPrefix(trimmed, "export\t") {
+		trimmed = strings.TrimLeft(trimmed[len("export"):], " \t")
+	}
+	eq := strings.IndexByte(trimmed, '=')
+	if eq <= 0 {
+		return false
+	}
+	return strings.TrimSpace(trimmed[:eq]) == key
+}
