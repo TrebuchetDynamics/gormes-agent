@@ -451,10 +451,17 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.5 = %q, want in_progress while live-turn prompt assembly umbrella remains planned", got)
+	if got := routing.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.5 = %q, want complete after live-turn prompt assembly umbrella validation", got)
 	}
 	routingItems := itemsByName(routing.Items)
+	liveTurnPrompt := routingItems["Hermes live-turn prompt assembly parity (channel-neutral)"]
+	if liveTurnPrompt.Status != StatusComplete || liveTurnPrompt.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 2.B.5 live-turn prompt umbrella = status %q contract_status %q, want complete/validated", liveTurnPrompt.Status, liveTurnPrompt.ContractStatus)
+	}
+	if !strings.Contains(liveTurnPrompt.Note, "completed child rows") || !strings.Contains(liveTurnPrompt.Fixture, "live_turn_prompt_test.go") {
+		t.Fatalf("Phase 2.B.5 live-turn prompt evidence = note %q fixture %q, want completed child rows + live_turn_prompt_test.go", liveTurnPrompt.Note, liveTurnPrompt.Fixture)
+	}
 	sessionStore := routingItems["Gateway session store + SessionSource parity"]
 	if sessionStore.Status != StatusComplete {
 		t.Fatalf("Phase 2.B.5 session store status = %q, want complete", sessionStore.Status)

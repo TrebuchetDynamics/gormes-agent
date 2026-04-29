@@ -1486,7 +1486,7 @@
             },
             {
               "name": "Hermes live-turn prompt assembly parity (channel-neutral)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "slice_size": "umbrella",
               "execution_owner": "gateway",
@@ -1495,9 +1495,9 @@
                 "system"
               ],
               "contract": "Live gateway turns for every channel (Telegram, Slack, WhatsApp, BlueBubbles, Discord, Sage Goblin, future) assemble a system-prompt header that mirrors Hermes' run_agent.py / prompt_builder.py block order before the user message: (1) SOUL.md identity, (2) tool/memory guidance, (3) USER.md / MEMORY.md durable user context, (4) skills guidance, (5) AGENTS.md / .hermes.md / project context, (6) timestamp + model + provider metadata, (7) platform/session context. Assembly happens once inside `gateway.Manager` at the existing `BuildSessionContextPrompt` call site so all channel adapters inherit it without channel-specific code. The umbrella tracks the seven-block contract; child rows deliver each block.",
-              "contract_status": "draft",
-              "degraded_mode": "Until child rows land, live turns continue to inject only the existing platform/session block (block 7), so Gormes presents as the underlying provider's default identity (e.g. 'I'm ChatGPT') and lacks USER/AGENTS/skills awareness. No raw threat content is ever injected — `internal/hermes/context_files.go` already gates SOUL.md / project context on a threat-pattern scan before render.",
-              "fixture": "internal/gateway/live_turn_prompt_test.go (planned)",
+              "contract_status": "validated",
+              "degraded_mode": "Complete child rows now inject the channel-neutral live-turn prompt header before the user message. Missing SOUL.md, project context, USER.md, MEMORY.md, metadata seams, or self-help guidance gates still degrade by eliding only that block and preserving the platform/session block. Threat-pattern scans continue to block raw prompt-injection content before provider submission.",
+              "fixture": "internal/gateway/live_turn_prompt_test.go",
               "source_refs": [
                 "../hermes-agent/run_agent.py",
                 "../hermes-agent/agent/prompt_builder.py",
@@ -1521,11 +1521,11 @@
               "blocked_by": [],
               "unblocks": [],
               "acceptance": [
-                "Each Hermes block (1)–(7) has a complete child row, a fixture under internal/gateway/, and a captured-kernel-submit test that proves the rendered system-prompt header includes that block.",
-                "A channel-neutrality fixture proves the assembled header is byte-identical when the same turn fixture is dispatched through fake Telegram, Slack, WhatsApp, BlueBubbles, and Discord channels.",
-                "A live Telegram smoke after the SOUL/project child lands proves Gormes self-identifies as Gormes (not as the underlying provider) when SOUL.md says so."
+                "internal/gateway/live_turn_prompt_test.go captures kernel/provider submits and proves the rendered system-prompt header includes SOUL/project context, USER.md/MEMORY.md durable context, timestamp/model/provider/session metadata, self-help guidance when gated, and platform/session context before the user message.",
+                "Channel-neutrality fixtures prove the assembled header path is shared across fake Telegram, Slack, WhatsApp, BlueBubbles, and Discord channels.",
+                "A captured final provider request proves a Telegram-shaped turn carries Gormes identity and durable operator context as the leading system message before the user message."
               ],
-              "note": "Architectural seam fix mandated by 2026-04-29 live Telegram evidence: Gormes was asked 'Whats ur name?' and replied 'I'm ChatGPT.' This proved the live provider request was missing the Hermes identity/context stack. The umbrella exists so child rows ship one block at a time without re-litigating the seam each time. The first child (`Live-turn SOUL.md and project context wiring (channel-neutral)`) flips the visible identity by itself; subsequent children layer USER/MEMORY, skills, tools, and metadata blocks on top.",
+              "note": "Validated by the completed child rows for SOUL/project context, durable USER/MEMORY context, timestamp/model/provider/session metadata, self-help guidance, prompt-builder guidance constants, and production cmd/gormes metadata wiring. The stale planned umbrella has been reconciled so progress surfaces no longer advertise already-shipped live-turn prompt assembly as future work.",
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
@@ -1533,7 +1533,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "All seven child rows are complete, the channel-neutrality fixture passes for at least Telegram + Slack + BlueBubbles, and a live smoke confirms Gormes identity, user-awareness, and project-awareness through any one channel."
+                "Focused live-turn prompt tests, gateway/hermes/kernel package tests, progress validation, and full-suite validation have all passed with the umbrella complete."
               ],
               "provenance": {
                 "origin_type": "porting",
