@@ -678,7 +678,7 @@ classification and row-backed implementation queue.
 ### 5.O — Hermes CLI Parity 🔨
 
 - [ ] 49-file CLI tree port
-- [ ] Hermes CLI command-tree parity manifest
+- [x] Hermes CLI command-tree parity manifest
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
 - [x] CLI deterministic tip selector

@@ -16394,9 +16394,9 @@
             },
             {
               "name": "Hermes CLI command-tree parity manifest",
-              "status": "planned",
+              "status": "complete",
               "contract": "cmd/gormes owns a source-backed Hermes CLI compatibility manifest that enumerates every upstream top-level command, nested subcommand, global/root flag, slash command, gateway command handler, dynamic plugin-provided command, and Gormes-owned addition, then classifies each path as implemented, row-backed, owned, excluded, or not-yet-applicable before any handler work claims CLI parity.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -16467,6 +16467,11 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/main.py and hermes_cli/commands.py",
                 "note": "Hermes defines the command inventory; Gormes owns the manifest/classification and Go-native command implementation order."
+              },
+              "evidence": {
+                "implementation": "cmd/gormes/hermes_cli_parity.go, cmd/gormes/hermes_cli_parity_test.go",
+                "tests": "go test ./cmd/gormes -run 'TestHermesCLIParityManifest|TestHermesCLIParityManifestNoUnknowns' -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "Manifest classifies upstream Hermes top-level/nested commands, gateway handlers, slash registry aliases, dynamic plugin commands, Gormes-owned divergences, and typo suggestion evidence before handler ports."
               }
             },
             {

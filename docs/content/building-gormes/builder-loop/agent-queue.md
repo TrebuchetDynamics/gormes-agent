@@ -123,27 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes CLI command-tree parity manifest
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Contract: cmd/gormes owns a source-backed Hermes CLI compatibility manifest that enumerates every upstream top-level command, nested subcommand, global/root flag, slash command, gateway command handler, dynamic plugin-provided command, and Gormes-owned addition, then classifies each path as implemented, row-backed, owned, excluded, or not-yet-applicable before any handler work claims CLI parity.
-- Trust class: operator, gateway, system
-- Ready when: The Phase 5.O CLI umbrella remains inventory-only, so a manifest row can be added without reopening global planning., internal/cli CommandRegistry already locks Hermes slash-command names and active-turn policy., cmd/gormes uses Cobra and exposes root, gateway, session, memory, goncho, doctor, telegram, and version command surfaces that can be classified without executing live services.
-- Not ready when: The slice implements missing command handlers, provider auth, setup wizard prompts, migration writes, backup archives, service-manager calls, or dashboard routes., The slice generates classifications solely from upstream at runtime instead of maintaining a reviewed manifest plus a drift test against upstream parser/registry surfaces., Any upstream command, subcommand, flag, alias, or slash command is left unclassified.
-- Degraded mode: Unknown or unclassified Hermes command paths, including dynamic plugin command registrations, fail the parity test; unsupported-but-known commands must carry row-backed or owned evidence instead of disappearing from help, docs, or migration plans.
-- Fixture: `cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifest`
-- Write scope: `cmd/gormes/hermes_cli_parity.go`, `cmd/gormes/hermes_cli_parity_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run 'TestHermesCLIParityManifest\|TestHermesCLIParityManifestNoUnknowns' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Hermes CLI parity manifest fixtures prove every top-level command, nested command, static slash command, dynamic plugin command, alias, gateway handler, and Gormes-owned divergence has a non-unknown classification with source refs and residual rows.
-- Acceptance: A manifest entry exists for every top-level Hermes parser command: chat, model, fallback, gateway, setup, whatsapp, slack, login, logout, auth, status, cron, webhook, hooks, doctor, dump, debug, backup, import, config, pairing, skills, plugins, memory, tools, mcp, sessions, insights, claw, version, update, uninstall, acp, profile, completion, dashboard, and logs., Nested parser groups are covered for gateway, fallback, auth, cron, webhook, hooks, debug, config, pairing, skills including tap and snapshot, plugins, memory, tools, mcp, sessions, claw, and profile., Every slash command and alias in hermes_cli/commands.py is cross-linked to internal/cli.CommandRegistry status or a named row-backed residual., Dynamic plugin CLI and slash-command surfaces discovered through active memory plugins and PluginContext.register_command entries are classified as implemented, row-backed, owned, excluded, or not-yet-applicable., Plugin manager and plugin command surfaces from hermes_cli/plugins.py and hermes_cli/plugins_cmd.py are classified as manifest-only, implemented, row-backed, owned, or excluded before any plugin runtime execution is claimed., Gormes-owned surfaces such as goncho, --offline, --remote, and XDG/TOML config paths are classified as owned with rationale, not counted as Hermes gaps; Hermes-owned `-z/--oneshot` is classified as implemented parity, not owned divergence., Typo-like requested paths such as `gormes migrate ooenclaw` are classified explicitly: they must return a deterministic suggestion for `gormes migrate openclaw` and must not become silent import aliases without a dedicated compatibility row., Destructive or secret-bearing command paths carry explicit evidence flags for confirmation, dry-run, redaction, or credential routing.
-- Source refs: ../hermes-agent/hermes_cli/main.py:subparsers.add_parser, ../hermes-agent/hermes_cli/main.py:discover_plugin_cli_commands, ../hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY,GATEWAY_KNOWN_COMMANDS, ../hermes-agent/hermes_cli/plugins.py:PluginManager, ../hermes-agent/hermes_cli/plugins_cmd.py:plugins_command, ../hermes-agent/gateway/run.py:_handle_status_command,_handle_restart_command,_handle_reset_command,_handle_help_command,_handle_model_command,_handle_profile_command,_handle_update_command,_handle_approve_command,_handle_deny_command,_handle_voice_command,_handle_usage_command, ../hermes-agent/plugins/memory/__init__.py:discover_plugin_cli_commands, ../hermes-agent/plugins/disk-cleanup/__init__.py:PluginContext.register_command, ../hermes-agent/hermes_cli/config.py:config_command,set_config_value,check_config_version,migrate_config, ../hermes-agent/hermes_cli/claw.py:claw_command,_cmd_migrate,_cmd_cleanup, cmd/gormes/main.go:newRootCommandWithRuntime, internal/cli/command_registry.go:CommandRegistry, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree
-- Unblocks: Gormes config command surface, Gormes config edit/check/native schema-migrate closeout, Hermes config migration dry-run manifest, OpenClaw migration dry-run manifest, Gateway, platform, webhook, and cron management CLI, Diagnostics, backup, logs, and status CLI
-- Why now: Unblocks Gormes config command surface, Gormes config edit/check/native schema-migrate closeout, Hermes config migration dry-run manifest, OpenClaw migration dry-run manifest, Gateway, platform, webhook, and cron management CLI, Diagnostics, backup, logs, and status CLI.
-
-## 7. Provider endpoint/API-key root flags + runtime resolution
+## 6. Provider endpoint/API-key root flags + runtime resolution
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -163,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command
 - Why now: Unblocks Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command.
 
-## 8. Backup/update opt-in and exclusion policy
+## 7. Backup/update opt-in and exclusion policy
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -184,7 +164,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Backup manifest dry-run contract
 - Why now: Unblocks Backup manifest dry-run contract.
 
-## 9. Custom provider model-switch key_env write guard
+## 8. Custom provider model-switch key_env write guard
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -204,7 +184,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/main.py@8258f4dc:_model_flow_named_custom, ../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8258f4dc, ../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map, internal/cli/custom_provider_secret.go:CustomProviderRef,ResolveCustomProviderSecret, internal/cli/custom_provider_secret_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. OCI image
+## 9. OCI image
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -221,6 +201,25 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: OCI image fixtures prove Go-binary runtime layout, offline doctor command behavior, config volume handling, and explicit hosted Honcho deploy divergence.
 - Acceptance: Dockerfile fixtures prove the image builds or describes a Go-binary runtime path with no Hermes Python runtime dependency., Entrypoint fixtures preserve offline doctor/config-volume behavior and deterministic command forwarding., Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies., A smoke command can run `gormes doctor --offline` with fake config volume inputs.
 - Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Homebrew
+
+- Phase: 5 / 5.P
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Contract: Gormes ports Hermes Homebrew/release artifact expectations into a Go-native formula fixture with version, checksum, binary install layout, and doctor smoke contract.
+- Trust class: operator, system
+- Ready when: Static binary artifact naming and version output are stable enough for formula fixtures., The first slice can validate formula text and fake artifact metadata without pushing a tap.
+- Not ready when: The slice publishes release artifacts, mutates a live Homebrew tap, or requires network downloads in tests., The slice mixes Homebrew with OCI, Nix, service units, or installer shell scripts.
+- Degraded mode: Formula validation reports missing artifact, checksum, binary layout, or doctor smoke evidence instead of publishing an untestable tap update.
+- Fixture: `docs/install/homebrew_formula_test.go`
+- Write scope: `packaging/homebrew/gormes-agent.rb`, `docs/install/homebrew_formula_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./docs -run TestHomebrewFormulaContract -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Homebrew formula fixtures prove version/checksum/artifact/install-layout behavior without live tap publication or network downloads.
+- Acceptance: Formula fixtures prove class name, version, URL, checksum, binary install path, and doctor smoke command are present., Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths., Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row.
+- Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
