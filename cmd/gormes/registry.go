@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -22,6 +23,15 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
 	reg.MustRegister(tools.NewExecuteCodeTool())
+	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
+		Budget: tools.ToolResultBudgetConfig{
+			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),
+			TextBudgetBytes: 8 * 1024,
+			PreviewBytes:    1024,
+		},
+	}) {
+		reg.MustRegister(tool)
+	}
 	if delegation.Enabled {
 		var drafter subagent.CandidateDrafter
 		if skillsRoot != "" {
