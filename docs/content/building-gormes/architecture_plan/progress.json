@@ -13013,9 +13013,9 @@
             {
               "name": "Image generation result contract",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "Image-generation tool results use a stable local artifact envelope with provider name, model, prompt hash, media type, output path, and redacted error evidence before any live image model call is wired",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
