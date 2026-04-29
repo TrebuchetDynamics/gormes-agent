@@ -186,7 +186,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 		case e := <-k.events:
 			switch e.Kind {
 			case PlatformEventSubmit:
-				if k.phase != PhaseIdle {
+				if k.phase != PhaseIdle && k.phase != PhaseFailed {
 					k.lastError = ErrTurnInFlight.Error()
 					k.emitFrame("still processing previous turn")
 					continue
