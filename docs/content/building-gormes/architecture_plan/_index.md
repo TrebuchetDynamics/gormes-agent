@@ -77,14 +77,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 40/77 subphases shipped · 27 in progress · 10 planned
+**Overall:** 41/77 subphases shipped · 26 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 17/20 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 0/9 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 1/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -527,7 +527,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure 🔨
+### 4.I — Native Agent Turn Closure ✅
 
 - [x] Python-free normal agent turn e2e harness
 - [x] Provider-tool-memory golden transcript suite
@@ -536,7 +536,7 @@ classification and row-backed implementation queue.
 - [x] Swarm feature-level parity audit for Hermes/Honcho map
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
-- [ ] Native runtime provider gateway binding
+- [x] Native runtime provider gateway binding
 
 ## Phase 5 — The Final Purge 🔨
 

@@ -43,28 +43,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Native runtime provider gateway binding, Await-user-reply channel route, Live multi-channel parity smoke tests
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Native runtime provider gateway binding
-
-- Phase: 4 / 4.I
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Gormes gateway constructs a native Go runtime/provider binding from Hermes-compatible config when no explicit endpoint is configured, so live Telegram and other channel turns do not default to a dead localhost backend while explicit OpenAI-compatible endpoints remain supported. The binding must flow through shared gateway/runtime seams rather than Telegram-specific conditionals.
-- Trust class: gateway, operator, system
-- Ready when: The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing., Hermes config.yaml model/provider bridge and provider endpoint/API-key root flag resolution are complete enough to build temp-config fixtures without printing secrets., A failing test proves provider/model config without an explicit endpoint no longer resolves to the implicit 127.0.0.1:8642 HTTP backend for gateway turns., A separate test proves an explicit endpoint/proxy URL still uses the OpenAI-compatible HTTP client/proxy path.
-- Not ready when: The implementation starts, shells out to, imports, or requires hermes-agent runtime services., The implementation changes Hermes config precedence or removes explicit endpoint support., The implementation solves only Telegram while bypassing the shared gateway/channel runtime path., The slice rewrites provider adapters, tool execution, Goncho memory, or proxy mode beyond the minimal runtime-client binding seam.
-- Degraded mode: If native provider credentials or model routing are incomplete, gateway status and channel replies report provider_config_missing/native_runtime_unavailable evidence. They must not silently dial http://127.0.0.1:8642, require a Python/Hermes runtime service, or hide the configured provider/model behind secret-bearing logs.
-- Fixture: `internal/runtime/native_provider_gateway_binding_test.go`
-- Write scope: `internal/runtime/`, `internal/hermes/`, `internal/config/`, `cmd/gormes/`, `internal/gateway/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/runtime ./internal/config ./internal/hermes ./internal/gateway ./cmd/gormes -run 'NativeRuntime\|ResolveInference\|Gateway.*Provider\|ExplicitEndpoint' -count=1`, `go test ./cmd/gormes ./internal/gateway -count=1`, `go run ./cmd/progress validate`, `git diff --check`, `go test ./... -count=1`
-- Done signal: Gateway native runtime binding tests prove absent endpoint no longer dials 127.0.0.1:8642., Explicit endpoint/proxy fixtures still use OpenAI-compatible forwarding., Progress evidence records channel-neutral native runtime binding without claiming provider/tool/memory loop completion.
-- Acceptance: With Hermes YAML model.provider/model.default and no endpoint/proxy configured, a gateway turn builds a provider-aware native runtime client and does not attempt 127.0.0.1:8642., With an explicit endpoint/proxy URL, gateway preserves the OpenAI-compatible/proxy path and records that the endpoint was explicit., The binding is exercised through a shared gateway/runtime factory used by channel adapters, preserving Telegram/Slack/Discord/WhatsApp/BlueBubbles/iMessage parity., Redacted runtime status names provider, model, endpoint_source, and degraded reason without exposing secrets.
-- Source refs: references/go-agent-os/GORMES-REUSE-AUDIT.md#1-native-runtime-wiring, references/go-agent-os/nanobot/pkg/runtime/runtime.go, references/go-agent-os/nanobot/pkg/tools/service.go, cmd/gormes/main.go, cmd/gormes/gateway.go, internal/config/config.go, internal/hermes/http_client.go, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#providers-models-and-credentials, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli, references/go-agent-os/GORMES-REUSE-AUDIT.md:Row A Native runtime wiring replaces dead localhost backend assumption, internal/hermes/http_client.go:NewHTTPClientWithProvider, internal/gateway/proxy_mode_test.go
-- Unblocks: Live @gormes_bot normal turn, Channel-neutral native runtime binding, Provider-tool-memory golden transcript suite
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 3. Tool output budget persisted artifact pointer
+## 2. Tool output budget persisted artifact pointer
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -85,7 +64,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery
 - Why now: Unblocks 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery.
 
-## 4. Gormes-native MCP host runtime boundary
+## 3. Gormes-native MCP host runtime boundary
 
 - Phase: 5 / 5.G
 - Owner: `tools`
@@ -106,7 +85,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer
 - Why now: Unblocks MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer.
 
-## 5. Goncho serialized write queue + relation candidates
+## 4. Goncho serialized write queue + relation candidates
 
 - Phase: 5 / 5.N
 - Owner: `memory`

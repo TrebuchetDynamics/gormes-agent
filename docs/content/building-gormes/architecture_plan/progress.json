@@ -11758,9 +11758,9 @@
             {
               "name": "Native runtime provider gateway binding",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes gateway constructs a native Go runtime/provider binding from Hermes-compatible config when no explicit endpoint is configured, so live Telegram and other channel turns do not default to a dead localhost backend while explicit OpenAI-compatible endpoints remain supported. The binding must flow through shared gateway/runtime seams rather than Telegram-specific conditionals.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -11827,7 +11827,7 @@
                 "Explicit endpoint/proxy fixtures still use OpenAI-compatible forwarding.",
                 "Progress evidence records channel-neutral native runtime binding without claiming provider/tool/memory loop completion."
               ],
-              "note": "Refined by the Telegram dogfood parity cron from the Go reference audit Row A. This is the next P0 live provider blocker for Telegram dogfood, but the implementation must remain channel-neutral and Gormes-native."
+              "note": "Complete: TDD added internal/runtime/binding.go with a pure ResolveBinding helper plus StatusEvidence redactor, and internal/runtime/native_provider_gateway_binding_test.go covering all four acceptance bullets. Locked invariants: with no explicit endpoint or proxy URL the resolver routes through the injectable NativeClientFactory and never invokes the OpenAI-compatible HTTP factory; explicit endpoint or proxy URL stays on the OpenAI-compatible path with EndpointSource explicit_endpoint; incomplete provider/model/api_key resolution returns EndpointSource unconfigured plus stable provider_config_missing/native_runtime_unavailable codes with a nil client and no implicit 127.0.0.1:8642 dial; the resolver is channel-neutral and StatusEvidence exposes provider, model, endpoint_source, and degraded_reasons without echoing api keys or proxy keys."
             }
           ],
           "drift_state": {
