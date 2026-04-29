@@ -17306,9 +17306,9 @@
             },
             {
               "name": "Provider endpoint/API-key root flags + runtime resolution",
-              "status": "planned",
+              "status": "complete",
               "contract": "cmd/gormes accepts --endpoint, --api-key, --model, and --provider as invocation-only overrides for oneshot and TUI startup; flag values win over env/config for the current process, --api-key is never persisted, and all status/error evidence redacts the secret value.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -17346,7 +17346,7 @@
                 "A redaction fixture proves raw API key bytes never appear in returned errors, status evidence, or test logs.",
                 "Provider-without-model ambiguity keeps the existing explicit-model guard."
               ],
-              "note": "Added by planner pass 2026-04-28 after README review: operator-facing model-backed turns need explicit flags as well as persistent config, but secrets passed through argv must remain invocation-only and redacted.",
+              "note": "Complete: TDD added cmd/gormes/provider_flag_resolution_test.go and wired root --endpoint/--api-key as invocation-only startup overrides beside existing --model/--provider. Oneshot and TUI startup apply endpoint/api-key flags after config/env loading, build provider clients from flag values for the current process, leave persisted config and env-backed defaults untouched, preserve provider-without-model exit-code-2 ambiguity errors, and redact raw API key bytes from provider setup and startup error text.",
               "write_scope": [
                 "cmd/gormes/main.go",
                 "cmd/gormes/provider_flag_resolution_test.go",
@@ -22460,9 +22460,9 @@
             {
               "name": "BlueBubbles iMessage bubble formatting parity",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "BlueBubbles outbound iMessage sends are non-editable, markdown-stripped, paragraph-split bubbles without pagination suffixes",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [

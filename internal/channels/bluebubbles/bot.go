@@ -4,11 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
+
+// MaxMessageLength caps a single iMessage bubble before paragraph chunking
+// kicks in. Mirrors upstream Hermes BlueBubblesAdapter.MAX_MESSAGE_LENGTH.
+const MaxMessageLength = 4000
+
+var blankLineSplitRE = regexp.MustCompile(`\n\s*\n`)
 
 // Config captures the first-pass BlueBubbles contract surface.
 type Config struct {
@@ -104,7 +113,72 @@ func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return b.client.SendText(ctx, guid, text)
+
+	chunks := splitOutboundBubbles(text, MaxMessageLength)
+	if len(chunks) == 0 {
+		return "", fmt.Errorf("bluebubbles: send requires text")
+	}
+
+	var lastID string
+	for _, chunk := range chunks {
+		id, err := b.client.SendText(ctx, guid, chunk)
+		if err != nil {
+			return "", err
+		}
+		lastID = id
+	}
+	return lastID, nil
+}
+
+// splitOutboundBubbles splits a stripped iMessage body into paragraph-sized
+// bubbles, then re-chunks any paragraph longer than max without adding
+// pagination suffixes. Concatenating the returned chunks reproduces the
+// stripped input for paragraphs with no internal whitespace.
+func splitOutboundBubbles(text string, max int) []string {
+	parts := blankLineSplitRE.Split(text, -1)
+	paragraphs := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			paragraphs = append(paragraphs, p)
+		}
+	}
+	chunks := make([]string, 0, len(paragraphs))
+	for _, p := range paragraphs {
+		if utf8.RuneCountInString(p) <= max {
+			chunks = append(chunks, p)
+			continue
+		}
+		chunks = append(chunks, chunkParagraph(p, max)...)
+	}
+	return chunks
+}
+
+func chunkParagraph(paragraph string, max int) []string {
+	runes := []rune(paragraph)
+	out := make([]string, 0, len(runes)/max+1)
+	for len(runes) > 0 {
+		if len(runes) <= max {
+			out = append(out, string(runes))
+			return out
+		}
+		end := max
+		// Prefer a whitespace boundary in the back half so we don't split
+		// mid-word when there's a natural break nearby.
+		for i := end; i > max/2; i-- {
+			if unicode.IsSpace(runes[i-1]) {
+				end = i
+				break
+			}
+		}
+		out = append(out, strings.TrimRightFunc(string(runes[:end]), unicode.IsSpace))
+		// Skip leading whitespace on the remainder so consecutive chunks
+		// re-join cleanly.
+		for end < len(runes) && unicode.IsSpace(runes[end]) {
+			end++
+		}
+		runes = runes[end:]
+	}
+	return out
 }
 
 func (b *Bot) toInboundEvent(msg InboundMessage) (gateway.InboundEvent, bool) {

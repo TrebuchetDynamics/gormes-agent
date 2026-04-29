@@ -655,11 +655,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.E BlueBubbles + HomeAssistant adapters note = %q, want BlueBubbles/HomeAssistant contract detail", blueBubblesHA.Note)
 	}
 	blueBubblesParity := longTailItems["BlueBubbles iMessage bubble formatting parity"]
-	if blueBubblesParity.Status != StatusPlanned {
-		t.Fatalf("Phase 2.B.10 BlueBubbles iMessage parity status = %q, want planned", blueBubblesParity.Status)
+	if blueBubblesParity.Status != StatusComplete {
+		t.Fatalf("Phase 2.B.10 BlueBubbles iMessage parity status = %q, want complete", blueBubblesParity.Status)
 	}
-	if blueBubblesParity.ContractStatus != ContractStatusFixtureReady || !containsString(blueBubblesParity.Unblocks, "BlueBubbles iMessage session-context prompt guidance") {
-		t.Fatalf("Phase 2.B.10 BlueBubbles iMessage parity metadata = contract_status %q unblocks %v, want fixture_ready unblocking prompt guidance", blueBubblesParity.ContractStatus, blueBubblesParity.Unblocks)
+	if blueBubblesParity.ContractStatus != ContractStatusValidated || !containsString(blueBubblesParity.Unblocks, "BlueBubbles iMessage session-context prompt guidance") {
+		t.Fatalf("Phase 2.B.10 BlueBubbles iMessage parity metadata = contract_status %q unblocks %v, want validated unblocking prompt guidance", blueBubblesParity.ContractStatus, blueBubblesParity.Unblocks)
 	}
 	feishu := longTailItems["Feishu shared-chassis bot seam"]
 	if feishu.Status != StatusComplete {

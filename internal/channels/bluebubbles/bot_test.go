@@ -2,6 +2,8 @@ package bluebubbles
 
 import (
 	"context"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -164,5 +166,66 @@ func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
 	case ev := <-inbox:
 		t.Fatalf("expected no inbound event, got %+v", ev)
 	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestBot_Send_SplitsBlankLineParagraphsIntoSeparateBubbles(t *testing.T) {
+	mc := newMockClient()
+	mc.resolved["+15551234567"] = "chat-guid-1"
+	b := New(Config{HomeChannel: "+15551234567"}, mc, nil)
+
+	msgID, err := b.Send(context.Background(), "+15551234567", "**first** paragraph\n\nsecond paragraph\n\n  \n_third_")
+	if err != nil {
+		t.Fatalf("Send error = %v", err)
+	}
+	if len(mc.sent) != 3 {
+		t.Fatalf("send count = %d, want 3 paragraph bubbles; got %+v", len(mc.sent), mc.sent)
+	}
+	wantTexts := []string{"first paragraph", "second paragraph", "third"}
+	for i, want := range wantTexts {
+		if mc.sent[i].Text != want {
+			t.Fatalf("bubble %d text = %q, want %q", i, mc.sent[i].Text, want)
+		}
+		if mc.sent[i].ChatGUID != "chat-guid-1" {
+			t.Fatalf("bubble %d chat = %q, want chat-guid-1", i, mc.sent[i].ChatGUID)
+		}
+	}
+	if msgID != "send-3" {
+		t.Fatalf("returned msgID = %q, want send-3 (id of last bubble)", msgID)
+	}
+}
+
+func TestBot_Send_LongParagraphChunkOmitsPaginationSuffix(t *testing.T) {
+	mc := newMockClient()
+	mc.resolved["+15551234567"] = "chat-guid-1"
+	b := New(Config{HomeChannel: "+15551234567"}, mc, nil)
+
+	paragraph := strings.Repeat("a", MaxMessageLength*2+1)
+	if _, err := b.Send(context.Background(), "+15551234567", paragraph); err != nil {
+		t.Fatalf("Send error = %v", err)
+	}
+	if len(mc.sent) < 2 {
+		t.Fatalf("long paragraph produced %d chunks, want at least 2", len(mc.sent))
+	}
+	suffix := regexp.MustCompile(`\s*\(\d+/\d+\)$`)
+	var joined string
+	for i, msg := range mc.sent {
+		if suffix.MatchString(msg.Text) {
+			t.Fatalf("chunk %d text %q has forbidden pagination suffix", i, msg.Text)
+		}
+		joined += msg.Text
+	}
+	if joined != paragraph {
+		t.Fatalf("joined chunks length = %d, want %d (must reconstruct stripped original)", len(joined), len(paragraph))
+	}
+}
+
+func TestBot_DoesNotImplementMessageEditorOrPlaceholderCapable(t *testing.T) {
+	var iface interface{} = New(Config{}, newMockClient(), nil)
+	if _, ok := iface.(gateway.MessageEditor); ok {
+		t.Fatal("Bot must not implement gateway.MessageEditor (iMessage non-editable)")
+	}
+	if _, ok := iface.(gateway.PlaceholderCapable); ok {
+		t.Fatal("Bot must not implement gateway.PlaceholderCapable (iMessage non-placeholder)")
 	}
 }

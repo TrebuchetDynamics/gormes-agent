@@ -42,28 +42,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/trajectory.py, ../hermes-agent/agent/usage_pricing.py:CanonicalUsage,normalize_usage,estimate_usage_cost, ../hermes-agent/tests/agent/test_usage_pricing.py, ../honcho/src/telemetry/emitter.py, ../honcho/src/telemetry/reasoning_traces.py, ../honcho/src/telemetry/events/agent.py, ../honcho/src/telemetry/events/deletion.py, ../honcho/src/telemetry/events/dream.py, ../honcho/src/telemetry/events/reconciliation.py, ../honcho/src/telemetry/events/representation.py, ../honcho/src/telemetry/metrics_collector.py, ../honcho/src/telemetry/sentry.py, ../honcho/src/telemetry/prometheus/metrics.py, ../honcho/tests/telemetry/test_events.py, ../honcho/tests/telemetry/test_emitter.py, ../honcho/tests/integration/test_telemetry.py, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Telemetry and reasoning traces, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. ContextEngine compression-boundary callback vocabulary
-
-- Phase: 4 / 4.B
-- Owner: `provider`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: internal/hermes defines a compression-boundary callback vocabulary on ContextEngine with stable lineage evidence and status fields, without binding kernel compression execution yet
-- Trust class: operator, system
-- Ready when: ContextEngine interface + status tool contract is validated on main., Compression token-budget and single-prompt threshold fixtures are validated, so this slice only adds callback vocabulary and status evidence., The worker edits only internal/hermes context-engine files and the declared context_status JSON fixture; no kernel, transcript storage, summarizer, or Goncho/Honcho memory behavior is in scope.
-- Not ready when: The slice edits internal/kernel/kernel.go, creates internal/kernel/context_engine.go, implements summarization, mutates transcript history, or binds live compression execution., The slice hides boundary failures or lets status imply a boundary callback ran before the kernel binding row is complete., The slice changes Goncho/Honcho memory extraction semantics; memory pre/post-compression observation remains a separate Phase 3/4 concern., The slice edits any testdata fixture except internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json.
-- Degraded mode: Context status reports compression_boundary_unavailable or last_boundary_missing evidence until kernel compression execution binds the callback.
-- Fixture: `internal/hermes/context_engine_boundary_test.go::TestContextEngineCompressionBoundaryVocabulary`
-- Write scope: `internal/hermes/context_engine.go`, `internal/hermes/context_engine_test.go`, `internal/hermes/context_engine_boundary_test.go`, `internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run 'Test.*ContextEngine.*Boundary\|TestDisabledContextEngine_StatusToolFixture\|TestContextStatusFixtures' -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/progress validate`
-- Done signal: Hermes package fixtures and the disabled_pressure_unknown_tool.json status fixture prove boundary vocabulary, status evidence, unavailable/missing degraded modes, and no kernel or memory side effects.
-- Acceptance: A new CompressionBoundary value carries old_session_id, new_session_id, reason, and compressed_at or equivalent stable lineage evidence., DisabledContextEngine or an in-package fake can record one boundary callback and expose last boundary evidence through Status without contacting a provider., Status reports compression_boundary_unavailable or last_boundary_missing when no boundary has been recorded., Existing context_status tool fixtures remain stable except for the added boundary evidence fields., The disabled_pressure_unknown_tool.json fixture is updated only as needed to include explicit missing-boundary or unavailable-boundary evidence.
-- Source refs: ../hermes-agent/run_agent.py@e85b7525, ../hermes-agent/tests/run_agent/test_compression_boundary_hook.py@e85b7525, internal/hermes/context_engine.go:ContextEngine, internal/hermes/context_engine_test.go, internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json
-- Unblocks: ContextEngine compression-boundary notification
-- Why now: Unblocks ContextEngine compression-boundary notification.
-
-## 3. Environment interface + file sync contract
+## 2. Environment interface + file sync contract
 
 - Phase: 5 / 5.B
 - Owner: `tools`
@@ -83,7 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard
 - Why now: Unblocks Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard.
 
-## 4. Image input mode router + native content parts
+## 3. Image input mode router + native content parts
 
 - Phase: 5 / 5.D
 - Owner: `provider`
@@ -104,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Image-too-large shrink retry helper
 - Why now: Unblocks Image-too-large shrink retry helper.
 
-## 5. ACP server side
+## 4. ACP server side
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -123,27 +102,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Provider endpoint/API-key root flags + runtime resolution
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Contract: cmd/gormes accepts --endpoint, --api-key, --model, and --provider as invocation-only overrides for oneshot and TUI startup; flag values win over env/config for the current process, --api-key is never persisted, and all status/error evidence redacts the secret value.
-- Trust class: operator, system
-- Ready when: Cobra already owns the root command and model/provider flags., internal/config already has a typed HermesCfg and precedence vocabulary for flag, env, and config sources., This slice only handles invocation-time overrides; persistent config writes remain in the Gormes config command row.
-- Not ready when: The slice writes config.toml or .env., The slice introduces Viper/global config state instead of using the existing internal/config loader contract., The slice logs, formats, or stores the raw --api-key value.
-- Degraded mode: If endpoint/model/provider flags are incomplete or ambiguous, startup returns an exit-code-2 operator error before opening a provider client; no config file is modified.
-- Fixture: `cmd/gormes/provider_flag_resolution_test.go`
-- Write scope: `cmd/gormes/main.go`, `cmd/gormes/provider_flag_resolution_test.go`, `internal/config/config.go`, `internal/config/config_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes ./internal/config -run 'Test.*Provider.*Flag\|Test.*Endpoint\|Test.*APIKey\|Test.*OneshotInference\|Test.*TUI.*Model' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Provider-flag fixtures prove endpoint/model/provider/api-key precedence, redaction, no config mutation, and unchanged ambiguity errors for oneshot and TUI startup.
-- Acceptance: Root help exposes --endpoint and --api-key alongside the existing --model and --provider flags., A oneshot fixture proves --endpoint, --api-key, and --model build the provider client with flag values even when config/env contain stale values., A TUI startup fixture proves the same resolution path is used without mutating persisted config defaults., A redaction fixture proves raw API key bytes never appear in returned errors, status evidence, or test logs., Provider-without-model ambiguity keeps the existing explicit-model guard.
-- Source refs: cmd/gormes/main.go:newRootCommandWithRuntime,resolveOneshotInvocation,resolveTUIInvocation, internal/config/config.go:Load,ResolveInference,HermesCfg, README.md:Model-Backed Turn, ../hermes-agent/hermes_cli/config.py:set_config_value,config_command, ../hermes-agent/tests/hermes_cli/test_set_config_value.py
-- Unblocks: Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command
-- Why now: Unblocks Gormes config command surface, Hermes config migration writer, OpenClaw migration writer and cleanup command.
-
-## 7. Backup/update opt-in and exclusion policy
+## 5. Backup/update opt-in and exclusion policy
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -164,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Backup manifest dry-run contract
 - Why now: Unblocks Backup manifest dry-run contract.
 
-## 8. Custom provider model-switch key_env write guard
+## 6. Custom provider model-switch key_env write guard
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -184,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/main.py@8258f4dc:_model_flow_named_custom, ../hermes-agent/tests/hermes_cli/test_custom_provider_model_switch.py@8258f4dc, ../hermes-agent/hermes_cli/main.py@8bbeaea6:_named_custom_provider_map, internal/cli/custom_provider_secret.go:CustomProviderRef,ResolveCustomProviderSecret, internal/cli/custom_provider_secret_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. OCI image
+## 7. OCI image
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -203,7 +162,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Homebrew
+## 8. Homebrew
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -221,5 +180,26 @@ keep row-specific execution facts in `progress.json`.
 - Acceptance: Formula fixtures prove class name, version, URL, checksum, binary install path, and doctor smoke command are present., Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths., Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row.
 - Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 9. Yuanbao protocol envelope + markdown fixtures
+
+- Phase: 7 / 7.E
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P4`
+- Contract: Gormes parses Yuanbao websocket/protobuf-style envelopes and Markdown message fragments into gateway-neutral events using fixture data only
+- Trust class: gateway, system
+- Ready when: The Phase 2 shared gateway event shape and Regional + Device Adapter Backlog are available; this row does not need a live Yuanbao account., Workers can start with captured JSON/proto/markdown testdata under internal/channels/yuanbao/testdata copied or minimized from upstream fixtures., No send loop, login flow, tool registration, media download, or sticker parsing is required for this first slice.
+- Not ready when: The slice opens a websocket, performs login, calls Tencent/Yuanbao endpoints, downloads media, or registers user-visible tools., The slice stores credentials or changes shared gateway session policy., The slice combines protocol parsing with send/reply runtime behavior.
+- Degraded mode: Yuanbao adapter status reports protocol_unavailable or markdown_parse_failed evidence instead of starting a live session with unparsed payloads.
+- Fixture: `internal/channels/yuanbao/proto_test.go`
+- Write scope: `internal/channels/yuanbao/proto.go`, `internal/channels/yuanbao/proto_test.go`, `internal/channels/yuanbao/markdown.go`, `internal/channels/yuanbao/markdown_test.go`, `internal/channels/yuanbao/testdata/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/channels/yuanbao -run 'TestYuanbao(Proto\|Markdown)' -count=1`, `go test ./internal/channels/yuanbao -count=1`, `go run ./cmd/progress validate`
+- Done signal: Yuanbao protocol/markdown fixtures prove inbound text event normalization and degraded parse evidence with no live Yuanbao network call.
+- Acceptance: TestYuanbaoProto_DecodesInboundTextFixture loads a captured fixture and returns source, conversation id, message id, author role, and text content., TestYuanbaoMarkdown_RendersCodeAndLinks proves code blocks, links, mentions, and list fragments are normalized into plain prompt-safe text without losing URLs., Malformed/unknown envelope fixtures return typed degraded evidence and do not panic., No test imports a generated protobuf runtime unless a local generated fixture file is checked in under internal/channels/yuanbao.
+- Source refs: ../hermes-agent/gateway/platforms/yuanbao_proto.py@ab687963, ../hermes-agent/gateway/platforms/yuanbao.py@ab687963, ../hermes-agent/tests/test_yuanbao_proto.py@ab687963, ../hermes-agent/tests/test_yuanbao_markdown.py@ab687963, ../hermes-agent/website/docs/user-guide/messaging/yuanbao.md@ab687963
+- Unblocks: Yuanbao media/sticker attachment normalization, Yuanbao gateway runtime + toolset registration
+- Why now: Unblocks Yuanbao media/sticker attachment normalization, Yuanbao gateway runtime + toolset registration.
 
 <!-- PROGRESS:END -->

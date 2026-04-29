@@ -8965,9 +8965,9 @@
             {
               "name": "ContextEngine compression-boundary callback vocabulary",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/hermes defines a compression-boundary callback vocabulary on ContextEngine with stable lineage evidence and status fields, without binding kernel compression execution yet",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -9004,7 +9004,7 @@
                 "Existing context_status tool fixtures remain stable except for the added boundary evidence fields.",
                 "The disabled_pressure_unknown_tool.json fixture is updated only as needed to include explicit missing-boundary or unavailable-boundary evidence."
               ],
-              "note": "Refined 2026-04-27T13:57:25Z after report validation showed the worker needed to update internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json but the fixture was outside write_scope. This row is hermes package vocabulary plus that one declared status fixture only; kernel binding stays in the existing dependent row.",
+              "note": "Complete: TDD added internal/hermes/context_engine_boundary_test.go and extended ContextEngine with CompressionBoundary plus OnCompressionBoundary callback vocabulary. DisabledContextEngine records one boundary with old_session_id, new_session_id, reason, compressed_at, increments compression_count, exposes last_boundary_recorded through Status, and resets to last_boundary_missing on session reset. The disabled_pressure_unknown_tool.json fixture now carries explicit last_boundary_missing evidence. This slice stayed inside internal/hermes and did not bind kernel compression execution, mutate transcript history, or touch Goncho memory behavior.",
               "write_scope": [
                 "internal/hermes/context_engine.go",
                 "internal/hermes/context_engine_test.go",
@@ -17306,9 +17306,9 @@
             },
             {
               "name": "Provider endpoint/API-key root flags + runtime resolution",
-              "status": "planned",
+              "status": "complete",
               "contract": "cmd/gormes accepts --endpoint, --api-key, --model, and --provider as invocation-only overrides for oneshot and TUI startup; flag values win over env/config for the current process, --api-key is never persisted, and all status/error evidence redacts the secret value.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -17346,7 +17346,7 @@
                 "A redaction fixture proves raw API key bytes never appear in returned errors, status evidence, or test logs.",
                 "Provider-without-model ambiguity keeps the existing explicit-model guard."
               ],
-              "note": "Added by planner pass 2026-04-28 after README review: operator-facing model-backed turns need explicit flags as well as persistent config, but secrets passed through argv must remain invocation-only and redacted.",
+              "note": "Complete: TDD added cmd/gormes/provider_flag_resolution_test.go and wired root --endpoint/--api-key as invocation-only startup overrides beside existing --model/--provider. Oneshot and TUI startup apply endpoint/api-key flags after config/env loading, build provider clients from flag values for the current process, leave persisted config and env-backed defaults untouched, preserve provider-without-model exit-code-2 ambiguity errors, and redact raw API key bytes from provider setup and startup error text.",
               "write_scope": [
                 "cmd/gormes/main.go",
                 "cmd/gormes/provider_flag_resolution_test.go",
@@ -22460,9 +22460,9 @@
             {
               "name": "BlueBubbles iMessage bubble formatting parity",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "BlueBubbles outbound iMessage sends are non-editable, markdown-stripped, paragraph-split bubbles without pagination suffixes",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [

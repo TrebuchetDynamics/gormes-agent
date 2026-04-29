@@ -464,7 +464,7 @@ classification and row-backed implementation queue.
 - [ ] Context compressor image-token budget charge
 - [x] Context references stable-handle store
 - [ ] Manual compression feedback + context references
-- [ ] ContextEngine compression-boundary callback vocabulary
+- [x] ContextEngine compression-boundary callback vocabulary
 - [ ] Kernel compression-boundary callback binding
 
 ### 4.C — Native Prompt Builder 🔨
@@ -694,7 +694,7 @@ classification and row-backed implementation queue.
 - [x] Gateway /reasoning apply + dispatch
 - [x] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
-- [ ] Provider endpoint/API-key root flags + runtime resolution
+- [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [ ] Gormes config command surface
 - [ ] Gormes config edit/check/native schema-migrate closeout
@@ -845,7 +845,7 @@ classification and row-backed implementation queue.
 ### 7.E — Regional + Device Adapter Backlog 🔨
 
 - [x] BlueBubbles + HomeAssistant adapters
-- [ ] BlueBubbles iMessage bubble formatting parity
+- [x] BlueBubbles iMessage bubble formatting parity
 - [x] Feishu shared-chassis bot seam
 - [x] DingTalk shared-chassis bot seam
 - [x] QQ Bot shared-chassis bot seam
