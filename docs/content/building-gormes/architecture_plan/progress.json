@@ -12153,9 +12153,9 @@
           "items": [
             {
               "name": "Environment interface + file sync contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes sandbox environment and file-sync contracts into a Go Environment interface with path mapping, upload/download, timeout, cleanup, and parser-family inventory fixtures before backend-specific Docker/SSH/Modal/Daytona/Singularity execution lands.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -12199,7 +12199,7 @@
                 "Parser manifest fixtures classify hermes_parser.py, deepseek_v3_1_parser.py, and the remaining parser family as implemented, row-backed, or excluded before raw parser execution parity is claimed.",
                 "No test starts Docker, SSH, Modal, Daytona, Singularity, browsers, or provider clients."
               ],
-              "note": "swarm_origin: 2026-04-28/hermes-mapper. Replaces the prior note-only row so `tools/environments/*`, root `environments/*`, and nested `environments/tool_call_parsers/*` no longer hide behind broad glob coverage.",
+              "note": "Complete: TDD landed a Go Environment contract with fake and unsupported backends, host-to-environment path mapping, file upload/download/delete intent planning, timeout propagation, reverse cleanup evidence, and a parser-family manifest that keeps every upstream tool_call_parsers file explicitly row-backed until raw parser execution fixtures land. No Docker, SSH, Modal, Daytona, Singularity, browser, provider, or runtime Python backend is started in this slice.",
               "write_scope": [
                 "internal/tools/environment_contract.go",
                 "internal/tools/environment_contract_test.go",
@@ -12215,6 +12215,11 @@
               "done_signal": [
                 "Environment contract fixtures prove fake backend path/file-sync/timeout/cleanup behavior and parser-family manifest coverage without real sandbox backends."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T00:00:00Z",
+                "last_success": "2026-04-29T00:00:00Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:tools/environments/base.py + environments/tool_call_parsers",
