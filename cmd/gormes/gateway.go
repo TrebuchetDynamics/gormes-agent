@@ -111,7 +111,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	hc := newGatewayHermesClient(cfg)
+	hc, err := newGatewayHermesClient(cfg)
+	if err != nil {
+		return fmt.Errorf("provider setup: %w", err)
+	}
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 1)
@@ -173,8 +176,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	return mgr.Run(rootCtx)
 }
 
-func newGatewayHermesClient(cfg config.Config) hermes.Client {
-	return hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, cfg.Hermes.Provider)
+func newGatewayHermesClient(cfg config.Config) (hermes.Client, error) {
+	return newProviderHTTPClient(cfg, cfg.Hermes.Provider)
 }
 
 func defaultGatewayChannelFactories() gatewayChannelFactories {

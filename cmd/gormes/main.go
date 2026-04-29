@@ -225,7 +225,7 @@ type oneshotClientFactory func(context.Context, config.Config, oneshotInvocation
 type oneshotKernelConfigurer func(*kernel.Config)
 
 func newOneshotHTTPClient(_ context.Context, cfg config.Config, invocation oneshotInvocation) (hermes.Client, error) {
-	return hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, invocation.Inference.Provider), nil
+	return newProviderHTTPClient(cfg, invocation.Inference.Provider)
 }
 
 func runResolvedOneshot(cmd *cobra.Command, invocation oneshotInvocation) error {
@@ -388,11 +388,20 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	if modelName == "" {
 		modelName = cfg.Hermes.Model
 	}
-	c := hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, invocation.Inference.Provider)
+	providerName := firstNonEmpty(invocation.Inference.Provider, cfg.Hermes.Provider)
 
-	// Health check: 2s budget. Surface an actionable error if unreachable.
 	offline, _ := cmd.Flags().GetBool("offline")
+	c := hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, providerName)
 	if !offline {
+		var err error
+		c, err = newProviderHTTPClient(cfg, providerName)
+		if err != nil {
+			redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+			fmt.Fprintf(os.Stderr, "provider setup failed: %s\n", redactedErr)
+			return errors.New(redactedErr)
+		}
+
+		// Health check: 2s budget. Surface an actionable error if unreachable.
 		healthCtx, healthCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		if err := c.Health(healthCtx); err != nil {
 			healthCancel()

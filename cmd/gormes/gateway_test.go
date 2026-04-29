@@ -112,12 +112,15 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := newGatewayHermesClient(config.Config{Hermes: config.HermesCfg{
+	client, err := newGatewayHermesClient(config.Config{Hermes: config.HermesCfg{
 		Endpoint: server.URL,
 		APIKey:   "gateway-token",
 		Model:    "gpt-5.5",
 		Provider: "openai-codex",
 	}})
+	if err != nil {
+		t.Fatalf("newGatewayHermesClient error = %v", err)
+	}
 	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
 		Model:    "gpt-5.5",
 		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
