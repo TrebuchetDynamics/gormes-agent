@@ -21966,6 +21966,78 @@
               }
             },
             {
+              "name": "Gormes profile command binding",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "cmd/gormes registers a Cobra `profile` command with `show`, `set`, and `list` subcommands that consume the internal/cli ProfileSelector seam plus the validator/root-resolver/active-profile-store helpers via injected function-shaped seams. show renders the active profile name and a redacted root path; set validates the name first, then writes the active-profile store, then re-resolves the root via the resolver — partial failure leaves the store unchanged. list enumerates known profile names and marks the active one. No internal/config or internal/cli/selector.go modification; the binding is the consumer of the existing seam.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "profile_name_invalid is returned when set receives a name that fails ValidateProfileName; profile_root_unwritable when the resolver/store rejects the new root; active_profile_corrupt when the store's read path returns a non-ErrActiveProfileUnset error; profile_set_partial_failure when the store update succeeds but the post-update resolver swap fails. show with no active profile reports profile_unset and renders the default profile name.",
+              "fixture": "cmd/gormes/profile_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:cmd_profile",
+                "../hermes-agent/hermes_cli/profiles.py:set_active_profile,get_active_profile_name,list_profiles",
+                "internal/cli/selector.go:ProfileSelector,Profile,ProfileSelectorFunc,ReadActiveProfileNameFunc,ValidateProfileNameFunc,ResolveProfileRootFunc",
+                "internal/cli/profile_name.go:ValidateProfileName",
+                "internal/cli/profile_root.go:ResolveProfileRoot",
+                "internal/cli/active_profile.go:ReadActiveProfile,WriteActiveProfile,ClearActiveProfile"
+              ],
+              "ready_when": [
+                "CLI profile name validator, CLI profile root resolver, and CLI active-profile store are complete and exported as pure helpers.",
+                "Model and profile selector seam (Cobra + gateway) is complete and exposes ProfileSelector with function-shaped seams.",
+                "Tests can construct a ProfileSelector with injected fakes; no live filesystem reads of profile state are required."
+              ],
+              "not_ready_when": [
+                "The slice modifies internal/cli/selector.go, the profile helpers in internal/cli, or any internal/config file.",
+                "The slice attempts to port Hermes profile create/delete/clone/alias/rename behavior in the same change.",
+                "The slice prints raw absolute paths that could leak auth tokens or operator-home identifiers."
+              ],
+              "blocked_by": [
+                "CLI profile name validator",
+                "CLI profile root resolver",
+                "CLI active-profile store",
+                "Model and profile selector seam (Cobra + gateway)"
+              ],
+              "acceptance": [
+                "TestGormesProfileShowRendersActivePathRedacted: gormes profile show prints the active profile name and a redacted root (last segment + ellipsis), never the raw absolute path.",
+                "TestGormesProfileSetValidatesNameThenUpdatesStore: gormes profile set <bad-name> returns profile_name_invalid evidence and the active-profile store is unchanged; gormes profile set <good-name> writes the new name and reports success.",
+                "TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker: gormes profile list prints the known profiles with a marker on the active one.",
+                "TestGormesProfileSetUpdatesRootResolver: after a successful set, the root resolver is invoked with the new name and the resolved root is reported; partial failure (resolver returns an error after store write succeeds) surfaces profile_set_partial_failure evidence."
+              ],
+              "note": "Complete: TDD added cmd/gormes/profile.go and cmd/gormes/profile_command_test.go. The binding registers a profileCommandSeams struct that consumes cli.ReadActiveProfileNameFunc, cli.ValidateProfileNameFunc, cli.ResolveProfileRootFunc, plus WriteActiveProfile and ListKnownProfiles fakeable functions. show renders 'active profile: <name>' and a redacted '.../<segment>' root via writeProfileSummary so absolute paths never leak. set enforces order validate -> write -> resolve and surfaces profile_name_invalid, profile_root_unwritable, and profile_set_partial_failure typed evidence; partial failure leaves the store written but flags the resolver swap. list sorts known profile names from the seam and marks the active one with '*'. cmd/gormes/main.go registers newProfileCommand() alongside the existing root commands. Tests inject fakes only — no live filesystem reads of profile state, no internal/cli/selector.go or internal/config modification. Hermes uses `profile use <name>`; Gormes uses `profile set <name>` to keep the verb consistent with other Gormes config-style mutations.",
+              "write_scope": [
+                "cmd/gormes/profile.go",
+                "cmd/gormes/profile_command_test.go",
+                "cmd/gormes/main.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestGormesProfile' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "cmd/gormes/profile.go binds show/set/list subcommands consuming the ProfileSelector seam through injected function-shaped seams, four named tests pass, the root command registers profile, and no internal/cli/selector.go or internal/config edit is part of the slice."
+              ],
+              "evidence": {
+                "implementation": "cmd/gormes/profile.go (newProfileCommand, profileCommandSeams, runProfileShowCommand, runProfileSetCommand, runProfileListCommand, writeProfileSummary, redactProfileRootPath, defaultProfileCommandSeams); one-line registration in cmd/gormes/main.go newRootCommandWithRuntime",
+                "tests": "cmd/gormes/profile_command_test.go (TestGormesProfileShowRendersActivePathRedacted, TestGormesProfileSetValidatesNameThenUpdatesStore with invalid_name_is_rejected_before_store_write and valid_name_writes_store_after_validation subtests, TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker, TestGormesProfileSetUpdatesRootResolver with resolver_invoked_after_store_write_succeeds and resolver_failure_after_write_surfaces_partial_failure subtests, TestGormesProfileSelectorWiring)",
+                "note": "show/set/list consume function-shaped seams that wrap cli.ValidateProfileName, cli.ResolveProfileRoot, cli.ReadActiveProfile, and cli.WriteActiveProfile. The default production wiring derives paths from config.GormesHome() so internal/config stays unmodified. show and set share writeProfileSummary so name/redacted-root rendering lives in one place; redactProfileRootPath strips parent directories and prefixes '...' so operator home identifiers never reach stdout."
+              },
+              "provenance": {
+                "origin_type": "owned",
+                "upstream_ref": "hermes:hermes_cli/main.py cmd_profile + profiles.py set_active_profile",
+                "note": "Hermes ships profile create/delete/use/alias/rename/show/list under one parser; Gormes lands the read/switch surface (show/set/list) first as the consumer of the model+profile selector seam, leaving create/delete/clone/alias parity to follow-up rows."
+              }
+            },
+            {
               "name": "CLI profile path and active-profile store (deprecated umbrella)",
               "status": "planned",
               "slice_size": "umbrella",
