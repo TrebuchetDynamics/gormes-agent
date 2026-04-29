@@ -2774,6 +2774,75 @@
             }
           ]
         },
+        "2.B.12": {
+          "name": "Channel-Neutral Native Runtime Adapter",
+          "priority": "P0",
+          "items": [
+            {
+              "name": "Channel-neutral native runtime turn adapter",
+              "priority": "P0",
+              "status": "complete",
+              "contract": "Telegram, Slack, Discord, WhatsApp, BlueBubbles, and future channels enter the same native Gormes turn adapter so provider/runtime fixes preserve Hermes channel parity instead of hard-coding Telegram behavior",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Provider/runtime failures are rendered through the shared external-channel safe error helper without leaking raw error text and active turn state is cleared so subsequent inbound traffic is not blocked.",
+              "fixture": "internal/gateway/channel_neutral_turn_adapter_test.go",
+              "source_refs": [
+                "internal/gateway/turn_adapter.go",
+                "internal/gateway/channel_neutral_turn_adapter_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/event.go",
+                "internal/gateway/session_context.go",
+                "internal/channels/fakes/channel.go"
+              ],
+              "ready_when": [
+                "Gateway InboundEvent, SessionSource, and SessionContext are validated enough to expose a channel-neutral request envelope without changing channel-specific identity, require-mention, delivery, or thread rules.",
+                "Tests can use fixture channels only \u2014 no live Telegram, Slack, Discord, WhatsApp, BlueBubbles, or other SDK is required."
+              ],
+              "not_ready_when": [
+                "The slice adds a Telegram-only provider/runtime bypass.",
+                "The slice changes channel-specific identity safety, require-mention, delivery, or thread rules outside adapter boundaries.",
+                "The slice sends raw provider errors to external channels instead of using the shared external-channel safe error helper."
+              ],
+              "acceptance": [
+                "TurnRequest carries channel, chat/thread, sender identity, session source, media references, command/admission metadata, and reply route fields without inspecting the originating platform name.",
+                "A single test driver exercises the same TurnAdapter dispatch path with both a Telegram-shape fixture and a fake non-Telegram channel fixture.",
+                "Runtime failure renders a sanitized safe-error reply via SafeExternalChannelError and clears active turn state for both fixtures."
+              ],
+              "note": "Complete: TDD landed internal/gateway/turn_adapter.go with channel-neutral TurnRequest/TurnAdapter and a SafeExternalChannelError helper. The shared driver in internal/gateway/channel_neutral_turn_adapter_test.go runs both a telegram-named fixture and a non-telegram fakechannel fixture through the same dispatch path, asserts both produce a single kernel.PlatformEventSubmit, asserts the channel-neutral fields, and asserts runtime failures render a sanitized busy reply (no raw provider error text) while clearing active turn state via OnTurnFailure. The internal/channels/fakes package is added as a future test helper for channel-side tests.",
+              "write_scope": [
+                "internal/gateway/turn_adapter.go",
+                "internal/gateway/channel_neutral_turn_adapter_test.go",
+                "internal/channels/fakes/channel.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/channels/... -run 'ChannelNeutral|TurnAdapter|Admission|AwaitUserReply' -count=1",
+                "go test ./internal/gateway ./internal/channels/... -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Channel-neutral turn adapter fixtures prove Telegram and non-Telegram channels dispatch through the same native runtime path and runtime failures emit only the shared sanitized busy reply."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-29T00:00:00Z",
+                "last_success": "2026-04-29T00:00:00Z"
+              },
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-04-29T00:00:00Z",
+                "note": "Channel-neutral turn adapter is Gormes-owned shared-chassis infrastructure that prevents Telegram-only runtime bypasses; the helper has no direct upstream Hermes analog because Hermes routes are channel-specific Python modules."
+              }
+            }
+          ]
+        },
         "2.C": {
           "name": "Thin Mapping Persistence",
           "items": [
