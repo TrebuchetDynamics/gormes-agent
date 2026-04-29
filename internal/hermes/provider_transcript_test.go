@@ -3,6 +3,7 @@ package hermes
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -304,6 +306,81 @@ func TestProviderTranscriptHarness_OpenAICodexUsesResponsesAPI(t *testing.T) {
 	}, collectStreamEvents(t, stream))
 }
 
+func TestProviderTranscriptHarness_OpenAICodexAddsCloudflareHeadersForChatGPTBackend(t *testing.T) {
+	token := makeCodexJWT(t, "acct-codex-headers")
+	client := NewHTTPClientWithProvider("https://chatgpt.com/backend-api/codex", token, "openai-codex")
+	httpClient, ok := client.(*httpClient)
+	if !ok {
+		t.Fatalf("client = %T, want *httpClient", client)
+	}
+
+	var captured capturedProviderRequest
+	httpClient.http.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		captured = capturedProviderRequest{
+			Method: r.Method,
+			Path:   r.URL.Path,
+			Header: r.Header.Clone(),
+			Body:   raw,
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+			Body: io.NopCloser(strings.NewReader(`event: response.output_text.delta
+data: {"type":"response.output_text.delta","delta":"ok"}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed","output":[],"output_text":"ok","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}
+
+data: [DONE]
+
+`)),
+			Request: r,
+		}, nil
+	})
+
+	stream, err := client.OpenStream(context.Background(), ChatRequest{
+		Model:    "gpt-5.5",
+		Messages: []Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("OpenStream error = %v", err)
+	}
+	defer stream.Close()
+
+	if captured.Path != "/backend-api/codex/responses" {
+		t.Fatalf("path = %q, want /backend-api/codex/responses", captured.Path)
+	}
+	if got := captured.Header["originator"]; len(got) != 1 || got[0] != "codex_cli_rs" {
+		t.Fatalf("originator = %#v, want codex_cli_rs under Hermes casing", got)
+	}
+	if got := captured.Header.Get("User-Agent"); !strings.HasPrefix(got, "codex_cli_rs/") {
+		t.Fatalf("User-Agent = %q, want codex_cli_rs prefix", got)
+	}
+	if got := captured.Header["ChatGPT-Account-ID"]; len(got) != 1 || got[0] != "acct-codex-headers" {
+		t.Fatalf("ChatGPT-Account-ID = %#v, want acct-codex-headers under canonical Codex casing", got)
+	}
+	if got := captured.Header["ChatGPT-Account-Id"]; len(got) != 0 {
+		t.Fatalf("ChatGPT-Account-Id = %#v, want canonical ChatGPT-Account-ID only", got)
+	}
+	var body struct {
+		Stream bool `json:"stream"`
+	}
+	if err := json.Unmarshal(captured.Body, &body); err != nil {
+		t.Fatalf("decode request body: %v\n%s", err, captured.Body)
+	}
+	if !body.Stream {
+		t.Fatalf("stream = false, want true for ChatGPT Codex backend")
+	}
+	assertTranscriptEvents(t, []eventSnapshot{
+		{Kind: EventToken, Token: "ok"},
+		{Kind: EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	}, collectStreamEvents(t, stream))
+}
+
 func TestProviderTranscriptHarness_AnthropicFlushesPendingToolCallOnEOF(t *testing.T) {
 	runProviderTranscript(t, providerTranscript{
 		name:          "anthropic pending tool call EOF",
@@ -372,6 +449,29 @@ func TestProviderTranscriptHarness_AnthropicFlushesPendingToolCallOnEOF(t *testi
 			}},
 		}},
 	})
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func makeCodexJWT(t *testing.T, accountID string) string {
+	t.Helper()
+	encode := func(raw string) string {
+		return base64.RawURLEncoding.EncodeToString([]byte(raw))
+	}
+	claims, err := json.Marshal(map[string]any{
+		"sub": "user-fixture",
+		"https://api.openai.com/auth": map[string]any{
+			"chatgpt_account_id": accountID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal JWT claims: %v", err)
+	}
+	return encode(`{"alg":"RS256","typ":"JWT"}`) + "." + base64.RawURLEncoding.EncodeToString(claims) + "." + encode("sig")
 }
 
 func TestProviderTranscriptHarness_AnthropicReplaysRequestStreamFinishAndUsage(t *testing.T) {

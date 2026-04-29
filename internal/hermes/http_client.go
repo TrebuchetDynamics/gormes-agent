@@ -81,6 +81,7 @@ func (c *httpClient) Health(ctx context.Context) error {
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
+	c.applyCodexCloudflareHeaders(req)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return err
@@ -235,7 +236,17 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 		return nil, err
 	}
 
-	resp, err := c.doProviderPost(ctx, req.SessionID, providerReq.Path, providerReq.Body, "application/json")
+	chatGPTCodexBackend := codexChatGPTBackendBaseURL(c.baseURL)
+	accept := "application/json"
+	if chatGPTCodexBackend {
+		providerReq.Body, err = codexResponsesStreamingBody(providerReq.Body)
+		if err != nil {
+			return nil, err
+		}
+		accept = "text/event-stream"
+	}
+
+	resp, err := c.doProviderPost(ctx, req.SessionID, providerReq.Path, providerReq.Body, accept)
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +254,9 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
+	}
+	if chatGPTCodexBackend {
+		return newCodexResponsesSSEStream(ctx, resp.Body, providerReq)
 	}
 	return transport.OpenFixtureStream(resp.Body, providerReq)
 }
@@ -289,7 +303,7 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 	// Header-phase budget enforced by Transport.ResponseHeaderTimeout (5s).
 	// The request ctx governs the full response lifetime including body reads —
 	// do NOT cancel it after Do returns or streaming breaks.
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.openAICompatibleURL(endpointPath), bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.providerPostURL(endpointPath), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -300,6 +314,7 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 	if c.apiKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
+	c.applyCodexCloudflareHeaders(httpReq)
 	if sessionID != "" {
 		httpReq.Header.Set("X-Hermes-Session-Id", sessionID)
 	}
@@ -309,6 +324,13 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (c *httpClient) providerPostURL(endpointPath string) string {
+	if c.usesCodexResponsesTransport() && codexChatGPTBackendBaseURL(c.baseURL) && endpointPath == defaultCodexResponsesPath {
+		return c.openAICompatibleURL("/responses")
+	}
+	return c.openAICompatibleURL(endpointPath)
 }
 
 func (c *httpClient) usesCodexResponsesTransport() bool {
