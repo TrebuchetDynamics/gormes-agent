@@ -78,6 +78,9 @@ func (c *httpClient) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return err
