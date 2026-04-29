@@ -46,15 +46,15 @@ type hermesCLIParityEntry struct {
 func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries := []hermesCLIParityEntry{
 		hermesImplementedCommand("chat", "hermes_cli/main.py:chat", "cmd/gormes root TUI/oneshot"),
-		hermesRowCommand("model", "hermes_cli/main.py:model_command", "Provider endpoint/API-key root flags + runtime resolution", "interactive model picker and account-aware provider switching remain row-backed"),
-		hermesCommandSet("fallback", "hermes_cli/main.py:fallback", "fallback model config command handlers remain row-backed", "Gormes config command surface"),
+		hermesRowCommand("model", "hermes_cli/main.py:model_command", "Hermes model/provider picker CLI commands", "interactive model picker and account-aware provider switching remain row-backed"),
+		hermesCommandSet("fallback", "hermes_cli/main.py:fallback", "fallback provider chain handlers remain row-backed", "Hermes fallback provider chain CLI commands"),
 		hermesCommandSet("gateway", "hermes_cli/main.py:gateway", "gateway lifecycle subcommands are partly implemented; missing mutating/service commands remain row-backed", "Gateway, platform, webhook, and cron management CLI"),
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
 		hermesRowCommand("whatsapp", "hermes_cli/main.py:whatsapp", "Gateway, platform, webhook, and cron management CLI", "WhatsApp platform management remains row-backed"),
 		hermesRowCommand("slack", "hermes_cli/main.py:slack", "Gateway, platform, webhook, and cron management CLI", "Slack platform management remains row-backed"),
-		hermesRowCommand("login", "hermes_cli/main.py:login", "Provider auth/token-vault rows", "provider login shortcuts remain row-backed"),
-		hermesRowCommand("logout", "hermes_cli/main.py:logout", "Provider auth/token-vault rows", "provider logout shortcuts remain row-backed"),
-		hermesCommandSet("auth", "hermes_cli/auth.py", "provider auth subcommands remain row-backed", "Provider auth/token-vault rows"),
+		hermesExcludedCommand("login", "hermes_cli/auth.py:login_command", "Hermes top-level login is removed; use `gormes auth add <provider> --type oauth`, `gormes model`, or `gormes setup` parity rows"),
+		hermesProviderLogoutCommand(),
+		hermesCommandSet("auth", "hermes_cli/auth_commands.py:auth_command", "provider auth subcommands remain row-backed", "Hermes provider auth CLI commands"),
 		hermesImplementedCommand("status", "hermes_cli/main.py:status", "cmd/gormes gateway status"),
 		hermesCommandSet("cron", "hermes_cli/main.py:cron", "cron command handlers remain row-backed over native cron store", "Gateway, platform, webhook, and cron management CLI"),
 		hermesCommandSet("webhook", "hermes_cli/main.py:webhook", "webhook management remains row-backed", "Gateway, platform, webhook, and cron management CLI"),
@@ -93,8 +93,8 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	}
 
 	entries = append(entries, hermesNestedCommands("gateway", "gateway/run.py", "Gateway, platform, webhook, and cron management CLI", []string{"status", "restart", "reset", "help", "model", "profile", "update", "approve", "deny", "voice", "usage"})...)
-	entries = append(entries, hermesNestedCommands("fallback", "hermes_cli/main.py:fallback", "Gormes config command surface", []string{"show", "set", "clear"})...)
-	entries = append(entries, hermesNestedCommands("auth", "hermes_cli/auth.py", "Provider auth/token-vault rows", []string{"login", "logout", "status", "refresh"})...)
+	entries = append(entries, hermesFallbackCommands()...)
+	entries = append(entries, hermesProviderAuthCommands()...)
 	entries = append(entries, hermesNestedCommands("cron", "hermes_cli/main.py:cron", "Gateway, platform, webhook, and cron management CLI", []string{"list", "add", "remove", "run", "enable", "disable"})...)
 	entries = append(entries, hermesNestedCommands("webhook", "hermes_cli/main.py:webhook", "Gateway, platform, webhook, and cron management CLI", []string{"serve", "test", "list", "add", "remove"})...)
 	entries = append(entries, hermesNestedCommands("hooks", "hermes_cli/main.py:hooks", "Gateway, platform, webhook, and cron management CLI", []string{"list", "run"})...)
@@ -135,6 +135,17 @@ func hermesOwnedCommand(name, sourceRef, residual string) hermesCLIParityEntry {
 	return hermesCLIParityEntry{Path: []string{name}, Kind: hermesCLICommand, Status: hermesCLIOwned, SourceRef: sourceRef, Target: "cmd/gormes " + name, Residual: residual}
 }
 
+func hermesExcludedCommand(name, sourceRef, residual string) hermesCLIParityEntry {
+	return hermesCLIParityEntry{Path: []string{name}, Kind: hermesCLICommand, Status: hermesCLIExcluded, SourceRef: sourceRef, Residual: residual}
+}
+
+func hermesProviderLogoutCommand() hermesCLIParityEntry {
+	entry := hermesRowCommand("logout", "hermes_cli/auth.py:logout_command", "Hermes provider auth CLI commands", "top-level provider logout remains row-backed; clears auth state and resets provider config")
+	entry.RedactsSecrets = true
+	entry.Destructive = true
+	return entry
+}
+
 func hermesGlobalFlag(flag, sourceRef string, status hermesCLIParityStatus, target, residual string) hermesCLIParityEntry {
 	return hermesCLIParityEntry{Path: []string{flag}, Kind: hermesCLIGlobalFlag, Status: status, SourceRef: sourceRef, Target: target, Residual: residual}
 }
@@ -159,6 +170,96 @@ func hermesNestedCommands(group, sourceRef, row string, commands []string) []her
 		switch key {
 		case "claw migrate", "config migrate":
 			entry.DryRun = true
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func hermesProviderAuthCommands() []hermesCLIParityEntry {
+	commands := []struct {
+		name        string
+		sourceRef   string
+		residual    string
+		destructive bool
+		redacts     bool
+	}{
+		{
+			name:      "add",
+			sourceRef: "hermes_cli/auth_commands.py:auth_add_command",
+			residual:  "non-deprecated provider login/add flow remains row-backed: API keys plus OAuth for anthropic, nous, openai-codex, qwen-oauth, and google-gemini-cli",
+			redacts:   true,
+		},
+		{
+			name:      "list",
+			sourceRef: "hermes_cli/auth_commands.py:auth_list_command",
+			residual:  "redacted credential-pool list/status rendering remains row-backed",
+		},
+		{
+			name:        "remove",
+			sourceRef:   "hermes_cli/auth_commands.py:auth_remove_command",
+			residual:    "credential removal by index, id, or label plus source suppression remains row-backed",
+			destructive: true,
+			redacts:     true,
+		},
+		{
+			name:      "reset",
+			sourceRef: "hermes_cli/auth_commands.py:auth_reset_command",
+			residual:  "provider credential exhaustion/cooldown reset remains row-backed",
+		},
+		{
+			name:      "status",
+			sourceRef: "hermes_cli/auth_commands.py:auth_status_command",
+			residual:  "provider auth status read model remains row-backed",
+		},
+		{
+			name:        "logout",
+			sourceRef:   "hermes_cli/auth_commands.py:auth_logout_command",
+			residual:    "provider logout through shared logout_command remains row-backed",
+			destructive: true,
+			redacts:     true,
+		},
+		{
+			name:      "spotify",
+			sourceRef: "hermes_cli/auth_commands.py:auth_spotify_command",
+			residual:  "Spotify PKCE auth actions login|status|logout remain row-backed under provider auth CLI parity",
+			redacts:   true,
+		},
+	}
+	out := make([]hermesCLIParityEntry, 0, len(commands))
+	for _, command := range commands {
+		entry := hermesRowPath([]string{"auth", command.name}, hermesCLICommand, command.sourceRef, "Hermes provider auth CLI commands", command.residual)
+		entry.Destructive = command.destructive
+		entry.RedactsSecrets = command.redacts
+		out = append(out, entry)
+	}
+	return out
+}
+
+func hermesFallbackCommands() []hermesCLIParityEntry {
+	commands := []struct {
+		path      []string
+		sourceRef string
+		residual  string
+		aliasFor  []string
+	}{
+		{path: []string{"fallback", "list"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_list", residual: "fallback chain list renderer remains row-backed"},
+		{path: []string{"fallback", "ls"}, sourceRef: "hermes_cli/main.py:fallback aliases", residual: "fallback ls alias resolves to fallback list", aliasFor: []string{"fallback", "list"}},
+		{path: []string{"fallback", "add"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_add", residual: "fallback add uses the Hermes model picker then appends provider/model to fallback_providers"},
+		{path: []string{"fallback", "remove"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_remove", residual: "fallback remove deletes a selected provider/model fallback entry", aliasFor: nil},
+		{path: []string{"fallback", "rm"}, sourceRef: "hermes_cli/main.py:fallback aliases", residual: "fallback rm alias resolves to fallback remove", aliasFor: []string{"fallback", "remove"}},
+		{path: []string{"fallback", "clear"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_clear", residual: "fallback clear removes all fallback provider entries after confirmation"},
+	}
+	out := make([]hermesCLIParityEntry, 0, len(commands))
+	for _, command := range commands {
+		kind := hermesCLICommand
+		if len(command.aliasFor) > 0 {
+			kind = hermesCLIAlias
+		}
+		entry := hermesRowPath(command.path, kind, command.sourceRef, "Hermes fallback provider chain CLI commands", command.residual)
+		entry.AliasFor = slices.Clone(command.aliasFor)
+		if command.path[1] == "remove" || command.path[1] == "rm" || command.path[1] == "clear" {
+			entry.Destructive = true
 		}
 		out = append(out, entry)
 	}

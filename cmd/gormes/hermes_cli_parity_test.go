@@ -27,8 +27,8 @@ func TestHermesCLIParityManifest(t *testing.T) {
 
 	wantNested := [][]string{
 		{"gateway", "status"}, {"gateway", "restart"}, {"gateway", "reset"}, {"gateway", "model"}, {"gateway", "profile"}, {"gateway", "usage"},
-		{"fallback", "show"}, {"fallback", "set"}, {"fallback", "clear"},
-		{"auth", "login"}, {"auth", "logout"}, {"auth", "status"},
+		{"fallback", "list"}, {"fallback", "ls"}, {"fallback", "add"}, {"fallback", "remove"}, {"fallback", "rm"}, {"fallback", "clear"},
+		{"auth", "add"}, {"auth", "list"}, {"auth", "remove"}, {"auth", "reset"}, {"auth", "status"}, {"auth", "logout"}, {"auth", "spotify"},
 		{"cron", "list"}, {"cron", "add"}, {"cron", "remove"}, {"cron", "run"},
 		{"webhook", "serve"}, {"webhook", "test"},
 		{"hooks", "list"}, {"hooks", "run"},
@@ -88,7 +88,7 @@ func TestHermesCLIParityManifestCrossLinksSlashRegistry(t *testing.T) {
 
 	var got []string
 	for _, entry := range hermesCLIParityManifest() {
-		if entry.Kind == hermesCLISlashCommand || entry.Kind == hermesCLIAlias {
+		if len(entry.Path) > 0 && strings.HasPrefix(entry.Path[0], "/") && (entry.Kind == hermesCLISlashCommand || entry.Kind == hermesCLIAlias) {
 			got = append(got, strings.Join(entry.Path, " "))
 		}
 	}
@@ -131,14 +131,91 @@ func TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences(t *
 	}
 }
 
+func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
+	login := requireHermesCLIEntry(t, []string{"login"})
+	if login.Status != hermesCLIExcluded || !strings.Contains(strings.ToLower(login.Residual), "removed") {
+		t.Fatalf("top-level login = %+v, want excluded removed-command compatibility entry", login)
+	}
+
+	logout := requireHermesCLIEntry(t, []string{"logout"})
+	if logout.Status != hermesCLIRowBacked || !logout.RedactsSecrets {
+		t.Fatalf("top-level logout = %+v, want row-backed redacted provider logout", logout)
+	}
+
+	for _, path := range [][]string{
+		{"auth", "add"},
+		{"auth", "list"},
+		{"auth", "remove"},
+		{"auth", "reset"},
+		{"auth", "status"},
+		{"auth", "logout"},
+		{"auth", "spotify"},
+	} {
+		entry := requireHermesCLIEntry(t, path)
+		if entry.Row != "Hermes provider auth CLI commands" {
+			t.Fatalf("%v row = %q, want Hermes provider auth CLI commands: %+v", path, entry.Row, entry)
+		}
+		if entry.SourceRef == "" || entry.Residual == "" {
+			t.Fatalf("%v missing source/residual: %+v", path, entry)
+		}
+	}
+	for _, removed := range [][]string{{"auth", "login"}, {"auth", "refresh"}} {
+		if entry, ok := findHermesCLIEntry(removed); ok {
+			t.Fatalf("deprecated/nonexistent auth command %v should not be manifest-active: %+v", removed, entry)
+		}
+	}
+
+	add := requireHermesCLIEntry(t, []string{"auth", "add"})
+	if !add.RedactsSecrets {
+		t.Fatalf("auth add = %+v, want secret redaction flag", add)
+	}
+	remove := requireHermesCLIEntry(t, []string{"auth", "remove"})
+	if !remove.Destructive {
+		t.Fatalf("auth remove = %+v, want destructive flag", remove)
+	}
+	spotify := requireHermesCLIEntry(t, []string{"auth", "spotify"})
+	if !strings.Contains(spotify.Residual, "login|status|logout") {
+		t.Fatalf("auth spotify residual = %q, want action inventory", spotify.Residual)
+	}
+}
+
+func TestHermesCLIParityManifestFallbackCommandsMatchHermes(t *testing.T) {
+	for _, path := range [][]string{
+		{"fallback", "list"},
+		{"fallback", "ls"},
+		{"fallback", "add"},
+		{"fallback", "remove"},
+		{"fallback", "rm"},
+		{"fallback", "clear"},
+	} {
+		entry := requireHermesCLIEntry(t, path)
+		if entry.Row != "Hermes fallback provider chain CLI commands" {
+			t.Fatalf("%v row = %q, want Hermes fallback provider chain CLI commands: %+v", path, entry.Row, entry)
+		}
+	}
+	if entry, ok := findHermesCLIEntry([]string{"fallback", "show"}); ok {
+		t.Fatalf("stale fallback show entry should not remain: %+v", entry)
+	}
+	if entry, ok := findHermesCLIEntry([]string{"fallback", "set"}); ok {
+		t.Fatalf("stale fallback set entry should not remain: %+v", entry)
+	}
+}
+
 func requireHermesCLIEntry(t *testing.T, path []string) hermesCLIParityEntry {
 	t.Helper()
+	if entry, ok := findHermesCLIEntry(path); ok {
+		return entry
+	}
+	t.Fatalf("missing Hermes CLI parity entry %q", strings.Join(path, " "))
+	return hermesCLIParityEntry{}
+}
+
+func findHermesCLIEntry(path []string) (hermesCLIParityEntry, bool) {
 	key := strings.Join(path, " ")
 	for _, entry := range hermesCLIParityManifest() {
 		if strings.Join(entry.Path, " ") == key {
-			return entry
+			return entry, true
 		}
 	}
-	t.Fatalf("missing Hermes CLI parity entry %q", key)
-	return hermesCLIParityEntry{}
+	return hermesCLIParityEntry{}, false
 }
