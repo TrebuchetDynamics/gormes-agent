@@ -169,6 +169,26 @@ func SaveCredentialPoolEntries(opts CredentialPoolOptions, entries []PooledCrede
 	return writeCredentialPoolAuthStore(home, store)
 }
 
+func ListCredentialPoolProviders(opts CredentialPoolOptions) ([]string, error) {
+	home, err := credentialPoolHermesHome(opts.HermesHome)
+	if err != nil {
+		return nil, err
+	}
+	store, err := readCredentialPoolAuthStore(home)
+	if err != nil {
+		return nil, err
+	}
+	providers := make([]string, 0, len(store.CredentialPool))
+	for provider, entries := range store.CredentialPool {
+		if strings.TrimSpace(provider) == "" || len(entries) == 0 {
+			continue
+		}
+		providers = append(providers, provider)
+	}
+	sort.Strings(providers)
+	return providers, nil
+}
+
 func LoadCredentialPool(opts CredentialPoolOptions) (*CredentialPool, CredentialPoolEvidence, error) {
 	home, err := credentialPoolHermesHome(opts.HermesHome)
 	if err != nil {
