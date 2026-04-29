@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -125,6 +127,97 @@ func TestGormesAuthAddAnthropicOAuthStoresHermesPKCECredential(t *testing.T) {
 	}
 }
 
+func TestGormesAuthAddNousOAuthMirrorsProviderAndPool(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := authNousOAuthLogin
+	authNousOAuthLogin = func(_ context.Context, req nousOAuthLoginRequest) (nousOAuthTokens, error) {
+		if req.Label != "nous-team" {
+			t.Fatalf("login request label = %q, want nous-team", req.Label)
+		}
+		if req.PortalBaseURL != "https://portal.example.test" || req.InferenceBaseURL != "https://inference.example.test/v1" {
+			t.Fatalf("login request URLs = portal %q inference %q", req.PortalBaseURL, req.InferenceBaseURL)
+		}
+		return nousOAuthTokens{
+			PortalBaseURL:      "https://portal.example.test",
+			InferenceBaseURL:   "https://inference.example.test/v1",
+			ClientID:           "hermes-cli",
+			Scope:              "inference:mint_agent_key",
+			TokenType:          "Bearer",
+			AccessToken:        "nous-access-secret",
+			RefreshToken:       "nous-refresh-secret",
+			ExpiresAt:          "2026-03-23T11:00:00Z",
+			AgentKey:           "nous-agent-key-secret",
+			AgentKeyID:         "agent-key-id",
+			AgentKeyExpiresAt:  "2026-03-23T10:30:00Z",
+			AgentKeyObtainedAt: "2026-03-23T10:00:10Z",
+		}, nil
+	}
+	t.Cleanup(func() { authNousOAuthLogin = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "nous",
+		"--type", "oauth",
+		"--label", "nous-team",
+		"--portal-url", "https://portal.example.test",
+		"--inference-url", "https://inference.example.test/v1",
+	)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, leak := range []string{"nous-access-secret", "nous-refresh-secret", "nous-agent-key-secret"} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("auth add nous leaked %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+	if !strings.Contains(stdout, "auth_oauth_saved") || !strings.Contains(stdout, "provider=nous") || !strings.Contains(stdout, "redacted=true") {
+		t.Fatalf("stdout = %q, want redacted auth_oauth_saved evidence", stdout)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "nous"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one canonical Nous device-code credential", entries)
+	}
+	entry := entries[0]
+	if entry.ID != "nous-device-code" || entry.Label != "nous-team" || entry.AuthType != config.CredentialAuthOAuth || entry.Source != "device_code" {
+		t.Fatalf("entry metadata = %#v", entry)
+	}
+	if entry.AccessToken != "nous-access-secret" || entry.RefreshToken != "nous-refresh-secret" || entry.AgentKey != "nous-agent-key-secret" {
+		t.Fatalf("entry tokens not persisted for runtime use: %#v", entry)
+	}
+	if entry.BaseURL != "https://inference.example.test/v1" || entry.InferenceBaseURL != "https://inference.example.test/v1" || entry.PortalBaseURL != "https://portal.example.test" {
+		t.Fatalf("entry URLs = %#v", entry)
+	}
+
+	var raw struct {
+		Providers map[string]struct {
+			Label            string `json:"label"`
+			AccessToken      string `json:"access_token"`
+			RefreshToken     string `json:"refresh_token"`
+			AgentKey         string `json:"agent_key"`
+			PortalBaseURL    string `json:"portal_base_url"`
+			InferenceBaseURL string `json:"inference_base_url"`
+		} `json:"providers"`
+	}
+	if err := readAuthJSONForTest(&raw); err != nil {
+		t.Fatalf("read auth.json: %v", err)
+	}
+	providerState, ok := raw.Providers["nous"]
+	if !ok {
+		t.Fatalf("providers.nous missing from auth.json: %#v", raw.Providers)
+	}
+	if providerState.Label != "nous-team" || providerState.AccessToken != "nous-access-secret" || providerState.RefreshToken != "nous-refresh-secret" || providerState.AgentKey != "nous-agent-key-secret" {
+		t.Fatalf("providers.nous token state = %#v", providerState)
+	}
+	if providerState.PortalBaseURL != "https://portal.example.test" || providerState.InferenceBaseURL != "https://inference.example.test/v1" {
+		t.Fatalf("providers.nous URLs = %#v", providerState)
+	}
+}
+
 func TestGormesAuthOAuthErrorsAreAtomic(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seed := []config.PooledCredential{{
@@ -171,6 +264,14 @@ func TestGormesAuthOAuthErrorsAreAtomic(t *testing.T) {
 type errAuthFixture string
 
 func (e errAuthFixture) Error() string { return string(e) }
+
+func readAuthJSONForTest(target any) error {
+	data, err := os.ReadFile(filepath.Join(config.GormesHome(), "auth.json"))
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, target)
+}
 
 func TestRunCodexDeviceCodeLoginUsesHermesDeviceFlow(t *testing.T) {
 	var sawUserCode bool

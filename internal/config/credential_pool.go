@@ -67,8 +67,11 @@ type PooledCredential struct {
 	ExpiresAtMS        int64  `json:"expires_at_ms,omitempty"`
 	LastRefresh        string `json:"last_refresh,omitempty"`
 	InferenceBaseURL   string `json:"inference_base_url,omitempty"`
+	PortalBaseURL      string `json:"portal_base_url,omitempty"`
 	AgentKey           string `json:"agent_key,omitempty"`
+	AgentKeyID         string `json:"agent_key_id,omitempty"`
 	AgentKeyExpiresAt  string `json:"agent_key_expires_at,omitempty"`
+	AgentKeyObtainedAt string `json:"agent_key_obtained_at,omitempty"`
 	RequestCount       int    `json:"request_count,omitempty"`
 	MaxConcurrentLease int    `json:"max_concurrent_leases,omitempty"`
 }
@@ -146,7 +149,35 @@ type CredentialPool struct {
 }
 
 type credentialPoolAuthStore struct {
-	CredentialPool map[string][]PooledCredential `json:"credential_pool,omitempty"`
+	Version           int                           `json:"version,omitempty"`
+	ActiveProvider    string                        `json:"active_provider,omitempty"`
+	Providers         map[string]map[string]any     `json:"providers,omitempty"`
+	CredentialPool    map[string][]PooledCredential `json:"credential_pool,omitempty"`
+	SuppressedSources map[string][]string           `json:"suppressed_sources,omitempty"`
+}
+
+const (
+	NousOAuthProvider         = "nous"
+	NousOAuthDeviceCodeSource = "device_code"
+)
+
+type NousOAuthCredentials struct {
+	Label              string
+	PortalBaseURL      string
+	InferenceBaseURL   string
+	ClientID           string
+	Scope              string
+	TokenType          string
+	AccessToken        string
+	RefreshToken       string
+	ObtainedAt         string
+	ExpiresAt          string
+	ExpiresIn          int
+	AgentKey           string
+	AgentKeyID         string
+	AgentKeyExpiresAt  string
+	AgentKeyExpiresIn  int
+	AgentKeyObtainedAt string
 }
 
 func SaveCredentialPoolEntries(opts CredentialPoolOptions, entries []PooledCredential) error {
@@ -167,6 +198,61 @@ func SaveCredentialPoolEntries(opts CredentialPoolOptions, entries []PooledCrede
 	}
 	store.CredentialPool[provider] = normalizeCredentialEntries(entries)
 	return writeCredentialPoolAuthStore(home, store)
+}
+
+func SaveNousOAuthCredentials(opts CredentialPoolOptions, creds NousOAuthCredentials) (PooledCredential, error) {
+	home, err := credentialPoolHermesHome(opts.HermesHome)
+	if err != nil {
+		return PooledCredential{}, err
+	}
+	creds = normalizeNousOAuthCredentials(creds)
+	if creds.AccessToken == "" {
+		return PooledCredential{}, fmt.Errorf("nous oauth access token is empty")
+	}
+	store, err := readCredentialPoolAuthStore(home)
+	if err != nil {
+		return PooledCredential{}, err
+	}
+	if store.Providers == nil {
+		store.Providers = make(map[string]map[string]any)
+	}
+	store.Providers[NousOAuthProvider] = nousProviderState(creds)
+	if store.CredentialPool == nil {
+		store.CredentialPool = make(map[string][]PooledCredential)
+	}
+	entry := PooledCredential{
+		ID:                 "nous-device-code",
+		Label:              creds.Label,
+		AuthType:           CredentialAuthOAuth,
+		Source:             NousOAuthDeviceCodeSource,
+		AccessToken:        creds.AccessToken,
+		RefreshToken:       creds.RefreshToken,
+		BaseURL:            creds.InferenceBaseURL,
+		InferenceBaseURL:   creds.InferenceBaseURL,
+		PortalBaseURL:      creds.PortalBaseURL,
+		ExpiresAt:          creds.ExpiresAt,
+		AgentKey:           creds.AgentKey,
+		AgentKeyID:         creds.AgentKeyID,
+		AgentKeyExpiresAt:  creds.AgentKeyExpiresAt,
+		AgentKeyObtainedAt: creds.AgentKeyObtainedAt,
+		LastStatus:         CredentialStatusOK,
+		MaxConcurrentLease: 1,
+	}
+	entries := normalizeCredentialEntries(store.CredentialPool[NousOAuthProvider])
+	next := make([]PooledCredential, 0, len(entries)+1)
+	for _, existing := range entries {
+		source := strings.TrimSpace(existing.Source)
+		if source == NousOAuthDeviceCodeSource || source == "manual:device_code" || source == "manual:dashboard_device_code" {
+			continue
+		}
+		next = append(next, existing)
+	}
+	next = append(next, entry)
+	store.CredentialPool[NousOAuthProvider] = normalizeCredentialEntries(next)
+	if err := writeCredentialPoolAuthStore(home, store); err != nil {
+		return PooledCredential{}, err
+	}
+	return entry, nil
 }
 
 func ListCredentialPoolProviders(opts CredentialPoolOptions) ([]string, error) {
@@ -507,6 +593,67 @@ func normalizeCredentialEntries(entries []PooledCredential) []PooledCredential {
 		return out[i].Priority < out[j].Priority
 	})
 	return out
+}
+
+func normalizeNousOAuthCredentials(creds NousOAuthCredentials) NousOAuthCredentials {
+	creds.Label = strings.TrimSpace(creds.Label)
+	creds.PortalBaseURL = strings.TrimRight(strings.TrimSpace(creds.PortalBaseURL), "/")
+	creds.InferenceBaseURL = strings.TrimRight(strings.TrimSpace(creds.InferenceBaseURL), "/")
+	creds.ClientID = strings.TrimSpace(creds.ClientID)
+	creds.Scope = strings.TrimSpace(creds.Scope)
+	creds.TokenType = strings.TrimSpace(creds.TokenType)
+	if creds.TokenType == "" {
+		creds.TokenType = "Bearer"
+	}
+	creds.AccessToken = strings.TrimSpace(creds.AccessToken)
+	creds.RefreshToken = strings.TrimSpace(creds.RefreshToken)
+	creds.ObtainedAt = strings.TrimSpace(creds.ObtainedAt)
+	creds.ExpiresAt = strings.TrimSpace(creds.ExpiresAt)
+	creds.AgentKey = strings.TrimSpace(creds.AgentKey)
+	creds.AgentKeyID = strings.TrimSpace(creds.AgentKeyID)
+	creds.AgentKeyExpiresAt = strings.TrimSpace(creds.AgentKeyExpiresAt)
+	creds.AgentKeyObtainedAt = strings.TrimSpace(creds.AgentKeyObtainedAt)
+	if creds.Label == "" {
+		creds.Label = credentialLabelFromJWT(creds.AccessToken, "Nous device code")
+	}
+	return creds
+}
+
+func nousProviderState(creds NousOAuthCredentials) map[string]any {
+	state := map[string]any{
+		"portal_base_url":       creds.PortalBaseURL,
+		"inference_base_url":    creds.InferenceBaseURL,
+		"client_id":             creds.ClientID,
+		"scope":                 creds.Scope,
+		"token_type":            creds.TokenType,
+		"access_token":          creds.AccessToken,
+		"refresh_token":         creds.RefreshToken,
+		"obtained_at":           creds.ObtainedAt,
+		"expires_at":            creds.ExpiresAt,
+		"expires_in":            creds.ExpiresIn,
+		"agent_key":             creds.AgentKey,
+		"agent_key_id":          creds.AgentKeyID,
+		"agent_key_expires_at":  creds.AgentKeyExpiresAt,
+		"agent_key_expires_in":  creds.AgentKeyExpiresIn,
+		"agent_key_obtained_at": creds.AgentKeyObtainedAt,
+	}
+	if creds.Label != "" {
+		state["label"] = creds.Label
+	}
+	return state
+}
+
+func credentialLabelFromJWT(accessToken, fallback string) string {
+	claims, ok := decodeJWTClaims(accessToken)
+	if !ok {
+		return fallback
+	}
+	for _, key := range []string{"email", "preferred_username", "name", "sub"} {
+		if value := strings.TrimSpace(fmt.Sprint(claims[key])); value != "" && value != "<nil>" {
+			return value
+		}
+	}
+	return fallback
 }
 
 func cloneCredentialEntries(entries []PooledCredential) []PooledCredential {

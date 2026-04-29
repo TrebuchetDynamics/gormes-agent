@@ -64,6 +64,13 @@ func newAuthAddCommand() *cobra.Command {
 	var label string
 	var apiKey string
 	var inferenceURL string
+	var portalURL string
+	var clientID string
+	var scope string
+	var noBrowser bool
+	var timeout string
+	var insecure bool
+	var caBundle string
 
 	cmd := &cobra.Command{
 		Use:   "add <provider>",
@@ -76,6 +83,13 @@ func newAuthAddCommand() *cobra.Command {
 				Label:        label,
 				APIKey:       apiKey,
 				InferenceURL: inferenceURL,
+				PortalURL:    portalURL,
+				ClientID:     clientID,
+				Scope:        scope,
+				NoBrowser:    noBrowser,
+				Timeout:      timeout,
+				Insecure:     insecure,
+				CABundle:     caBundle,
 			})
 		},
 	}
@@ -83,13 +97,13 @@ func newAuthAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&label, "label", "", "credential label")
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key to store; omitted values are not echoed")
 	cmd.Flags().StringVar(&inferenceURL, "inference-url", "", "provider inference base URL override")
-	cmd.Flags().String("portal-url", "", "OAuth portal URL; reserved for provider OAuth parity")
-	cmd.Flags().String("client-id", "", "OAuth client ID; reserved for provider OAuth parity")
-	cmd.Flags().String("scope", "", "OAuth scope; reserved for provider OAuth parity")
-	cmd.Flags().Bool("no-browser", false, "reserved for provider OAuth parity")
-	cmd.Flags().String("timeout", "", "reserved for provider OAuth parity")
-	cmd.Flags().Bool("insecure", false, "reserved for provider OAuth parity")
-	cmd.Flags().String("ca-bundle", "", "reserved for provider OAuth parity")
+	cmd.Flags().StringVar(&portalURL, "portal-url", "", "OAuth portal URL")
+	cmd.Flags().StringVar(&clientID, "client-id", "", "OAuth client ID")
+	cmd.Flags().StringVar(&scope, "scope", "", "OAuth scope")
+	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "do not open a browser for OAuth")
+	cmd.Flags().StringVar(&timeout, "timeout", "", "OAuth timeout")
+	cmd.Flags().BoolVar(&insecure, "insecure", false, "disable OAuth TLS verification")
+	cmd.Flags().StringVar(&caBundle, "ca-bundle", "", "OAuth CA bundle")
 	return cmd
 }
 
@@ -163,6 +177,13 @@ type authAddOptions struct {
 	Label        string
 	APIKey       string
 	InferenceURL string
+	PortalURL    string
+	ClientID     string
+	Scope        string
+	NoBrowser    bool
+	Timeout      string
+	Insecure     bool
+	CABundle     string
 }
 
 type anthropicOAuthLoginRequest struct {
@@ -184,6 +205,27 @@ var authAnthropicOAuthLogin func(context.Context, anthropicOAuthLoginRequest) (a
 
 func runAnthropicOAuthLoginUnavailable(context.Context, anthropicOAuthLoginRequest) (anthropicOAuthTokens, error) {
 	return anthropicOAuthTokens{}, errors.New("native Anthropic Hermes PKCE login is unavailable in this slice; inject OAuth login seam or import Claude credentials first")
+}
+
+type nousOAuthLoginRequest struct {
+	Label            string
+	PortalBaseURL    string
+	InferenceBaseURL string
+	ClientID         string
+	Scope            string
+	NoBrowser        bool
+	Timeout          string
+	Insecure         bool
+	CABundle         string
+	Out              interface{ Write([]byte) (int, error) }
+}
+
+type nousOAuthTokens = config.NousOAuthCredentials
+
+var authNousOAuthLogin func(context.Context, nousOAuthLoginRequest) (nousOAuthTokens, error)
+
+func runNousOAuthLoginUnavailable(context.Context, nousOAuthLoginRequest) (nousOAuthTokens, error) {
+	return nousOAuthTokens{}, errors.New("native Nous device-code OAuth login is unavailable in this slice; inject OAuth login seam before calling provider endpoints")
 }
 
 func runAuthBareCommand(cmd *cobra.Command) error {
@@ -221,6 +263,8 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 		switch provider {
 		case config.AnthropicProvider:
 			return runAuthAddAnthropicOAuthCommand(cmd, opts)
+		case config.NousOAuthProvider:
+			return runAuthAddNousOAuthCommand(cmd, opts)
 		case config.CodexOAuthProvider:
 			return runAuthAddCodexOAuthCommand(cmd, opts)
 		default:
@@ -306,6 +350,41 @@ func runAuthAddAnthropicOAuthCommand(cmd *cobra.Command, opts authAddOptions) er
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.AnthropicProvider, entry.ID, entry.Label, tokens.Source)
+	return nil
+}
+
+func runAuthAddNousOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
+	login := authNousOAuthLogin
+	if login == nil {
+		login = runNousOAuthLoginUnavailable
+	}
+	tokens, err := login(context.Background(), nousOAuthLoginRequest{
+		Label:            strings.TrimSpace(opts.Label),
+		PortalBaseURL:    strings.TrimRight(strings.TrimSpace(opts.PortalURL), "/"),
+		InferenceBaseURL: strings.TrimRight(strings.TrimSpace(opts.InferenceURL), "/"),
+		ClientID:         strings.TrimSpace(opts.ClientID),
+		Scope:            strings.TrimSpace(opts.Scope),
+		NoBrowser:        opts.NoBrowser,
+		Timeout:          strings.TrimSpace(opts.Timeout),
+		Insecure:         opts.Insecure,
+		CABundle:         strings.TrimSpace(opts.CABundle),
+		Out:              cmd.OutOrStdout(),
+	})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: nous_device_code_failed: %s", config.NousOAuthProvider, sanitizeAuthCommandError(err.Error()))
+	}
+	tokens.Label = firstNonEmpty(strings.TrimSpace(opts.Label), strings.TrimSpace(tokens.Label), labelFromOAuthToken(tokens.AccessToken, "Nous device code"))
+	tokens.PortalBaseURL = firstNonEmpty(strings.TrimRight(strings.TrimSpace(tokens.PortalBaseURL), "/"), strings.TrimRight(strings.TrimSpace(opts.PortalURL), "/"), "https://portal.nousresearch.com")
+	tokens.InferenceBaseURL = firstNonEmpty(strings.TrimRight(strings.TrimSpace(tokens.InferenceBaseURL), "/"), providerBaseURL(config.NousOAuthProvider, opts.InferenceURL))
+	tokens.TokenType = firstNonEmpty(strings.TrimSpace(tokens.TokenType), "Bearer")
+	if strings.TrimSpace(tokens.AccessToken) == "" {
+		return fmt.Errorf("gormes auth add %s --type oauth: nous_device_code_failed: oauth_access_token_missing", config.NousOAuthProvider)
+	}
+	entry, err := config.SaveNousOAuthCredentials(config.CredentialPoolOptions{Provider: config.NousOAuthProvider}, tokens)
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", config.NousOAuthProvider)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.NousOAuthProvider, entry.ID, entry.Label, entry.Source)
 	return nil
 }
 
@@ -490,6 +569,8 @@ func providerBaseURL(provider, override string) string {
 		return "https://api.anthropic.com"
 	case config.CodexOAuthProvider:
 		return "https://chatgpt.com/backend-api/codex"
+	case config.NousOAuthProvider:
+		return "https://inference-api.nousresearch.com/v1"
 	default:
 		return ""
 	}
