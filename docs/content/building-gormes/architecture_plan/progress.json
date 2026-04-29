@@ -9823,9 +9823,9 @@
             {
               "name": "Self-monitoring telemetry",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes bridges Hermes turn/provider/tool telemetry and Honcho telemetry/reasoning traces into local redacted telemetry, audit, and insights evidence through SelfMonitoringBridge, TelemetryEventMatrix, ReasoningTraceRecord, TelemetrySink, AuditSink, and InsightsRecorder interfaces without changing the local usage.jsonl schema until compatibility tests pass.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -9872,7 +9872,7 @@
                 "Telemetry failures return nonfatal degraded evidence and do not interrupt turns, memory writes, webhook delivery, queue processing, or dream scheduling.",
                 "Tests classify hosted Prometheus/Sentry/exporter-only behavior as owned/excluded divergence and prove local event emission remains deterministic."
               ],
-              "note": "swarm_origin: 2026-04-28/honcho-mapper. This enriches the prior bare `Self-monitoring telemetry` note into a builder-ready row-backed classification for Honcho `src/telemetry/reasoning_traces.py` and Hermes usage/trajectory telemetry. External hosted metrics exporters remain owned/excluded; local reasoning/event evidence is required.",
+              "note": "TDD landed: SelfMonitoringBridge now records injected telemetry/audit/insights sinks with nonfatal degradation, TelemetryEventMatrix maps Hermes usage/tool events plus Honcho agent/dream/reconciliation/representation/reasoning events, ReasoningTraceRecord preserves trace/tree/timing evidence with redacted payload summaries, and hosted Prometheus/Sentry/CloudEvents exporters are explicit owned/excluded divergence.",
               "write_scope": [
                 "internal/telemetry/self_monitoring.go",
                 "internal/telemetry/self_monitoring_test.go",

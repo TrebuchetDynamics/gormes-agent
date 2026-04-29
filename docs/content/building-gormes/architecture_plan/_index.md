@@ -491,7 +491,7 @@ classification and row-backed implementation queue.
 
 - [ ] Trajectory writer + redaction gates
 - [x] Trajectory compressor + compressed-evidence lineage
-- [ ] Self-monitoring telemetry
+- [x] Self-monitoring telemetry
 
 ### 4.F — Title Generation 🔨
 
