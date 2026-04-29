@@ -21436,9 +21436,9 @@
             {
               "name": "API server detailed health endpoint",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native API server binds the validated DetailedHealthSnapshot value model to unauthenticated GET /health/detailed and /v1/health/detailed routes while preserving existing flat /health and /v1/health behavior",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -21473,12 +21473,12 @@
               ],
               "acceptance": [
                 "TestAPIServerDetailedHealthEndpoint_OK GETs /health/detailed and /v1/health/detailed and decodes provider, response_store, run_events, gateway, and cron sections.",
-                "TestAPIServerDetailedHealthEndpoint_NoAuthRequired configures APIKey=\"sk-test\" and proves both detailed health routes return 200 without Authorization or X-API-Key headers.",
+                "TestAPIServerDetailedHealthEndpoint_NoAuthRequired configures an API key and proves both detailed health routes return 200 without Authorization or X-API-Key headers.",
                 "TestAPIServerDetailedHealthEndpoint_MethodNotAllowed reuses the shared OpenAI-style method-not-allowed error envelope.",
                 "TestAPIServerDetailedHealthEndpoint_RedactsSecrets proves the HTTP response body omits provider keys, cron script bodies, gateway tokens, and raw request payloads.",
                 "Existing /health and /v1/health tests continue to report status/platform/responses/runs as before."
               ],
-              "note": "Refined 2026-04-27T13:57:25Z after repeated worker_error attempts: the snapshot row is complete and now an explicit blocked_by dependency. Workers should bind only GET /health/detailed and /v1/health/detailed in server.go plus endpoint tests, may adjust the existing flat-health fixture in chat_completions_test.go if route registration requires it, must not edit detailed_health.go, must prove no-auth behavior even when APIKey is configured, and must preserve flat /health behavior.",
+              "note": "Complete: TDD added internal/apiserver/detailed_health_endpoint_test.go and bound GET /health/detailed and /v1/health/detailed in internal/apiserver/server.go via a Config.DetailedHealth provider. The endpoint reuses the validated DetailedHealthSnapshot value model so provider/response_store/run_events/gateway/cron sections render through stable JSON. Invariants locked in by httptest fixtures: (1) both routes return 200 with all five sections decodable as application/json; (2) no Authorization or X-API-Key header is required even when APIKey is configured; (3) non-GET requests return the shared OpenAI-style invalid_request_error envelope with code method_not_allowed; (4) the response body redacts provider keys, raw request payloads, gateway tokens, and cron script bodies; (5) the existing flat /health and /v1/health responses keep their status/platform/responses/runs shape and do not gain a provider section.",
               "write_scope": [
                 "internal/apiserver/detailed_health_endpoint_test.go",
                 "internal/apiserver/server.go",

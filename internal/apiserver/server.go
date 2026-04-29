@@ -37,6 +37,10 @@ type Config struct {
 	OAuthProviders  []DashboardOAuthProvider
 	PluginInventory pluginmeta.Inventory
 	ChatTransport   ChatTransportStatus
+	// DetailedHealth produces the input for the unauthenticated detailed
+	// health endpoint. Callers fill it from already-available status reads;
+	// when nil the endpoint returns a degraded zero-value snapshot.
+	DetailedHealth func() DetailedHealthSnapshotInput
 }
 
 // ChatTransportStatus describes the dashboard's embedded chat transports
@@ -64,6 +68,7 @@ type Server struct {
 	oauthProviders         []DashboardOAuthProvider
 	pluginInventory        pluginmeta.Inventory
 	chatTransport          ChatTransportStatus
+	detailedHealth         func() DetailedHealthSnapshotInput
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -168,6 +173,7 @@ func NewServer(cfg Config) *Server {
 		oauthProviders:  cloneDashboardOAuthProviders(cfg.OAuthProviders),
 		pluginInventory: clonePluginInventory(cfg.PluginInventory),
 		chatTransport:   cfg.ChatTransport,
+		detailedHealth:  cfg.DetailedHealth,
 		now:             time.Now,
 		mux:             http.NewServeMux(),
 	}
@@ -183,6 +189,8 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) routes() {
 	s.mux.HandleFunc("/health", s.handleHealth)
 	s.mux.HandleFunc("/v1/health", s.handleHealth)
+	s.mux.HandleFunc("/health/detailed", s.handleDetailedHealth)
+	s.mux.HandleFunc("/v1/health/detailed", s.handleDetailedHealth)
 	s.mux.HandleFunc("/v1/models", s.handleModels)
 	s.mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 	s.mux.HandleFunc("/v1/responses", s.handleResponses)
@@ -217,6 +225,18 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"responses": s.responseHealthStatus(),
 		"runs":      s.runHealthStatus(),
 	})
+}
+
+func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	var input DetailedHealthSnapshotInput
+	if s.detailedHealth != nil {
+		input = s.detailedHealth()
+	}
+	writeJSON(w, http.StatusOK, DetailedHealthSnapshot(input))
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
