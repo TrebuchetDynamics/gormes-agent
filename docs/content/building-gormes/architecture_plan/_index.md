@@ -557,7 +557,7 @@ classification and row-backed implementation queue.
 
 ### 5.B — Sandboxing Backends 🔨
 
-- [ ] Environment interface + file sync contract
+- [x] Environment interface + file sync contract
 - [ ] Terminal snapshot source stdout suppression guard
 - [ ] Raw tool-call parser fixture matrix
 - [ ] Docker

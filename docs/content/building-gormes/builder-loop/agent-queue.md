@@ -64,27 +64,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Live @gormes_bot normal turn, Channel-neutral native runtime binding, Provider-tool-memory golden transcript suite
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Environment interface + file sync contract
-
-- Phase: 5 / 5.B
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes ports Hermes sandbox environment and file-sync contracts into a Go Environment interface with path mapping, upload/download, timeout, cleanup, and parser-family inventory fixtures before backend-specific Docker/SSH/Modal/Daytona/Singularity execution lands.
-- Trust class: operator, child-agent, system
-- Ready when: Tool execution descriptor and command-runner seams are validated enough to define an interface without starting real backends., The first slice can use fake filesystem and fake parser fixtures; no Docker daemon, SSH server, Modal account, browser, or provider credential is required.
-- Not ready when: The slice implements a real Docker, SSH, Modal, Daytona, Singularity, or browser environment backend instead of the shared interface and file-sync contract., The slice executes model-generated commands or parses live LLM output instead of using hermetic parser fixtures., The slice treats broad `environments/**` coverage as complete without exact parser-family rows.
-- Degraded mode: Unavailable or unsupported environment backends return environment_backend_unavailable or parser_family_row_backed evidence without shelling out, starting containers, or dropping file-sync intent.
-- Fixture: `internal/tools/environment_contract_test.go; internal/hermes/tool_call_parser_manifest_test.go`
-- Write scope: `internal/tools/environment_contract.go`, `internal/tools/environment_contract_test.go`, `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools ./internal/hermes -run 'TestEnvironmentContract\|TestToolCallParserManifest' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Environment contract fixtures prove fake backend path/file-sync/timeout/cleanup behavior and parser-family manifest coverage without real sandbox backends.
-- Acceptance: Environment interface fixtures prove path mapping, upload/download intent, timeout propagation, cleanup ordering, and unsupported-backend evidence over fake backends., File-sync fixtures prove checksum/delete intent and host/container path normalization without touching real remote filesystems., Parser manifest fixtures classify hermes_parser.py, deepseek_v3_1_parser.py, and the remaining parser family as implemented, row-backed, or excluded before raw parser execution parity is claimed., No test starts Docker, SSH, Modal, Daytona, Singularity, browsers, or provider clients.
-- Source refs: ../hermes-agent/tools/environments/base.py:BaseEnvironment, ../hermes-agent/tools/environments/file_sync.py, ../hermes-agent/environments/hermes_base_env.py, ../hermes-agent/environments/agentic_opd_env.py, ../hermes-agent/environments/web_research_env.py, ../hermes-agent/environments/tool_call_parsers/hermes_parser.py, ../hermes-agent/environments/tool_call_parsers/deepseek_v3_1_parser.py, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Sandbox/environments, docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Per-model tool-call parsers
-- Unblocks: Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard
-- Why now: Unblocks Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard.
-
-## 4. ACP server side
+## 3. ACP server side
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -103,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. OCI image
+## 4. OCI image
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -122,7 +102,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Homebrew
+## 5. Homebrew
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -140,5 +120,68 @@ keep row-specific execution facts in `progress.json`.
 - Acceptance: Formula fixtures prove class name, version, URL, checksum, binary install path, and doctor smoke command are present., Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths., Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row.
 - Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 6. Tool output budget persisted artifact pointer
+
+- Phase: 5 / 5.A
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Native tool execution bounds large tool results by persisting full output as a session artifact and returning a short text pointer to the model/channel, preserving Hermes operator readability and channel safety.
+- Trust class: gateway, operator, system
+- Ready when: The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing., A small pure package can be tested without live providers, channels, or filesystem outside temp dirs., Artifact path policy uses Gormes data/session dirs, not reference repo paths.
+- Not ready when: The row changes individual tool handlers before a shared result-budget helper exists., The row sends full oversized output to Telegram or provider context., The row stores artifacts outside a sanitized Gormes session/run directory.
+- Degraded mode: If artifact persistence fails, the result is still bounded and includes a safe warning without exposing raw oversized payloads to external channels.
+- Fixture: `internal/tools/result_budget_test.go`
+- Write scope: `internal/tools/`, `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tools ./internal/hermes -run 'Tool.*Budget\|Truncat\|Artifact' -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`
+- Done signal: Tool-result budget tests prove oversized outputs become safe artifact pointers with sanitized paths and no channel/provider flooding.
+- Acceptance: Text output over budget is truncated and full output is written to a sanitized artifact path., JSON/non-text output is persisted as JSON and represented by a short pointer., Callers receive evidence for truncated, persisted, and persistence_failed cases.
+- Source refs: references/go-agent-os/GORMES-REUSE-AUDIT.md#2-tool-output-truncation, references/go-agent-os/nanobot/pkg/agents/truncate.go, references/go-agent-os/axe/internal/artifact/tracker.go, internal/tools/, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security
+- Unblocks: 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery
+- Why now: Unblocks 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery.
+
+## 7. Gormes-native MCP host runtime boundary
+
+- Phase: 5 / 5.G
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes exposes a native MCP/tool host boundary with explicit tool declarations, filtering, audit evidence, and channel/runtime-safe execution without adopting a non-Hermes config surface.
+- Trust class: gateway, operator, system
+- Ready when: The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing., The interface design identifies caller-facing tool declaration/call/filter types before transport implementation., Hermes toolset/config semantics remain the source of truth for what tools are enabled.
+- Not ready when: The row imports Nanobot config semantics or changes Hermes config.yaml precedence., The row vendors a full MCP framework instead of creating a tested Gormes boundary., The row bypasses channel/tool trust classes.
+- Degraded mode: Unavailable MCP servers/tools produce structured unavailable/unauthorized evidence while core Hermes-parity tools and channel commands continue to work.
+- Fixture: `internal/tools/mcp_host_boundary_test.go`
+- Write scope: `internal/tools/`, `internal/plugins/`, `internal/gateway/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tools ./internal/plugins -run 'ToolDeclaration\|ToolFilter\|MCPHost\|Audit' -count=1`, `go test ./internal/tools ./internal/plugins -count=1`, `go run ./cmd/progress validate`
+- Done signal: A native Gormes tool/MCP boundary exists behind Hermes-compatible toolset/config semantics with filter and audit tests.
+- Acceptance: A Gormes tool declaration interface can render provider JSON schema and MCP metadata from one source., Include/exclude filters can restrict tools by channel, trust class, and configured toolset., Audit evidence records server/tool name, arguments redaction status, result status, and unavailable errors.
+- Source refs: references/go-agent-os/GORMES-REUSE-AUDIT.md#3-runtime-service-wiring-via-explicit-optionsmergecomplete, references/go-agent-os/nanobot/pkg/tools/service.go, references/go-agent-os/nanobot/pkg/runtime/runtime.go, references/go-agent-os/trpc-agent-go/tool/tool.go, references/go-agent-os/trpc-agent-go/tool/filter.go, internal/tools/, internal/plugins/, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#tools-sandboxes-and-security
+- Unblocks: MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer
+- Why now: Unblocks MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer.
+
+## 8. Goncho serialized write queue + relation candidates
+
+- Phase: 5 / 5.N
+- Owner: `memory`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Goncho serializes memory/conclusion writes and records pending relation candidates for possible conflicts or supersession without blocking the originating memory write.
+- Trust class: operator, system
+- Ready when: The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing., Existing Goncho storage/tests identify the write entrypoints to serialize., The relation vocabulary is mapped to Honcho-compatible public behavior or explicitly kept internal.
+- Not ready when: The row exposes Engram-specific API names as public Gormes/Honcho names., The row fails the original memory write because candidate detection is unavailable., The row adds an LLM judge before pending relation storage is deterministic.
+- Degraded mode: If candidate search or relation insertion fails, the memory write still succeeds with degraded evidence; queue-full returns a retryable typed error.
+- Fixture: `internal/goncho/write_queue_relation_test.go`
+- Write scope: `internal/goncho/`, `internal/memory/`, `internal/gonchotools/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/goncho ./internal/memory -run 'WriteQueue\|Relation\|Conflict\|Supersede' -count=1`, `go test ./internal/goncho ./internal/memory -count=1`, `go run ./cmd/progress validate`
+- Done signal: Goncho tests prove serialized writes and nonblocking pending relation candidates without changing Honcho-compatible external names.
+- Acceptance: Concurrent memory writes execute in deterministic queue order under test., Queued cancellation before start does not mutate storage; started writes complete deterministically., Saving a memory can create pending relation candidates with verbs such as related, conflicts_with, supersedes, compatible, scoped, or not_conflict for later judgment.
+- Source refs: references/go-agent-os/GORMES-REUSE-AUDIT.md#5-deterministic-serialized-mcpmemory-write-queue, references/go-agent-os/engram/internal/mcp/write_queue.go, references/go-agent-os/engram/internal/store/relations.go, references/go-agent-os/engram/internal/store/store.go, internal/goncho/, internal/memory/, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho
+- Unblocks: Goncho memory integration into normal agent turn, Goncho operator diagnostics contract
+- Why now: Unblocks Goncho memory integration into normal agent turn, Goncho operator diagnostics contract.
 
 <!-- PROGRESS:END -->
