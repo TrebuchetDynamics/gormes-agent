@@ -10798,9 +10798,9 @@
             },
             {
               "name": "Model-specific role and tool-use guidance",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pure native prompt/provider helper selects the API-facing system role and model guidance without calling any provider: gpt-5 and codex-family models emit developer-role system content at the adapter boundary, other models keep system; tool-use enforcement guidance is injected only when valid tool names exist and config enables always/auto/list matching; Google guidance is injected for gemini/gemma families, OpenAI/Codex guidance for gpt/codex families; the internal Gormes transcript keeps system-role semantics so later adapters own provider-specific role translation.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -10867,6 +10867,11 @@
                   "references/go-agent-os/trpc-agent-go/model/callbacks.go"
                 ],
                 "note": "Hermes is the parity contract for prompt content and role choice; the Go donor reference informs keeping provider-boundary transforms separate from model callbacks."
+              },
+              "evidence": {
+                "implementation": "internal/hermes/model_guidance.go; internal/hermes/model_guidance_test.go; internal/hermes/guidance_constants.go (OpenAI/Google operational guidance constants)",
+                "tests": "go test ./internal/hermes -run 'Test(ModelPromptRole|ToolUseEnforcement|ModelOperationalGuidance|PromptGuidanceIsPure)' -count=1; go test ./internal/hermes -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "Pure model-guidance fixtures prove API-boundary developer-role selection for gpt-5/codex families, tool-use enforcement config modes with no-tools suppression/default evidence, and family-specific OpenAI/Codex vs Gemini/Gemma operational guidance without provider/config/env/tool-registry dependencies."
               }
             },
             {

@@ -488,7 +488,7 @@ classification and row-backed implementation queue.
 
 - [ ] System + memory + tools + history assembly
 - [x] Context-file discovery + injection scan
-- [ ] Model-specific role and tool-use guidance
+- [x] Model-specific role and tool-use guidance
 - [ ] Toolset-aware skills prompt snapshot
 - [ ] Memory and session-search guidance assembly
 - [x] Gormes self-help skill/docs prompt guidance
