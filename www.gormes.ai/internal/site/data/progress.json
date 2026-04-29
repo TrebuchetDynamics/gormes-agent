@@ -10171,9 +10171,9 @@
             },
             {
               "name": "Tool-result pruning + protected head/tail summary",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes freezes the pure context-compression pruning pass before kernel mutation: protect system and first-turn head messages, choose the recent tail by token budget with at least three messages, keep assistant tool_calls paired with their tool results, prune old oversized tool result content without cutting tool-call arguments or JSON payloads, and emit summary-prefix-compatible replacement messages.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -10227,6 +10227,11 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:agent/context_compressor.py",
                 "note": "Hermes owns the behavior; Go donor files only supply implementation shapes for bounded output, image-token estimation, and budget accounting."
+              },
+              "evidence": {
+                "implementation": "internal/hermes/context_compressor_pruning.go, internal/hermes/context_compressor_pruning_test.go",
+                "tests": "go test ./internal/hermes -run TestContextCompressorPruning -count=1; go test ./internal/hermes ./internal/tools -count=1",
+                "note": "Pure Go pruning transform protects head and token-budget tail messages, aligns tool-call/result pairs, emits summary-prefix-compatible fallback markers, prunes oversized historical tool results, and records degraded invalid-tool evidence without provider calls or live history mutation."
               }
             },
             {

@@ -179,7 +179,7 @@ classification and row-backed implementation queue.
 - [x] Live-turn SOUL.md and project context wiring (channel-neutral)
 - [x] Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)
 - [x] Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)
-- [ ] Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
+- [x] Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
 - [ ] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
 - [x] BlueBubbles iMessage session-context prompt guidance
 - [x] DeliveryRouter + --deliver target parsing
@@ -475,7 +475,7 @@ classification and row-backed implementation queue.
 - [x] Compression token-budget trigger + summary sizing
 - [x] Aux compression headroom for system and tool schemas
 - [x] Aux compression provider-aware context cap
-- [ ] Tool-result pruning + protected head/tail summary
+- [x] Tool-result pruning + protected head/tail summary
 - [x] Aux compression single-prompt threshold reconciliation
 - [x] Compression protected-tail multimodal length estimator
 - [x] Context compressor image-token budget charge
