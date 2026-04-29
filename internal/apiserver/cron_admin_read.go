@@ -70,7 +70,13 @@ type cronAdminRunView struct {
 }
 
 func (s *Server) handleCronAdminJobs(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		// fall through to read path below
+	case http.MethodPost:
+		s.handleCronAdminCreate(w, r)
+		return
+	default:
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
 	}
@@ -96,10 +102,59 @@ func (s *Server) handleCronAdminJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCronAdminJobByID(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	jobID, sub, ok := parseCronAdminJobPath(r.URL.Path)
+	if !ok {
+		writeOpenAIError(w, http.StatusNotFound, "Cron admin route not found", "invalid_request_error", "", "not_found")
+		return
+	}
+
+	// Mutating subroutes are dispatched first so auth + envelope handling
+	// stays consistent with the read path: /pause, /resume, /trigger.
+	switch sub {
+	case "pause":
+		if r.Method != http.MethodPost {
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+		s.handleCronAdminPause(w, r, jobID)
+		return
+	case "resume":
+		if r.Method != http.MethodPost {
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+		s.handleCronAdminResume(w, r, jobID)
+		return
+	case "trigger":
+		if r.Method != http.MethodPost {
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+		s.handleCronAdminTrigger(w, r, jobID)
+		return
+	}
+
+	// Top-level /v1/admin/cron/jobs/{id} accepts GET (read), PATCH/PUT
+	// (update), and DELETE (remove). The "runs" subresource remains GET-only.
+	if sub == "" {
+		switch r.Method {
+		case http.MethodPatch, http.MethodPut:
+			s.handleCronAdminUpdate(w, r, jobID)
+			return
+		case http.MethodDelete:
+			s.handleCronAdminDelete(w, r, jobID)
+			return
+		case http.MethodGet:
+			// fall through to read path below
+		default:
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+	} else if r.Method != http.MethodGet {
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
 	}
+
 	if !s.authorized(r) {
 		writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
 		return
@@ -109,11 +164,6 @@ func (s *Server) handleCronAdminJobByID(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	jobID, sub, ok := parseCronAdminJobPath(r.URL.Path)
-	if !ok {
-		writeOpenAIError(w, http.StatusNotFound, "Cron admin route not found", "invalid_request_error", "", "not_found")
-		return
-	}
 	switch sub {
 	case "":
 		s.respondCronAdminJob(w, r, jobID)

@@ -50,6 +50,16 @@ type Config struct {
 	// run-history endpoint. *cron.RunStore satisfies this interface. When
 	// nil, run-history responds with code "cron_runs_unavailable".
 	CronRuns CronRunReader
+	// CronJobMutator is the write facade for the authenticated cron admin
+	// mutating endpoints (create / update / delete / pause / resume). When
+	// nil, those endpoints respond with code "cron_store_unavailable".
+	CronJobMutator CronJobMutator
+	// CronTrigger is the trigger seam used by /v1/admin/cron/jobs/{id}/trigger.
+	// When nil, the endpoint records trigger_delivery_unavailable and 503.
+	CronTrigger CronTriggerHandler
+	// CronAdminAuditor receives a redacted audit event for each mutation. It
+	// is optional; when nil the endpoints continue to work but emit no audit.
+	CronAdminAuditor CronAdminAuditor
 }
 
 // ChatTransportStatus describes the dashboard's embedded chat transports
@@ -80,6 +90,9 @@ type Server struct {
 	detailedHealth         func() DetailedHealthSnapshotInput
 	cronJobs               CronJobReader
 	cronRuns               CronRunReader
+	cronMutator            CronJobMutator
+	cronTrigger            CronTriggerHandler
+	cronAuditor            CronAdminAuditor
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -187,6 +200,9 @@ func NewServer(cfg Config) *Server {
 		detailedHealth:  cfg.DetailedHealth,
 		cronJobs:        cfg.CronJobs,
 		cronRuns:        cfg.CronRuns,
+		cronMutator:     cfg.CronJobMutator,
+		cronTrigger:     cfg.CronTrigger,
+		cronAuditor:     cfg.CronAdminAuditor,
 		now:             time.Now,
 		mux:             http.NewServeMux(),
 	}

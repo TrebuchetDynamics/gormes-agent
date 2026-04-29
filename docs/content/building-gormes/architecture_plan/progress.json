@@ -21657,9 +21657,9 @@
             {
               "name": "API server cron admin mutating endpoints",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native API server exposes authenticated cron admin create/update/delete/pause/resume/trigger endpoints that reuse the native cron action envelope, schedule parser, safety policy, and delivery plan",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
