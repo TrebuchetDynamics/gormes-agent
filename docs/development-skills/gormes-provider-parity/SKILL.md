@@ -1,6 +1,6 @@
 ---
 name: gormes-provider-parity
-description: Fix or implement Gormes provider/auth/client behavior by preserving Hermes parity first, then learning from local Go reference projects such as GoClaw, Plandex, Nanobot, trpc-agent-go, and ADK-Go.
+description: Use when fixing or implementing Gormes provider, auth, credential, endpoint, model-routing, streaming, account-usage, rate-limit, retry, or Telegram-visible provider error behavior.
 ---
 
 # Gormes Provider Parity
@@ -54,7 +54,7 @@ Gather evidence before editing:
 ```sh
 git status --short --branch
 go run ./cmd/gormes gateway status || true
-go run ./cmd/gormes --oneshot 'health probe' --model <model> --provider <provider> || true
+go run ./cmd/gormes -z 'health probe' --model <model> --provider <provider> || true
 ```
 
 Classify the failure:
