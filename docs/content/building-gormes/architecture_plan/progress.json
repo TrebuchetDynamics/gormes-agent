@@ -8135,18 +8135,86 @@
               }
             },
             {
-              "name": "Bedrock",
+              "name": "Bedrock provider runtime binding",
               "status": "planned",
-              "note": "Umbrella only: do not assign directly. Five codexu/* worker attempts on 2026-04-23 produced broad Bedrock adapters that did not merge, but the pure request-body mapping has since landed as internal/hermes/bedrock_converse.go and internal/hermes/bedrock_converse_mapping_test.go. Remaining work is dependency-ordered: stream event decoding -> SigV4/credential seam -> stale-client eviction/retry classification. No worker should attempt a full Bedrock adapter until those three rows are validated.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes closes the Bedrock provider plan by binding the already validated Converse request mapper, ConverseStream decoder, SigV4 credential seam, and stale-client retry classifier into a fakeable provider runtime: config/env choose bedrock_converse, region/auth evidence is redacted, fake signed requests route through the shared ProviderTransport harness, stream fixtures normalize through internal/hermes.Event, and runtime status distinguishes unavailable credentials from provider transport failures.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing AWS credentials, unsupported model, signing failure, stale transport recovery, and Bedrock runtime errors produce bedrock_* status evidence without live AWS calls or raw secret/body leakage.",
+              "fixture": "internal/hermes/bedrock_provider_binding_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/bedrock_adapter.py:build_converse_kwargs",
+                "../hermes-agent/agent/bedrock_adapter.py:call_converse",
+                "../hermes-agent/agent/bedrock_adapter.py:call_converse_stream",
+                "../hermes-agent/agent/bedrock_adapter.py:classify_bedrock_error",
+                "../hermes-agent/tests/agent/test_bedrock_adapter.py",
+                "../hermes-agent/tests/agent/transports/test_bedrock_transport.py",
+                "internal/hermes/provider_transport.go",
+                "internal/hermes/bedrock_converse.go",
+                "internal/hermes/bedrock_stream.go",
+                "internal/hermes/bedrock_sigv4.go",
+                "internal/hermes/bedrock_client_cache.go",
+                "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md",
+                "references/go-agent-os/plandex/app/server/model/plan/tell_stream_error.go",
+                "references/go-agent-os/plandex/app/server/model/model_error.go"
+              ],
+              "ready_when": [
+                "Bedrock Converse payload mapping (no AWS SDK), Bedrock stream event decoding (SSE fixtures), Bedrock SigV4 + credential seam, and Bedrock stale-client eviction + retry classification are complete.",
+                "The builder can inject fake credentials, fake signer time, and fake Bedrock runtime responses; no AWS SDK, IMDS, profile file, or network access is required.",
+                "Provider interface + stream fixture harness remains the only request/stream test surface."
+              ],
+              "not_ready_when": [
+                "The slice imports an AWS SDK, discovers live models, reads ~/.aws files, calls IMDS/ECS endpoints, or sends requests to Bedrock.",
+                "Provider status or errors include access keys, secret keys, session tokens, bearer tokens, raw AWS JSON bodies, or HTML.",
+                "The implementation bypasses ProviderTransport and adds a Bedrock-only transcript path."
+              ],
+              "blocked_by": [
+                "Bedrock Converse payload mapping (no AWS SDK)",
+                "Bedrock stream event decoding (SSE fixtures)",
+                "Bedrock SigV4 + credential seam",
+                "Bedrock stale-client eviction + retry classification"
+              ],
+              "unblocks": [
+                "Native runtime full-turn fixture"
+              ],
+              "acceptance": [
+                "TestBedrockProviderBindingSelectsConverseTransport proves config/env selecting Bedrock routes through api_mode=bedrock_converse and the shared provider transport path.",
+                "TestBedrockProviderBindingSignsFakeRequest proves fake credentials and fixed time produce redacted SigV4 evidence and a request shape suitable for ConverseStream.",
+                "TestBedrockProviderBindingStreamsFixture proves fake ConverseStream frames normalize into EventToken/EventReasoning/EventDone/tool calls through ProviderTransport.",
+                "TestBedrockProviderBindingMissingCredentialsDegrades proves absent credentials produce bedrock_credentials_missing status without opening network or panicking.",
+                "TestBedrockProviderBindingStaleErrorEvictsFakeClient proves stale transport classification evicts only the affected fake region client and leaves validation/auth errors cached."
+              ],
+              "note": "Replaces the old Bedrock umbrella note after its dependency slices landed. This is the remaining runtime binding plan and must stay fake-provider only until tests prove redacted status and shared transcript behavior.",
+              "write_scope": [
+                "internal/hermes/bedrock_provider_binding.go",
+                "internal/hermes/bedrock_provider_binding_test.go",
+                "internal/runtime/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes ./internal/runtime ./internal/config -run TestBedrockProviderBinding -count=1",
+                "go test ./internal/hermes -run 'TestProviderTransportRegistryAndFixtureHarness|TestDecodeBedrockStream_|TestResolveBedrockAuth_|TestBedrockRuntimeCache_' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Bedrock runtime binding fixtures prove config selection, fake signing, shared stream normalization, redacted missing-credential status, and stale-client eviction without AWS SDK or network access."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:agent/bedrock_adapter.py",
+                  "hermes:tests/agent/test_bedrock_adapter.py",
+                  "plandex:app/server/model/plan/tell_stream_error.go",
+                  "plandex:app/server/model/model_error.go"
+                ],
+                "note": "Hermes defines Bedrock runtime parity; Plandex supplies stream-error/retry pattern references only."
+              }
             },
             {
               "name": "Bedrock Converse payload mapping (no AWS SDK)",
@@ -10004,16 +10072,82 @@
             {
               "name": "Toolset-aware skills prompt snapshot",
               "status": "planned",
-              "note": "TDD: port skill manifest hashing, in-process/disk snapshot cache, tool/toolset condition filtering, and deterministic ordering before dynamic skills enter native prompt assembly.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Native prompt assembly builds a deterministic Hermes-compatible skills index snapshot filtered by available tools/toolsets: SKILL.md and DESCRIPTION.md metadata are reduced into a manifest keyed by relative path, mtime, and size; an in-process LRU cache is keyed by local skill root, external roots, sorted available tools, sorted available toolsets, platform hint, and disabled skill names; an optional disk snapshot is reused only when manifest version and file metadata match; `metadata.hermes.fallback_for_toolsets`, `requires_toolsets`, `fallback_for_tools`, and `requires_tools` hide or show skills exactly like Hermes; local active skills win over external duplicates; output categories and skill names are sorted and deduped.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If the snapshot is missing, stale, malformed, or unwritable, Gormes falls back to a full active-skill scan and records skills_prompt_snapshot_miss or skills_prompt_snapshot_write_failed evidence without injecting disabled, unsupported, or unavailable skills.",
+              "fixture": "internal/hermes/skills_prompt_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:_build_skills_manifest",
+                "../hermes-agent/agent/prompt_builder.py:_load_skills_snapshot",
+                "../hermes-agent/agent/prompt_builder.py:_write_skills_snapshot",
+                "../hermes-agent/agent/prompt_builder.py:_build_snapshot_entry",
+                "../hermes-agent/agent/prompt_builder.py:_skill_should_show",
+                "../hermes-agent/agent/prompt_builder.py:build_skills_system_prompt",
+                "../hermes-agent/agent/skill_utils.py:extract_skill_conditions",
+                "../hermes-agent/tests/agent/test_prompt_builder.py:TestSkillShouldShow",
+                "../hermes-agent/tests/agent/test_prompt_builder.py:TestBuildSkillsSystemPromptConditional",
+                "internal/skills/store.go",
+                "internal/skills/parser.go",
+                "internal/skills/status.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
+              ],
+              "ready_when": [
+                "Phase 2.G skills runtime and SKILL.md frontmatter validation are stable enough to expose active skill snapshots and statuses.",
+                "Tests can use t.TempDir skill roots, injected platform/disabled/toolset options, and fake snapshot paths.",
+                "No model call, provider adapter, live plugin registry, semantic skill search, or skill installation flow is required."
+              ],
+              "not_ready_when": [
+                "The slice changes skill selection scoring, active-store mutation, skill install/quarantine behavior, slash-command generation, or model-specific prompt role selection.",
+                "The disk snapshot is reused after any SKILL.md or DESCRIPTION.md mtime/size drift, or after platform/disabled/tool/toolset filters change.",
+                "Condition filtering treats missing available-tools/toolsets as restrictive; Hermes keeps backward compatibility by showing all skills when both filters are unknown."
+              ],
+              "blocked_by": [
+                "Phase 2.G skills runtime",
+                "SKILL.md frontmatter validation guard"
+              ],
+              "unblocks": [
+                "Memory and session-search guidance assembly",
+                "Native full prompt assembly"
+              ],
+              "acceptance": [
+                "TestSkillsPromptSnapshotManifestInvalidation proves SKILL.md and DESCRIPTION.md mtime/size drift invalidates a disk snapshot, malformed snapshot JSON falls back to a scan, and write failures produce evidence without failing prompt assembly.",
+                "TestSkillsPromptToolsetConditions proves fallback_for_toolsets/tools hide skills when the primary capability is available, requires_toolsets/tools hide skills when capabilities are missing, and nil filters show all skills for backward compatibility.",
+                "TestSkillsPromptCacheKeyIncludesToolsetsPlatformAndDisabled proves in-process cache entries are isolated by sorted tools, sorted toolsets, platform hint, disabled skill names, local root, and external roots.",
+                "TestSkillsPromptExternalDirsAndOrdering proves local active skills override external duplicates, external category descriptions are included, and category/skill output is sorted and deduped.",
+                "TestSkillsPromptStatusFiltering proves disabled, unsupported-platform, missing-prerequisite, preprocessing-failed, and frontmatter-invalid skills remain out of the injected prompt while status evidence is preserved for callers."
+              ],
+              "note": "Builder-ready tool-calling prompt slice. Hermes defines the skill-index snapshot and conditional tool/toolset filtering contract; Gormes should implement it against the existing internal/skills runtime before native full prompt assembly consumes dynamic skills.",
+              "write_scope": [
+                "internal/hermes/skills_prompt.go",
+                "internal/hermes/skills_prompt_test.go",
+                "internal/skills/types.go",
+                "internal/skills/parser.go",
+                "internal/skills/status.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes ./internal/skills -run 'TestSkillsPrompt' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Skills prompt fixtures prove manifest invalidation, cache-key isolation, tool/toolset conditional filtering, external-dir precedence, deterministic ordering, and status-safe exclusion from prompt injection."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:agent/prompt_builder.py",
+                  "hermes:agent/skill_utils.py",
+                  "hermes:tests/agent/test_prompt_builder.py",
+                  "axe:internal/artifact/tracker.go"
+                ],
+                "note": "Hermes defines the prompt snapshot behavior and metadata.hermes condition keys; Axe provides a bounded filesystem artifact pattern reference for snapshot-path hardening."
+              }
             },
             {
               "name": "Memory and session-search guidance assembly",
@@ -13057,15 +13191,49 @@
             {
               "name": "Pure core tools first",
               "status": "planned",
-              "note": "TDD: port side-effect-light tools such as todo, clarify, debug helpers, and local formatting helpers before network/browser/sandbox tools so the native registry can grow without external credentials.",
+              "contract": "Umbrella sequencing guard for the first native tool-calling tranche: prioritize schema-backed, credential-free or fake-store tools (Clarify, Todo, Debug helpers, local format/read-only helpers) before browser, network, sandbox, and write-capable tools so the registry, descriptor, debug, and degraded-evidence contracts stabilize without external services.",
+              "contract_status": "draft",
               "slice_size": "umbrella",
               "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "source_refs": [
+                "../hermes-agent/tools/todo_tool.py",
+                "../hermes-agent/tools/clarify_tool.py",
+                "../hermes-agent/tools/debug_helpers.py",
+                "../hermes-agent/tests/tools/test_todo_tool.py",
+                "../hermes-agent/tests/tools/test_clarify_tool.py",
+                "../hermes-agent/tests/tools/test_debug_helpers.py",
+                "internal/tools/registry.go",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json",
+                "references/go-agent-os/nanobot/pkg/tools/flows.go"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "ready_when": [
+                "Child rows carry executable contracts and focused tests; this umbrella is not directly selectable.",
+                "Clarify, Todo, and Debug helpers remain credential-free or fake-store slices.",
+                "Network/browser/sandbox/stateful write tools stay in later rows until registry and degraded evidence are validated."
+              ],
+              "not_ready_when": [
+                "A builder tries to implement this umbrella as a broad multi-tool port.",
+                "A child row requires live browser, network, sandbox, provider, or filesystem mutation behavior before the pure registry/debug contracts are validated."
+              ],
+              "unblocks": [
+                "Todo",
+                "Clarify",
+                "Debug helpers",
+                "Stateful tool migration queue"
+              ],
+              "acceptance": [
+                "This umbrella remains docs-only and points builders to child rows with source_refs, write_scope, and test_commands.",
+                "No runtime code lands under this umbrella; every tool implementation is owned by a concrete child row.",
+                "Progress validation proves the child-row graph stays in progress.json rather than a side TODO list."
+              ],
+              "note": "Planner guard only. Todo, Clarify, and Debug helpers are the executable rows; this row prevents future agents from reopening a broad pure-tools mega-port.",
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
+              ],
+              "no_test_required": "Umbrella sequencing row only; executable behavior is tested by the Todo, Clarify, Debug helpers, and Stateful tool migration queue rows.",
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "The pure-core tool tranche is represented by concrete child rows and this umbrella is not selected for implementation."
               ]
             },
             {
@@ -13095,7 +13263,7 @@
                 "references/go-agent-os/nanobot/pkg/tools/flows.go"
               ],
               "ready_when": [
-                "Pure core tools first has identified side-effect-light tools separately from stateful write/process tools.",
+                "Side-effect-light tool rows such as Todo and Debug helpers remain separately planned so this queue can focus only on write/process state contracts.",
                 "Environment and path-denial contracts under internal/tools are green.",
                 "The slice does not port the full file/process/checkpoint tools; it only freezes queue metadata and guard decisions for future rows."
               ],
@@ -13103,9 +13271,6 @@
                 "The slice implements write_file, patch, restore, terminal process spawning, live checkpoint restoration, or shell execution.",
                 "A tool can declare write/process behavior without a state domain, rollback policy, and focused test command.",
                 "Paths outside the injected Gormes roots can be accepted in tests."
-              ],
-              "blocked_by": [
-                "Pure core tools first"
               ],
               "unblocks": [
                 "File write/patch tool port",
@@ -16661,16 +16826,68 @@
             {
               "name": "Todo",
               "status": "planned",
-              "note": "TDD: port `tools/todo_tool.py` as a small stateful tool with schema/result parity, deterministic persistence, and no dependency on the full file-tools port.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports Hermes todo_tool as a small stateful native tool: items validate id/content/status, duplicate IDs keep the last entry while preserving list order, replace vs merge semantics match Hermes, only pending/in_progress items are injected into prompts, summary counts include pending/in_progress/completed/cancelled, and storage is deterministic under an injected per-session root.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Invalid status/content, missing store, corrupt JSON, or state-root denial returns todo_invalid_args, todo_store_unavailable, or todo_store_corrupt evidence without touching file-tools or global session state.",
+              "fixture": "internal/tools/todo_tool_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/todo_tool.py:TodoStore",
+                "../hermes-agent/tools/todo_tool.py:todo_tool",
+                "../hermes-agent/tools/todo_tool.py:TODO_SCHEMA",
+                "../hermes-agent/tests/tools/test_todo_tool.py",
+                "internal/tools/registry.go",
+                "references/go-agent-os/engram/internal/mcp/write_queue.go",
+                "references/go-agent-os/nanobot/pkg/tools/flows.go"
+              ],
+              "ready_when": [
+                "Native tool registry can register a schema-backed pure/stateful tool with fake store injection.",
+                "The slice uses temp roots in tests and does not depend on the full file-tools port.",
+                "Stateful tool migration queue is either complete or this row limits persistence to a small per-session store with explicit path tests."
+              ],
+              "not_ready_when": [
+                "The slice implements unrelated task planning UX, file_tools, process tools, or cross-session syncing.",
+                "Completed/cancelled todos are injected back into prompts.",
+                "Duplicate ID behavior keeps the first entry or reorders the priority list differently from Hermes fixtures."
+              ],
+              "unblocks": [
+                "TUI todo panel"
+              ],
+              "acceptance": [
+                "TestTodoToolValidateAndDedupe proves status normalization, empty-content rejection, duplicate ID last-wins behavior, and stable priority order.",
+                "TestTodoToolReplaceAndMerge proves replace overwrites the store while merge updates existing items and appends new ones according to Hermes fixtures.",
+                "TestTodoToolFormatForInjectionOnlyActive proves pending and in_progress items inject with Hermes markers while completed/cancelled items are omitted.",
+                "TestTodoToolSummaryCounts proves JSON output contains todo list plus pending/in_progress/completed/cancelled counts.",
+                "TestTodoToolStoreCorruptionDegrades proves malformed persisted JSON returns safe evidence and does not panic or delete the file."
+              ],
+              "note": "Builder-ready small stateful tool row. Hermes defines schema/store/result parity; Engram write queue and Nanobot tool-output conversion are pattern references only.",
+              "write_scope": [
+                "internal/tools/todo_tool.go",
+                "internal/tools/todo_tool_test.go",
+                "internal/tools/registry.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestTodoTool -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Todo fixtures prove schema validation, replace/merge, duplicate last-wins, active-only injection, summary counts, and corrupt-store degradation without file-tools dependency."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/todo_tool.py",
+                  "hermes:tests/tools/test_todo_tool.py",
+                  "engram:internal/mcp/write_queue.go",
+                  "nanobot:pkg/tools/flows.go"
+                ],
+                "note": "Hermes defines todo behavior; Engram/Nanobot provide write-queue and tool-output pattern references."
+              }
             },
             {
               "name": "Clarify",
@@ -16944,16 +17161,71 @@
             {
               "name": "Debug helpers",
               "status": "planned",
-              "note": "TDD: port `tools/debug_helpers.py` as read-mostly diagnostic tools with redaction and no hidden writes before exposing them to production agents.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports Hermes DebugSession as shared tool debug infrastructure: tool-specific env vars enable a per-tool session ID, log entries remain in memory until explicit save, save writes deterministic JSON under an injected debug log directory, disabled debug mode is a no-op, get_session_info returns enabled/session/path/count evidence, and sensitive arguments are redacted before persistence.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "When debug mode is disabled or the log directory is unavailable, tool calls return debug_disabled or debug_log_unavailable evidence without hidden writes or tool execution failure.",
+              "fixture": "internal/tools/debug_helpers_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/debug_helpers.py:DebugSession",
+                "../hermes-agent/tests/tools/test_debug_helpers.py",
+                "../hermes-agent/tools/mixture_of_agents_tool.py:_debug",
+                "references/go-agent-os/engram/internal/mcp/activity.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go",
+                "references/go-agent-os/nanobot/pkg/tools/flows.go"
+              ],
+              "ready_when": [
+                "Native tool registry can share helper packages without enabling debug writes globally.",
+                "Tests can inject env vars, fake clocks/UUIDs, and temp log directories.",
+                "The slice defines redaction policy before MOA or web tools write debug logs."
+              ],
+              "not_ready_when": [
+                "The slice writes logs when the tool-specific debug env var is unset/false.",
+                "The slice stores raw tokens, API keys, bearer headers, cookies, file contents, or provider request bodies in debug JSON.",
+                "The slice implements debug-share uploads, paste sweeps, support archives, or live doctor commands."
+              ],
+              "unblocks": [
+                "Multi-model coordination",
+                "Debug share paste sweep scheduler contract",
+                "Web/search tool debug logging"
+              ],
+              "acceptance": [
+                "TestDebugSessionDisabledNoops proves log/save/session-info do not create files when the env var is absent, false, or mixed-case false.",
+                "TestDebugSessionEnabledWritesJSON proves true/True/TRUE enables logging, assigns a deterministic session ID, and saves a JSON file named <tool>_debug_<session>.json under the injected log dir.",
+                "TestDebugSessionRedactsSensitiveArgs proves token, api_key, authorization, cookie, password, and raw provider body fields are redacted before save.",
+                "TestDebugSessionInfoReportsPathAndCount proves get_session_info returns enabled, session_id, log_path, and call count without absolute home leakage beyond the injected temp path.",
+                "TestDebugSessionSaveFailureDegrades proves directory/write failures return debug_log_unavailable evidence without panics."
+              ],
+              "note": "Builder-ready debug helper row. Hermes defines DebugSession semantics; Engram activity and Axe artifact tracker provide bounded evidence/logging patterns. Debug-share uploads and paste sweep remain separate rows.",
+              "write_scope": [
+                "internal/tools/debug_helpers.go",
+                "internal/tools/debug_helpers_test.go",
+                "internal/tools/registry.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestDebugSession -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Debug helper fixtures prove disabled no-op behavior, enabled JSON save, redaction, session info, and save-failure degradation under temp directories only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/debug_helpers.py",
+                  "hermes:tests/tools/test_debug_helpers.py",
+                  "engram:internal/mcp/activity.go",
+                  "axe:internal/artifact/tracker.go",
+                  "nanobot:pkg/tools/flows.go"
+                ],
+                "note": "Hermes defines DebugSession behavior; Engram/Axe/Nanobot provide activity, artifact, and tool-output pattern references."
+              }
             },
             {
               "name": "Debug share paste sweep scheduler contract",
@@ -24067,16 +24339,82 @@
             {
               "name": "Matrix real client/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze auth, sync/invite handling, room-kind and mention policy, and media/E2EE bootstrap seams before binding a real Matrix client.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes adds a fakeable Matrix client/bootstrap boundary after the shared-chassis seam: config resolves homeserver/access-token or user/password auth, whoami/login learns the bot user_id, initial sync records joined rooms and next_batch, event handlers are registered for room messages/reactions/invites, sync loop restart/auth-stop behavior is represented as a pure runner contract, and media/E2EE hooks remain injectable seams rather than live SDK side effects.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Matrix status reports matrix_config_missing, matrix_auth_failed, matrix_sync_unavailable, matrix_e2ee_unavailable, or matrix_transport_unavailable without starting a live homeserver connection in unit tests.",
+              "fixture": "internal/channels/matrix/bootstrap_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter.connect",
+                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter._sync_loop",
+                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter._on_invite",
+                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter.send",
+                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter._upload_and_send",
+                "../hermes-agent/tests/gateway/test_matrix.py",
+                "internal/channels/matrix/seam.go",
+                "internal/channels/threadtext/contract.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/engram/internal/mcp/activity.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
+              ],
+              "ready_when": [
+                "Matrix shared-chassis bot seam is complete and exposes fakeable inbound/outbound hook points.",
+                "Matrix self/bridge sender drop helper is complete or the bootstrap row wires only a placeholder sender-filter interface.",
+                "Tests can drive a fake Matrix client with whoami/login/sync/send/upload methods; no Matrix SDK, homeserver, E2EE key store, or network is required."
+              ],
+              "not_ready_when": [
+                "The slice imports mautrix/nio SDKs, opens network sockets, stores real crypto keys, or joins live rooms.",
+                "Auth failures continue into sync instead of stopping with matrix_auth_failed evidence.",
+                "Initial sync events can dispatch before sender-filter and mention/free-room policies are installed."
+              ],
+              "blocked_by": [
+                "Matrix shared-chassis bot seam",
+                "Matrix self/bridge sender drop helper"
+              ],
+              "unblocks": [
+                "Matrix E2EE device-id crypto-store binding",
+                "Matrix media upload/download contract",
+                "Matrix live transport binding"
+              ],
+              "acceptance": [
+                "TestMatrixBootstrapConfigRequiresAuthAndHomeserver proves missing homeserver/token/password combinations produce explicit degraded evidence and do not construct a client.",
+                "TestMatrixBootstrapWhoamiAndPasswordLogin prove access-token whoami and password login paths learn user_id/device_id through fake responses.",
+                "TestMatrixBootstrapInitialSyncRegistersHandlers proves room/reaction/invite handlers register before initial sync dispatch and joined rooms/next_batch are captured.",
+                "TestMatrixBootstrapSyncLoopStopsOnPermanentAuthError proves auth errors stop the fake loop while transient sync errors return retry evidence without sleeping.",
+                "TestMatrixBootstrapMediaAndE2EEHooksAreInjectable proves upload/encryption hooks are interfaces and default to unavailable evidence in tests."
+              ],
+              "note": "Builder-ready Matrix bootstrap boundary. Hermes Matrix remains the behavior contract; trpc-agent-go callback ordering, Engram activity evidence, and Axe artifact tracking are donor pattern references only.",
+              "write_scope": [
+                "internal/channels/matrix/bootstrap.go",
+                "internal/channels/matrix/bootstrap_test.go",
+                "internal/channels/matrix/seam.go",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/matrix ./internal/channels/threadtext ./internal/config -run 'TestMatrixBootstrap|TestMatrixSeam|TestMatrix.*SenderFilter' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Matrix bootstrap fixtures prove config/auth, whoami/login, handler registration, initial sync state, auth-stop sync behavior, and injectable media/E2EE hooks with fake clients only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/matrix.py",
+                  "hermes:tests/gateway/test_matrix.py",
+                  "trpc-agent-go:agent/callbacks.go",
+                  "engram:internal/mcp/activity.go",
+                  "axe:internal/artifact/tracker.go"
+                ],
+                "note": "Hermes defines Matrix runtime behavior; Go donors supply callback, activity, and artifact-boundary patterns."
+              }
             },
             {
               "name": "Matrix E2EE device-id crypto-store binding",
@@ -24127,16 +24465,80 @@
             {
               "name": "Mattermost REST/WS bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze auth, websocket reconnect, channel/user lookup, and file upload/edit seams before binding a real Mattermost transport.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes adds a fakeable Mattermost REST/websocket bootstrap boundary after the shared-chassis seam: config resolves MATTERMOST_URL/TOKEN, auth probes users/me, REST helpers sanitize response errors, websocket posted events feed the seam parser, reconnect policy is represented without sleeps, channel/user lookup is injectable, and file upload/edit/send paths are shaped with fake HTTP responses before any live Mattermost transport is enabled.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Mattermost status reports mattermost_config_missing, mattermost_auth_failed, mattermost_ws_unavailable, mattermost_upload_failed, or mattermost_transport_unavailable without opening real REST or websocket connections in unit tests.",
+              "fixture": "internal/channels/mattermost/bootstrap_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter.connect",
+                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._api_get",
+                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._api_post",
+                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._upload_file",
+                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._handle_ws_event",
+                "../hermes-agent/tests/gateway/test_mattermost.py",
+                "internal/channels/mattermost/seam.go",
+                "internal/channels/threadtext/contract.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/engram/internal/mcp/activity.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
+              ],
+              "ready_when": [
+                "Mattermost shared-chassis bot seam is complete and exposes pure parser/reply-target behavior.",
+                "Tests can drive fake REST and websocket clients with scripted responses; no Mattermost server, aiohttp equivalent, or network is required.",
+                "Attachment evidence can reuse bounded artifact/path patterns instead of persisting arbitrary remote file names."
+              ],
+              "not_ready_when": [
+                "The slice opens real websocket connections, sends real REST requests, reads live env in tests, or uploads real files outside temp fixtures.",
+                "REST failures leak bearer tokens or raw HTML bodies.",
+                "Websocket reconnect tests sleep on wall-clock time instead of using fake timers."
+              ],
+              "blocked_by": [
+                "Mattermost shared-chassis bot seam"
+              ],
+              "unblocks": [
+                "Mattermost live transport binding",
+                "Mattermost media upload contract"
+              ],
+              "acceptance": [
+                "TestMattermostBootstrapConfigAndAuth probes fake users/me and proves missing token/url and auth failure degrade with redacted evidence.",
+                "TestMattermostRESTHelpersSanitizeErrors proves _api_get/_api_post equivalents parse JSON, handle non-2xx, and never expose bearer tokens or oversized raw bodies.",
+                "TestMattermostWebsocketFeedsSeam proves fake posted websocket events enter the seam parser and non-posted/malformed events are ignored.",
+                "TestMattermostReconnectPolicyUsesFakeClock proves transient websocket failure records retry evidence without wall-clock sleep.",
+                "TestMattermostUploadEditSendShapesRequests proves file upload, post-with-file, edit, and channel lookup request shapes match Hermes fixtures with fake HTTP only."
+              ],
+              "note": "Builder-ready Mattermost transport-boundary row. Hermes Mattermost remains the parity contract; Go donors provide callback, activity, and artifact evidence patterns.",
+              "write_scope": [
+                "internal/channels/mattermost/bootstrap.go",
+                "internal/channels/mattermost/bootstrap_test.go",
+                "internal/channels/mattermost/seam.go",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/mattermost ./internal/channels/threadtext ./internal/config -run 'TestMattermost(Bootstrap|REST|Websocket|Reconnect|Upload|Seam)' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Mattermost bootstrap fixtures prove config/auth, sanitized REST helpers, websocket event flow, fake-clock reconnect, upload/edit/send request shaping, and seam integration with fake clients only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/mattermost.py",
+                  "hermes:tests/gateway/test_mattermost.py",
+                  "trpc-agent-go:agent/callbacks.go",
+                  "engram:internal/mcp/activity.go",
+                  "axe:internal/artifact/tracker.go"
+                ],
+                "note": "Hermes defines Mattermost runtime behavior; Go donors supply callback, activity, and artifact-boundary patterns."
+              }
             }
           ],
           "drift_state": {
@@ -24235,44 +24637,229 @@
             {
               "name": "Feishu transport/bootstrap layer",
               "status": "planned",
-              "note": "TDD: freeze webhook and websocket client lifecycle, credential validation, and rich-text send failure modes before binding a real Feishu transport.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes adds a fakeable Feishu/Lark transport bootstrap boundary before live SDK binding: config resolves app credentials, connection_mode selects webhook vs websocket, webhook URL verification and signature checks are pure helpers, websocket event handlers register message/reaction/card/customized processors, inbound events queue until the adapter loop is ready, and rich-text/card send failures return typed SendResult evidence with redacted tokens.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Feishu status reports feishu_config_missing, feishu_signature_invalid, feishu_loop_not_ready, feishu_ws_unavailable, or feishu_send_failed without opening live websocket or webhook network calls in unit tests.",
+              "fixture": "internal/channels/feishu/bootstrap_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/feishu.py:FeishuAdapter",
+                "../hermes-agent/tests/gateway/test_feishu.py:test_build_event_handler_registers_reaction_and_card_processors",
+                "../hermes-agent/tests/gateway/test_feishu.py:TestLoopNotReadyRace",
+                "../hermes-agent/tests/gateway/test_feishu.py:test_webhook_signature",
+                "../hermes-agent/tests/gateway/test_feishu.py:test_url_verification",
+                "../hermes-agent/tests/gateway/test_feishu.py:test_normalize_interactive_card_preserves_title_body_and_actions",
+                "internal/channels/feishu/",
+                "internal/gateway/event.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/engram/internal/mcp/activity.go"
+              ],
+              "ready_when": [
+                "Shared gateway event and delivery contracts are validated enough to host a Feishu channel package.",
+                "Tests can inject fake webhook bodies, fake websocket events, fake event handlers, and fake send clients.",
+                "No live Feishu app credentials, SDK, websocket, or HTTP server is required."
+              ],
+              "not_ready_when": [
+                "The slice imports the live Feishu SDK, opens network sockets, starts an HTTP server, or sends messages to Feishu.",
+                "Inbound events arriving before the adapter loop is ready are dropped or spawn one drainer per event.",
+                "Signature failures or send errors leak app_secret, verification_token, tenant token, or raw oversized provider bodies."
+              ],
+              "unblocks": [
+                "Feishu drive-comment rule + pairing seam",
+                "Feishu drive-comment reply workflow",
+                "Feishu live SDK binding"
+              ],
+              "acceptance": [
+                "TestFeishuBootstrapConnectionModeSelectsWebhookOrWebsocket proves config/env select the intended lifecycle without live clients.",
+                "TestFeishuWebhookURLVerificationAndSignature proves challenge responses and invalid signatures are deterministic and redacted.",
+                "TestFeishuEventHandlerRegistration proves message, reaction, card-action, chat-entered, and customized drive-comment handlers register on a fake builder.",
+                "TestFeishuLoopNotReadyQueuesAndDrainsOnce proves events received before loop readiness are queued, drained in order, and not lost.",
+                "TestFeishuRichTextSendFailureEvidence proves fake send failures return typed evidence and do not leak credentials."
+              ],
+              "note": "Builder-ready Feishu transport boundary. Hermes Feishu tests define the lifecycle and loop-race contract; trpc-agent-go/Engram provide callback and bounded activity-evidence pattern references.",
+              "write_scope": [
+                "internal/channels/feishu/bootstrap.go",
+                "internal/channels/feishu/bootstrap_test.go",
+                "internal/channels/feishu/testdata/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/feishu ./internal/config -run TestFeishuBootstrap -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Feishu bootstrap fixtures prove connection mode, webhook verification/signature checks, handler registration, loop-not-ready queue drain, and redacted send failure evidence with fake clients only."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/feishu.py",
+                  "hermes:tests/gateway/test_feishu.py",
+                  "trpc-agent-go:agent/callbacks.go",
+                  "engram:internal/mcp/activity.go"
+                ],
+                "note": "Hermes defines Feishu gateway behavior; Go donors supply callback and activity-evidence patterns."
+              }
             },
             {
               "name": "Feishu drive-comment rule + pairing seam",
               "status": "planned",
-              "note": "TDD: port the upstream `gateway/platforms/feishu_comment_rules.py` contract as a Go rule resolver with exact document, wildcard, and top-level fallback plus allowlist/pairing decisions before comment replies can invoke an agent.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports Hermes Feishu drive-comment rule resolution before comment replies can invoke an agent: config loads comments policy and per-document rules, exact document rules beat wiki rules, wiki rules beat wildcard/top defaults when supplied, each enabled/policy/allow_from field falls back independently, explicit empty allow_from does not fall through, invalid policies default to pairing, and pairing add/remove/list uses an atomic temp-root store.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing or malformed rules files return Feishu comment defaults with feishu_comment_rules_defaulted evidence; denied users return feishu_comment_denied without comment API side effects.",
+              "fixture": "internal/channels/feishu/comment_rules_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/feishu_comment_rules.py:CommentsConfig",
+                "../hermes-agent/gateway/platforms/feishu_comment_rules.py:resolve_rule",
+                "../hermes-agent/gateway/platforms/feishu_comment_rules.py:is_user_allowed",
+                "../hermes-agent/gateway/platforms/feishu_comment_rules.py:pairing_add",
+                "../hermes-agent/gateway/platforms/feishu_comment_rules.py:pairing_remove",
+                "../hermes-agent/gateway/platforms/feishu_comment_rules.py:pairing_list",
+                "../hermes-agent/tests/gateway/test_feishu_comment_rules.py",
+                "references/go-agent-os/engram/internal/mcp/write_queue.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
+              ],
+              "ready_when": [
+                "Feishu transport/bootstrap layer is planned or complete enough to provide a channel package and temp-root config paths.",
+                "Tests can inject rules JSON and pairing JSON under t.TempDir with fake mtime/clock behavior.",
+                "No Feishu SDK, Drive API, or comment reply workflow is required."
+              ],
+              "not_ready_when": [
+                "The slice handles drive comment events, fetches document metadata, sends reactions/replies, or invokes an agent.",
+                "Pairing writes are non-atomic or can corrupt the store on duplicate add/remove cases.",
+                "Exact document rules fail to override wildcard/wiki/top-level fallback in the same order as Hermes."
+              ],
+              "blocked_by": [
+                "Feishu transport/bootstrap layer"
+              ],
+              "unblocks": [
+                "Feishu drive-comment reply workflow"
+              ],
+              "acceptance": [
+                "TestFeishuCommentRuleParseAndDefaults proves invalid policies are ignored/defaulted and missing files produce pairing defaults.",
+                "TestFeishuCommentRuleResolutionPrecedence proves exact doc > wiki > wildcard > top/default and field-by-field fallback, including explicit empty allow_from.",
+                "TestFeishuCommentRuleHasWikiKeys proves wiki-key detection only trips on wiki: document rules.",
+                "TestFeishuCommentPairingStoreAddRemoveList proves duplicate add, remove, missing remove, and list behavior through an atomic temp-root store.",
+                "TestFeishuCommentUserAllowed proves allowlist and pairing decisions match Hermes fixtures without comment API side effects."
+              ],
+              "note": "Builder-ready Feishu comment access-control slice. It intentionally stops before event parsing/reply generation; Engram/Axe donors provide serialized write and bounded filesystem evidence patterns.",
+              "write_scope": [
+                "internal/channels/feishu/comment_rules.go",
+                "internal/channels/feishu/comment_rules_test.go",
+                "internal/channels/feishu/testdata/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/feishu -run TestFeishuCommentRule -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Feishu comment-rule fixtures prove parser defaults, exact/wiki/wildcard/top fallback, allowlist/pairing decisions, atomic pairing store behavior, and no Drive API side effects."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/feishu_comment_rules.py",
+                  "hermes:tests/gateway/test_feishu_comment_rules.py",
+                  "engram:internal/mcp/write_queue.go",
+                  "axe:internal/artifact/tracker.go"
+                ],
+                "note": "Hermes defines Feishu comment rule behavior; Engram/Axe provide write-queue and filesystem evidence patterns."
+              }
             },
             {
               "name": "Feishu drive-comment reply workflow",
               "status": "planned",
-              "note": "TDD: freeze `drive.notice.comment_add_v1` parsing, OK-reaction behavior, whole-document vs local-thread prompt construction, and reply fallback semantics from `gateway/platforms/feishu_comment.py` before real SDK binding.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes freezes Hermes Feishu drive-comment reply workflow behind fake clients before live SDK binding: parse `drive.notice.comment_add_v1`, accept only add_comment/add_reply events, reject self/wrong-receiver/empty-to-open-id/disabled-or-denied users without side effects, sanitize comment text with ampersand-first HTML escaping, optionally reverse-lookup wiki tokens before applying wildcard/top comment rules, fetch document metadata and comment batches through a fake Drive client, add an OK reaction before agent invocation, build whole-document versus local-thread prompt envelopes, and fall back from local `reply_to_comment` to whole-document `add_whole_comment` on Feishu code `1069302` with evidence.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Disabled rules, denied users, unresolvable wiki tokens, missing document metadata, reaction failure, batch-comment failure, or reply fallback are surfaced as typed Feishu comment workflow evidence; tests never invoke the live Feishu SDK, Drive API, or model runtime.",
+              "fixture": "internal/channels/feishu/comment_workflow_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/feishu_comment.py:parse_drive_comment_event",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:handle_drive_comment_event",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:_sanitize_comment_text",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:_reverse_lookup_wiki_token",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:add_comment_reaction",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:batch_query_comment",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:query_document_meta",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:reply_to_comment",
+                "../hermes-agent/gateway/platforms/feishu_comment.py:add_whole_comment",
+                "../hermes-agent/tests/gateway/test_feishu_comment.py",
+                "internal/channels/feishu/comment_rules.go",
+                "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
+                "references/go-agent-os/engram/internal/mcp/activity.go"
+              ],
+              "ready_when": [
+                "Feishu transport/bootstrap layer and Feishu drive-comment rule + pairing seam are complete enough to provide fake event and access-control inputs.",
+                "Tests can inject fake Drive/comment/reaction clients, fake agent invoker, fake wiki lookup, and deterministic comment fixtures.",
+                "No live Feishu credentials, websocket, HTTP server, Drive API, or model/provider call is required."
+              ],
+              "not_ready_when": [
+                "The slice imports the live Feishu SDK, opens network calls, starts a gateway server, or invokes the real agent loop.",
+                "Denied/disabled/self/wrong-receiver events can add reactions, fetch comments, or call the agent.",
+                "The local reply fallback swallows Feishu code `1069302` without recording evidence or without trying whole-document reply."
+              ],
+              "blocked_by": [
+                "Feishu drive-comment rule + pairing seam",
+                "Feishu transport/bootstrap layer"
+              ],
+              "unblocks": [
+                "Feishu live SDK binding",
+                "Native gateway agent invocation for document comments"
+              ],
+              "acceptance": [
+                "TestFeishuCommentWorkflowParseAndFilter proves valid parse plus self, wrong receiver, empty to_open_id, resolve_comment, disabled, and denied cases stop without reaction, Drive, or agent side effects.",
+                "TestFeishuCommentWorkflowSanitizesText proves ampersand-first escaping avoids double escaping while preserving visible comment text.",
+                "TestFeishuCommentWorkflowWikiReverseLookup proves wildcard/top rules with wiki keys trigger reverse lookup and a second rule resolve with wiki_token.",
+                "TestFeishuCommentWorkflowBuildsWholeAndLocalPrompts proves document metadata plus batch comments build the expected whole-document and local-thread prompt envelopes before agent invocation.",
+                "TestFeishuCommentWorkflowReplyFallback proves local reply code `1069302` falls back to whole-document add comment and records reply_fallback evidence."
+              ],
+              "note": "Builder-ready Feishu comment workflow slice. It depends on the comment-rule seam and stops before live SDK binding; trpc-agent-go/Engram donors provide callback and activity-evidence patterns for agent invocation boundaries.",
+              "write_scope": [
+                "internal/channels/feishu/comment_workflow.go",
+                "internal/channels/feishu/comment_workflow_test.go",
+                "internal/channels/feishu/comment_rules.go",
+                "internal/channels/feishu/testdata/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/feishu -run TestFeishuCommentWorkflow -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Feishu comment workflow fixtures prove parse/filter behavior, sanitized text, wiki reverse lookup, OK reaction ordering, whole/local prompt construction, local-reply fallback, and no live SDK/API/model side effects."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/feishu_comment.py",
+                  "hermes:tests/gateway/test_feishu_comment.py",
+                  "trpc-agent-go:agent/callbacks.go",
+                  "engram:internal/mcp/activity.go"
+                ],
+                "note": "Hermes defines Feishu comment workflow behavior; Go donors supply callback and activity-evidence shapes."
+              }
             },
             {
               "name": "DingTalk transport/bootstrap layer",

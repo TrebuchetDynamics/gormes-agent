@@ -438,7 +438,7 @@ classification and row-backed implementation queue.
 - [x] Azure Foundry runtime env/config read model
 - [x] Azure Foundry CLI setup/status manual fallback
 - [x] Azure Foundry Responses-only model-family API mode
-- [ ] Bedrock
+- [ ] Bedrock provider runtime binding
 - [x] Bedrock Converse payload mapping (no AWS SDK)
 - [x] Bedrock stream event decoding (SSE fixtures)
 - [x] Bedrock SigV4 + credential seam
