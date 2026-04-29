@@ -34,6 +34,8 @@ Use this page with:
   interface-design passes.
 - [Contract Readiness](../../contract-readiness/) for the row-level handoff
   fields that make a slice builder-executable.
+- [Go Donor Reference Map](../go-donor-reference-map/) for the implementation
+  pattern lookup that should back rows whose Go shape is unclear.
 
 ## Non-Negotiables
 
@@ -159,6 +161,7 @@ Definition of done for this lane:
 | How agents should run each pass | [Agent Operating Model](../agent-operating-model/) |
 | Current generated roadmap | [Architecture Plan](../) |
 | Upstream feature inventory | [Subsystem Inventory](../subsystem-inventory/) |
+| Go implementation pattern lookup | [Go Donor Reference Map](../go-donor-reference-map/) |
 | Row handoff requirements | [Contract Readiness](../../contract-readiness/) |
 | Skill-builder queue and selection | [Skill Builder Handoff](../../builder-loop/builder-loop-handoff/) |
 | Test expectations | [Testing](../../testing/) |
@@ -174,6 +177,7 @@ skill files live under `docs/development-skills/`; `.agents/skills/`,
 | Unsure what workflow applies | `gormes-skill-manager` |
 | Mapping upstream Hermes/Honcho/GBrain gaps | `gormes-parity-auditor` |
 | Updating `progress.json`, phases, or docs | `gormes-planner` |
+| Selecting a Go donor pattern before shaping a runtime row | `gormes-references` |
 | Designing a Go package/API boundary | `gormes-interface-designer` |
 | Implementing one row | `gormes-builder` |
 | Delivering one behavior with red-green-refactor | `gormes-tdd-slice` |

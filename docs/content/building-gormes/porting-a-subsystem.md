@@ -30,13 +30,16 @@ Before writing implementation tasks, answer these in the spec or plan:
 
 1. **Contract:** what upstream behavior is being ported? Name the source files
    and the external contract, not just the donor implementation.
-2. **Trust class:** who can call it: `operator`, `gateway`, `child-agent`, or
+2. **Go pattern:** if the implementation shape is unclear, which
+   `gormes-references` donor file was read end to end, and what exact pattern
+   is being adapted?
+3. **Trust class:** who can call it: `operator`, `gateway`, `child-agent`, or
    `system`? What is rejected before handler code runs?
-3. **Fixture:** what replayable fixture proves compatibility without live
+4. **Fixture:** what replayable fixture proves compatibility without live
    credentials, live platforms, or a real provider?
-4. **Degraded mode:** how does partial capability show up in status, doctor,
+5. **Degraded mode:** how does partial capability show up in status, doctor,
    audit, or logs?
-5. **Boundary:** what stays out of the kernel, gateway adapter, or trusted
+6. **Boundary:** what stays out of the kernel, gateway adapter, or trusted
    plugin surface?
 
 Useful donor study pages:
@@ -44,6 +47,36 @@ Useful donor study pages:
 - [Upstream Hermes Source Study](../../upstream-hermes/source-study/)
 - [Upstream GBrain Architecture](../../upstream-gbrain/architecture/)
 - [Upstream Lessons](../upstream-lessons/)
+- [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/)
+
+## 2.5. Find a Go donor before writing code
+
+Hermes Python defines the parity contract; Go donors under
+`references/go-agent-os/` supply working Go shapes. Skip this step and you will
+re-derive an HTTP client, retry loop, OAuth flow, SQLite schema, MCP queue, or
+truncation policy that already exists.
+
+Routing:
+
+- **Provider, auth, streaming, quota, retry, OAuth, error classification** →
+  use the `gormes-provider-parity` skill (`docs/development-skills/gormes-provider-parity/SKILL.md`)
+  plus the donor table in `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`.
+  GoClaw OAuth/quota and Plandex retry/drift live there as named files.
+- **Anything else (runtime, tools, memory, channels, utilities)** → use the
+  `gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`).
+  Its "Donor Maps By Subsystem" section names the file to read for each
+  problem class (engram store/relations/write_queue, nanobot
+  truncate/tokencount/runtime/tools, trpc-agent-go await_user_reply/callbacks,
+  axe budget/artifact, etc.).
+
+GoClaw code is permitted in Gormes with provenance (2026-04-29). Other donors
+stay patterns-only unless the per-donor permission map in
+`references/go-agent-os/README.md` authorizes them. Always add a
+`// Adapted from <donor>/...::Symbol` comment on the receiving Gormes file when
+porting code.
+
+If no donor fits, record `provenance.origin_type: gormes` on the row and write
+the contract from scratch.
 
 ## 3. Decide the row shape
 
@@ -61,6 +94,7 @@ Use this packet when adding or refining rows:
 | Packet field | Required answer |
 |---|---|
 | Upstream behavior | Exact files, symbols, docs, or commits. |
+| Go donor pattern | Exact donor file plus the pattern being adapted, or `none` with rationale. |
 | Gormes target | Package, command, tool, API, or doc surface. |
 | Public contract | What the operator, gateway, tool caller, or kernel observes. |
 | Degraded mode | How unavailable/partial behavior is reported. |

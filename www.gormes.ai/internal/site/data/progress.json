@@ -8996,16 +8996,62 @@
             {
               "name": "Tool-result pruning + protected head/tail summary",
               "status": "planned",
-              "note": "TDD: freeze old tool-output pruning, protected system/first-turn head messages, recent-tail preservation, and summary prefix compatibility before mutating live message history. Must keep tool-call arguments JSON valid when shrinking per upstream PR #3128d9fc — a pruning pass that truncates an argument string mid-JSON breaks the continuation payload on the next turn, so the head/tail contract has to respect tool-call argument boundaries and never emit partial JSON values.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes freezes the pure context-compression pruning pass before kernel mutation: protect system and first-turn head messages, choose the recent tail by token budget with at least three messages, keep assistant tool_calls paired with their tool results, prune old oversized tool result content without cutting tool-call arguments or JSON payloads, and emit summary-prefix-compatible replacement messages.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Context status reports pruning_skipped, prune_budget_unavailable, or invalid_tool_pair evidence instead of silently truncating JSON arguments, dropping required tool results, or mutating live history.",
+              "fixture": "internal/hermes/context_compressor_pruning_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/context_compressor.py:_prune_old_tool_results",
+                "../hermes-agent/agent/context_compressor.py:_find_tail_cut_by_tokens",
+                "../hermes-agent/tests/agent/test_context_compressor.py:TestContextCompressorTokenBudget",
+                "../hermes-agent/tests/agent/test_context_compressor.py:test_summarization_does_not_split_tool_call_pairs",
+                "references/go-agent-os/nanobot/pkg/agents/truncate.go",
+                "references/go-agent-os/nanobot/pkg/agents/tokencount.go",
+                "references/go-agent-os/axe/internal/budget/budget.go",
+                "internal/hermes/context_compressor_budget.go",
+                "internal/tools/result_budget.go"
+              ],
+              "ready_when": [
+                "ContextEngine interface, compression token-budget sizing, auxiliary headroom, provider-aware cap, and single-prompt threshold rows are validated on main.",
+                "The worker can test the pruning pass with synthetic message arrays, fake token counters, and existing tool-result budget helpers; no summarizer, provider call, or kernel history mutation is required."
+              ],
+              "not_ready_when": [
+                "The slice calls a summarizer, changes provider routing, edits live kernel history, ports manual compression feedback, or rewrites persisted transcripts instead of freezing the pure pruning transform.",
+                "The implementation trims assistant tool-call arguments as text, emits partial JSON, or leaves orphaned tool_result messages without their assistant call."
+              ],
+              "acceptance": [
+                "Fixtures prove oversized historical tool results are pruned while recent tail messages are selected by token budget and still preserve at least three messages.",
+                "Assistant tool_calls and tool result messages remain paired after pruning; no tool result starts the tail without its matching assistant call.",
+                "Tool-call argument JSON is never substring-truncated; invalid or unparseable argument boundaries cause visible degraded evidence instead of mutation.",
+                "Summary replacement content uses the existing Hermes summary prefix rules and does not create impossible consecutive-role collisions."
+              ],
+              "note": "Donor-backed row: Hermes defines compression behavior and regressions; Nanobot supplies bounded result/truncation and decoded image token-estimate shapes; Axe supplies the minimal per-turn budget counter shape. Adapt patterns only and keep the public behavior Hermes-compatible.",
+              "write_scope": [
+                "internal/hermes/context_compressor_pruning.go",
+                "internal/hermes/context_compressor_pruning_test.go",
+                "internal/hermes/context_compressor_budget.go",
+                "internal/tools/result_budget.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestContextCompressorPruning -count=1",
+                "go test ./internal/hermes ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Context-pruning fixtures prove token-budget tail selection, tool-call/result pairing, non-truncated JSON arguments, oversized-result pruning, and degraded evidence without provider calls."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:agent/context_compressor.py",
+                "note": "Hermes owns the behavior; Go donor files only supply implementation shapes for bounded output, image-token estimation, and budget accounting."
+              }
             },
             {
               "name": "Aux compression single-prompt threshold reconciliation",
@@ -10523,9 +10569,9 @@
             },
             {
               "name": "Anthropic OAuth/keychain credential discovery",
-              "status": "planned",
-              "contract": "Anthropic credential discovery prefers OS keychain when present and preserves corrupt local auth state for operator recovery",
-              "contract_status": "draft",
+              "status": "complete",
+              "contract": "Gormes exposes a native Anthropic auth-state helper that discovers Claude Code OAuth credentials from an injectable macOS keychain seam before JSON files, preserves corrupt JSON as a recoverable backup, and classifies stale OAuth refresh failures as relogin-required without leaking secrets.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -10533,7 +10579,7 @@
                 "system"
               ],
               "degraded_mode": "Auth status reports keychain unavailable, corrupt auth backup, or relogin-required without deleting credentials.",
-              "fixture": "internal/hermes/anthropic_auth_state_test.go",
+              "fixture": "internal/config/anthropic_auth_state_test.go",
               "source_refs": [
                 "../hermes-agent/agent/anthropic_adapter.py",
                 "../hermes-agent/tests/agent/test_anthropic_keychain.py",
@@ -10541,31 +10587,55 @@
                 "../hermes-agent/tests/hermes_cli/test_anthropic_model_flow_stale_oauth.py"
               ],
               "ready_when": [
-                "Token vault owns XDG-scoped credential files and can expose provider auth status without live credentials."
+                "Token vault and multi-account auth are validated, so provider auth helpers can use temp HOME/HERMES_HOME fixtures and neutral placeholder credentials only.",
+                "The implementation uses injectable keychain and clock seams; unit tests never read live keychains, ~/.claude, ~/.hermes, or provider credentials.",
+                "Refresh-failure classification reuses internal/hermes HTTPError fixtures and does not contact Anthropic."
               ],
               "not_ready_when": [
-                "The slice silently resets corrupt auth state or reads platform keychains during ordinary unit tests."
+                "The slice silently resets corrupt auth state or reads platform keychains during ordinary unit tests.",
+                "The slice wires live Anthropic provider calls, OAuth browser setup, SDK imports, gateway routing, or model selection instead of only auth-state and refresh-failure evidence.",
+                "Status evidence prints access_token, refresh_token, API keys, host secret paths, or raw provider payloads."
               ],
-              "blocked_by": [
-                "Token vault"
-              ],
+              "blocked_by": [],
               "acceptance": [
-                "Fake keychain entries take precedence over JSON auth files when valid.",
-                "Malformed auth JSON is preserved to a recoverable backup and surfaces a warning.",
-                "Stale OAuth failures return relogin-required status instead of retrying indefinitely."
+                "Fake keychain entries take precedence over JSON auth files when valid and expose only redacted status evidence.",
+                "Malformed Claude Code credentials JSON is preserved byte-for-byte to a timestamped backup while the original file remains unchanged.",
+                "Stale OAuth credentials without a refresh token and Anthropic refresh 401/403/invalid-grant failures return relogin-required status instead of retrying indefinitely.",
+                "Transient Anthropic refresh failures remain retryable and do not force relogin."
               ],
-              "note": "Hermes added Anthropic keychain and stale-OAuth coverage during this upstream sync. Gormes should port the behavior as credential-state fixtures after the token vault exists, not inside the Anthropic request adapter.",
+              "note": "Complete: internal/config exposes an Anthropic auth-state helper that checks an injected/default Claude Code keychain reader before ~/.claude/.credentials.json, returns redacted status evidence, preserves malformed credentials files to deterministic corrupt backups without deleting the original, and flags expired OAuth credentials without refresh tokens as relogin-required. internal/hermes adds Anthropic OAuth refresh-failure classification so 401/403 and invalid_grant/invalid_token/refresh_token_reused stop retrying and surface relogin-required while 429/5xx remain retryable. Tests use fake keychain/temp credential files only and do not read live platform keychains or provider credentials.",
               "write_scope": [
-                "internal/hermes/",
-                "internal/config/",
+                "internal/config/anthropic_auth_state.go",
+                "internal/config/anthropic_auth_state_test.go",
+                "internal/hermes/anthropic_oauth_state.go",
+                "internal/hermes/anthropic_oauth_state_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/hermes ./internal/config -count=1"
+                "go test ./internal/config -run '^TestAnthropicAuthState' -count=1",
+                "go test ./internal/hermes -run '^TestAnthropicOAuthRefreshFailure' -count=1",
+                "go test ./internal/config ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Anthropic auth fixtures prove keychain precedence, corrupt-state preservation, and stale-OAuth relogin status."
-              ]
+                "Anthropic auth fixtures prove keychain precedence, corrupt-state backup preservation, stale-OAuth relogin status, retryable transient refresh failures, redacted evidence, and no live credential/provider access."
+              ],
+              "priority": "P0",
+              "planner_verdict": {
+                "reshape_count": 1,
+                "last_reshape": "2026-04-29T00:00:00Z",
+                "last_outcome": "validated"
+              },
+              "provenance": {
+                "origin_type": "upstream_sync",
+                "upstream_refs": [
+                  "../hermes-agent/agent/anthropic_adapter.py:479-576",
+                  "../hermes-agent/agent/anthropic_adapter.py:593-750",
+                  "../hermes-agent/tests/agent/test_anthropic_keychain.py",
+                  "../hermes-agent/tests/hermes_cli/test_anthropic_model_flow_stale_oauth.py"
+                ],
+                "note": "Native Go helper only; Hermes remains the parity contract and no hermes-agent runtime service is imported, launched, or called."
+              }
             },
             {
               "name": "Multi-account auth",
@@ -11218,16 +11288,63 @@
             {
               "name": "Prompt-cache capability guard",
               "status": "planned",
-              "note": "TDD: port `agent/prompt_caching.py` model/provider capability checks so cache-control metadata is attached only when the selected provider supports it.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes applies Hermes prompt-cache markers only when provider, endpoint, API mode, and model policy allow them: native Anthropic uses native layout, OpenRouter Claude uses envelope layout, third-party Anthropic Claude gateways cache conservatively, Qwen on opencode/opencode-go/Alibaba gets envelope markers, and OpenAI-wire custom providers without an allow rule strip cache_control visibly.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Provider status reports prompt_cache_supported, prompt_cache_stripped, prompt_cache_provider_unknown, or prompt_cache_policy_unavailable instead of leaking unsupported cache_control fields into strict providers.",
+              "fixture": "internal/hermes/prompt_cache_policy_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control",
+                "../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy",
+                "../hermes-agent/tests/agent/test_prompt_caching.py",
+                "../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py",
+                "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file",
+                "internal/hermes/status.go",
+                "internal/hermes/client.go",
+                "internal/hermes/anthropic_client.go",
+                "internal/hermes/provider_status_test.go"
+              ],
+              "ready_when": [
+                "Provider status already exposes a prompt-cache capability slot and unsupported OpenAI-compatible cache_control stripping is validated.",
+                "The worker can test policy decisions and message rewrites with synthetic provider/baseURL/apiMode/model tuples; no live provider, token store, or network call is required."
+              ],
+              "not_ready_when": [
+                "The slice sends cache_control to every OpenAI-compatible provider, changes retry/rate-limit behavior, or relies on live provider probes.",
+                "The slice only changes status text without proving request mapping for native, envelope, and stripped layouts."
+              ],
+              "acceptance": [
+                "Policy fixtures match Hermes for native Anthropic, Anthropic-host aliases, OpenRouter Claude, third-party Anthropic Claude gateways, OpenAI-wire custom Claude names, and Qwen opencode/opencode-go/Alibaba cases.",
+                "Message rewrite fixtures deep-copy inputs, place at most four breakpoints, mark system plus last three non-system messages, preserve 1h TTL, and handle native Anthropic tool-role markers.",
+                "OpenAI-wire providers without an allow rule strip cache_control before request serialization and expose a visible degraded capability reason.",
+                "Provider status and request bodies agree: a supported policy serializes cache markers and an unsupported policy omits them."
+              ],
+              "note": "Provider reference pass: use Hermes for policy truth and the provider-pattern notes for failure visibility; do not invent live capability probing in this slice.",
+              "write_scope": [
+                "internal/hermes/prompt_cache_policy.go",
+                "internal/hermes/prompt_cache_policy_test.go",
+                "internal/hermes/status.go",
+                "internal/hermes/anthropic_client.go",
+                "internal/hermes/provider_status_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestPromptCachePolicy|TestApplyPromptCacheControl' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Prompt-cache fixtures prove provider policy, native/envelope/stripped layouts, four-breakpoint rewrite behavior, and visible unsupported-provider status without live probes."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:agent/prompt_caching.py and run_agent.py:_anthropic_prompt_cache_policy",
+                "note": "Hermes defines the cache policy matrix; Gormes ports it into Go provider request mapping and status evidence."
+              }
             },
             {
               "name": "Provider account usage read model + renderer",
@@ -13069,16 +13186,70 @@
             {
               "name": "Browser action contract + event transcript",
               "status": "planned",
-              "note": "TDD: port the `tools/browser_tool.py` action schema, page-state transcript, screenshot/result envelopes, and unavailable-backend errors before choosing Chromedp or Rod.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes freezes the native browser tool contract before binding Chromedp or Rod: action schema, page-state transcript events, screenshot/result envelope, console/content-none guards, private-URL safety handoff, oversized artifact pointer behavior, and unavailable-backend errors are represented as pure Go types and fixtures.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Browser status returns browser_backend_unavailable, browser_action_invalid, browser_result_truncated, or private_url_local_sidecar evidence instead of starting a browser, contacting cloud providers, or dumping screenshots/transcripts into model context.",
+              "fixture": "internal/tools/browser_contract_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/browser_tool.py",
+                "../hermes-agent/tests/tools/test_browser_content_none_guard.py",
+                "../hermes-agent/tests/tools/test_browser_console.py",
+                "../hermes-agent/tests/tools/test_browser_hardening.py",
+                "../hermes-agent/tests/tools/test_browser_hybrid_routing.py",
+                "references/go-agent-os/nanobot/pkg/agents/truncate.go",
+                "references/go-agent-os/axe/internal/artifact/tracker.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "internal/tools/browser_ssrf_guard.go",
+                "internal/tools/result_budget.go"
+              ],
+              "ready_when": [
+                "Browser hybrid private-URL local sidecar routing and Browser SSRF quoted-false guard are validated on main.",
+                "The worker can build pure action/result/transcript fixtures with fake screenshots and fake page state; no Chromedp, Rod, Browserbase, Firecrawl, Camofox, DNS, or live browser dependency is required."
+              ],
+              "not_ready_when": [
+                "The slice starts a browser, follows redirects, opens network connections, chooses Chromedp versus Rod, or implements provider bridges.",
+                "The slice bypasses the existing private-host and quoted-false SSRF guard helpers."
+              ],
+              "unblocks": [
+                "Chromedp",
+                "Rod",
+                "Browser provider bridge + Firecrawl fallback"
+              ],
+              "acceptance": [
+                "Action-schema fixtures validate navigation, click/type, screenshot, content extraction, wait, and invalid-action errors without a browser backend.",
+                "Transcript fixtures preserve page URL/title/text/console/error/screenshot metadata and handle None/empty content without panics.",
+                "Screenshot and oversized text results route through a bounded artifact pointer shape instead of embedding unbounded bytes in tool output.",
+                "Unavailable backend and private URL sidecar decisions produce typed degraded evidence and reuse the existing SSRF guard contracts."
+              ],
+              "note": "Donor-backed row: Hermes defines the browser user/tool contract. Nanobot and Axe only inform artifact-pointer and bounded-result shapes; do not adopt their config or UX.",
+              "write_scope": [
+                "internal/tools/browser_contract.go",
+                "internal/tools/browser_contract_test.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "internal/tools/browser_ssrf_guard.go",
+                "internal/tools/result_budget.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestBrowserContract|TestBrowserResultEnvelope|TestBrowserTranscript' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Browser contract fixtures prove action validation, transcript/result envelopes, artifact-pointer behavior, unavailable backend errors, and reuse of private-URL guard decisions without starting a browser."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:tools/browser_tool.py",
+                "note": "Hermes owns the action/result contract; Go donors provide bounded-output and artifact-tracking implementation shapes."
+              }
             },
             {
               "name": "Chromedp",
@@ -16005,16 +16176,67 @@
             {
               "name": "Clarify",
               "status": "planned",
-              "note": "TDD: port `tools/clarify_tool.py` as an interruptible prompt contract that preserves gateway/TUI response routing and times out safely in non-interactive cron turns.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports Hermes clarify as a schema-validated, interruptible user-reply tool: required question text, up to four trimmed choices, platform-added Other behavior, callback/resume routing for gateway and TUI, deterministic unavailable output in non-interactive cron/oneshot contexts, and one-shot resume-token cleanup after the next user reply.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Clarify returns clarify_invalid_args, clarify_unavailable, clarify_timeout, or clarify_route_missing evidence instead of blocking cron/oneshot turns, reading stdin from a noninteractive context, or leaking a pending route into the wrong session.",
+              "fixture": "internal/tools/clarify_tool_test.go; internal/gateway/clarify_resume_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/clarify_tool.py:clarify_tool",
+                "../hermes-agent/tools/clarify_tool.py:CLARIFY_SCHEMA",
+                "../hermes-agent/tests/tools/test_clarify_tool.py",
+                "../hermes-agent/cli.py:_clarify_callback",
+                "../hermes-agent/gateway/run.py:clarify callback handling",
+                "references/go-agent-os/trpc-agent-go/agent/await_user_reply.go",
+                "cmd/gormes/oneshot_safety_test.go",
+                "internal/tui/hermes_panels.go",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json"
+              ],
+              "ready_when": [
+                "Tool descriptor parity manifest, TUI clarify panel renderer, and oneshot noninteractive clarify policy are validated on main.",
+                "The worker can test schema/callback/resume behavior with fake platform callbacks and fake session state; no live Telegram, TUI event loop, or stdin interaction is required."
+              ],
+              "not_ready_when": [
+                "The slice implements only TUI rendering without tool execution/resume state, or only schema validation without gateway/TUI callback routing.",
+                "The slice blocks cron or oneshot waiting for user input, or persists a pending reply route that is not cleared after one resume."
+              ],
+              "acceptance": [
+                "Tool fixtures match Hermes validation: empty questions error, choices must be lists, whitespace choices are stripped, non-string choices stringify, and more than four choices are trimmed.",
+                "Callback fixtures return question, choices_offered, and stripped user_response for open-ended and multiple-choice prompts.",
+                "Gateway/TUI resume fixtures persist a one-shot route for the awaiting session and clear it after the next user reply.",
+                "Cron/oneshot fixtures return clarify_unavailable or clarify_timeout evidence and never wait for interactive input."
+              ],
+              "note": "Donor-backed row: Hermes owns clarify schema and platform callback behavior; trpc-agent-go supplies the await-user-reply route shape. Adapt the route concept to Gormes session/gateway state and preserve the existing oneshot safety behavior.",
+              "write_scope": [
+                "internal/tools/clarify_tool.go",
+                "internal/tools/clarify_tool_test.go",
+                "internal/gateway/clarify_resume.go",
+                "internal/gateway/clarify_resume_test.go",
+                "internal/tui/",
+                "cmd/gormes/oneshot_safety_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestClarifyTool -count=1",
+                "go test ./internal/gateway -run TestClarifyResume -count=1",
+                "go test ./cmd/gormes -run TestOneshotClarify -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Clarify fixtures prove Hermes schema validation, platform callback output, gateway/TUI one-shot resume routing, and noninteractive unavailable/timeout evidence without live UI."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:tools/clarify_tool.py",
+                "note": "Hermes defines the tool contract; trpc-agent-go provides a Go route pattern for one-shot await-user-reply semantics."
+              }
             },
             {
               "name": "Session search tool schema and argument validation",

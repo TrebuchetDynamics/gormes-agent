@@ -207,3 +207,20 @@ Use these when a lane row is too broad:
 | CLI tree umbrella | one command group plus config/profile fixtures, not dozens of files at once. |
 | Channel adapter umbrella | inbound normalization, command passthrough, outbound send, identity/self-filter, bootstrap, live-smoke docs. |
 | Goncho/Honcho umbrella | one public `honcho_*` tool/API behavior with SQLite fixtures and no live Honcho dependency. |
+
+## Go Donor Preflight
+
+Before a split row names a new Go runtime shape, run the `gormes-references`
+workflow, use the [Go Donor Reference Map](../go-donor-reference-map/), and
+cite the exact donor file in `source_refs`. The planner should still use
+Hermes/Honcho/GBrain as the behavior contract; Go donors only answer
+implementation shape questions.
+
+| Lane | Donor preflight |
+|---|---|
+| 1 — Native Agent Spine | Use the provider pattern references for OAuth, retry, stream errors, empty endpoint guards, and prompt-cache failure visibility; use Nanobot/Axe only for token-budget and output-budget helpers. |
+| 2 — Goncho Memory | Use Engram for SQLite/FTS5, relation verbs, deterministic write queues, and redacted activity logging; preserve Honcho-compatible public names. |
+| 3 — Tools / Security / Skills | Use Nanobot for tool-host boundaries and result truncation, trpc-agent-go for callback separation, and Axe for small artifact/budget utilities. |
+| 4 — Gateway / Cron / Delivery | Use trpc-agent-go await-user-reply and agentcontrolplane state-machine patterns for pause/resume, cancellation, and visible stuck-turn state; do not import their orchestration stack. |
+| 5 — CLI / API / TUI / Release | Use donors only for runtime mechanics behind the operator surface; Hermes remains the source for command names, output, config, and TUI behavior. |
+| 6 — Learning Loop | Use GBrain/Hermes for skill lifecycle behavior first, then Go donors only for storage, audit, and workflow mechanics. |
