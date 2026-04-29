@@ -12468,9 +12468,9 @@
             },
             {
               "name": "Raw tool-call parser fixture matrix",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes owns a source-backed manifest and fake-output fixture matrix for every Hermes root `environments/tool_call_parsers/*.py` parser before claiming raw model-output tool-call parity.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -12512,7 +12512,7 @@
                 "The docs test fails if a new upstream parser file appears without a classification.",
                 "No runtime Python parser invocation or live model output is required."
               ],
-              "note": "swarm_origin: 2026-04-28/hermes-mapper. Splits the parser-specific hidden surface from broad root `environments/**` coverage.",
+              "note": "Complete: TDD added `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, and golden fixtures under `internal/hermes/testdata/tool_call_parsers/` (hermes_basic.json, hermes_multi.json, hermes_malformed.json, deepseek_v3_1_basic.json, deepseek_v3_1_malformed.json). The manifest classifies every upstream `environments/tool_call_parsers/*.py` file with model_family, expected_input_style, mapped|row_backed status, and target Go parser package; Hermes XML and DeepSeek v3.1 entries are mapped with golden raw-output fixtures plus malformed-call degraded evidence, while remaining families stay row_backed with no fixtures. The fixture-coverage test fails if a new upstream parser file appears unclassified, fixtures lack a malformed/degraded case, or any entry references a python or live-model runtime, and the manifest is sorted and stable across calls so no live provider or python invocation is needed.",
               "write_scope": [
                 "internal/hermes/tool_call_parser_manifest.go",
                 "internal/hermes/tool_call_parser_manifest_test.go",

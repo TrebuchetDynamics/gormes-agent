@@ -1,0 +1,9 @@
+{
+  "parser": "deepseek_v3_1",
+  "label": "deepseek_v3_1_section_begin_without_call_pair_degraded",
+  "raw_output": "preamble <｜tool▁calls▁begin｜>not a tool call body",
+  "expected_content": "preamble <｜tool▁calls▁begin｜>not a tool call body",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "no_call_pair_after_section_begin"
+}

@@ -559,7 +559,7 @@ classification and row-backed implementation queue.
 
 - [x] Environment interface + file sync contract
 - [ ] Terminal snapshot source stdout suppression guard
-- [ ] Raw tool-call parser fixture matrix
+- [x] Raw tool-call parser fixture matrix
 - [ ] Docker
 - [x] Docker backend top-level container reuse semantics
 - [ ] Modal

@@ -1,0 +1,9 @@
+{
+  "parser": "hermes",
+  "label": "hermes_malformed_json_falls_back_degraded",
+  "raw_output": "prefix <tool_call>{this is not json}</tool_call> trailing",
+  "expected_content": "prefix <tool_call>{this is not json}</tool_call> trailing",
+  "expected_calls": null,
+  "degraded": true,
+  "degraded_reason": "raw_json_decode_failed"
+}
