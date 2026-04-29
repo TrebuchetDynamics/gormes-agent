@@ -41,6 +41,7 @@ Default routing:
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
+| Stuck on a Go implementation shape; want a donor file from `references/go-agent-os/` before writing code | `gormes-references` |
 | Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
 | Improving `www.gormes.ai` landing page content or UI | `gormes-landing-web` |
 | Stress-testing a plan or decision tree with the user | `grill-me` |

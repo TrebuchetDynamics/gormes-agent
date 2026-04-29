@@ -45,6 +45,7 @@ Use these skills as the default routing surface:
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
+| Stuck on a Go implementation shape; want a donor file from `references/go-agent-os/` before writing code | `gormes-references` |
 | Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
 | Improving `www.gormes.ai` landing page content or UI | `gormes-landing-web` |
 | Stress-testing a plan or decision tree with the user | `grill-me` |
@@ -113,6 +114,7 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
 | Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `docs/development-skills/gormes-provider-parity/SKILL.md` |
+| Stuck on a Go implementation shape and want a donor file before writing code | `docs/development-skills/gormes-references/SKILL.md` |
 | Refreshing README.md or public repository claims from current evidence | `docs/development-skills/gormes-readme/SKILL.md` |
 | Improving the public landing page content or UI | `docs/development-skills/gormes-landing-web/SKILL.md` |
 | Implementing one row | `docs/development-skills/gormes-builder/SKILL.md` |

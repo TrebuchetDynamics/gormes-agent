@@ -22,6 +22,8 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Need strict red-green-refactor on one behavior | `gormes-tdd-slice` | `gormes-builder` final report |
 | Need to audit or periodically refresh README/public repository messaging | `gormes-readme` | `gormes-planner` only if roadmap rows need edits |
 | Need to improve `www.gormes.ai` landing page content or UI | `gormes-landing-web` | `gormes-planner` only if roadmap/progress claims need edits |
+| Stuck on a Go implementation shape and want a donor file to read before writing code | `gormes-references` | `gormes-tdd-slice` once the donor pattern is identified |
+| Provider/auth/streaming/quota/retry problem specifically | `gormes-provider-parity` | `gormes-tdd-slice` once the parity target + donor file are pinned |
 | Need to create or improve a skill | `gormes-skill-manager` + system `skill-creator` | validate all affected skills |
 
 ## Feature-Map-First Routing
@@ -40,6 +42,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 
 | Lane | Current route | Skill gap decision |
 |---|---|---|
+| Implementation lookup (any subsystem) | `gormes-references` -> `gormes-tdd-slice` | Covered. Use this whenever a worker is about to invent a Go shape that probably exists in a donor. |
 | 1.D skill control plane | `gormes-skill-manager` -> `skill-creator` -> `gormes-planner` | Covered by this routing table. |
 | 3.G Goncho/Honcho compatibility | `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-goncho-compat` only after SDK-style fixtures repeat across multiple rows. |
 | 4.I normal-turn e2e | `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-e2e-operator` when service orchestration or Playwright-style harnesses repeat. |
