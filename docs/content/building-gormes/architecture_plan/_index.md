@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 41/77 subphases shipped · 25 in progress · 11 planned
+**Overall:** 40/77 subphases shipped · 27 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -733,7 +733,7 @@ classification and row-backed implementation queue.
 
 ### 5.P — Docker / Packaging 🔨
 
-- [ ] OCI image
+- [x] OCI image
 - [x] Homebrew
 - [ ] Unix installer (install.sh) source-backed update flow
 - [ ] Unix installer root/FHS layout policy

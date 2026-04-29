@@ -20,7 +20,7 @@ import (
 // The test inspects file content only — it must never invoke `brew install`,
 // `brew audit`, network downloads, or any live tap mutation.
 func TestHomebrewFormulaContract(t *testing.T) {
-	formula := readRepoFile(t, "packaging/homebrew/gormes-agent.rb")
+	formula := readRepoFileHomebrew(t, "packaging/homebrew/gormes-agent.rb")
 
 	tests := []struct {
 		name     string
@@ -181,7 +181,7 @@ func TestHomebrewFormulaContract(t *testing.T) {
 	})
 }
 
-func readRepoFile(t *testing.T, rel string) string {
+func readRepoFileHomebrew(t *testing.T, rel string) string {
 	t.Helper()
 	// Tests under docs/install run with cwd at docs/install, so reach back
 	// to the repo root for top-level fixtures like packaging/homebrew/.
