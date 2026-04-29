@@ -18582,17 +18582,17 @@
             },
             {
               "name": "Hermes auth credential-pool command surface",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
-              "contract": "Implement the non-OAuth `gormes auth` command surface over the existing native credential pool: bare `auth` renders an interactive-safe status/readout without prompting in tests; `auth add <provider> --type api-key|api_key [--label --api-key]` stores a manual credential for registry, openrouter, or custom providers; `auth list [provider]` renders redacted pool rows with current marker and exhaustion status; `auth remove <provider> <index|id|label>` deletes one credential and records source suppression; `auth reset <provider>` clears exhaustion status; `auth status <provider>` renders provider auth state; and `auth logout <provider>` clears stored provider auth without leaking secrets.",
-              "contract_status": "draft",
+              "contract": "Implement the non-OAuth `gormes auth` command surface over the existing native credential pool: bare `auth` renders an interactive-safe status/readout without prompting in tests; `auth add <provider> --type api-key|api_key [--label --api-key]` stores a manual credential for registry/openrouter-style providers with provider base URL metadata; `auth list [provider]` renders redacted pool rows with exhaustion status; `auth remove <provider> <index|id|label>` deletes one credential; `auth reset <provider>` clears exhaustion status; `auth status <provider>` renders credential-pool auth state; and `auth logout <provider>` clears stored provider auth without leaking secrets. OAuth browser/device-code flows and source-specific cleanup/suppression stay in the provider OAuth adapter row.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Unknown providers, empty API keys, corrupt auth.json, missing credentials, invalid remove targets, unsupported provider auth status, and logout of an absent provider return auth_provider_unknown, auth_api_key_missing, credential_pool_corrupt, credential_pool_empty, credential_target_missing, auth_status_unavailable, or auth_state_absent evidence with all token fields redacted.",
+              "degraded_mode": "Empty API keys, missing inference base URLs, corrupt auth.json, empty pools, invalid remove targets, unsupported OAuth requests, and logout/status of an absent provider return auth_api_key_missing, credential_pool_corrupt, credential_pool_empty, credential_not_found, provider OAuth adapters are planned, or logged-out evidence with all token fields redacted.",
               "fixture": "cmd/gormes/auth_command_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/auth_commands.py:auth_command",
@@ -18630,13 +18630,13 @@
               ],
               "acceptance": [
                 "TestGormesAuthAddAPIKeyPersistsManualEntry proves `auth add openrouter --type api-key --label personal --api-key sk-test` stores one manual credential with provider base URL metadata and never writes the key to stdout/stderr.",
-                "TestGormesAuthListRedactsSecrets proves list output shows provider, index, label, auth_type, source, current marker, and exhaustion status while omitting access_token, refresh_token, and raw API key bytes.",
-                "TestGormesAuthRemoveByIndexIDOrLabel proves remove resolves index, id, and exact label, deletes exactly one entry, records source suppression for env/external singleton sources, and reports missing targets deterministically.",
+                "TestGormesAuthListRedactsSecrets proves list output shows provider, index, label, auth_type, source, and exhaustion status while omitting access_token, refresh_token, and raw API key bytes.",
+                "TestGormesAuthRemoveByIndexIDOrLabel proves remove resolves index, id, and exact label, deletes exactly one entry, and reports missing targets deterministically.",
                 "TestGormesAuthResetClearsExhaustion proves reset clears last_status/last_error fields for all credentials of one provider and preserves unrelated providers.",
-                "TestGormesAuthStatusAndLogout prove status uses provider-specific native stores when present and logout clears the selected provider/auth state with redacted absent-state behavior.",
+                "TestGormesAuthStatusAndLogout prove status uses the native credential pool and logout clears the selected provider/auth state with redacted absent-state behavior.",
                 "TestGormesAuthBareReadout proves bare `auth` can render credential-pool status and Bedrock/AWS-chain placeholder evidence without entering an interactive prompt in non-TTY tests."
               ],
-              "note": "Builder-ready CLI/provider-auth row. This row ports the non-deprecated credential-pool command behavior from Hermes without building OAuth browser/device-code flows yet. It consumes the native internal/config credential pool that already exists.",
+              "note": "Complete: the non-deprecated credential-pool command behavior is now available in `gormes auth` without building OAuth browser/device-code flows yet. It consumes the native internal/config credential pool that already exists; OAuth adapter login and source-specific external cleanup remain separate rows.",
               "write_scope": [
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_command_test.go",
@@ -18645,12 +18645,12 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestGormesAuth' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesAuth|^TestGormesLogin' -count=1",
                 "go test ./cmd/gormes ./internal/config -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Auth command fixtures prove API-key add, list redaction, remove target resolution and suppression, reset, status, logout, and noninteractive bare auth readout over temp auth stores."
+                "Auth command fixtures prove API-key add, list redaction, remove target resolution, reset, status, logout, removed login guidance, and noninteractive bare auth readout over temp auth stores."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -18660,6 +18660,11 @@
                   "references/go-agent-os/axe/internal/artifact/tracker.go"
                 ],
                 "note": "Hermes defines command UX and credential-pool semantics; Gormes adapts them over the native internal/config pool and keeps donor references patterns-only."
+              },
+              "evidence": {
+                "implementation": "cmd/gormes/auth.go, cmd/gormes/auth_command_test.go, cmd/gormes/main.go, internal/config/credential_pool.go",
+                "tests": "go test ./cmd/gormes -run '^TestGormesAuth|^TestGormesLogin' -count=1; go test ./cmd/gormes ./internal/config -count=1; go run ./cmd/progress validate",
+                "note": "Gormes now exposes auth add/list/remove/reset/status/logout, a removed top-level login shim, provider-pool listing, Bedrock placeholder evidence, and redacted temp-store fixtures for API-key credential management."
               }
             },
             {
@@ -19667,10 +19672,668 @@
                 "Gormes config command surface",
                 "Hermes config migration dry-run manifest",
                 "OpenClaw migration dry-run manifest",
-                "CLI auth status read model before provider setup",
-                "Setup/uninstall dry-run command contracts"
+                "Gormes auth bare interactive credential-pool readout",
+                "Gormes auth status per-provider aggregator",
+                "Gormes auth add openai-codex strict isolation contract",
+                "Gormes auth add bedrock open-question planning note",
+                "Gormes top-level logout provider shortcut",
+                "Gormes login deprecated-redirect contract",
+                "Gormes model interactive provider/model picker",
+                "Gormes setup minimal sectioned wizard slice",
+                "Gormes uninstall dry-run command contract",
+                "Gormes mcp login OAuth re-auth bridge"
               ],
-              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows, setup/uninstall. Do not assign this umbrella row directly."
+              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, deprecated login redirect, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login bridge). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. Do not assign this umbrella row directly."
+            },
+            {
+              "name": "Gormes auth bare interactive credential-pool readout",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "`gormes auth` invoked with no subcommand renders the credential-pool table for every registered provider with current marker, label, source, auth_type, and exhaustion status using only the existing internal/config credential-pool readers; in non-TTY contexts the bare invocation prints the same table plus a hint and exits 0 instead of entering an interactive add/remove/reset/strategy menu.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Empty pool prints `(no credentials configured)` per provider section, corrupt auth.json returns credential_pool_corrupt evidence without panicking, optional AWS/Bedrock STS identity probe returns aws_identity_unavailable when the AWS SDK or env credentials are absent.",
+              "fixture": "cmd/gormes/auth_bare_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:_format_exhausted_status",
+                "../hermes-agent/hermes_cli/auth_commands.py:_render_pool_table",
+                "../hermes-agent/hermes_cli/main.py:auth_parser",
+                "internal/config/credential_pool.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Hermes auth command-tree manifest refresh is validated, so `auth` parser shape is row-classified.",
+                "Hermes auth credential-pool command surface row exposes redacted list/format helpers the bare readout can reuse.",
+                "Tests inject a fake stdout writer and a fake AWS identity probe; no live boto3, AWS network, browser, keychain, or interactive TTY is required."
+              ],
+              "not_ready_when": [
+                "The slice opens an interactive add/remove/reset/strategy menu in unit tests.",
+                "Bare output prints raw access_token, refresh_token, or API-key bytes.",
+                "The slice duplicates backend OAuth state row 11069 (token vault) or row 11206 (multi-account credential pool); it must reuse them.",
+                "AWS Bedrock identity is required at startup instead of being a soft probe with degraded evidence."
+              ],
+              "blocked_by": [
+                "Hermes auth command-tree manifest refresh",
+                "Hermes auth credential-pool command surface"
+              ],
+              "unblocks": [
+                "Gormes auth status per-provider aggregator",
+                "Gateway, platform, webhook, and cron management CLI"
+              ],
+              "acceptance": [
+                "TestAuthBareNonTTYRendersPoolTable proves bare `gormes auth` in non-TTY mode prints one section per provider with header `<provider> (N credentials):`, label/auth_type/source columns, current `←` marker, and exhaustion status text without entering an interactive prompt.",
+                "TestAuthBareEmptyPoolMessage proves a pristine credential pool prints `(no credentials configured)` per provider and exits 0.",
+                "TestAuthBareRedactsSecrets proves no fixture token, API key, or refresh token byte appears in stdout/stderr.",
+                "TestAuthBareAWSIdentityOptionalProbe proves a fake AWS identity probe surfaces `bedrock identity: arn:...` when the probe succeeds and `bedrock identity: aws_identity_unavailable` when it fails, without aborting the readout.",
+                "TestAuthBareCorruptStoreReportsTypedEvidence proves a corrupt auth.json returns credential_pool_corrupt evidence and a non-zero exit code without panicking."
+              ],
+              "note": "Builder-ready CLI binding only. Backend credential-pool readers (rows 11069 token vault, 11206 multi-account auth) are already shipped; this row is a thin renderer + non-TTY fallback that materializes Hermes' bare-`auth` table behavior. Out of scope: the interactive add/remove/reset/strategy menu (TUI-coupled, plan as separate row) and live AWS STS calls (use injected probe).",
+              "write_scope": [
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_bare_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestAuthBare' -count=1",
+                "go test ./cmd/gormes ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Bare auth fixtures prove non-TTY pool table rendering, empty-pool message, secret redaction, optional AWS identity probe degradation, and corrupt-store evidence."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/auth_commands.py auth_command bare invocation",
+                "note": "Hermes ships an interactive bare `auth` menu; Gormes lands the non-TTY renderer first and tracks the interactive menu as a separate TUI-coupled row."
+              }
+            },
+            {
+              "name": "Gormes auth status per-provider aggregator",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "`gormes auth status <provider>` renders an aggregated read model over the existing token vault, multi-account credential pool, and per-provider OAuth state rows: it prints `<provider>: logged in` plus indented metadata (auth_type, client_id, redirect_uri, scope list, expires_at_ms, api_base_url, account label) when any source is present, falls back to `<provider>: logged out (<typed-reason>)` otherwise, and never reads or echoes raw access/refresh tokens.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown providers return auth_provider_unknown, partial OAuth state returns auth_status_partial with available metadata only, expired tokens return auth_status_expired with expiry timestamp, and read errors return auth_status_unavailable without leaking secrets.",
+              "fixture": "cmd/gormes/auth_status_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_status_command",
+                "../hermes-agent/hermes_cli/auth.py:get_auth_status",
+                "../hermes-agent/hermes_cli/auth.py:get_nous_auth_status",
+                "../hermes-agent/hermes_cli/auth.py:get_codex_auth_status",
+                "../hermes-agent/hermes_cli/auth.py:get_qwen_auth_status",
+                "../hermes-agent/hermes_cli/auth.py:get_gemini_oauth_auth_status",
+                "../hermes-agent/hermes_cli/auth.py:get_api_key_provider_status",
+                "internal/config/credential_pool.go",
+                "internal/config/codex_oauth_state.go",
+                "internal/config/anthropic_auth_state.go",
+                "internal/config/google_oauth_state.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Hermes auth credential-pool command surface row provides shared list/redaction helpers.",
+                "Backend rows for token vault (11069), multi-account auth (11206), Anthropic OAuth/keychain (11136), Codex OAuth state (8908), Google OAuth (11279), and Bedrock SigV4 (8345) are complete and expose redacted read models.",
+                "Tests use injected fake auth-state stores and temp XDG dirs; no live keychain, browser, OAuth refresh, or provider network call is required."
+              ],
+              "not_ready_when": [
+                "The slice mutates auth.json, refreshes tokens, or opens browser/device-code flows during a status read.",
+                "The slice duplicates backend OAuth state row 11136 (Anthropic keychain) or row 8908 (Codex OAuth state) by re-implementing token vault read paths instead of delegating.",
+                "Status output prints access_token, refresh_token, raw client secret, or device code values.",
+                "The aggregator hard-codes provider list instead of deriving from ProviderConfig.auth_type and the credential pool registry."
+              ],
+              "blocked_by": [
+                "Hermes auth credential-pool command surface",
+                "Multi-account auth",
+                "Anthropic OAuth/keychain credential discovery",
+                "Codex OAuth state + stale-token relogin",
+                "Google OAuth flow + refresh seam"
+              ],
+              "unblocks": [
+                "Gormes setup minimal sectioned wizard slice",
+                "Diagnostics, backup, logs, and status CLI"
+              ],
+              "acceptance": [
+                "TestAuthStatusLoggedInRendersIndentedMetadata proves a fake anthropic OAuth state and a fake openrouter API-key entry each render `<provider>: logged in` followed by indented auth_type, client_id, scope list, and expires_at fields.",
+                "TestAuthStatusLoggedOutWithTypedReason proves an absent-state provider renders `<provider>: logged out (auth_state_absent)` and an expired-token state renders `<provider>: logged out (auth_status_expired)` with the expiry timestamp.",
+                "TestAuthStatusUnknownProviderReturnsTypedEvidence proves `gormes auth status not-a-provider` exits non-zero with auth_provider_unknown evidence and does not read any auth store.",
+                "TestAuthStatusRedactsTokens proves status output never contains the fake access_token, refresh_token, or device_code substrings even when stores are populated.",
+                "TestAuthStatusDispatchUsesAuthTypeRegistry proves the aggregator picks per-provider readers (oauth/api_key/aws_sdk/external_process) from ProviderConfig.auth_type rather than a hard-coded provider list."
+              ],
+              "note": "Materializes the prior placeholder `CLI auth status read model before provider setup`. Builder-ready CLI binding only over already-shipped backend OAuth state rows. The auditor flagged that Hermes hard-codes _OAUTH_CAPABLE_PROVIDERS in two places; Gormes derives the dispatch table from auth_type instead.",
+              "write_scope": [
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_status_command_test.go",
+                "internal/cli/auth_status.go",
+                "internal/cli/auth_status_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestAuthStatus' -count=1",
+                "go test ./internal/cli -run '^TestAuthStatus' -count=1",
+                "go test ./cmd/gormes ./internal/cli ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Auth status fixtures prove logged-in metadata indentation, logged-out typed reasons, unknown-provider rejection, secret redaction, and auth_type-driven dispatch over fake stores."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/auth_commands.py auth_status_command + hermes_cli/auth.py get_auth_status",
+                "note": "Hermes defines the per-provider status read model; Gormes lands the aggregator over already-shipped backend OAuth state rows."
+              }
+            },
+            {
+              "name": "Gormes auth add openai-codex strict isolation contract",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "`gormes auth add openai-codex` runs only the device-code OAuth flow against the Gormes-owned Codex auth.json under the credential pool; it never imports tokens from `~/.codex/auth.json`, never reads Codex CLI / VS Code refresh tokens, and prints an explicit `(Hermes will keep working independently with its own session)` envelope so the Codex CLI / VS Code extension cannot rotate Gormes tokens. The legacy import path remains reachable only through the separate `Gormes model interactive provider/model picker` row.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Device-code start failures return codex_device_code_failed; mid-flow callback errors return codex_callback_failed; an attempt to reuse an existing `~/.codex/auth.json` returns codex_external_import_blocked with the operator-facing redirect (`use 'gormes model' if you want to import the Codex CLI session`).",
+              "fixture": "cmd/gormes/auth_add_codex_strict_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command:openai-codex",
+                "../hermes-agent/hermes_cli/auth.py:_codex_device_code_login",
+                "../hermes-agent/hermes_cli/auth.py:_login_openai_codex",
+                "../hermes-agent/hermes_cli/auth.py:CODEX_VENDOR_CLI_ISOLATION_NOTE",
+                "internal/config/codex_oauth_state.go",
+                "internal/config/credential_pool.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Hermes auth OAuth provider adapters row provides the injectable Codex device-code seam.",
+                "Codex OAuth state + stale-token relogin row exposes the Gormes-owned Codex auth.json store.",
+                "Tests can inject a fake device-code transport, a fake `~/.codex/auth.json` shadow file, and a fake clock; no live ChatGPT/Codex backend is required."
+              ],
+              "not_ready_when": [
+                "The slice imports `~/.codex/auth.json` tokens into the Gormes credential pool when running `auth add openai-codex` (must be rejected with codex_external_import_blocked).",
+                "The slice duplicates backend OAuth state row 8908 (Codex OAuth state + stale-token relogin) by re-deriving the auth.json shape locally instead of delegating.",
+                "Output prints the fake access_token, refresh_token, device_code, or user-code substrings.",
+                "The slice removes the legacy `_login_openai_codex` import path from `gormes model`; that path stays reachable through the model picker row."
+              ],
+              "blocked_by": [
+                "Hermes auth OAuth provider adapters",
+                "Codex OAuth state + stale-token relogin"
+              ],
+              "unblocks": [
+                "Gormes model interactive provider/model picker"
+              ],
+              "acceptance": [
+                "TestAuthAddCodexAlwaysRunsDeviceCode proves a fake `~/.codex/auth.json` containing valid tokens is ignored and the device-code transport is invoked exactly once.",
+                "TestAuthAddCodexRejectsExternalImportFlag proves any attempt to pass an explicit import flag (or env override mimicking the Codex CLI path) returns codex_external_import_blocked with the redirect message pointing operators to `gormes model`.",
+                "TestAuthAddCodexEnvelopeMessage proves the success output contains the explicit isolation envelope sentence so the Codex CLI / VS Code extension operator is warned the Gormes session is independent.",
+                "TestAuthAddCodexFailureLeavesPoolUntouched proves a failed fake device-code flow leaves the credential pool byte-identical and returns codex_device_code_failed.",
+                "TestAuthAddCodexClearsDeviceCodeSuppression proves a successful relink unsets the `device_code` source-suppression marker so future inference picks up the new entry."
+              ],
+              "note": "Encodes auditor surprise (a): Hermes' pooled `auth add openai-codex` path is stricter than `hermes model`. The Codex CLI / VS Code refresh-token race makes import-during-add unsafe. The legacy import path stays available only through `gormes model`. Backend Codex auth store (row 8908) is already shipped; this is the strict CLI binding contract.",
+              "write_scope": [
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_add_codex_strict_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestAuthAddCodex' -count=1",
+                "go test ./cmd/gormes ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Codex strict-isolation fixtures prove device-code-only behavior, external-import rejection with redirect, isolation envelope message, atomic failure, and suppression cleanup."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/auth_commands.py auth_add_command openai-codex branch + auth.py _codex_device_code_login",
+                "note": "Hermes' pooled add path is strict by design (vendor-CLI race envelope). Gormes keeps the same isolation contract and routes import-on-demand through `gormes model` only."
+              }
+            },
+            {
+              "name": "Gormes auth add bedrock open-question planning note",
+              "status": "planned",
+              "priority": "P3",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "not_ready_when": [
+                "A builder treats this row as an implementation row instead of a planner-owned open-question note.",
+                "The row is closed without an explicit decision recorded for whether `gormes auth add bedrock` is supported, refused, or deferred."
+              ],
+              "unblocks": [
+                "Gormes auth bedrock binding follow-up (deferred)"
+              ],
+              "note": "Open-question planning note (no contract, no test_commands). Auditor surprise (c): Hermes' `auth add bedrock` has no handler at all — Bedrock surfaces only in the bare-`auth` Bedrock STS print path which depends on optional `boto3` (`hermes_cli/auth_commands.py:457-476`). The catch-all at `auth_commands.py:336` rejects `--type oauth`, and `auth_type=aws_sdk` bypasses the API-key handler. Gormes default decision (planner): match the Hermes gap — `gormes auth add bedrock` must refuse with bedrock_use_aws_sdk_chain evidence pointing operators to AWS env vars / profile / SSO. A future `Gormes auth bedrock binding follow-up (deferred)` row may revisit closing the gap with `gormes auth add bedrock --profile <name>` over the existing 8345 SigV4 seam, but that work is intentionally not part of the initial Phase 5.O auth split. TODO: confirm with operator before promoting the deferred row to planned status.",
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/auth_commands.py:336 catch-all + auth_commands.py:457-476 bedrock STS",
+                "note": "Hermes-side gap: planner records the open question rather than inventing a Gormes-only handler that has no Hermes parity counterpart."
+              }
+            },
+            {
+              "name": "Gormes top-level logout provider shortcut",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "`gormes logout --provider {nous|openai-codex|spotify}` is a top-level shortcut that dispatches to the same logout handler as `gormes auth logout`, narrowly limited to those three provider choices, and clears only the named provider's stored auth state with redacted output. It must remain parallel to `gormes auth logout` rather than aliasing or shadowing it.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported `--provider` choices return auth_logout_provider_unsupported with the explicit `nous|openai-codex|spotify` allow-list; missing provider state returns auth_state_absent and exits 0; corrupt auth store returns credential_pool_corrupt without partial deletes.",
+              "fixture": "cmd/gormes/logout_top_level_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:logout_parser",
+                "../hermes-agent/hermes_cli/auth.py:logout_command",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_logout_command",
+                "internal/config/credential_pool.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Hermes auth credential-pool command surface row exposes the underlying logout helper used by `auth logout`.",
+                "Hermes auth command-tree manifest refresh classifies top-level `logout` as a non-deprecated provider-auth shortcut.",
+                "Tests inject a temp auth.json store and assert provider scoping; no live keychain, browser, or network access is required."
+              ],
+              "not_ready_when": [
+                "The slice silently aliases `gormes logout` to `gormes auth logout` (the `--provider` allow-list must be enforced at the top-level parser).",
+                "The slice removes the existing or planned `gormes auth logout` subcommand; both must coexist.",
+                "Output prints raw access_token, refresh_token, or auth.json bytes.",
+                "The slice clears unrelated providers' credential pool entries when only one provider was specified."
+              ],
+              "blocked_by": [
+                "Hermes auth credential-pool command surface",
+                "Hermes auth command-tree manifest refresh"
+              ],
+              "unblocks": [
+                "Gormes login deprecated-redirect contract"
+              ],
+              "acceptance": [
+                "TestLogoutTopLevelAcceptsAllowedProviders proves `--provider nous`, `--provider openai-codex`, and `--provider spotify` each invoke the shared logout helper and clear only the named provider's auth state.",
+                "TestLogoutTopLevelRejectsOtherProviders proves `--provider anthropic` (and any provider not in the allow-list) returns auth_logout_provider_unsupported with exit code 2 and does not call the logout helper.",
+                "TestLogoutTopLevelDoesNotShadowAuthLogout proves `gormes auth logout` continues to expose its full provider set and behaves identically; both commands write through the same internal helper.",
+                "TestLogoutTopLevelRedactsSecrets proves output contains no fake token bytes and no raw auth.json content.",
+                "TestLogoutTopLevelIdempotentMissingState proves running the command twice (after the first clears state) returns auth_state_absent and exits 0."
+              ],
+              "note": "Encodes auditor surprise (b): Hermes' top-level `logout` parser is alive, narrowly scoped to nous|openai-codex|spotify, and dispatches to the same handler as `auth logout`. Not deprecated; runs in parallel. Backend logout helper is shipped under credential-pool surface; this is the top-level CLI binding only.",
+              "write_scope": [
+                "cmd/gormes/logout.go",
+                "cmd/gormes/logout_top_level_test.go",
+                "cmd/gormes/main.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestLogoutTopLevel' -count=1",
+                "go test ./cmd/gormes ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Top-level logout fixtures prove the three-provider allow-list, parallel coexistence with auth logout, scoped state clearing, secret redaction, and idempotent missing-state behavior."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:hermes_cli/main.py:8232-8243 logout_parser",
+                "note": "Hermes ships top-level logout in parallel with auth logout; Gormes mirrors the parallelism rather than aliasing."
+              }
+            },
+            {
+              "name": "Gormes login deprecated-redirect contract",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "`gormes login` is registered as a deprecated subparser that accepts every legacy flag (`--provider {nous,openai-codex}`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`) without argparse-style errors, performs no OAuth work, prints a deterministic three-line deprecation message redirecting to `gormes auth`, `gormes model`, and `gormes setup`, and exits 0. It must follow the typo-suggestion pattern (parity with `gormes migrate ooenclaw -> gormes migrate openclaw`), not a silent alias.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Unknown legacy flag values are accepted silently (the entire flag set is no-op); `--help` prints the deprecation message and the parser shape so old scripts can detect the redirect; downstream invocation parsers continue to resolve real subcommands without interference.",
+              "fixture": "cmd/gormes/login_deprecated_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth.py:3848-3853:login_command",
+                "../hermes-agent/hermes_cli/main.py:8186-8227:login_parser",
+                "cmd/gormes/main.go:newRootCommandWithRuntime",
+                "internal/cli/typo_suggestions.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/deprecated guidance.",
+                "Gormes top-level logout provider shortcut row defines the parallelism between deprecated `login` and live `logout`.",
+                "Tests can capture stdout/stderr from a Cobra invocation; no live OAuth or provider network is required."
+              ],
+              "not_ready_when": [
+                "The slice silently aliases `gormes login` to any of `gormes auth`, `gormes model`, or `gormes setup` (parity rule: never silent).",
+                "The slice rejects legacy flags with argparse-style errors instead of accepting them as no-ops (would break old shell scripts).",
+                "The slice performs OAuth work, opens browsers, contacts portal_url, or mutates auth.json.",
+                "The deprecation message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
+              ],
+              "blocked_by": [
+                "Hermes auth command-tree manifest refresh",
+                "Gormes top-level logout provider shortcut"
+              ],
+              "unblocks": [
+                "Gormes model interactive provider/model picker"
+              ],
+              "acceptance": [
+                "TestLoginDeprecatedAcceptsLegacyFlags proves `gormes login --provider openai-codex --client-id x --no-browser --timeout 30` exits 0 with no Cobra unknown-flag error.",
+                "TestLoginDeprecatedPrintsRedirectMessage proves stdout matches the exact three-line deprecation envelope: `(1) The 'gormes login' command has been removed.`, `(2) Use 'gormes auth' to manage credentials,`, `(3) 'gormes model' to select a provider, or 'gormes setup' for full setup.` (byte-equal).",
+                "TestLoginDeprecatedDoesNotPerformOAuth proves a fake OAuth transport is never invoked and no auth.json mutation occurs even with valid `--client-id`.",
+                "TestLoginDeprecatedTypoSuggestionParity proves the deprecation pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, exit 0, no silent execution of the suggested command.",
+                "TestLoginDeprecatedHelpShowsParserShape proves `gormes login --help` prints the legacy flag set so old scripts can introspect the redirect."
+              ],
+              "note": "Encodes auditor surprise (f): Hermes deliberately registers the deprecated parser with all old flags so `hermes login --provider openai-codex` exits cleanly with the deprecation message rather than an argparse error. Gormes must replicate that shim. Parity rule with `gormes migrate ooenclaw`: never silent, always explicit redirect.",
+              "write_scope": [
+                "cmd/gormes/login.go",
+                "cmd/gormes/login_deprecated_test.go",
+                "cmd/gormes/main.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestLoginDeprecated' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Deprecated-login fixtures prove legacy-flag acceptance without argparse error, byte-equal three-line redirect message, no OAuth side effects, typo-suggestion parity, and help-text parser-shape disclosure."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:hermes_cli/auth.py:3848-3853 login_command + main.py:8186-8227 login_parser shim",
+                "note": "Hermes keeps the deprecated parser as a deliberate shim so legacy scripts get a clean redirect; Gormes mirrors the shim and adopts the typo-suggestion parity rule."
+              }
+            },
+            {
+              "name": "Gormes model interactive provider/model picker",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "`gormes model [--portal-url URL] [--inference-url URL] [--client-id ID] [--scope S] [--no-browser] [--timeout SEC] [--ca-bundle PATH] [--insecure]` runs an interactive provider+model picker over the existing model registry and static alias resolver: it requires a TTY, shows current provider/model, presents the provider menu, runs the per-provider login flow only when no Gormes-owned credentials exist (including the legacy `~/.codex/auth.json` import path for `openai-codex`), fetches the model catalog, prompts model selection, and persists `model.default` and `model.provider` to the active config.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Non-TTY invocation returns model_picker_requires_tty without launching a browser; provider menu cancellation leaves config untouched; provider-specific login failures return per-provider evidence (codex_device_code_failed, anthropic_oauth_failed, etc.) without partial config writes; model catalog fetch errors fall back to the static alias resolver with model_catalog_unavailable evidence.",
+              "fixture": "cmd/gormes/model_picker_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:7862-7902:model_parser",
+                "../hermes-agent/hermes_cli/main.py:1445-1448:cmd_model",
+                "../hermes-agent/hermes_cli/main.py:1451+:select_provider_and_model",
+                "../hermes-agent/hermes_cli/auth.py:3856+:_login_openai_codex",
+                "internal/hermes/model_alias_resolver.go",
+                "internal/config/config.go:HermesCfg",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Provider endpoint/API-key root flags + runtime resolution row exposes the runtime model/provider override path.",
+                "TUI launch model override + static alias resolver row is shipped so the picker can reuse alias resolution.",
+                "Hermes config.yaml model/provider runtime bridge row provides the persistence target (model.default, model.provider).",
+                "Hermes auth OAuth provider adapters and Gormes auth add openai-codex strict isolation contract are planned or complete so the picker delegates rather than re-implementing OAuth.",
+                "Gateway `_handle_model_command` overlap is coordinated with the Gateway management CLI umbrella row so the same handler is not rowed twice."
+              ],
+              "not_ready_when": [
+                "The slice mutates auth.json directly instead of delegating to the per-provider OAuth adapters.",
+                "The slice runs interactive prompts in non-TTY tests (must use injected TTY/menu seam).",
+                "The slice ports the full Hermes setup wizard logic (that lives in the separate `Gormes setup minimal sectioned wizard slice` row).",
+                "The slice duplicates gateway `_handle_model_command` instead of sharing the single handler implementation."
+              ],
+              "blocked_by": [
+                "Provider endpoint/API-key root flags + runtime resolution",
+                "TUI launch model override + static alias resolver",
+                "Hermes config.yaml model/provider runtime bridge",
+                "Hermes auth OAuth provider adapters",
+                "Gormes auth add openai-codex strict isolation contract"
+              ],
+              "unblocks": [
+                "Gormes setup minimal sectioned wizard slice",
+                "Gateway, platform, webhook, and cron management CLI"
+              ],
+              "acceptance": [
+                "TestModelPickerRequiresTTY proves a non-TTY invocation returns model_picker_requires_tty exit code 2 and does not read the model catalog.",
+                "TestModelPickerProviderMenuShowsCurrent proves the menu fixture renders the active provider/model first and lists all providers from the registry.",
+                "TestModelPickerInvokesLoginOnlyWhenCredentialsAbsent proves the per-provider login seam is invoked when the credential pool is empty for the chosen provider and is not invoked when a credential exists.",
+                "TestModelPickerLegacyCodexImportRespected proves selecting `openai-codex` with no Gormes credentials but a present `~/.codex/auth.json` calls the legacy import path (parity with `_login_openai_codex`), distinct from `auth add openai-codex` strict isolation.",
+                "TestModelPickerPersistsModelAndProvider proves successful selection writes `model.default` and `model.provider` to the active Hermes config.yaml-compatible store with redacted output.",
+                "TestModelPickerCancellationLeavesConfigUntouched proves Ctrl-C / cancel mid-prompt does not mutate any config file."
+              ],
+              "note": "Reuses the already-shipped Provider endpoint flag row (19324), TUI launch model override + static alias resolver (21722), and Hermes config.yaml model/provider runtime bridge (21051). Auditor surprise (a) clarifies that `gormes model` is the only path that imports `~/.codex/auth.json`; `gormes auth add openai-codex` stays strict. Coordinates with gateway `_handle_model_command` overlap noted in the Gateway, platform, webhook, and cron management CLI umbrella.",
+              "write_scope": [
+                "cmd/gormes/model.go",
+                "cmd/gormes/model_picker_test.go",
+                "internal/cli/model_picker.go",
+                "internal/cli/model_picker_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestModelPicker' -count=1",
+                "go test ./internal/cli -run '^TestModelPicker' -count=1",
+                "go test ./cmd/gormes ./internal/cli ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Model picker fixtures prove TTY guard, provider menu rendering, conditional login dispatch, legacy Codex import distinct from strict auth-add, persisted model/provider, and cancel-without-mutation behavior."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/main.py:7862-7902 model_parser + select_provider_and_model",
+                "note": "Hermes routes the model picker through the same select_provider_and_model helper as `setup model`; Gormes shares one Go-native picker between the model command and the setup wizard's model section."
+              }
+            },
+            {
+              "name": "Gormes setup minimal sectioned wizard slice",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "`gormes setup [section] [--non-interactive] [--reset] [--reconfigure] [--quick]` runs a deliberately minimal sectioned wizard: with no `section`, prints the section list and exits without running prompts; with `section=model`, dispatches to the shared model picker (same path as `gormes model`); with any other section, returns setup_section_unsupported and the operator-facing recommended command. `--non-interactive` uses defaults/env and never prompts; `--reset` and `--reconfigure` are accepted but rejected as setup_full_wizard_unsupported in this initial slice.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown sections return setup_section_unsupported with the canonical section list (model|tts|terminal|gateway|tools|agent); --reset/--reconfigure return setup_full_wizard_unsupported and link the operator to `gormes config edit` and provider/auth rows; non-TTY without --non-interactive returns setup_requires_tty.",
+              "fixture": "cmd/gormes/setup_minimal_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:8089-8123:setup_parser",
+                "../hermes-agent/hermes_cli/main.py:1438-1442:cmd_setup",
+                "../hermes-agent/hermes_cli/setup.py:667+:setup_model_provider",
+                "../hermes-agent/hermes_cli/setup.py:1165+:setup_tts",
+                "../hermes-agent/hermes_cli/setup.py:1175+:setup_terminal",
+                "../hermes-agent/hermes_cli/setup.py:1541+:setup_agent",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Gormes model interactive provider/model picker row exposes the shared picker entry point so the setup model section delegates rather than re-implementing.",
+                "Gormes config command surface is complete so config-mutation paths exist for the model section to persist into.",
+                "Tests can inject a fake TTY/menu seam and a fake config writer; no live provider, browser, or terminal probing is required."
+              ],
+              "not_ready_when": [
+                "The slice ports the full Hermes setup wizard (tts, terminal, gateway, tools, agent sections) — those remain explicit row-backed follow-ups.",
+                "The slice writes provider tokens, auth.json entries, or platform-keychain values during a setup invocation.",
+                "The slice silently runs the model picker when `gormes setup` is invoked with no section (must print the section list and exit).",
+                "The slice duplicates the model picker code path instead of delegating to the `Gormes model interactive provider/model picker` row."
+              ],
+              "blocked_by": [
+                "Gormes model interactive provider/model picker",
+                "Gormes config command surface"
+              ],
+              "unblocks": [
+                "Gormes uninstall dry-run command contract",
+                "Hermes config migration dry-run manifest"
+              ],
+              "acceptance": [
+                "TestSetupNoSectionPrintsSectionList proves `gormes setup` with no positional argument prints the canonical section list and exits 0 without invoking the model picker.",
+                "TestSetupModelSectionDelegatesToPicker proves `gormes setup model` invokes the same picker entry point as `gormes model` with the same redaction and TTY guards.",
+                "TestSetupOtherSectionsReturnUnsupported proves `gormes setup tts`, `gormes setup terminal`, `gormes setup gateway`, `gormes setup tools`, and `gormes setup agent` each return setup_section_unsupported with exit code 2 and the canonical section list.",
+                "TestSetupResetReconfigureRejected proves `gormes setup --reset` and `gormes setup --reconfigure` return setup_full_wizard_unsupported and point operators to `gormes config edit` plus the auth/provider rows.",
+                "TestSetupNonInteractiveUsesDefaults proves `gormes setup model --non-interactive` falls back to env/config defaults without prompting and does not invoke the menu seam."
+              ],
+              "note": "Materializes part of the prior placeholder `Setup/uninstall dry-run command contracts`. Bounded by design: only the model section delegates; tts/terminal/gateway/tools/agent stay row-backed. Auditor input plus the planner skill rule require explicit not_ready_when for the full wizard. Pairs with the `Gormes uninstall dry-run command contract` row that materializes the other half of the placeholder.",
+              "write_scope": [
+                "cmd/gormes/setup.go",
+                "cmd/gormes/setup_minimal_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestSetup' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Setup minimal-slice fixtures prove section-list-only default, model-section delegation, unsupported-section evidence for non-model sections, --reset/--reconfigure rejection, and non-interactive defaults."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/main.py:8089-8123 setup_parser + hermes_cli/setup.py setup_model_provider",
+                "note": "Hermes ships a full sectioned wizard; Gormes lands the model section first and explicitly defers tts/terminal/gateway/tools/agent."
+              }
+            },
+            {
+              "name": "Gormes uninstall dry-run command contract",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "`gormes uninstall [--dry-run] [--keep-config] [--keep-credentials] [--yes]` enumerates every artifact Gormes wrote (XDG config dir, credential pool, gateway state, session logs, cron registry, MCP OAuth state) and emits a deterministic dry-run manifest by default; the destructive path requires both `--yes` and an absent `--dry-run` to actually delete files. The dry-run output is byte-stable across runs (sorted paths, no clock/uuid leakage) so operators can diff it before acting.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing artifacts are reported as `(absent)` rather than errors; permission errors during dry-run enumeration are reported as path_unreadable with the bare path; destructive runs without `--yes` are rejected with uninstall_confirmation_required and exit code 2; partial deletes are forbidden — the destructive path is all-or-skip per artifact group.",
+              "fixture": "cmd/gormes/uninstall_dryrun_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:uninstall_parser",
+                "../hermes-agent/hermes_cli/claw.py:_cmd_cleanup",
+                "internal/config/config.go:ConfigPath,EnvPath",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "Gormes config command surface is complete so the canonical config and dotenv paths are addressable.",
+                "Hermes auth credential-pool command surface row exposes the credential pool path resolver.",
+                "Tests use temp HOME and temp XDG dirs only; no real user state, root-owned paths, or sudo are touched."
+              ],
+              "not_ready_when": [
+                "The slice deletes files outside the canonical Gormes-owned XDG paths or HOME-relative dotfiles.",
+                "The slice deletes anything during a dry-run invocation.",
+                "The slice silently overwrites user files (must use atomic per-group all-or-skip semantics).",
+                "The dry-run output contains absolute timestamps, uuids, or environment-derived randomness that breaks byte stability."
+              ],
+              "blocked_by": [
+                "Gormes config command surface",
+                "Hermes auth credential-pool command surface"
+              ],
+              "unblocks": [
+                "Hermes config migration dry-run manifest",
+                "OpenClaw migration dry-run manifest"
+              ],
+              "acceptance": [
+                "TestUninstallDryRunDefault proves `gormes uninstall` (no flags) is equivalent to `--dry-run` and emits a deterministic manifest grouped by artifact class (config, credentials, sessions, cron, mcp-oauth) with sorted paths.",
+                "TestUninstallDestructiveRequiresYes proves `gormes uninstall` without `--dry-run` and without `--yes` returns uninstall_confirmation_required and does not modify the filesystem.",
+                "TestUninstallDestructiveAllOrSkip proves a fake permission error on one artifact group leaves that group intact while still removing other groups (no partial-group deletes).",
+                "TestUninstallKeepFlagsHonored proves `--keep-config` excludes the config group from both dry-run and destructive enumeration, and `--keep-credentials` excludes the credentials group.",
+                "TestUninstallDryRunBytestableAcrossRuns proves two dry-run invocations against the same fixture produce byte-equal output."
+              ],
+              "note": "Materializes the second half of the prior placeholder `Setup/uninstall dry-run command contracts`. Pairs with the `Gormes setup minimal sectioned wizard slice` row. Out of scope: actual destructive backup/archive (planned as a separate row under the diagnostics/backup CLI umbrella).",
+              "write_scope": [
+                "cmd/gormes/uninstall.go",
+                "cmd/gormes/uninstall_dryrun_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestUninstall' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Uninstall fixtures prove dry-run-by-default, --yes confirmation gate, all-or-skip per group, --keep-config/--keep-credentials honored, and byte-stable dry-run output."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/main.py uninstall_parser + claw.py _cmd_cleanup",
+                "note": "Hermes ships an uninstall path tied to the OpenClaw cleanup helper; Gormes lands the dry-run-first contract before any destructive uninstall behavior."
+              }
+            },
+            {
+              "name": "Gormes mcp login OAuth re-auth bridge",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "`gormes mcp login <name>` forces re-authentication for an OAuth-based MCP server: it looks up the server in MCP config, refuses with mcp_auth_not_oauth when `auth != \"oauth\"` or when the server URL is missing, removes the persisted MCP OAuth state for `<name>`, and re-runs the OAuth flow via the existing MCP OAuth refresh seam. On success the command reports the resulting tool count; on failure it reports a typed mcp_oauth_relogin_failed envelope without leaving the MCP state in an inconsistent half-cleared form.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown MCP server name returns mcp_server_unknown with the configured server list; non-OAuth auth modes (header/stdio) return mcp_auth_not_oauth with the operator-facing redirect (`use 'gormes mcp remove' + 'gormes mcp add'`); OAuth refresh failures return mcp_oauth_relogin_failed and the prior state is restored atomically.",
+              "fixture": "cmd/gormes/mcp_login_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:9278-9282:mcp_login_parser",
+                "../hermes-agent/hermes_cli/mcp_config.py:582-636:mcp_login_handler",
+                "../hermes-agent/hermes_cli/mcp_config.py:613-614:non_oauth_redirect",
+                "../hermes-agent/hermes_cli/mcp_config.py:740-758:_probe_single_server_dispatch",
+                "internal/plugins/mcp_oauth_state.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "MCP OAuth state store + noninteractive auth errors row exposes the persisted state and remove helper.",
+                "MCP OAuth refresh + 401 session-expired recovery row exposes the OAuth-refresh seam the relogin command can drive.",
+                "Tests inject a fake MCP config loader, fake OAuth refresh transport, and fake clock; no live MCP server, browser callback, or localhost socket is required.",
+                "Open question (see acceptance below): planner+operator decide whether the initial slice ships a fake-callback fixture or stays noninteractive-only."
+              ],
+              "not_ready_when": [
+                "The slice opens a real browser, binds a localhost callback socket, or contacts a live MCP server URL during unit tests.",
+                "The slice duplicates backend MCP OAuth state row 15458 or refresh row 15522 by re-deriving the persisted state shape.",
+                "Output prints raw access_token, refresh_token, or authorization code values.",
+                "Non-OAuth servers are auto-converted to OAuth instead of returning mcp_auth_not_oauth with the redirect."
+              ],
+              "blocked_by": [
+                "MCP OAuth state store + noninteractive auth errors",
+                "MCP OAuth refresh + 401 session-expired recovery"
+              ],
+              "unblocks": [
+                "Diagnostics, backup, logs, and status CLI"
+              ],
+              "acceptance": [
+                "TestMCPLoginUnknownServer proves `gormes mcp login does-not-exist` returns mcp_server_unknown exit 2 and lists configured server names.",
+                "TestMCPLoginRejectsNonOAuth proves a header-auth and stdio-auth fixture each return mcp_auth_not_oauth with the redirect (`use 'gormes mcp remove' + 'gormes mcp add'`) and do not touch the OAuth state store.",
+                "TestMCPLoginRemovesStateThenRefreshes proves a successful relogin removes the prior persisted MCP OAuth state and then runs the refresh seam exactly once, reporting the resulting tool count.",
+                "TestMCPLoginAtomicOnFailure proves a fake refresh failure restores the prior persisted state byte-identical and returns mcp_oauth_relogin_failed without leaving the server in a half-cleared state.",
+                "TestMCPLoginInitialSliceDecision documents the planner+operator decision (TODO marker in note): the initial slice either (a) ships a fake-callback fixture proving end-to-end OAuth refresh through an injected transport, or (b) stays noninteractive-only and explicitly returns mcp_oauth_interactive_required when the refresh seam needs a live callback. Default planner verdict: option (b) until operator confirms."
+              ],
+              "note": "Builder-ready CLI bridge over already-shipped MCP OAuth state (row 15458) and refresh (row 15522). Open question recorded in acceptance criterion 5: initial slice is noninteractive-only by default; promote to fake-callback fixture only if operator confirms. TODO: confirm noninteractive-only vs fake-callback choice with operator before builder pickup.",
+              "write_scope": [
+                "cmd/gormes/mcp_login.go",
+                "cmd/gormes/mcp_login_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestMCPLogin' -count=1",
+                "go test ./cmd/gormes ./internal/plugins -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "MCP login fixtures prove unknown-server rejection, non-OAuth redirect, atomic state-then-refresh sequence, atomic failure restore, and the planner-recorded noninteractive-vs-fake-callback decision."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/mcp_config.py:582-636 mcp_login_handler",
+                "note": "Hermes scopes mcp_login to OAuth-only and routes header/stdio servers to remove+add; Gormes mirrors the scope and lands a noninteractive-first slice."
+              }
             },
             {
               "name": "Provider endpoint/API-key root flags + runtime resolution",
@@ -20347,8 +21010,9 @@
                 "CLI profile root resolver"
               ],
               "unblocks": [
-                "CLI auth status read model before provider setup",
-                "Setup/uninstall dry-run command contracts"
+                "Gormes auth status per-provider aggregator",
+                "Gormes setup minimal sectioned wizard slice",
+                "Gormes uninstall dry-run command contract"
               ],
               "acceptance": [
                 "TestReadActiveProfile_UnsetWhenMissing: ReadActiveProfile(<nonexistent path>) returns ('', ErrActiveProfileUnset).",

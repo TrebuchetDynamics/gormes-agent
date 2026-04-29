@@ -18645,7 +18645,7 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestGormesAuth' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesAuth|^TestGormesLogin' -count=1",
                 "go test ./cmd/gormes ./internal/config -count=1",
                 "go run ./cmd/progress validate"
               ],

@@ -689,7 +689,7 @@ classification and row-backed implementation queue.
 - [ ] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
 - [x] Hermes auth command-tree manifest refresh
-- [ ] Hermes auth credential-pool command surface
+- [x] Hermes auth credential-pool command surface
 - [ ] Hermes auth OAuth provider adapters
 - [ ] Hermes auth Spotify service-provider subcommand
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
@@ -707,6 +707,16 @@ classification and row-backed implementation queue.
 - [x] Gateway /reasoning apply + dispatch
 - [x] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
+- [ ] Gormes auth bare interactive credential-pool readout
+- [ ] Gormes auth status per-provider aggregator
+- [ ] Gormes auth add openai-codex strict isolation contract
+- [ ] Gormes auth add bedrock open-question planning note
+- [ ] Gormes top-level logout provider shortcut
+- [ ] Gormes login deprecated-redirect contract
+- [ ] Gormes model interactive provider/model picker
+- [ ] Gormes setup minimal sectioned wizard slice
+- [ ] Gormes uninstall dry-run command contract
+- [ ] Gormes mcp login OAuth re-auth bridge
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface
