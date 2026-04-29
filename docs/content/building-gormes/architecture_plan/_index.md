@@ -77,7 +77,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 40/77 subphases shipped · 26 in progress · 11 planned
+**Overall:** 40/77 subphases shipped · 27 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|

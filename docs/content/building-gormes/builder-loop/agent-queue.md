@@ -64,28 +64,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Live @gormes_bot normal turn, Channel-neutral native runtime binding, Provider-tool-memory golden transcript suite
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. OCI image
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: CLI backup/update policy defaults pre-update backups off unless explicitly requested, honors --no-backup over --backup, and excludes checkpoints plus SQLite WAL/SHM/journal sidecars from backup manifests
-- Trust class: operator, system
-- Ready when: Diagnostics, backup, logs, and status CLI remains an umbrella; this row is the first pure backup policy helper and does not require a real update command., Tests use synthetic flag values and temp path lists; no archive writer, git pull, network, package manager, or real Gormes home is required.
-- Not ready when: The slice implements update execution, writes archives, contacts git remotes, changes installer scripts, or scans the real operator home directory., The slice includes checkpoints/, *.db-wal, *.db-shm, or *.db-journal files in a default backup manifest., The slice changes log redaction or support-upload behavior.
-- Degraded mode: Update status reports backup_skipped_default, backup_forced, backup_disabled_by_flag, or backup_manifest_excluded_paths instead of silently archiving large or unsafe runtime files.
-- Fixture: `internal/cli/backup_policy_test.go::TestBackupPolicy_*`
-- Write scope: `internal/cli/backup_policy.go`, `internal/cli/backup_policy_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/cli -run '^TestBackupPolicy_\|^TestBackupManifestExclusions_' -count=1`, `go test ./internal/cli -count=1`, `go run ./cmd/progress validate`
-- Done signal: Backup policy fixtures prove pre-update backups are opt-in, --no-backup wins, and checkpoints plus SQLite WAL/SHM/journal sidecars are excluded from manifests without archive or network side effects.
-- Acceptance: TestBackupPolicy_DefaultSkipsPreUpdateBackup proves no backup is requested when neither --backup nor --no-backup is set., TestBackupPolicy_ExplicitBackupEnables proves --backup requests a backup and emits backup_forced evidence., TestBackupPolicy_NoBackupWins proves --no-backup suppresses backup even when --backup is also true., TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars proves checkpoints/, *.db-wal, *.db-shm, and *.db-journal are excluded while ordinary .db files remain eligible., Tests use synthetic paths/temp dirs only and do not create archives or invoke git.
-- Source refs: ../hermes-agent/hermes_cli/main.py@ea3c5a14:update backup flags, ../hermes-agent/hermes_cli/backup.py@a9033c92:exclude checkpoints, ../hermes-agent/hermes_cli/backup.py@817633bc:exclude SQLite sidecars, ../hermes-agent/tests/hermes_cli/test_backup.py@817633bc, internal/cli/log_snapshot.go, cmd/gormes/doctor.go
-- Unblocks: Backup manifest dry-run contract
-- Why now: Unblocks Backup manifest dry-run contract.
-
-## 4. Homebrew
+## 3. Homebrew
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -104,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Tool output budget persisted artifact pointer
+## 4. Tool output budget persisted artifact pointer
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -125,7 +104,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery
 - Why now: Unblocks 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery.
 
-## 6. Gormes-native MCP host runtime boundary
+## 5. Gormes-native MCP host runtime boundary
 
 - Phase: 5 / 5.G
 - Owner: `tools`
@@ -146,7 +125,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer
 - Why now: Unblocks MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer.
 
-## 7. Goncho serialized write queue + relation candidates
+## 6. Goncho serialized write queue + relation candidates
 
 - Phase: 5 / 5.N
 - Owner: `memory`
