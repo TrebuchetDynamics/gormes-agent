@@ -718,7 +718,7 @@ classification and row-backed implementation queue.
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
-- [ ] Backup/update opt-in and exclusion policy
+- [x] Backup/update opt-in and exclusion policy
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard

@@ -22,7 +22,27 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Environment interface + file sync contract
+## 1. Self-monitoring telemetry
+
+- Phase: 4 / 4.E
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Gormes bridges Hermes turn/provider/tool telemetry and Honcho telemetry/reasoning traces into local redacted telemetry, audit, and insights evidence through SelfMonitoringBridge, TelemetryEventMatrix, ReasoningTraceRecord, TelemetrySink, AuditSink, and InsightsRecorder interfaces without changing the local usage.jsonl schema until compatibility tests pass.
+- Trust class: operator, system
+- Ready when: Trajectory compression, Goncho webhook delivery, and Phase 3 insights rows are validated; provider usage remains the final local usage/status vocabulary dependency., Goncho memory and queue rows expose deterministic event inputs that can be fixture-tested without live providers, Prometheus, Sentry, Redis, or hosted Honcho., The slice can keep external exporters as owned/excluded divergence while preserving the event names, trace IDs, queue/dream/reconciliation evidence, and redaction semantics needed by local Gormes diagnostics.
+- Not ready when: The slice changes the persisted usage.jsonl schema, starts Prometheus/Sentry/OpenTelemetry exporters, or sends telemetry over the network., The slice blocks kernel turns, provider calls, memory writes, or dream/reconciliation jobs when telemetry recording fails., The slice collapses Honcho reasoning traces into generic log lines without preserving event name, reasoning tree ID, level, parent/child relationship, and redaction evidence.
+- Degraded mode: Telemetry emission failures, unavailable metrics exporters, and unsupported hosted Honcho tracing fields produce nonfatal local evidence instead of blocking turns, memory writes, or queue processing.
+- Fixture: `internal/telemetry/self_monitoring_test.go; internal/goncho/telemetry_test.go`
+- Write scope: `internal/telemetry/self_monitoring.go`, `internal/telemetry/self_monitoring_test.go`, `internal/audit/self_monitoring.go`, `internal/audit/self_monitoring_test.go`, `internal/insights/self_monitoring.go`, `internal/insights/self_monitoring_test.go`, `internal/goncho/telemetry.go`, `internal/goncho/telemetry_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/telemetry ./internal/audit ./internal/insights ./internal/goncho -run 'TestSelfMonitoring\|TestGonchoTelemetry\|TestReasoningTrace' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Telemetry fixtures prove Hermes usage metrics and Honcho reasoning/event traces map into deterministic redacted local evidence with nonfatal failure behavior and explicit hosted-exporter divergence.
+- Acceptance: SelfMonitoringBridge accepts injected TelemetrySink, AuditSink, and InsightsRecorder implementations so telemetry, audit, and insights behavior can be tested without global state., A local event matrix maps Hermes turn/provider/tool usage and Honcho agent, dream, reconciliation, representation, and reasoning-trace events into Gormes telemetry/audit event names with owned/excluded exporter rationale., ReasoningTrace fixtures preserve trace ID, tree node ID, parent ID, level, event type, timing, and redacted payload summaries without raw prompts, secrets, or provider tokens., Provider/account usage and tool metrics bridge into the existing insights rollup as additive evidence without altering existing usage.jsonl field names., Telemetry failures return nonfatal degraded evidence and do not interrupt turns, memory writes, webhook delivery, queue processing, or dream scheduling., Tests classify hosted Prometheus/Sentry/exporter-only behavior as owned/excluded divergence and prove local event emission remains deterministic.
+- Source refs: ../hermes-agent/agent/trajectory.py, ../hermes-agent/agent/usage_pricing.py:CanonicalUsage,normalize_usage,estimate_usage_cost, ../hermes-agent/tests/agent/test_usage_pricing.py, ../honcho/src/telemetry/emitter.py, ../honcho/src/telemetry/reasoning_traces.py, ../honcho/src/telemetry/events/agent.py, ../honcho/src/telemetry/events/deletion.py, ../honcho/src/telemetry/events/dream.py, ../honcho/src/telemetry/events/reconciliation.py, ../honcho/src/telemetry/events/representation.py, ../honcho/src/telemetry/metrics_collector.py, ../honcho/src/telemetry/sentry.py, ../honcho/src/telemetry/prometheus/metrics.py, ../honcho/tests/telemetry/test_events.py, ../honcho/tests/telemetry/test_emitter.py, ../honcho/tests/integration/test_telemetry.py, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Telemetry and reasoning traces, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Environment interface + file sync contract
 
 - Phase: 5 / 5.B
 - Owner: `tools`
@@ -42,7 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard
 - Why now: Unblocks Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard.
 
-## 2. ACP server side
+## 3. ACP server side
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -60,27 +80,6 @@ keep row-specific execution facts in `progress.json`.
 - Acceptance: ACP manifest fixtures classify auth provider detection, stdio entry startup, session lifecycle, tool rendering, permission prompts, and event streaming as implemented, row-backed, owned, or excluded., The Go target names future internal/acp package boundaries and adapter event structs without importing Python., Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification., Editor integration docs remain row-backed until protocol fixtures exist.
 - Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Backup/update opt-in and exclusion policy
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: CLI backup/update policy defaults pre-update backups off unless explicitly requested, honors --no-backup over --backup, and excludes checkpoints plus SQLite WAL/SHM/journal sidecars from backup manifests
-- Trust class: operator, system
-- Ready when: Diagnostics, backup, logs, and status CLI remains an umbrella; this row is the first pure backup policy helper and does not require a real update command., Tests use synthetic flag values and temp path lists; no archive writer, git pull, network, package manager, or real Gormes home is required.
-- Not ready when: The slice implements update execution, writes archives, contacts git remotes, changes installer scripts, or scans the real operator home directory., The slice includes checkpoints/, *.db-wal, *.db-shm, or *.db-journal files in a default backup manifest., The slice changes log redaction or support-upload behavior.
-- Degraded mode: Update status reports backup_skipped_default, backup_forced, backup_disabled_by_flag, or backup_manifest_excluded_paths instead of silently archiving large or unsafe runtime files.
-- Fixture: `internal/cli/backup_policy_test.go::TestBackupPolicy_*`
-- Write scope: `internal/cli/backup_policy.go`, `internal/cli/backup_policy_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/cli -run '^TestBackupPolicy_\|^TestBackupManifestExclusions_' -count=1`, `go test ./internal/cli -count=1`, `go run ./cmd/progress validate`
-- Done signal: Backup policy fixtures prove pre-update backups are opt-in, --no-backup wins, and checkpoints plus SQLite WAL/SHM/journal sidecars are excluded from manifests without archive or network side effects.
-- Acceptance: TestBackupPolicy_DefaultSkipsPreUpdateBackup proves no backup is requested when neither --backup nor --no-backup is set., TestBackupPolicy_ExplicitBackupEnables proves --backup requests a backup and emits backup_forced evidence., TestBackupPolicy_NoBackupWins proves --no-backup suppresses backup even when --backup is also true., TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars proves checkpoints/, *.db-wal, *.db-shm, and *.db-journal are excluded while ordinary .db files remain eligible., Tests use synthetic paths/temp dirs only and do not create archives or invoke git.
-- Source refs: ../hermes-agent/hermes_cli/main.py@ea3c5a14:update backup flags, ../hermes-agent/hermes_cli/backup.py@a9033c92:exclude checkpoints, ../hermes-agent/hermes_cli/backup.py@817633bc:exclude SQLite sidecars, ../hermes-agent/tests/hermes_cli/test_backup.py@817633bc, internal/cli/log_snapshot.go, cmd/gormes/doctor.go
-- Unblocks: Backup manifest dry-run contract
-- Why now: Unblocks Backup manifest dry-run contract.
 
 ## 4. OCI image
 

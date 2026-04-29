@@ -18679,9 +18679,9 @@
             {
               "name": "Backup/update opt-in and exclusion policy",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "contract": "CLI backup/update policy defaults pre-update backups off unless explicitly requested, honors --no-backup over --backup, and excludes checkpoints plus SQLite WAL/SHM/journal sidecars from backup manifests",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -18717,7 +18717,7 @@
                 "TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars proves checkpoints/, *.db-wal, *.db-shm, and *.db-journal are excluded while ordinary .db files remain eligible.",
                 "Tests use synthetic paths/temp dirs only and do not create archives or invoke git."
               ],
-              "note": "Added after Hermes ea3c5a14 made pre-update backups opt-in, a9033c92 excluded checkpoints, and 817633bc excluded SQLite sidecars. Gormes should pin the policy before update/backup commands are wired.",
+              "note": "Complete: TDD added internal/cli/backup_policy.go and internal/cli/backup_policy_test.go. The pure ResolveBackupPolicy(BackupPolicyFlags) BackupDecision helper locks in the precedence rules NoBackup > Backup > ConfigEnabled > default-off, surfaces backup_skipped_default / backup_forced / backup_disabled_by_flag / backup_config_enabled evidence strings, and exposes IsExcludedFromBackup plus PartitionBackupCandidates so any path under checkpoints/ and any *.db-wal / *.db-shm / *.db-journal sidecar is dropped from a manifest while plain *.db files remain eligible. No archive writes, no git, no real Gormes home are touched.",
               "write_scope": [
                 "internal/cli/backup_policy.go",
                 "internal/cli/backup_policy_test.go",
