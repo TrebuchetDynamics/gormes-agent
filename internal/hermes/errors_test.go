@@ -189,3 +189,18 @@ func TestClassifyProviderErrorKindStrings(t *testing.T) {
 		}
 	}
 }
+
+func TestHTTPErrorErrorSanitizesHTMLProviderBodies(t *testing.T) {
+	err := &HTTPError{Status: 403, Body: `<html><body><svg><path d="secret"></path></svg>Forbidden</body></html>`}
+
+	if got := err.Error(); got != "Forbidden: provider returned HTML error body" {
+		t.Fatalf("Error() = %q, want sanitized HTML body", got)
+	}
+	classification := ClassifyProviderError(err)
+	if classification.Kind != ProviderErrorAuth {
+		t.Fatalf("Kind = %q, want %q", classification.Kind, ProviderErrorAuth)
+	}
+	if classification.Message != "provider returned HTML error body" {
+		t.Fatalf("Message = %q, want sanitized classification message", classification.Message)
+	}
+}

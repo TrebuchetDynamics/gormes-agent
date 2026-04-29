@@ -35,7 +35,7 @@ type HTTPError struct {
 }
 
 func (e *HTTPError) Error() string {
-	return http.StatusText(e.Status) + ": " + e.Body
+	return http.StatusText(e.Status) + ": " + sanitizeProviderErrorBody(e.Body)
 }
 
 const maxRetryAfterHint = 16 * time.Second
@@ -314,8 +314,8 @@ func isUnsupportedParameterCode(code string) bool {
 
 func providerHTTPErrorText(err *HTTPError) (message, combined, code string) {
 	body := strings.TrimSpace(err.Body)
-	message = body
-	parts := []string{body}
+	message = sanitizeProviderErrorBody(body)
+	parts := []string{body, message}
 	if body != "" {
 		var decoded any
 		if json.Unmarshal([]byte(body), &decoded) == nil {
@@ -335,6 +335,24 @@ func providerHTTPErrorText(err *HTTPError) (message, combined, code string) {
 	}
 	combined = strings.ToLower(strings.Join(parts, " "))
 	return message, combined, code
+}
+
+func sanitizeProviderErrorBody(body string) string {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return ""
+	}
+	lower := strings.ToLower(body)
+	if strings.Contains(lower, "<html") || strings.Contains(lower, "<!doctype html") || strings.Contains(lower, "<svg") {
+		return "provider returned HTML error body"
+	}
+	body = strings.ReplaceAll(body, "\r", " ")
+	body = strings.ReplaceAll(body, "\n", " ")
+	body = strings.Join(strings.Fields(body), " ")
+	if len(body) > 480 {
+		return body[:467] + "...[truncated]"
+	}
+	return body
 }
 
 func providerBodySignals(v any) (message, code, raw string) {
