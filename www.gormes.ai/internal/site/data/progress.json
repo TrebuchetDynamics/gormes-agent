@@ -1642,6 +1642,88 @@
               }
             },
             {
+              "name": "Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)",
+              "status": "planned",
+              "priority": "P1",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "contract": "gateway.Manager assembles a durable user-context block from `<GormesHome>/memory/USER.md` (produced by the shipped Memory Mirror, row 3.D.5) and `<GormesHome>/memory/MEMORY.md` (openclaw-migrated under internal/migrate/openclaw or operator-authored), threat-scans and truncates each file using the same patterns internal/hermes/context_files.go uses for SOUL.md / project context, and prepends the rendered block ahead of the platform/session block but after the existing context-files block. The wiring lives inside gateway.Manager — never inside any channel adapter — so all channels inherit it. A new helper internal/hermes/durable_user_context.go (or an extension under internal/hermes) exposes BuildDurableUserContextPrompt(opts) (string, DurableUserContextReport) with hermetic options for the memory dir; the rendered block carries USER.md before MEMORY.md so durable user identity precedes durable session memory.",
+              "contract_status": "draft",
+              "degraded_mode": "Missing USER.md and missing MEMORY.md return an empty block — captured kernel.PlatformEvent.SessionContext is byte-identical to the slice-1 (SOUL+project + platform/session) output. A USER.md or MEMORY.md that trips the threat-pattern scan is rendered with the existing `[BLOCKED:` marker and never reaches the provider as raw threat content. A truncated USER.md or MEMORY.md carries the existing `[...truncated ... kept H+T of N chars ...]` marker. A failed file read is logged via gateway telemetry and the file is dropped from the block for that turn (the other file still renders if present).",
+              "fixture": "internal/gateway/live_turn_prompt_test.go + internal/hermes/durable_user_context_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py",
+                "../hermes-agent/agent/prompt_builder.py",
+                "internal/memory/mirror.go (USER.md producer; do not modify)",
+                "internal/migrate/openclaw/manifest.go:135-136 (MEMORY.md / USER.md migration target paths)",
+                "internal/config/config.go:GormesHome + MirrorPath",
+                "internal/hermes/context_files.go (threat-scan + truncation reference; do not modify)",
+                "internal/gateway/live_turn_prompt.go:assembleLiveTurnPrompt (slice-1 chain to extend)",
+                "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile (slice-1 seam pattern to mirror for memory dir)"
+              ],
+              "ready_when": [
+                "Live-turn SOUL.md and project context wiring (channel-neutral) is complete (verified — slice 1 shipped at f5935538b).",
+                "Memory Mirror (USER.md sync) is complete (verified — phase 3.D.5 ships internal/memory/mirror.go).",
+                "Tests can construct a fake gateway turn with an injected memory dir; no live filesystem state under ~/.gormes or ~/.hermes is read."
+              ],
+              "not_ready_when": [
+                "The slice modifies internal/hermes/context_files.go, internal/memory/mirror.go, internal/kernel/, or any channel adapter under internal/channels/.",
+                "The slice ports skills guidance, tool guidance, or time/model/provider metadata — those are sibling child rows.",
+                "The slice exposes raw absolute memory dir paths or raw threat content to the channel.",
+                "The slice changes the slice-1 SOUL/project block byte output for any existing fixture.",
+                "The slice generates USER.md or MEMORY.md content (it only reads files produced by Memory Mirror or migration)."
+              ],
+              "blocked_by": [
+                "Hermes live-turn prompt assembly parity (channel-neutral)",
+                "Live-turn SOUL.md and project context wiring (channel-neutral)"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestBuildDurableUserContextPrompt_LoadsUserMD: BuildDurableUserContextPrompt with a fake memory dir containing USER.md='# User\\nName: Juan\\nPreference: terse replies.' returns a rendered block containing the USER.md body and a DurableUserContextReport with User.Loaded=true.",
+                "TestBuildDurableUserContextPrompt_LoadsMemoryMD: same shape for MEMORY.md.",
+                "TestBuildDurableUserContextPrompt_OrdersUserBeforeMemory: when both USER.md and MEMORY.md are present, the rendered block places USER.md content before MEMORY.md content (proven via strings.Index ordering).",
+                "TestBuildDurableUserContextPrompt_TruncatesLargeFiles: USER.md or MEMORY.md exceeding maxChars carries the `[...truncated ... kept H+T of N chars ...]` marker and the report flags Truncated=true.",
+                "TestBuildDurableUserContextPrompt_BlocksThreats: USER.md or MEMORY.md containing 'ignore previous instructions' produces a `[BLOCKED:` marker; the rendered block never carries the raw threat string.",
+                "TestBuildDurableUserContextPrompt_MissingFilesReturnsEmpty: an empty memory dir returns an empty block and a report with both User.Missing=true and Memory.Missing=true.",
+                "TestLiveTurn_SystemPrompt_IncludesUserMD: a fake gateway turn dispatched with a fake memory dir containing USER.md='# User\\nName: Juan' produces a captured kernel.PlatformEvent.SessionContext that contains the USER.md body.",
+                "TestLiveTurn_SystemPrompt_IncludesMemoryMD: same shape for MEMORY.md.",
+                "TestLiveTurn_SystemPrompt_DurableUserBlockOrder: a fake turn with SOUL.md + AGENTS.md + USER.md + MEMORY.md fixtures produces a captured SessionContext where the SOUL/project header precedes the USER/MEMORY block precedes the platform/session block (proven via strings.Index ordering).",
+                "TestLiveTurn_SystemPrompt_DurableUserBlockChannelNeutral: the same fake turn fixture run through fake Telegram, Slack, BlueBubbles, WhatsApp, and Discord channel adapters produces a byte-identical USER/MEMORY block in each captured kernel submit.",
+                "TestLiveTurn_SystemPrompt_DurableUserMissingNoPanic: a fake gateway turn with no USER.md and no MEMORY.md produces a captured SessionContext byte-identical to the slice-1 output (proves the slice-1 fixtures stay green when the memory dir is empty).",
+                "TestLiveTurn_SystemPrompt_DurableUserThreatBlocked: a fake turn with USER.md containing 'ignore previous instructions' produces a captured SessionContext whose USER block carries the `[BLOCKED:` marker."
+              ],
+              "note": "Slice 2 of the live-turn prompt assembly umbrella. Pragmatic ordering deviation: Hermes' literal block order is SOUL -> tool/memory -> USER/MEMORY -> skills -> AGENTS, but slice 1 already fuses SOUL+AGENTS via the existing internal/hermes/context_files.go helper. Slice 2 inserts USER/MEMORY between the fused SOUL+AGENTS block and the platform/session block, accepting AGENTS-before-USER as a known deviation. A future slice can split SOUL from AGENTS to achieve strict Hermes ordering if needed; the umbrella row tracks the deviation. Threat-scan + truncation may either be duplicated in internal/hermes/durable_user_context.go (cheapest, no context_files.go change) or factored into a shared internal/hermes helper file (small refactor, also acceptable as long as context_files.go's public API is unchanged). Builder picks based on what the existing context_files.go shape allows.",
+              "write_scope": [
+                "internal/hermes/durable_user_context.go",
+                "internal/hermes/durable_user_context_test.go",
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/live_turn_prompt_test.go",
+                "internal/gateway/manager.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run DurableUserContext -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run LiveTurn -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/hermes ./internal/kernel ./internal/memory -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Six BuildDurableUserContextPrompt fixtures + six gateway live-turn fixtures pass; gateway.Manager prepends the USER/MEMORY block ahead of the platform/session block at the existing assembleLiveTurnPrompt site; no channel adapter under internal/channels/ is modified; existing slice-1 fixtures pass byte-identical when the memory dir is empty."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:run_agent.py + agent/prompt_builder.py USER/MEMORY durable context block",
+                "note": "Hermes injects durable user/memory profile content from the operator's home dir before each turn. Gormes consumes the existing Memory Mirror output (USER.md) and openclaw-migrated MEMORY.md without re-implementing memory storage. The slice is purely a reader + threat-scanner + injector at the channel-neutral assembly site."
+              }
+            },
+            {
               "name": "BlueBubbles iMessage session-context prompt guidance",
               "priority": "P1",
               "status": "complete",
