@@ -124,18 +124,14 @@ func TestAirtableSkillBundledCatalogRowVisibleWhenCredentialsMissing(t *testing.
 
 func TestAirtableSkillDotenvCredentialEnablesPromptWithoutSecretLeak(t *testing.T) {
 	root := t.TempDir()
-	cfgHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
 	t.Setenv("HERMES_HOME", "")
 	clearEnvVars(t, "AIRTABLE_API_KEY", "AIRTABLE_PAT")
 	installAirtableSkillFixture(t, root)
 
 	secret := "pat_secret_from_dotenv"
-	cfgDir := filepath.Join(cfgHome, "gormes")
-	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(%q): %v", cfgDir, err)
-	}
-	if err := os.WriteFile(filepath.Join(cfgDir, ".env"), []byte("AIRTABLE_PAT="+secret+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(gormesHome, ".env"), []byte("AIRTABLE_PAT="+secret+"\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(.env): %v", err)
 	}
 
