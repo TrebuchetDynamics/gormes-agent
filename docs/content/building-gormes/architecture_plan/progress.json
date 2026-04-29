@@ -10111,9 +10111,9 @@
             },
             {
               "name": "Auto-naming sessions",
-              "status": "planned",
+              "status": "complete",
               "contract": "Session auto-naming persists exactly one generated title for eligible untitled sessions after the native title helper succeeds, respects manual title overrides, preserves historical transcript content, and records skip/failure evidence without retry storms",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
