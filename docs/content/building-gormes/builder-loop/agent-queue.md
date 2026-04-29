@@ -22,28 +22,7 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Channel-neutral native runtime turn adapter
-
-- Phase: 2 / 2.F.4
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Telegram, Slack, Discord, WhatsApp, BlueBubbles, and future channels enter the same native Gormes turn adapter so provider/runtime fixes preserve Hermes channel parity instead of hard-coding Telegram behavior.
-- Trust class: gateway, operator, system
-- Ready when: The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing., A fake channel fixture can drive a message through the same turn adapter used by Telegram without importing Telegram SDK types., Existing per-channel identity/self-filter and delivery routing tests stay unchanged.
-- Not ready when: The row adds a Telegram-only provider/runtime bypass., The row changes channel-specific identity safety, require-mention, delivery, or thread rules outside adapter boundaries., The row sends raw provider errors to external channels.
-- Degraded mode: A channel with unsupported media, identity ambiguity, or provider-unavailable state emits typed channel evidence and a safe user-facing response while preserving session/admission cleanup.
-- Fixture: `internal/gateway/channel_neutral_turn_adapter_test.go`
-- Write scope: `internal/gateway/`, `internal/channels/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway ./internal/channels/... -run 'ChannelNeutral\|TurnAdapter\|Admission\|AwaitUserReply' -count=1`, `go test ./internal/gateway ./internal/channels/... -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway tests prove Telegram and a fake channel share the same native runtime adapter while preserving existing channel identity and delivery contracts.
-- Acceptance: A shared channel-neutral turn request contains channel, chat/thread, sender identity, session source, media references, command/admission metadata, and reply route fields., Telegram fixture and one fake non-Telegram channel fixture both exercise the same native runtime adapter path., Provider/runtime failure is rendered through shared external-channel safe error handling and clears active turn state.
-- Source refs: references/go-agent-os/GORMES-REUSE-AUDIT.md#recommended-immediate-builder-row, references/go-agent-os/trpc-agent-go/agent/await_user_reply.go, references/go-agent-os/nanobot/pkg/mcp/session.go, internal/gateway/manager.go, internal/gateway/session_context.go, internal/channels/telegram/, internal/channels/discord/, internal/channels/slack/, internal/channels/whatsapp/, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli
-- Unblocks: Native runtime provider gateway binding, Await-user-reply channel route, Live multi-channel parity smoke tests
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Tool output budget persisted artifact pointer
+## 1. Tool output budget persisted artifact pointer
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -64,7 +43,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery
 - Why now: Unblocks 61-tool registry port, Native runtime provider gateway binding, MCP stdio transport + tool/list discovery.
 
-## 3. Gormes-native MCP host runtime boundary
+## 2. Gormes-native MCP host runtime boundary
 
 - Phase: 5 / 5.G
 - Owner: `tools`
@@ -85,7 +64,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer
 - Why now: Unblocks MCP stdio transport + tool/list discovery, Managed tool gateway bridge, Tool output budget persisted artifact pointer.
 
-## 4. Goncho serialized write queue + relation candidates
+## 3. Goncho serialized write queue + relation candidates
 
 - Phase: 5 / 5.N
 - Owner: `memory`

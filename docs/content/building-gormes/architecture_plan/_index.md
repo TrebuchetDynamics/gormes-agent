@@ -77,12 +77,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 42/77 subphases shipped · 25 in progress · 10 planned
+**Overall:** 43/78 subphases shipped · 25 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 17/20 subphases |
+| Phase 2 — The Gateway | 🔨 | 18/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 2/18 subphases |
@@ -202,6 +202,10 @@ classification and row-backed implementation queue.
 - [x] Discord SessionSource guild/parent/message evidence
 - [ ] Discord forum media + polish parity
 
+### 2.B.12 — Channel-Neutral Native Runtime Adapter ✅
+
+- [x] Channel-neutral native runtime turn adapter
+
 ### 2.C — Thin Mapping Persistence ✅
 
 - [x] bbolt session resume
@@ -282,7 +286,6 @@ classification and row-backed implementation queue.
 - [ ] Channel directory refresh + stale-target invalidation
 - [ ] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
-- [ ] Channel-neutral native runtime turn adapter
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy 🔨
 
