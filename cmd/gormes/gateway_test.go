@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"syscall"
 	"testing"
@@ -90,6 +92,49 @@ func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 				t.Fatalf("FreshFinalAfter = %s, want %s", mgrCfg.FreshFinalAfter, tc.want)
 			}
 		})
+	}
+}
+
+func TestGatewayManagerConfig_UsageProviderInfersProviderFromConfiguredModel(t *testing.T) {
+	var sawAuthorization bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/wham/usage" {
+			t.Fatalf("request path = %q, want /wham/usage", r.URL.Path)
+		}
+		sawAuthorization = r.Header.Get("Authorization") == "Bearer gateway-token"
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"plan_type":"team",
+			"rate_limit":{"primary_window":{"used_percent":40}}
+		}`))
+	}))
+	defer server.Close()
+
+	mgrCfg := gatewayManagerConfig(
+		config.Config{Hermes: config.HermesCfg{
+			Endpoint: server.URL,
+			APIKey:   "gateway-token",
+			Model:    "gpt-5.5",
+		}},
+		map[string]string{},
+		map[string]bool{},
+		nil,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+	if mgrCfg.AccountUsage == nil {
+		t.Fatal("AccountUsage provider is nil")
+	}
+	snapshot, err := mgrCfg.AccountUsage(context.Background(), gateway.InboundEvent{Platform: "telegram", ChatID: "42", Kind: gateway.EventUsage})
+	if err != nil {
+		t.Fatalf("AccountUsage error = %v", err)
+	}
+	if snapshot.Provider != "openai-codex" || snapshot.Plan != "Team" {
+		t.Fatalf("snapshot = %+v, want openai-codex Team usage", snapshot)
+	}
+	if !sawAuthorization {
+		t.Fatalf("gateway account usage request did not use configured API key")
 	}
 }
 

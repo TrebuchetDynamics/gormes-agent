@@ -233,7 +233,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		Restart:         restart,
 		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
-			provider := resolution.Provider
+			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
 			if provider == "" {
 				provider = "openai-codex"
 			}

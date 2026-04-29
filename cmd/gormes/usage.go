@@ -13,8 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var usageCmd = newUsageCommand()
-
 func newUsageCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "usage",
@@ -49,7 +47,7 @@ func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
 	provider := strings.TrimSpace(invocation.Provider)
 	if provider == "" {
 		resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes usage"})
-		provider = resolution.Provider
+		provider = inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
 	}
 	key := firstUsageString(invocation.APIKey, cfg.Hermes.APIKey)
 	baseURL := firstUsageString(invocation.BaseURL, cfg.Hermes.Endpoint)
@@ -95,6 +93,30 @@ func (c accountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req h
 		return hermes.AccountUsageHTTPResponse{}, err
 	}
 	return hermes.AccountUsageHTTPResponse{StatusCode: resp.StatusCode, Body: body}, nil
+}
+
+func inferUsageProvider(configuredProvider, model string) string {
+	provider := strings.TrimSpace(configuredProvider)
+	if provider != "" {
+		return provider
+	}
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return ""
+	}
+	for _, candidate := range []string{"openai-codex", "anthropic", "openai", "openrouter"} {
+		if metadata := hermes.LookupModelMetadata(hermes.ModelRegistryQuery{Provider: candidate, Model: model}); metadata.Found {
+			return metadata.Provider
+		}
+	}
+	lower := strings.ToLower(model)
+	if strings.HasPrefix(lower, "gpt-") || strings.HasPrefix(lower, "o1") || strings.HasPrefix(lower, "o3") || strings.HasPrefix(lower, "o4") {
+		return "openai-codex"
+	}
+	if strings.Contains(lower, "claude") {
+		return "anthropic"
+	}
+	return ""
 }
 
 func firstUsageString(values ...string) string {
