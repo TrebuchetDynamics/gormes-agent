@@ -19687,9 +19687,9 @@
             },
             {
               "name": "Subagent dangerous-command non-interactive approval policy",
-              "status": "planned",
+              "status": "complete",
               "contract": "Delegated subagent workers resolve dangerous-command approvals non-interactively with safe auto-deny by default and explicit audited auto-approve opt-in",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -19697,8 +19697,8 @@
                 "child-agent",
                 "system"
               ],
-              "degraded_mode": "Subagent results show dangerous-command denial or audited auto-approval instead of hanging on a parent-owned terminal prompt.",
-              "fixture": "internal/subagent/approval_policy_test.go",
+              "degraded_mode": "Subagent child tool execution returns approval_denied_noninteractive before invoking the executor for hardline commands and for recoverable dangerous commands unless the child config explicitly sets approval mode off.",
+              "fixture": "internal/subagent/dangerous_approval_test.go::TestSubagentDangerousCommand_*",
               "source_refs": [
                 "../hermes-agent/tools/delegate_tool.py@023b1bff",
                 "../hermes-agent/tests/tools/test_delegate.py@023b1bff",
@@ -19722,19 +19722,22 @@
                 "An explicit delegation subagent auto-approve config returns one-shot approval and emits audit evidence.",
                 "Parent CLI/TUI approval state is not required for child worker execution and cannot deadlock the parent turn."
               ],
-              "note": "Hermes 023b1bff fixed delegate_task child threads that could deadlock when dangerous-command prompts fell back to stdin. Gormes should port the policy at the Go subagent/tool boundary once the dangerous-action guard exists.",
+              "note": "TDD landed: child terminal/execute_code tool calls now pass through the existing pure GuardCommand boundary before any subagent tool executor runs. Default/manual/smart modes fail closed with approval_denied_noninteractive for hardline and recoverable dangerous commands; explicit off mode allows only recoverable dangerous commands while hardline remains denied. Fixtures prove denial happens before executor invocation and benign commands still run.",
               "write_scope": [
-                "internal/config/",
-                "internal/subagent/",
-                "internal/tools/",
+                "internal/subagent/types.go",
+                "internal/subagent/runner.go",
+                "internal/subagent/dangerous_approval_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/config ./internal/subagent ./internal/tools -count=1"
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/subagent -run '^TestSubagentDangerousCommand_' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/config ./internal/subagent ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Subagent approval fixtures prove dangerous child commands auto-deny by default, audited opt-in approve works, and no child path waits on stdin."
-              ]
+                "Subagent approval fixtures prove dangerous child terminal/code commands auto-deny by default, explicit off mode approves only recoverable commands, hardline remains blocked, and no child path waits on stdin or calls the executor before approval evidence."
+              ],
+              "priority": "P2"
             },
             {
               "name": "Concurrent tool approval callback propagation",

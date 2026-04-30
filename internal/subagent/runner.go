@@ -330,6 +330,16 @@ func executeChildTool(ctx context.Context, cfg SubagentConfig, events chan<- Sub
 		recordAudit(info.Status, nil, err)
 		emitChildToolEvent(ctx, events, info, err.Error())
 		return nil, info, err
+	}
+	if blocked := guardChildDangerousCommand(cfg, req); blocked.Description != "" {
+		info.Status = "approval_denied_noninteractive"
+		err := fmt.Errorf("%w: %s", ErrSubagentApprovalDenied, blocked.Description)
+		recordAudit(info.Status, nil, err)
+		emitChildToolEvent(ctx, events, info, err.Error())
+		return nil, info, err
+	}
+
+	switch {
 	case cfg.toolExecutor == nil:
 		info.Status = "failed"
 		err := fmt.Errorf("no tool executor configured for child run")
@@ -383,4 +393,35 @@ func emitChildToolEvent(ctx context.Context, events chan<- SubagentEvent, info T
 	case events <- SubagentEvent{Type: EventToolCall, Message: message, ToolCall: &infoCopy}:
 	case <-ctx.Done():
 	}
+}
+
+func guardChildDangerousCommand(cfg SubagentConfig, req tools.ToolRequest) tools.BlockedResult {
+	cmd := childToolCommand(req)
+	if cmd == "" {
+		return tools.BlockedResult{}
+	}
+	result := tools.GuardCommand(cmd, cfg.DangerousCommandApprovalMode)
+	if result.Description == "" || result.Approved {
+		return tools.BlockedResult{}
+	}
+	return result
+}
+
+func childToolCommand(req tools.ToolRequest) string {
+	switch req.ToolName {
+	case "terminal", "execute_code":
+	default:
+		return ""
+	}
+	var payload struct {
+		Command string `json:"command"`
+		Code    string `json:"code"`
+	}
+	if err := json.Unmarshal(req.Input, &payload); err != nil {
+		return ""
+	}
+	if payload.Command != "" {
+		return payload.Command
+	}
+	return payload.Code
 }

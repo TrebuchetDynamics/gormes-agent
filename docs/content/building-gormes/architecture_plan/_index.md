@@ -685,7 +685,7 @@ classification and row-backed implementation queue.
 - [x] Recoverable dangerous patterns + blocked-result schema
 - [x] Approval mode config normalization
 - [x] Gateway hook auto-accept strict parser
-- [ ] Subagent dangerous-command non-interactive approval policy
+- [x] Subagent dangerous-command non-interactive approval policy
 - [ ] Concurrent tool approval callback propagation
 - [x] Background review toolset restriction
 - [ ] Cron dangerous-command approval mode
