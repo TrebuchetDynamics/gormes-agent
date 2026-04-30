@@ -20,6 +20,7 @@ type mockClient struct {
 	stopped   bool
 
 	SendFn          func(c tgbotapi.Chattable) (tgbotapi.Message, error)
+	RequestFn       func(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
 	DeleteMessageFn func(chatID int64, messageID int) error
 	telegramFiles   map[string]tgbotapi.File
 	downloads       map[string][]byte
@@ -59,6 +60,9 @@ func (m *mockClient) Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error
 	m.mu.Lock()
 	m.requests = append(m.requests, c)
 	m.mu.Unlock()
+	if m.RequestFn != nil {
+		return m.RequestFn(c)
+	}
 	return &tgbotapi.APIResponse{Ok: true}, nil
 }
 

@@ -2521,10 +2521,10 @@
             },
             {
               "name": "Telegram sendChatAction typing API",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Add a hermetic Bot.SendChatAction(ctx, chatID, action) method backed by the existing telegramClient.Request seam (tgbotapi.NewChatAction) so the gateway can later fire \"typing\" indicators during streaming phases. Non-fatal failure path: errors are returned but never panic, and bot wrapping continues operation.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2569,7 +2569,10 @@
               ],
               "evidence": [
                 "GAP: Bot has Send/EditMessage/DeleteMessage but no SendChatAction. Gateway streaming phase only sends an emoji-placeholder via coalescer.flushImmediate(\"⏳\") (internal/gateway/manager.go:934). Hermes shows a native Telegram typing indicator (telegram.py:2076-2104) which is strictly better UX.",
-                "GAP: telegramClient.Request already exists (internal/channels/telegram/client.go:26) — tgbotapi.NewChatAction returns a Chattable that satisfies it. Implementation is purely additive."
+                "GAP: telegramClient.Request already exists (internal/channels/telegram/client.go:26) — tgbotapi.NewChatAction returns a Chattable that satisfies it. Implementation is purely additive.",
+                "RED: internal/channels/telegram/chat_action_test.go written with 5 tests; build failed with 'b.SendChatAction undefined' on all 5 call sites.",
+                "GREEN: Bot.SendChatAction(ctx, chatID, action string) error added to internal/channels/telegram/bot.go; errors import added. All 5 ChatAction tests pass: PASS TestBot_SendChatAction_RequestsTypingAction, TestBot_SendChatAction_NonFatalOnAPIError, TestBot_SendChatAction_RejectsBlankChatID, TestBot_SendChatAction_RejectsBlankAction, TestBot_SendChatAction_RejectsNonNumericChatID.",
+                "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1 -> ok (0.060s). GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> all packages ok. go run ./cmd/progress validate -> progress: validated 7 phases. git diff --check -> clean."
               ]
             },
             {

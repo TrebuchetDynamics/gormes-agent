@@ -188,7 +188,7 @@ classification and row-backed implementation queue.
 - [x] Session metadata manual-title protection flag
 - [ ] Gateway auto-title generation wiring
 - [x] Telegram reply_to_mode and reply-context parity
-- [ ] Telegram sendChatAction typing API
+- [x] Telegram sendChatAction typing API
 - [ ] Gateway typing-action wiring during stream
 - [ ] Placeholder edit-failure fallback hardening
 - [ ] Gateway stream/tool trace formatting fixture matrix

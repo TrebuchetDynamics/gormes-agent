@@ -42,27 +42,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Telegram sendChatAction typing API
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Add a hermetic Bot.SendChatAction(ctx, chatID, action) method backed by the existing telegramClient.Request seam (tgbotapi.NewChatAction) so the gateway can later fire "typing" indicators during streaming phases. Non-fatal failure path: errors are returned but never panic, and bot wrapping continues operation.
-- Trust class: gateway, operator
-- Ready when: telegramClient.Request seam exists on dev (it does — internal/channels/telegram/client.go:26)., Fake telegramClient mock can capture Request calls (it does — used elsewhere in the package).
-- Not ready when: The slice wires the gateway to call SendChatAction during streaming — that is a sibling row (Gateway typing-action wiring during stream)., The slice extends gateway.Channel with a typing capability — that is a sibling row., The slice introduces background goroutines, retry loops, or thread-id metadata handling beyond the basic typing call.
-- Degraded mode: If the Telegram Request call fails, SendChatAction returns the error so callers can record redacted evidence; no fallback retry, no goroutine, no panic.
-- Fixture: `internal/channels/telegram/chat_action_test.go`
-- Write scope: `internal/channels/telegram/bot.go`, `internal/channels/telegram/chat_action_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'ChatAction' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Bot.SendChatAction is implemented, three hermetic fixtures prove typing-request emission, non-fatal API-error handling, and blank-chatID guard.
-- Acceptance: Bot has a SendChatAction(ctx context.Context, chatID, action string) error method., TestBot_SendChatAction_RequestsTypingAction asserts the fake client received exactly one Request call carrying tgbotapi.NewChatAction(int64(chatID), action) with action="typing"., TestBot_SendChatAction_NonFatalOnAPIError injects a Request error and asserts SendChatAction returns the error without panicking., TestBot_SendChatAction_RejectsBlankChatID returns a typed error before issuing any Request when chatID is empty (parity with how other Bot methods validate inputs).
-- Source refs: ../hermes-agent/gateway/platforms/telegram.py:2076-2104 (send_typing), internal/channels/telegram/bot.go:34-70 (Bot type + telegramClient seam), internal/channels/telegram/client.go:16-42 (telegramClient interface — Request already exists)
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Gateway stream/tool trace formatting fixture matrix
+## 2. Gateway stream/tool trace formatting fixture matrix
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -82,7 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/stream_consumer.py:482-508, ../hermes-agent/gateway/run.py, internal/gateway/render.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Gateway slash registry parity sweep (recognized-name expansion)
+## 3. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -103,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 5. Stateful tool migration queue
+## 4. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -123,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 6. Debug helpers
+## 5. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -143,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 7. Feishu transport/bootstrap layer
+## 6. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -163,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 8. Gateway auto-title generation wiring
+## 7. Gateway auto-title generation wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: internal/gateway/manager.go:864-938 (dispatchFrame, PhaseIdle case at 896), internal/session/auto_title.go:94 (PerformAutoTitle), internal/session/title_store.go (MetadataTitleStore, shipped in bffe3c518), internal/hermes/title_generator.go:91 (GenerateTitle, TitleModelFunc), internal/kernel/title_failure_test.go (auxiliary-failure routing, 4.F[1] complete), ../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title, ../hermes-agent/gateway/run.py (auto-title invocation site)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Placeholder edit-failure fallback hardening
+## 8. Placeholder edit-failure fallback hardening
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: internal/gateway/coalesce.go (flushImmediate, flushImmediateFinal, editCoalescedMessage), internal/gateway/manager.go:864-938 (dispatchFrame finalize path)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Telegram dynamic BotCommand menu wiring
+## 9. Telegram dynamic BotCommand menu wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Telegram runtime registration uses the dynamic command helper with deterministic cap/fallback fixtures.
 - Acceptance: Runtime `setMyCommands` receives core plus enabled dynamic commands in deterministic order., Aliases are omitted and command names are Telegram-safe., More than 100 commands are capped with hidden-count evidence., Core-only fallback remains available.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Active Hermes/Sidon profile context root resolver for live turns
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Live-turn context discovery resolves explicit Gormes overrides first, then active Hermes profile roots such as `HERMES_HOME=/home/xel/.hermes` + profile `mineru` or `sidon`, then workspace ancestor SOUL/USER/MEMORY files, without unit tests reading live profile state.
+- Trust class: gateway, system
+- Ready when: Current live-turn context discovery seams are identified in internal/hermes and internal/gateway., Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile.
+- Not ready when: -
+- Degraded mode: Missing profile files render missing-context evidence and continue the turn; unsafe paths are rejected with redacted evidence.
+- Fixture: `internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go`
+- Write scope: `internal/hermes/`, `internal/gateway/live_turn_prompt.go`, `internal/gateway/live_turn_prompt_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot\|SOUL\|DurableUserContext\|LiveTurn' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Hermetic profile-root resolver fixtures prove production discovery order without live profile reads.
+- Acceptance: Temp-dir tests prove Gormes override wins over Hermes profile discovery., `HERMES_HOME=/tmp/.hermes` plus active profile resolves `/tmp/.hermes/profiles/<name>/SOUL.md` and memory files., Workspace ancestor SOUL/USER/MEMORY fallback is covered., Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`.
+- Source refs: ../hermes-agent/hermes_constants.py, ../hermes-agent/run_agent.py, internal/hermes/context_files.go, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

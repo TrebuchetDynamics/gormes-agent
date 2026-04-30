@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -402,6 +403,30 @@ func isMarkdownParseError(err error) bool {
 	}
 	lower := strings.ToLower(err.Error())
 	return strings.Contains(lower, "parse") || strings.Contains(lower, "markdown")
+}
+
+// SendChatAction issues a Telegram sendChatAction request. action is one of
+// the documented Telegram chat actions ("typing", "upload_photo", etc.).
+// Failures are returned to the caller; this method does not retry, log, or
+// spawn goroutines. Caller is responsible for redacted evidence on failure.
+func (b *Bot) SendChatAction(_ context.Context, chatID, action string) error {
+	chatID = strings.TrimSpace(chatID)
+	action = strings.TrimSpace(action)
+	if chatID == "" {
+		return errors.New("telegram: SendChatAction requires non-empty chat_id")
+	}
+	if action == "" {
+		return errors.New("telegram: SendChatAction requires non-empty action")
+	}
+	id, err := strconv.ParseInt(chatID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("telegram: SendChatAction invalid chat_id %q: %w", chatID, err)
+	}
+	cfg := tgbotapi.NewChatAction(id, action)
+	if _, err := b.client.Request(cfg); err != nil {
+		return fmt.Errorf("telegram: SendChatAction: %w", err)
+	}
+	return nil
 }
 
 func parseChatID(s string) (int64, error) {
