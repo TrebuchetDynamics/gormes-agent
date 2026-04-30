@@ -2715,6 +2715,67 @@
               ]
             },
             {
+              "name": "Telegram voice/audio inbound attachment markers",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Telegram voice and audio messages produce nonblank channel-neutral submit text plus bounded attachment descriptors so downstream gateway/model paths can see media evidence instead of an empty user turn.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If Telegram supplies media without a resolvable URL, Gormes preserves the platform file ID as redacted source evidence and still emits a readable marker rather than blank text.",
+              "fixture": "internal/channels/telegram/bot_test.go:TestBot_ToInboundEvent_VoiceMessageIsNotBlank + TestBot_ToInboundEvent_AudioMessageWithCaptionPreservesCaptionAndMarker",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py",
+                "internal/channels/telegram/bot.go",
+                "internal/gateway/event.go"
+              ],
+              "ready_when": [
+                "Gateway Attachment descriptors are available on InboundEvent.SubmitText.",
+                "Telegram adapter tests can inject fake voice/audio updates without live Telegram or provider calls."
+              ],
+              "not_ready_when": [
+                "The implementation requires live Telegram file downloads or provider transcription calls.",
+                "Media-only updates can still become blank EventSubmit text."
+              ],
+              "acceptance": [
+                "Voice-only updates emit nonblank submit text containing a Telegram voice marker and duration evidence.",
+                "Audio updates with captions preserve the caption and append a Telegram audio marker.",
+                "Attachment descriptors include kind, media type, file name where present, and source ID without fetching live media.",
+                "Slash-command parsing still runs after marker assembly and media fixtures remain hermetic."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "internal/channels/telegram/mock_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'VoiceMessageIsNotBlank|AudioMessageWithCaption' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram voice/audio fake-update tests prove media-only and captioned audio messages produce nonblank submit text and bounded attachment evidence."
+              ],
+              "evidence": [
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'VoiceMessageIsNotBlank|AudioMessageWithCaption' -count=1 -> pass",
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1 -> pass"
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:gateway/platforms/telegram.py media ingress behavior",
+                "note": "Completes the small adapter seam that prevents Telegram voice/audio updates from entering Gormes as blank turns."
+              }
+            },
+            {
               "name": "DeliveryRouter + --deliver target parsing",
               "status": "complete",
               "note": "TDD landed: --deliver parsing now covers origin/local/platform/platform:chat/platform:chat:thread forms with explicit invalid-shape tests before future adapter routing binds them to live channels."

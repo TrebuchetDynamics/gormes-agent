@@ -195,6 +195,7 @@ classification and row-backed implementation queue.
 - [ ] Gateway active-turn policy manifest closeout
 - [ ] Gateway conversational session metadata refresh
 - [ ] Gateway session token accounting parity
+- [x] Telegram voice/audio inbound attachment markers
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
 - [x] Non-editable gateway progress/commentary send fallback
