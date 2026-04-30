@@ -48,6 +48,9 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewTextToSpeechTool(tools.NewTTSRunner(tools.TTSConfig{
 		OutputDir: filepath.Join(config.GormesHome(), "cache", "audio"),
 	}, ttsProviders)))
+	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
+		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
+	}))
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
 		Budget: tools.ToolResultBudgetConfig{
 			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),

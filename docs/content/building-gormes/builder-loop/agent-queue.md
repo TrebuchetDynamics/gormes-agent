@@ -22,27 +22,7 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Hermes memory tool over Goncho/local durable store
-
-- Phase: 3 / 3.F
-- Owner: `memory`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Expose the Hermes-visible `memory` tool with add, replace, and remove actions over memory/user targets, backed by Goncho or local durable USER.md/MEMORY.md storage, while preserving safe write responses, redaction, locks, and prompt-insertion semantics.
-- Trust class: system, operator
-- Ready when: Hermes memory tool actions and Gormes Goncho/local durable context seams have been source-mapped., Temp durable memory fixtures can prove add/replace/remove behavior without reading live USER.md/MEMORY.md or external Honcho.
-- Not ready when: -
-- Degraded mode: If durable memory storage is unavailable, the tool returns memory_store_unavailable evidence and does not mutate prompt context or transcripts.
-- Fixture: `internal/tools/memory_tool_test.go + internal/memory`
-- Write scope: `cmd/gormes/registry.go`, `cmd/gormes/registry_test.go`, `internal/tools/memory_tool.go`, `internal/tools/memory_tool_test.go`, `internal/memory/`, `internal/goncho/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/memory ./internal/goncho -run 'MemoryTool\|DurableUserContext\|Goncho' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run Registry -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Hermes-compatible `memory` tool fixtures prove safe durable add/replace/remove behavior over Goncho/local memory stores.
-- Acceptance: Default tool registry exposes a Hermes-compatible `memory` descriptor., Add, replace, and remove actions mutate only temp durable memory fixtures in tests., memory and user targets map to the intended durable stores without renaming Goncho internally., Injection/exfiltration scans and redaction prevent unsafe content from entering provider-visible memory., Tool responses are bounded and match Hermes-compatible success/error shapes.
-- Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Gateway slash registry parity sweep (recognized-name expansion)
+## 1. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -63,7 +43,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 3. Stateful tool migration queue
+## 2. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -83,7 +63,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 4. Debug helpers
+## 3. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -103,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 5. Feishu transport/bootstrap layer
+## 4. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -123,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 6. Gateway active-turn policy manifest closeout
+## 5. Gateway active-turn policy manifest closeout
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -143,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:267-290, ../hermes-agent/gateway/run.py:2950-3225, internal/gateway/commands.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Gateway conversational session metadata refresh
+## 6. Gateway conversational session metadata refresh
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -163,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/session.py, ../hermes-agent/gateway/run.py:4646-4680, internal/gateway/status_command.go, internal/session/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Gateway session token accounting parity
+## 7. Gateway session token accounting parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/run.py:4674, internal/gateway/status_command.go, internal/gateway/usage_command.go, internal/hermes/provider_transport.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Goncho memory provider lifecycle adapter
+## 8. Goncho memory provider lifecycle adapter
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Prompt-cache capability guard
+## 9. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -220,6 +200,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Prompt-cache fixtures prove provider policy, native/envelope/stripped layouts, four-breakpoint rewrite behavior, and visible unsupported-provider status without live probes.
 - Acceptance: Policy fixtures match Hermes for native Anthropic, Anthropic-host aliases, OpenRouter Claude, third-party Anthropic Claude gateways, OpenAI-wire custom Claude names, and Qwen opencode/opencode-go/Alibaba cases., Message rewrite fixtures deep-copy inputs, place at most four breakpoints, mark system plus last three non-system messages, preserve 1h TTL, and handle native Anthropic tool-role markers., OpenAI-wire providers without an allow rule strip cache_control before request serialization and expose a visible degraded capability reason., Provider status and request bodies agree: a supported policy serializes cache markers and an unsupported policy omits them.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Browser artifact and console render contract
+
+- Phase: 5 / 5.C
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Browser tool results expose bounded screenshot paths, DOM snapshots, console logs, page errors, and artifact metadata in a channel-neutral envelope; renderers show safe previews without raw bytes, base64 blobs, private URLs, CDP secrets, or unbounded provider output.
+- Trust class: system, gateway, operator
+- Ready when: Hermes browser tool artifact/result behavior and Gormes browser harness result envelopes are source-mapped., Pure internal/tools fixtures can prove artifact budgeting, console/error metadata, and redacted evidence without starting Chrome or cloud browser services.
+- Not ready when: -
+- Degraded mode: Oversized or missing artifacts render browser_artifact_unavailable or browser_artifact_truncated evidence and keep the turn readable.
+- Fixture: `internal/tools/browser_artifact_test.go + internal/gateway/render_test.go`
+- Write scope: `internal/tools/browser_contract.go`, `internal/tools/browser_harness_tools.go`, `internal/tools/result_budget.go`, `internal/tools/browser_artifact_test.go`, `internal/gateway/render.go`, `internal/gateway/render_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/gateway -run 'Browser.*Artifact\|Browser.*Console\|Render' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Browser artifact fixtures prove bounded screenshot/snapshot/console/error envelopes and channel-safe rendering.
+- Acceptance: Tool fixtures cover screenshot path, DOM snapshot excerpt, console logs, and page errors., Artifact budgets truncate large snapshots with evidence., Gateway renderer emits channel-safe artifact summaries without raw image bytes or base64., Secrets, cookies, CDP URLs, and private URLs are redacted.
+- Source refs: ../hermes-agent/tools/browser_camofox.py:300, ../hermes-agent/tools/browser_camofox.py:493, ../hermes-agent/tools/browser_camofox.py:583, ../hermes-agent/tools/browser_tool.py, internal/tools/browser_contract.go, internal/tools/result_budget.go, internal/gateway/render.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

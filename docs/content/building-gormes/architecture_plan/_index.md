@@ -438,7 +438,7 @@ classification and row-backed implementation queue.
 - [x] Goncho dreaming scheduler contract
 - [x] Goncho CRUD lifecycle invariants
 - [x] Goncho empty peer-card hint contract
-- [ ] Hermes memory tool over Goncho/local durable store
+- [x] Hermes memory tool over Goncho/local durable store
 - [ ] Goncho memory provider lifecycle adapter
 
 ### 3.G — Goncho Drop-In Compatibility Closure ✅

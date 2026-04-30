@@ -8584,10 +8584,10 @@
             },
             {
               "name": "Hermes memory tool over Goncho/local durable store",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Expose the Hermes-visible `memory` tool with add, replace, and remove actions over memory/user targets, backed by Goncho or local durable USER.md/MEMORY.md storage, while preserving safe write responses, redaction, locks, and prompt-insertion semantics.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
@@ -8606,10 +8606,10 @@
               ],
               "acceptance": [
                 "Default tool registry exposes a Hermes-compatible `memory` descriptor.",
-                "Add, replace, and remove actions mutate only temp durable memory fixtures in tests.",
+                "Add, replace, and remove actions mutate only temp durable USER.md/MEMORY.md fixtures in tests.",
                 "memory and user targets map to the intended durable stores without renaming Goncho internally.",
-                "Injection/exfiltration scans and redaction prevent unsafe content from entering provider-visible memory.",
-                "Tool responses are bounded and match Hermes-compatible success/error shapes."
+                "Injection/exfiltration scans reject unsafe content before durable memory writes.",
+                "Tool responses are bounded and match Hermes-compatible success/error shapes with redacted degraded evidence."
               ],
               "write_scope": [
                 "cmd/gormes/registry.go",
@@ -8627,7 +8627,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Hermes-compatible `memory` tool fixtures prove safe durable add/replace/remove behavior over Goncho/local memory stores."
+                "Hermes-compatible `memory` tool fixtures prove safe durable add/replace/remove behavior over local durable memory stores and default registry exposure."
               ],
               "provenance": {
                 "origin_type": "porting",
@@ -8637,7 +8637,19 @@
               "ready_when": [
                 "Hermes memory tool actions and Gormes Goncho/local durable context seams have been source-mapped.",
                 "Temp durable memory fixtures can prove add/replace/remove behavior without reading live USER.md/MEMORY.md or external Honcho."
-              ]
+              ],
+              "health": {
+                "last_attempt": "2026-04-30T05:30:00Z",
+                "last_success": "2026-04-30T05:30:00Z",
+                "backends_tried": [
+                  "codex"
+                ],
+                "evidence": [
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run ^TestMemoryTool -count=1 failed on undefined MemoryTool APIs.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run ^TestMemoryTool -count=1 passed.",
+                  "RED/GREEN registry: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run ^TestBuildDefaultRegistryDelegationDisabled$ -count=1 failed until memory registration was added, then passed."
+                ]
+              }
             },
             {
               "name": "Goncho memory provider lifecycle adapter",
