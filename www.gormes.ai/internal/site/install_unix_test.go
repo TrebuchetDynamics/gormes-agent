@@ -296,6 +296,74 @@ func TestInstallSH_TermuxUsesPrefixBin(t *testing.T) {
 	}
 }
 
+func TestInstallSH_RootLinuxDefaultsToFHSLayout(t *testing.T) {
+	home := t.TempDir()
+	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
+	out, err := runInstallSH(t,
+		`printf '%s|%s|%s\n' "$(managed_home_dir)" "$(managed_checkout_dir)" "$(pick_bin_dir)"`,
+		"HOME="+home,
+		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_EFFECTIVE_UID=0",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("runInstallSH: %v\n%s", err, out)
+	}
+	want := home + "/.gormes|/usr/local/lib/gormes-agent|/usr/local/bin"
+	if strings.TrimSpace(out) != want {
+		t.Fatalf("root paths = %q, want %q", strings.TrimSpace(out), want)
+	}
+}
+
+func TestInstallSH_RootLinuxPreservesLegacyUserScopedCheckout(t *testing.T) {
+	home := t.TempDir()
+	legacy := filepath.Join(home, ".gormes", "gormes-agent", ".git")
+	if err := os.MkdirAll(legacy, 0o755); err != nil {
+		t.Fatalf("mkdir legacy checkout: %v", err)
+	}
+	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
+	out, err := runInstallSH(t,
+		`printf '%s|%s|%s\n' "$(managed_home_dir)" "$(managed_checkout_dir)" "$(pick_bin_dir)"`,
+		"HOME="+home,
+		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_EFFECTIVE_UID=0",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("runInstallSH: %v\n%s", err, out)
+	}
+	want := home + "/.gormes|" + home + "/.gormes/gormes-agent|" + home + "/.local/bin"
+	if strings.TrimSpace(out) != want {
+		t.Fatalf("legacy root paths = %q, want %q", strings.TrimSpace(out), want)
+	}
+}
+
+func TestInstallSH_ExplicitDirAndBinDirOverrideRootFHSLayout(t *testing.T) {
+	home := t.TempDir()
+	overrideDir := filepath.Join(home, "src", "gormes-agent")
+	overrideBin := filepath.Join(home, "bin")
+	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
+	out, err := runInstallSH(t,
+		`parse_args --dir "$OVERRIDE_DIR" --bin-dir "$OVERRIDE_BIN"; printf '%s|%s\n' "$(managed_checkout_dir)" "$(pick_bin_dir)"`,
+		"HOME="+home,
+		"OVERRIDE_DIR="+overrideDir,
+		"OVERRIDE_BIN="+overrideBin,
+		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_EFFECTIVE_UID=0",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("runInstallSH: %v\n%s", err, out)
+	}
+	want := overrideDir + "|" + overrideBin
+	if strings.TrimSpace(out) != want {
+		t.Fatalf("explicit override paths = %q, want %q", strings.TrimSpace(out), want)
+	}
+}
+
 func TestInstallSH_WindowsShellHintMentionsPowerShell(t *testing.T) {
 	home := t.TempDir()
 	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
