@@ -18196,6 +18196,8 @@
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub_clawhub.py:TestClawHubSource",
                 "internal/skills/hub_search.go",
                 "internal/skills/hub_search_test.go",
+                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider",
+                "internal/skills/hub_registry_sources_test.go:TestWellKnownRegistryProviderReadsIndexMetadata,TestClawHubProviderCommunityTrustAndDegradedEvidence,TestClawHubProviderDegradedEvidence",
                 "internal/skills/url_candidate.go"
               ],
               "ready_when": [
@@ -18237,7 +18239,7 @@
               "done_signal": [
                 "Native registry providers expose current Hermes HermesIndex, Skills.sh/GitHub, WellKnown, ClawHub, ClaudeMarketplace, and LobeHub metadata through HubRegistryProvider/Search with fixture-backed cache/degraded evidence tests, centralized-index source filtering, and no install/store mutation."
               ],
-              "note": "2026-04-30 parity correction refreshed this builder-ready row after source comparison against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d showed the prior row was stale-upstream: Hermes now includes HermesIndexSource, ClaudeMarketplaceSource, and LobeHubSource in addition to GitHubSource, SkillsShSource, WellKnownSkillSource, UrlSource, ClawHubSource, create_source_router, parallel_search_sources, and unified_search. Current Gormes evidence is the pure Search read model in internal/skills/hub_search.go plus the separate validated direct-URL candidate parser row. 2026-04-30 builder slice added source-backed WellKnownRegistryProvider metadata reading in internal/skills/hub_registry_sources.go with fixture coverage in internal/skills/hub_registry_sources_test.go; the row remains planned until the remaining HermesIndex, Skills.sh/GitHub, ClawHub, ClaudeMarketplace, LobeHub, cache fallback, and no-install dependency assertions land."
+              "note": "2026-04-30 parity correction refreshed this builder-ready row after source comparison against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d showed the prior row was stale-upstream: Hermes now includes HermesIndexSource, ClaudeMarketplaceSource, and LobeHubSource in addition to GitHubSource, SkillsShSource, WellKnownSkillSource, UrlSource, ClawHubSource, create_source_router, parallel_search_sources, and unified_search. Current Gormes evidence is the pure Search read model in internal/skills/hub_search.go plus the separate validated direct-URL candidate parser row. 2026-04-30 builder slice added source-backed WellKnownRegistryProvider metadata reading in internal/skills/hub_registry_sources.go with fixture coverage in internal/skills/hub_registry_sources_test.go; a follow-up TDD slice added ClawHubRegistryProvider catalog metadata normalization, community trust, tag normalization, and degraded evidence via TestClawHubProviderCommunityTrustAndDegradedEvidence/TestClawHubProviderDegradedEvidence. The row remains planned until the remaining HermesIndex, Skills.sh/GitHub, ClaudeMarketplace, LobeHub, cache fallback, and no-install dependency assertions land."
             },
             {
               "name": "Skills hub direct URL candidate parser",
