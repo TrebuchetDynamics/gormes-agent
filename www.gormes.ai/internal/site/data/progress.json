@@ -2400,10 +2400,10 @@
             },
             {
               "name": "Gateway auto-title generation wiring",
-              "status": "complete",
+              "status": "planned",
               "priority": "P1",
               "contract": "After an assistant turn finalizes (kernel.PhaseIdle), the gateway invokes session.PerformAutoTitle once per turn against the MetadataTitleStore adapter, using internal/hermes.GenerateTitle as the provider boundary, so untitled sessions get one auto-generated title from the first user+assistant exchange while manual titles, already-titled sessions, blank generator output, and provider failures all surface evidence without retry storms or transcript mutation.",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
