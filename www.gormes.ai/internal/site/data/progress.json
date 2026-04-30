@@ -15523,9 +15523,9 @@
             },
             {
               "name": "Stateful tool migration queue",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes defines the migration queue and execution guard for stateful Hermes tools before exposing write-capable tools to the native loop: file, session, checkpoint, and process tools declare state domains, XDG roots, rollback/audit behavior, concurrency policy, and degraded evidence; the first implementation is a registry/read-model contract that lets builders add one stateful tool at a time without bypassing path isolation.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -15569,15 +15569,14 @@
                 "TestStatefulToolMigrationQueueSerializedWrites proves write-domain tools run through one deterministic queue while read-only tools can remain concurrent.",
                 "TestStatefulToolMigrationQueueNoRuntimePort proves the queue contract does not execute shell/file/process mutations."
               ],
-              "note": "Builder-ready planning/contract row for stateful tool migration. Engram supplies the serialized write-queue pattern, Axe supplies bounded artifact/path evidence, and Nanobot supplies tool registry/hook ordering patterns; Hermes tool files define the parity surface.",
+              "note": "Implemented internal/tools/stateful_migration_queue.go with a pure stateful tool migration queue/read-model. RED/GREEN fixtures in internal/tools/stateful_migration_queue_test.go prove domain registration, rollback-contract rejection, injected-root path isolation, serialized write execution vs concurrent read-only execution, and deterministic runtime-not-ported evidence. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestStatefulToolMigrationQueue -count=1.",
               "write_scope": [
                 "internal/tools/stateful_migration_queue.go",
                 "internal/tools/stateful_migration_queue_test.go",
-                "internal/tools/registry.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools -run TestStatefulToolMigrationQueue -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestStatefulToolMigrationQueue -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [

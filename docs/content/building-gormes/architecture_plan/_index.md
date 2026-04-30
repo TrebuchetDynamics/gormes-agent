@@ -590,7 +590,7 @@ classification and row-backed implementation queue.
 - [x] Discord tool limit coercion helper
 - [x] Home Assistant HASS_TOKEN platform-toolset carveout
 - [ ] Pure core tools first
-- [ ] Stateful tool migration queue
+- [x] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
 - [x] Tool output budget persisted artifact pointer
 
