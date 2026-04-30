@@ -127,6 +127,25 @@ func TestDoctorCmdInvokesCustomEndpointReadiness(t *testing.T) {
 	}
 }
 
+func TestDoctorOfflineOutputDoesNotMentionHermesAPIServer(t *testing.T) {
+	setupCustomEndpointDoctorEnv(t)
+
+	stdout, err := captureDoctorStdout(t, func() error {
+		cmd := newRootCommand()
+		cmd.SetArgs([]string{"doctor", "--offline"})
+		return cmd.Execute()
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s", err, stdout)
+	}
+
+	for _, forbidden := range []string{"api_server", "API_SERVER_ENABLED", "hermes gateway start"} {
+		if strings.Contains(stdout, forbidden) {
+			t.Fatalf("doctor output contains obsolete Hermes API-server guidance %q:\n%s", forbidden, stdout)
+		}
+	}
+}
+
 func findItem(items []doctor.ItemInfo, name string) (doctor.ItemInfo, bool) {
 	for _, it := range items {
 		if it.Name == name {

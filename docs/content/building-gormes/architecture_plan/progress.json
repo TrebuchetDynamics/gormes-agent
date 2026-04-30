@@ -23474,7 +23474,7 @@
                 "A redaction fixture proves raw API key bytes never appear in returned errors, status evidence, or test logs.",
                 "Provider-without-model ambiguity keeps the existing explicit-model guard."
               ],
-              "note": "Complete: TDD added cmd/gormes/provider_flag_resolution_test.go and wired root --endpoint/--api-key as invocation-only startup overrides beside existing --model/--provider. Oneshot and TUI startup apply endpoint/api-key flags after config/env loading, build provider clients from flag values for the current process, leave persisted config and env-backed defaults untouched, preserve provider-without-model exit-code-2 ambiguity errors, and redact raw API key bytes from provider setup and startup error text. 2026-04-29 hardening added a shared provider client resolver for oneshot, gateway, and live TUI startup so empty endpoints fail before relative URL dials, openai-codex can resolve Gormes-owned OAuth credential-pool base URLs and access tokens, and provider health checks carry bearer auth when a token is configured.",
+              "note": "Complete: TDD added cmd/gormes/provider_flag_resolution_test.go and wired root --endpoint/--api-key as invocation-only startup overrides beside existing --model/--provider. Oneshot and TUI startup apply endpoint/api-key flags after config/env loading, build provider clients from flag values for the current process, leave persisted config and env-backed defaults untouched, preserve provider-without-model exit-code-2 ambiguity errors, and redact raw API key bytes from provider setup and startup error text. 2026-04-29 hardening added a shared provider client resolver for oneshot, gateway, and live TUI startup so empty endpoints fail before relative URL dials, openai-codex can resolve Gormes-owned OAuth credential-pool base URLs and access tokens, and provider health checks carry bearer auth when a token is configured. 2026-04-30 startup hardening keeps local TUI startup from probing provider /health; doctor remains the explicit provider health diagnostic.",
               "write_scope": [
                 "cmd/gormes/main.go",
                 "cmd/gormes/gateway.go",
@@ -23490,19 +23490,19 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run 'TestProviderHTTPClient|TestNewGatewayHermesClient|TestTUIUsesCodexCredentialPoolWhenEndpointEmpty' -count=1",
+                "go test ./cmd/gormes -run 'TestProviderHTTPClient|TestNewGatewayHermesClient|TestTUIUsesCodexCredentialPoolWhenEndpointEmpty|TestTUIStartupDoesNotProbeProviderHealth' -count=1",
                 "go test ./internal/hermes -run 'TestHTTPClientHealth' -count=1",
                 "go test ./cmd/gormes ./internal/config -run 'Test.*Provider.*Flag|Test.*Endpoint|Test.*APIKey|Test.*OneshotInference|Test.*TUI.*Model' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Provider-flag fixtures prove endpoint/model/provider/api-key precedence, redaction, no config mutation, and unchanged ambiguity errors for oneshot and TUI startup.",
-                "Provider-client fixtures prove empty endpoints fail at setup before a relative URL request and openai-codex resolves the Gormes OAuth credential pool for oneshot, gateway, and live TUI startup.",
+                "Provider-client fixtures prove empty endpoints fail at setup before a relative URL request, openai-codex resolves the Gormes OAuth credential pool for oneshot, gateway, and live TUI startup, and local TUI startup does not probe provider /health before the first submitted turn.",
                 "HTTP client health fixtures prove bearer auth is attached to provider health checks when a token is configured and omitted when no token is available."
               ],
               "evidence": {
                 "implementation": "cmd/gormes/main.go, cmd/gormes/gateway.go, cmd/gormes/provider_client.go, cmd/gormes/provider_flag_resolution_test.go, cmd/gormes/provider_client_test.go, cmd/gormes/gateway_test.go, cmd/gormes/tui_provider_client_test.go, internal/hermes/http_client.go, internal/hermes/http_client_health_test.go, internal/config/config.go, internal/config/config_test.go; follow-up hardening reads Hermes profile config.yaml model.default/model.provider into HermesCfg and ResolveInference so gateway/TUI/oneshot do not fall back to localhost-only default provider semantics when the active Hermes profile carries provider metadata.",
-                "tests": "go test ./internal/config -run TestLoad_HermesConfigYAMLModelProviderParity|TestLoad_GormesEnvOverridesHermesConfigYAML -count=1; go test ./cmd/gormes -run 'TestProviderHTTPClient|TestNewGatewayHermesClient|TestTUIUsesCodexCredentialPoolWhenEndpointEmpty' -count=1; go test ./internal/hermes -run 'TestHTTPClientHealth' -count=1; go test ./cmd/gormes ./internal/config -run Test.*Provider.*Flag|Test.*Endpoint|Test.*APIKey|Test.*OneshotInference|Test.*TUI.*Model -count=1; go test ./cmd/gormes ./internal/config -count=1; go test ./... -count=1; go run ./cmd/progress validate; git diff --check"
+                "tests": "go test ./internal/config -run TestLoad_HermesConfigYAMLModelProviderParity|TestLoad_GormesEnvOverridesHermesConfigYAML -count=1; go test ./cmd/gormes -run 'TestProviderHTTPClient|TestNewGatewayHermesClient|TestTUIUsesCodexCredentialPoolWhenEndpointEmpty|TestTUIStartupDoesNotProbeProviderHealth' -count=1; go test ./internal/hermes -run 'TestHTTPClientHealth' -count=1; go test ./cmd/gormes ./internal/config -run Test.*Provider.*Flag|Test.*Endpoint|Test.*APIKey|Test.*OneshotInference|Test.*TUI.*Model -count=1; go test ./cmd/gormes ./internal/config -count=1; go test ./... -count=1; go run ./cmd/progress validate; git diff --check"
               }
             },
             {
@@ -24858,14 +24858,14 @@
                 "TestDoctorCustomEndpointAllEmpty: cfg with all three empty returns Status=StatusWarn Summary='disabled' so doctor stays useful even when no endpoint is configured.",
                 "TestDoctorCmdInvokesCustomEndpointReadiness: running doctorCmd.RunE against an in-memory cfg with custom endpoint emits the new check's Format() block to stdout in --offline mode and exits 0 when Status<=Warn."
               ],
-              "note": "Reshape of the prior quarantined 5.O row. The previous contract pointed at internal/config/ and internal/hermes/status.go without specifying what to add there; the worker had no obvious first edit. This row narrows scope to one named pure function plus its doctorCmd wiring and five named tests. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+              "note": "Reshape of the prior quarantined 5.O row. The previous contract pointed at internal/config/ and internal/hermes/status.go without specifying what to add there; the worker had no obvious first edit. This row narrows scope to one named pure function plus its doctorCmd wiring and five named tests. The split intentionally drops the prior health/quarantine block; the contract is materially replaced. 2026-04-30 messaging hardening removed obsolete api_server and `hermes gateway start` guidance from doctor output; doctor now names provider health/setup as the explicit diagnostic surface.",
               "write_scope": [
                 "cmd/gormes/doctor.go",
                 "cmd/gormes/doctor_custom_provider_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run 'TestDoctorCustomEndpoint|TestDoctorCmdInvokesCustomEndpointReadiness' -count=1",
+                "go test ./cmd/gormes -run 'TestDoctorCustomEndpoint|TestDoctorCmdInvokesCustomEndpointReadiness|TestDoctorOfflineOutputDoesNotMentionHermesAPIServer' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go vet ./cmd/gormes",
                 "go run ./cmd/progress validate"

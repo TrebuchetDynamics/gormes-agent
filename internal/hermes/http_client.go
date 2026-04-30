@@ -26,8 +26,8 @@ type httpClient struct {
 	parameterRetry   ProviderUnsupportedParameterRetryStatus
 }
 
-// NewHTTPClient returns a Client that talks HTTP+SSE to a Hermes-compatible
-// api_server. baseURL example: "http://127.0.0.1:8642".
+// NewHTTPClient returns a Client that talks HTTP+SSE to a
+// Hermes/Gormes-compatible provider endpoint.
 // The returned client streams without a global timeout so long turns
 // (minutes, with tool use) are not truncated; see per-phase timeouts inside.
 func NewHTTPClient(baseURL, apiKey string) Client {

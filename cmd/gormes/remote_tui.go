@@ -18,11 +18,9 @@ import (
 )
 
 // runRemoteTUIWithRuntime is the --remote <url> startup path. It does not
-// instantiate a kernel, hermes HTTP client, or session DB; instead it
+// instantiate a local kernel, provider client, or session DB; instead it
 // dials the remote gateway's SSE event stream and forwards Bubble Tea
-// submit/cancel callbacks to the gateway over plain HTTP. The api_server
-// health probe is intentionally skipped because the operator's brain
-// runs on the remote side.
+// submit/cancel callbacks to the gateway over plain HTTP.
 //
 // This keeps the local Bubble Tea path entirely intact when --remote is
 // not set: the function is only reachable via runResolvedTUIWithRuntime
