@@ -164,11 +164,25 @@ func workspaceRoot() (string, error) {
 		return "", err
 	}
 	for dir := wd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-		if filepath.Base(dir) == "workspace-mineru" {
+		base := filepath.Base(dir)
+		if (base == "workspace-gormes" || base == "workspace-mineru") && hasHermesGatewayConfig(dir) {
+			return dir, nil
+		}
+	}
+	for _, dir := range []string{
+		"/home/xel/git/sages-openclaw/workspace-gormes",
+		"/home/xel/git/sages-openclaw/workspace-mineru",
+	} {
+		if hasHermesGatewayConfig(dir) {
 			return dir, nil
 		}
 	}
 	return "", os.ErrNotExist
+}
+
+func hasHermesGatewayConfig(dir string) bool {
+	info, err := os.Stat(filepath.Join(dir, "hermes-agent", "gateway", "config.py"))
+	return err == nil && !info.IsDir()
 }
 
 func validPlatformImplementationStatus(status PlatformImplementationStatus) bool {

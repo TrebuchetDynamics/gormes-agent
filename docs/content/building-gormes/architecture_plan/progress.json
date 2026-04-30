@@ -2468,10 +2468,10 @@
             },
             {
               "name": "Telegram reply_to_mode and reply-context parity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Telegram replies honor Hermes-style reply mode configuration, fall back cleanly if a target message was deleted, and inbound Telegram reply text can be attached to session context without leaking raw slash commands to the model.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -22397,9 +22397,93 @@
                 "Gormes mcp login interface seam + noninteractive default",
                 "Gormes mcp login browser callback flow",
                 "Gormes profile command binding",
-                "Model and profile selector seam (Cobra + gateway)"
+                "Model and profile selector seam (Cobra + gateway)",
+                "Gormes agent template reset command"
               ],
-              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, login removed-command typo suggestion, profile command binding, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login interface seam + noninteractive default, mcp login browser callback flow, model and profile selector seam). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. The 2026-04-29 omnibus update renamed the prior `Gormes login deprecated-redirect contract` row to `Gormes login removed-command typo suggestion contract` (Q1B decision: typo guide via Cobra unknown-command, not a deprecated subparser shim) and renamed the prior `Gormes mcp login OAuth re-auth bridge` to a split pair (`Gormes mcp login interface seam + noninteractive default` and `Gormes mcp login browser callback flow`). Do not assign this umbrella row directly."
+              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, login removed-command typo suggestion, profile command binding, model interactive picker, minimal setup wizard slice, uninstall dry-run, mcp login interface seam + noninteractive default, mcp login browser callback flow, model and profile selector seam, agent template reset). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. The 2026-04-29 omnibus update renamed the prior `Gormes login deprecated-redirect contract` row to `Gormes login removed-command typo suggestion contract` (Q1B decision: typo guide via Cobra unknown-command, not a deprecated subparser shim) and renamed the prior `Gormes mcp login OAuth re-auth bridge` to a split pair (`Gormes mcp login interface seam + noninteractive default` and `Gormes mcp login browser callback flow`). The 2026-04-30 update added a bounded Gormes-owned `agent reset` template slice for SOUL/durable-context development reset. Do not assign this umbrella row directly."
+            },
+            {
+              "name": "Gormes agent template reset command",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "`gormes agent reset [--target <dir>] [--dry-run] [--force]` seeds Gormes-owned agent context templates adapted from Hermes' default SOUL/persona behavior. By default it creates missing `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `memory/USER.md`, and `memory/MEMORY.md` under the target root, skips existing files without overwriting, reports deterministic create/skip actions, and uses `config.GormesHome()` when --target is omitted.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Existing files are skipped unless --force is set; --dry-run reports would_create/would_overwrite/would_skip actions without creating directories or files; an empty target returns agent_template_target_required; write failures surface the relative template path without leaking unrelated filesystem content.",
+              "fixture": "cmd/gormes/agent_reset_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/default_soul.py:DEFAULT_SOUL_MD",
+                "../hermes-agent/scripts/install.sh:SOUL.md seed",
+                "../hermes-agent/scripts/install.ps1:SOUL.md seed",
+                "internal/gateway/live_turn_prompt.go:defaultLiveTurnProfileDir",
+                "internal/gateway/live_turn_prompt.go:defaultLiveTurnMemoryDir",
+                "internal/hermes/context_files.go",
+                "internal/hermes/durable_user_context.go"
+              ],
+              "ready_when": [
+                "The current live-turn prompt loader discovers SOUL.md and memory/USER.md or memory/MEMORY.md from Gormes home and workspace ancestors.",
+                "Tests use temp target dirs and never touch real GORMES_HOME, HERMES_HOME, or the active development workspace.",
+                "The CLI can report deterministic actions through injected stdout without running the TUI or any provider setup."
+              ],
+              "not_ready_when": [
+                "The command hard-codes `/home/xel/git/sages-openclaw/workspace-gormes` or any other operator-specific path.",
+                "The default invocation overwrites existing user files.",
+                "Dry-run creates parent directories or template files.",
+                "The slice changes live-turn prompt assembly or imports Hermes runtime state."
+              ],
+              "unblocks": [
+                "Gormes setup minimal sectioned wizard slice",
+                "Diagnostics, backup, logs, and status CLI"
+              ],
+              "acceptance": [
+                "TestAgentTemplateDefaultFilesMatchLiveTurnLookup proves the default template set includes SOUL.md at the target root plus memory/USER.md and memory/MEMORY.md under the durable context directory.",
+                "TestAgentTemplateApplyCreatesMissingFiles proves a clean target receives every template with deterministic create actions.",
+                "TestAgentTemplateApplySkipsExistingWithoutForce proves existing files are preserved and reported as skip actions.",
+                "TestAgentTemplateApplyForceOverwritesExisting proves --force overwrites existing template files and reports overwrite actions.",
+                "TestAgentTemplateApplyDryRunDoesNotWrite proves --dry-run reports would-create/would-overwrite/would-skip without creating files or directories.",
+                "TestAgentResetCommandCreatesTemplatesInTarget proves `gormes agent reset --target <dir>` writes templates and renders deterministic relative-path output.",
+                "TestAgentResetCommandDryRunLeavesTargetEmpty proves CLI dry-run does not touch the target while still reporting would-create actions.",
+                "TestRootCommandIncludesAgentCommand proves the root Cobra tree exposes `agent reset`."
+              ],
+              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths.",
+              "write_scope": [
+                "cmd/gormes/agent.go",
+                "cmd/gormes/agent_reset_test.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "cmd/gormes/main.go",
+                "internal/gateway/platform_manifest_test.go",
+                "internal/hermes/guidance_constants_test.go",
+                "internal/agenttemplate/template.go",
+                "internal/agenttemplate/template_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/superpowers/specs/2026-04-30-agent-template-reset-design.md",
+                "docs/superpowers/plans/2026-04-30-agent-template-reset.md"
+              ],
+              "test_commands": [
+                "go test ./internal/agenttemplate -count=1",
+                "go test ./cmd/gormes -run 'TestAgent|TestRootCommandIncludesAgentCommand|TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Template and CLI fixtures prove targetable non-destructive reset, dry-run, force overwrite, live-turn lookup-compatible paths, root registration, and manifest classification."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/default_soul.py DEFAULT_SOUL_MD + scripts/install.* SOUL.md seed",
+                "note": "Hermes defines the persona fallback and seed-file behavior; Gormes owns the targetable reset command and development-context template set."
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-30T02:10:11Z",
+                "last_success": "2026-04-30T02:10:11Z"
+              }
             },
             {
               "name": "Gormes auth bare interactive credential-pool readout",

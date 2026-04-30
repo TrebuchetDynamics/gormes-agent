@@ -14,7 +14,7 @@ Hermes hard to shrink.
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
 - Upstream commit: `ee1a07f9`
-- Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
+- Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent`
 - Gormes commit: `a8a62302`
 - Date: 2026-04-27
 

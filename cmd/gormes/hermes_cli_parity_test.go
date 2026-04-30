@@ -204,7 +204,7 @@ func TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences(t *
 			t.Fatalf("dynamic plugin entry %v = %+v, want dynamic plugin classification", path, entry)
 		}
 	}
-	for _, path := range [][]string{{"goncho"}, {"--offline"}, {"--remote"}} {
+	for _, path := range [][]string{{"goncho"}, {"agent"}, {"agent", "reset"}, {"--offline"}, {"--remote"}} {
 		entry := requireHermesCLIEntry(t, path)
 		if entry.Status != hermesCLIOwned {
 			t.Fatalf("Gormes-owned entry %v = %+v, want owned divergence", path, entry)

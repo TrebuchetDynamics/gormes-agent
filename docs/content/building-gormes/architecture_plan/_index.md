@@ -187,7 +187,7 @@ classification and row-backed implementation queue.
 - [x] Gateway /title manual session title command
 - [x] Session metadata manual-title protection flag
 - [ ] Gateway auto-title generation wiring
-- [ ] Telegram reply_to_mode and reply-context parity
+- [x] Telegram reply_to_mode and reply-context parity
 - [ ] Telegram typing action + placeholder lifecycle parity
 - [ ] Gateway stream/tool trace formatting fixture matrix
 - [ ] Telegram dynamic BotCommand menu wiring
@@ -749,6 +749,7 @@ classification and row-backed implementation queue.
 - [x] Gateway /reasoning apply + dispatch
 - [x] Busy command guard for compression and long CLI actions
 - [ ] Config, profile, auth, and setup command surfaces
+- [x] Gormes agent template reset command
 - [ ] Gormes auth bare interactive credential-pool readout
 - [x] Gormes auth status per-provider aggregator
 - [ ] Gormes auth add openai-codex strict isolation contract

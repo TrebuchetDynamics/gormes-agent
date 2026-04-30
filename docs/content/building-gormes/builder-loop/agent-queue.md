@@ -163,27 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: internal/gateway/manager.go:864-938 (dispatchFrame, PhaseIdle case at 896), internal/session/auto_title.go:94 (PerformAutoTitle), internal/session/title_store.go (MetadataTitleStore, shipped in bffe3c518), internal/hermes/title_generator.go:91 (GenerateTitle, TitleModelFunc), internal/kernel/title_failure_test.go (auxiliary-failure routing, 4.F[1] complete), ../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title, ../hermes-agent/gateway/run.py (auto-title invocation site)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Telegram reply_to_mode and reply-context parity
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Telegram replies honor Hermes-style reply mode configuration, fall back cleanly if a target message was deleted, and inbound Telegram reply text can be attached to session context without leaking raw slash commands to the model.
-- Trust class: gateway, operator
-- Ready when: Hermes Telegram reply-mode behavior has been mapped to Gormes Telegram adapter and gateway context seams., Fake Telegram client fixtures can cover outbound reply, fallback, and inbound reply-context behavior without live Telegram.
-- Not ready when: -
-- Degraded mode: If reply metadata is unavailable, Gormes sends a normal message with reply_context_missing evidence rather than failing the turn.
-- Fixture: `internal/channels/telegram/reply_mode_test.go + internal/gateway/manager_test.go`
-- Write scope: `internal/channels/telegram/`, `internal/gateway/`, `internal/config/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'Reply\|Telegram' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Telegram reply-mode fixtures prove quoting, fallback, and inbound reply context parity.
-- Acceptance: Outbound placeholder, final, error, and `/status` messages obey reply mode., Deleted reply target errors fall back to non-reply send with evidence., Inbound replied-to message text reaches channel-neutral session context only when Hermes would include it., Unit tests use fake Telegram clients only.
-- Source refs: ../hermes-agent/gateway/platforms/telegram.py:904-922, ../hermes-agent/gateway/platforms/telegram.py:1022-1032, ../hermes-agent/gateway/platforms/telegram.py:2935-2959, internal/channels/telegram/bot.go, internal/gateway/manager.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 9. Telegram typing action + placeholder lifecycle parity
+## 8. Telegram typing action + placeholder lifecycle parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/base.py:1718-1724, ../hermes-agent/gateway/platforms/base.py:1976-1986, ../hermes-agent/gateway/platforms/telegram.py:1909-1935, internal/gateway/coalesce.go, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Telegram dynamic BotCommand menu wiring
+## 9. Telegram dynamic BotCommand menu wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Telegram runtime registration uses the dynamic command helper with deterministic cap/fallback fixtures.
 - Acceptance: Runtime `setMyCommands` receives core plus enabled dynamic commands in deterministic order., Aliases are omitted and command names are Telegram-safe., More than 100 commands are capped with hidden-count evidence., Core-only fallback remains available.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Active Hermes/Sidon profile context root resolver for live turns
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Live-turn context discovery resolves explicit Gormes overrides first, then active Hermes profile roots such as `HERMES_HOME=/home/xel/.hermes` + profile `mineru` or `sidon`, then workspace ancestor SOUL/USER/MEMORY files, without unit tests reading live profile state.
+- Trust class: gateway, system
+- Ready when: Current live-turn context discovery seams are identified in internal/hermes and internal/gateway., Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile.
+- Not ready when: -
+- Degraded mode: Missing profile files render missing-context evidence and continue the turn; unsafe paths are rejected with redacted evidence.
+- Fixture: `internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go`
+- Write scope: `internal/hermes/`, `internal/gateway/live_turn_prompt.go`, `internal/gateway/live_turn_prompt_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot\|SOUL\|DurableUserContext\|LiveTurn' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Hermetic profile-root resolver fixtures prove production discovery order without live profile reads.
+- Acceptance: Temp-dir tests prove Gormes override wins over Hermes profile discovery., `HERMES_HOME=/tmp/.hermes` plus active profile resolves `/tmp/.hermes/profiles/<name>/SOUL.md` and memory files., Workspace ancestor SOUL/USER/MEMORY fallback is covered., Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`.
+- Source refs: ../hermes-agent/hermes_constants.py, ../hermes-agent/run_agent.py, internal/hermes/context_files.go, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

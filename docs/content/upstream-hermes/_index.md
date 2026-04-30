@@ -13,7 +13,7 @@ The content below is preserved verbatim from the upstream docs so operators eval
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
 - Upstream commit: `b288934d`
-- Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
+- Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent`
 - Date: 2026-04-27
 
 ## 2026-04-27 Security And Tooling Drift Check

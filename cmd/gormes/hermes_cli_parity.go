@@ -83,6 +83,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("dashboard", "hermes_cli/main.py:dashboard", "Dashboard theme/plugin extension status contract", "dashboard launch/status command remains row-backed"),
 		hermesRowCommand("logs", "hermes_cli/main.py:logs", "Diagnostics, backup, logs, and status CLI", "log snapshot command remains row-backed"),
 		hermesOwnedCommand("goncho", "cmd/gormes/goncho.go", "Gormes-owned Honcho-compatible local memory namespace"),
+		hermesOwnedCommand("agent", "cmd/gormes/agent.go", "Gormes-owned agent context template reset command"),
 		hermesGlobalFlag("-z", "hermes_cli/main.py:--oneshot", hermesCLIImplemented, "cmd/gormes --oneshot", "Hermes oneshot short flag parity"),
 		hermesGlobalFlag("--oneshot", "hermes_cli/main.py:--oneshot", hermesCLIImplemented, "cmd/gormes --oneshot", "Hermes oneshot flag parity"),
 		hermesGlobalFlag("--model", "hermes_cli/main.py:--model", hermesCLIImplemented, "cmd/gormes --model", "model override is implemented for startup resolution"),
@@ -143,6 +144,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries = append(entries, hermesNestedCommands("claw", "hermes_cli/claw.py", "OpenClaw migration dry-run manifest", []string{"migrate", "cleanup"})...)
 	entries = append(entries, hermesNestedAlias("claw", "clean", "cleanup", "hermes_cli/main.py:claw_subparsers:cleanup aliases", "OpenClaw migration dry-run manifest"))
 	entries = append(entries, hermesNestedCommands("profile", "hermes_cli/main.py:profile_subparsers", "Gormes profile command binding", []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import"})...)
+	entries = append(entries, hermesOwnedPath([]string{"agent", "reset"}, "cmd/gormes/agent.go:reset", "Gormes-owned default agent template reset command"))
 
 	entries = append(entries, hermesGatewayHandlers()...)
 	entries = append(entries, hermesSlashRegistryEntries()...)
@@ -167,6 +169,10 @@ func hermesCommandSet(name, sourceRef, residual, row string) hermesCLIParityEntr
 
 func hermesOwnedCommand(name, sourceRef, residual string) hermesCLIParityEntry {
 	return hermesCLIParityEntry{Path: []string{name}, Kind: hermesCLICommand, Status: hermesCLIOwned, SourceRef: sourceRef, Target: "cmd/gormes " + name, Residual: residual}
+}
+
+func hermesOwnedPath(path []string, sourceRef, residual string) hermesCLIParityEntry {
+	return hermesCLIParityEntry{Path: slices.Clone(path), Kind: hermesCLICommand, Status: hermesCLIOwned, SourceRef: sourceRef, Target: "cmd/gormes " + strings.Join(path, " "), Residual: residual}
 }
 
 func hermesExcludedCommand(name, sourceRef, residual string) hermesCLIParityEntry {
