@@ -55,6 +55,32 @@ source-backed parity lessons for future rows and tests:
 | Skills as reviewed code | GBrain + Hermes | Skills have metadata, resolver tests, inactive drafts, review, feedback, and version history. |
 | Visible degraded mode | GBrain + Hermes | Missing embeddings, provider limits, stale extraction, plugin/tool gaps, and dead letters surface in status/doctor/audit. |
 
+## Space Agent Reference Lessons
+
+Space Agent was cloned locally at `../space-agent` from
+`https://github.com/agent0ai/space-agent` and inspected at commit `9c26f9f`.
+It is not a Hermes parity source, but it is a useful design donor for
+agent-maintained runtime surfaces, browser automation UX, and durable
+operator contracts.
+
+| Pattern | Space Agent source | Lesson for Gormes |
+|---|---|---|
+| Hierarchical agent docs as runtime contracts | `../space-agent/AGENTS.md`; `../space-agent/app/AGENTS.md`; module-local `AGENTS.md` files | Keep Gormes' repo-local skills, AGENTS.md, and building docs as binding contracts near the owning code. When a stable seam changes, update the closest contract doc in the same pass instead of relying on README prose. |
+| Layered customware model | `../space-agent/app/AGENTS.md`; `../space-agent/server/lib/customware/AGENTS.md` | Space Agent's `L0` firmware, `L1` group, and `L2` user layering is a useful mental model for future Gormes skill/plugin/user-state layering. Gormes should still preserve Hermes/Goncho homes and Go package ownership rather than importing the browser-first filesystem shape directly. |
+| Metadata-driven skill visibility and placement | `../space-agent/app/L0/_all/mod/_core/skillset/AGENTS.md`; `../space-agent/app/L0/_all/mod/_core/skillset/skills.js` | Skill eligibility, auto-load, and system/transient/history placement are better expressed in skill metadata plus context tags than hardcoded prompt-builder branches. This reinforces Gormes skill parity work around platform/context filters, load order, and prompt placement. |
+| Prompt contributors as keyed, budgeted items | `../space-agent/app/L0/_all/mod/_core/agent_prompt/prompt-items.js`; `../space-agent/app/L0/_all/mod/_core/agent_prompt/prompt-runtime.js` | Gormes prompt assembly and compression should model system/history/transient contributors as keyed objects with cached token counts and trim policy. Long-context trimming should expose a runtime read-back seam instead of silently dropping text. |
+| Plain markdown memory includes | `../space-agent/app/L0/_all/mod/_core/memory/AGENTS.md` | Space Agent keeps durable behavior and rolling memories as prompt-include markdown files. Gormes already has USER.md/MEMORY.md/SOUL.md pressure; future memory UX should keep plain-text operator-editable files as first-class, even when Goncho adds structured provenance underneath. |
+| Browser automation typed refs and action effects | `../space-agent/app/L0/_all/mod/_core/web_browsing/AGENTS.md`; `../space-agent/tests/browser_content_format_test.mjs`; `../space-agent/app/L0/_all/mod/_core/skillset/ext/skills/browser-control/SKILL.md` | Browser captures should prefer compact typed refs such as `[button 6] Confirm`, scoped reads, detail-on-demand, and action-effect evidence (`reacted`, `noObservedEffect`, validation text) over raw DOM dumps. This is directly relevant to Gormes browser-harness parity. |
+| Stream-aware supervisor and replaceable children | `../space-agent/commands/lib/supervisor/AGENTS.md`; `../space-agent/commands/supervise.js`; `../space-agent/tests/supervise_command_test.mjs` | A production supervisor can keep children opaque, bind public traffic itself, use private child ports, stage updates outside the live checkout, drain long streams, and expose short process titles. Gormes gateway/service management should borrow the operator clarity without moving core runtime logic into the supervisor. |
+| Centralized app-file permissions and mutation validation | `../space-agent/server/api/AGENTS.md`; `../space-agent/server/lib/customware/AGENTS.md`; `../space-agent/tests/file_write_operations_test.mjs` | File tools should centralize path normalization, permission checks, batch preflight, and mutation semantics before writes. Gormes file-tool parity remains Hermes-defined, but Space Agent's append/prepend/insert tests are useful fixture shapes for safe local file operations. |
+| Git-backed user/group time travel | `../space-agent/server/lib/git/AGENTS.md`; `../space-agent/server/lib/customware/AGENTS.md` | Per-owner local Git history with serialized operations, rollback/revert previews, and protected auth metadata is a strong donor concept for Gormes `/snapshot`, `/branch`, and recovery UX. The Go implementation should stay local-first and explicit about which roots are protected. |
+
+Do not copy Space Agent's browser-first architecture wholesale. Gormes remains
+a Go Hermes-compatible runtime with gateway, CLI, provider, tool, memory, and
+Goncho boundaries. The reusable lessons are mostly contract shape,
+metadata-driven discovery, prompt budgeting, browser ref UX, and operator
+supervision patterns.
+
 ## Latest Sync Notes
 
 The 2026-04-30 Gormes dogfood/docs pass locks two more operator lessons into

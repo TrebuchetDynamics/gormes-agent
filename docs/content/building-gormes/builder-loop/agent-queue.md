@@ -21,6 +21,11 @@ the main skill entrypoint, plan, candidate source, generated docs, tests, and
 candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
+If the generated list is empty, do not switch to an ad hoc TODO list. Route
+through `gormes-planner`, repair one planned/draft row until it satisfies the
+handoff contract, validate `progress.json`, and then return to builder
+selection.
+
 <!-- PROGRESS:START kind=agent-queue -->
 _No unblocked contract rows are ready for autonomous execution._
 <!-- PROGRESS:END -->

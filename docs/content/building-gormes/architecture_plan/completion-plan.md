@@ -77,12 +77,17 @@ agent, Goncho, tool, and release lanes.
 | Phase | Open rows | Planner meaning |
 |---|---:|---|
 | Phase 1 — Dashboard / control plane | 0 | Skill-era control rows are complete: planning/building route through canonical development skills and symlink loader views instead of deleted loop binaries. |
-| Phase 2 — Gateway | 15 | Mostly channel polish, home-channel ownership, and mid-run steering. Keep these behind Lane 1/2 unless a row unblocks normal operation. |
-| Phase 3 — Memory | 3 | Goncho now has an explicit drop-in compatibility closure: SDK-style harness, normal-turn integration, and empty peer-card hint. |
-| Phase 4 — Brain Transplant | 30 | Highest strategic pressure: provider, context, prompt, routing, OAuth, retry, telemetry, and the new normal-turn e2e closure decide whether Gormes is really Hermes in Go. |
-| Phase 5 — Final Purge | 70 | Largest backlog: tools, sandboxing, browser/media, security, CLI/API/TUI, packaging, and release. Split umbrellas before building. |
-| Phase 6 — Learning Loop | 11 | Depends on the skills substrate and memory evidence; build after the skill storage/retrieval rows are sharper. |
-| Phase 7 — Paused Channels | 16 | Explicit backlog. Build only fixture-ready slices or channel dependencies that unblock Lane 4. |
+| Phase 2 — Gateway | 3 | Remaining work is narrow operator-surface polish: notify-to routing, channel directory invalidation, and mirror/sticker cache surfaces. |
+| Phase 3 — Memory | 0 | Current Goncho/Honcho memory closure rows are complete; future memory work lives in Phase 4 context/compression and Phase 6 learning. |
+| Phase 4 — Brain Transplant | 15 | Highest strategic pressure: provider adapters, context/compression, prompt assembly, model metadata, trajectory evidence, and native-agent-turn namespace closure. |
+| Phase 5 — Final Purge | 38 | Largest backlog: tool registry breadth, sandboxing, browser/media, security, CLI/API/TUI, packaging, code-execution policy, and release. Split umbrellas before building. |
+| Phase 6 — Learning Loop | 8 | Skill extraction, storage, retrieval, scoring, and operator surfaces remain planned; build after the skill rows are sharper. |
+| Phase 7 — Paused Channels | 11 | Explicit backlog. Build only fixture-ready slices or channel dependencies that unblock core gateway delivery. |
+
+`Agent Queue` may still be empty with this ledger because most remaining rows
+are planned/draft rather than builder-ready. Empty queue means planner work is
+next: choose one row, sharpen its contract, and regenerate/validate the
+progress docs before assigning it to a builder.
 
 The first closure target is not "all green"; it is a **Python-free normal
 agent turn** with local Goncho memory and tested tool-call continuation. That is

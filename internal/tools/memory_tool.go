@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 )
@@ -118,20 +119,29 @@ func (t *MemoryTool) execute(in memoryToolArgs) MemoryToolResult {
 		return memoryError(MemoryEvidenceStoreUnavailable, err.Error())
 	}
 
-	entries, err := readMemoryEntries(path)
-	if err != nil {
-		return memoryError(MemoryEvidenceStoreUnavailable, "read durable memory store")
-	}
-
-	switch strings.ToLower(strings.TrimSpace(in.Action)) {
-	case "add":
-		return t.add(path, target, entries, in.Content)
-	case "replace":
-		return t.replace(path, target, entries, in.OldText, replacementContent(in))
-	case "remove":
-		return t.remove(path, target, entries, in.OldText)
+	action := strings.ToLower(strings.TrimSpace(in.Action))
+	switch action {
 	case "read":
+		entries, err := readMemoryEntries(path)
+		if err != nil {
+			return memoryError(MemoryEvidenceStoreUnavailable, "read durable memory store")
+		}
 		return memorySuccess(target, entries, t.limitFor(target), "Entries read.")
+	case "add", "replace", "remove":
+		return withMemoryFileLock(path, func() MemoryToolResult {
+			entries, err := readMemoryEntries(path)
+			if err != nil {
+				return memoryError(MemoryEvidenceStoreUnavailable, "read durable memory store")
+			}
+			switch action {
+			case "add":
+				return t.add(path, target, entries, in.Content)
+			case "replace":
+				return t.replace(path, target, entries, in.OldText, replacementContent(in))
+			default:
+				return t.remove(path, target, entries, in.OldText)
+			}
+		})
 	default:
 		return memoryError(MemoryEvidenceInvalidArgs, "action must be add, replace, remove, or read")
 	}
@@ -142,6 +152,22 @@ func replacementContent(in memoryToolArgs) string {
 		return in.NewContent
 	}
 	return in.Content
+}
+
+func withMemoryFileLock(path string, fn func() MemoryToolResult) MemoryToolResult {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "prepare memory lock")
+	}
+	lock, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "open memory lock")
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		return memoryError(MemoryEvidenceStoreUnavailable, "acquire memory lock")
+	}
+	defer func() { _ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN) }()
+	return fn()
 }
 
 func (t *MemoryTool) add(path, target string, entries []string, content string) MemoryToolResult {

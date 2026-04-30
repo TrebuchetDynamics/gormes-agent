@@ -21,6 +21,11 @@ The ordering is:
 Use this page when choosing implementation work. If a row is too broad, split
 the row in `progress.json` before assigning it.
 
+If no slices are listed, the next correct action is planner work: choose one
+planned row from `progress.json` or a phase page and add enough contract detail
+for it to appear here. Do not infer that an empty generated list means the
+roadmap is complete.
+
 <!-- PROGRESS:START kind=next-slices -->
 _No contract-ready progress rows are available._
 <!-- PROGRESS:END -->

@@ -75,6 +75,21 @@ The old `cmd/planner-loop` and `cmd/builder-loop` executables are removed.
 Use `go run ./cmd/progress validate` and `go run ./cmd/progress write` for
 progress maintenance, and use `go run ./cmd/repoctl ...` for repo metadata.
 
+## Current queue rule
+
+The generated [Agent Queue](./builder-loop/agent-queue/) and
+[Next Slices](./builder-loop/next-slices/) can be empty even while
+`progress.json` still contains planned rows. Empty means no unblocked,
+non-umbrella row currently satisfies the builder handoff contract; it does not
+mean Gormes is done.
+
+When the queue is empty, run a `gormes-planner` pass against the relevant phase
+or subsystem. The planner should sharpen a planned/draft row until it has
+source refs, write scope, acceptance, degraded mode, and test commands. Only
+then should `gormes-builder` and `gormes-tdd-slice` implement it. Historical
+audits and parity matrices are evidence surfaces; `progress.json` is the
+dispatch queue.
+
 ## Contributor path
 
 Use the planning docs in this order:

@@ -8814,6 +8814,7 @@
                 "../hermes-agent/tools/memory_tool.py:1-24",
                 "../hermes-agent/tools/memory_tool.py:222-513",
                 "../hermes-agent/tools/memory_tool.py:105-124",
+                "../hermes-agent/tools/memory_tool.py:129-163",
                 "cmd/gormes/registry.go",
                 "internal/gonchotools/honcho_tools.go",
                 "internal/hermes/durable_user_context.go",
@@ -8825,6 +8826,7 @@
                 "Read action returns bounded live entries and usage without mutating durable USER.md/MEMORY.md fixtures.",
                 "Read action parses Hermes `\\n§\\n` delimited memory files and deduplicates repeated entries while preserving first occurrence order.",
                 "Add/write actions persist memory entries with Hermes' `\\n§\\n` delimiter instead of the legacy double-blank delimiter.",
+                "Add, replace, and remove actions honor Hermes' sibling `MEMORY.md.lock` / `USER.md.lock` file before read-modify-write mutations so concurrent sessions do not silently clobber durable memory.",
                 "Replace accepts Hermes' `content` field as a compatibility alias when Gormes' `new_content` field is omitted.",
                 "Limit-exceeded add responses return current_entries and current usage without leaking or persisting the rejected content.",
                 "memory and user targets map to the intended durable stores without renaming Goncho internally.",
@@ -8875,7 +8877,9 @@
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolLimitExceededReturnsCurrentEntriesAndUsage -count=1 failed until current_entries and usage were added to limit-exceeded responses.",
                   "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(LimitExceededReturnsCurrentEntriesAndUsage|RejectsUnsafePromptInjectionContent)' -count=1 passed.",
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReadsHermesDelimitedEntriesAndDeduplicates|WritesHermesEntryDelimiter)' -count=1 failed because Hermes-delimited files were parsed as one entry and writes used the legacy double-blank delimiter.",
-                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReadsHermesDelimitedEntriesAndDeduplicates|WritesHermesEntryDelimiter)' -count=1 passed after switching to Hermes delimiter and deduping loaded entries."
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReadsHermesDelimitedEntriesAndDeduplicates|WritesHermesEntryDelimiter)' -count=1 passed after switching to Hermes delimiter and deduping loaded entries.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolAddWaitsForHermesLockFile -count=1 failed because add completed while MEMORY.md.lock was held.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryToolAddWaitsForHermesLockFile|^TestMemoryTool$' -count=1 passed after wrapping memory mutations in a sibling lock file."
                 ]
               }
             },

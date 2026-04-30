@@ -18,11 +18,29 @@ Every porting pass must route through a repo-local skill:
 
 ## 1. Pick your target
 
-Open [Subsystem Inventory](../architecture_plan/subsystem-inventory/). Every row is a Hermes subsystem with a target Gormes sub-phase. Pick one that:
+Start from the current dispatch surfaces, not from memory or an old audit:
 
-- Carries a ⏳ planned status (not already shipped)
-- Has no hard dependency on a later phase (check the "Target phase" column)
-- You have context on (voice/vision are big lifts; a platform adapter is a reasonable first PR)
+1. Check [Agent Queue](../builder-loop/agent-queue/) and
+   [Next Slices](../builder-loop/next-slices/) for builder-ready rows.
+2. If those generated pages are empty, choose one planned row from
+   `progress.json`, [Contract Readiness](../contract-readiness/), or the
+   relevant phase page and run a `gormes-planner` pass to make it executable.
+3. Use [Subsystem Inventory](../architecture_plan/subsystem-inventory/) and
+   [Hermes And Honcho Feature Map](../architecture_plan/hermes-honcho-feature-map/)
+   to confirm the upstream subsystem and target phase.
+
+Pick work that:
+
+- Is not already `complete` in `progress.json`.
+- Has no unsatisfied `blocked_by` dependency.
+- Can be expressed as one contract-bearing row with source refs, write scope,
+  test commands, acceptance, degraded mode, and done signal.
+- Fits your context and risk tolerance: voice/vision/provider rows are large
+  lifts; a focused command, tool, or adapter fixture is a better first row.
+
+Historical audit tables are evidence, not dispatch state. If an audit says a
+surface is missing but `progress.json` now marks the row complete/validated,
+treat it as historical unless current code or tests prove a regression.
 
 ## 2. Do the source-study checklist
 

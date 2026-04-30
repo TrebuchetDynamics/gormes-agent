@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func TestMemoryToolMutatesDurableMemoryTargets(t *testing.T) {
@@ -172,6 +174,77 @@ func TestMemoryToolWritesHermesEntryDelimiter(t *testing.T) {
 	if strings.Contains(string(raw), "\n\n§\n\n") {
 		t.Fatalf("MEMORY.md = %q, should not use legacy double-blank delimiter", raw)
 	}
+}
+
+func TestMemoryToolAddWaitsForHermesLockFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "MEMORY.md")
+	lockPath := path + ".lock"
+	lock, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatalf("open lock file: %v", err)
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatalf("lock fixture: %v", err)
+	}
+
+	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir})
+	started := make(chan struct{})
+	type asyncMemoryResult struct {
+		result MemoryToolResult
+		err    error
+	}
+	done := make(chan asyncMemoryResult, 1)
+	go func() {
+		close(started)
+		raw, err := json.Marshal(map[string]any{
+			"action":  "add",
+			"target":  "memory",
+			"content": "Locked memory add waits for other sessions.",
+		})
+		if err != nil {
+			done <- asyncMemoryResult{err: err}
+			return
+		}
+		out, err := tool.Execute(context.Background(), raw)
+		if err != nil {
+			done <- asyncMemoryResult{err: err}
+			return
+		}
+		var result MemoryToolResult
+		if err := json.Unmarshal(out, &result); err != nil {
+			done <- asyncMemoryResult{err: err}
+			return
+		}
+		done <- asyncMemoryResult{result: result}
+	}()
+	<-started
+
+	select {
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("add errored while Hermes lock file was held: %v", got.err)
+		}
+		t.Fatalf("add completed while Hermes lock file was held: %#v", got.result)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_UN); err != nil {
+		t.Fatalf("unlock fixture: %v", err)
+	}
+	select {
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("add after unlock error: %v", got.err)
+		}
+		if !got.result.Success || got.result.EntryCount != 1 {
+			t.Fatalf("add after unlock result = %#v, want success", got.result)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("add did not complete after Hermes lock file was released")
+	}
+	assertFileContains(t, path, "Locked memory add waits for other sessions.")
 }
 
 func TestMemoryToolLimitExceededReturnsCurrentEntriesAndUsage(t *testing.T) {
