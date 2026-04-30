@@ -62,27 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 3. Goncho memory provider lifecycle adapter
-
-- Phase: 3 / 3.F
-- Owner: `memory`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Create a native Goncho memory-provider lifecycle adapter covering initialize, prefetch, sync turn, pre-compress contribution, memory-write mirror, delegation, and shutdown evidence so Gormes matches Hermes MemoryManager behavior without a hosted Honcho dependency.
-- Trust class: system
-- Ready when: Hermes MemoryManager lifecycle hooks and Gormes Goncho/kernel seams have been source-mapped., Fake provider and temp SQLite/local stores can exercise lifecycle behavior without hosted Honcho or provider network.
-- Not ready when: -
-- Degraded mode: Unavailable providers return memory_provider_unavailable evidence and leave ordinary turn execution intact.
-- Fixture: `internal/memory/provider_lifecycle_test.go + internal/goncho`
-- Write scope: `internal/memory/`, `internal/goncho/`, `internal/kernel/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/memory ./internal/goncho ./internal/kernel -run 'MemoryProviderLifecycle\|ShutdownMemory\|PreCompress\|Goncho' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Goncho memory-provider lifecycle fixtures prove initialize, prefetch, sync, pre-compress, mirror, delegation, and shutdown behavior.
-- Acceptance: Lifecycle tests prove initialize and prefetch run once per session/provider., Turn sync mirrors user/assistant exchanges into Goncho with redacted evidence., Pre-compress contributions are bounded and ordered before compression., Shutdown drains or reports pending memory work without blocking process exit., Tests use fake providers and SQLite temp stores only.
-- Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Clarify
+## 3. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

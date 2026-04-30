@@ -8674,10 +8674,10 @@
             },
             {
               "name": "Goncho memory provider lifecycle adapter",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Create a native Goncho memory-provider lifecycle adapter covering initialize, prefetch, sync turn, pre-compress contribution, memory-write mirror, delegation, and shutdown evidence so Gormes matches Hermes MemoryManager behavior without a hosted Honcho dependency.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
@@ -8715,7 +8715,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Goncho memory-provider lifecycle fixtures prove initialize, prefetch, sync, pre-compress, mirror, delegation, and shutdown behavior."
+                "MemoryProviderLifecycle fixtures prove initialize, prefetch, sync, pre-compress, memory-write mirror, delegation, reverse shutdown, and sanitized degraded evidence behavior."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -8725,7 +8725,8 @@
               "ready_when": [
                 "Hermes MemoryManager lifecycle hooks and Gormes Goncho/kernel seams have been source-mapped.",
                 "Fake provider and temp SQLite/local stores can exercise lifecycle behavior without hosted Honcho or provider network."
-              ]
+              ],
+              "note": "TDD landed 2026-04-30: internal/memory now exposes a native MemoryProviderLifecycle adapter with hermetic fixtures for initialize idempotence, ordered prefetch and pre-compress contributions, sync-turn mirroring, memory-write/delegation hooks, reverse shutdown, and sanitized memory_provider_unavailable degradation. Focused row tests also cover existing Goncho/kernel shutdown and pre-compress gates without live Honcho, provider network, or Hermes runtime services."
             }
           ],
           "drift_state": {
