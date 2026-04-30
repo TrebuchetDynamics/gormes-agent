@@ -129,7 +129,7 @@ func TestSlashCommandPolicyParityWithCLIRegistry(t *testing.T) {
 
 func TestGatewayRegistryRecognizesSharedAndGatewayCLICommands(t *testing.T) {
 	for _, policy := range cli.CommandRegistry {
-		if policy.Surface == cli.CommandSurfaceCLI || policy.ActiveTurnPolicy == cli.ActiveTurnPolicyQueue {
+		if policy.ActiveTurnPolicy == cli.ActiveTurnPolicyQueue {
 			continue
 		}
 		cmd, ok := ResolveCommand(policy.Name)

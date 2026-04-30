@@ -5484,7 +5484,7 @@
             },
             {
               "name": "Gateway slash registry parity sweep (recognized-name expansion)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -5493,7 +5493,7 @@
                 "operator"
               ],
               "contract": "internal/gateway/commands.go::CommandRegistry recognizes every Hermes/Sidon command from cmd/gormes/hermes_cli_parity_test.go's manifest, even when the handler is not yet implemented, so unknown-command replies only fire on actual non-Hermes inputs. Each newly-recognized command lands with ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable and a friendly description, mirroring the existing /retry, /undo, /title, /branch, /compress pattern. Aliases (reset for new, set-home for sethome, gateway for platforms, etc.) resolve to the canonical command. Handler ports remain owned by the 49-file CLI tree port umbrella; this row only changes recognition.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "When an expanded recognized command is sent and no handler exists, the bot replies '/<cmd> is recognized but unavailable' instead of 'unknown command', matching the existing buildRecognizedUnavailableSlashCommands pathway. No live runtime side effects.",
               "fixture": "internal/gateway/commands_test.go + cmd/gormes/hermes_cli_parity_test.go",
               "source_refs": [
@@ -5546,7 +5546,12 @@
                 "origin_type": "porting",
                 "upstream_ref": "hermes:hermes_cli/commands.py COMMAND_REGISTRY",
                 "note": "The Hermes parity manifest is already complete; this slice surfaces the inventory in the runtime registry so the slash UX matches Hermes immediately, even before each handler port lands."
-              }
+              },
+              "evidence": [
+                "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'GatewayRegistryRecognizes' -count=1 failed because browser, busy, clear, config, copy, cron, history, image, paste, platforms, plugins, quit, reload, save, skills, skin, statusbar, tools, toolsets, and verbose were missing from gateway ResolveCommand.",
+                "GREEN: Added those Hermes/Sidon command names and aliases as CommandActiveTurnPolicyUnavailable entries in internal/gateway/commands.go; GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'GatewayRegistryRecognizes' -count=1 passed.",
+                "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'CommandRegistry|ActiveTurn|TelegramBotCommands|Slack|GatewayRegistry' -count=1 and GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./cmd/gormes -count=1 passed."
+              ]
             }
           ]
         },
