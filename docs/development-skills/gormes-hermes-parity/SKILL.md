@@ -195,6 +195,17 @@ If a row is complete, only mark it complete when code, tests, and docs evidence
 prove the behavior. If a behavior is `owned`, document the divergence and the
 compatibility boundary in the row.
 
+If parity docs or coordinator briefs still describe a row as `regressed`,
+`planner refinement`, or a top-P0 blocker after `progress.json` and source/tests
+show the row is already complete, do a docs/progress reconciliation slice instead
+of creating new runtime work. Verify the completed row's focused tests first,
+update the parity matrix/detail sections and coordinator next-slice ordering to
+remove stale blocker language, run the progress/docs gates, and commit only the
+docs/progress surfaces. Example: after `Telegram MarkdownV2 parse-mode rendering
+closeout` was complete, stale matrix/brief docs still advertised it as a
+regressed planner-refinement P0; the correct bounded pass was to reconcile those
+docs and promote the next P0 rows, not reimplement ParseMode wiring.
+
 ### 6. Safe Taxonomy And Restructure Mode
 
 Use this mode when parity labels, feature-map headings, phase/subphase names,
