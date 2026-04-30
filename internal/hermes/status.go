@@ -71,7 +71,7 @@ func openAICompatibleProviderStatus(provider, baseURL string) ProviderStatus {
 		Provider: providerName,
 		Runtime:  "chat_completions",
 		Capabilities: ProviderCapabilities{
-			PromptCache:     unavailableCapability("cache_control stripped by openai_compatible request mapping"),
+			PromptCache:     openAICompatiblePromptCacheStatus(provider, baseURL),
 			ReasoningEcho:   openAICompatibleReasoningEchoStatus(provider, baseURL),
 			RateGuard:       unavailableCapability("provider rate guard not implemented"),
 			BudgetTelemetry: unavailableCapability("budget telemetry not implemented"),

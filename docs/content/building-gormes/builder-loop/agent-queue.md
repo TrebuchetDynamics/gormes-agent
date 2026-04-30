@@ -82,26 +82,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Prompt-cache capability guard
-
-- Phase: 4 / 4.H
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes applies Hermes prompt-cache markers only when provider, endpoint, API mode, and model policy allow them: native Anthropic uses native layout, OpenRouter Claude uses envelope layout, third-party Anthropic Claude gateways cache conservatively, Qwen on opencode/opencode-go/Alibaba gets envelope markers, and OpenAI-wire custom providers without an allow rule strip cache_control visibly.
-- Trust class: operator, system
-- Ready when: Provider status already exposes a prompt-cache capability slot and unsupported OpenAI-compatible cache_control stripping is validated., The worker can test policy decisions and message rewrites with synthetic provider/baseURL/apiMode/model tuples; no live provider, token store, or network call is required.
-- Not ready when: The slice sends cache_control to every OpenAI-compatible provider, changes retry/rate-limit behavior, or relies on live provider probes., The slice only changes status text without proving request mapping for native, envelope, and stripped layouts.
-- Degraded mode: Provider status reports prompt_cache_supported, prompt_cache_stripped, prompt_cache_provider_unknown, or prompt_cache_policy_unavailable instead of leaking unsupported cache_control fields into strict providers.
-- Fixture: `internal/hermes/prompt_cache_policy_test.go`
-- Write scope: `internal/hermes/prompt_cache_policy.go`, `internal/hermes/prompt_cache_policy_test.go`, `internal/hermes/status.go`, `internal/hermes/anthropic_client.go`, `internal/hermes/provider_status_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run 'TestPromptCachePolicy\|TestApplyPromptCacheControl' -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/progress validate`
-- Done signal: Prompt-cache fixtures prove provider policy, native/envelope/stripped layouts, four-breakpoint rewrite behavior, and visible unsupported-provider status without live probes.
-- Acceptance: Policy fixtures match Hermes for native Anthropic, Anthropic-host aliases, OpenRouter Claude, third-party Anthropic Claude gateways, OpenAI-wire custom Claude names, and Qwen opencode/opencode-go/Alibaba cases., Message rewrite fixtures deep-copy inputs, place at most four breakpoints, mark system plus last three non-system messages, preserve 1h TTL, and handle native Anthropic tool-role markers., OpenAI-wire providers without an allow rule strip cache_control before request serialization and expose a visible degraded capability reason., Provider status and request bodies agree: a supported policy serializes cache markers and an unsupported policy omits them.
-- Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Telegram browser artifact rendering
+## 4. Telegram browser artifact rendering
 
 - Phase: 5 / 5.C
 - Owner: `gateway`
@@ -121,7 +102,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py, ../hermes-agent/tools/browser_tool.py, internal/gateway/render.go, internal/channels/telegram/bot.go, internal/tools/browser_harness_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Clarify
+## 5. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

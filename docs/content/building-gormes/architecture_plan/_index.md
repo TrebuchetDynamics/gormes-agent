@@ -81,14 +81,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 45/78 subphases shipped · 26 in progress · 7 planned
+**Overall:** 46/78 subphases shipped · 25 in progress · 7 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 14/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 3/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -545,7 +545,7 @@ classification and row-backed implementation queue.
 - [x] Multi-account auth
 - [x] Google OAuth flow + refresh seam
 
-### 4.H — Rate / Retry / Caching 🔨
+### 4.H — Rate / Retry / Caching ✅
 
 - [x] Provider-side resilience
 - [x] Classified provider-error taxonomy
@@ -558,7 +558,7 @@ classification and row-backed implementation queue.
 - [x] Kernel retry honors Retry-After hint
 - [x] Streaming interrupt retry suppression
 - [x] Provider timeout config fail-closed helper
-- [ ] Prompt-cache capability guard
+- [x] Prompt-cache capability guard
 - [x] Provider account usage read model + renderer
 - [x] Gateway /usage command binding over provider account usage
 - [x] Provider rate guard + budget telemetry

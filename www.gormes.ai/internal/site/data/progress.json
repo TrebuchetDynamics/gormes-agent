@@ -13976,9 +13976,9 @@
             },
             {
               "name": "Prompt-cache capability guard",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes applies Hermes prompt-cache markers only when provider, endpoint, API mode, and model policy allow them: native Anthropic uses native layout, OpenRouter Claude uses envelope layout, third-party Anthropic Claude gateways cache conservatively, Qwen on opencode/opencode-go/Alibaba gets envelope markers, and OpenAI-wire custom providers without an allow rule strip cache_control visibly.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -14033,6 +14033,21 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:agent/prompt_caching.py and run_agent.py:_anthropic_prompt_cache_policy",
                 "note": "Hermes defines the cache policy matrix; Gormes ports it into Go provider request mapping and status evidence."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/prompt_cache_policy.go:PromptCachePolicyFor ports Hermes provider/model cache-control policy for native Anthropic, OpenRouter Claude, Anthropic-wire gateways, MiniMax Anthropic, and Qwen/Alibaba OpenAI-wire providers.",
+                  "internal/hermes/prompt_cache_policy.go:ApplyPromptCacheControl deep-copies messages, applies system_and_3 cache breakpoints with 1h TTL for supported policies, and strips unsupported cache_control before OpenAI-compatible serialization.",
+                  "internal/hermes/http_client.go:buildOpenAICompatibleChatRequestBody applies the policy before request serialization; orMessage.content can carry string or cached content-block envelopes.",
+                  "internal/hermes/status.go:openAICompatibleProviderStatus surfaces prompt_cache_supported vs cache_control stripped evidence from the same policy surface."
+                ],
+                "tests": [
+                  "internal/hermes/prompt_cache_policy_test.go:TestPromptCachePolicyMatchesHermesProviderMatrix",
+                  "internal/hermes/prompt_cache_policy_test.go:TestApplyPromptCacheControlSystemAndLastThree",
+                  "internal/hermes/prompt_cache_policy_test.go:TestOpenAICompatiblePromptCachePolicySerializesOnlyAllowedEnvelopeMarkers",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -count=1"
+                ],
+                "validated_at": "2026-04-30T09:33:14Z"
               }
             },
             {

@@ -96,7 +96,7 @@ func (c *httpClient) Health(ctx context.Context) error {
 
 type orMessage struct {
 	Role             string       `json:"role"`
-	Content          string       `json:"content"`
+	Content          any          `json:"content"`
 	ReasoningContent *string      `json:"reasoning_content,omitempty"`
 	ToolCalls        []orToolCall `json:"tool_calls,omitempty"`
 	ToolCallID       string       `json:"tool_call_id,omitempty"`
@@ -195,7 +195,13 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 }
 
 func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]byte, []ToolDescriptor, error) {
-	msgs := makeOpenAICompatibleMessages(req.Messages, c.provider, req.Model, c.baseURL)
+	policy := PromptCachePolicyFor(PromptCachePolicyInput{
+		Provider: c.provider,
+		BaseURL:  c.baseURL,
+		APIMode:  "chat_completions",
+		Model:    req.Model,
+	})
+	msgs := makeOpenAICompatibleMessages(ApplyPromptCacheControl(req.Messages, policy), c.provider, req.Model, c.baseURL)
 	reasoningEffort, err := validateReasoningEffort(req.ReasoningEffort)
 	if err != nil {
 		return nil, nil, err
@@ -470,7 +476,7 @@ func makeOpenAICompatibleMessages(messages []Message, provider, model, baseURL s
 		}
 		wire := orMessage{
 			Role:       role,
-			Content:    msg.Content,
+			Content:    openAICompatibleMessageContent(msg),
 			ToolCallID: msg.ToolCallID,
 			Name:       msg.Name,
 		}
@@ -497,6 +503,17 @@ func makeOpenAICompatibleMessages(messages []Message, provider, model, baseURL s
 		out = append(out, wire)
 	}
 	return out
+}
+
+func openAICompatibleMessageContent(msg Message) any {
+	if msg.CacheControl == nil {
+		return msg.Content
+	}
+	return []map[string]any{{
+		"type":          "text",
+		"text":          msg.Content,
+		"cache_control": msg.CacheControl,
+	}}
 }
 
 func openAICompatibleReasoningContent(msg Message, provider, model, baseURL string) *string {
