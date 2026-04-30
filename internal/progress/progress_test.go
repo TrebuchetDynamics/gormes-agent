@@ -847,8 +847,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if directory.Status != StatusPlanned {
 		t.Fatalf("Phase 2.F.4 channel directory contract status = %q, want planned", directory.Status)
 	}
-	if directory.ContractStatus != ContractStatusDraft || len(directory.WriteScope) == 0 || len(directory.TestCommands) == 0 {
-		t.Fatalf("Phase 2.F.4 channel directory readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", directory.ContractStatus, len(directory.WriteScope), len(directory.TestCommands))
+	if directory.ContractStatus != ContractStatusFixtureReady || len(directory.WriteScope) == 0 || len(directory.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 channel directory readiness = contract_status %q scope=%d tests=%d, want fixture-ready builder row", directory.ContractStatus, len(directory.WriteScope), len(directory.TestCommands))
 	}
 	if !containsString(directory.SourceRefs, "../hermes-agent/gateway/channel_directory.py:DIRECTORY_PATH") || !strings.Contains(directory.Contract, "channel_directory.json") {
 		t.Fatalf("Phase 2.F.4 channel directory contract refs=%v contract=%q, want channel-directory donor/json detail", directory.SourceRefs, directory.Contract)

@@ -6373,7 +6373,7 @@
               "name": "Channel directory atomic persistence + lookup",
               "status": "planned",
               "contract": "Gormes ports the Hermes channel_directory.json read model as a channel-neutral gateway component: writes are atomic under the Gormes state/home directory, entries preserve platform, id, name, type, guild, chat_id, thread_id, chat_topic, and composite chat_id:thread_id targets, lookups resolve exact IDs, exact names, Discord guild-qualified names, unambiguous case-insensitive prefixes, and type queries without consulting live adapters.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -6406,7 +6406,7 @@
                 "Ambiguous human-name prefixes resolve arbitrarily instead of returning no target/evidence."
               ],
               "blocked_by": [
-                "Home-channel ownership resolver"
+                "Home channel ownership resolver fixtures"
               ],
               "unblocks": [
                 "Channel directory refresh + stale-target invalidation",
@@ -6420,7 +6420,7 @@
                 "TestChannelDirectoryResolveAmbiguousPrefixReturnsMissing proves ambiguous lowercase prefixes do not pick a random channel.",
                 "TestChannelDirectoryLookupTypeAndDisplay proves forum/channel/dm/group type lookup and display formatting match Hermes fixture expectations."
               ],
-              "note": "Builder-ready first channel-directory slice. Engram's write queue is a pattern reference for deterministic serialized writes; Axe's artifact tracker is a pattern reference for bounded path/evidence recording. Runtime refresh remains a dependent row.",
+              "note": "Builder-ready first channel-directory slice. Engram's write queue is a pattern reference for deterministic serialized writes; Axe's artifact tracker is a pattern reference for bounded path/evidence recording. Runtime refresh remains a dependent row. Planner readiness reconciled 2026-04-30: dependency spelling now matches the validated home-channel resolver row, so this first channel-directory slice is selectable without changing runtime scope.",
               "write_scope": [
                 "internal/gateway/channel_directory.go",
                 "internal/gateway/channel_directory_test.go",
