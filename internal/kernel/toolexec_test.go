@@ -90,6 +90,20 @@ func TestExecuteToolCalls_AppendsToolPreviewSoulEvent(t *testing.T) {
 	}
 }
 
+func TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording(t *testing.T) {
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{NameStr: "todo"})
+	k := newKernelWithRegistry(t, reg)
+
+	_ = k.executeToolCalls(context.Background(), []hermes.ToolCall{
+		{ID: "todo-merge", Name: "todo", Arguments: json.RawMessage(`{"merge":true,"todos":[{"id":"1","content":"first","status":"pending"},{"id":"2","content":"second","status":"in_progress"}]}`)},
+	})
+
+	if got := soulTexts(k.soul); !containsString(got, "tool: todo: updating 2 task(s)") {
+		t.Fatalf("soul events = %#v, want Hermes todo merge preview", got)
+	}
+}
+
 func soulTexts(entries []SoulEntry) []string {
 	out := make([]string, 0, len(entries))
 	for _, entry := range entries {

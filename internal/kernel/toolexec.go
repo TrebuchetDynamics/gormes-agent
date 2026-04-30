@@ -161,6 +161,9 @@ func toolCallPreview(name string, raw json.RawMessage) string {
 	}
 	if name == "todo" {
 		if todos, ok := args["todos"].([]any); ok {
+			if merge, _ := args["merge"].(bool); merge {
+				return fmt.Sprintf("updating %d task(s)", len(todos))
+			}
 			return fmt.Sprintf("planning %d task(s)", len(todos))
 		}
 		return "reading task list"

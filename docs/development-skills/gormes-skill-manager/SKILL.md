@@ -75,6 +75,17 @@ Pick the primary intent:
 - **Create or improve skills**: use system `skill-creator` plus this manager.
   Fold repeated mistakes into existing class-level skills before creating a
   new one, and keep the update as process guidance rather than a session diary.
+- **Learn from past Gormes tasks**: improve the existing skill that should have
+  prevented the mistake. Installer, PATH, `go run`, `bin/gormes`,
+  `GORMES_HOME`, `workspace-gormes`, or `sessions.db` lessons belong in
+  `gormes-dev-runtime`; hidden UX, hourglass, duplicate replies, tool-progress
+  formatting, tool-iteration leaks, persona/defaults, and reset-template
+  lessons belong in `gormes-hermes-parity`; red-test shape belongs in
+  `gormes-tdd-slice`.
+- **Pasted channel tool-progress blocks** such as
+  `📚 skill_view: "plan"` / `📋 todo: "planning 5 task(s)"` /
+  `🐍 execute_code: "..."`: use `gormes-hermes-parity` first. The active
+  contract is Hermes gateway/channel progress, not only the current Ink TUI.
 
 If more than one applies, choose a chain with at most three skills. Do not load every Gormes skill.
 

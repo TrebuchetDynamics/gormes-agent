@@ -37,6 +37,34 @@ func TestExecuteCodeTool_UsesRequestedLanguage(t *testing.T) {
 	}
 }
 
+func TestExecuteCodeTool_DefaultsCodeOnlyCallsToPython(t *testing.T) {
+	sandbox := &fakeCodeSandbox{
+		result: CodeExecutionResult{Status: "success", Language: "python"},
+	}
+	tool := &ExecuteCodeTool{Sandbox: sandbox}
+
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"code":"print('hi')"}`))
+	if err != nil {
+		t.Fatalf("Execute code-only args: %v", err)
+	}
+	if sandbox.req.Language != "python" {
+		t.Fatalf("sandbox language = %q, want python default for Hermes code-only schema", sandbox.req.Language)
+	}
+
+	var schema struct {
+		Required []string `json:"required"`
+	}
+	if err := json.Unmarshal(tool.Schema(), &schema); err != nil {
+		t.Fatalf("Schema invalid JSON: %v\n%s", err, tool.Schema())
+	}
+	if !containsString(schema.Required, "code") {
+		t.Fatalf("schema required = %v, want code", schema.Required)
+	}
+	if containsString(schema.Required, "language") {
+		t.Fatalf("schema required = %v, language must be optional for Hermes code-only compatibility", schema.Required)
+	}
+}
+
 func TestLocalCodeSandbox_TruncatesStdoutAndStderr(t *testing.T) {
 	sandbox := NewLocalCodeSandbox()
 

@@ -2748,6 +2748,7 @@
                 "TestFormatFinalPlain_DoesNotIncludeStreamingCursor proves final assistant text never keeps the streaming cursor.",
                 "Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels.",
                 "Memory/skills/todo/execute_code/cron/search/read/patch/terminal/browser traces match the parity matrix examples.",
+                "TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording proves todo merge=true progress uses Hermes' updating N task(s) wording instead of planning.",
                 "No renderer emits tokens, raw credential values, or unbounded payloads."
               ],
               "write_scope": [
@@ -2779,6 +2780,7 @@
                 "implementation": [
                   "internal/kernel/kernel.go:runTurn clears per-turn soul/tool-progress state before admission so old started-tool lines cannot leak into a new turn.",
                   "internal/kernel/toolexec.go:toolCallSoulText and toolCallPreview emit started-tool preview events using Hermes' primary arguments such as cronjob.action, skill_view.name, browser_navigate.url, search_files.pattern, terminal.command, and execute_code.code.",
+                  "internal/kernel/toolexec.go:toolCallPreview emits Hermes' todo merge=true wording as updating N task(s), while merge=false keeps planning N task(s).",
                   "internal/gateway/render.go:streamPreviewCursorActive appends the Hermes streaming cursor only for active preview phases with non-empty assistant draft text.",
                   "internal/gateway/render.go:FormatToolProgressPlain and FormatToolProgressTelegram render multi-line, duplicate-collapsed tool progress separately from assistant stream text.",
                   "internal/gateway/manager.go:dispatchToolProgress sends/edits a separate progress message for editable gateway channels before final assistant delivery.",
@@ -2787,6 +2789,7 @@
                 ],
                 "tests": [
                   "internal/kernel/toolexec_test.go:TestExecuteToolCalls_AppendsToolPreviewSoulEvent covers terminal, skill_view, skills_list, cronjob, and browser_snapshot preview soul events.",
+                  "internal/kernel/toolexec_test.go:TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording covers the Hermes todo merge=true progress preview.",
                   "internal/gateway/render_test.go:TestFormatStreamPlain_ActivePreviewAddsHermesCursor covers the plain renderer cursor.",
                   "internal/gateway/render_test.go:TestFormatStreamTelegram_ActivePreviewAddsHermesCursor covers the Telegram renderer cursor.",
                   "internal/gateway/render_test.go:TestFormatStreamPlain_DoesNotInlineToolProgress covers assistant stream/tool-progress separation.",
@@ -2799,6 +2802,8 @@
                 ],
                 "verification": [
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgressPersistsAsSeparateMessage|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame' -count=1 -> ok",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording -count=1 failed while todo merge=true rendered planning 2 task(s).",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run 'TestExecuteToolCalls_(TodoMergePreviewUsesUpdatingWording|AppendsToolPreviewSoulEvent)' -count=1 passed after preserving Hermes updating wording.",
                   "go test ./internal/gateway -run TestFormatToolProgressPlain_ToolTraceFixtureMatrix -count=1 -> ok",
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1 -> ok",
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -count=1 -> ok"
@@ -20253,7 +20258,7 @@
             {
               "name": "Sandboxed exec",
               "status": "complete",
-              "note": "TDD landed: Go-native `execute_code` now runs guarded `sh`/`python` snippets through a local sandbox contract with runtime selection, stdout/stderr caps, timeout status, and pre-exec filesystem/network blocking while broader backend-specific sandboxes remain Phase 5.B work."
+              "note": "TDD landed: Go-native `execute_code` now runs guarded `sh`/`python` snippets through a local sandbox contract with runtime selection, stdout/stderr caps, timeout status, and pre-exec filesystem/network blocking while broader backend-specific sandboxes remain Phase 5.B work. 2026-04-30 Hermes schema follow-up: RED `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestExecuteCodeTool_DefaultsCodeOnlyCallsToPython -count=1` failed because Gormes required `language`; GREEN `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestExecuteCodeTool_(DefaultsCodeOnlyCallsToPython|UsesRequestedLanguage)' -count=1` passed after code-only calls defaulted to Python and `language` became optional in the schema, matching `../hermes-agent/tools/code_execution_tool.py:execute_code` and `build_execute_code_schema`."
             }
           ]
         },

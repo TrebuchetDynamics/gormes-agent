@@ -14,6 +14,12 @@ screenshot-driven fixes. Every row names one Hermes/Sidon parity area, cites
 upstream + Gormes evidence, classifies the gap, and points at the
 progress.json row that future implementation lanes (B-H) execute.
 
+For symbol-level pairings such as "which Hermes Python code does
+`internal/gateway/render.go` adapt?", use
+[Hermes/Gormes Contract Pairings](../hermes-gormes-contract-pairings/). The
+matrix below stays area/status oriented; the pairings page owns the taxonomy
+for `surface`, `contract_layer`, `upstream_contract`, and `gormes_adapter`.
+
 Statuses use the parity-auditor convention: `parity` (implemented and tested),
 `partial` (implemented in part; specific gap noted), `missing` (no Gormes
 evidence), `regressed` (was working, now broken or contradictory),

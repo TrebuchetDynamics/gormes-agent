@@ -45,6 +45,9 @@ Root Linux defaults are `/usr/local/lib/gormes-agent` and
 - Use `go run ./cmd/gormes` to prove source changes before install; use
   `./bin/gormes` to prove the rebuilt local binary; use plain `gormes` only
   after verifying the installed command path.
+- Do not ask for a push to `main` to validate development behavior. A push is
+  relevant only when testing the installer-managed branch path; local work is
+  proven from the checkout or rebuilt binary.
 - For side-by-side smoke tests, use an isolated home:
   `GORMES_HOME="$(mktemp -d)" go run ./cmd/gormes --offline`. Reuse the real
   home only when validating persisted sessions, migration, or operator state.
@@ -68,6 +71,24 @@ Root Linux defaults are `/usr/local/lib/gormes-agent` and
 - Gormes startup must not require Hermes `api_server` or suggest
   `hermes gateway start`. Any such output is a parity bug; fix the Gormes
   startup path or installer-published binary, not the user's Hermes process.
+
+## Incident Checklist
+
+When validating an installer/runtime report, write down these facts before
+changing code:
+
+- command run: `go run ./cmd/gormes`, `./bin/gormes`, or plain `gormes`;
+- binary path and realpath from `which -a gormes` / `readlink -f`;
+- source checkout used by the binary or installer;
+- `GORMES_HOME` and whether it is a temp dir, `workspace-gormes`, or
+  `~/.gormes`;
+- whether any gateway/TUI process owns `sessions.db`;
+- whether output contains Hermes-owned instructions, `~/.hermes` state reads,
+  stale product labels, or API-server assumptions.
+
+Only after this matrix is clear should a parity report move to TUI,
+Telegram/channel, or provider work. Many visible UX bugs are stale binary or
+wrong-home bugs until this checklist says otherwise.
 
 ## Verification
 

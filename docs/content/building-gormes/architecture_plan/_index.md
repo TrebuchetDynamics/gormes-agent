@@ -34,6 +34,10 @@ passes.
 maps upstream Hermes and Honcho feature families to Go packages, implementation
 strategy, proof gates, and `progress.json` anchors.
 
+**Contract pairings:** [Hermes/Gormes Contract Pairings](./hermes-gormes-contract-pairings/)
+defines the shared vocabulary for pairing upstream Hermes symbols with their
+Go-native Gormes adapters before rows are renamed or split.
+
 **CLI parity matrix:** [Hermes Command Surface Parity Matrix](./hermes-command-surface-parity/)
 records the operator-visible Hermes command tree, current Gormes state, and the
 `progress.json` rows that own remaining command/auth gaps.
@@ -61,6 +65,8 @@ classification and row-backed implementation queue.
   exact pass workflow.
 - Use [Hermes And Honcho Feature Map](./hermes-honcho-feature-map/) when
   mapping upstream capabilities or deciding where a feature belongs in Go.
+- Use [Hermes/Gormes Contract Pairings](./hermes-gormes-contract-pairings/)
+  when a Gormes file name hides the upstream Hermes contract it adapts.
 - Use [Hermes/Honcho To Gormes Go Runtime Plan](./hermes-honcho-go-runtime-plan/)
   when turning mapped upstream capabilities into Go package targets,
   classifications, dependency order, and builder-ready row splits.

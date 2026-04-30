@@ -64,6 +64,14 @@ visibility, final-message count, and final text. A correct final answer is not
 green if an extra hourglass, leaked tool progress, or duplicate final reply was
 also sent.
 
+For gateway tool-progress bugs, first decide which Hermes surface defines the
+artifact. Emoji/snake_case lines such as `📚 skill_view: "plan"` are gateway
+progress from `../hermes-agent/gateway/run.py` plus
+`agent.display.build_tool_preview`; current Ink TUI shelves render Title Case
+tool calls such as `Read File("x")`. A regression test must encode the right
+surface, including `new` vs `all`, preview truncation, `(×N)` collapse,
+`todo merge=true` wording, and unknown-tool degradation.
+
 For tool-loop regressions, test the boundary that leaked to the user. Kernel
 budget bugs belong in `internal/kernel` and should prove Hermes' 90-turn
 default plus toolless summary fallback. Channel bugs belong in gateway/channel

@@ -74,6 +74,26 @@ Borrow these fixture classes from the Hermes and GBrain studies:
   tool execution, Goncho memory recall/persistence, final response, and
   audit/status evidence with fake providers and temp state.
 
+## Operator Transcript Fixtures
+
+When the bug came from live dogfood, preserve the exact visible artifact in the
+test. A final answer alone is not sufficient proof.
+
+- **Gateway/channel UX:** assert outbound send/edit/delete order, placeholder
+  lifetime, typing-action fallback, final-message count, duplicate suppression,
+  and whether tool progress is visible.
+- **Tool progress:** assert the correct surface. Gateway progress uses
+  `emoji tool_name: "preview"` with `new/all/verbose` modes, bounded previews,
+  and `(×N)` collapse. Current TUI shelves use Title Case tool calls. Do not
+  mix the two contracts in one fixture.
+- **Runtime surface:** for installer or lock reports, run the same focused
+  command through the intended surface: `go run ./cmd/gormes`, `./bin/gormes`,
+  or installed `gormes`, with an explicit `GORMES_HOME`. Record binary path and
+  source checkout in the test name or helper comments.
+- **Persona/reset:** ask the provider-captured prompt or reset fixture what
+  files were injected or reset. Do not patch the assistant's final string after
+  the provider as proof of identity.
+
 ## Discipline
 
 Every PR must keep the relevant row-local, package, docs, and lane gates green.

@@ -40,6 +40,25 @@ skill may hand the current bounded behavior directly to `gormes-tdd-slice`
 after the upstream contract is identified. Still keep the slice narrow, prove a
 RED test first, and update the canonical row evidence after GREEN.
 
+## Repeated Operator Lessons
+
+Fold repeated live-testing failures into every parity pass. These are not
+side preferences; they are Hermes compatibility evidence until Gormes has a
+source-backed reason to diverge.
+
+| Report shape | Treat it as | First action |
+|---|---|---|
+| `gormes` asks for `hermes gateway start`, mentions Hermes `api_server`, or depends on `~/.hermes` | runtime/install parity bug | Route through `gormes-dev-runtime`; prove binary path, `GORMES_HOME`, and installed source before changing UX code. |
+| `go run`, `./bin/gormes`, and installed `gormes` behave differently | surface-selection bug | Test all three only with explicit paths/homes; never infer installed behavior from dirty source. |
+| `sessions.db` locked while switching binaries | process/home ownership issue | Use gateway status/stop or isolated `GORMES_HOME`; do not delete the database. |
+| extra `⏳`, duplicate assistant reply, visible `tool iteration limit exceeded`, leaked tool-call text, or stale `Hermes` label | user-visible parity bug | Preserve the exact transcript and build a channel/TUI fixture; a correct final answer is not enough. |
+| "Gormes bot is you; Mineru bot is Hermes" or persona/reset mismatch | prompt/template parity bug | Inspect Hermes default soul/prompt sources and Gormes `internal/agenttemplate` before planning or coding. |
+| `install.sh` behavior is confusing | installer contract issue | Remember final-user installs clone/build a branch, while development validation uses `go run ./cmd/gormes` or `./bin/gormes`. |
+
+Do not tell the operator they must push `main` to validate local development
+changes. Pushing matters only when validating the installer-managed branch
+path; dirty-checkout behavior belongs to `go run` or a locally rebuilt binary.
+
 ## Delegation Through Skill Manager
 
 Use `gormes-skill-manager` whenever the sweep discovers work that is bigger
@@ -232,6 +251,29 @@ For live parity reports, capture the artifact before reducing it to a row:
 This evidence belongs in the task packet or progress note. Do not paraphrase a
 duplicate-message, tool-loop, or hourglass bug into "tool calling failed"; the
 message sequence is the contract future tests need.
+
+When the observed artifact is a channel-visible tool-progress block like:
+
+```text
+📚 skill_view: "plan"
+📋 todo: "planning 5 task(s)"
+📖 read_file: "/path/..."
+🐍 execute_code: "from hermes_tools import terminal, se..."
+```
+
+pin the contract to Hermes gateway progress, not only the TUI. Start from
+`../hermes-agent/gateway/run.py:progress_callback`,
+`agent.display.build_tool_preview`, and `agent.display.get_tool_emoji`.
+The short channel form is `emoji tool_name: "preview"` or
+`emoji tool_name...`; `all/new` mode truncates previews to
+`display.tool_preview_length` or 40 characters, `new` suppresses consecutive
+same-tool names, and consecutive identical rendered lines collapse to
+`(×N)`. `verbose` uses `emoji tool_name([arg_keys])` plus JSON args.
+Compare Gormes against `internal/kernel/toolexec.go:toolCallPreview` and
+`internal/gateway/render.go:FormatToolProgressPlain`. Common drift points are
+`todo merge=true` needing `updating N task(s)`, `execute_code` accepting the
+Hermes Python-only `code` schema with `hermes_tools` wrappers, and model-visible
+`read_file` / `search_files` implementations rather than renderer-only labels.
 
 ### 5. Record Progress
 

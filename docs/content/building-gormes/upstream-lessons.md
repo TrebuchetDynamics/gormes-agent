@@ -25,6 +25,21 @@ prove behavior with fixtures
 show degraded mode to operators
 ```
 
+## Live Dogfood Lessons
+
+Recent Gormes-vs-Hermes dogfood exposed a recurring pattern: the final answer
+can be correct while the operator contract is still wrong. Treat these as
+source-backed parity lessons for future rows and tests:
+
+| Artifact | Lesson for Gormes |
+|---|---|
+| Installed `gormes` asking the operator to start `hermes gateway start` | Gormes startup, installers, and shell-wide binaries must never depend on Hermes services. Runtime validation must prove the exact binary path, source checkout, and `GORMES_HOME` before debugging higher layers. |
+| Switching between `go run ./cmd/gormes`, `./bin/gormes`, and installed `gormes` caused `sessions.db` locks | Development source, local binary, installed binary, runtime home, and gateway owner are separate surfaces. Use `gormes gateway status/stop` or isolated homes; never delete session state to clear a lock. |
+| Telegram showed hourglass/status bubbles, duplicate final replies, or raw `tool iteration limit exceeded` text | Gateway UX is a first-class contract. Fixtures must assert message count, send/edit/delete order, tool-progress visibility, and final text together. |
+| Pasted tool progress like `📚 skill_view: "plan"` and `🐍 execute_code: "..."` | This is Hermes gateway/channel progress, not the current Ink TUI shelf. Gormes must preserve emoji, snake_case tool names, preview truncation, `new/all/verbose` modes, and `(×N)` collapse where channels expose that form. |
+| Gormes bot answered as Hermes or lacked the expected default persona/reset behavior | Persona, SOUL.md, USER.md, MEMORY.md, skill templates, and agent-template reset behavior are part of the live-turn prompt contract, not copy-only docs. |
+| Confusion about whether `install.sh` needs pushed `main` | Final-user install validates a cloned branch. Dirty development work is validated with `go run ./cmd/gormes` or a rebuilt `./bin/gormes`; pushing is not required for local proof. |
+
 ## Durable Contracts To Absorb
 
 | Contract | Donor | Gormes target |
