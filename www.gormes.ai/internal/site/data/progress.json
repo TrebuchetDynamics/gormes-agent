@@ -6371,9 +6371,9 @@
             },
             {
               "name": "Channel directory atomic persistence + lookup",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports the Hermes channel_directory.json read model as a channel-neutral gateway component: writes are atomic under the Gormes state/home directory, entries preserve platform, id, name, type, guild, chat_id, thread_id, chat_topic, and composite chat_id:thread_id targets, lookups resolve exact IDs, exact names, Discord guild-qualified names, unambiguous case-insensitive prefixes, and type queries without consulting live adapters.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -6420,7 +6420,7 @@
                 "TestChannelDirectoryResolveAmbiguousPrefixReturnsMissing proves ambiguous lowercase prefixes do not pick a random channel.",
                 "TestChannelDirectoryLookupTypeAndDisplay proves forum/channel/dm/group type lookup and display formatting match Hermes fixture expectations."
               ],
-              "note": "Builder-ready first channel-directory slice. Engram's write queue is a pattern reference for deterministic serialized writes; Axe's artifact tracker is a pattern reference for bounded path/evidence recording. Runtime refresh remains a dependent row. Planner readiness reconciled 2026-04-30: dependency spelling now matches the validated home-channel resolver row, so this first channel-directory slice is selectable without changing runtime scope.",
+              "note": "Complete: added a native Go gateway channel_directory.json read model with atomic temp-file persistence, structured missing/invalid/ambiguous evidence, Hermes-style exact ID/name/display/guild-qualified/prefix resolution, composite chat_id:thread_id targets, type lookup, and display formatting. Focused fixtures use temp roots only and do not inspect live operator home directories or call platform adapters.",
               "write_scope": [
                 "internal/gateway/channel_directory.go",
                 "internal/gateway/channel_directory_test.go",
@@ -6432,7 +6432,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Channel directory fixtures prove atomic persistence, composite thread targets, exact/name/guild/prefix lookup, type/display behavior, and safe degraded evidence without live adapters."
+                "internal/gateway/channel_directory_test.go proves atomic persistence, composite thread targets, exact/name/guild/prefix lookup, type/display behavior, and safe degraded evidence without live adapters."
               ],
               "provenance": {
                 "origin_type": "hybrid",

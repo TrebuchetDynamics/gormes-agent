@@ -313,7 +313,7 @@ classification and row-backed implementation queue.
 
 - [x] Home channel ownership resolver fixtures
 - [ ] Notify-to delivery routing
-- [ ] Channel directory atomic persistence + lookup
+- [x] Channel directory atomic persistence + lookup
 - [ ] Channel directory refresh + stale-target invalidation
 - [ ] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces

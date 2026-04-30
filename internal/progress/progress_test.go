@@ -844,14 +844,14 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.4 notify-to routing status = %q, want planned", notifyRoute.Status)
 	}
 	directory := operatorItems["Channel directory atomic persistence + lookup"]
-	if directory.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 channel directory contract status = %q, want planned", directory.Status)
+	if directory.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 channel directory contract status = %q, want complete", directory.Status)
 	}
-	if directory.ContractStatus != ContractStatusFixtureReady || len(directory.WriteScope) == 0 || len(directory.TestCommands) == 0 {
-		t.Fatalf("Phase 2.F.4 channel directory readiness = contract_status %q scope=%d tests=%d, want fixture-ready builder row", directory.ContractStatus, len(directory.WriteScope), len(directory.TestCommands))
+	if directory.ContractStatus != ContractStatusValidated || len(directory.WriteScope) == 0 || len(directory.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 channel directory readiness = contract_status %q scope=%d tests=%d, want validated builder row", directory.ContractStatus, len(directory.WriteScope), len(directory.TestCommands))
 	}
-	if !containsString(directory.SourceRefs, "../hermes-agent/gateway/channel_directory.py:DIRECTORY_PATH") || !strings.Contains(directory.Contract, "channel_directory.json") {
-		t.Fatalf("Phase 2.F.4 channel directory contract refs=%v contract=%q, want channel-directory donor/json detail", directory.SourceRefs, directory.Contract)
+	if !containsString(directory.SourceRefs, "../hermes-agent/gateway/channel_directory.py:DIRECTORY_PATH") || !strings.Contains(directory.Contract, "channel_directory.json") || !strings.Contains(directory.Note, "atomic temp-file persistence") {
+		t.Fatalf("Phase 2.F.4 channel directory refs=%v contract=%q note=%q, want shipped channel-directory evidence", directory.SourceRefs, directory.Contract, directory.Note)
 	}
 	rememberSource := operatorItems["Manager remember-source hook"]
 	if rememberSource.Status != StatusPlanned {
