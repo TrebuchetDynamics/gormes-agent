@@ -16860,7 +16860,7 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Missing TTS provider/config, unsupported output path, overlong text, synthesis failure, missing media file, and platform voice-send failure return typed evidence such as tts_provider_unavailable, tts_invalid_output_path, tts_text_truncated, tts_synthesis_failed, media_file_missing, and media_delivery_failed without exposing API keys, provider URLs with credentials, or local command output.",
+              "degraded_mode": "Missing TTS provider/config, unsupported output path, synthesis failure, missing media file, and platform voice-send failure return typed redacted evidence such as tts_provider_unavailable, unsupported_audio_format, tts_api_error, tts_output_missing, and media delivery errors without exposing API keys, provider URLs with credentials, or local command output. Overlong text is truncated to the Hermes-compatible cap and marked with truncated=true in the result envelope.",
               "fixture": "internal/tools/tts_tool_test.go; internal/gateway/media_delivery_test.go; internal/channels/telegram/bot_test.go",
               "source_refs": [
                 "../hermes-agent/tools/tts_tool.py:text_to_speech_tool",
