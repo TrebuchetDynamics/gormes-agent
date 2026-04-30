@@ -2950,10 +2950,10 @@
             },
             {
               "name": "Gateway active-turn policy manifest closeout",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Compare the full Hermes gateway slash-command policy set against Gormes CommandDef policies and close remaining bypass, reject, drain, unavailable, and model-leak differences with a manifest fixture.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2991,7 +2991,8 @@
               "ready_when": [
                 "Hermes slash-command policy sources and Gormes CommandDef registry are available for table-driven comparison.",
                 "Gateway manager tests can prove interception decisions with fake provider captures and no live channels."
-              ]
+              ],
+              "note": "Complete: gateway command registry now recognizes every non-CLI Gormes command-policy surface that can safely resolve in the gateway, including shared/provider/config commands and gateway-only commands as unavailable until their handler rows land; /new also resolves the Hermes /reset alias. TestGatewayRegistryRecognizesSharedAndGatewayCLICommands locks the CLI/Gateway manifest seam while existing active-turn tests prove bypass/reject/unavailable slash text does not leak to the model. Queue-only /reasoning remains governed by the CLI queue policy until a dedicated gateway queue-policy row adds native execution semantics."
             },
             {
               "name": "Gateway conversational session metadata refresh",

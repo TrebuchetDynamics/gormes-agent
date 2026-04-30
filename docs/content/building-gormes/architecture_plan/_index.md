@@ -196,7 +196,7 @@ classification and row-backed implementation queue.
 - [x] Active Hermes/Sidon profile context root resolver for live turns
 - [x] Durable context ordering and frozen snapshot decision fixture
 - [x] Live-turn model/tool guidance wiring
-- [ ] Gateway active-turn policy manifest closeout
+- [x] Gateway active-turn policy manifest closeout
 - [ ] Gateway conversational session metadata refresh
 - [ ] Gateway session token accounting parity
 - [x] Telegram voice/audio inbound attachment markers

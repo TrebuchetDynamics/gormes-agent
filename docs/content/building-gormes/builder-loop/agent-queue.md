@@ -103,27 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 5. Gateway active-turn policy manifest closeout
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Compare the full Hermes gateway slash-command policy set against Gormes CommandDef policies and close remaining bypass, reject, drain, unavailable, and model-leak differences with a manifest fixture.
-- Trust class: gateway, operator
-- Ready when: Hermes slash-command policy sources and Gormes CommandDef registry are available for table-driven comparison., Gateway manager tests can prove interception decisions with fake provider captures and no live channels.
-- Not ready when: -
-- Degraded mode: Unknown policies default to reject-with-guidance during active turns and never leak slash text to the provider.
-- Fixture: `internal/gateway/active_turn_command_bypass_test.go`
-- Write scope: `internal/gateway/commands.go`, `internal/gateway/commands_test.go`, `internal/gateway/active_turn_command_bypass_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'ActiveTurn\|Command\|Slash' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Active-turn command policy manifest fixtures prove bypass/reject/drain parity and no slash leakage.
-- Acceptance: A manifest table lists every Hermes slash command policy and the Gormes decision., Known control/info commands bypass active turns., Mutating commands reject or drain according to the manifest., Provider capture proves slash text never reaches the model when intercepted.
-- Source refs: ../hermes-agent/hermes_cli/commands.py:267-290, ../hermes-agent/gateway/run.py:2950-3225, internal/gateway/commands.go, internal/gateway/manager.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Gateway conversational session metadata refresh
+## 5. Gateway conversational session metadata refresh
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -143,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/session.py, ../hermes-agent/gateway/run.py:4646-4680, internal/gateway/status_command.go, internal/session/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Gateway session token accounting parity
+## 6. Gateway session token accounting parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -163,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/run.py:4674, internal/gateway/status_command.go, internal/gateway/usage_command.go, internal/hermes/provider_transport.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Goncho memory provider lifecycle adapter
+## 7. Goncho memory provider lifecycle adapter
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Prompt-cache capability guard
+## 8. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -202,7 +182,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Browser artifact and console render contract
+## 9. Browser artifact and console render contract
 
 - Phase: 5 / 5.C
 - Owner: `tools`
@@ -220,6 +200,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Browser artifact fixtures prove bounded screenshot/snapshot/console/error envelopes and channel-safe rendering.
 - Acceptance: Tool fixtures cover screenshot path, DOM snapshot excerpt, console logs, and page errors., Artifact budgets truncate large snapshots with evidence., Gateway renderer emits channel-safe artifact summaries without raw image bytes or base64., Secrets, cookies, CDP URLs, and private URLs are redacted.
 - Source refs: ../hermes-agent/tools/browser_camofox.py:300, ../hermes-agent/tools/browser_camofox.py:493, ../hermes-agent/tools/browser_camofox.py:583, ../hermes-agent/tools/browser_tool.py, internal/tools/browser_contract.go, internal/tools/result_budget.go, internal/gateway/render.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Telegram browser artifact rendering
+
+- Phase: 5 / 5.C
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Telegram rendering for browser results is mobile-readable and Hermes/Sidon-compatible: screenshot/artifact pointers, DOM excerpts, console errors, and browser progress traces are MarkdownV2-safe, bounded, reply-threaded, and separate from final answers.
+- Trust class: gateway, system, operator
+- Ready when: The browser artifact result envelope and Telegram renderer seams are identified., Fake Telegram/render fixtures can prove screenshot/link/console presentation without live Telegram, Chrome, or cloud browser services.
+- Not ready when: -
+- Degraded mode: If Telegram media delivery is unavailable, Gormes sends a text artifact pointer with browser_artifact_text_fallback evidence.
+- Fixture: `internal/gateway/telegram_browser_render_test.go + internal/tools/browser_artifact_test.go`
+- Write scope: `internal/gateway/render.go`, `internal/gateway/telegram_browser_render_test.go`, `internal/channels/telegram/`, `internal/tools/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram ./internal/tools -run 'Telegram.*Browser\|Browser.*Artifact\|Render' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Telegram browser rendering fixtures prove bounded, escaped, reply-safe artifact output.
+- Acceptance: Telegram renderer escapes browser artifact text and code blocks correctly., Screenshots/artifact pointers are shown without raw bytes or local secret paths., Browser progress/tool traces remain distinct from final answer text., Reply metadata is preserved when browser output is sent as part of a Telegram turn.
+- Source refs: ../hermes-agent/gateway/platforms/telegram.py, ../hermes-agent/tools/browser_tool.py, internal/gateway/render.go, internal/channels/telegram/bot.go, internal/tools/browser_harness_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

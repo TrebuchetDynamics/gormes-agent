@@ -127,6 +127,27 @@ func TestSlashCommandPolicyParityWithCLIRegistry(t *testing.T) {
 	}
 }
 
+func TestGatewayRegistryRecognizesSharedAndGatewayCLICommands(t *testing.T) {
+	for _, policy := range cli.CommandRegistry {
+		if policy.Surface == cli.CommandSurfaceCLI || policy.ActiveTurnPolicy == cli.ActiveTurnPolicyQueue {
+			continue
+		}
+		cmd, ok := ResolveCommand(policy.Name)
+		if !ok {
+			t.Errorf("gateway registry does not recognize CLI %s command %q", policy.Surface, policy.Name)
+			continue
+		}
+		if !policy.Ported && cmd.ActiveTurnPolicy != CommandActiveTurnPolicyUnavailable {
+			t.Errorf("unported CLI command %q gateway policy = %q, want unavailable", policy.Name, cmd.ActiveTurnPolicy)
+		}
+		for _, alias := range policy.Aliases {
+			if _, ok := ResolveCommand(alias); !ok {
+				t.Errorf("gateway registry does not recognize alias %q for %q", alias, policy.Name)
+			}
+		}
+	}
+}
+
 func TestSlashCommandBusyVerdictRejectsKnownMutators(t *testing.T) {
 	v := cli.EvaluateActiveTurnVerdict("/new", true)
 	if !v.Known {
