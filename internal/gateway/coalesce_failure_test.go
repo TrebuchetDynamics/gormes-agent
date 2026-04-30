@@ -20,8 +20,8 @@ type failOnFinalEditor struct {
 	sent      []fakeSent
 
 	// EditMessage state
-	editErr  error // returned for ALL edit calls when non-nil
-	edits    []fakeEdit
+	editErr error // returned for ALL edit calls when non-nil
+	edits   []fakeEdit
 
 	// Plain-Send state (coalescerMessageSender)
 	plainSendErr error
@@ -132,16 +132,17 @@ func TestCoalescer_EditFailure_PlainSendFallback(t *testing.T) {
 	// Now finalize — edit will fail, fallback Send should fire.
 	c.flushImmediateFinal(ctx, "final answer", true)
 
-	// Exactly one plain Send with the final text.
+	// Exactly two plain Sends: the first visible stream content, then the
+	// fallback final text after the terminal edit fails.
 	sends := fake.plainSendsSnapshot()
-	if len(sends) != 1 {
-		t.Fatalf("plain Send calls = %d, want 1; sends=%#v", len(sends), sends)
+	if len(sends) != 2 {
+		t.Fatalf("plain Send calls = %d, want 2; sends=%#v", len(sends), sends)
 	}
-	if sends[0].Text != "final answer" {
-		t.Fatalf("plain Send text = %q, want %q", sends[0].Text, "final answer")
+	if sends[1].Text != "final answer" {
+		t.Fatalf("fallback plain Send text = %q, want %q", sends[1].Text, "final answer")
 	}
-	if sends[0].ChatID != "chat42" {
-		t.Fatalf("plain Send chatID = %q, want %q", sends[0].ChatID, "chat42")
+	if sends[1].ChatID != "chat42" {
+		t.Fatalf("fallback plain Send chatID = %q, want %q", sends[1].ChatID, "chat42")
 	}
 
 	// Exactly one edit_failed_fallback evidence.
@@ -155,6 +156,43 @@ func TestCoalescer_EditFailure_PlainSendFallback(t *testing.T) {
 	}
 	if evCopy[0].Code != "edit_failed_fallback" {
 		t.Fatalf("evidence code = %q, want %q", evCopy[0].Code, "edit_failed_fallback")
+	}
+}
+
+func TestCoalescer_FirstVisibleStreamingSendUsesContent(t *testing.T) {
+	ch := newFakeChannel("telegram")
+	c := newCoalescer(ch, time.Second, "chat42")
+
+	c.flushImmediate(context.Background(), "partial response")
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("Send calls = %d, want 1 first visible content send; sent=%#v", len(sent), sent)
+	}
+	if sent[0].Text != "partial response" {
+		t.Fatalf("first sent text = %q, want first stream content without hourglass placeholder", sent[0].Text)
+	}
+	if edits := ch.editsSnapshot(); len(edits) != 0 {
+		t.Fatalf("initial visible content should be sent directly, edits=%#v", edits)
+	}
+}
+
+func TestCoalescer_FinalEditFailureDoesNotResendAlreadyVisibleFinal(t *testing.T) {
+	fake := newFailOnFinalEditor()
+	c := newCoalescer(fake, time.Second, "chat42")
+
+	ctx := context.Background()
+	c.flushImmediate(ctx, "final answer")
+	initialSends := fake.plainSendsSnapshot()
+	if len(initialSends) != 1 {
+		t.Fatalf("initial visible send calls = %d, want 1; sends=%#v", len(initialSends), initialSends)
+	}
+	fake.editErr = errors.New("telegram: message can't be edited")
+
+	c.flushImmediateFinal(ctx, "final answer", true)
+
+	if sends := fake.plainSendsSnapshot(); len(sends) != 1 {
+		t.Fatalf("plain Send calls = %d, want only the initial visible send because final text is already visible; sends=%#v", len(sends), sends)
 	}
 }
 
@@ -233,8 +271,6 @@ func TestCoalescer_FinalizeRace_NoDuplicateMessage(t *testing.T) {
 
 func TestCoalescer_BothEditAndSendFail(t *testing.T) {
 	fake := newFailOnFinalEditor()
-	fake.editErr = errors.New("telegram: message can't be edited")
-	fake.plainSendErr = errors.New("telegram: flood wait")
 
 	var mu sync.Mutex
 	var evidences []CoalescerEvidence
@@ -250,6 +286,8 @@ func TestCoalescer_BothEditAndSendFail(t *testing.T) {
 
 	ctx := context.Background()
 	c.flushImmediate(ctx, "streaming")
+	fake.editErr = errors.New("telegram: message can't be edited")
+	fake.plainSendErr = errors.New("telegram: flood wait")
 	c.flushImmediateFinal(ctx, "final text", true) // must not panic
 
 	mu.Lock()
@@ -264,7 +302,8 @@ func TestCoalescer_BothEditAndSendFail(t *testing.T) {
 		t.Fatalf("evidence code = %q, want %q", evCopy[0].Code, "send_final_failed")
 	}
 
-	// State must not be mutated: pendingMsgID should still be the original placeholder.
+	// State must not be mutated: pendingMsgID should still be the original
+	// visible streaming message.
 	msgID := c.currentMessageID()
 	if msgID == "" {
 		t.Fatal("currentMessageID is empty after both-fail: state was unexpectedly cleared")
@@ -291,10 +330,10 @@ func TestCoalescer_FreshFinalAfter_StillRespected(t *testing.T) {
 	now = now.Add(2 * time.Minute)
 	c.flushImmediateFinal(ctx, "fresh final", true)
 
-	// Two Send calls: placeholder + fresh final.
+	// Two Send calls: initial visible preview + fresh final.
 	sent := ch.sentSnapshot()
 	if len(sent) != 2 {
-		t.Fatalf("Send calls = %d, want 2 (placeholder + fresh final); sent=%#v", len(sent), sent)
+		t.Fatalf("Send calls = %d, want 2 (preview + fresh final); sent=%#v", len(sent), sent)
 	}
 	if sent[1].Text != "fresh final" {
 		t.Fatalf("fresh final text = %q, want %q", sent[1].Text, "fresh final")

@@ -125,6 +125,7 @@ func (c *coalescer) flushImmediateFinal(ctx context.Context, text string, finali
 	msgID := c.pendingMsgID
 	createdAt := c.messageCreatedAt
 	freshFinalAfter := c.freshFinalAfter
+	lastSentText := c.lastSentText
 	c.mu.Unlock()
 
 	now := c.now()
@@ -145,10 +146,7 @@ func (c *coalescer) flushImmediateFinal(ctx context.Context, text string, finali
 	var err error
 	if msgID == "" {
 		sentAt := c.now()
-		sentID, err = c.sender.SendPlaceholder(ctx, c.chatID)
-		if err == nil {
-			err = editCoalescedMessage(ctx, c.sender, c.chatID, sentID, text, finalize)
-		}
+		sentID, err = c.sendInitialVisibleMessage(ctx, text, finalize)
 		if err == nil {
 			createdAt = sentAt
 		}
@@ -162,6 +160,15 @@ func (c *coalescer) flushImmediateFinal(ctx context.Context, text string, finali
 		// throttle (e.g., Telegram rate limits). Keep the silent-swallow
 		// behavior for those; only act on finalize errors.
 		if !finalize {
+			return
+		}
+		if lastSentText == text {
+			// Hermes suppresses a second final delivery when the streamed
+			// preview already contains the completed answer. If the terminal
+			// edit fails here, a plain Send would duplicate the visible reply.
+			c.mu.Lock()
+			c.pendingText = ""
+			c.mu.Unlock()
 			return
 		}
 		// Finalize edit failed. Attempt one plain Send as a fallback so the
@@ -209,6 +216,20 @@ func (c *coalescer) flushImmediateFinal(ctx context.Context, text string, finali
 	c.mu.Unlock()
 }
 
+func (c *coalescer) sendInitialVisibleMessage(ctx context.Context, text string, finalize bool) (string, error) {
+	if sender, ok := c.sender.(coalescerMessageSender); ok {
+		return sender.Send(ctx, c.chatID, text)
+	}
+	msgID, err := c.sender.SendPlaceholder(ctx, c.chatID)
+	if err != nil {
+		return "", err
+	}
+	if err := editCoalescedMessage(ctx, c.sender, c.chatID, msgID, text, finalize); err != nil {
+		return "", err
+	}
+	return msgID, nil
+}
+
 func (c *coalescer) run(ctx context.Context) {
 	ticker := time.NewTicker(c.window)
 	defer ticker.Stop()
@@ -246,7 +267,7 @@ func (c *coalescer) tryFlush(ctx context.Context) {
 	}
 
 	if msgID == "" {
-		sentID, err := c.sender.SendPlaceholder(ctx, c.chatID)
+		sentID, err := c.sendInitialVisibleMessage(ctx, text, false)
 		if err != nil {
 			return
 		}
@@ -255,6 +276,8 @@ func (c *coalescer) tryFlush(ctx context.Context) {
 			c.pendingMsgID = sentID
 			c.messageCreatedAt = now
 		}
+		c.lastSentText = text
+		c.lastEditAt = now
 		c.pendingText = ""
 		c.mu.Unlock()
 		return

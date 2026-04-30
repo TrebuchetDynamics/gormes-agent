@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestCoalescer_PlaceholderThenEdit(t *testing.T) {
+func TestCoalescer_FirstContentThenEdit(t *testing.T) {
 	ch := newFakeChannel("test")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -18,7 +18,8 @@ func TestCoalescer_PlaceholderThenEdit(t *testing.T) {
 
 	c.setPending("first")
 	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(ch.sentSnapshot()) == 1
+		sent := ch.sentSnapshot()
+		return len(sent) == 1 && sent[0].Text == "first"
 	})
 
 	time.Sleep(25 * time.Millisecond)
@@ -39,8 +40,8 @@ func TestCoalescer_FlushImmediateBypassesWindow(t *testing.T) {
 
 	c.flushImmediate(ctx, "final")
 	waitFor(t, 200*time.Millisecond, func() bool {
-		edits := ch.editsSnapshot()
-		return len(edits) == 1 && edits[0].Text == "final"
+		sent := ch.sentSnapshot()
+		return len(sent) == 1 && sent[0].Text == "final"
 	})
 }
 
@@ -54,7 +55,7 @@ func TestCoalescer_FlushImmediateFinalPassesTerminalFlag(t *testing.T) {
 	c.flushImmediate(ctx, "partial")
 	c.flushImmediateFinal(ctx, "final", true)
 
-	if got, want := ch.finalizes, []bool{false, true}; !reflect.DeepEqual(got, want) {
+	if got, want := ch.finalizes, []bool{true}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("finalize flags = %v, want %v", got, want)
 	}
 }

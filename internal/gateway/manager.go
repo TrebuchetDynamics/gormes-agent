@@ -954,6 +954,10 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		}
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
+		text := m.formatStream(platform, f)
+		if text == "" {
+			return
+		}
 		if *co == nil {
 			cCtx, cancel := context.WithCancel(ctx)
 			*coCancel = cancel
@@ -969,9 +973,8 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			)
 			*co = nc
 			go nc.run(cCtx)
-			nc.flushImmediate(ctx, "⏳")
 		}
-		(*co).setPending(m.formatStream(platform, f))
+		(*co).setPending(text)
 	}
 }
 

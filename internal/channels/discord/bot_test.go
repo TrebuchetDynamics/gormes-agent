@@ -279,7 +279,8 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 	}
 
 	waitForDiscord(t, 500*time.Millisecond, func() bool {
-		return len(ms.sentSnapshot()) >= 1 && len(ms.editsSnapshot()) >= 1
+		sent := ms.sentSnapshot()
+		return len(sent) >= 1 && (sent[0].Content == "partial" || sent[0].Content == "done")
 	})
 }
 

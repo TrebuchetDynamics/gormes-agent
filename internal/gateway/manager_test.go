@@ -420,7 +420,8 @@ func TestManager_Outbound_StreamsToPinnedChannel(t *testing.T) {
 	}
 
 	waitFor(t, 500*time.Millisecond, func() bool {
-		return len(tg.sentSnapshot()) >= 1 && len(tg.editsSnapshot()) >= 1
+		sent := tg.sentSnapshot()
+		return len(sent) >= 1 && sent[0].Text == "partial"
 	})
 }
 
@@ -464,7 +465,8 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "partial"}
 	waitFor(t, 500*time.Millisecond, func() bool {
-		return len(tg.sentSnapshot()) >= 1 && len(tg.editsSnapshot()) >= 1
+		sent := tg.sentSnapshot()
+		return len(sent) >= 1 && sent[0].Text == "partial"
 	})
 	oldID := tg.sentSnapshot()[0].MsgID
 
@@ -485,8 +487,8 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 		t.Fatalf("fresh final text = %q, want %q; sent=%#v", sent[1].Text, "done", sent)
 	}
 	edits := tg.editsSnapshot()
-	if len(edits) != 1 {
-		t.Fatalf("EditMessageFinal calls = %d, want only initial preview edit; edits=%#v", len(edits), edits)
+	if len(edits) != 0 {
+		t.Fatalf("EditMessageFinal calls = %d, want none before fresh final send; edits=%#v", len(edits), edits)
 	}
 	if got, want := tg.deletesSnapshot(), []fakeDelete{{ChatID: "42", MsgID: oldID}}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DeleteMessage calls = %#v, want %#v", got, want)
@@ -497,16 +499,23 @@ type replyPlaceholderFakeChannel struct {
 	*fakeChannel
 
 	replyPlaceholders []fakeReplyPlaceholder
+	replies           []fakeReplySend
 }
 
 type fakeReplyPlaceholder struct{ ChatID, ReplyToMsgID string }
+type fakeReplySend struct{ ChatID, ReplyToMsgID, Text string }
 
 func (f *replyPlaceholderFakeChannel) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
 	f.replyPlaceholders = append(f.replyPlaceholders, fakeReplyPlaceholder{ChatID: chatID, ReplyToMsgID: replyToMsgID})
 	return f.fakeChannel.SendPlaceholder(ctx, chatID)
 }
 
-func TestManager_Outbound_StreamingPlaceholderRepliesToInboundMessage(t *testing.T) {
+func (f *replyPlaceholderFakeChannel) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
+	f.replies = append(f.replies, fakeReplySend{ChatID: chatID, ReplyToMsgID: replyToMsgID, Text: text})
+	return f.fakeChannel.Send(ctx, chatID, text)
+}
+
+func TestManager_Outbound_FirstStreamingContentRepliesToInboundMessage(t *testing.T) {
 	tg := &replyPlaceholderFakeChannel{fakeChannel: newFakeChannel("telegram")}
 	frames := make(chan kernel.RenderFrame, 2)
 	fk := &fakeKernel{}
@@ -535,13 +544,56 @@ func TestManager_Outbound_StreamingPlaceholderRepliesToInboundMessage(t *testing
 		return len(fk.submitsSnapshot()) == 1
 	})
 
-	frames <- kernel.RenderFrame{Phase: kernel.PhaseConnecting, SessionID: "sess-1", StatusText: "connecting"}
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, SessionID: "sess-1", DraftText: "partial"}
 	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(tg.replyPlaceholders) == 1
+		return len(tg.replies) == 1
 	})
 
-	if got := tg.replyPlaceholders[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" {
-		t.Fatalf("reply placeholder = %+v, want chat 42 replying to inbound message", got)
+	if got := tg.replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || got.Text != "partial" {
+		t.Fatalf("reply send = %+v, want chat 42 replying to inbound message with stream content", got)
+	}
+	if len(tg.replyPlaceholders) != 0 {
+		t.Fatalf("reply placeholders = %#v, want none for Hermes-style first content send", tg.replyPlaceholders)
+	}
+}
+
+func TestManager_Outbound_ConnectingStartsTypingWithoutHourglassMessage(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	frames := make(chan kernel.RenderFrame, 2)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		CoalesceMs:   10,
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "u",
+		MsgID:    "telegram-user-msg-1",
+		Kind:     EventSubmit,
+		Text:     "hello",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseConnecting, SessionID: "sess-1", StatusText: "connecting"}
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.typingChats) == 1
+	})
+
+	if sent := tg.sentSnapshot(); len(sent) != 0 {
+		t.Fatalf("connecting frame sent visible messages = %#v, want only Telegram typing indicator", sent)
 	}
 }
 
