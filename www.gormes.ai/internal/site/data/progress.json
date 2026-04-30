@@ -2725,10 +2725,10 @@
             },
             {
               "name": "Telegram dynamic BotCommand menu wiring",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Telegram startup registers the core command set plus enabled plugin/skill slash commands through the existing dynamic BotCommand helper, respecting Telegram's 100-command cap and emitting hidden-count evidence.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2736,8 +2736,8 @@
                 "system",
                 "operator"
               ],
-              "degraded_mode": "If dynamic command discovery fails, the bot registers the core menu and logs redacted dynamic_menu_unavailable evidence.",
-              "fixture": "internal/channels/telegram/bot_commands_dynamic_test.go",
+              "degraded_mode": "If dynamic command discovery fails, the bot registers the core menu; runtime registration caps at Telegram’s 100-command platform limit so core commands remain available.",
+              "fixture": "internal/channels/telegram/bot_test.go + cmd/gormes/gateway_test.go + internal/skills/preprocessing_commands_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/commands.py:558-589",
                 "../hermes-agent/gateway/platforms/telegram.py:822-837",
@@ -2751,13 +2751,16 @@
                 "Core-only fallback remains available."
               ],
               "write_scope": [
-                "internal/channels/telegram/",
-                "internal/gateway/commands.go",
-                "internal/skills/",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
+                "cmd/gormes/gateway_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway ./internal/skills -run 'BotCommand|TelegramCommands' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway ./internal/skills -run 'BotCommand|TelegramCommands|TestBot_RunRegistersDynamicSkillTelegramCommands|TestBot_RunCapsTelegramCommandsAtPlatformLimit' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run 'TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands' -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
                 "git diff --check"
               ],
@@ -2767,7 +2770,23 @@
               "ready_when": [
                 "Core Telegram BotCommand registration is already present and the dynamic command helper surface is identified.",
                 "The slice can use fake Bot API request capture and deterministic skill/plugin fixtures without reading live tokens."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/channels/telegram/bot.go:Config.DynamicCommands lets Telegram startup append runtime-discovered command menu entries through gateway.TelegramBotCommandsWith.",
+                  "internal/channels/telegram/bot.go:registerCommands caps setMyCommands at Telegram’s 100-command platform limit, logs hidden_count evidence, and preserves the core menu first.",
+                  "cmd/gormes/gateway.go:gatewayTelegramDynamicCommands loads active skill slash commands from the configured Gormes skills root and passes them into both gateway and legacy telegram entrypoints."
+                ],
+                "tests": [
+                  "internal/channels/telegram/bot_test.go:TestBot_RunRegistersDynamicSkillTelegramCommands proves setMyCommands receives an enabled skill command normalized for Telegram.",
+                  "internal/channels/telegram/bot_test.go:TestBot_RunCapsTelegramCommandsAtPlatformLimit proves the Telegram platform limit is enforced.",
+                  "cmd/gormes/gateway_test.go:TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands proves production gateway command discovery reads active skills from config-owned Gormes root fixtures."
+                ],
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'TestBot_RunRegistersDynamicSkillTelegramCommands|TestBot_RunCapsTelegramCommandsAtPlatformLimit|TestBot_RunRegistersHermesTelegramCommands' -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run 'TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands' -count=1 -> ok"
+                ]
+              }
             },
             {
               "name": "Active Hermes/Sidon profile context root resolver for live turns",

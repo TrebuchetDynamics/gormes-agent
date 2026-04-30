@@ -28,6 +28,9 @@ type Config struct {
 	RequireMention bool
 	// BotUsername is the bare bot handle used to recognise group mentions.
 	BotUsername string
+	// DynamicCommands are optional runtime-discovered commands (for example
+	// enabled skill slash commands) appended to the canonical Hermes menu.
+	DynamicCommands []gateway.PlatformCommand
 }
 
 // Bot implements gateway.Channel plus the editing capabilities the shared
@@ -44,6 +47,8 @@ var _ gateway.MessageDeleter = (*Bot)(nil)
 var _ gateway.MediaSender = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
 
+const telegramCommandLimit = 100
+
 func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	if log == nil {
 		log = slog.Default()
@@ -54,9 +59,15 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 func (b *Bot) Name() string { return "telegram" }
 
 func (b *Bot) registerCommands() error {
-	commands := gateway.TelegramBotCommands()
+	commands := gateway.TelegramBotCommandsWith(b.cfg.DynamicCommands)
+	if hidden := len(commands) - telegramCommandLimit; hidden > 0 {
+		b.log.Info("telegram setMyCommands capped at platform limit", "limit", telegramCommandLimit, "hidden_count", hidden)
+	}
 	botCommands := make([]tgbotapi.BotCommand, 0, len(commands))
 	for _, cmd := range commands {
+		if len(botCommands) >= telegramCommandLimit {
+			break
+		}
 		name := strings.TrimSpace(cmd.Name)
 		desc := strings.TrimSpace(cmd.Description)
 		if name == "" || desc == "" {

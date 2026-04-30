@@ -24,6 +24,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/slack"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
@@ -192,6 +193,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				RequireMention:    cfg.Telegram.RequireMention,
 				BotUsername:       cfg.Telegram.BotUsername,
 				AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
+				DynamicCommands:   gatewayTelegramDynamicCommands(context.Background(), cfg),
 			}, tc, log), nil
 		},
 		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
@@ -211,6 +213,22 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
 		},
 	}
+}
+
+func gatewayTelegramDynamicCommands(ctx context.Context, cfg config.Config) []gateway.PlatformCommand {
+	runtime := skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
+	skillCommands, _, err := runtime.SkillSlashCommands(ctx, skills.RuntimeOptions{})
+	if err != nil || len(skillCommands) == 0 {
+		return nil
+	}
+	commands := make([]gateway.PlatformCommand, 0, len(skillCommands))
+	for _, cmd := range skillCommands {
+		commands = append(commands, gateway.PlatformCommand{
+			Name:        strings.TrimPrefix(cmd.Command, "/"),
+			Description: cmd.Description,
+		})
+	}
+	return commands
 }
 
 func gatewayCoalesceMs(cfg config.Config) int {

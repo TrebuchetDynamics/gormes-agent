@@ -1,7 +1,9 @@
 package telegram
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,24 +31,75 @@ func TestBot_RunRegistersHermesTelegramCommands(t *testing.T) {
 	go func() { _ = b.Run(ctx, inbox) }()
 	defer cancel()
 
+	cfg := waitForSetMyCommands(t, mc)
+	seen := map[string]bool{}
+	for _, cmd := range cfg.Commands {
+		seen[cmd.Command] = true
+	}
+	for _, want := range []string{"new", "retry", "undo", "title", "branch", "compress", "rollback", "snapshot", "stop", "approve", "deny", "background", "btw", "agents", "queue", "steer", "status"} {
+		if !seen[want] {
+			t.Fatalf("setMyCommands missing %q in %#v", want, cfg.Commands)
+		}
+	}
+}
+
+func TestBot_RunRegistersDynamicSkillTelegramCommands(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{
+		AllowedChatID: 42,
+		DynamicCommands: []gateway.PlatformCommand{
+			{Name: "jellyfin-jellystat-24h-summary", Description: "Summarize media stats"},
+			{Name: "", Description: "ignored"},
+		},
+	}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = b.Run(ctx, inbox) }()
+	defer cancel()
+
+	cfg := waitForSetMyCommands(t, mc)
+	for _, cmd := range cfg.Commands {
+		if cmd.Command == "jellyfin_jellystat_24h_summary" && cmd.Description == "Summarize media stats" {
+			return
+		}
+	}
+	t.Fatalf("setMyCommands missing dynamic skill command in %#v", cfg.Commands)
+}
+
+func TestBot_RunCapsTelegramCommandsAtPlatformLimit(t *testing.T) {
+	mc := newMockClient()
+	dynamic := make([]gateway.PlatformCommand, 0, 120)
+	for i := 0; i < 120; i++ {
+		dynamic = append(dynamic, gateway.PlatformCommand{Name: strings.ReplaceAll("skill-extra-"+time.Unix(int64(i), 0).UTC().Format("150405"), ":", ""), Description: "Extra skill"})
+	}
+	var logs bytes.Buffer
+	b := New(Config{AllowedChatID: 42, DynamicCommands: dynamic}, mc, slog.New(slog.NewTextHandler(&logs, nil)))
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = b.Run(ctx, inbox) }()
+	defer cancel()
+
+	cfg := waitForSetMyCommands(t, mc)
+	if len(cfg.Commands) != telegramCommandLimit {
+		t.Fatalf("registered command count = %d, want %d", len(cfg.Commands), telegramCommandLimit)
+	}
+	if !strings.Contains(logs.String(), "hidden_count") {
+		t.Fatalf("cap log = %q, want hidden_count evidence", logs.String())
+	}
+}
+
+func waitForSetMyCommands(t *testing.T, mc *mockClient) tgbotapi.SetMyCommandsConfig {
+	t.Helper()
 	deadline := time.After(200 * time.Millisecond)
 	for {
 		requests := mc.requestMessages()
 		for _, req := range requests {
 			cfg, ok := req.(tgbotapi.SetMyCommandsConfig)
-			if !ok {
-				continue
+			if ok {
+				return cfg
 			}
-			seen := map[string]bool{}
-			for _, cmd := range cfg.Commands {
-				seen[cmd.Command] = true
-			}
-			for _, want := range []string{"new", "retry", "undo", "title", "branch", "compress", "rollback", "snapshot", "stop", "approve", "deny", "background", "btw", "agents", "queue", "steer", "status"} {
-				if !seen[want] {
-					t.Fatalf("setMyCommands missing %q in %#v", want, cfg.Commands)
-				}
-			}
-			return
 		}
 		select {
 		case <-deadline:

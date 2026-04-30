@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -26,6 +27,31 @@ func (f *fakeShutdownManager) Shutdown(context.Context) error {
 	close(f.called)
 	<-f.release
 	return nil
+}
+
+func TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands(t *testing.T) {
+	root := t.TempDir()
+	skillDir := filepath.Join(root, "active", "media")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(`---
+name: jellyfin-jellystat-24h-summary
+description: Summarize media stats
+---
+
+Run the report.
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	commands := gatewayTelegramDynamicCommands(context.Background(), config.Config{Skills: config.SkillsCfg{Root: root}})
+	for _, cmd := range commands {
+		if cmd.Name == "jellyfin-jellystat-24h-summary" && cmd.Description == "Summarize media stats" {
+			return
+		}
+	}
+	t.Fatalf("gatewayTelegramDynamicCommands() = %#v, want active skill command", commands)
 }
 
 func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {

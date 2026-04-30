@@ -123,27 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 6. Telegram dynamic BotCommand menu wiring
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Telegram startup registers the core command set plus enabled plugin/skill slash commands through the existing dynamic BotCommand helper, respecting Telegram's 100-command cap and emitting hidden-count evidence.
-- Trust class: gateway, system, operator
-- Ready when: Core Telegram BotCommand registration is already present and the dynamic command helper surface is identified., The slice can use fake Bot API request capture and deterministic skill/plugin fixtures without reading live tokens.
-- Not ready when: -
-- Degraded mode: If dynamic command discovery fails, the bot registers the core menu and logs redacted dynamic_menu_unavailable evidence.
-- Fixture: `internal/channels/telegram/bot_commands_dynamic_test.go`
-- Write scope: `internal/channels/telegram/`, `internal/gateway/commands.go`, `internal/skills/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway ./internal/skills -run 'BotCommand\|TelegramCommands' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Telegram runtime registration uses the dynamic command helper with deterministic cap/fallback fixtures.
-- Acceptance: Runtime `setMyCommands` receives core plus enabled dynamic commands in deterministic order., Aliases are omitted and command names are Telegram-safe., More than 100 commands are capped with hidden-count evidence., Core-only fallback remains available.
-- Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Gateway active-turn policy manifest closeout
+## 6. Gateway active-turn policy manifest closeout
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -163,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:267-290, ../hermes-agent/gateway/run.py:2950-3225, internal/gateway/commands.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Gateway conversational session metadata refresh
+## 7. Gateway conversational session metadata refresh
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/session.py, ../hermes-agent/gateway/run.py:4646-4680, internal/gateway/status_command.go, internal/session/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Gateway session token accounting parity
+## 8. Gateway session token accounting parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/run.py:4674, internal/gateway/status_command.go, internal/gateway/usage_command.go, internal/hermes/provider_transport.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Goncho memory provider lifecycle adapter
+## 9. Goncho memory provider lifecycle adapter
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -221,6 +201,25 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Goncho memory-provider lifecycle fixtures prove initialize, prefetch, sync, pre-compress, mirror, delegation, and shutdown behavior.
 - Acceptance: Lifecycle tests prove initialize and prefetch run once per session/provider., Turn sync mirrors user/assistant exchanges into Goncho with redacted evidence., Pre-compress contributions are bounded and ordered before compression., Shutdown drains or reports pending memory work without blocking process exit., Tests use fake providers and SQLite temp stores only.
 - Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Prompt-cache capability guard
+
+- Phase: 4 / 4.H
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Contract: Gormes applies Hermes prompt-cache markers only when provider, endpoint, API mode, and model policy allow them: native Anthropic uses native layout, OpenRouter Claude uses envelope layout, third-party Anthropic Claude gateways cache conservatively, Qwen on opencode/opencode-go/Alibaba gets envelope markers, and OpenAI-wire custom providers without an allow rule strip cache_control visibly.
+- Trust class: operator, system
+- Ready when: Provider status already exposes a prompt-cache capability slot and unsupported OpenAI-compatible cache_control stripping is validated., The worker can test policy decisions and message rewrites with synthetic provider/baseURL/apiMode/model tuples; no live provider, token store, or network call is required.
+- Not ready when: The slice sends cache_control to every OpenAI-compatible provider, changes retry/rate-limit behavior, or relies on live provider probes., The slice only changes status text without proving request mapping for native, envelope, and stripped layouts.
+- Degraded mode: Provider status reports prompt_cache_supported, prompt_cache_stripped, prompt_cache_provider_unknown, or prompt_cache_policy_unavailable instead of leaking unsupported cache_control fields into strict providers.
+- Fixture: `internal/hermes/prompt_cache_policy_test.go`
+- Write scope: `internal/hermes/prompt_cache_policy.go`, `internal/hermes/prompt_cache_policy_test.go`, `internal/hermes/status.go`, `internal/hermes/anthropic_client.go`, `internal/hermes/provider_status_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run 'TestPromptCachePolicy\|TestApplyPromptCacheControl' -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/progress validate`
+- Done signal: Prompt-cache fixtures prove provider policy, native/envelope/stripped layouts, four-breakpoint rewrite behavior, and visible unsupported-provider status without live probes.
+- Acceptance: Policy fixtures match Hermes for native Anthropic, Anthropic-host aliases, OpenRouter Claude, third-party Anthropic Claude gateways, OpenAI-wire custom Claude names, and Qwen opencode/opencode-go/Alibaba cases., Message rewrite fixtures deep-copy inputs, place at most four breakpoints, mark system plus last three non-system messages, preserve 1h TTL, and handle native Anthropic tool-role markers., OpenAI-wire providers without an allow rule strip cache_control before request serialization and expose a visible degraded capability reason., Provider status and request bodies agree: a supported policy serializes cache markers and an unsupported policy omits them.
+- Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

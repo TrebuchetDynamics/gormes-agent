@@ -192,7 +192,7 @@ classification and row-backed implementation queue.
 - [ ] Gateway typing-action wiring during stream
 - [x] Placeholder edit-failure fallback hardening
 - [x] Gateway stream/tool trace formatting fixture matrix
-- [ ] Telegram dynamic BotCommand menu wiring
+- [x] Telegram dynamic BotCommand menu wiring
 - [x] Active Hermes/Sidon profile context root resolver for live turns
 - [x] Durable context ordering and frozen snapshot decision fixture
 - [x] Live-turn model/tool guidance wiring
