@@ -927,7 +927,7 @@ classification and row-backed implementation queue.
 - [x] Feishu shared-chassis bot seam
 - [x] DingTalk shared-chassis bot seam
 - [x] QQ Bot shared-chassis bot seam
-- [ ] Feishu transport/bootstrap layer
+- [x] Feishu transport/bootstrap layer
 - [ ] Feishu drive-comment rule + pairing seam
 - [ ] Feishu drive-comment reply workflow
 - [x] DingTalk transport/bootstrap layer

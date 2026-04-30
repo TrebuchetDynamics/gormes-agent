@@ -700,8 +700,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.E QQ Bot shared-chassis bot seam note = %q, want QQ detail", qqBot.Note)
 	}
 	feishuTransport := longTailItems["Feishu transport/bootstrap layer"]
-	if feishuTransport.Status != StatusPlanned {
-		t.Fatalf("Phase 7.E Feishu transport/bootstrap status = %q, want planned", feishuTransport.Status)
+	if feishuTransport.Status != StatusComplete {
+		t.Fatalf("Phase 7.E Feishu transport/bootstrap status = %q, want complete", feishuTransport.Status)
+	}
+	if feishuTransport.ContractStatus != ContractStatusValidated || !strings.Contains(feishuTransport.Note, "ResolveBootstrapConfig") || !strings.Contains(feishuTransport.Note, "LoopBuffer") {
+		t.Fatalf("Phase 7.E Feishu transport/bootstrap evidence = contract_status %q note %q, want validated bootstrap/loop evidence", feishuTransport.ContractStatus, feishuTransport.Note)
 	}
 	dingTalkTransport := longTailItems["DingTalk transport/bootstrap layer"]
 	if dingTalkTransport.Status != StatusComplete {

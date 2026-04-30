@@ -29962,9 +29962,9 @@
             },
             {
               "name": "Feishu transport/bootstrap layer",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes adds a fakeable Feishu/Lark transport bootstrap boundary before live SDK binding: config resolves app credentials, connection_mode selects webhook vs websocket, webhook URL verification and signature checks are pure helpers, websocket event handlers register message/reaction/card/customized processors, inbound events queue until the adapter loop is ready, and rich-text/card send failures return typed SendResult evidence with redacted tokens.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -30008,7 +30008,7 @@
                 "TestFeishuLoopNotReadyQueuesAndDrainsOnce proves events received before loop readiness are queued, drained in order, and not lost.",
                 "TestFeishuRichTextSendFailureEvidence proves fake send failures return typed evidence and do not leak credentials."
               ],
-              "note": "Builder-ready Feishu transport boundary. Hermes Feishu tests define the lifecycle and loop-race contract; trpc-agent-go/Engram provide callback and bounded activity-evidence pattern references.",
+              "note": "Completed with Go-native Feishu bootstrap fixtures: ResolveBootstrapConfig preserves Hermes env/extra precedence for app credentials and connection_mode, SelectBootstrapLifecycle validates websocket/webhook readiness, VerifyWebhookRequest covers URL verification plus token/signature failures without credential leakage, RegisterDefaultEventHandlers covers message/reaction/card/chat/drive-comment registrations, LoopBuffer queues pre-ready events and drains once, and SendRichTextWithEvidence returns redacted feishu_send_failed evidence. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/feishu ./internal/config -run TestFeishuBootstrap -count=1 and package tests.",
               "write_scope": [
                 "internal/channels/feishu/bootstrap.go",
                 "internal/channels/feishu/bootstrap_test.go",
@@ -30017,7 +30017,8 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/channels/feishu ./internal/config -run TestFeishuBootstrap -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/feishu ./internal/config -run TestFeishuBootstrap -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/feishu ./internal/config -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
