@@ -17,6 +17,11 @@ import (
 
 const openRouterBaseURL = "https://openrouter.ai/api/v1"
 
+var (
+	authBareAWSIdentityProbe          func() (string, error)
+	errAuthBareAWSIdentityUnavailable = errors.New("aws_identity_unavailable")
+)
+
 func newLoginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "login",
@@ -295,14 +300,46 @@ func runAuthBareCommand(cmd *cobra.Command) error {
 		if status.Count == 0 {
 			continue
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s (%d credentials) credential_pool provider=%s credentials=%d redacted=%t\n", provider, status.Count, provider, status.Count, status.Redacted)
+		fmt.Fprintf(cmd.OutOrStdout(), "%s (%d credentials): credential_pool provider=%s credentials=%d redacted=%t\n", provider, status.Count, provider, status.Count, status.Redacted)
+		fmt.Fprintln(cmd.OutOrStdout(), "label\tauth_type\tsource\tstatus\tcurrent")
+		currentMarked := false
+		for _, entry := range status.Entries {
+			current := ""
+			if !currentMarked && entry.LastStatus != config.CredentialStatusExhausted {
+				current = "←"
+				currentMarked = true
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\t%s\n", entry.Label, entry.AuthType, entry.Source, bareCredentialStatus(entry), current)
+		}
 		printed = true
 	}
 	if !printed {
-		fmt.Fprintln(cmd.OutOrStdout(), "credential_pool_empty provider=all redacted=true")
+		fmt.Fprintln(cmd.OutOrStdout(), "(no credentials configured) credential_pool_empty provider=all redacted=true")
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "bedrock_identity status=not_checked redacted=true")
+	fmt.Fprintln(cmd.OutOrStdout(), bareAWSIdentityLine())
 	return nil
+}
+
+func bareAWSIdentityLine() string {
+	if authBareAWSIdentityProbe == nil {
+		return "bedrock_identity status=not_checked redacted=true"
+	}
+	identity, err := authBareAWSIdentityProbe()
+	if err != nil || strings.TrimSpace(identity) == "" {
+		return "bedrock identity: aws_identity_unavailable bedrock_identity status=aws_identity_unavailable redacted=true"
+	}
+	return fmt.Sprintf("bedrock identity: %s bedrock_identity status=ok redacted=true", strings.TrimSpace(identity))
+}
+
+func bareCredentialStatus(entry config.RedactedCredentialStatus) string {
+	status := strings.TrimSpace(entry.LastStatus)
+	if status == "" {
+		status = config.CredentialStatusOK
+	}
+	if status == config.CredentialStatusExhausted && strings.TrimSpace(entry.LastErrorReason) != "" {
+		return fmt.Sprintf("%s(%s)", status, entry.LastErrorReason)
+	}
+	return status
 }
 
 func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {

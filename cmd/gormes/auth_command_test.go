@@ -220,10 +220,10 @@ func TestGormesLoginPrintsRemovedCommandGuidance(t *testing.T) {
 func TestGormesAuthBareReadout(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
-		{ID: "openrouter-manual-1", Label: "personal", AuthType: config.CredentialAuthAPIKey, Source: "manual", AccessToken: "sk-openrouter-secret"},
+		{ID: "openrouter-manual-1", Label: "personal", AuthType: config.CredentialAuthAPIKey, Source: "manual", AccessToken: "plain-openrouter-token"},
 	})
 	seedAuthCommandCredentials(t, config.CodexOAuthProvider, []config.PooledCredential{
-		{ID: "codex-device-1", Label: "codex", AuthType: config.CredentialAuthOAuth, Source: config.CodexOAuthSourceDeviceCode, AccessToken: "codex-access-secret", RefreshToken: "codex-refresh-secret"},
+		{ID: "codex-device-1", Label: "codex", AuthType: config.CredentialAuthOAuth, Source: config.CodexOAuthSourceDeviceCode, AccessToken: "plain-codex-access", RefreshToken: "plain-codex-refresh"},
 	})
 
 	cmd := newRootCommandWithRuntime(rootRuntime{})
@@ -231,7 +231,7 @@ func TestGormesAuthBareReadout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("auth: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	for _, leak := range []string{"sk-openrouter-secret", "codex-access-secret", "codex-refresh-secret"} {
+	for _, leak := range []string{"plain-openrouter-token", "plain-codex-access", "plain-codex-refresh"} {
 		if strings.Contains(stdout+stderr, leak) {
 			t.Fatalf("bare auth leaked %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
 		}

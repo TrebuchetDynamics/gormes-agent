@@ -23370,10 +23370,10 @@
             },
             {
               "name": "Gormes auth bare interactive credential-pool readout",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "`gormes auth` invoked with no subcommand renders the credential-pool table for every registered provider with current marker, label, source, auth_type, and exhaustion status using only the existing internal/config credential-pool readers; in non-TTY contexts the bare invocation prints the same table plus a hint and exits 0 instead of entering an interactive add/remove/reset/strategy menu.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23416,7 +23416,7 @@
                 "TestAuthBareAWSIdentityOptionalProbe proves a fake AWS identity probe surfaces `bedrock identity: arn:...` when the probe succeeds and `bedrock identity: aws_identity_unavailable` when it fails, without aborting the readout.",
                 "TestAuthBareCorruptStoreReportsTypedEvidence proves a corrupt auth.json returns credential_pool_corrupt evidence and a non-zero exit code without panicking."
               ],
-              "note": "Builder-ready CLI binding only. Backend credential-pool readers (rows 11069 token vault, 11206 multi-account auth) are already shipped; this row is a thin renderer + non-TTY fallback that materializes Hermes' bare-`auth` table behavior. Out of scope: the interactive add/remove/reset/strategy menu (TUI-coupled, plan as separate row) and live AWS STS calls (use injected probe).",
+              "note": "Complete: TDD added cmd/gormes/auth_bare_command_test.go and tightened cmd/gormes/auth.go so bare `gormes auth` stays noninteractive while rendering a redacted credential-pool table with label/auth_type/source/status/current columns, empty-pool guidance, corrupt-store evidence without host paths, and optional injected Bedrock/AWS identity evidence. Existing auth command fixtures now use neutral placeholder tokens instead of secret-shaped fixtures.",
               "write_scope": [
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_bare_command_test.go",
@@ -23430,6 +23430,11 @@
               "done_signal": [
                 "Bare auth fixtures prove non-TTY pool table rendering, empty-pool message, secret redaction, optional AWS identity probe degradation, and corrupt-store evidence."
               ],
+              "evidence": {
+                "implementation": "cmd/gormes/auth.go; cmd/gormes/auth_bare_command_test.go; cmd/gormes/auth_command_test.go",
+                "tests": "go test ./cmd/gormes -run '^TestAuthBare' -count=1; go test ./cmd/gormes ./internal/config -count=1",
+                "note": "Bare auth now renders redacted credential-pool rows, deterministic empty/corrupt evidence, and optional injected Bedrock identity evidence without entering an interactive prompt."
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/auth_commands.py auth_command bare invocation",
