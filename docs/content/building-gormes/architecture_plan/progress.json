@@ -19742,9 +19742,9 @@
             {
               "name": "Concurrent tool approval callback propagation",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Concurrent tool workers inherit only an explicit approval callback and otherwise fail closed with noninteractive denial, so approval prompts never fall back to stdin while a CLI/TUI turn owns the terminal",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -19787,7 +19787,7 @@
                 "TestApprovalCallbackPropagation_CallbackErrorDenied proves callback errors deny the command with evidence.",
                 "No test reads from os.Stdin, uses prompt_toolkit equivalents, or executes a shell command."
               ],
-              "note": "Added after Hermes 0046d170 propagated approval callbacks into concurrent tool workers and 008860a2 closed remaining prompt_toolkit/stdin deadlock vectors. Gormes should fixture-lock the callback propagation boundary before widening approval wiring.",
+              "note": "Shipped native approval callback propagation for concurrent child-tool workers: explicit context callbacks can approve recoverable dangerous commands, missing callbacks fail closed without stdin fallback, callback errors deny with evidence, and callback scope does not leak into parent/next worker contexts. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/subagent -run 'TestApprovalCallbackPropagation_|TestGuardCommand' -count=1 and go test ./internal/tools ./internal/subagent -count=1.",
               "write_scope": [
                 "internal/tools/approval_callback.go",
                 "internal/tools/approval_callback_test.go",

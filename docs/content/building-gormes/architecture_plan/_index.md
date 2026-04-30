@@ -686,7 +686,7 @@ classification and row-backed implementation queue.
 - [x] Approval mode config normalization
 - [x] Gateway hook auto-accept strict parser
 - [x] Subagent dangerous-command non-interactive approval policy
-- [ ] Concurrent tool approval callback propagation
+- [x] Concurrent tool approval callback propagation
 - [x] Background review toolset restriction
 - [ ] Cron dangerous-command approval mode
 - [ ] Tirith, path, URL, and website policy integration

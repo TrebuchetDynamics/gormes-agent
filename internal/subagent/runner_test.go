@@ -207,6 +207,59 @@ func TestExecuteChildToolRunsAllowlistedTool(t *testing.T) {
 	}
 }
 
+func TestApprovalCallbackPropagation_ConcurrentWorkerUsesInjectedCallback(t *testing.T) {
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{NameStr: "terminal"})
+	cfg := SubagentConfig{
+		Goal:         "run guarded command",
+		EnabledTools: []string{"terminal"},
+		toolExecutor: tools.NewInProcessToolExecutor(reg),
+	}
+	calls := 0
+	ctx := tools.WithApprovalCallback(context.Background(), func(_ context.Context, req tools.ApprovalRequest) (tools.ApprovalDecision, error) {
+		calls++
+		if req.Command != "git reset --hard" {
+			t.Fatalf("approval command = %q, want git reset --hard", req.Command)
+		}
+		return tools.ApprovalDecision{Approved: true}, nil
+	})
+
+	_, info, err := executeChildTool(ctx, cfg, make(chan SubagentEvent, 8), tools.ToolRequest{
+		ToolName: "terminal",
+		Input:    json.RawMessage(`{"command":"git reset --hard"}`),
+	})
+	if err != nil {
+		t.Fatalf("executeChildTool() error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("approval callback calls = %d, want 1", calls)
+	}
+	if info.Status != "completed" {
+		t.Fatalf("ToolCallInfo.Status = %q, want completed", info.Status)
+	}
+}
+
+func TestApprovalCallbackPropagation_MissingCallbackFailsClosed(t *testing.T) {
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{NameStr: "terminal"})
+	cfg := SubagentConfig{
+		Goal:         "run guarded command",
+		EnabledTools: []string{"terminal"},
+		toolExecutor: tools.NewInProcessToolExecutor(reg),
+	}
+
+	_, info, err := executeChildTool(context.Background(), cfg, make(chan SubagentEvent, 8), tools.ToolRequest{
+		ToolName: "terminal",
+		Input:    json.RawMessage(`{"command":"git reset --hard"}`),
+	})
+	if err == nil {
+		t.Fatal("executeChildTool() error = nil, want fail-closed approval denial")
+	}
+	if info.Status != "approval_denied_noninteractive" {
+		t.Fatalf("ToolCallInfo.Status = %q, want approval_denied_noninteractive", info.Status)
+	}
+}
+
 func TestHermesRunnerStreamsToCompletion(t *testing.T) {
 	mc := hermes.NewMockClient()
 	mc.Script([]hermes.Event{

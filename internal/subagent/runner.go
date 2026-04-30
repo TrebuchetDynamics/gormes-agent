@@ -331,7 +331,7 @@ func executeChildTool(ctx context.Context, cfg SubagentConfig, events chan<- Sub
 		emitChildToolEvent(ctx, events, info, err.Error())
 		return nil, info, err
 	}
-	if blocked := guardChildDangerousCommand(cfg, req); blocked.Description != "" {
+	if blocked := guardChildDangerousCommand(ctx, cfg, req); blocked.Description != "" {
 		info.Status = "approval_denied_noninteractive"
 		err := fmt.Errorf("%w: %s", ErrSubagentApprovalDenied, blocked.Description)
 		recordAudit(info.Status, nil, err)
@@ -395,12 +395,12 @@ func emitChildToolEvent(ctx context.Context, events chan<- SubagentEvent, info T
 	}
 }
 
-func guardChildDangerousCommand(cfg SubagentConfig, req tools.ToolRequest) tools.BlockedResult {
+func guardChildDangerousCommand(ctx context.Context, cfg SubagentConfig, req tools.ToolRequest) tools.BlockedResult {
 	cmd := childToolCommand(req)
 	if cmd == "" {
 		return tools.BlockedResult{}
 	}
-	result := tools.GuardCommand(cmd, cfg.DangerousCommandApprovalMode)
+	result := tools.GuardCommandWithApproval(ctx, req.ToolName, cmd, cfg.DangerousCommandApprovalMode)
 	if result.Description == "" || result.Approved {
 		return tools.BlockedResult{}
 	}
