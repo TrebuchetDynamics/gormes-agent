@@ -23498,10 +23498,10 @@
             },
             {
               "name": "Gormes top-level logout provider shortcut",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "`gormes logout --provider {nous|openai-codex|spotify}` is a top-level shortcut that dispatches to the same logout handler as `gormes auth logout`, narrowly limited to those three provider choices, and clears only the named provider's stored auth state with redacted output. It must remain parallel to `gormes auth logout` rather than aliasing or shadowing it.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23528,10 +23528,7 @@
                 "Output prints raw access_token, refresh_token, or auth.json bytes.",
                 "The slice clears unrelated providers' credential pool entries when only one provider was specified."
               ],
-              "blocked_by": [
-                "Hermes auth credential-pool command surface",
-                "Hermes auth command-tree manifest refresh"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Gormes login removed-command typo suggestion contract"
               ],
@@ -23542,7 +23539,7 @@
                 "TestLogoutTopLevelRedactsSecrets proves output contains no fake token bytes and no raw auth.json content.",
                 "TestLogoutTopLevelIdempotentMissingState proves running the command twice (after the first clears state) returns auth_state_absent and exits 0."
               ],
-              "note": "Encodes auditor surprise (b): Hermes' top-level `logout` parser is alive, narrowly scoped to nous|openai-codex|spotify, and dispatches to the same handler as `auth logout`. Not deprecated; runs in parallel. Backend logout helper is shipped under credential-pool surface; this is the top-level CLI binding only.",
+              "note": "Shipped native top-level `gormes logout --provider {nous|openai-codex|spotify}` binding in cmd/gormes/logout.go. RED/GREEN fixtures prove the Hermes allow-list, scoped credential clearing, auth logout coexistence for broader providers, redacted output, and idempotent auth_state_absent on repeated logout; validated with `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestLogoutTopLevel' -count=1` and `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/config -count=1`.",
               "write_scope": [
                 "cmd/gormes/logout.go",
                 "cmd/gormes/logout_top_level_test.go",
@@ -23555,7 +23552,8 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Top-level logout fixtures prove the three-provider allow-list, parallel coexistence with auth logout, scoped state clearing, secret redaction, and idempotent missing-state behavior."
+                "Top-level logout fixtures prove the three-provider allow-list, parallel coexistence with auth logout, scoped state clearing, secret redaction, and idempotent missing-state behavior.",
+                "Implementation uses Gormes-native Cobra command wiring plus the shared auth logout helper; no live provider, browser, network, Hermes runtime, or token access is required."
               ],
               "provenance": {
                 "origin_type": "upstream",

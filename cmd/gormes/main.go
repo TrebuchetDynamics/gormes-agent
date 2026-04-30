@@ -114,7 +114,7 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newAgentCommand(), newUsageCommand(), newAuthCommand(), newLoginCommand(), newConfigCommand(), newMigrateCommand(), newProfileCommand(), newMCPCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newAgentCommand(), newUsageCommand(), newAuthCommand(), newLogoutCommand(), newLoginCommand(), newConfigCommand(), newMigrateCommand(), newProfileCommand(), newMCPCommand())
 	return root
 }
 

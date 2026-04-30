@@ -670,8 +670,13 @@ func runAuthStatusCommand(cmd *cobra.Command, providerInput string) error {
 
 func runAuthLogoutCommand(cmd *cobra.Command, providerInput string) error {
 	provider := normalizeAuthProvider(providerInput)
-	if _, err := loadAuthEntries(provider); err != nil {
+	entries, err := loadAuthEntries(provider)
+	if err != nil {
 		return err
+	}
+	if len(entries) == 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "auth_state_absent provider=%s redacted=true\n", provider)
+		return nil
 	}
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, nil); err != nil {
 		return err

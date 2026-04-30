@@ -761,7 +761,7 @@ classification and row-backed implementation queue.
 - [ ] Gormes auth add bedrock open-question planning note
 - [x] Gormes profile command binding
 - [x] Model and profile selector seam (Cobra + gateway)
-- [ ] Gormes top-level logout provider shortcut
+- [x] Gormes top-level logout provider shortcut
 - [ ] Gormes login removed-command typo suggestion contract
 - [ ] Gormes model interactive provider/model picker
 - [ ] Gormes setup minimal sectioned wizard slice
