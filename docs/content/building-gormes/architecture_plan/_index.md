@@ -518,7 +518,7 @@ classification and row-backed implementation queue.
 - [ ] System + memory + tools + history assembly
 - [x] Context-file discovery + injection scan
 - [x] Model-specific role and tool-use guidance
-- [ ] Toolset-aware skills prompt snapshot
+- [x] Toolset-aware skills prompt snapshot
 - [ ] Memory and session-search guidance assembly
 - [x] Gormes self-help skill/docs prompt guidance
 - [x] [SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility

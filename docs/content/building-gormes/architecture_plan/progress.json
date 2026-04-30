@@ -12481,7 +12481,7 @@
                 "SKILL.md frontmatter validation guard"
               ],
               "contract": "Native prompt assembly builds a deterministic Hermes-compatible skills index snapshot filtered by available tools/toolsets: SKILL.md and DESCRIPTION.md metadata are reduced into a manifest keyed by relative path, mtime, and size; an in-process LRU cache is keyed by local skill root, external roots, sorted available tools, sorted available toolsets, platform hint, and disabled skill names; an optional disk snapshot is reused only when manifest version and file metadata match; `metadata.hermes.fallback_for_toolsets`, `requires_toolsets`, `fallback_for_tools`, and `requires_tools` hide or show skills exactly like Hermes; local active skills win over external duplicates; output categories and skill names are sorted and deduped.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "If the snapshot is missing, stale, malformed, or unwritable, Gormes falls back to a full active-skill scan and records skills_prompt_snapshot_miss or skills_prompt_snapshot_write_failed evidence without injecting disabled, unsupported, or unavailable skills.",
               "done_signal": [
                 "Skills prompt fixtures prove manifest invalidation, cache-key isolation, tool/toolset conditional filtering, external-dir precedence, deterministic ordering, and status-safe exclusion from prompt injection."
@@ -12494,7 +12494,7 @@
                 "The disk snapshot is reused after any SKILL.md or DESCRIPTION.md mtime/size drift, or after platform/disabled/tool/toolset filters change.",
                 "Condition filtering treats missing available-tools/toolsets as restrictive; Hermes keeps backward compatibility by showing all skills when both filters are unknown."
               ],
-              "note": "Planner correction 2026-04-30T17:26Z: the previous row-local command `go test ./internal/hermes ./internal/skills -run 'TestSkillsPrompt' -count=1` passed with [no tests to run], so it is stale validation evidence and must not be counted. Hermes 69d4800d still defines the skill-index snapshot and conditional tool/toolset filtering contract in agent/prompt_builder.py lines 520-882 plus tests/agent/test_prompt_builder.py lines 856-1017. Gormes partial TDD evidence is limited to internal/skills parsing/status filtering (internal/skills/{types.go,status.go,parser.go,store.go} and TestRuntimeBuildSkillBlockToolsetConditions); the remaining internal/hermes skills prompt snapshot builder still needs RED tests before implementation.",
+              "note": "Implemented 2026-04-30T18:08Z with strict RED/GREEN evidence: internal/hermes/skills_prompt_test.go first failed on missing BuildSkillsSystemPrompt/SkillsPromptOptions, then internal/hermes/skills_prompt.go shipped the native snapshot builder. Hermes 69d4800d defines the skill-index snapshot and conditional tool/toolset filtering contract in agent/prompt_builder.py lines 520-882 plus tests/agent/test_prompt_builder.py lines 856-1017. Gormes now has internal/hermes fixtures for manifest invalidation, malformed-snapshot fallback, cache-key isolation across toolsets/platform/disabled names, external-dir ordering/local duplicate precedence, category DESCRIPTION rendering, nil-filter show-all behavior, and disabled/unsupported/frontmatter-invalid status evidence; internal/skills parsing/status filtering remains covered by TestRuntimeBuildSkillBlockToolsetConditions.",
               "provenance": {
                 "note": "Hermes defines the prompt snapshot behavior and metadata.hermes condition keys; Axe provides a bounded filesystem artifact pattern reference for snapshot-path hardening.",
                 "origin_type": "hybrid",
@@ -12521,6 +12521,11 @@
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/skill_utils.py:249:extract_skill_conditions",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/agent/test_prompt_builder.py:856:TestSkillShouldShow",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/agent/test_prompt_builder.py:908:TestBuildSkillsSystemPromptConditional",
+                "internal/hermes/skills_prompt.go:BuildSkillsSystemPrompt",
+                "internal/hermes/skills_prompt_test.go:TestSkillsPromptSnapshotManifestInvalidation",
+                "internal/hermes/skills_prompt_test.go:TestSkillsPromptToolsetConditionsAndNilFilters",
+                "internal/hermes/skills_prompt_test.go:TestSkillsPromptCacheKeyIncludesToolsetsPlatformAndDisabled",
+                "internal/hermes/skills_prompt_test.go:TestSkillsPromptExternalDirsOrderingAndStatusFiltering",
                 "internal/skills/types.go:41-44:SkillConditions tool/toolset fields",
                 "internal/skills/status.go:30-107:RuntimeOptions and skillConditionsMatch",
                 "internal/skills/parser.go:257-260:metadata.hermes condition parsing",
@@ -12528,10 +12533,11 @@
                 "internal/skills/store_test.go:82:TestRuntimeBuildSkillBlockToolsetConditions",
                 "references/go-agent-os/axe/internal/artifact/tracker.go"
               ],
-              "status": "planned",
+              "status": "complete",
               "test_commands": [
-                "go test ./internal/skills -run TestRuntimeBuildSkillBlockToolsetConditions -count=1",
+                "go test ./internal/hermes -run TestSkillsPrompt -count=1",
                 "go test ./internal/skills -run 'TestRuntimeBuildSkillBlockToolsetConditions|TestRuntimeBuildSkillBlock_InvalidFrontmatterExcludedAndStatusReported' -count=1",
+                "go test ./internal/hermes ./internal/skills -count=1",
                 "go run ./cmd/progress validate"
               ],
               "trust_class": [
