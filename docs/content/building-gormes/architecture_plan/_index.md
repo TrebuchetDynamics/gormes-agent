@@ -190,7 +190,7 @@ classification and row-backed implementation queue.
 - [x] Telegram reply_to_mode and reply-context parity
 - [x] Telegram sendChatAction typing API
 - [ ] Gateway typing-action wiring during stream
-- [ ] Placeholder edit-failure fallback hardening
+- [x] Placeholder edit-failure fallback hardening
 - [ ] Gateway stream/tool trace formatting fixture matrix
 - [ ] Telegram dynamic BotCommand menu wiring
 - [ ] Active Hermes/Sidon profile context root resolver for live turns

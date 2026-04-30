@@ -15,6 +15,31 @@ type coalescerMessageSender interface {
 	Send(ctx context.Context, chatID, text string) (msgID string, err error)
 }
 
+// CoalescerEvidence carries a redacted operator signal from the coalescer.
+// It never contains raw chatIDs, API response bodies, or credentials.
+type CoalescerEvidence struct {
+	// Code is a stable machine-readable key:
+	//   "edit_failed_fallback" – edit error on finalize; plain Send succeeded.
+	//   "send_final_failed"    – edit error on finalize AND fallback Send failed.
+	Code string
+	// Message is a human-readable summary. It is always redacted; it must
+	// never include raw chatIDs, API response bodies, or API keys.
+	Message string
+}
+
+// CoalescerEvidenceSink receives CoalescerEvidence for non-happy-path finalize
+// outcomes. The sink must not block or panic; panics are not recovered here —
+// callers must ensure the sink is safe to call from any goroutine.
+type CoalescerEvidenceSink func(CoalescerEvidence)
+
+func coalescerEvidenceSink(sink CoalescerEvidenceSink) coalescerOption {
+	return func(c *coalescer) {
+		if sink != nil {
+			c.evidenceSink = sink
+		}
+	}
+}
+
 type coalescerOption func(*coalescer)
 
 func coalescerFreshFinalAfter(d time.Duration) coalescerOption {
@@ -34,10 +59,11 @@ func coalescerNow(now func() time.Time) coalescerOption {
 // coalescer batches outbound edits for one turn. The manager owns one
 // instance per active turn and tears it down on terminal phases.
 type coalescer struct {
-	sender placeholderEditor
-	window time.Duration
-	chatID string
-	now    func() time.Time
+	sender       placeholderEditor
+	window       time.Duration
+	chatID       string
+	now          func() time.Time
+	evidenceSink CoalescerEvidenceSink
 
 	mu               sync.Mutex
 	pendingText      string
@@ -65,6 +91,12 @@ func newCoalescer(pe placeholderEditor, window time.Duration, chatID string, opt
 		opt(c)
 	}
 	return c
+}
+
+func (c *coalescer) emitEvidence(code, message string) {
+	if c.evidenceSink != nil {
+		c.evidenceSink(CoalescerEvidence{Code: code, Message: message})
+	}
 }
 
 func (c *coalescer) setPending(text string) {
@@ -124,7 +156,45 @@ func (c *coalescer) flushImmediateFinal(ctx context.Context, text string, finali
 		sentID = msgID
 		err = editCoalescedMessage(ctx, c.sender, c.chatID, msgID, text, finalize)
 	}
+
 	if err != nil {
+		// Mid-stream (non-finalize) edit errors are expected during streaming
+		// throttle (e.g., Telegram rate limits). Keep the silent-swallow
+		// behavior for those; only act on finalize errors.
+		if !finalize {
+			return
+		}
+		// Finalize edit failed. Attempt one plain Send as a fallback so the
+		// user receives the final text even if the placeholder can no longer
+		// be edited (e.g., Telegram "message can't be edited").
+		//
+		// Race-window note: we do NOT re-acquire c.mu here before calling
+		// Send. The contract is: at most one flushImmediateFinal(finalize=true)
+		// is ever called per coalescer lifetime (the manager cancels the
+		// coalescer immediately after). The race test (TestCoalescer_FinalizeRace_NoDuplicateMessage)
+		// exercises concurrent setPending + flushImmediateFinal; those paths
+		// write to different fields (pendingText vs lastSentText/pendingMsgID),
+		// so the final-text guard (lastSentText == text) in tryFlush prevents
+		// a duplicate even if tryFlush fires concurrently with this fallback.
+		sender, hasSender := c.sender.(coalescerMessageSender)
+		if !hasSender {
+			c.emitEvidence("send_final_failed", "edit failed on finalize; no plain-sender available")
+			return
+		}
+		newMsgID, sendErr := sender.Send(ctx, c.chatID, text)
+		if sendErr != nil {
+			c.emitEvidence("send_final_failed", "edit failed on finalize; fallback Send also failed")
+			// Do not mutate state: leave pendingMsgID intact so the caller
+			// knows something was attempted. No retry, no loop.
+			return
+		}
+		c.emitEvidence("edit_failed_fallback", "edit failed on finalize; plain Send fallback succeeded")
+		c.mu.Lock()
+		c.pendingMsgID = newMsgID
+		c.lastSentText = text
+		c.lastEditAt = c.now()
+		c.pendingText = ""
+		c.mu.Unlock()
 		return
 	}
 

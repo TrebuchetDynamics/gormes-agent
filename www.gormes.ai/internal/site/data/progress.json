@@ -2627,10 +2627,10 @@
             },
             {
               "name": "Placeholder edit-failure fallback hardening",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "When the coalescer's edit path fails (Telegram returns an error mid-stream or at finalize), the gateway falls back to a plain Send of the final text exactly once, records redacted edit_failed_fallback evidence, and never produces duplicate final messages even under concurrent flushImmediate / flushImmediateFinal races.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2664,7 +2664,8 @@
               ],
               "ready_when": [
                 "Existing coalescer tests on dev cover the happy path so regression is detectable."
-              ]
+              ],
+              "note": "Complete 2026-04-29. RED: coalesce_failure_test.go failed with undefined CoalescerEvidence / coalescerEvidenceSink. GREEN: added CoalescerEvidence struct, CoalescerEvidenceSink type, coalescerEvidenceSink option, evidenceSink field to coalescer struct, fallback plain-Send path in flushImmediateFinal (finalize-only), and CoalescerEvidenceSink field to ManagerConfig wired into dispatchFrame. Race window: mid-stream edit errors keep silent-swallow; finalize errors fall back once via coalescerMessageSender.Send without re-acquiring c.mu (safe: manager calls flushImmediateFinal(finalize=true) exactly once per coalescer lifetime). GAP: TestManager_Outbound_StreamingPlaceholderRepliesToInboundMessage has a pre-existing data race in the test harness (replyPlaceholderFakeChannel.replyPlaceholders written without lock in SendReplyPlaceholder, read without lock from waitFor). This race is outside write_scope; not introduced by this slice. REGRESSION: go test ./internal/gateway -run 'Coalescer|Coalesce' -count=1 PASS (14 tests). go test ./... -count=1 PASS (all packages). go run ./cmd/progress validate PASS. git diff --check clean."
             },
             {
               "name": "Gateway stream/tool trace formatting fixture matrix",

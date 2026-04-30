@@ -113,6 +113,11 @@ type ManagerConfig struct {
 	// discards non-complete evidence silently. The sink must not block or panic;
 	// panics are recovered and discarded.
 	AuxiliaryFailureSink AutoTitleAuxiliarySink
+	// CoalescerEvidenceSink receives CoalescerEvidence for non-happy-path
+	// finalize outcomes (edit_failed_fallback, send_final_failed). Nil
+	// discards evidence silently; production behavior is unchanged. The sink
+	// must not block or panic.
+	CoalescerEvidenceSink CoalescerEvidenceSink
 }
 
 type kernelSubmitter interface {
@@ -952,6 +957,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			}, time.Duration(m.cfg.CoalesceMs)*time.Millisecond, chatID,
 				coalescerFreshFinalAfter(m.cfg.FreshFinalAfter),
 				coalescerNow(m.now),
+				coalescerEvidenceSink(m.cfg.CoalescerEvidenceSink),
 			)
 			*co = nc
 			go nc.run(cCtx)

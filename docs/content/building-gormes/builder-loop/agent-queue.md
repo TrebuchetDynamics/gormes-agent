@@ -163,27 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: internal/gateway/manager.go:864-938 (dispatchFrame, PhaseIdle case at 896), internal/session/auto_title.go:94 (PerformAutoTitle), internal/session/title_store.go (MetadataTitleStore, shipped in bffe3c518), internal/hermes/title_generator.go:91 (GenerateTitle, TitleModelFunc), internal/kernel/title_failure_test.go (auxiliary-failure routing, 4.F[1] complete), ../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title, ../hermes-agent/gateway/run.py (auto-title invocation site)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Placeholder edit-failure fallback hardening
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: When the coalescer's edit path fails (Telegram returns an error mid-stream or at finalize), the gateway falls back to a plain Send of the final text exactly once, records redacted edit_failed_fallback evidence, and never produces duplicate final messages even under concurrent flushImmediate / flushImmediateFinal races.
-- Trust class: gateway, operator
-- Ready when: Existing coalescer tests on dev cover the happy path so regression is detectable.
-- Not ready when: -
-- Degraded mode: If both edit and Send fail, the gateway records send_final_failed evidence and the turn ends without a delivered final message rather than panicking or retrying in a hot loop.
-- Fixture: `internal/gateway/coalesce_failure_test.go`
-- Write scope: `internal/gateway/coalesce.go`, `internal/gateway/coalesce_failure_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Coalescer\|Coalesce' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`
-- Done signal: Coalescer hardening fixtures prove edit-failure fallback to plain Send, finalize-race idempotency, both-failed evidence, and fresh-final-delete preservation.
-- Acceptance: TestCoalescer_EditFailure_PlainSendFallback proves an edit error mid-stream causes one plain Send with the final text + edit_failed_fallback evidence., TestCoalescer_FinalizeRace_NoDuplicateMessage uses concurrent flushImmediate + flushImmediateFinal calls and asserts at most one final message reaches the channel., TestCoalescer_BothEditAndSendFail records send_final_failed evidence and does not panic., TestCoalescer_FreshFinalAfter_StillRespected proves the fresh-final-delete behavior is unchanged by the new fallback paths.
-- Source refs: internal/gateway/coalesce.go (flushImmediate, flushImmediateFinal, editCoalescedMessage), internal/gateway/manager.go:864-938 (dispatchFrame finalize path)
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 9. Telegram dynamic BotCommand menu wiring
+## 8. Telegram dynamic BotCommand menu wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Active Hermes/Sidon profile context root resolver for live turns
+## 9. Active Hermes/Sidon profile context root resolver for live turns
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Hermetic profile-root resolver fixtures prove production discovery order without live profile reads.
 - Acceptance: Temp-dir tests prove Gormes override wins over Hermes profile discovery., `HERMES_HOME=/tmp/.hermes` plus active profile resolves `/tmp/.hermes/profiles/<name>/SOUL.md` and memory files., Workspace ancestor SOUL/USER/MEMORY fallback is covered., Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`.
 - Source refs: ../hermes-agent/hermes_constants.py, ../hermes-agent/run_agent.py, internal/hermes/context_files.go, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Durable context ordering and frozen snapshot decision fixture
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Lock the Gormes/Hermes decision for USER.md and MEMORY.md ordering plus frozen-versus-per-turn durable memory semantics with source-backed provider payload fixtures, then either document the owned divergence or change ordering to match Hermes.
+- Trust class: gateway, system
+- Ready when: Hermes durable context insertion and Gormes live-turn prompt helper paths have been source-audited., Temp USER.md/MEMORY.md fixtures can capture provider payload ordering and snapshot semantics without live memory reads.
+- Not ready when: -
+- Degraded mode: Until the decision is locked, parity matrix rows must mark durable context ordering as partial and avoid claiming strict Hermes prompt equivalence.
+- Fixture: `internal/gateway/live_turn_prompt_test.go + internal/hermes/durable_user_context_test.go`
+- Write scope: `internal/hermes/durable_user_context.go`, `internal/hermes/durable_user_context_test.go`, `internal/gateway/live_turn_prompt.go`, `internal/gateway/live_turn_prompt_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'DurableUserContext\|LiveTurn\|FrozenMemorySnapshot' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Durable context ordering and snapshot semantics are locked by provider-payload fixtures and progress notes.
+- Acceptance: A fixture proves the current provider payload order for SOUL, AGENTS, USER, MEMORY, metadata, and session context., A second fixture proves whether mid-session MEMORY.md writes affect current prompt or only future sessions., The progress note records the chosen owned divergence or the implementation changes to Hermes order., No test uses live profile or memory files.
+- Source refs: ../hermes-agent/run_agent.py:3721-3730, ../hermes-agent/tools/memory_tool.py:105-124, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
