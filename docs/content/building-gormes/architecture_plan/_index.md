@@ -214,7 +214,7 @@ classification and row-backed implementation queue.
 - [x] Gateway inbound dedup key helper
 - [x] Gateway inbound dedup manager binding
 - [x] Email outbound Date header contract
-- [ ] Telegram MarkdownV2 parse-mode rendering closeout
+- [x] Telegram MarkdownV2 parse-mode rendering closeout
 
 ### 2.B.10 — WeChat Adapter ✅
 
