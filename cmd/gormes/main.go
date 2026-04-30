@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -37,9 +38,20 @@ func main() {
 	}()
 
 	root := newRootCommand()
-	if err := root.Execute(); err != nil {
+	if err := executeRootCommand(root, os.Args[1:]...); err != nil {
 		os.Exit(exitCodeFromError(err))
 	}
+}
+
+func executeRootCommand(root *cobra.Command, args ...string) error {
+	if suggestion, ok := cli.TypoSuggestion(args); ok {
+		fmt.Fprintf(root.ErrOrStderr(), "unknown command %q for %q\n%s\n", args[0], root.CommandPath(), suggestion)
+		return newExitCodeError(1, fmt.Errorf("unknown command %q for %q; %s", args[0], root.CommandPath(), suggestion))
+	}
+	if len(args) > 0 {
+		root.SetArgs(args)
+	}
+	return root.Execute()
 }
 
 func newRootCommand() *cobra.Command {
@@ -114,7 +126,7 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newAgentCommand(), newUsageCommand(), newAuthCommand(), newLogoutCommand(), newLoginCommand(), newConfigCommand(), newMigrateCommand(), newProfileCommand(), newMCPCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newAgentCommand(), newUsageCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newMigrateCommand(), newProfileCommand(), newMCPCommand())
 	return root
 }
 

@@ -23833,10 +23833,10 @@
             },
             {
               "name": "Gormes login removed-command typo suggestion contract",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "`gormes login` is NOT registered as a Cobra command. When an operator types `gormes login` (with or without legacy flags such as `--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`), Cobra surfaces unknown-command, and Gormes emits a deterministic suggestion `did you mean \"gormes auth add <provider> --type oauth\"?` (parallel to the `gormes migrate ooenclaw -> gormes migrate openclaw` typo-suggestion contract). The legacy Hermes `--provider` flag set is recognized contextually in the suggestion message but not parsed.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23850,7 +23850,9 @@
                 "cmd/gormes/main.go:newRootCommandWithRuntime",
                 "cmd/gormes/hermes_cli_parity.go:55",
                 "internal/cli/typo_suggestions.go",
-                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
+                "cmd/gormes/login_typo_suggestion_test.go",
+                "internal/cli/typo_suggestions_test.go"
               ],
               "ready_when": [
                 "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/excluded guidance (parity manifest line 55 already encodes this with hermesCLIExcluded).",
@@ -23877,7 +23879,7 @@
                 "TestGormesLoginSuggestionParityWithMigrateTypo proves the suggestion pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, no silent execution of the suggested command, no OAuth side effects.",
                 "TestGormesLoginSuggestionRedactsProviderArgValues proves no fixture provider-name string passed via `--provider <value>` leaks into stdout/stderr beyond the literal suggestion template."
               ],
-              "note": "Encodes the Q1B decision (typo guide, not deprecation shim): rather than registering a deprecated `login` subparser that accepts the legacy flag set, Gormes leans on Cobra's unknown-command path and emits the same kind of typo suggestion already used for `gormes migrate ooenclaw -> gormes migrate openclaw`. Manifest line 55 in `cmd/gormes/hermes_cli_parity.go` already classifies `login` as `hermesCLIExcluded`; this row is the operator-facing typo-suggestion contract that closes the parity loop without resurrecting a deprecated subparser. Parallel pattern: the `migrate ooenclaw` row in the parity manifest (line 92).",
+              "note": "Validated: gormes no longer registers a top-level login Cobra command; executeRootCommand emits deterministic unknown-command guidance did you mean \"gormes auth add <provider> --type oauth\"? for login with or without legacy provider flags, while redacting provider argument values and performing no OAuth side effects. Evidence: go test ./cmd/gormes -run ^TestGormesLogin -count=1; go test ./internal/cli -run ^TestTypoSuggestion -count=1.",
               "write_scope": [
                 "cmd/gormes/login_typo_suggestion_test.go",
                 "cmd/gormes/main.go",
@@ -23892,7 +23894,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Login typo-suggestion fixtures prove no Cobra `login` registration, deterministic unknown-command suggestion message with and without legacy `--provider` tokens, parity with `migrate ooenclaw`, and provider-arg-value redaction."
+                "Login typo-suggestion fixtures prove no Cobra `login` registration, deterministic unknown-command suggestion message with and without legacy `--provider` tokens, parity with `migrate ooenclaw`, provider-arg-value redaction, and no auth side effects."
               ],
               "provenance": {
                 "origin_type": "upstream",

@@ -203,17 +203,18 @@ func TestGormesLoginPrintsRemovedCommandGuidance(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
 	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "login", "--provider", "openai-codex")
-	if err != nil {
-		t.Fatalf("login compatibility shim returned error: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	stdout, stderr, err := executeRootCommandForTest(cmd, "login", "--provider", "openai-codex")
+	if err == nil {
+		t.Fatalf("login removed-command typo path returned nil error: stdout=%s stderr=%s", stdout, stderr)
 	}
-	for _, want := range []string{"command has been removed", "gormes auth", "gormes model", "gormes setup"} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+	combined := stdout + stderr + err.Error()
+	for _, want := range []string{"unknown command", "did you mean", "gormes auth add <provider> --type oauth"} {
+		if !strings.Contains(combined, want) {
+			t.Fatalf("combined output missing %q:\nstdout=%s\nstderr=%s\nerr=%v", want, stdout, stderr, err)
 		}
 	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
+	if strings.Contains(combined, "openai-codex") {
+		t.Fatalf("login suggestion leaked provider argument:\n%s", combined)
 	}
 }
 
