@@ -45,6 +45,8 @@ const (
 	ExecutionOwnerTools        ExecutionOwner = "tools"
 	ExecutionOwnerSkills       ExecutionOwner = "skills"
 	ExecutionOwnerOrchestrator ExecutionOwner = "orchestrator"
+	ExecutionOwnerTui          ExecutionOwner = "tui"
+	ExecutionOwnerGoncho       ExecutionOwner = "goncho"
 )
 
 type BuilderLoopMeta struct {

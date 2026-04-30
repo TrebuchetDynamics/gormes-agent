@@ -140,7 +140,7 @@ func validSliceSize(s SliceSize) bool {
 
 func validExecutionOwner(s ExecutionOwner) bool {
 	switch s {
-	case ExecutionOwnerDocs, ExecutionOwnerGateway, ExecutionOwnerMemory, ExecutionOwnerProvider, ExecutionOwnerTools, ExecutionOwnerSkills, ExecutionOwnerOrchestrator:
+	case ExecutionOwnerDocs, ExecutionOwnerGateway, ExecutionOwnerMemory, ExecutionOwnerProvider, ExecutionOwnerTools, ExecutionOwnerSkills, ExecutionOwnerOrchestrator, ExecutionOwnerTui, ExecutionOwnerGoncho:
 		return true
 	default:
 		return false
