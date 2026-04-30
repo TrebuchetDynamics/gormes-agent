@@ -103,27 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 5. Gateway session token accounting parity
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Accumulate per-session provider usage into session metadata so `/status` reports Hermes-compatible token totals rather than only the last usage frame.
-- Trust class: gateway, system, operator
-- Ready when: Provider usage surfaces and status rendering seams are identified., Fake provider usage frames can exercise accumulation and missing-usage behavior without live provider calls.
-- Not ready when: -
-- Degraded mode: If provider usage is missing, status renders zero or unknown with usage_missing evidence and never guesses token counts.
-- Fixture: `internal/gateway/token_accounting_test.go`
-- Write scope: `internal/gateway/`, `internal/session/`, `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes -run 'Token\|Usage\|Status' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Session token accounting fixtures prove accumulated usage appears in `/status` with redacted evidence.
-- Acceptance: Two fake provider turns with usage values accumulate into one session total., `/status` renders the accumulated total., Missing usage does not erase existing totals., Usage evidence never includes raw provider payloads or credentials.
-- Source refs: ../hermes-agent/gateway/run.py:4674, internal/gateway/status_command.go, internal/gateway/usage_command.go, internal/hermes/provider_transport.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Goncho memory provider lifecycle adapter
+## 5. Goncho memory provider lifecycle adapter
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -143,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Prompt-cache capability guard
+## 6. Prompt-cache capability guard
 
 - Phase: 4 / 4.H
 - Owner: `provider`
@@ -162,7 +142,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Browser artifact and console render contract
+## 7. Browser artifact and console render contract
 
 - Phase: 5 / 5.C
 - Owner: `tools`
@@ -182,7 +162,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/browser_camofox.py:300, ../hermes-agent/tools/browser_camofox.py:493, ../hermes-agent/tools/browser_camofox.py:583, ../hermes-agent/tools/browser_tool.py, internal/tools/browser_contract.go, internal/tools/result_budget.go, internal/gateway/render.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Telegram browser artifact rendering
+## 8. Telegram browser artifact rendering
 
 - Phase: 5 / 5.C
 - Owner: `gateway`
@@ -202,7 +182,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py, ../hermes-agent/tools/browser_tool.py, internal/gateway/render.go, internal/channels/telegram/bot.go, internal/tools/browser_harness_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Clarify
+## 9. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

@@ -3054,10 +3054,10 @@
             },
             {
               "name": "Gateway session token accounting parity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Accumulate per-session provider usage into session metadata so `/status` reports Hermes-compatible token totals rather than only the last usage frame.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3096,7 +3096,8 @@
               "ready_when": [
                 "Provider usage surfaces and status rendering seams are identified.",
                 "Fake provider usage frames can exercise accumulation and missing-usage behavior without live provider calls."
-              ]
+              ],
+              "last_evidence": "RED/GREEN: TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals proves two usage snapshots persist durable per-session token totals, missing usage does not erase them, and /status renders the accumulated total. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes -run 'Token|Usage|Status' -count=1."
             },
             {
               "name": "Telegram voice/audio inbound attachment markers",

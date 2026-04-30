@@ -34,8 +34,10 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	created := statusCreatedAt(sessionID)
 	lastActivity := "(unknown)"
 	title := ""
+	metadataTokens := 0
 	if meta, ok := m.lookupSessionMetadata(ctx, sessionID); ok {
 		title = strings.TrimSpace(meta.Title)
+		metadataTokens = meta.TokensInTotal + meta.TokensOutTotal
 		if meta.CreatedAt != 0 {
 			created = formatStatusTime(time.Unix(meta.CreatedAt, 0))
 		}
@@ -48,6 +50,9 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 	}
 
 	tokens := frame.Telemetry.TokensInTotal + frame.Telemetry.TokensOutTotal
+	if metadataTokens > tokens {
+		tokens = metadataTokens
+	}
 	agentRunning := "No"
 	if m.hasActiveTurn() {
 		agentRunning = "Yes"

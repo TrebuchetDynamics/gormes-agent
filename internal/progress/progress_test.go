@@ -451,8 +451,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.5 = %q, want in_progress while planned Telegram/Sidon parity rows remain", got)
+	if got := routing.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.5 = %q, want complete after Gateway session token accounting parity closed the remaining planned Telegram/Sidon parity row", got)
 	}
 	routingItems := itemsByName(routing.Items)
 	liveTurnPrompt := routingItems["Hermes live-turn prompt assembly parity (channel-neutral)"]

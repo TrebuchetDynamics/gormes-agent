@@ -45,6 +45,11 @@ type Metadata struct {
 	ExpiryFinalizeLastError      string               `json:"expiry_finalize_last_error,omitempty"`
 	ExpiryFinalizeLastEvidenceAt int64                `json:"expiry_finalize_last_evidence_at,omitempty"`
 	MigratedMemoryFlushed        bool                 `json:"migrated_memory_flushed,omitempty"`
+	// TokensInTotal and TokensOutTotal persist provider usage totals observed by
+	// the gateway for this session so /status can report durable Hermes-style
+	// token accounting after the live render frame has gone idle or restarted.
+	TokensInTotal  int `json:"tokens_in_total,omitempty"`
+	TokensOutTotal int `json:"tokens_out_total,omitempty"`
 	// TitleManuallySet is true when the title was set by an operator via
 	// /title rather than generated automatically. mergeMetadata treats this
 	// field as sticky-true: once set it cannot be cleared by a plain
@@ -78,6 +83,12 @@ func normalizeMetadata(meta Metadata) Metadata {
 	meta.ExpiryFinalizeLastError = strings.TrimSpace(meta.ExpiryFinalizeLastError)
 	if meta.ExpiryFinalizeAttempts < 0 {
 		meta.ExpiryFinalizeAttempts = 0
+	}
+	if meta.TokensInTotal < 0 {
+		meta.TokensInTotal = 0
+	}
+	if meta.TokensOutTotal < 0 {
+		meta.TokensOutTotal = 0
 	}
 	return meta
 }
@@ -151,6 +162,12 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	}
 	if incoming.MigratedMemoryFlushed {
 		out.MigratedMemoryFlushed = true
+	}
+	if incoming.TokensInTotal > out.TokensInTotal {
+		out.TokensInTotal = incoming.TokensInTotal
+	}
+	if incoming.TokensOutTotal > out.TokensOutTotal {
+		out.TokensOutTotal = incoming.TokensOutTotal
 	}
 	return finalizeMetadata(out), nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 // AccountUsageProvider is the gateway seam for provider account-limit usage.
@@ -48,8 +49,39 @@ func (m *Manager) handleUsageCommand(ctx context.Context, ch Channel, ev Inbound
 
 func (m *Manager) rememberUsageFrame(f kernel.RenderFrame) {
 	m.turnMu.Lock()
-	defer m.turnMu.Unlock()
 	m.lastUsageFrame = f
+	m.turnMu.Unlock()
+	m.persistUsageFrameTokens(context.Background(), f)
+}
+
+func (m *Manager) persistUsageFrameTokens(ctx context.Context, f kernel.RenderFrame) {
+	sessionID := strings.TrimSpace(f.SessionID)
+	if sessionID == "" {
+		return
+	}
+	in := f.Telemetry.TokensInTotal
+	out := f.Telemetry.TokensOutTotal
+	if in <= 0 && out <= 0 {
+		return
+	}
+	writer, ok := m.cfg.SessionMap.(sessionMetadataWriter)
+	if !ok {
+		return
+	}
+	if in < 0 {
+		in = 0
+	}
+	if out < 0 {
+		out = 0
+	}
+	if err := writer.PutMetadata(ctx, session.Metadata{
+		SessionID:      sessionID,
+		UpdatedAt:      m.now().Unix(),
+		TokensInTotal:  in,
+		TokensOutTotal: out,
+	}); err != nil {
+		m.log.Warn("persist session token usage", "session_id", sessionID, "err", err)
+	}
 }
 
 func (m *Manager) usageFrameForCommand() usageFrameSnapshot {

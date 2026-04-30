@@ -156,6 +156,57 @@ func TestParseInboundTextTitlePreservesPayload(t *testing.T) {
 // field order and labels documented in the row contract: Session ID, Title,
 // Created, Last Activity, Tokens, Agent Running, Connected Platforms — each
 // rendered with **bold** MarkdownV2 labels so Telegram displays them as bold.
+func TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 29, 9, 42, 0, 0, time.UTC)
+	if err := smap.Put(ctx, "telegram:42", "sess-token-totals"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	m.rememberUsageFrame(kernel.RenderFrame{
+		SessionID: "sess-token-totals",
+		Telemetry: telemetry.Snapshot{TokensInTotal: 3, TokensOutTotal: 4},
+	})
+	m.rememberUsageFrame(kernel.RenderFrame{
+		SessionID: "sess-token-totals",
+		Telemetry: telemetry.Snapshot{TokensInTotal: 8, TokensOutTotal: 10},
+	})
+	// Missing usage must not erase the durable total.
+	m.rememberUsageFrame(kernel.RenderFrame{SessionID: "sess-token-totals"})
+
+	meta, ok, err := smap.GetMetadata(ctx, "sess-token-totals")
+	if err != nil {
+		t.Fatalf("get metadata: %v", err)
+	}
+	if !ok {
+		t.Fatal("usage metadata was not persisted")
+	}
+	if meta.TokensInTotal != 8 || meta.TokensOutTotal != 10 {
+		t.Fatalf("metadata token totals = %d/%d, want 8/10", meta.TokensInTotal, meta.TokensOutTotal)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	if !strings.Contains(sent[0].Text, "**Tokens:** 18") {
+		t.Fatalf("status did not render persisted token total:\n%s", sent[0].Text)
+	}
+}
+
 func TestStatusCommand_RendersAllRequiredFields(t *testing.T) {
 	ctx := context.Background()
 	k := &fakeKernel{}
