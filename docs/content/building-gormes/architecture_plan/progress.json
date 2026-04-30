@@ -16523,6 +16523,199 @@
               }
             },
             {
+              "name": "Go-native Hermes web backend matrix and config resolver",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes resolves Hermes `web.backend` and `web.use_gateway` configuration into typed Go web backend state, preserves Hermes fallback order across Firecrawl, Parallel, Tavily, and Exa credentials, advertises the public `web_search.limit` parameter, and routes `web_search`/`web_extract` through fakeable HTTP adapters for Firecrawl, Exa, Parallel, and Tavily without live provider credentials in tests.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing or whitespace-only provider credentials keep web tools registered but resolve to `web_provider_unavailable`; provider HTTP failures remain per-tool JSON failures and redact bearer/API-key material. Private/local URL blocking from the first web slice still runs before provider extract calls.",
+              "fixture": "internal/tools/web_tools_test.go + internal/config/config_test.go + cmd/gormes/registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/web_tools.py:_get_backend",
+                "../hermes-agent/tools/web_tools.py:_exa_search",
+                "../hermes-agent/tools/web_tools.py:_parallel_search",
+                "../hermes-agent/tools/web_tools.py:_tavily_request",
+                "../hermes-agent/tools/web_tools.py:web_extract_tool",
+                "../hermes-agent/hermes_cli/tools_config.py:web_backend",
+                "internal/tools/web_tools.go",
+                "internal/config/config.go",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "The public web_search/web_extract wrappers and fakeable WebHTTPClient boundary are validated.",
+                "Hermes config.yaml loading already maps model/platform config, so adding the web section stays inside the config bridge.",
+                "Provider behavior can be proved with httptest/fake HTTP clients; no live Exa, Parallel, Tavily, Firecrawl, or managed gateway credentials are required."
+              ],
+              "not_ready_when": [
+                "Tests require live provider credentials or contact external web services.",
+                "Provider selection bypasses the typed WebBackendConfig resolver.",
+                "Gormes removes web_search or web_extract when a selected provider is unavailable.",
+                "The slice attempts LLM summarization, website policy, DNS-level URL safety, or full managed-gateway OAuth routing instead of only shipping backend/config parity."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Web extract safety and website-policy parity",
+                "Web extract auxiliary summarizer parity",
+                "Managed Firecrawl gateway runtime wiring",
+                "Toolset parity for web/search/safe research surfaces"
+              ],
+              "acceptance": [
+                "TestWebToolsExposeHermesNamesAndSchemas proves web_search now advertises the Hermes `limit` parameter while retaining valid web_extract schema.",
+                "TestResolveWebBackendHonorsHermesBackendConfig proves configured Parallel, Exa, Tavily, and Firecrawl backends win over fallback credentials and whitespace-only keys are ignored.",
+                "TestWebSearchToolCallsExaBackend, TestWebSearchToolCallsParallelBackend, and TestWebSearchToolCallsTavilyBackend prove fake HTTP request mapping, auth placement, per-provider caps, and normalized `{success,data.web[]}` output.",
+                "TestWebExtractToolCallsExaBackend, TestWebExtractToolCallsParallelBackend, and TestWebExtractToolCallsTavilyBackend prove fake HTTP extract mapping and normalized `{results[]}` output.",
+                "TestLoad_HermesConfigYAMLWebBackend proves Hermes config.yaml `web.backend` and `web.use_gateway` load into Gormes config.",
+                "TestBuildDefaultRegistryPassesWebConfigBackend proves the default registry passes loaded web config into the registered web tools using an httptest Tavily endpoint."
+              ],
+              "note": "Complete: TDD extended internal/tools/web_tools.go beyond the initial Firecrawl tracer bullet with WebBackendConfig, Hermes fallback order, Exa/Parallel/Tavily search and extract adapters, provider-specific request/auth shaping, highlight/excerpt/full-content normalization, and web_search limit schema parity. internal/config now loads the Hermes web section, and cmd/gormes passes loaded web config into the default registry. Remaining web parity is intentionally split into safety/policy, auxiliary summarization, live managed-gateway/OAuth routing, toolset/status metadata, and optional web_crawl decisions.",
+              "write_scope": [
+                "internal/tools/web_tools.go",
+                "internal/tools/web_tools_test.go",
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/telegram.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/main.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+                "go test ./internal/config -run 'TestLoad_HermesConfigYAMLWebBackend|TestLoad_GormesEnvOverridesHermesConfigYAML' -count=1",
+                "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+                "go test ./internal/tools ./internal/config ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermetic fixtures prove all four Hermes web backends resolve and route through the Go-native web tools, config.yaml web selection reaches the default registry, and no provider test requires live credentials."
+              ],
+              "evidence": [
+                "TestWebSearchToolCallsExaBackend proves Exa /search request mapping with x-api-key, x-exa-integration, highlights, and normalized descriptions.",
+                "TestWebSearchToolCallsParallelBackend proves Parallel /v1beta/search request mapping with x-api-key, default mode, result cap, and excerpt normalization.",
+                "TestWebSearchToolCallsTavilyBackend proves Tavily /search request mapping with JSON api_key, result cap, and content normalization.",
+                "TestWebExtractToolCallsExaBackend proves Exa /contents text extraction mapping.",
+                "TestWebExtractToolCallsParallelBackend proves Parallel /v1beta/extract full_content mapping.",
+                "TestWebExtractToolCallsTavilyBackend proves Tavily /extract mapping.",
+                "TestBuildDefaultRegistryPassesWebConfigBackend proves configured web backend selection is visible through the default registry."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/web_tools.py",
+                  "hermes:hermes_cli/tools_config.py"
+                ],
+                "note": "Hermes defines backend/config semantics in Python; Gormes keeps the public tool names while adapting provider calls to Go-native, fakeable HTTP adapters."
+              }
+            },
+            {
+              "name": "Go-native Hermes web extract safety policy and summarizer",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes ports the remaining registered Hermes web_extract safety behavior around the existing fakeable web provider adapters: URLs containing known secret/API-key token prefixes short-circuit before any HTTP request, Hermes security.website_blocklist config blocks requested URLs before fetch and redirected final URLs after fetch, base64 data-image payloads are scrubbed from JSON output, and long extracted pages can be summarized through an injected WebContentProcessor with the production registry wiring it to the active Hermes client.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Website policy blocks return a per-result `blocked_by_policy` object without contacting providers. Secret-bearing URLs return a top-level failure before provider calls. If summarization is unavailable, disabled, empty, or fails, Gormes keeps bounded raw content rather than failing the web_extract call. Content over the processing input cap returns a focused too-large message.",
+              "fixture": "internal/tools/web_tools_test.go + internal/config/config_test.go + cmd/gormes/registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/web_tools.py:web_extract_tool",
+                "../hermes-agent/tools/web_tools.py:process_content_with_llm",
+                "../hermes-agent/tools/web_tools.py:clean_base64_images",
+                "../hermes-agent/tools/website_policy.py",
+                "../hermes-agent/agent/redact.py:_PREFIX_RE",
+                "../hermes-agent/cli-config.yaml.example:security.website_blocklist",
+                "internal/tools/web_tools.go",
+                "internal/config/config.go",
+                "cmd/gormes/web_content_processor.go",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "The public web_search/web_extract wrappers, backend resolver, and provider matrix are already validated.",
+                "Hermes config.yaml loading already maps the web section, so adding the security website_blocklist section stays inside the config bridge.",
+                "Long-content processing can be proved with a fake WebContentProcessor and a hermes.MockClient; no live LLM provider or web provider credentials are required."
+              ],
+              "not_ready_when": [
+                "Tests require live provider credentials, live web pages, or external LLM calls.",
+                "Website policy is enforced only in cmd/gormes rather than inside the native web tool boundary.",
+                "Blocked requested URLs or redirected final URLs can still reach provider HTTP clients.",
+                "The slice adds a model-visible web_crawl tool even though upstream Hermes does not register web_crawl in the web toolset."
+              ],
+              "blocked_by": [
+                "Go-native Hermes web backend matrix and config resolver"
+              ],
+              "unblocks": [
+                "Managed Firecrawl gateway runtime/OAuth routing",
+                "Toolset/status metadata parity for web provider availability",
+                "Operator e2e gate"
+              ],
+              "acceptance": [
+                "TestWebExtractToolBlocksEmbeddedSecretsBeforeHTTP proves secret-prefix URLs short-circuit with no provider request.",
+                "TestWebExtractToolAppliesWebsitePolicyBeforeFetch proves configured website policy blocks before HTTP and returns blocked_by_policy metadata.",
+                "TestWebExtractToolBlocksRedirectedFinalURL proves Firecrawl metadata.sourceURL is rechecked after redirects and blocked content is suppressed.",
+                "TestWebExtractToolRemovesBase64ImagesFromOutput proves data:image base64 payloads are replaced by placeholders in tool output.",
+                "TestWebExtractToolProcessesLongContentWithProcessor proves long page content is passed to an injected processor and the summary replaces raw content.",
+                "TestLoad_HermesConfigYAMLWebsiteBlocklist proves Hermes security.website_blocklist config loads into native Gormes config.",
+                "TestBuildDefaultRegistryPassesWebsiteBlocklistToWebExtract proves default registry web_extract enforces loaded blocklist policy.",
+                "TestBuildDefaultRegistryWiresWebContentProcessor proves the default registry wires the active Hermes client as the web content processor with model context."
+              ],
+              "note": "Complete 2026-04-30: TDD added registered web_extract parity for Hermes secret URL blocking, website blocklist policy, redirected final URL policy rechecks, data-image base64 cleanup, and long-page summarization behind a WebContentProcessor interface. Production registry wiring reuses the active Hermes client stream adapter when available; hermetic tests use fake HTTP clients and hermes.MockClient. Upstream web_crawl remains an unregistered helper in Hermes, so Gormes did not expose a new model-visible web_crawl tool in this slice.",
+              "write_scope": [
+                "internal/tools/web_tools.go",
+                "internal/tools/web_tools_test.go",
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "cmd/gormes/web_content_processor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+                "go test ./internal/config -run 'TestLoad_HermesConfigYAML(WebBackend|WebsiteBlocklist)|TestLoad_GormesEnvOverridesHermesConfigYAML' -count=1",
+                "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+                "go test ./internal/tools ./internal/config ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermetic fixtures prove registered web_extract safety and content-processing behavior matches Hermes' web_tools.py/website_policy.py contract without live web, Firecrawl, Tavily, Exa, Parallel, managed-gateway, or LLM credentials."
+              ],
+              "evidence": [
+                "TestWebExtractToolBlocksEmbeddedSecretsBeforeHTTP proves provider HTTP is not called for secret-bearing URLs.",
+                "TestWebExtractToolAppliesWebsitePolicyBeforeFetch proves requested URL policy blocking.",
+                "TestWebExtractToolBlocksRedirectedFinalURL proves final URL policy rechecks after provider response normalization.",
+                "TestWebExtractToolRemovesBase64ImagesFromOutput proves output cleanup.",
+                "TestWebExtractToolProcessesLongContentWithProcessor proves fake summarizer replacement.",
+                "TestBuildDefaultRegistryWiresWebContentProcessor proves production registry wiring reaches the Hermes client adapter."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/web_tools.py",
+                  "hermes:tools/website_policy.py",
+                  "hermes:agent/redact.py"
+                ],
+                "note": "Hermes defines web_extract safety and summarization semantics; Gormes adapts them to typed Go policy/config structs, fakeable HTTP, and a small injected content-processor boundary."
+              }
+            },
+            {
               "name": "Browser artifact and console render contract",
               "status": "planned",
               "priority": "P1",

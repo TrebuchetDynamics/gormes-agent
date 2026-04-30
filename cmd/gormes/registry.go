@@ -17,12 +17,30 @@ import (
 // domain-specific tools (scientific simulators, business wrappers, etc.)
 // call reg.Register on the returned *Registry before passing it into the
 // kernel Config. Gormes itself ships no domain-specific tools.
-func buildDefaultRegistry(parentCtx context.Context, delegation config.DelegationCfg, skillsRoot string, childClient hermes.Client, childModel string) *tools.Registry {
+func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childClient hermes.Client, childModel string) *tools.Registry {
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
 	reg.MustRegister(tools.NewExecuteCodeTool())
+	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
+		Backend: tools.WebBackendConfig{
+			Backend:    cfg.Web.Backend,
+			UseGateway: cfg.Web.UseGateway,
+		},
+		Policy: tools.WebWebsitePolicy{
+			Enabled:           cfg.Security.WebsiteBlocklist.Enabled,
+			Domains:           cfg.Security.WebsiteBlocklist.Domains,
+			SharedFiles:       cfg.Security.WebsiteBlocklist.SharedFiles,
+			SharedFileBaseDir: cfg.Security.WebsiteBlocklist.BaseDir,
+		},
+		Processing: tools.WebContentProcessingConfig{
+			Enabled: childClient != nil,
+		},
+		ContentProcessor: newHermesWebContentProcessor(childClient, childModel),
+	}) {
+		reg.MustRegister(tool)
+	}
 	ttsProviders := map[string]tools.TTSProvider{}
 	if edge := tools.NewEdgeTTSCommandProviderFromEnv(); edge != nil {
 		ttsProviders["edge"] = edge
@@ -39,8 +57,9 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 	}) {
 		reg.MustRegister(tool)
 	}
-	if delegation.Enabled {
+	if cfg.Delegation.Enabled {
 		var drafter subagent.CandidateDrafter
+		skillsRoot := cfg.SkillsRoot()
 		if skillsRoot != "" {
 			drafter = skillsCandidateDrafter{store: skills.NewStore(skillsRoot, 0)}
 		}
@@ -50,11 +69,11 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 			Depth:                0,
 			Registry:             subagent.NewRegistry(),
 			ToolExecutor:         tools.NewInProcessToolExecutor(reg),
-			MaxDepth:             delegation.MaxDepth,
-			DefaultMaxIterations: delegation.DefaultMaxIterations,
-			DefaultMaxConcurrent: delegation.MaxConcurrentChildren,
-			DefaultTimeout:       delegation.DefaultTimeout,
-			RunLogPath:           delegation.ResolvedRunLogPath(),
+			MaxDepth:             cfg.Delegation.MaxDepth,
+			DefaultMaxIterations: cfg.Delegation.DefaultMaxIterations,
+			DefaultMaxConcurrent: cfg.Delegation.MaxConcurrentChildren,
+			DefaultTimeout:       cfg.Delegation.DefaultTimeout,
+			RunLogPath:           cfg.Delegation.ResolvedRunLogPath(),
 			ToolAudit:            audit.NewJSONLWriter(config.ToolAuditLogPath()),
 		}
 		if childClient != nil {

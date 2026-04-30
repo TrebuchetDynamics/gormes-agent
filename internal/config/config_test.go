@@ -519,6 +519,62 @@ platforms:
 	}
 }
 
+func TestLoad_HermesConfigYAMLWebBackend(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+web:
+  backend: parallel
+  use_gateway: true
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Web.Backend != "parallel" {
+		t.Fatalf("Web.Backend = %q, want parallel from Hermes config.yaml", cfg.Web.Backend)
+	}
+	if !cfg.Web.UseGateway {
+		t.Fatal("Web.UseGateway = false, want true from Hermes config.yaml")
+	}
+}
+
+func TestLoad_HermesConfigYAMLWebsiteBlocklist(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+security:
+  website_blocklist:
+    enabled: true
+    domains:
+      - example.com
+      - https://www.evil.test/path
+    shared_files:
+      - community-blocklist.txt
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Security.WebsiteBlocklist.Enabled {
+		t.Fatal("Security.WebsiteBlocklist.Enabled = false, want true")
+	}
+	if got, want := strings.Join(cfg.Security.WebsiteBlocklist.Domains, ","), "example.com,https://www.evil.test/path"; got != want {
+		t.Fatalf("WebsiteBlocklist.Domains = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(cfg.Security.WebsiteBlocklist.SharedFiles, ","), "community-blocklist.txt"; got != want {
+		t.Fatalf("WebsiteBlocklist.SharedFiles = %q, want %q", got, want)
+	}
+}
+
 func TestLoad_DiscordDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg, err := Load(nil)

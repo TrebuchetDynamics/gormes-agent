@@ -35,6 +35,8 @@ type Config struct {
 	Discord    DiscordCfg    `toml:"discord"`
 	Slack      SlackCfg      `toml:"slack"`
 	Yuanbao    YuanbaoCfg    `toml:"yuanbao"`
+	Web        WebCfg        `toml:"web"`
+	Security   SecurityCfg   `toml:"security"`
 	Cron       CronCfg       `toml:"cron"`
 	Skills     SkillsCfg     `toml:"skills"`
 	Delegation DelegationCfg `toml:"delegation"`
@@ -118,6 +120,25 @@ type CronCfg struct {
 	CallTimeout    time.Duration `toml:"call_timeout"`
 	MirrorInterval time.Duration `toml:"mirror_interval"`
 	MirrorPath     string        `toml:"mirror_path"`
+}
+
+// WebCfg mirrors Hermes config.yaml's web.backend and web.use_gateway fields.
+type WebCfg struct {
+	Backend    string `toml:"backend"`
+	UseGateway bool   `toml:"use_gateway"`
+}
+
+// SecurityCfg mirrors Hermes config.yaml security controls that affect native
+// Go tools.
+type SecurityCfg struct {
+	WebsiteBlocklist WebsiteBlocklistCfg `toml:"website_blocklist"`
+}
+
+type WebsiteBlocklistCfg struct {
+	Enabled     bool     `toml:"enabled"`
+	Domains     []string `toml:"domains"`
+	SharedFiles []string `toml:"shared_files"`
+	BaseDir     string   `toml:"-"`
 }
 
 // SkillsCfg configures the Phase 2.G0 static skills runtime.
@@ -417,6 +438,11 @@ func defaults() Config {
 			CoalesceMs:        1000,
 			FirstRunDiscovery: false,
 		},
+		Security: SecurityCfg{
+			WebsiteBlocklist: WebsiteBlocklistCfg{
+				BaseDir: GormesHome(),
+			},
+		},
 		Cron: CronCfg{
 			Enabled:        false,
 			CallTimeout:    60 * time.Second,
@@ -480,6 +506,8 @@ func loadFile(cfg *Config) error {
 
 type hermesConfigYAML struct {
 	Model     hermesModelConfigYAML               `yaml:"model"`
+	Web       hermesWebConfigYAML                 `yaml:"web"`
+	Security  hermesSecurityConfigYAML            `yaml:"security"`
 	Platforms map[string]hermesPlatformConfigYAML `yaml:"platforms"`
 	Streaming hermesStreamingConfigYAML           `yaml:"streaming"`
 }
@@ -487,6 +515,21 @@ type hermesConfigYAML struct {
 type hermesModelConfigYAML struct {
 	Default  string `yaml:"default"`
 	Provider string `yaml:"provider"`
+}
+
+type hermesWebConfigYAML struct {
+	Backend    string `yaml:"backend"`
+	UseGateway bool   `yaml:"use_gateway"`
+}
+
+type hermesSecurityConfigYAML struct {
+	WebsiteBlocklist hermesWebsiteBlocklistYAML `yaml:"website_blocklist"`
+}
+
+type hermesWebsiteBlocklistYAML struct {
+	Enabled     bool     `yaml:"enabled"`
+	Domains     []string `yaml:"domains"`
+	SharedFiles []string `yaml:"shared_files"`
 }
 
 type hermesPlatformConfigYAML struct {
@@ -519,6 +562,8 @@ func loadHermesConfigYAML(cfg *Config) error {
 		return fmt.Errorf("decode %s: %w", path, err)
 	}
 	applyHermesModelConfig(cfg, hc.Model)
+	applyHermesWebConfig(cfg, hc.Web)
+	applyHermesSecurityConfig(cfg, hc.Security)
 	applyHermesTelegramConfig(cfg, hc.Platforms["telegram"], hc.Streaming)
 	applyHermesDiscordConfig(cfg, hc.Platforms["discord"])
 	applyHermesSlackConfig(cfg, hc.Platforms["slack"])
@@ -531,6 +576,31 @@ func applyHermesModelConfig(cfg *Config, model hermesModelConfigYAML) {
 	}
 	if provider := strings.TrimSpace(model.Provider); provider != "" {
 		cfg.Hermes.Provider = provider
+	}
+}
+
+func applyHermesWebConfig(cfg *Config, web hermesWebConfigYAML) {
+	if backend := strings.ToLower(strings.TrimSpace(web.Backend)); backend != "" {
+		cfg.Web.Backend = backend
+	}
+	if web.UseGateway {
+		cfg.Web.UseGateway = true
+	}
+}
+
+func applyHermesSecurityConfig(cfg *Config, security hermesSecurityConfigYAML) {
+	blocklist := security.WebsiteBlocklist
+	if blocklist.Enabled || len(blocklist.Domains) > 0 || len(blocklist.SharedFiles) > 0 {
+		cfg.Security.WebsiteBlocklist.BaseDir = filepath.Dir(hermesConfigPath())
+	}
+	if blocklist.Enabled {
+		cfg.Security.WebsiteBlocklist.Enabled = true
+	}
+	if len(blocklist.Domains) > 0 {
+		cfg.Security.WebsiteBlocklist.Domains = append([]string(nil), blocklist.Domains...)
+	}
+	if len(blocklist.SharedFiles) > 0 {
+		cfg.Security.WebsiteBlocklist.SharedFiles = append([]string(nil), blocklist.SharedFiles...)
 	}
 }
 
@@ -696,6 +766,16 @@ func loadEnv(cfg *Config) error {
 	}
 	if v := strings.TrimSpace(os.Getenv("GATEWAY_PROXY_KEY")); v != "" {
 		cfg.Gateway.ProxyKey = v
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_WEB_BACKEND")); v != "" {
+		cfg.Web.Backend = strings.ToLower(v)
+	}
+	if v := os.Getenv("GORMES_WEB_USE_GATEWAY"); v != "" {
+		parsed, err := parseEnvBool("GORMES_WEB_USE_GATEWAY", v)
+		if err != nil {
+			return err
+		}
+		cfg.Web.UseGateway = parsed
 	}
 	if v := os.Getenv("GORMES_TUI_MOUSE_TRACKING"); v != "" {
 		parsed, err := parseEnvBool("GORMES_TUI_MOUSE_TRACKING", v)

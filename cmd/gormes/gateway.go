@@ -120,7 +120,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signals)
-	reg := buildDefaultRegistry(rootCtx, cfg.Delegation, cfg.SkillsRoot(), hc, cfg.Hermes.Model)
+	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
 	k := kernel.New(kernel.Config{

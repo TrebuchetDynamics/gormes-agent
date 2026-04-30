@@ -614,6 +614,8 @@ classification and row-backed implementation queue.
 - [x] Browser Use cloud + Go browser harness bridge
 - [x] Go browser-harness Hermes browser_* tool wrappers
 - [x] Go-native Hermes web_search/web_extract tool wrappers
+- [x] Go-native Hermes web backend matrix and config resolver
+- [x] Go-native Hermes web extract safety policy and summarizer
 - [ ] Browser artifact and console render contract
 - [ ] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
