@@ -212,7 +212,9 @@ func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	msg, err := b.client.Send(tgbotapi.NewMessage(id, text))
+	msgCfg := tgbotapi.NewMessage(id, text)
+	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
+	msg, err := b.sendWithParseFallback(msgCfg)
 	if err != nil {
 		return "", err
 	}
@@ -230,8 +232,9 @@ func (b *Bot) SendReply(ctx context.Context, chatID, replyToMsgID, text string) 
 		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
 	}
 	msgCfg := tgbotapi.NewMessage(id, text)
+	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
 	msgCfg.ReplyToMessageID = replyID
-	msg, err := b.client.Send(msgCfg)
+	msg, err := b.sendWithParseFallback(msgCfg)
 	if err != nil {
 		return "", err
 	}
@@ -256,8 +259,20 @@ func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error
 	if err != nil {
 		return fmt.Errorf("telegram: invalid msgID %q: %w", msgID, err)
 	}
-	_, err = b.client.Send(tgbotapi.NewEditMessageText(cid, mid, text))
-	return err
+	editCfg := tgbotapi.NewEditMessageText(cid, mid, text)
+	editCfg.ParseMode = tgbotapi.ModeMarkdownV2
+	if _, err := b.client.Send(editCfg); err != nil {
+		if isMarkdownParseError(err) {
+			b.log.Warn("telegram MarkdownV2 parse failed on edit, falling back to plain text", "err", err)
+			editCfg.ParseMode = ""
+			if _, retryErr := b.client.Send(editCfg); retryErr != nil {
+				return retryErr
+			}
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (b *Bot) DeleteMessage(ctx context.Context, chatID, msgID string) error {
@@ -283,6 +298,36 @@ func (b *Bot) SendToChat(ctx context.Context, chatID int64, text string) error {
 	_ = ctx
 	_, err := b.client.Send(tgbotapi.NewMessage(chatID, text))
 	return err
+}
+
+// sendWithParseFallback wraps b.client.Send for MessageConfig payloads with
+// the Hermes parity fallback at gateway/platforms/telegram.py:1117-1129. If
+// Telegram rejects MarkdownV2 with a parse-entity error, the bot retries
+// once with ParseMode unset and the original body unchanged. The render
+// layer (internal/gateway/render.go) is the only place that touches escape
+// behavior; bot.go must hand the body through byte-identically.
+func (b *Bot) sendWithParseFallback(msgCfg tgbotapi.MessageConfig) (tgbotapi.Message, error) {
+	msg, err := b.client.Send(msgCfg)
+	if err == nil {
+		return msg, nil
+	}
+	if !isMarkdownParseError(err) {
+		return tgbotapi.Message{}, err
+	}
+	b.log.Warn("telegram MarkdownV2 parse failed, falling back to plain text", "err", err)
+	msgCfg.ParseMode = ""
+	return b.client.Send(msgCfg)
+}
+
+// isMarkdownParseError matches the Hermes heuristic: any send error whose
+// message mentions "parse" or "markdown" is treated as a malformed-entity
+// rejection, not a transient network failure.
+func isMarkdownParseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "parse") || strings.Contains(lower, "markdown")
 }
 
 func parseChatID(s string) (int64, error) {

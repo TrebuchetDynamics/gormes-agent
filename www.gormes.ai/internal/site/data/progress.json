@@ -3909,7 +3909,7 @@
             },
             {
               "name": "Telegram MarkdownV2 parse-mode rendering closeout",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -3918,7 +3918,14 @@
                 "operator"
               ],
               "contract": "internal/channels/telegram/bot.go::Send and SendReply set msgCfg.ParseMode = tgbotapi.ModeMarkdownV2 so that the MarkdownV2-escaped output produced by internal/gateway/render.go::FormatStreamTelegram, FormatFinalTelegram, and FormatErrorTelegram renders as bold/italic/code/spoiler/strike on Telegram clients instead of literal backslashes. A parse-failure fallback resends the same body in plain text via msgCfg.ParseMode = '' when Telegram rejects the MarkdownV2 payload, mirroring Hermes' behavior at gateway/platforms/telegram.py:998-1003. Edit messages (EditMessage) and placeholder sends (SendPlaceholder/SendReplyPlaceholder) honor the same parse-mode policy.",
-              "contract_status": "draft",
+              "contract_status": "validated",
+              "evidence": [
+                "internal/channels/telegram/bot.go::Send now wraps the constructed tgbotapi.MessageConfig with msgCfg.ParseMode = tgbotapi.ModeMarkdownV2 and routes through sendWithParseFallback for the Hermes parse-error retry path.",
+                "internal/channels/telegram/bot.go::SendReply mirrors the same ParseMode contract while preserving ReplyToMessageID; SendPlaceholder/SendReplyPlaceholder inherit the contract via Send/SendReply.",
+                "internal/channels/telegram/bot.go::EditMessage sets ParseMode on tgbotapi.NewEditMessageText and falls back to plain text on a Telegram parse-entity rejection.",
+                "internal/channels/telegram/bot.go::sendWithParseFallback implements the Hermes telegram.py:1117-1129 retry: on isMarkdownParseError it logs a redacted warning, clears ParseMode, and resends the byte-identical body once.",
+                "internal/channels/telegram/bot_parse_mode_test.go covers TestBot_Send_SetsMarkdownV2ParseMode, TestBot_SendReply_SetsMarkdownV2ParseMode, TestBot_EditMessage_SetsMarkdownV2ParseMode, TestBot_Send_FallsBackToPlainOnMarkdownV2ParseError, and TestBot_Send_PreservesEscapingFromRenderLayer; existing internal/gateway/render_test.go and internal/channels/telegram/bot_test.go stay green."
+              ],
               "degraded_mode": "If Telegram rejects MarkdownV2 (Bot API error 'can't parse entities'), the bot retries the same body once with parse_mode unset and emits redacted telemetry evidence. If the retry also fails, the original error is surfaced via HookOnError and the channel state machine treats the platform as failed for that turn.",
               "fixture": "internal/channels/telegram/bot_test.go",
               "source_refs": [
