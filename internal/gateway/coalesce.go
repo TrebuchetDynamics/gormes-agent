@@ -56,6 +56,12 @@ func coalescerNow(now func() time.Time) coalescerOption {
 	}
 }
 
+func coalescerInitialTextSend() coalescerOption {
+	return func(c *coalescer) {
+		c.initialTextSend = true
+	}
+}
+
 // coalescer batches outbound edits for one turn. The manager owns one
 // instance per active turn and tears it down on terminal phases.
 type coalescer struct {
@@ -73,6 +79,7 @@ type coalescer struct {
 	lastEditAt       time.Time
 	retryAfter       time.Time
 	freshFinalAfter  time.Duration
+	initialTextSend  bool
 	wakeupCh         chan struct{}
 }
 
@@ -217,8 +224,10 @@ func (c *coalescer) flushImmediateFinal(ctx context.Context, text string, finali
 }
 
 func (c *coalescer) sendInitialVisibleMessage(ctx context.Context, text string, finalize bool) (string, error) {
-	if sender, ok := c.sender.(coalescerMessageSender); ok {
-		return sender.Send(ctx, c.chatID, text)
+	if c.initialTextSend {
+		if msgID, err, ok := c.sendInitialText(ctx, text); ok {
+			return msgID, err
+		}
 	}
 	msgID, err := c.sender.SendPlaceholder(ctx, c.chatID)
 	if err != nil {
@@ -292,6 +301,15 @@ func (c *coalescer) tryFlush(ctx context.Context) {
 	c.lastEditAt = now
 	c.pendingText = ""
 	c.mu.Unlock()
+}
+
+func (c *coalescer) sendInitialText(ctx context.Context, text string) (string, error, bool) {
+	sender, ok := c.sender.(coalescerMessageSender)
+	if !ok {
+		return "", nil, false
+	}
+	msgID, err := sender.Send(ctx, c.chatID, text)
+	return msgID, err, true
 }
 
 func shouldSendFreshFinal(finalize bool, msgID string, createdAt time.Time, threshold time.Duration, now time.Time) bool {

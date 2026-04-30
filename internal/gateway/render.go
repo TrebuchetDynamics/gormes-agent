@@ -10,11 +10,17 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-const maxMessageLen = 4000
+const (
+	maxMessageLen       = 4000
+	streamPreviewCursor = " ▉"
+)
 
 // FormatStreamPlain renders a streaming frame as plain text.
 func FormatStreamPlain(f kernel.RenderFrame) string {
 	body := f.DraftText
+	if streamPreviewCursorActive(f) {
+		body += streamPreviewCursor
+	}
 	tail := ""
 	if len(f.SoulEvents) > 0 {
 		last := f.SoulEvents[len(f.SoulEvents)-1]
@@ -62,7 +68,9 @@ func FormatErrorPlain(f kernel.RenderFrame) string {
 // FormatStreamTelegram renders a streaming frame using Telegram MarkdownV2.
 func FormatStreamTelegram(f kernel.RenderFrame) string {
 	body := tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, f.DraftText)
-	body = truncate(body)
+	if streamPreviewCursorActive(f) {
+		body += streamPreviewCursor
+	}
 	tail := ""
 	if len(f.SoulEvents) > 0 {
 		last := f.SoulEvents[len(f.SoulEvents)-1]
@@ -73,7 +81,7 @@ func FormatStreamTelegram(f kernel.RenderFrame) string {
 	if f.Phase == kernel.PhaseReconnecting {
 		tail += "\n\n_reconnecting…_"
 	}
-	return body + tail
+	return truncate(body + tail)
 }
 
 // FormatFinalTelegram renders the final assistant message for Telegram.
@@ -163,6 +171,18 @@ func FormatErrorTelegram(f kernel.RenderFrame) string {
 		text = "❌ cancelled"
 	}
 	return truncate(tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, text))
+}
+
+func streamPreviewCursorActive(f kernel.RenderFrame) bool {
+	if strings.TrimSpace(f.DraftText) == "" {
+		return false
+	}
+	switch f.Phase {
+	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseFinalizing, kernel.PhaseReconnecting:
+		return true
+	default:
+		return false
+	}
 }
 
 func formatToolTracePlain(text string) string {

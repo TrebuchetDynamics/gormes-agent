@@ -25,8 +25,10 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewExecuteCodeTool())
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
 		Backend: tools.WebBackendConfig{
-			Backend:    cfg.Web.Backend,
-			UseGateway: cfg.Web.UseGateway,
+			Backend:             cfg.Web.Backend,
+			UseGateway:          cfg.Web.UseGateway,
+			ManagedToolsEnabled: true,
+			AuthStorePath:       filepath.Join(config.GormesHome(), "auth.json"),
 		},
 		Policy: tools.WebWebsitePolicy{
 			Enabled:           cfg.Security.WebsiteBlocklist.Enabled,

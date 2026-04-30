@@ -122,6 +122,9 @@ type ManagerConfig struct {
 	// channel-directory source ledger. Nil disables the hook. Failures are
 	// degraded and must not block user turns.
 	RememberedSourceStore RememberedSourceStore
+	// TypingActionEvidenceSink receives redacted non-fatal typing-action
+	// failures. Nil discards evidence silently.
+	TypingActionEvidenceSink TypingActionEvidenceSink
 }
 
 type kernelSubmitter interface {
@@ -164,6 +167,9 @@ type Manager struct {
 	typingKey  string
 
 	liveTurnPromptSeams liveTurnPromptSeams
+
+	typingActionMu   sync.Mutex
+	typingActionLast map[string]time.Time
 }
 
 type channelRunFailure struct {
@@ -368,6 +374,7 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		reasoningState:      map[string]SessionReasoningState{},
 		inboundDedup:        NewMessageDeduplicator(defaultInboundDedupMaxSize),
 		liveTurnPromptSeams: seams,
+		typingActionLast:    map[string]time.Time{},
 	}
 }
 
@@ -916,7 +923,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	if ch == nil {
 		return
 	}
-	m.updateTypingAction(ctx, ch, chatID, f.Phase)
+	m.maybeSendTypingAction(ctx, ch, f.Phase, chatID)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
@@ -961,16 +968,18 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		if *co == nil {
 			cCtx, cancel := context.WithCancel(ctx)
 			*coCancel = cancel
+			opts := []coalescerOption{
+				coalescerFreshFinalAfter(m.cfg.FreshFinalAfter),
+				coalescerNow(m.now),
+				coalescerEvidenceSink(m.cfg.CoalescerEvidenceSink),
+				coalescerInitialTextSend(),
+			}
 			nc := newCoalescer(hookedPlaceholderEditor{
 				base:         pe,
 				manager:      m,
 				platform:     platform,
 				replyToMsgID: replyToMsgID,
-			}, time.Duration(m.cfg.CoalesceMs)*time.Millisecond, chatID,
-				coalescerFreshFinalAfter(m.cfg.FreshFinalAfter),
-				coalescerNow(m.now),
-				coalescerEvidenceSink(m.cfg.CoalescerEvidenceSink),
-			)
+			}, time.Duration(m.cfg.CoalesceMs)*time.Millisecond, chatID, opts...)
 			*co = nc
 			go nc.run(cCtx)
 		}

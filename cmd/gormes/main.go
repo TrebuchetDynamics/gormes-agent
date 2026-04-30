@@ -438,7 +438,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             buildDefaultRegistry(rootCtx, cfg, c, modelName),
-		MaxToolIterations: 10,
+		MaxToolIterations: kernel.DefaultMaxToolIterations,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		ToolAudit:         toolAudit,

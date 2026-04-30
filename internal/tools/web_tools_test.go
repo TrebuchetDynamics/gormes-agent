@@ -3,10 +3,15 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestWebToolsExposeHermesNamesAndSchemas(t *testing.T) {
@@ -17,8 +22,8 @@ func TestWebToolsExposeHermesNamesAndSchemas(t *testing.T) {
 			Available: true,
 		},
 	})
-	if len(webTools) != 2 {
-		t.Fatalf("NewWebTools len = %d, want 2", len(webTools))
+	if len(webTools) != 3 {
+		t.Fatalf("NewWebTools len = %d, want 3", len(webTools))
 	}
 	byName := map[string]Tool{}
 	for _, tool := range webTools {
@@ -30,7 +35,7 @@ func TestWebToolsExposeHermesNamesAndSchemas(t *testing.T) {
 			t.Fatalf("%s schema is invalid JSON: %s", tool.Name(), tool.Schema())
 		}
 	}
-	for _, name := range []string{WebToolSearch, WebToolExtract} {
+	for _, name := range []string{WebToolSearch, WebToolExtract, WebToolCrawl} {
 		if byName[name] == nil {
 			t.Fatalf("%s not exposed by NewWebTools", name)
 		}
@@ -43,6 +48,11 @@ func TestWebToolsExposeHermesNamesAndSchemas(t *testing.T) {
 	}
 	if !strings.Contains(string(byName[WebToolExtract].Schema()), `"urls"`) {
 		t.Fatalf("web_extract schema missing urls: %s", byName[WebToolExtract].Schema())
+	}
+	if !strings.Contains(string(byName[WebToolCrawl].Schema()), `"url"`) ||
+		!strings.Contains(string(byName[WebToolCrawl].Schema()), `"instructions"`) ||
+		!strings.Contains(string(byName[WebToolCrawl].Schema()), `"depth"`) {
+		t.Fatalf("web_crawl schema missing Hermes crawl parameters: %s", byName[WebToolCrawl].Schema())
 	}
 }
 
@@ -113,6 +123,225 @@ func TestResolveWebBackendHonorsHermesBackendConfig(t *testing.T) {
 	}, WebBackendConfig{})
 	if fallback.Backend != WebBackendParallel || fallback.APIKey != "parallel-key" || !fallback.Available {
 		t.Fatalf("fallback = %+v, want parallel after blank Firecrawl key is ignored", fallback)
+	}
+}
+
+func TestResolveWebBackendUsesNousAuthStoreForManagedGateway(t *testing.T) {
+	authPath := filepath.Join(t.TempDir(), "auth.json")
+	if err := os.WriteFile(authPath, []byte(`{
+  "providers": {
+    "nous": {
+      "access_token": "nous-access-token",
+      "expires_at": "2999-01-01T00:00:00Z"
+    }
+  }
+}`), 0o600); err != nil {
+		t.Fatalf("write auth store: %v", err)
+	}
+
+	resolved := ResolveWebBackendWithConfig(map[string]string{
+		"FIRECRAWL_API_KEY": "direct-firecrawl-key",
+	}, WebBackendConfig{
+		Backend:             "firecrawl",
+		UseGateway:          true,
+		ManagedToolsEnabled: true,
+		AuthStorePath:       authPath,
+	})
+	if !resolved.Available {
+		t.Fatalf("resolved.Available = false, want managed gateway: %+v", resolved)
+	}
+	if resolved.Backend != WebBackendFirecrawl {
+		t.Fatalf("Backend = %q, want firecrawl", resolved.Backend)
+	}
+	if resolved.BaseURL != "https://firecrawl-gateway.nousresearch.com" {
+		t.Fatalf("BaseURL = %q, want default managed Firecrawl gateway", resolved.BaseURL)
+	}
+	if resolved.APIKey != "nous-access-token" {
+		t.Fatalf("APIKey = %q, want auth-store access token", resolved.APIKey)
+	}
+	if !resolved.Managed || resolved.Source != "auth_store" {
+		t.Fatalf("managed source = (%t, %q), want auth_store managed route", resolved.Managed, resolved.Source)
+	}
+}
+
+func TestResolveWebBackendStatusReportsManagedRouteAndToolset(t *testing.T) {
+	authPath := filepath.Join(t.TempDir(), "auth.json")
+	if err := os.WriteFile(authPath, []byte(`{
+  "providers": {
+    "nous": {
+      "access_token": "nous-status-token",
+      "expires_at": "2999-01-01T00:00:00Z"
+    }
+  }
+}`), 0o600); err != nil {
+		t.Fatalf("write auth store: %v", err)
+	}
+
+	status := ResolveWebBackendStatus(map[string]string{
+		"FIRECRAWL_GATEWAY_URL": "https://firecrawl-gateway.test",
+	}, WebBackendConfig{
+		Backend:             "firecrawl",
+		UseGateway:          true,
+		ManagedToolsEnabled: true,
+		AuthStorePath:       authPath,
+	})
+	if !status.Available || status.Route != "managed" || status.Source != "auth_store" {
+		t.Fatalf("status = %+v, want managed auth-store route", status)
+	}
+	if status.Backend != WebBackendFirecrawl || status.BaseURL != "https://firecrawl-gateway.test" {
+		t.Fatalf("status backend/base = %q/%q, want configured Firecrawl gateway", status.Backend, status.BaseURL)
+	}
+	for _, name := range []string{WebToolSearch, WebToolExtract, WebToolCrawl} {
+		if !stringSliceContains(status.ToolNames, name) {
+			t.Fatalf("ToolNames = %v, missing %s", status.ToolNames, name)
+		}
+	}
+	if !stringSliceContains(status.RequiresEnv, "TOOL_GATEWAY_USER_TOKEN") {
+		t.Fatalf("RequiresEnv = %v, want managed gateway env metadata", status.RequiresEnv)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", status), "nous-status-token") {
+		t.Fatalf("status leaked token: %+v", status)
+	}
+}
+
+func TestResolveWebBackendRefreshesExpiringNousAuthStoreToken(t *testing.T) {
+	now := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	var seenForm string
+	portal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/oauth/token" {
+			t.Errorf("refresh path = %q, want /api/oauth/token", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("refresh method = %s, want POST", r.Method)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("ParseForm: %v", err)
+		}
+		seenForm = r.Form.Encode()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"fresh-nous-token","refresh_token":"rotated-refresh-token","token_type":"Bearer","expires_in":3600,"scope":"inference:mint_agent_key"}`))
+	}))
+	defer portal.Close()
+
+	authPath := filepath.Join(t.TempDir(), "auth.json")
+	if err := os.WriteFile(authPath, []byte(fmt.Sprintf(`{
+  "providers": {
+    "nous": {
+      "access_token": "stale-nous-token",
+      "refresh_token": "old-refresh-token",
+      "client_id": "hermes-cli",
+      "portal_base_url": %q,
+      "expires_at": "2026-04-30T11:59:00Z"
+    }
+  },
+  "credential_pool": {
+    "nous": []
+  }
+}`, portal.URL)), 0o600); err != nil {
+		t.Fatalf("write auth store: %v", err)
+	}
+
+	resolved := ResolveWebBackendWithConfig(map[string]string{}, WebBackendConfig{
+		Backend:             "firecrawl",
+		UseGateway:          true,
+		ManagedToolsEnabled: true,
+		AuthStorePath:       authPath,
+		Now:                 func() time.Time { return now },
+	})
+	if !resolved.Available || resolved.APIKey != "fresh-nous-token" || resolved.Source != "auth_store" || !resolved.Managed {
+		t.Fatalf("resolved = %+v, want refreshed auth-store managed token", resolved)
+	}
+	if !strings.Contains(seenForm, "grant_type=refresh_token") || !strings.Contains(seenForm, "refresh_token=old-refresh-token") {
+		t.Fatalf("refresh form = %q, want refresh token grant", seenForm)
+	}
+
+	raw, err := os.ReadFile(authPath)
+	if err != nil {
+		t.Fatalf("read refreshed auth store: %v", err)
+	}
+	var store map[string]any
+	if err := json.Unmarshal(raw, &store); err != nil {
+		t.Fatalf("decode refreshed auth store: %v", err)
+	}
+	providers, _ := store["providers"].(map[string]any)
+	nous, _ := providers["nous"].(map[string]any)
+	if nous["access_token"] != "fresh-nous-token" || nous["refresh_token"] != "rotated-refresh-token" {
+		t.Fatalf("providers.nous = %#v, want rotated tokens persisted", nous)
+	}
+	if _, ok := store["credential_pool"]; !ok {
+		t.Fatalf("refreshed store dropped credential_pool: %#v", store)
+	}
+}
+
+func TestResolveWebBackendFallsBackToCachedNousTokenWhenRefreshFails(t *testing.T) {
+	now := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	portal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":"temporarily_unavailable"}`, http.StatusBadGateway)
+	}))
+	defer portal.Close()
+
+	authPath := filepath.Join(t.TempDir(), "auth.json")
+	if err := os.WriteFile(authPath, []byte(fmt.Sprintf(`{
+  "providers": {
+    "nous": {
+      "access_token": "cached-nous-token",
+      "refresh_token": "refresh-token",
+      "portal_base_url": %q,
+      "expires_at": "2026-04-30T11:59:00Z"
+    }
+  }
+}`, portal.URL)), 0o600); err != nil {
+		t.Fatalf("write auth store: %v", err)
+	}
+
+	resolved := ResolveWebBackendWithConfig(nil, WebBackendConfig{
+		Backend:             "firecrawl",
+		UseGateway:          true,
+		ManagedToolsEnabled: true,
+		AuthStorePath:       authPath,
+		Now:                 func() time.Time { return now },
+	})
+	if !resolved.Available || resolved.APIKey != "cached-nous-token" {
+		t.Fatalf("resolved = %+v, want cached token fallback when refresh fails", resolved)
+	}
+}
+
+func TestResolveWebBackendRejectsInvalidManagedGatewayScheme(t *testing.T) {
+	authPath := filepath.Join(t.TempDir(), "auth.json")
+	if err := os.WriteFile(authPath, []byte(`{
+  "providers": {
+    "nous": {
+      "access_token": "nous-token",
+      "expires_at": "2999-01-01T00:00:00Z"
+    }
+  }
+}`), 0o600); err != nil {
+		t.Fatalf("write auth store: %v", err)
+	}
+
+	resolved := ResolveWebBackendWithConfig(map[string]string{
+		"TOOL_GATEWAY_DOMAIN": "nousresearch.com",
+		"TOOL_GATEWAY_SCHEME": "ftp",
+	}, WebBackendConfig{
+		Backend:             "firecrawl",
+		UseGateway:          true,
+		ManagedToolsEnabled: true,
+		AuthStorePath:       authPath,
+	})
+	if resolved.Available || resolved.Source != "invalid_gateway_scheme" {
+		t.Fatalf("resolved = %+v, want unavailable invalid gateway scheme", resolved)
+	}
+}
+
+func TestResolveWebBackendInvalidGatewaySchemeDoesNotBlockDirectFirecrawl(t *testing.T) {
+	resolved := ResolveWebBackendWithConfig(map[string]string{
+		"FIRECRAWL_API_KEY":       "direct-firecrawl-key",
+		"TOOL_GATEWAY_DOMAIN":     "nousresearch.com",
+		"TOOL_GATEWAY_SCHEME":     "ftp",
+		"TOOL_GATEWAY_USER_TOKEN": "nous-token",
+	}, WebBackendConfig{Backend: "firecrawl"})
+	if !resolved.Available || resolved.APIKey != "direct-firecrawl-key" || resolved.Source != "env" || resolved.Managed {
+		t.Fatalf("resolved = %+v, want direct Firecrawl to win when gateway mode is not requested", resolved)
 	}
 }
 
@@ -608,6 +837,325 @@ func TestWebExtractToolProcessesLongContentWithProcessor(t *testing.T) {
 	}
 	if got := payload.Results[0].Content; got != "processed summary" {
 		t.Fatalf("content = %q, want processed summary", got)
+	}
+}
+
+func TestWebCrawlToolCallsFirecrawlAndNormalizesPages(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"success":true,"data":[{"markdown":"# Page 1","metadata":{"title":"Page 1","sourceURL":"https://example.test/docs"}},{"html":"<p>Page 2</p>","metadata":{"title":"Page 2","url":"https://example.test/docs/two"}}]}`,
+	}}}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   "https://firecrawl.test",
+			APIKey:    "fire-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"example.test/docs","instructions":"Find docs","depth":"advanced"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one Firecrawl crawl call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodPost || req.URL.Path != "/v2/crawl" {
+		t.Fatalf("request = %s %s, want POST /v2/crawl", req.Method, req.URL.Path)
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer fire-secret" {
+		t.Fatalf("Authorization = %q, want bearer token", got)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal(client.bodies[0], &sent); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if sent["url"] != "https://example.test/docs" || sent["limit"] != float64(20) {
+		t.Fatalf("crawl body = %#v, want prefixed url and Firecrawl page limit", sent)
+	}
+	if _, ok := sent["instructions"]; ok {
+		t.Fatalf("crawl body = %#v, want Firecrawl instructions ignored like Hermes", sent)
+	}
+	scrapeOptions, _ := sent["scrape_options"].(map[string]any)
+	formats, _ := scrapeOptions["formats"].([]any)
+	if len(formats) != 1 || formats[0] != "markdown" {
+		t.Fatalf("scrape_options = %#v, want markdown format", scrapeOptions)
+	}
+
+	var payload struct {
+		Results []struct {
+			URL     string `json:"url"`
+			Title   string `json:"title"`
+			Content string `json:"content"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 2 {
+		t.Fatalf("results len = %d, want 2", len(payload.Results))
+	}
+	if payload.Results[0].URL != "https://example.test/docs" || payload.Results[0].Title != "Page 1" || payload.Results[0].Content != "# Page 1" {
+		t.Fatalf("first result = %+v, want normalized markdown page", payload.Results[0])
+	}
+	if payload.Results[1].URL != "https://example.test/docs/two" || payload.Results[1].Content != "<p>Page 2</p>" {
+		t.Fatalf("second result = %+v, want html fallback page", payload.Results[1])
+	}
+}
+
+func TestWebCrawlToolCallsTavilyWithInstructions(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"results":[{"title":"Tavily Page","url":"https://example.test/page","raw_content":"Tavily crawl content"}]}`,
+	}}}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendTavily,
+			BaseURL:   "https://tavily.test",
+			APIKey:    "tavily-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test","instructions":"Find docs","depth":"advanced"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one Tavily crawl call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodPost || req.URL.Path != "/crawl" {
+		t.Fatalf("request = %s %s, want POST /crawl", req.Method, req.URL.Path)
+	}
+	if got := req.Header.Get("Authorization"); got != "" {
+		t.Fatalf("Authorization = %q, want Tavily key in JSON body", got)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal(client.bodies[0], &sent); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if sent["url"] != "https://example.test" || sent["api_key"] != "tavily-secret" {
+		t.Fatalf("crawl body = %#v, want url and api_key", sent)
+	}
+	if sent["limit"] != float64(20) || sent["extract_depth"] != "advanced" || sent["instructions"] != "Find docs" {
+		t.Fatalf("crawl body = %#v, want limit, advanced depth, and instructions", sent)
+	}
+
+	var payload struct {
+		Results []struct {
+			URL     string `json:"url"`
+			Title   string `json:"title"`
+			Content string `json:"content"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].URL != "https://example.test/page" || payload.Results[0].Title != "Tavily Page" || payload.Results[0].Content != "Tavily crawl content" {
+		t.Fatalf("output = %+v, want normalized Tavily crawl result", payload)
+	}
+}
+
+func TestWebCrawlToolBlocksEmbeddedSecretsBeforeHTTP(t *testing.T) {
+	client := &recordingWebHTTPClient{}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   "https://firecrawl.test",
+			APIKey:    "fire-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test/?token=sk-secret-123456"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("requests = %d, want no provider call for secret-bearing crawl URL", len(client.requests))
+	}
+	var payload struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if payload.Success || !strings.Contains(payload.Error, "contains what appears to be an API key or token") {
+		t.Fatalf("payload = %+v, want blocked secret error", payload)
+	}
+}
+
+func TestWebCrawlToolAppliesWebsitePolicyBeforeFetch(t *testing.T) {
+	client := &recordingWebHTTPClient{}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Policy: WebWebsitePolicy{
+			Enabled: true,
+			Domains: []string{"blocked.test"},
+		},
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   "https://firecrawl.test",
+			APIKey:    "fire-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://blocked.test"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("requests = %d, want policy block before provider call", len(client.requests))
+	}
+	var payload struct {
+		Results []struct {
+			URL             string            `json:"url"`
+			Content         string            `json:"content"`
+			Error           string            `json:"error"`
+			BlockedByPolicy map[string]string `json:"blocked_by_policy"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results len = %d, want one policy block", len(payload.Results))
+	}
+	got := payload.Results[0]
+	if got.URL != "https://blocked.test" || got.Content != "" || !strings.Contains(got.Error, "Blocked by website policy") {
+		t.Fatalf("policy result = %+v, want blocked crawl URL", got)
+	}
+	if got.BlockedByPolicy["rule"] != "blocked.test" || got.BlockedByPolicy["source"] != "config" {
+		t.Fatalf("blocked_by_policy = %#v, want rule/source", got.BlockedByPolicy)
+	}
+}
+
+func TestWebCrawlToolBlocksRedirectedFinalURL(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"success":true,"data":[{"markdown":"secret crawl content","metadata":{"title":"Redirected crawl page","sourceURL":"https://blocked.test/final"}}]}`,
+	}}}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Policy: WebWebsitePolicy{
+			Enabled: true,
+			Domains: []string{"blocked.test"},
+		},
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   "https://firecrawl.test",
+			APIKey:    "fire-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://allowed.test"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want initial public URL fetched once", len(client.requests))
+	}
+	var payload struct {
+		Results []struct {
+			URL             string            `json:"url"`
+			Title           string            `json:"title"`
+			Content         string            `json:"content"`
+			Error           string            `json:"error"`
+			BlockedByPolicy map[string]string `json:"blocked_by_policy"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	got := payload.Results[0]
+	if got.URL != "https://blocked.test/final" || got.Title != "Redirected crawl page" || got.Content != "" {
+		t.Fatalf("redirect result = %+v, want final URL with empty content", got)
+	}
+	if !strings.Contains(got.Error, "Blocked by website policy") || got.BlockedByPolicy["rule"] != "blocked.test" {
+		t.Fatalf("redirect policy = %+v, want blocked_by_policy", got)
+	}
+}
+
+func TestWebCrawlToolRemovesBase64ImagesFromOutput(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"success":true,"data":[{"markdown":"before data:image/png;base64,QUJDREVGRw== after","metadata":{"title":"Image Data","sourceURL":"https://example.test/page"}}]}`,
+	}}}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   "https://firecrawl.test",
+			APIKey:    "fire-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	text := string(out)
+	if strings.Contains(text, "QUJDREVGRw") {
+		t.Fatalf("output leaked base64 image data: %s", text)
+	}
+	if !strings.Contains(text, "[BASE64_IMAGE_REMOVED]") {
+		t.Fatalf("output = %s, want base64 placeholder", text)
+	}
+}
+
+func TestWebCrawlToolProcessesLongContentWithProcessor(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"success":true,"data":[{"markdown":"0123456789abcdef","metadata":{"title":"Long Crawl Page","sourceURL":"https://example.test/long"}}]}`,
+	}}}
+	processor := &recordingWebContentProcessor{summary: "crawl summary"}
+	tool := NewWebCrawlTool(WebToolsConfig{
+		Client: client,
+		Processing: WebContentProcessingConfig{
+			Enabled:        true,
+			MinLength:      10,
+			MaxInputChars:  1000,
+			MaxOutputChars: 100,
+		},
+		ContentProcessor: processor,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   "https://firecrawl.test",
+			APIKey:    "fire-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.test"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(processor.requests) != 1 {
+		t.Fatalf("processor requests = %d, want one crawl page processing request", len(processor.requests))
+	}
+	if processor.requests[0].URL != "https://example.test/long" || processor.requests[0].Title != "Long Crawl Page" {
+		t.Fatalf("processor request = %+v, want URL/title", processor.requests[0])
+	}
+	var payload struct {
+		Results []struct {
+			Content string `json:"content"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if got := payload.Results[0].Content; got != "crawl summary" {
+		t.Fatalf("content = %q, want processed crawl summary", got)
 	}
 }
 

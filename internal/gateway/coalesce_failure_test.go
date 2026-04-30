@@ -111,7 +111,6 @@ func itoa(n int) string {
 
 func TestCoalescer_EditFailure_PlainSendFallback(t *testing.T) {
 	fake := newFailOnFinalEditor()
-	fake.editErr = errors.New("telegram: message can't be edited")
 
 	var mu sync.Mutex
 	var evidences []CoalescerEvidence
@@ -130,19 +129,20 @@ func TestCoalescer_EditFailure_PlainSendFallback(t *testing.T) {
 	c.flushImmediate(ctx, "streaming text")
 
 	// Now finalize — edit will fail, fallback Send should fire.
+	fake.editErr = errors.New("telegram: message can't be edited")
 	c.flushImmediateFinal(ctx, "final answer", true)
 
-	// Exactly two plain Sends: the first visible stream content, then the
-	// fallback final text after the terminal edit fails.
+	// Exactly one plain Send: the fallback final text after the terminal edit
+	// fails. The initial stream preview used the placeholder/edit path.
 	sends := fake.plainSendsSnapshot()
-	if len(sends) != 2 {
-		t.Fatalf("plain Send calls = %d, want 2; sends=%#v", len(sends), sends)
+	if len(sends) != 1 {
+		t.Fatalf("plain Send calls = %d, want 1; sends=%#v", len(sends), sends)
 	}
-	if sends[1].Text != "final answer" {
-		t.Fatalf("fallback plain Send text = %q, want %q", sends[1].Text, "final answer")
+	if sends[0].Text != "final answer" {
+		t.Fatalf("fallback plain Send text = %q, want %q", sends[0].Text, "final answer")
 	}
-	if sends[1].ChatID != "chat42" {
-		t.Fatalf("fallback plain Send chatID = %q, want %q", sends[1].ChatID, "chat42")
+	if sends[0].ChatID != "chat42" {
+		t.Fatalf("fallback plain Send chatID = %q, want %q", sends[0].ChatID, "chat42")
 	}
 
 	// Exactly one edit_failed_fallback evidence.
@@ -161,7 +161,7 @@ func TestCoalescer_EditFailure_PlainSendFallback(t *testing.T) {
 
 func TestCoalescer_FirstVisibleStreamingSendUsesContent(t *testing.T) {
 	ch := newFakeChannel("telegram")
-	c := newCoalescer(ch, time.Second, "chat42")
+	c := newCoalescer(ch, time.Second, "chat42", coalescerInitialTextSend())
 
 	c.flushImmediate(context.Background(), "partial response")
 
@@ -174,25 +174,6 @@ func TestCoalescer_FirstVisibleStreamingSendUsesContent(t *testing.T) {
 	}
 	if edits := ch.editsSnapshot(); len(edits) != 0 {
 		t.Fatalf("initial visible content should be sent directly, edits=%#v", edits)
-	}
-}
-
-func TestCoalescer_FinalEditFailureDoesNotResendAlreadyVisibleFinal(t *testing.T) {
-	fake := newFailOnFinalEditor()
-	c := newCoalescer(fake, time.Second, "chat42")
-
-	ctx := context.Background()
-	c.flushImmediate(ctx, "final answer")
-	initialSends := fake.plainSendsSnapshot()
-	if len(initialSends) != 1 {
-		t.Fatalf("initial visible send calls = %d, want 1; sends=%#v", len(initialSends), initialSends)
-	}
-	fake.editErr = errors.New("telegram: message can't be edited")
-
-	c.flushImmediateFinal(ctx, "final answer", true)
-
-	if sends := fake.plainSendsSnapshot(); len(sends) != 1 {
-		t.Fatalf("plain Send calls = %d, want only the initial visible send because final text is already visible; sends=%#v", len(sends), sends)
 	}
 }
 
@@ -262,6 +243,24 @@ func TestCoalescer_FinalizeRace_NoDuplicateMessage(t *testing.T) {
 	if total > 1 {
 		t.Fatalf("duplicate final messages: %d terminal-text message(s) delivered (sends=%d edits=%d)",
 			total, finalSends, finalEdits)
+	}
+}
+
+func TestCoalescer_FinalEditFailureDoesNotResendAlreadyVisibleFinal(t *testing.T) {
+	fake := newFailOnFinalEditor()
+	c := newCoalescer(fake, time.Second, "chat42", coalescerInitialTextSend())
+
+	ctx := context.Background()
+	c.flushImmediate(ctx, "already final")
+	fake.editErr = errors.New("telegram: message can't be edited")
+	c.flushImmediateFinal(ctx, "already final", true)
+
+	sends := fake.plainSendsSnapshot()
+	if len(sends) != 1 {
+		t.Fatalf("plain Send calls = %d, want only initial visible message; sends=%#v", len(sends), sends)
+	}
+	if sends[0].Text != "already final" {
+		t.Fatalf("initial visible text = %q, want %q", sends[0].Text, "already final")
 	}
 }
 

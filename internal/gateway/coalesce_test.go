@@ -18,15 +18,15 @@ func TestCoalescer_FirstContentThenEdit(t *testing.T) {
 
 	c.setPending("first")
 	waitFor(t, 200*time.Millisecond, func() bool {
-		sent := ch.sentSnapshot()
-		return len(sent) == 1 && sent[0].Text == "first"
+		edits := ch.editsSnapshot()
+		return len(edits) == 1 && edits[0].Text == "first"
 	})
 
 	time.Sleep(25 * time.Millisecond)
 	c.setPending("second")
 	waitFor(t, 200*time.Millisecond, func() bool {
 		edits := ch.editsSnapshot()
-		return len(edits) == 1 && edits[0].Text == "second"
+		return len(edits) == 2 && edits[1].Text == "second"
 	})
 }
 
@@ -40,8 +40,8 @@ func TestCoalescer_FlushImmediateBypassesWindow(t *testing.T) {
 
 	c.flushImmediate(ctx, "final")
 	waitFor(t, 200*time.Millisecond, func() bool {
-		sent := ch.sentSnapshot()
-		return len(sent) == 1 && sent[0].Text == "final"
+		edits := ch.editsSnapshot()
+		return len(edits) == 1 && edits[0].Text == "final"
 	})
 }
 
@@ -55,7 +55,7 @@ func TestCoalescer_FlushImmediateFinalPassesTerminalFlag(t *testing.T) {
 	c.flushImmediate(ctx, "partial")
 	c.flushImmediateFinal(ctx, "final", true)
 
-	if got, want := ch.finalizes, []bool{true}; !reflect.DeepEqual(got, want) {
+	if got, want := ch.finalizes, []bool{false, true}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("finalize flags = %v, want %v", got, want)
 	}
 }

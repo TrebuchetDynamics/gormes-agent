@@ -25,6 +25,11 @@ and, when implementation intent exists, the matching row in
 Pick the primary intent:
 
 - **Decide direction**: use `grill-me` and optionally `gormes-planner`.
+- **Run recurring or periodic Hermes/Gormes parity progress sweeps**:
+  use `gormes-hermes-parity`, then `gormes-parity-auditor` and
+  `gormes-planner` inside the bounded sweep. Use the same route when parity
+  taxonomy, roadmap group names, or feature-map sections need source-backed
+  renames or restructures.
 - **Map upstream parity**: use `gormes-parity-auditor`, then `gormes-planner` if rows need edits.
 - **Plan roadmap rows**: use `gormes-planner`.
 - **Plan Hermes CLI/config/migration parity**: use `gormes-parity-auditor`
@@ -58,6 +63,12 @@ Builder-ready rows route to `gormes-builder` and, when tests are required,
 `gormes-tdd-slice`. Vague rows route back to `gormes-planner`. Unclear package
 boundaries route to `gormes-interface-designer` before implementation.
 
+When `gormes-hermes-parity` emits a follow-up task packet, treat its
+`scope`, `feature_map_area`, `progress_row`, `source_refs`, `write_scope`, and
+`validation` fields as the routing input. Return the smallest skill chain that
+can finish that packet, and preserve the packet in the handoff so builder or
+planner agents do not rediscover the same context.
+
 ### 2. Prefer Existing Skills
 
 Before creating a new skill, inspect current repo-local skills:
@@ -88,6 +99,7 @@ Use names like:
 
 - `gormes-provider-parity`
 - `gormes-dev-runtime`
+- `gormes-hermes-parity`
 - `gormes-goncho-compat`
 - `gormes-channel-adapter`
 - `gormes-docs-web-sync`

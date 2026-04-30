@@ -78,6 +78,12 @@ type TypingCapable interface {
 	StartTyping(ctx context.Context, chatID string) (stop func(), err error)
 }
 
+// TypingActionCapable is implemented by channels that expose one-shot typing
+// actions such as Telegram sendChatAction.
+type TypingActionCapable interface {
+	SendChatAction(ctx context.Context, chatID, action string) error
+}
+
 // ReactionCapable is implemented by channels that can react to inbound
 // messages. The returned undo function must be idempotent.
 type ReactionCapable interface {

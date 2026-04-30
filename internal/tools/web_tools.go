@@ -18,6 +18,7 @@ import (
 const (
 	WebToolExtract = "web_extract"
 	WebToolSearch  = "web_search"
+	WebToolCrawl   = "web_crawl"
 
 	webDefaultFirecrawlBaseURL = "https://api.firecrawl.dev"
 	webDefaultExaBaseURL       = "https://api.exa.ai"
@@ -27,10 +28,13 @@ const (
 	defaultWebSearchLimit      = 5
 	defaultWebMaxSearch        = 100
 	defaultWebMaxExtract       = 5
+	defaultWebCrawlLimit       = 20
 	defaultWebProcessMinLength = 5000
 	defaultWebProcessMaxInput  = 2_000_000
 	defaultWebProcessMaxOutput = 5000
 	maxWebResponseBytes        = 2 * 1024 * 1024
+	webAuthRefreshSkew         = 120 * time.Second
+	webAuthRefreshTimeout      = 15 * time.Second
 )
 
 type WebBackend string
@@ -69,17 +73,40 @@ type WebBackendResolution struct {
 	APIKey    string
 	Available bool
 	Evidence  WebEvidence
+	Managed   bool
+	Source    string
+}
+
+// WebBackendStatus is the redacted operator/toolset read model for native web
+// tools. It intentionally excludes bearer tokens and raw credential values.
+type WebBackendStatus struct {
+	Backend     WebBackend  `json:"backend"`
+	Available   bool        `json:"available"`
+	Route       string      `json:"route"`
+	Source      string      `json:"source"`
+	BaseURL     string      `json:"base_url"`
+	Evidence    WebEvidence `json:"evidence"`
+	UseGateway  bool        `json:"use_gateway"`
+	Managed     bool        `json:"managed"`
+	ToolNames   []string    `json:"tool_names"`
+	RequiresEnv []string    `json:"requires_env"`
+	Description string      `json:"description"`
 }
 
 // WebBackendConfig mirrors Hermes' web config.yaml surface for backend
 // selection. Empty Backend means auto-detect from available credentials.
 type WebBackendConfig struct {
-	Backend    string
-	UseGateway bool
+	Backend             string
+	UseGateway          bool
+	ManagedToolsEnabled bool
+	AuthStorePath       string
+	AuthHTTPClient      WebHTTPClient
+	AuthRefreshTimeout  time.Duration
+	Now                 func() time.Time
 }
 
-// WebToolsConfig wires web_search and web_extract. Leave Resolution zero in
-// production to resolve from environment; tests provide explicit values.
+// WebToolsConfig wires web_search, web_extract, and web_crawl. Leave Resolution
+// zero in production to resolve from environment; tests provide explicit values.
 type WebToolsConfig struct {
 	Client           WebHTTPClient
 	Backend          WebBackendConfig
@@ -198,6 +225,35 @@ func ResolveWebBackendWithConfig(env map[string]string, cfg WebBackendConfig) We
 	}
 }
 
+func ResolveWebBackendStatus(env map[string]string, cfg WebBackendConfig) WebBackendStatus {
+	resolved := ResolveWebBackendWithConfig(env, cfg)
+	route := "unavailable"
+	if resolved.Available {
+		if resolved.Managed {
+			route = "managed"
+		} else {
+			route = "direct"
+		}
+	}
+	description := "web provider unavailable"
+	if resolved.Available {
+		description = fmt.Sprintf("%s web backend via %s route", resolved.Backend, route)
+	}
+	return WebBackendStatus{
+		Backend:     resolved.Backend,
+		Available:   resolved.Available,
+		Route:       route,
+		Source:      firstNonEmpty(resolved.Source, route),
+		BaseURL:     resolved.BaseURL,
+		Evidence:    resolved.Evidence,
+		UseGateway:  cfg.UseGateway,
+		Managed:     resolved.Managed,
+		ToolNames:   []string{WebToolSearch, WebToolExtract, WebToolCrawl},
+		RequiresEnv: webRequiresEnv(cfg.ManagedToolsEnabled),
+		Description: description,
+	}
+}
+
 func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read func(string) string) WebBackendResolution {
 	switch backend {
 	case WebBackendFirecrawl:
@@ -210,6 +266,7 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 				APIKey:    apiKey,
 				Available: true,
 				Evidence:  WebEvidenceOK,
+				Source:    "env",
 			}
 		}
 		return unavailableWebBackend(WebBackendParallel, webDefaultParallelBaseURL)
@@ -221,6 +278,7 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 				APIKey:    apiKey,
 				Available: true,
 				Evidence:  WebEvidenceOK,
+				Source:    "env",
 			}
 		}
 		return unavailableWebBackend(WebBackendTavily, webDefaultTavilyBaseURL)
@@ -232,6 +290,7 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 				APIKey:    apiKey,
 				Available: true,
 				Evidence:  WebEvidenceOK,
+				Source:    "env",
 			}
 		}
 		return unavailableWebBackend(WebBackendExa, webDefaultExaBaseURL)
@@ -241,21 +300,6 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 }
 
 func resolveFirecrawlBackend(cfg WebBackendConfig, read func(string) string) WebBackendResolution {
-	gatewayURL := read("FIRECRAWL_GATEWAY_URL")
-	if gatewayURL == "" {
-		gatewayURL = managedFirecrawlGatewayURL(read("TOOL_GATEWAY_DOMAIN"), read("TOOL_GATEWAY_SCHEME"))
-	}
-	gatewayToken := read("TOOL_GATEWAY_USER_TOKEN")
-	if gatewayURL != "" && gatewayToken != "" && cfg.UseGateway {
-		return WebBackendResolution{
-			Backend:   WebBackendFirecrawl,
-			BaseURL:   normalizeWebBaseURL(gatewayURL),
-			APIKey:    gatewayToken,
-			Available: true,
-			Evidence:  WebEvidenceOK,
-		}
-	}
-
 	apiURL := read("FIRECRAWL_API_URL")
 	apiKey := read("FIRECRAWL_API_KEY")
 	if (apiURL != "" || apiKey != "") && !cfg.UseGateway {
@@ -265,6 +309,40 @@ func resolveFirecrawlBackend(cfg WebBackendConfig, read func(string) string) Web
 			APIKey:    apiKey,
 			Available: true,
 			Evidence:  WebEvidenceOK,
+			Source:    "env",
+		}
+	}
+
+	gatewayURL := read("FIRECRAWL_GATEWAY_URL")
+	if gatewayURL == "" {
+		gatewayURL = managedFirecrawlGatewayURL(read("TOOL_GATEWAY_DOMAIN"), read("TOOL_GATEWAY_SCHEME"))
+	}
+	if !validWebGatewayURLScheme(gatewayURL) {
+		return WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   gatewayURL,
+			Available: false,
+			Evidence:  WebEvidenceProviderUnavailable,
+			Source:    "invalid_gateway_scheme",
+		}
+	}
+	gatewayToken := read("TOOL_GATEWAY_USER_TOKEN")
+	gatewaySource := "env"
+	if gatewayToken == "" && cfg.ManagedToolsEnabled {
+		if token, ok := readNousAccessTokenFromAuthStore(cfg.AuthStorePath, cfg.now(), cfg.authHTTPClient(), cfg.authRefreshTimeout()); ok {
+			gatewayToken = token
+			gatewaySource = "auth_store"
+		}
+	}
+	if gatewayURL != "" && gatewayToken != "" && cfg.UseGateway {
+		return WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   normalizeWebBaseURL(gatewayURL),
+			APIKey:    gatewayToken,
+			Available: true,
+			Evidence:  WebEvidenceOK,
+			Managed:   true,
+			Source:    gatewaySource,
 		}
 	}
 
@@ -275,6 +353,8 @@ func resolveFirecrawlBackend(cfg WebBackendConfig, read func(string) string) Web
 			APIKey:    gatewayToken,
 			Available: true,
 			Evidence:  WebEvidenceOK,
+			Managed:   true,
+			Source:    gatewaySource,
 		}
 	}
 
@@ -287,6 +367,7 @@ func unavailableWebBackend(backend WebBackend, baseURL string) WebBackendResolut
 		BaseURL:   baseURL,
 		Available: false,
 		Evidence:  WebEvidenceProviderUnavailable,
+		Source:    "unavailable",
 	}
 }
 
@@ -307,6 +388,7 @@ func normalizeWebBackend(raw string) WebBackend {
 
 func NewWebTools(cfg WebToolsConfig) []Tool {
 	return []Tool{
+		NewWebCrawlTool(cfg),
 		NewWebExtractTool(cfg),
 		NewWebSearchTool(cfg),
 	}
@@ -330,6 +412,15 @@ func NewWebExtractTool(cfg WebToolsConfig) Tool {
 	}
 }
 
+func NewWebCrawlTool(cfg WebToolsConfig) Tool {
+	return &webTool{
+		name:   WebToolCrawl,
+		desc:   "Crawl a website and return markdown content for discovered pages. Use this for multi-page sites when web_extract is too broad or a page is too large.",
+		schema: json.RawMessage(`{"type":"object","properties":{"url":{"type":"string","description":"Base URL to crawl. If no scheme is supplied, https:// is assumed."},"instructions":{"type":"string","description":"Optional focused crawling instructions. Tavily forwards these instructions; Firecrawl crawl ignores them because the crawl API does not support a prompt parameter."},"depth":{"type":"string","description":"Extraction depth for Tavily crawl. Defaults to basic.","enum":["basic","advanced"],"default":"basic"}},"required":["url"]}`),
+		cfg:    normalizeWebToolsConfig(cfg),
+	}
+}
+
 func (t *webTool) Name() string { return t.name }
 
 func (t *webTool) Description() string { return t.desc }
@@ -348,6 +439,8 @@ func (t *webTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMe
 		return t.executeSearch(ctx, args)
 	case WebToolExtract:
 		return t.executeExtract(ctx, args)
+	case WebToolCrawl:
+		return t.executeCrawl(ctx, args)
 	default:
 		return nil, fmt.Errorf("%s: unknown web tool", t.name)
 	}
@@ -539,6 +632,88 @@ func (t *webTool) executeExtractBackend(ctx context.Context, urls []string) (map
 	}
 }
 
+func (t *webTool) executeCrawl(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
+	var in struct {
+		URL          string `json:"url"`
+		Instructions string `json:"instructions"`
+		Depth        string `json:"depth"`
+	}
+	if err := json.Unmarshal(args, &in); err != nil {
+		return nil, fmt.Errorf("%s: invalid args: %w", t.name, err)
+	}
+	crawlURL := normalizeWebCrawlURL(in.URL)
+	if crawlURL == "" {
+		return nil, fmt.Errorf("%s: url is required", t.name)
+	}
+	if webURLContainsSecret(crawlURL) {
+		return json.Marshal(webErrorResponse{
+			Success: false,
+			Error:   "Blocked: URL contains what appears to be an API key or token. Secrets must not be sent in URLs.",
+		})
+	}
+
+	if t.cfg.Resolution.Backend == WebBackendTavily && t.cfg.Resolution.Available {
+		return t.executeTavilyCrawl(ctx, crawlURL, in.Instructions, in.Depth)
+	}
+
+	if t.cfg.Resolution.Backend != WebBackendFirecrawl || !t.cfg.Resolution.Available {
+		return json.Marshal(webErrorResponse{
+			Success: false,
+			Error:   "web_crawl requires Firecrawl or Tavily. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, TAVILY_API_KEY, or use web_search + web_extract instead.",
+		})
+	}
+
+	if errResult, blocked := t.blockedWebExtractRequestResult(crawlURL); blocked {
+		return marshalWebExtractResponse(webExtractResponse{Results: []webExtractResult{errResult}})
+	}
+
+	raw, err := t.postFirecrawlJSON(ctx, "crawl", map[string]any{
+		"url":   crawlURL,
+		"limit": defaultWebCrawlLimit,
+		"scrape_options": map[string]any{
+			"formats": []string{"markdown"},
+		},
+	})
+	if err != nil {
+		return json.Marshal(webErrorResponse{
+			Success: false,
+			Error:   "Error crawling website: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+		})
+	}
+	return t.marshalProcessedCrawlResults(ctx, normalizeWebCrawlDocuments(crawlURL, raw))
+}
+
+func (t *webTool) executeTavilyCrawl(ctx context.Context, crawlURL, instructions, depth string) (json.RawMessage, error) {
+	if errResult, blocked := t.blockedWebExtractRequestResult(crawlURL); blocked {
+		return marshalWebExtractResponse(webExtractResponse{Results: []webExtractResult{errResult}})
+	}
+	payload := map[string]any{
+		"url":           crawlURL,
+		"limit":         defaultWebCrawlLimit,
+		"extract_depth": webCrawlDepth(depth),
+		"api_key":       t.cfg.Resolution.APIKey,
+	}
+	if strings.TrimSpace(instructions) != "" {
+		payload["instructions"] = instructions
+	}
+	raw, err := t.postProviderJSON(ctx, "crawl", payload, nil)
+	if err != nil {
+		return json.Marshal(webErrorResponse{
+			Success: false,
+			Error:   "Error crawling website: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+		})
+	}
+	return t.marshalProcessedCrawlResults(ctx, normalizeWebExtractDocuments([]string{crawlURL}, "markdown", raw))
+}
+
+func (t *webTool) marshalProcessedCrawlResults(ctx context.Context, results []webExtractResult) (json.RawMessage, error) {
+	out := make([]webExtractResult, 0, len(results))
+	for _, result := range results {
+		out = append(out, t.processWebExtractResult(ctx, t.applyWebExtractPostPolicy(result)))
+	}
+	return marshalWebExtractResponse(webExtractResponse{Results: out})
+}
+
 func (t *webTool) postFirecrawlJSON(ctx context.Context, endpoint string, payload any) (map[string]any, error) {
 	u, err := webFirecrawlEndpoint(t.cfg.Resolution.BaseURL, endpoint)
 	if err != nil {
@@ -668,6 +843,27 @@ func (cfg WebToolsConfig) processMaxOutput() int {
 	return defaultWebProcessMaxOutput
 }
 
+func (cfg WebBackendConfig) now() time.Time {
+	if cfg.Now != nil {
+		return cfg.Now()
+	}
+	return time.Now()
+}
+
+func (cfg WebBackendConfig) authHTTPClient() WebHTTPClient {
+	if cfg.AuthHTTPClient != nil {
+		return cfg.AuthHTTPClient
+	}
+	return http.DefaultClient
+}
+
+func (cfg WebBackendConfig) authRefreshTimeout() time.Duration {
+	if cfg.AuthRefreshTimeout > 0 {
+		return cfg.AuthRefreshTimeout
+	}
+	return webAuthRefreshTimeout
+}
+
 func normalizeWebSearch(raw map[string]any) webSearchResponse {
 	out := webSearchResponse{Success: true}
 	candidates := webSearchCandidates(raw)
@@ -763,7 +959,7 @@ func normalizeWebExtractDocument(row map[string]any, fallbackURL string, format 
 		content = firstNonEmpty(webStringValue(row["text"]), webStringValue(row["raw_content"]), webStringValue(row["full_content"]), strings.Join(webStringList(row["excerpts"]), "\n\n"))
 	}
 	result := webExtractResult{
-		URL:     firstNonEmpty(webStringValue(row["url"]), webStringValue(metadata["sourceURL"]), fallbackURL),
+		URL:     firstNonEmpty(webStringValue(row["url"]), webStringValue(metadata["sourceURL"]), webStringValue(metadata["url"]), fallbackURL),
 		Title:   firstNonEmpty(webStringValue(row["title"]), webStringValue(metadata["title"])),
 		Content: content,
 	}
@@ -772,6 +968,21 @@ func normalizeWebExtractDocument(row map[string]any, fallbackURL string, format 
 		result.Evidence = WebEvidenceRequestFailed
 	}
 	return result
+}
+
+func normalizeWebCrawlDocuments(requestedURL string, raw map[string]any) []webExtractResult {
+	rows := make([]map[string]any, 0)
+	if data := mapList(raw["data"]); len(data) > 0 {
+		rows = append(rows, data...)
+	}
+	if results := mapList(raw["results"]); len(results) > 0 {
+		rows = append(rows, results...)
+	}
+	out := make([]webExtractResult, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, normalizeWebExtractDocument(row, requestedURL, "markdown"))
+	}
+	return out
 }
 
 func webSearchCandidates(raw map[string]any) []any {
@@ -1052,6 +1263,45 @@ func webPolicyHostMatches(host, pattern string) bool {
 	return host == pattern || strings.HasSuffix(host, "."+pattern)
 }
 
+func normalizeWebCrawlURL(raw string) string {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return ""
+	}
+	if !strings.HasPrefix(value, "http://") && !strings.HasPrefix(value, "https://") {
+		value = "https://" + value
+	}
+	return value
+}
+
+func webCrawlDepth(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "advanced":
+		return "advanced"
+	default:
+		return "basic"
+	}
+}
+
+func webRequiresEnv(includeManaged bool) []string {
+	requires := []string{
+		"EXA_API_KEY",
+		"PARALLEL_API_KEY",
+		"TAVILY_API_KEY",
+		"FIRECRAWL_API_KEY",
+		"FIRECRAWL_API_URL",
+	}
+	if includeManaged {
+		requires = append(requires,
+			"FIRECRAWL_GATEWAY_URL",
+			"TOOL_GATEWAY_DOMAIN",
+			"TOOL_GATEWAY_SCHEME",
+			"TOOL_GATEWAY_USER_TOKEN",
+		)
+	}
+	return requires
+}
+
 func webExtractFormats(format string) []string {
 	switch strings.ToLower(strings.TrimSpace(format)) {
 	case "markdown":
@@ -1163,17 +1413,180 @@ func normalizeWebBaseURL(raw string) string {
 
 func managedFirecrawlGatewayURL(domain, scheme string) string {
 	domain = strings.TrimSpace(domain)
-	if domain == "" {
-		return ""
-	}
-	scheme = strings.TrimSpace(scheme)
+	scheme = strings.ToLower(strings.TrimSpace(scheme))
 	if scheme == "" {
 		scheme = "https"
 	}
 	if strings.Contains(domain, "://") {
 		return domain
 	}
+	if domain == "" {
+		domain = "nousresearch.com"
+	}
 	return scheme + "://firecrawl-gateway." + strings.TrimPrefix(domain, ".")
+}
+
+func validWebGatewayURLScheme(raw string) bool {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return true
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" {
+		return true
+	}
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
+
+type webManagedAuthStore struct {
+	Providers map[string]map[string]any `json:"providers"`
+}
+
+func readNousAccessTokenFromAuthStore(authStorePath string, now time.Time, client WebHTTPClient, timeout time.Duration) (string, bool) {
+	pathValue := strings.TrimSpace(authStorePath)
+	if pathValue == "" {
+		return "", false
+	}
+	raw, err := os.ReadFile(pathValue)
+	if err != nil || len(strings.TrimSpace(string(raw))) == 0 {
+		return "", false
+	}
+	var store webManagedAuthStore
+	if err := json.Unmarshal(raw, &store); err != nil {
+		return "", false
+	}
+	provider := store.Providers["nous"]
+	token := strings.TrimSpace(webStringValue(provider["access_token"]))
+	if token == "" {
+		return "", false
+	}
+	if !webAuthTokenIsExpiring(provider["expires_at"], now) {
+		return token, true
+	}
+	refreshed, ok := refreshNousAccessToken(provider, client, timeout)
+	if !ok {
+		return token, true
+	}
+	for key, value := range refreshed {
+		provider[key] = value
+	}
+	provider["obtained_at"] = now.UTC().Format(time.RFC3339)
+	if expiresIn := intValue(refreshed["expires_in"]); expiresIn > 0 {
+		provider["expires_at"] = now.UTC().Add(time.Duration(expiresIn) * time.Second).Format(time.RFC3339)
+	}
+	if err := writeWebManagedAuthStore(pathValue, raw, store); err != nil {
+		return token, true
+	}
+	return strings.TrimSpace(webStringValue(provider["access_token"])), true
+}
+
+func refreshNousAccessToken(provider map[string]any, client WebHTTPClient, timeout time.Duration) (map[string]any, bool) {
+	refreshToken := strings.TrimSpace(webStringValue(provider["refresh_token"]))
+	if refreshToken == "" || client == nil {
+		return nil, false
+	}
+	portalBaseURL := firstNonEmpty(
+		strings.TrimRight(strings.TrimSpace(webStringValue(provider["portal_base_url"])), "/"),
+		strings.TrimRight(strings.TrimSpace(os.Getenv("HERMES_PORTAL_BASE_URL")), "/"),
+		strings.TrimRight(strings.TrimSpace(os.Getenv("NOUS_PORTAL_BASE_URL")), "/"),
+		"https://portal.nousresearch.com",
+	)
+	clientID := firstNonEmpty(strings.TrimSpace(webStringValue(provider["client_id"])), "hermes-cli")
+	endpoint, err := url.JoinPath(portalBaseURL, "/api/oauth/token")
+	if err != nil {
+		return nil, false
+	}
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", clientID)
+	form.Set("refresh_token", refreshToken)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, false
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, false
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxWebResponseBytes))
+	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, false
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, false
+	}
+	if strings.TrimSpace(webStringValue(payload["access_token"])) == "" {
+		return nil, false
+	}
+	if strings.TrimSpace(webStringValue(payload["refresh_token"])) == "" {
+		payload["refresh_token"] = refreshToken
+	}
+	if strings.TrimSpace(webStringValue(payload["token_type"])) == "" {
+		payload["token_type"] = firstNonEmpty(webStringValue(provider["token_type"]), "Bearer")
+	}
+	return payload, true
+}
+
+func writeWebManagedAuthStore(pathValue string, original []byte, store webManagedAuthStore) error {
+	var raw map[string]any
+	if err := json.Unmarshal(original, &raw); err != nil {
+		return err
+	}
+	providers, _ := raw["providers"].(map[string]any)
+	if providers == nil {
+		providers = map[string]any{}
+		raw["providers"] = providers
+	}
+	for provider, state := range store.Providers {
+		providers[provider] = state
+	}
+	body, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return err
+	}
+	body = append(body, '\n')
+	mode := os.FileMode(0o600)
+	if info, err := os.Stat(pathValue); err == nil {
+		mode = info.Mode().Perm()
+	}
+	tmp := pathValue + ".tmp"
+	if err := os.WriteFile(tmp, body, mode); err != nil {
+		return err
+	}
+	return os.Rename(tmp, pathValue)
+}
+
+func webAuthTokenIsExpiring(expiresAt any, now time.Time) bool {
+	parsed, ok := parseWebAuthTimestamp(webStringValue(expiresAt), now)
+	if !ok {
+		return true
+	}
+	return parsed.Sub(now.UTC()) <= webAuthRefreshSkew
+}
+
+func parseWebAuthTimestamp(value string, _ time.Time) (time.Time, bool) {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return time.Time{}, false
+	}
+	if strings.HasSuffix(normalized, "Z") {
+		normalized = strings.TrimSuffix(normalized, "Z") + "+00:00"
+	}
+	parsed, err := time.Parse(time.RFC3339, normalized)
+	if err != nil {
+		if parsed, fallbackErr := time.Parse("2006-01-02T15:04:05", normalized); fallbackErr == nil {
+			return time.Date(parsed.Year(), parsed.Month(), parsed.Day(), parsed.Hour(), parsed.Minute(), parsed.Second(), parsed.Nanosecond(), time.UTC), true
+		}
+		return time.Time{}, false
+	}
+	return parsed.UTC(), true
 }
 
 func webStringValue(v any) string {

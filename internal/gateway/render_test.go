@@ -16,6 +16,29 @@ func TestFormatStreamPlain_DraftPassThrough(t *testing.T) {
 	}
 }
 
+func TestFormatStreamPlain_ActivePreviewAddsHermesCursor(t *testing.T) {
+	f := kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "hello world"}
+	if got := FormatStreamPlain(f); got != "hello world ▉" {
+		t.Fatalf("FormatStreamPlain active preview = %q, want Hermes cursor", got)
+	}
+}
+
+func TestFormatStreamTelegram_ActivePreviewAddsHermesCursor(t *testing.T) {
+	f := kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "hello world"}
+	if got := FormatStreamTelegram(f); got != "hello world ▉" {
+		t.Fatalf("FormatStreamTelegram active preview = %q, want Hermes cursor", got)
+	}
+}
+
+func TestFormatFinalPlain_DoesNotIncludeStreamingCursor(t *testing.T) {
+	f := kernel.RenderFrame{
+		History: []hermes.Message{{Role: "assistant", Content: "final answer"}},
+	}
+	if got := FormatFinalPlain(f); strings.Contains(got, "▉") {
+		t.Fatalf("FormatFinalPlain = %q, want no streaming cursor", got)
+	}
+}
+
 func TestFormatStreamPlain_IncludesHermesStyleToolTrace(t *testing.T) {
 	f := kernel.RenderFrame{
 		DraftText: "draft",

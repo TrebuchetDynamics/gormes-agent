@@ -392,7 +392,7 @@ func TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata(
 }
 
 func TestManager_Outbound_StreamsToPinnedChannel(t *testing.T) {
-	tg := newFakeChannel("telegram")
+	tg := newTypingActionFakeChannel("telegram")
 	frames := make(chan kernel.RenderFrame, 8)
 	fk := &fakeKernel{}
 
@@ -421,7 +421,7 @@ func TestManager_Outbound_StreamsToPinnedChannel(t *testing.T) {
 
 	waitFor(t, 500*time.Millisecond, func() bool {
 		sent := tg.sentSnapshot()
-		return len(sent) >= 1 && sent[0].Text == "partial"
+		return len(sent) >= 1 && strings.Contains(sent[0].Text, "partial")
 	})
 }
 
@@ -466,7 +466,7 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "partial"}
 	waitFor(t, 500*time.Millisecond, func() bool {
 		sent := tg.sentSnapshot()
-		return len(sent) >= 1 && sent[0].Text == "partial"
+		return len(sent) >= 1 && strings.Contains(sent[0].Text, "partial")
 	})
 	oldID := tg.sentSnapshot()[0].MsgID
 
@@ -515,6 +515,10 @@ func (f *replyPlaceholderFakeChannel) SendReply(ctx context.Context, chatID, rep
 	return f.fakeChannel.Send(ctx, chatID, text)
 }
 
+func (f *replyPlaceholderFakeChannel) SendChatAction(context.Context, string, string) error {
+	return nil
+}
+
 func TestManager_Outbound_FirstStreamingContentRepliesToInboundMessage(t *testing.T) {
 	tg := &replyPlaceholderFakeChannel{fakeChannel: newFakeChannel("telegram")}
 	frames := make(chan kernel.RenderFrame, 2)
@@ -549,7 +553,7 @@ func TestManager_Outbound_FirstStreamingContentRepliesToInboundMessage(t *testin
 		return len(tg.replies) == 1
 	})
 
-	if got := tg.replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || got.Text != "partial" {
+	if got := tg.replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || !strings.Contains(got.Text, "partial") {
 		t.Fatalf("reply send = %+v, want chat 42 replying to inbound message with stream content", got)
 	}
 	if len(tg.replyPlaceholders) != 0 {
@@ -558,7 +562,7 @@ func TestManager_Outbound_FirstStreamingContentRepliesToInboundMessage(t *testin
 }
 
 func TestManager_Outbound_ConnectingStartsTypingWithoutHourglassMessage(t *testing.T) {
-	tg := newFakeChannel("telegram")
+	tg := newTypingActionFakeChannel("telegram")
 	frames := make(chan kernel.RenderFrame, 2)
 	fk := &fakeKernel{}
 
@@ -589,7 +593,7 @@ func TestManager_Outbound_ConnectingStartsTypingWithoutHourglassMessage(t *testi
 
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseConnecting, SessionID: "sess-1", StatusText: "connecting"}
 	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(tg.typingChats) == 1
+		return len(tg.actionSnapshot()) == 1
 	})
 
 	if sent := tg.sentSnapshot(); len(sent) != 0 {
@@ -650,10 +654,13 @@ func TestManager_Outbound_NonEditableChannelUsesPlainSendForInterimAndFinal(t *t
 	})
 
 	got := ch.sentSnapshot()
-	wantTexts := []string{"I'll inspect the repo first.", "done"}
+	wantTexts := []string{"I'll inspect the repo first. ▉", "done"}
 	for i, want := range wantTexts {
 		if got[i].ChatID != "thread-42" {
 			t.Fatalf("sent[%d].ChatID = %q, want original chat target %q", i, got[i].ChatID, "thread-42")
+		}
+		if i == 0 && strings.Contains(got[i].Text, want) {
+			continue
 		}
 		if got[i].Text != want {
 			t.Fatalf("sent[%d].Text = %q, want %q; sends=%#v", i, got[i].Text, want, got)

@@ -2,22 +2,26 @@ package gateway
 
 import (
 	"context"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
-func (m *Manager) updateTypingAction(ctx context.Context, ch Channel, chatID string, phase kernel.Phase) {
-	if m == nil || ch == nil || chatID == "" {
-		return
-	}
-	if isTypingActionPhase(phase) {
-		m.startTypingAction(ctx, ch, chatID)
-		return
-	}
-	if isTypingActionTerminalPhase(phase) {
-		m.stopTypingAction()
-	}
+const (
+	typingActionName           = "typing"
+	typingActionThrottleWindow = 4 * time.Second
+	typingActionFailedCode     = "typing_action_failed"
+)
+
+// TypingActionEvidence carries redacted non-fatal typing-action failure
+// evidence. It deliberately omits raw API errors, chat IDs, and credentials.
+type TypingActionEvidence struct {
+	Code    string
+	Message string
 }
+
+// TypingActionEvidenceSink receives redacted typing-action failure evidence.
+type TypingActionEvidenceSink func(TypingActionEvidence)
 
 func isTypingActionPhase(phase kernel.Phase) bool {
 	switch phase {
@@ -28,52 +32,49 @@ func isTypingActionPhase(phase kernel.Phase) bool {
 	}
 }
 
-func isTypingActionTerminalPhase(phase kernel.Phase) bool {
-	switch phase {
-	case kernel.PhaseIdle, kernel.PhaseFailed, kernel.PhaseCancelling:
-		return true
-	default:
-		return false
-	}
-}
-
-func (m *Manager) startTypingAction(ctx context.Context, ch Channel, chatID string) {
-	key := ch.Name() + ":" + chatID
-	m.turnMu.Lock()
-	if m.typingStop != nil && m.typingKey == key {
-		m.turnMu.Unlock()
+func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase kernel.Phase, chatID string) {
+	if !isTypingActionPhase(phase) {
 		return
 	}
-	if stop := m.typingStop; stop != nil {
-		m.typingStop = nil
-		m.typingKey = ""
-		m.turnMu.Unlock()
-		stop()
-	} else {
-		m.turnMu.Unlock()
-	}
-
-	typing, ok := ch.(TypingCapable)
+	actor, ok := ch.(TypingActionCapable)
 	if !ok {
 		return
 	}
-	stop, err := typing.StartTyping(ctx, chatID)
-	if err != nil || stop == nil {
+
+	key := ch.Name() + "\x00" + chatID
+	now := m.now()
+	m.typingActionMu.Lock()
+	if m.typingActionLast == nil {
+		m.typingActionLast = map[string]time.Time{}
+	}
+	last := m.typingActionLast[key]
+	if !last.IsZero() && now.Sub(last) < typingActionThrottleWindow {
+		m.typingActionMu.Unlock()
 		return
 	}
-	m.turnMu.Lock()
-	m.typingStop = stop
-	m.typingKey = key
-	m.turnMu.Unlock()
+	m.typingActionLast[key] = now
+	m.typingActionMu.Unlock()
+
+	if err := actor.SendChatAction(ctx, chatID, typingActionName); err != nil {
+		m.recordTypingActionFailure(ch.Name())
+	}
 }
 
-func (m *Manager) stopTypingAction() {
-	m.turnMu.Lock()
-	stop := m.typingStop
-	m.typingStop = nil
-	m.typingKey = ""
-	m.turnMu.Unlock()
-	if stop != nil {
-		stop()
+func (m *Manager) recordTypingActionFailure(platform string) {
+	ev := TypingActionEvidence{
+		Code:    typingActionFailedCode,
+		Message: "typing action failed",
 	}
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		Platform:      platform,
+		PlatformState: PlatformStateRunning,
+		ErrorMessage:  ev.Code,
+	})
+	if m.cfg.TypingActionEvidenceSink == nil {
+		return
+	}
+	defer func() {
+		_ = recover()
+	}()
+	m.cfg.TypingActionEvidenceSink(ev)
 }

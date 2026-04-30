@@ -975,7 +975,46 @@
             },
             {
               "name": "Kernel tool loop",
-              "status": "complete"
+              "status": "complete",
+              "contract": "The kernel executes Hermes-style multi-round tool_calls through the native Go registry, defaults to the upstream Hermes 90-turn tool iteration budget, and when an explicit budget is exhausted it asks the model for one extra toolless summary instead of surfacing a raw `tool iteration limit exceeded` error to the channel user.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "child-agent"
+              ],
+              "degraded_mode": "If the summary request cannot be opened or returns no visible content, the kernel finalizes a bounded assistant fallback message rather than emitting a raw PhaseFailed budget error.",
+              "fixture": "internal/kernel/tools_test.go",
+              "source_refs": [
+                "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+                "../hermes-agent/run_agent.py:_handle_max_iterations",
+                "../hermes-agent/run_agent.py:run_conversation max_iterations budget branch"
+              ],
+              "acceptance": [
+                "TestKernel_ToolCallHandshake_Echo proves tool_call execution and continuation through the native registry.",
+                "TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen proves the default budget no longer fails at 10 and matches Hermes' 90-turn default.",
+                "TestKernel_ToolIterationBudgetRequestsToollessSummary proves budget exhaustion strips tools, appends Hermes' summary request, and finishes as a normal assistant response rather than PhaseFailed."
+              ],
+              "write_scope": [
+                "internal/kernel/kernel.go",
+                "internal/kernel/tools_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "ready_when": [
+                "Native tool registry descriptors and tool-call continuation messages are already available in the kernel.",
+                "Hermes max-iteration summary behavior is source-mapped from run_agent.py."
+              ],
+              "done_signal": [
+                "Kernel fixtures prove native tool execution, Hermes 90-turn default budget, and toolless summary finalization on budget exhaustion."
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run 'TestKernel_ToolCallHandshake_Echo|TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen|TestKernel_ToolIterationBudgetRequestsToollessSummary' -count=1",
+                "go test ./internal/kernel -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "note": "2026-04-30 parity follow-up: the Telegram report showed raw `tool iteration limit exceeded (10)` leaking to the user. Hermes uses a 90-turn default and, on budget exhaustion, appends a no-tools summary request. Gormes now mirrors that path with requestMaxIterationSummary and keeps the turn in the normal assistant-finalization path so gateway channels do not render a red failure bubble for iteration budget exhaustion."
             },
             {
               "name": "Doctor verification",
@@ -2579,7 +2618,7 @@
               "name": "Gateway typing-action wiring during stream",
               "status": "complete",
               "priority": "P1",
-              "contract": "While a turn is in PhaseConnecting/PhaseStreaming/PhaseReconnecting/PhaseFinalizing, the gateway fires the channel's typing action at most every 4 seconds via a Channel-level capability check, so users see a live typing indicator instead of (or alongside) the static hourglass placeholder. Non-typing-capable channels are unaffected.",
+              "contract": "While a turn is in PhaseConnecting/PhaseStreaming/PhaseReconnecting/PhaseFinalizing, the gateway fires the channel's typing action at most every 4 seconds via a Channel-level capability check, so users see a live typing indicator instead of a static hourglass-only placeholder. Typing-action-capable channels send the first visible assistant text directly; non-typing-capable channels preserve the existing placeholder/edit path.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -2590,60 +2629,54 @@
               "degraded_mode": "If the channel's typing call fails, the gateway records redacted evidence and continues delivering coalesced placeholder/final updates. No retry storm; one failed typing-action call does not retry within the same 4s window.",
               "fixture": "internal/gateway/typing_action_test.go",
               "source_refs": [
-                "internal/gateway/manager.go:864-938 (dispatchFrame phase switch)",
-                "internal/gateway/coalesce.go:9-12 (placeholderEditor interface — extension target)",
-                "internal/channels/telegram/bot.go (after SendChatAction lands)",
+                "internal/gateway/channel.go (TypingActionCapable capability)",
+                "internal/gateway/typing_action.go (throttled typing-action sender and redacted evidence)",
+                "internal/gateway/manager.go (dispatchFrame active-phase typing-action wiring)",
+                "internal/gateway/coalesce.go (typing-capable initial text send instead of static hourglass-only placeholder)",
+                "internal/channels/telegram/bot.go (SendChatAction capability)",
                 "../hermes-agent/gateway/platforms/telegram.py:2076-2104"
               ],
               "acceptance": [
-                "gateway.TypingCapable StartTyping(ctx, chatID) is invoked when a pinned turn enters PhaseConnecting/PhaseStreaming/PhaseReconnecting/PhaseFinalizing.",
-                "TestManager_TypingActionStartsDuringStreamingAndStopsOnFinal proves one typing start on the first streaming/connect frame and an idempotent stop on PhaseIdle.",
-                "Repeated streaming frames for the same platform/chat do not start duplicate typing loops.",
-                "TestManager_TypingActionSkipsChannelsWithoutCapability uses a plain channel without TypingCapable and proves normal delivery continues without typing calls.",
-                "Telegram Bot implements gateway.TypingCapable by issuing sendChatAction(\"typing\") immediately and refreshing at the 4s interval until the idempotent stop function is called."
+                "A new gateway.TypingActionCapable interface exposes SendChatAction(ctx, chatID, action) error; channels that don't implement it never receive typing calls.",
+                "TestTypingAction_FiresOnFirstStreamingFrame proves a single typing call lands on the first PhaseStreaming/PhaseConnecting frame.",
+                "TestTypingActionCapableChannelDoesNotSendStaticHourglassOnlyBubble proves typing-capable channels do not send a standalone hourglass before assistant text exists.",
+                "TestTypingActionCapableChannelSendsFirstTextInsteadOfHourglass proves first visible text is the assistant draft, not the static hourglass placeholder.",
+                "TestTypingAction_ThrottledTo4SecondWindow uses a fake clock + multiple streaming frames within 4s and asserts exactly one typing call.",
+                "TestTypingAction_StopsOnPhaseIdle proves no typing call after the final/idle frame.",
+                "TestTypingAction_NonTypingChannelNoCalls uses a fake channel that does NOT implement typingActor and asserts zero typing calls.",
+                "TestTypingAction_FailureRecordsEvidenceNoRetry injects a typing-call error and asserts evidence is recorded once + no retry within the same 4s window.",
+                "TestCoalescer_FinalEditFailureDoesNotResendAlreadyVisibleFinal proves the typing-capable initial-text path does not duplicate a final response when a terminal edit fails."
               ],
               "write_scope": [
+                "internal/gateway/channel.go",
+                "internal/gateway/coalesce.go",
+                "internal/gateway/coalesce_failure_test.go",
                 "internal/gateway/typing_action.go",
                 "internal/gateway/typing_action_test.go",
                 "internal/gateway/manager.go",
-                "internal/gateway/manager_test.go",
-                "internal/gateway/coalesce.go",
-                "internal/gateway/coalesce_test.go",
-                "internal/gateway/coalesce_failure_test.go",
-                "internal/gateway/coalesce_fresh_final_test.go",
-                "internal/gateway/hooks_test.go",
                 "internal/channels/telegram/bot.go",
-                "internal/channels/discord/bot_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TypingAction' -count=1",
-                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'StartTyping|ChatAction' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TypingAction|Coalescer' -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram -count=1",
-                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
-                "git diff --check"
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Gateway starts and stops channel-neutral typing actions during live turn stream phases, and Telegram bridges that capability to sendChatAction without leaking tokens or requiring live Telegram."
+                "Gateway fires typing actions during streaming via a Channel capability seam, with throttle, phase-stop, no-retry-on-failure, and non-typing-channel guards proven by hermetic fixtures."
               ],
               "ready_when": [
                 "Telegram sendChatAction typing API row is shipped (the bot.SendChatAction method must exist before this row can wire it)."
               ],
-              "blocked_by": [],
-              "evidence": [
-                "RED: internal/gateway/typing_action_test.go::TestManager_TypingActionStartsDuringStreamingAndStopsOnFinal failed because no typing action was started during PhaseConnecting/PhaseStreaming.",
-                "GREEN: internal/gateway/typing_action.go added channel-neutral Manager.updateTypingAction/startTypingAction/stopTypingAction over gateway.TypingCapable; dispatchFrame invokes it before coalesced rendering so editable and non-editable channels share the same phase behavior.",
-                "GREEN: internal/channels/telegram/bot.go now implements gateway.TypingCapable with StartTyping(ctx, chatID), immediate SendChatAction('typing'), a 4s refresh ticker, and an idempotent stop function; tests use the fake telegramClient Request seam only.",
-                "HARDENING 2026-04-30: internal/gateway manager/coalescer tests now prove PhaseConnecting produces only the Telegram typing indicator, first visible streaming output sends actual content/reply content instead of an hourglass placeholder, Discord's manager smoke fixture follows the same channel-neutral visible-content expectation when a stream collapses immediately to final output, and final edit failure does not resend an already-visible final answer.",
-                "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'TypingAction|StartTyping|ChatAction' -count=1 -> ok for both packages."
-              ],
-              "note": "Complete 2026-04-30. Kept runtime behavior native Go; no live Telegram token, network call, or Hermes runtime dependency. Failure mode remains degraded: typing-action errors do not block placeholder/final delivery."
+              "blocked_by": [
+                "Telegram sendChatAction typing API"
+              ]
             },
             {
               "name": "Placeholder edit-failure fallback hardening",
               "status": "complete",
               "priority": "P1",
-              "contract": "When the coalescer's edit path fails (Telegram returns an error mid-stream or at finalize), the gateway falls back to a plain Send of the final text exactly once, records redacted edit_failed_fallback evidence, and never produces duplicate final messages even under concurrent flushImmediate / flushImmediateFinal races.",
+              "contract": "When the coalescer's edit path fails (Telegram returns an error mid-stream or at finalize), the gateway falls back to a plain Send of the final text exactly once when the final is not already visible, records redacted edit_failed_fallback evidence, and never produces duplicate final messages even under concurrent flushImmediate / flushImmediateFinal races or terminal-edit failures after an already-visible preview.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -2660,6 +2693,7 @@
               "acceptance": [
                 "TestCoalescer_EditFailure_PlainSendFallback proves an edit error mid-stream causes one plain Send with the final text + edit_failed_fallback evidence.",
                 "TestCoalescer_FinalizeRace_NoDuplicateMessage uses concurrent flushImmediate + flushImmediateFinal calls and asserts at most one final message reaches the channel.",
+                "TestCoalescer_FinalEditFailureDoesNotResendAlreadyVisibleFinal proves a terminal edit failure does not resend the same final answer when that text is already visible.",
                 "TestCoalescer_BothEditAndSendFail records send_final_failed evidence and does not panic.",
                 "TestCoalescer_FreshFinalAfter_StillRespected proves the fresh-final-delete behavior is unchanged by the new fallback paths."
               ],
@@ -2679,13 +2713,13 @@
               "ready_when": [
                 "Existing coalescer tests on dev cover the happy path so regression is detectable."
               ],
-              "note": "Complete 2026-04-29. RED: coalesce_failure_test.go failed with undefined CoalescerEvidence / coalescerEvidenceSink. GREEN: added CoalescerEvidence struct, CoalescerEvidenceSink type, coalescerEvidenceSink option, evidenceSink field to coalescer struct, fallback plain-Send path in flushImmediateFinal (finalize-only), and CoalescerEvidenceSink field to ManagerConfig wired into dispatchFrame. Race window: mid-stream edit errors keep silent-swallow; finalize errors fall back once via coalescerMessageSender.Send without re-acquiring c.mu (safe: manager calls flushImmediateFinal(finalize=true) exactly once per coalescer lifetime). GAP: TestManager_Outbound_StreamingPlaceholderRepliesToInboundMessage has a pre-existing data race in the test harness (replyPlaceholderFakeChannel.replyPlaceholders written without lock in SendReplyPlaceholder, read without lock from waitFor). This race is outside write_scope; not introduced by this slice. REGRESSION: go test ./internal/gateway -run 'Coalescer|Coalesce' -count=1 PASS (14 tests). go test ./... -count=1 PASS (all packages). go run ./cmd/progress validate PASS. git diff --check clean."
+              "note": "Complete 2026-04-29. RED: coalesce_failure_test.go failed with undefined CoalescerEvidence / coalescerEvidenceSink. GREEN: added CoalescerEvidence struct, CoalescerEvidenceSink type, coalescerEvidenceSink option, evidenceSink field to coalescer struct, fallback plain-Send path in flushImmediateFinal (finalize-only), and CoalescerEvidenceSink field to ManagerConfig wired into dispatchFrame. Race window: mid-stream edit errors keep silent-swallow; finalize errors fall back once via coalescerMessageSender.Send without re-acquiring c.mu (safe: manager calls flushImmediateFinal(finalize=true) exactly once per coalescer lifetime). 2026-04-30 parity follow-up: TestCoalescer_FinalEditFailureDoesNotResendAlreadyVisibleFinal reproduces the Telegram duplicate-answer report and proves a failed terminal edit does not plain-Send the same answer again when lastSentText already matches the final text. GAP: TestManager_Outbound_StreamingPlaceholderRepliesToInboundMessage has a pre-existing data race in the test harness (replyPlaceholderFakeChannel.replyPlaceholders written without lock in SendReplyPlaceholder, read without lock from waitFor). This race is outside write_scope; not introduced by this slice. REGRESSION: go test ./internal/gateway -run 'Coalescer|Coalesce' -count=1 PASS (14 tests). go test ./... -count=1 PASS (all packages). go run ./cmd/progress validate PASS. git diff --check clean."
             },
             {
               "name": "Gateway stream/tool trace formatting fixture matrix",
               "status": "complete",
               "priority": "P1",
-              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/search/read/patch/terminal/browser actions.",
+              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, the active streaming cursor, tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/search/read/patch/terminal/browser actions.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
@@ -2696,12 +2730,16 @@
               "degraded_mode": "Unknown tool events render as bounded generic tool_progress evidence instead of raw provider payloads or dropped traces.",
               "fixture": "internal/gateway/render_test.go",
               "source_refs": [
+                "../hermes-agent/gateway/config.py:StreamingConfig cursor",
+                "../hermes-agent/gateway/stream_consumer.py:render_streaming_message cursor handling",
                 "../hermes-agent/gateway/stream_consumer.py:482-508",
                 "../hermes-agent/gateway/run.py",
                 "internal/gateway/render.go"
               ],
               "acceptance": [
                 "Renderer fixtures cover streaming text, final answer separation, provider errors, and tool progress.",
+                "TestFormatStreamPlain_ActivePreviewAddsHermesCursor and TestFormatStreamTelegram_ActivePreviewAddsHermesCursor prove active assistant previews append Hermes' ` ▉` cursor.",
+                "TestFormatFinalPlain_DoesNotIncludeStreamingCursor proves final assistant text never keeps the streaming cursor.",
                 "Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels.",
                 "Memory/search/read/patch/terminal/browser traces match the parity matrix examples.",
                 "No renderer emits tokens, raw credential values, or unbounded payloads."
@@ -2725,14 +2763,19 @@
               ],
               "evidence": {
                 "implementation": [
+                  "internal/gateway/render.go:streamPreviewCursorActive appends the Hermes streaming cursor only for active preview phases with non-empty assistant draft text.",
                   "internal/gateway/render.go:formatToolTracePlain renders known memory/search/read/patch/terminal/browser tool events with compact Hermes-style emoji labels.",
                   "internal/gateway/render.go:isKnownToolTraceName maps unknown tool events to generic bounded tool_progress evidence so raw provider/debug tool names are not exposed."
                 ],
                 "tests": [
+                  "internal/gateway/render_test.go:TestFormatStreamPlain_ActivePreviewAddsHermesCursor covers the plain renderer cursor.",
+                  "internal/gateway/render_test.go:TestFormatStreamTelegram_ActivePreviewAddsHermesCursor covers the Telegram renderer cursor.",
+                  "internal/gateway/render_test.go:TestFormatFinalPlain_DoesNotIncludeStreamingCursor covers terminal cursor cleanup.",
                   "internal/gateway/render_test.go:TestFormatStreamPlain_ToolTraceFixtureMatrix covers memory, read_file, patch, terminal, and browser_navigate labels.",
                   "internal/gateway/render_test.go:TestFormatStreamPlain_UnknownToolUsesGenericBoundedEvidence covers bounded generic degraded-mode evidence for unknown tool events."
                 ],
                 "verification": [
+                  "go test ./internal/gateway -run 'TestFormatStreamPlain_ActivePreviewAddsHermesCursor|TestFormatStreamTelegram_ActivePreviewAddsHermesCursor|TestFormatFinalPlain_DoesNotIncludeStreamingCursor' -count=1 -> ok",
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestFormatStreamPlain_(IncludesHermesStyleToolTrace|ToolTraceFixtureMatrix|UnknownToolUsesGenericBoundedEvidence)' -count=1 -> ok"
                 ]
               }
@@ -16888,6 +16931,204 @@
               }
             },
             {
+              "name": "Go-native Hermes web_crawl tool adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes exposes a Go-native `web_crawl` tool for the Hermes `web_crawl_tool` helper surface, backed by the existing fakeable `WebHTTPClient` and web backend resolver. Firecrawl crawl posts to `/v2/crawl` with Hermes' fixed 20-page markdown crawl payload and ignores instructions because Firecrawl crawl has no prompt parameter. Tavily crawl posts to `/crawl` with `url`, `limit`, `extract_depth`, optional `instructions`, and the API key in the JSON body. Both paths normalize crawled pages into `{results:[{url,title,content,error}]}`, apply private/internal URL blocking before provider calls, enforce `security.website_blocklist` before crawl and against final crawled URLs, scrub base64 data images from output, and pass long page content through the existing `WebContentProcessor` when enabled.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing or unsupported crawl backend returns a bounded `success:false` error explaining that `web_crawl` requires Firecrawl or Tavily and suggesting `web_search` plus `web_extract` as fallback. Secret-bearing crawl URLs are blocked before any HTTP request as a Gormes-owned hardening for making Hermes' unregistered helper model-visible. Provider HTTP failures return a redacted crawl error without leaking bearer tokens.",
+              "fixture": "internal/tools/web_tools_test.go + cmd/gormes/registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/web_tools.py:web_crawl_tool",
+                "../hermes-agent/tools/web_tools.py:_normalize_tavily_documents",
+                "../hermes-agent/tools/web_tools.py:process_content_with_llm",
+                "../hermes-agent/tools/web_tools.py:clean_base64_images",
+                "../hermes-agent/tools/website_policy.py",
+                "../hermes-agent/tests/tools/test_web_tools_tavily.py:TestWebCrawlTavily",
+                "../hermes-agent/tests/tools/test_website_policy.py:test_web_crawl_short_circuits_blocked_url",
+                "../hermes-agent/tests/tools/test_website_policy.py:test_web_crawl_blocks_redirected_final_url",
+                "internal/tools/web_tools.go",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "The native web_search/web_extract tool wrappers, backend matrix, website policy, and content processor are already validated.",
+                "Hermes web_crawl_tool behavior is source-mapped, including its Firecrawl crawl payload, Tavily instructions path, policy checks, final URL rechecks, base64 cleanup, and per-page summarization.",
+                "The model-visible registration decision is explicit: upstream Hermes implements web_crawl_tool but does not register web_crawl in tools/web_tools.py or toolsets.py; Gormes registers it because this row exists to close the user-requested helper parity gap."
+              ],
+              "not_ready_when": [
+                "Tests require live Firecrawl, Tavily, DNS, network, managed-gateway, browser runtime, or LLM credentials.",
+                "Crawl behavior bypasses the shared WebHTTPClient boundary.",
+                "Policy-blocked requested URLs or final crawled URLs can still reach or leak provider content.",
+                "The progress row treats upstream web_crawl as a registered Hermes web tool without noting the Gormes-owned visibility decision."
+              ],
+              "blocked_by": [
+                "Go-native Hermes web backend matrix and config resolver",
+                "Go-native Hermes web extract safety policy and summarizer"
+              ],
+              "unblocks": [
+                "Managed Firecrawl gateway runtime/OAuth routing",
+                "Toolset/status metadata parity for web provider availability",
+                "Operator e2e gate"
+              ],
+              "acceptance": [
+                "TestWebToolsExposeHermesNamesAndSchemas proves NewWebTools exposes web_crawl with url, instructions, and depth schema fields.",
+                "TestWebCrawlToolCallsFirecrawlAndNormalizesPages proves Firecrawl crawl dispatch, fixed markdown crawl payload, instruction omission, bearer auth, URL prefixing, and page normalization.",
+                "TestWebCrawlToolCallsTavilyWithInstructions proves Tavily crawl dispatch, JSON-body API key, extract_depth, limit, instructions, and result normalization.",
+                "TestWebCrawlToolBlocksEmbeddedSecretsBeforeHTTP proves model-visible Gormes crawl blocks secret-bearing URLs before HTTP.",
+                "TestWebCrawlToolAppliesWebsitePolicyBeforeFetch proves requested crawl URLs are blocked by website policy before provider calls.",
+                "TestWebCrawlToolBlocksRedirectedFinalURL proves final crawled URLs are rechecked and blocked content is suppressed.",
+                "TestWebCrawlToolRemovesBase64ImagesFromOutput proves data:image base64 payloads are replaced by placeholders.",
+                "TestWebCrawlToolProcessesLongContentWithProcessor proves crawl pages use the existing WebContentProcessor summarization path.",
+                "TestBuildDefaultRegistryPassesWebsiteBlocklistToWebCrawl and TestBuildDefaultRegistryWiresWebContentProcessorToWebCrawl prove production registry wiring inherits policy and Hermes-client summarization."
+              ],
+              "note": "Complete 2026-04-30: TDD added a native web_crawl tool around Hermes' implemented but unregistered web_crawl_tool helper. Gormes intentionally registers it in the default web surface because the user explicitly asked to close crawl parity; the row records that visibility as a Gormes-owned decision rather than a claim that upstream registers web_crawl. The adapter covers Firecrawl and Tavily crawl payloads, policy/final URL checks, base64 cleanup, long-content processing, and a secret-URL guard for the new model-visible surface.",
+              "write_scope": [
+                "internal/tools/web_tools.go",
+                "internal/tools/web_tools_test.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+                "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+                "go test ./internal/tools ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermetic fixtures prove native web_crawl dispatch, normalization, safety, registry wiring, and content-processing behavior without live web/provider/LLM credentials."
+              ],
+              "evidence": [
+                "TestWebCrawlToolCallsFirecrawlAndNormalizesPages proves Firecrawl /v2/crawl payload and normalization.",
+                "TestWebCrawlToolCallsTavilyWithInstructions proves Tavily /crawl payload and instructions forwarding.",
+                "TestWebCrawlToolBlocksEmbeddedSecretsBeforeHTTP proves no HTTP request for secret-bearing crawl URLs.",
+                "TestWebCrawlToolAppliesWebsitePolicyBeforeFetch and TestWebCrawlToolBlocksRedirectedFinalURL prove website policy enforcement before and after crawl.",
+                "TestWebCrawlToolRemovesBase64ImagesFromOutput and TestWebCrawlToolProcessesLongContentWithProcessor prove output cleanup and per-page processing.",
+                "TestBuildDefaultRegistryPassesWebsiteBlocklistToWebCrawl and TestBuildDefaultRegistryWiresWebContentProcessorToWebCrawl prove default registry integration."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/web_tools.py",
+                  "hermes:tools/website_policy.py"
+                ],
+                "note": "Hermes defines crawl helper behavior, while Gormes owns the model-visible registration and added secret-URL guard because upstream does not register web_crawl."
+              }
+            },
+            {
+              "name": "Go-native Hermes web managed gateway status and live smoke closure",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes closes the remaining native web-tool parity gaps after web_search/web_extract/web_crawl: Firecrawl managed-gateway routing can resolve a Nous OAuth access token from the native Gormes auth store, refresh expiring tokens with Hermes' OAuth refresh-token grant, and prefer the managed route when web.use_gateway is true; the web backend resolver exposes a redacted status read model showing backend, direct/managed/unavailable route, credential source, gateway mode, tool names, and required env/auth hints; `gormes doctor --offline` renders that status without leaking tokens; and opt-in live smoke coverage can exercise real web_search/web_extract plus optional web_crawl only when an operator explicitly enables it with credentials.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing direct provider credentials or managed gateway auth keeps web tool descriptors registered and reports web_provider_unavailable in tool output plus WARN status in doctor. If a Nous access-token refresh fails, the resolver falls back to the cached access token like Hermes' managed_tool_gateway helper. Invalid shared gateway schemes are rejected before a managed URL is promoted. Auth-store access tokens are never included in status, doctor output, test failures, or tool results. Live smoke tests are skipped unless GORMES_LIVE_WEB_SMOKE=1 is set; missing credentials fail only that explicitly requested smoke run.",
+              "fixture": "internal/tools/web_tools_test.go + internal/tools/web_live_smoke_test.go + cmd/gormes/registry_test.go + cmd/gormes/doctor_custom_provider_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/managed_tool_gateway.py",
+                "../hermes-agent/tools/tool_backend_helpers.py:managed_nous_tools_enabled",
+                "../hermes-agent/tools/tool_backend_helpers.py:prefers_gateway",
+                "../hermes-agent/hermes_cli/auth.py:get_nous_auth_status",
+                "../hermes-agent/hermes_cli/auth.py:resolve_nous_access_token",
+                "../hermes-agent/hermes_cli/nous_subscription.py",
+                "../hermes-agent/tests/tools/test_managed_tool_gateway.py",
+                "../hermes-agent/tests/tools/test_web_tools_config.py",
+                "internal/tools/web_tools.go",
+                "internal/tools/web_live_smoke_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/doctor.go"
+              ],
+              "ready_when": [
+                "Native web_search/web_extract/web_crawl adapters and safety policy are already validated.",
+                "Gormes auth add nous persists providers.nous access_token state in the native auth.json store.",
+                "Managed gateway routing and status can be proved with fake auth stores and httptest without live Nous, Firecrawl, or Tavily credentials."
+              ],
+              "not_ready_when": [
+                "The resolver can only use TOOL_GATEWAY_USER_TOKEN and cannot read the native Gormes auth store.",
+                "Doctor/status output includes raw provider tokens or bearer headers.",
+                "Live smoke tests run by default in CI or fail machines without credentials.",
+                "The status surface omits whether web tools are using direct credentials, managed gateway, or unavailable degraded mode."
+              ],
+              "blocked_by": [
+                "Go-native Hermes web_crawl tool adapter",
+                "Go-native Hermes web extract safety policy and summarizer"
+              ],
+              "unblocks": [
+                "Operator e2e gate",
+                "Release-note web parity claim"
+              ],
+              "acceptance": [
+                "TestResolveWebBackendUsesNousAuthStoreForManagedGateway proves web.use_gateway prefers a Nous OAuth token from auth.json over direct Firecrawl credentials and derives the default Firecrawl gateway origin.",
+                "TestResolveWebBackendRefreshesExpiringNousAuthStoreToken proves expiring providers.nous access tokens are refreshed through POST /api/oauth/token and persisted without dropping other auth.json sections.",
+                "TestResolveWebBackendFallsBackToCachedNousTokenWhenRefreshFails proves refresh failures preserve Hermes' cached-token fallback for managed tool-gateway requests.",
+                "TestResolveWebBackendRejectsInvalidManagedGatewayScheme proves invalid TOOL_GATEWAY_SCHEME values do not silently promote a malformed managed gateway origin.",
+                "TestResolveWebBackendInvalidGatewaySchemeDoesNotBlockDirectFirecrawl proves invalid gateway-only config does not suppress direct Firecrawl credentials unless web.use_gateway requests the managed route.",
+                "TestBuildDefaultRegistryUsesNousAuthStoreForManagedWebGateway proves production registry wiring passes the native auth store path and sends the auth-store token as the managed gateway bearer without leaking it in output.",
+                "TestResolveWebBackendStatusReportsManagedRouteAndToolset proves the redacted status read model reports managed/auth_store route, tool names, required env metadata, and no token material.",
+                "TestDoctorWebToolsStatusReportsManagedGateway proves gormes doctor surfaces backend route/source/toolset metadata without leaking auth-store secrets.",
+                "TestWebLiveProviderSmoke is skipped by default and exercises live web_search/web_extract plus optional web_crawl only when GORMES_LIVE_WEB_SMOKE=1 and credentials are explicitly supplied."
+              ],
+              "note": "Complete 2026-04-30: TDD added managed Firecrawl gateway auth-store routing, native Nous access-token refresh for expiring providers.nous state, redacted web backend/toolset status metadata, doctor rendering, invalid gateway-scheme rejection, and opt-in live provider smoke coverage. Gormes uses the same OAuth refresh-token grant shape as Hermes but implements it natively over Gormes auth.json, preserving cached-token fallback when refresh is unavailable. The resolver preserves direct credential behavior when gateway mode is not requested and keeps status/doctor output token-free.",
+              "write_scope": [
+                "internal/tools/web_tools.go",
+                "internal/tools/web_tools_test.go",
+                "internal/tools/web_live_smoke_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_custom_provider_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestResolveWebBackend|TestWebLiveProviderSmoke|TestWeb|TestResolveWeb' -count=1",
+                "go test ./cmd/gormes -run 'TestBuildDefaultRegistry|TestDoctorWebToolsStatusReportsManagedGateway' -count=1",
+                "go test ./internal/tools ./cmd/gormes -count=1",
+                "go test ./... -count=1",
+                "go test ./docs -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermetic fixtures prove managed gateway auth-store routing, redacted status metadata, doctor output, and skipped-by-default live smoke coverage for the complete native web tool surface."
+              ],
+              "evidence": [
+                "TestResolveWebBackendUsesNousAuthStoreForManagedGateway proves resolver-level auth-store routing.",
+                "TestResolveWebBackendRefreshesExpiringNousAuthStoreToken proves native Nous access-token refresh and auth.json persistence.",
+                "TestResolveWebBackendFallsBackToCachedNousTokenWhenRefreshFails proves cached-token fallback on refresh failure.",
+                "TestResolveWebBackendRejectsInvalidManagedGatewayScheme proves Hermes-compatible gateway scheme validation.",
+                "TestResolveWebBackendInvalidGatewaySchemeDoesNotBlockDirectFirecrawl proves direct Firecrawl precedence remains Hermes-compatible.",
+                "TestBuildDefaultRegistryUsesNousAuthStoreForManagedWebGateway proves registry-level managed gateway routing.",
+                "TestResolveWebBackendStatusReportsManagedRouteAndToolset proves status metadata.",
+                "TestDoctorWebToolsStatusReportsManagedGateway proves operator status rendering.",
+                "TestWebLiveProviderSmoke provides opt-in live provider smoke coverage."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/managed_tool_gateway.py",
+                  "hermes:tools/tool_backend_helpers.py",
+                  "hermes:hermes_cli/nous_subscription.py",
+                  "hermes:hermes_cli/auth.py"
+                ],
+                "note": "Hermes defines managed tool-gateway semantics and OAuth refresh behavior; Gormes adapts them to its native auth.json store and typed resolver/status surfaces without importing Python runtime code."
+              }
+            },
+            {
               "name": "Browser artifact and console render contract",
               "status": "complete",
               "priority": "P1",
@@ -27298,7 +27539,7 @@
               "name": "Native TUI Hermes skin token renderer",
               "priority": "P2",
               "status": "complete",
-              "contract": "internal/tui exposes a HermesSkin value model and renderer tokens that mirror Hermes prompt_toolkit skin defaults for the interactive TUI: prompt symbol, response label, status bar colors, input-rule color, placeholder style, and width-aware minimal-chrome thresholds. This is a pure helper slice; it does not change Bubble Tea runtime layout yet.",
+              "contract": "internal/tui exposes a HermesSkin value model and renderer tokens that mirror Hermes prompt_toolkit skin defaults for the interactive TUI: prompt symbol, Hermes-compatible response box shape, Gormes product response label, status bar colors, input-rule color, placeholder style, and width-aware minimal-chrome thresholds. This is a pure helper slice; it does not change Bubble Tea runtime layout yet.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -27326,12 +27567,12 @@
                 "The slice attempts to port user YAML skin loading; start with built-in Hermes-compatible default tokens and an extension point."
               ],
               "acceptance": [
-                "TestHermesSkin_DefaultTokens proves the default prompt symbol is `❯ `, response label contains `Hermes`, input-rule color matches Hermes bronze, and status-bar background/text/strong/dim tokens are stable.",
+                "TestHermesSkin_DefaultTokens proves the default prompt symbol is `❯ `, response label contains `Gormes` instead of upstream `Hermes`, input-rule color matches Hermes bronze, and status-bar background/text/strong/dim tokens are stable.",
                 "TestHermesSkin_MinimalChromeThreshold proves width < 64 uses minimal chrome and width >= 64 keeps the full input/status chrome, matching cli.py.",
                 "TestHermesSkin_ProfilePromptPrefix proves a non-default profile name prepends the prompt symbol without changing the state suffix.",
                 "Helper has no filesystem, config, terminal, or provider side effects."
               ],
-              "note": "Complete: TDD landed internal/tui/hermes_skin.go and hermes_skin_test.go. Fixtures prove the default Hermes prompt symbol, response label, bronze input rule, status-bar token fallbacks, width <64 minimal-chrome breakpoint, and profile-prefixed prompt suffix behavior without changing Bubble Tea runtime layout, config persistence, kernel frames, or provider behavior.",
+              "note": "Complete: TDD landed internal/tui/hermes_skin.go and hermes_skin_test.go. Fixtures prove the default Hermes prompt symbol, Gormes product response label inside the Hermes-compatible response box, bronze input rule, status-bar token fallbacks, width <64 minimal-chrome breakpoint, and profile-prefixed prompt suffix behavior without changing Bubble Tea runtime layout, config persistence, kernel frames, or provider behavior.",
               "write_scope": [
                 "internal/tui/hermes_skin.go",
                 "internal/tui/hermes_skin_test.go",
@@ -27348,7 +27589,7 @@
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes defines the operator-visible TUI tokens; Gormes ports them as Go-native renderer data before applying them to Bubble Tea."
+                "note": "Hermes defines the operator-visible TUI tokens; Gormes ports them as Go-native renderer data before applying them to Bubble Tea. The response label is an owned product-identity divergence: Gormes keeps the Hermes box/chrome contract but does not identify the assistant as upstream Hermes."
               },
               "unblocks": [
                 "Native TUI Hermes status bar renderer",
@@ -27458,12 +27699,12 @@
               "acceptance": [
                 "TestHermesChrome_NoSidebar proves View output for a 120x32 frame does not include `Telemetry`, `Soul Monitor`, or side-pane borders.",
                 "TestHermesChrome_BottomPinnedOrder proves output order is conversation, optional spinner/hint, status bar, input rule, prompt/input area, optional voice/image/completion rows.",
-                "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Hermes response label/border, not `gormes:` dashboard tags, while user previews remain visible.",
+                "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Gormes response label in the Hermes-compatible response box, not `gormes:` dashboard tags or an upstream `⚕ Hermes` product label, while user previews remain visible.",
                 "TestHermesChrome_MinimalWidthDropsBottomRule proves narrow widths keep prompt/status usable and hide low-value chrome like Hermes.",
                 "TestHermesChrome_UsesAltScreen and TestNativeTUIStartupUsesAltScreen prove local full-screen TUI startup enables alt-screen by default, matching current Hermes Ink and preventing stale scrollback frame fragments.",
                 "TestKernel_FinalIdleClearsDraftAfterHistoryAppend proves the final idle frame moves assistant text into history and clears DraftText so the TUI cannot render the same assistant reply twice."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows render under the Hermes response label rather than `gormes:`, the bottom input rule is dropped below the 64-column minimal-chrome threshold, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
+              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-label correction: assistant rows keep the Hermes-compatible response box but use `⚕ Gormes`, not upstream `⚕ Hermes`, because the Gormes bot must not present itself as Mineru/Hermes. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows render under the Gormes response label rather than `gormes:` or `⚕ Hermes`, the bottom input rule is dropped below the 64-column minimal-chrome threshold, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",

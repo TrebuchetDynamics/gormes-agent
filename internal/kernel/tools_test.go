@@ -90,3 +90,127 @@ func TestKernel_ToolCallHandshake_Echo(t *testing.T) {
 		t.Errorf("final answer doesn't reference the echoed payload: %q", a.Content)
 	}
 }
+
+func TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen(t *testing.T) {
+	mc := hermes.NewMockClient()
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.EchoTool{})
+
+	for i := 0; i < 11; i++ {
+		mc.Script([]hermes.Event{{
+			Kind:         hermes.EventDone,
+			FinishReason: "tool_calls",
+			ToolCalls: []hermes.ToolCall{{
+				ID:        "call_echo_" + string(rune('a'+i)),
+				Name:      "echo",
+				Arguments: json.RawMessage(`{"text":"budget parity"}`),
+			}},
+		}}, "sess-budget")
+	}
+
+	finalAnswer := "Completed after more than ten tool rounds."
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(finalAnswer)},
+	}, "sess-budget")
+
+	k := New(Config{
+		Model:           "hermes-agent",
+		Endpoint:        "http://mock",
+		Admission:       Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Tools:           reg,
+		MaxToolDuration: 5 * time.Second,
+	}, mc, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	<-k.Render()
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "exercise default iteration budget"}); err != nil {
+		t.Fatal(err)
+	}
+
+	final := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		if f.Phase == PhaseFailed {
+			return true
+		}
+		if f.Phase != PhaseIdle {
+			return false
+		}
+		a := lastAssistantMessage(f.History)
+		return a != nil && a.Content == finalAnswer
+	}, 5*time.Second)
+
+	if final.Phase == PhaseFailed {
+		t.Fatalf("default tool budget failed early with LastError=%q; Hermes default allows 90 iterations", final.LastError)
+	}
+}
+
+func TestKernel_ToolIterationBudgetRequestsToollessSummary(t *testing.T) {
+	mc := hermes.NewMockClient()
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.EchoTool{})
+
+	for i := 0; i < 2; i++ {
+		mc.Script([]hermes.Event{{
+			Kind:         hermes.EventDone,
+			FinishReason: "tool_calls",
+			ToolCalls: []hermes.ToolCall{{
+				ID:        "call_echo_" + string(rune('a'+i)),
+				Name:      "echo",
+				Arguments: json.RawMessage(`{"text":"budget parity"}`),
+			}},
+		}}, "sess-budget-summary")
+	}
+
+	summary := "I reached the tool budget, so here is the useful summary."
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: summary, TokensOut: len(summary)},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 50, TokensOut: len(summary)},
+	}, "sess-budget-summary")
+
+	k := New(Config{
+		Model:             "hermes-agent",
+		Endpoint:          "http://mock",
+		Admission:         Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Tools:             reg,
+		MaxToolIterations: 1,
+		MaxToolDuration:   5 * time.Second,
+	}, mc, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	<-k.Render()
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "exercise summary budget parity"}); err != nil {
+		t.Fatal(err)
+	}
+
+	final := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		if f.Phase == PhaseFailed {
+			t.Fatalf("budget exhaustion surfaced as failure LastError=%q", f.LastError)
+		}
+		if f.Phase != PhaseIdle {
+			return false
+		}
+		a := lastAssistantMessage(f.History)
+		return a != nil && a.Content == summary
+	}, 5*time.Second)
+
+	if final.LastError != "" {
+		t.Fatalf("final LastError = %q, want empty after summary fallback", final.LastError)
+	}
+	reqs := mc.Requests()
+	if len(reqs) != 3 {
+		t.Fatalf("OpenStream request count = %d, want 3", len(reqs))
+	}
+	if len(reqs[2].Tools) != 0 {
+		t.Fatalf("summary request tools = %d, want no tools", len(reqs[2].Tools))
+	}
+	last := reqs[2].Messages[len(reqs[2].Messages)-1]
+	if last.Role != "user" || !strings.Contains(last.Content, "maximum number of tool-calling iterations") {
+		t.Fatalf("summary request last message = %#v, want Hermes-style summary request", last)
+	}
+}

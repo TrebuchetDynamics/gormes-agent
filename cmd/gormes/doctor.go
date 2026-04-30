@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func init() {
@@ -63,6 +65,7 @@ var doctorCmd = &cobra.Command{
 		reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
 		result := doctor.CheckTools(reg)
 		fmt.Print(result.Format())
+		fmt.Print(doctorWebToolsStatus(cfg).Format())
 		fmt.Print(doctorGonchoConfig(cfg).Format())
 
 		runtimeStatus := gateway.RuntimeStatus{}
@@ -101,6 +104,34 @@ var doctorCmd = &cobra.Command{
 		}
 		return nil
 	},
+}
+
+func doctorWebToolsStatus(cfg config.Config) doctor.CheckResult {
+	status := tools.ResolveWebBackendStatus(nil, tools.WebBackendConfig{
+		Backend:             cfg.Web.Backend,
+		UseGateway:          cfg.Web.UseGateway,
+		ManagedToolsEnabled: true,
+		AuthStorePath:       filepath.Join(config.GormesHome(), "auth.json"),
+	})
+	checkStatus := doctor.StatusWarn
+	if status.Available {
+		checkStatus = doctor.StatusPass
+	}
+	summary := fmt.Sprintf("backend=%s route=%s source=%s evidence=%s", status.Backend, status.Route, status.Source, status.Evidence)
+	items := []doctor.ItemInfo{
+		{Name: "backend", Status: checkStatus, Note: fmt.Sprintf("base_url=%s use_gateway=%t managed=%t", status.BaseURL, status.UseGateway, status.Managed)},
+		{Name: "toolset", Status: doctor.StatusPass, Note: strings.Join(status.ToolNames, ",")},
+		{Name: "requires_env", Status: doctor.StatusPass, Note: strings.Join(status.RequiresEnv, ",")},
+	}
+	if !status.Available {
+		items[0].Note = "provider unavailable; " + items[0].Note
+	}
+	return doctor.CheckResult{
+		Name:    "Web tools",
+		Status:  checkStatus,
+		Summary: summary,
+		Items:   items,
+	}
 }
 
 func doctorProviderHealthTarget(cfg config.Config) string {

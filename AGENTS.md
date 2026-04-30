@@ -39,6 +39,7 @@ Use these skills as the default routing surface:
 | Work type | Required skill |
 |---|---|
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
+| Running a recurring full Hermes-in-Go parity sweep or recording periodic parity progress | `gormes-hermes-parity` |
 | Mapping Hermes/Honcho/GBrain parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
@@ -114,6 +115,7 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | If you're … | Read this first |
 |---|---|
 | Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
+| Running a recurring Hermes/Gormes parity sweep or checking periodic parity progress | `docs/development-skills/gormes-hermes-parity/SKILL.md` |
 | Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `docs/development-skills/gormes-provider-parity/SKILL.md` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `docs/development-skills/gormes-browser-harness/SKILL.md` |
