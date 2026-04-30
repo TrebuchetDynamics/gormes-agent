@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -41,6 +42,9 @@ func TestHermesGatewayPlatformManifestCoversUpstream(t *testing.T) {
 
 	upstreamPlatforms, err := readHermesPlatformEnumIDs()
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			t.Skipf("upstream hermes-agent checkout not present: %v", err)
+		}
 		t.Fatal(err)
 	}
 	for _, id := range upstreamPlatforms {
@@ -54,6 +58,9 @@ func TestHermesGatewayPlatformManifestCoversUpstream(t *testing.T) {
 
 	connectors, err := readHermesGatewayConnectorIDs()
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			t.Skipf("upstream hermes-agent gateway/platforms not present: %v", err)
+		}
 		t.Fatal(err)
 	}
 	for _, id := range connectors {
