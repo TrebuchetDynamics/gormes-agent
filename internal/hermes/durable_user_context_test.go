@@ -100,6 +100,33 @@ func TestBuildDurableUserContextPrompt_BlocksThreats(t *testing.T) {
 	}
 }
 
+func TestBuildDurableUserContextPrompt_ReloadsMemoryEachCall(t *testing.T) {
+	dir := t.TempDir()
+	first := "# Memory\nFirst prompt snapshot."
+	second := "# Memory\nUpdated for next prompt."
+	writeMemoryFile(t, dir, "MEMORY.md", first)
+
+	block1, report1 := BuildDurableUserContextPrompt(DurableUserContextOptions{MemoryDir: dir})
+	if !strings.Contains(block1, first) {
+		t.Fatalf("first rendered block missing initial MEMORY.md body. got:\n%s", block1)
+	}
+	if !report1.Memory.Loaded {
+		t.Fatalf("expected first report.Memory.Loaded=true, got %+v", report1.Memory)
+	}
+
+	writeMemoryFile(t, dir, "MEMORY.md", second)
+	block2, report2 := BuildDurableUserContextPrompt(DurableUserContextOptions{MemoryDir: dir})
+	if !strings.Contains(block2, second) {
+		t.Fatalf("second rendered block missing updated MEMORY.md body. got:\n%s", block2)
+	}
+	if strings.Contains(block2, first) {
+		t.Fatalf("second rendered block must not reuse the previous prompt snapshot. got:\n%s", block2)
+	}
+	if !report2.Memory.Loaded {
+		t.Fatalf("expected second report.Memory.Loaded=true, got %+v", report2.Memory)
+	}
+}
+
 func TestBuildDurableUserContextPrompt_MissingFilesReturnsEmpty(t *testing.T) {
 	dir := t.TempDir()
 	block, report := BuildDurableUserContextPrompt(DurableUserContextOptions{MemoryDir: dir})

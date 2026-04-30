@@ -143,27 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Durable context ordering and frozen snapshot decision fixture
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Lock the Gormes/Hermes decision for USER.md and MEMORY.md ordering plus frozen-versus-per-turn durable memory semantics with source-backed provider payload fixtures, then either document the owned divergence or change ordering to match Hermes.
-- Trust class: gateway, system
-- Ready when: Hermes durable context insertion and Gormes live-turn prompt helper paths have been source-audited., Temp USER.md/MEMORY.md fixtures can capture provider payload ordering and snapshot semantics without live memory reads.
-- Not ready when: -
-- Degraded mode: Until the decision is locked, parity matrix rows must mark durable context ordering as partial and avoid claiming strict Hermes prompt equivalence.
-- Fixture: `internal/gateway/live_turn_prompt_test.go + internal/hermes/durable_user_context_test.go`
-- Write scope: `internal/hermes/durable_user_context.go`, `internal/hermes/durable_user_context_test.go`, `internal/gateway/live_turn_prompt.go`, `internal/gateway/live_turn_prompt_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'DurableUserContext\|LiveTurn\|FrozenMemorySnapshot' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Durable context ordering and snapshot semantics are locked by provider-payload fixtures and progress notes.
-- Acceptance: A fixture proves the current provider payload order for SOUL, AGENTS, USER, MEMORY, metadata, and session context., A second fixture proves whether mid-session MEMORY.md writes affect current prompt or only future sessions., The progress note records the chosen owned divergence or the implementation changes to Hermes order., No test uses live profile or memory files.
-- Source refs: ../hermes-agent/run_agent.py:3721-3730, ../hermes-agent/tools/memory_tool.py:105-124, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. Live-turn model/tool guidance wiring
+## 7. Live-turn model/tool guidance wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/run_agent.py:3667-3712, ../hermes-agent/agent/prompt_builder.py, internal/hermes/guidance_constants.go, internal/kernel/kernel.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Gateway active-turn policy manifest closeout
+## 8. Gateway active-turn policy manifest closeout
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:267-290, ../hermes-agent/gateway/run.py:2950-3225, internal/gateway/commands.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Gateway conversational session metadata refresh
+## 9. Gateway conversational session metadata refresh
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Conversational turn fixtures prove created/updated/session/platform metadata refresh semantics for `/status`.
 - Acceptance: A normal user turn creates metadata with stable session ID, CreatedAt, UpdatedAt, and connected platform., A later turn updates Last Activity without changing CreatedAt., `/status` reflects the same metadata without model submission., Legacy `telegram:<chat_id>` identifiers are mapped or explicitly reported.
 - Source refs: ../hermes-agent/gateway/session.py, ../hermes-agent/gateway/run.py:4646-4680, internal/gateway/status_command.go, internal/session/
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Gateway session token accounting parity
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Accumulate per-session provider usage into session metadata so `/status` reports Hermes-compatible token totals rather than only the last usage frame.
+- Trust class: gateway, system, operator
+- Ready when: Provider usage surfaces and status rendering seams are identified., Fake provider usage frames can exercise accumulation and missing-usage behavior without live provider calls.
+- Not ready when: -
+- Degraded mode: If provider usage is missing, status renders zero or unknown with usage_missing evidence and never guesses token counts.
+- Fixture: `internal/gateway/token_accounting_test.go`
+- Write scope: `internal/gateway/`, `internal/session/`, `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes -run 'Token\|Usage\|Status' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Session token accounting fixtures prove accumulated usage appears in `/status` with redacted evidence.
+- Acceptance: Two fake provider turns with usage values accumulate into one session total., `/status` renders the accumulated total., Missing usage does not erase existing totals., Usage evidence never includes raw provider payloads or credentials.
+- Source refs: ../hermes-agent/gateway/run.py:4674, internal/gateway/status_command.go, internal/gateway/usage_command.go, internal/hermes/provider_transport.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

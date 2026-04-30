@@ -540,27 +540,26 @@ func TestLiveTurn_SystemPrompt_TurnMetadataBlockOrder(t *testing.T) {
 		activeProvider:  "anthropic",
 	})
 
-	projectMarker := "# Project Context"
-	durableMarker := "# Durable User Context"
-	metaMarker := "Conversation started:"
-	sessionMarker := "## Current Session Context"
-
-	pi := strings.Index(got, projectMarker)
-	di := strings.Index(got, durableMarker)
-	mi := strings.Index(got, metaMarker)
-	si := strings.Index(got, sessionMarker)
-	for name, idx := range map[string]int{
-		projectMarker: pi,
-		durableMarker: di,
-		metaMarker:    mi,
-		sessionMarker: si,
-	} {
-		if idx < 0 {
-			t.Fatalf("missing marker %q. got:\n%s", name, got)
-		}
+	orderedMarkers := []string{
+		"# Project Context",
+		project,
+		soul,
+		"# Durable User Context",
+		userBody,
+		memoryBody,
+		"Conversation started:",
+		"## Current Session Context",
 	}
-	if !(pi < di && di < mi && mi < si) {
-		t.Fatalf("expected order project(%d) < durable(%d) < metadata(%d) < session(%d). got:\n%s", pi, di, mi, si, got)
+	prev := -1
+	for _, marker := range orderedMarkers {
+		idx := strings.Index(got, marker)
+		if idx < 0 {
+			t.Fatalf("missing marker %q. got:\n%s", marker, got)
+		}
+		if idx <= prev {
+			t.Fatalf("expected marker %q at %d to appear after previous marker index %d. got:\n%s", marker, idx, prev, got)
+		}
+		prev = idx
 	}
 }
 
