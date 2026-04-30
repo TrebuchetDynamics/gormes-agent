@@ -82,27 +82,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Telegram browser artifact rendering
-
-- Phase: 5 / 5.C
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Telegram rendering for browser results is mobile-readable and Hermes/Sidon-compatible: screenshot/artifact pointers, DOM excerpts, console errors, and browser progress traces are MarkdownV2-safe, bounded, reply-threaded, and separate from final answers.
-- Trust class: gateway, system, operator
-- Ready when: The browser artifact result envelope and Telegram renderer seams are identified., Fake Telegram/render fixtures can prove screenshot/link/console presentation without live Telegram, Chrome, or cloud browser services.
-- Not ready when: -
-- Degraded mode: If Telegram media delivery is unavailable, Gormes sends a text artifact pointer with browser_artifact_text_fallback evidence.
-- Fixture: `internal/gateway/telegram_browser_render_test.go + internal/tools/browser_artifact_test.go`
-- Write scope: `internal/gateway/render.go`, `internal/gateway/telegram_browser_render_test.go`, `internal/channels/telegram/`, `internal/tools/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram ./internal/tools -run 'Telegram.*Browser\|Browser.*Artifact\|Render' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Telegram browser rendering fixtures prove bounded, escaped, reply-safe artifact output.
-- Acceptance: Telegram renderer escapes browser artifact text and code blocks correctly., Screenshots/artifact pointers are shown without raw bytes or local secret paths., Browser progress/tool traces remain distinct from final answer text., Reply metadata is preserved when browser output is sent as part of a Telegram turn.
-- Source refs: ../hermes-agent/gateway/platforms/telegram.py, ../hermes-agent/tools/browser_tool.py, internal/gateway/render.go, internal/channels/telegram/bot.go, internal/tools/browser_harness_tools.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Clarify
+## 4. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

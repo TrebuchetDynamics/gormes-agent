@@ -13,6 +13,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func TestBot_Name(t *testing.T) {
@@ -403,6 +404,36 @@ func TestBot_SendMediaUsesTelegramVoiceAndAudio(t *testing.T) {
 	}
 	if _, ok := sent[1].(tgbotapi.AudioConfig); !ok {
 		t.Fatalf("sent[1] type = %T, want AudioConfig", sent[1])
+	}
+}
+
+func TestBot_SendReplyThreadsBrowserArtifactMarkdown(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	body := gateway.FormatBrowserArtifactTelegram(tools.BrowserResultEnvelope{
+		State: tools.BrowserPageState{Title: "Browser [Docs]", ScreenshotPath: "[browser_artifact_path_redacted]"},
+		Tool:  tools.ToolResultEvidence{Artifact: "browser/snapshot.txt", Bytes: 512},
+	})
+
+	if _, err := b.SendReply(context.Background(), "42", "77", body); err != nil {
+		t.Fatal(err)
+	}
+	sent := mc.sentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	msg, ok := sent[0].(tgbotapi.MessageConfig)
+	if !ok {
+		t.Fatalf("sent type = %T, want MessageConfig", sent[0])
+	}
+	if msg.ReplyToMessageID != 77 {
+		t.Fatalf("ReplyToMessageID = %d, want 77", msg.ReplyToMessageID)
+	}
+	if msg.ParseMode != tgbotapi.ModeMarkdownV2 {
+		t.Fatalf("ParseMode = %q, want MarkdownV2", msg.ParseMode)
+	}
+	if strings.Contains(msg.Text, "/tmp/") || strings.Contains(msg.Text, "[Docs]") {
+		t.Fatalf("browser artifact reply not sanitized/escaped: %q", msg.Text)
 	}
 }
 

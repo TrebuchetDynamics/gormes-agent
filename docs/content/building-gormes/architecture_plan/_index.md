@@ -617,7 +617,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web backend matrix and config resolver
 - [x] Go-native Hermes web extract safety policy and summarizer
 - [x] Browser artifact and console render contract
-- [ ] Telegram browser artifact rendering
+- [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 - [ ] Go browser harness binary repo + integration lane (placeholder)

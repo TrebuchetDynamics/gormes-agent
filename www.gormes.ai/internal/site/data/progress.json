@@ -16889,10 +16889,10 @@
             },
             {
               "name": "Telegram browser artifact rendering",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Telegram rendering for browser results is mobile-readable and Hermes/Sidon-compatible: screenshot/artifact pointers, DOM excerpts, console errors, and browser progress traces are MarkdownV2-safe, bounded, reply-threaded, and separate from final answers.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -16938,6 +16938,11 @@
               "ready_when": [
                 "The browser artifact result envelope and Telegram renderer seams are identified.",
                 "Fake Telegram/render fixtures can prove screenshot/link/console presentation without live Telegram, Chrome, or cloud browser services."
+              ],
+              "evidence": [
+                "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run TestFormatBrowserArtifactTelegram -count=1 failed on undefined FormatBrowserArtifactTelegram.",
+                "GREEN: FormatBrowserArtifactTelegram renders MarkdownV2-safe, bounded browser artifact notices with title/URL/artifact/screenshot/console/error/preview/evidence fields and browser_artifact_text_fallback degraded evidence; Telegram SendReply fixture preserves reply threading for the rendered artifact.",
+                "VALIDATION: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram ./internal/tools -run 'Telegram.*Browser|Browser.*Artifact|Render' -count=1 passed."
               ]
             },
             {
