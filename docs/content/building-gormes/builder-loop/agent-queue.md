@@ -42,7 +42,27 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Gateway slash registry parity sweep (recognized-name expansion)
+## 2. TTS tool contract + media delivery seam
+
+- Phase: 5 / 5.E
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Gormes ports Hermes text_to_speech as a native Go tool/result contract and channel-neutral MEDIA delivery seam: text_to_speech validates text/output path/provider choice, returns success/file_path/media_tag or typed redacted errors, and gateway final-response delivery strips MEDIA tags while sending local audio through platform voice/audio senders such as Telegram sendVoice/sendAudio.
+- Trust class: operator, gateway, system
+- Ready when: The STT tool contract and Telegram STT ingress rows are complete., Tests can inject fake TTS synthesizers and fake channel voice senders; no Edge TTS, ElevenLabs, OpenAI, MiniMax, Mistral, Gemini, xAI, ffmpeg, or live Telegram token is required., Gateway media delivery can be tested against channel-neutral interfaces before voice-mode persistence is enabled.
+- Not ready when: The slice attempts full /voice mode state, Discord voice-channel playback, provider-specific cloud TTS HTTP clients, or NeUTTS runtime in the same change., MEDIA tags remain visible in final Telegram text after native media delivery., The model can select provider voice identities directly instead of using operator-configured voice/provider settings.
+- Degraded mode: Missing TTS provider/config, unsupported output path, overlong text, synthesis failure, missing media file, and platform voice-send failure return typed evidence such as tts_provider_unavailable, tts_invalid_output_path, tts_text_truncated, tts_synthesis_failed, media_file_missing, and media_delivery_failed without exposing API keys, provider URLs with credentials, or local command output.
+- Fixture: `internal/tools/tts_tool_test.go; internal/gateway/media_delivery_test.go; internal/channels/telegram/bot_test.go`
+- Write scope: `internal/tools/tts_tool.go`, `internal/tools/tts_tool_test.go`, `internal/gateway/media_delivery.go`, `internal/gateway/media_delivery_test.go`, `internal/channels/telegram/bot.go`, `internal/channels/telegram/bot_test.go`, `cmd/gormes/registry.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestTextToSpeech' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'MediaDelivery\|MEDIA\|Voice' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'SendVoice\|AudioAsVoice\|MEDIA' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/channels/telegram ./internal/tools -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`
+- Done signal: Fake TTS and fake channel delivery fixtures prove text_to_speech can produce a MEDIA tag and gateway/Telegram can deliver it as native audio without leaking the tag in final text.
+- Acceptance: TestTextToSpeechToolDescriptor proves the text_to_speech schema matches Hermes fields text and output_path., TestTextToSpeechResultEnvelope proves success returns file_path and MEDIA tag while failures are typed and redacted using fake synthesizers., TestGatewayMediaDeliveryStripsMediaTags proves final responses deliver local media through a channel voice/audio sender and remove MEDIA tags from visible text., TestTelegramSendVoiceUsesVoiceBubbleForOgg proves Telegram sends .ogg/.opus as sendVoice and other audio as sendAudio with reply_to preserved.
+- Source refs: ../hermes-agent/tools/tts_tool.py:text_to_speech_tool, ../hermes-agent/tools/voice_mode.py, ../hermes-agent/gateway/run.py:_deliver_media_from_response, ../hermes-agent/gateway/platforms/telegram.py:send_voice, internal/tools/tool.go, internal/channels/telegram/bot.go, internal/gateway/manager.go
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 3. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -63,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 3. Stateful tool migration queue
+## 4. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -82,26 +102,6 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/file_tools.py, ../hermes-agent/tools/terminal_tool.py, ../hermes-agent/tools/process_registry.py, ../hermes-agent/tools/checkpoint_manager.py, ../hermes-agent/tests/tools/test_file_tools.py, ../hermes-agent/tests/tools/test_watch_patterns.py, internal/tools/registry.go, internal/tools/environment_contract.go, internal/cli/pty_bridge.go, references/go-agent-os/engram/internal/mcp/write_queue.go, references/go-agent-os/axe/internal/artifact/tracker.go, references/go-agent-os/nanobot/pkg/tools/flows.go
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
-
-## 4. Transcription tool contract
-
-- Phase: 5 / 5.E
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Native STT/transcription tool helper validates local audio input and provider selection before gateway media hooks call it: files must exist, be regular files, use supported audio suffixes, and stay under configured max bytes; explicit provider selection among local, local_command, groq, openai, mistral, and xai never silently falls back; auto mode chooses Hermes order local, groq, openai, mistral, xai from injected availability; model defaults and overrides are normalized per provider; tool results return transcript/provider/model/language on success or typed redacted error evidence on failure.
-- Trust class: operator, gateway, system
-- Ready when: internal/tools has the shared tool descriptor/result surface and can host a pure transcription helper with injected provider clients., Tests can use t.TempDir files with small fake audio bytes and fake provider clients; no ffmpeg, faster-whisper, OpenAI, Groq, Mistral, xAI, managed gateway, or network call is required., Gateway voice/message attachment rows can remain blocked until this helper exposes a stable result envelope.
-- Not ready when: The slice shells out to ffmpeg or local STT binaries, imports cloud SDKs, calls live provider APIs, downloads attachment media, or wires gateway channel handlers., Explicit provider errors fall back to another provider instead of returning a typed unavailable/error result., Provider errors expose API keys, managed-gateway tokens, raw HTTP response bodies, or local command output without redaction/truncation.
-- Degraded mode: Disabled STT, missing files, directories, unsupported formats, oversized audio, missing provider credentials, local-command failures, and provider API failures return evidence codes such as stt_disabled, audio_not_found, audio_not_file, unsupported_audio_format, audio_too_large, stt_provider_unavailable, and stt_api_error with secret/redaction guards.
-- Fixture: `internal/tools/transcription_tool_test.go`
-- Write scope: `internal/tools/transcription_tool.go`, `internal/tools/transcription_tool_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run '^TestTranscription' -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`
-- Done signal: Transcription fixtures prove audio validation, provider selection/no-fallback behavior, model normalization, redacted result envelope, and tool descriptor shape with fake providers only.
-- Acceptance: TestTranscriptionValidateAudioInput proves missing files, directories, unsupported suffixes, and max-size violations return stable evidence and no provider is called., TestTranscriptionProviderSelection proves explicit local/local_command/groq/openai/mistral/xai selection is honored without fallback and auto mode follows local > groq > openai > mistral > xai availability., TestTranscriptionModelNormalization proves provider defaults and overrides normalize like Hermes, including local and local_command model aliases., TestTranscriptionResultEnvelope proves success includes transcript/provider/model/language and failures include redacted typed error evidence., TestTranscriptionToolDescriptor proves the tool schema exposes audio path, provider, model, language, and optional format fields without requiring gateway media plumbing.
-- Source refs: ../hermes-agent/tools/transcription_tools.py:_load_stt_config, ../hermes-agent/tools/transcription_tools.py:is_stt_enabled, ../hermes-agent/tools/transcription_tools.py:_get_provider, ../hermes-agent/tools/transcription_tools.py:_validate_audio_file, ../hermes-agent/tools/transcription_tools.py:_normalize_local_model, ../hermes-agent/tools/transcription_tools.py:_normalize_local_command_model, ../hermes-agent/tools/transcription_tools.py:transcribe_audio, ../hermes-agent/tests/tools/test_transcription_tools.py, internal/tools/tool.go, references/go-agent-os/nanobot/pkg/tools/flows.go
-- Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
-- Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
 ## 5. Debug helpers
 

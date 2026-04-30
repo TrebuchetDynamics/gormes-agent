@@ -16698,9 +16698,9 @@
             },
             {
               "name": "Transcription tool contract",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native STT/transcription tool helper validates local audio input and provider selection before gateway media hooks call it: files must exist, be regular files, use supported audio suffixes, and stay under configured max bytes; explicit provider selection among local, local_command, groq, openai, mistral, and xai never silently falls back; auto mode chooses Hermes order local, groq, openai, mistral, xai from injected availability; model defaults and overrides are normalized per provider; tool results return transcript/provider/model/language on success or typed redacted error evidence on failure.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -16744,7 +16744,7 @@
                 "TestTranscriptionResultEnvelope proves success includes transcript/provider/model/language and failures include redacted typed error evidence.",
                 "TestTranscriptionToolDescriptor proves the tool schema exposes audio path, provider, model, language, and optional format fields without requiring gateway media plumbing."
               ],
-              "note": "Builder-ready tool-calling slice. Hermes' transcription_tools.py defines validation, provider choice, and result semantics; Gormes should first own the Go contract with fake clients before channel voice flows call it.",
+              "note": "Complete: TDD added internal/tools/transcription_tool.go and transcription_tool_test.go. The native runner validates files, suffixes, max bytes, disabled state, explicit/auto provider selection, provider no-fallback behavior, model normalization, typed redacted error evidence, and the transcribe_audio tool descriptor. Provider clients remain injected fakes in tests; no ffmpeg, faster-whisper, cloud SDK, live network, or gateway download path is required by this contract slice.",
               "write_scope": [
                 "internal/tools/transcription_tool.go",
                 "internal/tools/transcription_tool_test.go",
@@ -16758,6 +16758,10 @@
               "done_signal": [
                 "Transcription fixtures prove audio validation, provider selection/no-fallback behavior, model normalization, redacted result envelope, and tool descriptor shape with fake providers only."
               ],
+              "evidence": [
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestTranscription' -count=1 -> pass",
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -count=1 -> pass"
+              ],
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_refs": [
@@ -16766,6 +16770,151 @@
                   "references/go-agent-os/nanobot/pkg/tools/flows.go"
                 ],
                 "note": "Hermes is the STT parity contract; Go donor tool-flow references only inform how to keep provider calls injectable and testable."
+              }
+            },
+            {
+              "name": "Telegram voice/audio STT ingress hook",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Telegram voice/audio messages resolve Telegram file metadata through fakeable GetFile/DownloadFile seams, run an injected audio transcriber before gateway submission, prepend a Hermes-style transcript marker to the user turn when transcription succeeds, and preserve bounded attachment/error evidence when download or STT degrades.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If Telegram file resolution, download, or transcription fails, Gormes keeps the original voice/audio marker, records a sanitized attachment error such as telegram getFile failed or telegram download failed, and does not leak file_id, bot token, direct Telegram file URL, command output, or API credentials.",
+              "fixture": "internal/channels/telegram/bot_test.go:TestBot_ToInboundEvent_VoiceMessageIncludesTranscriptWhenTranscriberConfigured + TestBot_ToInboundEvent_VoiceMessageFallsBackWhenDownloadFails",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py voice/audio cache",
+                "../hermes-agent/gateway/run.py:_enrich_message_with_transcription",
+                "../hermes-agent/tools/transcription_tools.py:transcribe_audio",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/transcriber.go",
+                "internal/channels/telegram/real_client.go"
+              ],
+              "ready_when": [
+                "The shared transcription tool contract is present.",
+                "Telegram tests can fake getFile/download bytes and fake transcription without a live Telegram token.",
+                "Production wiring can degrade when no local whisper-compatible command is configured."
+              ],
+              "not_ready_when": [
+                "The provider request still receives only voice/audio metadata for a transcribed Telegram message.",
+                "Failures leak Telegram token-bearing file URLs, file_id values, local command output, or credential-shaped strings.",
+                "The implementation calls Python Hermes runtime services instead of native Go seams and local/provider adapters."
+              ],
+              "acceptance": [
+                "TestBot_ToInboundEvent_VoiceMessageIncludesTranscriptWhenTranscriberConfigured proves fake Telegram voice bytes reach the injected transcriber and the inbound text includes a Hermes-style transcript marker before the attachment marker.",
+                "TestBot_ToInboundEvent_VoiceMessageFallsBackWhenDownloadFails proves failed getFile/download preserves a readable voice marker and sanitized attachment error without leaking Telegram transport details.",
+                "Focused Telegram package tests prove slash parsing, mention gating, reply sending, and voice/audio marker behavior still pass with the extended client seam.",
+                "cmd/gormes gateway and telegram command wiring inject the optional local whisper-compatible transcriber without making tests depend on a local binary."
+              ],
+              "write_scope": [
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "internal/channels/telegram/client.go",
+                "internal/channels/telegram/group_mention_binding_test.go",
+                "internal/channels/telegram/mock_test.go",
+                "internal/channels/telegram/real_client.go",
+                "internal/channels/telegram/transcriber.go",
+                "internal/channels/telegram/transcriber_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'Voice|Audio|Transcrib|Download|Mention' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/channels/telegram ./internal/tools -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Telegram voice/audio fake-update fixtures prove the model-facing submit text includes the transcript when STT succeeds and keeps safe degraded evidence when media resolution fails."
+              ],
+              "evidence": [
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'Voice|Audio|Transcrib|Download|Mention' -count=1 -> pass",
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1 -> pass",
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/channels/telegram ./internal/tools -count=1 -> pass"
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_refs": [
+                  "hermes:gateway/platforms/telegram.py voice/audio cache",
+                  "hermes:gateway/run.py:_enrich_message_with_transcription"
+                ],
+                "note": "Ports the Telegram-visible STT ingress seam without depending on Python Hermes runtime. Broader multi-channel media transcription hooks remain row-backed."
+              }
+            },
+            {
+              "name": "TTS tool contract + media delivery seam",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Gormes ports Hermes text_to_speech as a native Go tool/result contract and channel-neutral MEDIA delivery seam: text_to_speech validates text/output path/provider choice, returns success/file_path/media_tag or typed redacted errors, and gateway final-response delivery strips MEDIA tags while sending local audio through platform voice/audio senders such as Telegram sendVoice/sendAudio.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing TTS provider/config, unsupported output path, overlong text, synthesis failure, missing media file, and platform voice-send failure return typed evidence such as tts_provider_unavailable, tts_invalid_output_path, tts_text_truncated, tts_synthesis_failed, media_file_missing, and media_delivery_failed without exposing API keys, provider URLs with credentials, or local command output.",
+              "fixture": "internal/tools/tts_tool_test.go; internal/gateway/media_delivery_test.go; internal/channels/telegram/bot_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/tts_tool.py:text_to_speech_tool",
+                "../hermes-agent/tools/voice_mode.py",
+                "../hermes-agent/gateway/run.py:_deliver_media_from_response",
+                "../hermes-agent/gateway/platforms/telegram.py:send_voice",
+                "internal/tools/tool.go",
+                "internal/channels/telegram/bot.go",
+                "internal/gateway/manager.go"
+              ],
+              "ready_when": [
+                "The STT tool contract and Telegram STT ingress rows are complete.",
+                "Tests can inject fake TTS synthesizers and fake channel voice senders; no Edge TTS, ElevenLabs, OpenAI, MiniMax, Mistral, Gemini, xAI, ffmpeg, or live Telegram token is required.",
+                "Gateway media delivery can be tested against channel-neutral interfaces before voice-mode persistence is enabled."
+              ],
+              "not_ready_when": [
+                "The slice attempts full /voice mode state, Discord voice-channel playback, provider-specific cloud TTS HTTP clients, or NeUTTS runtime in the same change.",
+                "MEDIA tags remain visible in final Telegram text after native media delivery.",
+                "The model can select provider voice identities directly instead of using operator-configured voice/provider settings."
+              ],
+              "acceptance": [
+                "TestTextToSpeechToolDescriptor proves the text_to_speech schema matches Hermes fields text and output_path.",
+                "TestTextToSpeechResultEnvelope proves success returns file_path and MEDIA tag while failures are typed and redacted using fake synthesizers.",
+                "TestGatewayMediaDeliveryStripsMediaTags proves final responses deliver local media through a channel voice/audio sender and remove MEDIA tags from visible text.",
+                "TestTelegramSendVoiceUsesVoiceBubbleForOgg proves Telegram sends .ogg/.opus as sendVoice and other audio as sendAudio with reply_to preserved."
+              ],
+              "write_scope": [
+                "internal/tools/tts_tool.go",
+                "internal/tools/tts_tool_test.go",
+                "internal/gateway/media_delivery.go",
+                "internal/gateway/media_delivery_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "cmd/gormes/registry.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestTextToSpeech' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'MediaDelivery|MEDIA|Voice' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'SendVoice|AudioAsVoice|MEDIA' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/channels/telegram ./internal/tools -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Fake TTS and fake channel delivery fixtures prove text_to_speech can produce a MEDIA tag and gateway/Telegram can deliver it as native audio without leaking the tag in final text."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_refs": [
+                  "hermes:tools/tts_tool.py",
+                  "hermes:gateway/run.py:_deliver_media_from_response",
+                  "hermes:gateway/platforms/telegram.py:send_voice"
+                ],
+                "note": "Splits TTS tool/media delivery from full voice-mode persistence so TTS can advance without bundling all /voice behavior."
               }
             },
             {

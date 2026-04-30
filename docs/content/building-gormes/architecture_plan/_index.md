@@ -81,7 +81,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 43/78 subphases shipped · 27 in progress · 8 planned
+**Overall:** 43/78 subphases shipped · 28 in progress · 7 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -622,10 +622,12 @@ classification and row-backed implementation queue.
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 
-### 5.E — TTS / Voice / Transcription ⏳
+### 5.E — TTS / Voice / Transcription 🔨
 
 - [ ] Voice mode port
-- [ ] Transcription tool contract
+- [x] Transcription tool contract
+- [x] Telegram voice/audio STT ingress hook
+- [ ] TTS tool contract + media delivery seam
 - [ ] TTS synthesis + voice-mode state
 
 ### 5.F — Skills System (Remaining) 🔨
