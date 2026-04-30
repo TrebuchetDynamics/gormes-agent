@@ -329,5 +329,5 @@ func telegramManagerConfig(cfg config.Config, smap session.Map) gateway.ManagerC
 	allowDiscovery := map[string]bool{
 		"telegram": cfg.Telegram.FirstRunDiscovery,
 	}
-	return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, nil, nil, gateway.RestartConfig{})
+	return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, nil, nil, nil, gateway.RestartConfig{})
 }

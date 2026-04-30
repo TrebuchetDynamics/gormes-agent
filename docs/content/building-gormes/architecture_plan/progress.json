@@ -2463,7 +2463,14 @@
               ],
               "evidence": [
                 "GAP: dev has session.PerformAutoTitle (internal/session/auto_title.go:94), the MetadataTitleStore adapter (bffe3c518), and internal/hermes.GenerateTitle, but no gateway invocation site \u2014 untitled sessions never receive auto-titles. /status renders title_unavailable indefinitely until /title is used manually.",
-                "GAP: cmd/gormes/gateway.go does not construct a TitleModelFunc from the configured provider, so even if the gateway invocation lands the production binary will record AutoTitleCodeProviderFailed evidence on every turn \u2014 same silent-no-op pattern as live-turn slice-4 production wiring."
+                "GAP: cmd/gormes/gateway.go does not construct a TitleModelFunc from the configured provider, so even if the gateway invocation lands the production binary will record AutoTitleCodeProviderFailed evidence on every turn \u2014 same silent-no-op pattern as live-turn slice-4 production wiring.",
+                "RED: 7 tests in internal/gateway/auto_title_wiring_test.go written before implementation.",
+                "GREEN: maybeRunAutoTitle wired into dispatchFrame PhaseIdle path; runAutoTitle helper in auto_title_wiring.go; ManagerConfig.TitleModel (hermes.TitleModelFunc) and ManagerConfig.TitleStore (session.SessionTitleStore) seams added.",
+                "REGRESSION: go test ./... -count=1 PASS; go run ./cmd/progress validate OK; git diff --check clean.",
+                "PRODUCTION: cmd/gormes/title_model.go buildTitleModelFunc wraps hermes.Client as TitleModelFunc; buildGatewayTitleSeam constructs *MetadataTitleStore from *BoltMap; gatewayManagerConfig injects both seams. Smoke test TestGatewayManagerConfig_TitleModelNonNilWithBoltMap asserts non-nil with real BoltMap.",
+                "scope_decisions: Added ManagerConfig.TitleStore (session.SessionTitleStore) as an explicit seam field instead of constructing MetadataTitleStore inside maybeRunAutoTitle from SessionMap, because session.Map (interface) does not expose GetMetadata/setTitleAuto. Tests inject session.NewMetadataTitleStore(ctx, *MemMap) directly. Production constructs from *BoltMap via buildGatewayTitleSeam. This is cleaner than a type-assert inside the gateway package.",
+                "scope_decisions: Added ManagerConfig.AuxiliaryFailureSink (AutoTitleAuxiliarySink) as new ManagerConfig field (no pre-existing 4.F[1] gateway-level sink found). The 4.F[1] kernel tests use hermes.GenerateTitle callbacks in-line; they do not expose a reusable Manager-level sink.",
+                "scope_decisions: turnLastUserText captures ev.Text (raw text before SubmitText() processing) to keep the auto-title transcript independent of resume-pending prefix injection."
               ]
             },
             {

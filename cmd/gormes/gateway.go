@@ -151,7 +151,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		ServiceManagerAvailable: gateway.EnvironmentServiceManagerAvailable,
 		DrainTimeout:            kernel.ShutdownBudget,
 	}
-	mgr := gateway.NewManager(gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hooks, runtimeStatus, restartCfg), k, slog.Default())
+	mgr := gateway.NewManager(gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg), k, slog.Default())
 
 	registeredChannels, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, defaultGatewayChannelFactories(), runtimeStatus, slog.Default())
 	if err != nil {
@@ -235,13 +235,16 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 	return time.Duration(cfg.Telegram.FreshFinalAfterSeconds * float64(time.Second))
 }
 
-func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, smap session.Map, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, smap session.Map, hc hermes.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
 		AllowedChats:    allowedChats,
 		AllowDiscovery:  allowDiscovery,
 		CoalesceMs:      gatewayCoalesceMs(cfg),
 		FreshFinalAfter: gatewayFreshFinalAfter(cfg),
 		SessionMap:      smap,
+		TitleStore:      titleStore,
+		TitleModel:      titleModel,
 		Hooks:           hooks,
 		RuntimeStatus:   runtimeStatus,
 		Restart:         restart,

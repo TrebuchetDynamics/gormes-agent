@@ -14,6 +14,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 type fakeShutdownManager struct {
@@ -85,6 +86,7 @@ func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 				tc.cfg,
 				map[string]string{},
 				map[string]bool{},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -162,6 +164,7 @@ func TestGatewayManagerConfig_LiveTurnMetadataProductionWiring(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		gateway.RestartConfig{},
 	)
 	if mgrCfg.LiveTurnNow == nil {
@@ -204,6 +207,7 @@ func TestGatewayManagerConfig_UsageProviderInfersProviderFromConfiguredModel(t *
 		}},
 		map[string]string{},
 		map[string]bool{},
+		nil,
 		nil,
 		nil,
 		nil,
@@ -275,5 +279,44 @@ func TestGatewaySignalLoopDrainsBeforeCancel(t *testing.T) {
 	case code := <-forceExit:
 		t.Fatalf("unexpected force exit: %d", code)
 	default:
+	}
+}
+
+// TestGatewayManagerConfig_TitleModelNonNilWithBoltMap is a production smoke
+// fixture. It constructs a ManagerConfig using a real *session.BoltMap and a
+// hermetic HTTP stub client, then asserts that TitleModel and TitleStore are
+// non-nil — proving the gateway seam is wired in production builds without
+// invoking any live LLM.
+func TestGatewayManagerConfig_TitleModelNonNilWithBoltMap(t *testing.T) {
+	dbPath := t.TempDir() + "/title_seam_smoke.db"
+	smap, err := session.OpenBolt(dbPath)
+	if err != nil {
+		t.Fatalf("OpenBolt: %v", err)
+	}
+	defer smap.Close()
+
+	// Stub provider — never called; we only assert the seam exists.
+	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer stub.Close()
+
+	hc := hermes.NewHTTPClientWithProvider(stub.URL, "stub-key", "openai")
+	mgrCfg := gatewayManagerConfig(
+		config.Config{Hermes: config.HermesCfg{Endpoint: stub.URL, Model: "stub-model"}},
+		map[string]string{},
+		map[string]bool{},
+		smap,
+		hc,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+
+	if mgrCfg.TitleModel == nil {
+		t.Error("TitleModel is nil; production gateway cannot auto-title sessions")
+	}
+	if mgrCfg.TitleStore == nil {
+		t.Error("TitleStore is nil; production gateway cannot persist auto-titles")
 	}
 }

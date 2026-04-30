@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
@@ -41,13 +42,14 @@ type sessionResumeClearer interface {
 }
 
 type activeTurnSnapshot struct {
-	Platform   string
-	ChatID     string
-	MsgID      string
-	SessionKey string
-	SessionID  string
-	Source     SessionSource
-	Cancelled  bool
+	Platform     string
+	ChatID       string
+	MsgID        string
+	SessionKey   string
+	SessionID    string
+	Source       SessionSource
+	Cancelled    bool
+	LastUserText string
 }
 
 // ManagerConfig drives the shared gateway manager.
@@ -96,6 +98,21 @@ type ManagerConfig struct {
 	// the `Provider: ...` line. Nil or empty result drops the line. Only
 	// non-secret display names are exposed — never base URLs or API keys.
 	LiveTurnActiveProvider func() string
+	// TitleModel is the provider boundary for auto-title generation. It is
+	// called at most once per PhaseIdle frame for sessions without an existing
+	// title. Nil disables the LLM call; PerformAutoTitle surfaces
+	// AutoTitleCodeProviderFailed evidence through AuxiliaryFailureSink.
+	TitleModel hermes.TitleModelFunc
+	// TitleStore is the persistence boundary for auto-title generation. When
+	// non-nil it is used directly; when nil and SessionMap is non-nil the
+	// production wiring constructs a MetadataTitleStore at startup and injects
+	// it here. Tests always inject a hermetic store via this field.
+	TitleStore session.SessionTitleStore
+	// AuxiliaryFailureSink receives AutoTitleEvidence for non-complete outcomes
+	// (provider failures, blank results, store errors, skip evidence). Nil
+	// discards non-complete evidence silently. The sink must not block or panic;
+	// panics are recovered and discarded.
+	AuxiliaryFailureSink AutoTitleAuxiliarySink
 }
 
 type kernelSubmitter interface {
@@ -113,18 +130,19 @@ type Manager struct {
 	mu       sync.Mutex
 	channels map[string]Channel
 
-	turnMu         sync.Mutex
-	turnPlatform   string
-	turnChatID     string
-	turnMsgID      string
-	turnSessionKey string
-	turnSessionID  string
-	turnSource     SessionSource
-	turnCancelled  bool
-	turnFrameSeen  bool
-	shuttingDown   bool
-	followUps      []InboundEvent
-	lastUsageFrame kernel.RenderFrame
+	turnMu           sync.Mutex
+	turnPlatform     string
+	turnChatID       string
+	turnMsgID        string
+	turnSessionKey   string
+	turnSessionID    string
+	turnSource       SessionSource
+	turnCancelled    bool
+	turnFrameSeen    bool
+	turnLastUserText string // captures the last inbound submit text for auto-title
+	shuttingDown     bool
+	followUps        []InboundEvent
+	lastUsageFrame   kernel.RenderFrame
 
 	reasoningMu    sync.Mutex
 	reasoningState map[string]SessionReasoningState
@@ -867,6 +885,8 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	platform := m.turnPlatform
 	chatID := m.turnChatID
 	replyToMsgID := m.turnMsgID
+	sessionID := m.turnSessionID
+	lastUserText := m.turnLastUserText
 	staleInitialIdle := platform != "" && chatID != "" && !m.turnFrameSeen && isStartupIdleFrame(f)
 	if !staleInitialIdle && platform != "" && chatID != "" {
 		m.turnFrameSeen = true
@@ -887,6 +907,9 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
+			if f.Phase == kernel.PhaseIdle {
+				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
+			}
 			m.drainNextFollowUp(ctx)
 		}
 		return
@@ -904,6 +927,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			_, _ = m.sendWithHooks(ctx, ch, chatID, finalText)
 		}
 		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
+		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		text := m.formatError(platform, f)
@@ -1265,6 +1289,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
 	m.turnFrameSeen = false
+	m.turnLastUserText = ""
 }
 
 func (m *Manager) clearTurn() {
@@ -1278,6 +1303,13 @@ func (m *Manager) clearTurn() {
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
 	m.turnFrameSeen = false
+	m.turnLastUserText = ""
+}
+
+func (m *Manager) setTurnLastUserText(text string) {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	m.turnLastUserText = text
 }
 
 func (m *Manager) hasActiveTurn() bool {
@@ -1322,13 +1354,14 @@ func (m *Manager) activeTurnSnapshot() (activeTurnSnapshot, bool) {
 		return activeTurnSnapshot{}, false
 	}
 	return activeTurnSnapshot{
-		Platform:   m.turnPlatform,
-		ChatID:     m.turnChatID,
-		MsgID:      m.turnMsgID,
-		SessionKey: m.turnSessionKey,
-		SessionID:  m.turnSessionID,
-		Source:     m.turnSource,
-		Cancelled:  m.turnCancelled,
+		Platform:     m.turnPlatform,
+		ChatID:       m.turnChatID,
+		MsgID:        m.turnMsgID,
+		SessionKey:   m.turnSessionKey,
+		SessionID:    m.turnSessionID,
+		Source:       m.turnSource,
+		Cancelled:    m.turnCancelled,
+		LastUserText: m.turnLastUserText,
 	}, true
 }
 
@@ -1680,6 +1713,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		}
 	}
 	m.setPinnedTurnSession(ev.ChatKey(), resolved.SessionID, source)
+	m.setTurnLastUserText(ev.Text)
 	sessionBlock := BuildSessionContextPrompt(SessionContext{
 		Source:                source,
 		SessionKey:            ev.ChatKey(),
