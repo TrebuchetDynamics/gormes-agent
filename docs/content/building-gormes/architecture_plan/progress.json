@@ -2803,7 +2803,8 @@
                 "Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile."
               ],
               "evidence": [
-                "Validated 2026-04-29: added regression tests TestDefaultLiveTurnProfileDir_PrefersWorkspaceGormesContextOverHermesHome and TestDefaultLiveTurnMemoryDir_PrefersWorkspaceGormesMemoryOverHermesHome; updated internal/gateway/live_turn_prompt.go so HERMES_HOME is not a live profile/memory fallback. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestDefaultLiveTurn(ProfileDir|MemoryDir)|LiveTurn' -count=1."
+                "Validated 2026-04-29: added regression tests TestDefaultLiveTurnProfileDir_PrefersWorkspaceGormesContextOverHermesHome and TestDefaultLiveTurnMemoryDir_PrefersWorkspaceGormesMemoryOverHermesHome; updated internal/gateway/live_turn_prompt.go so HERMES_HOME is not a live profile/memory fallback. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestDefaultLiveTurn(ProfileDir|MemoryDir)|LiveTurn' -count=1.",
+                "Validated 2026-04-29: added authoritative Current Runtime Facts block ahead of project context so live Telegram turns answer active workspace/current cwd from Gormes process evidence, while preserving the missing-context byte-identical fallback for arbitrary temp dirs. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestLiveTurn_SystemPrompt_IncludesAuthoritativeWorkspaceFact|LiveTurn' -count=1."
               ]
             },
             {

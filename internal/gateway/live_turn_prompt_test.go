@@ -258,6 +258,34 @@ func TestDefaultLiveTurnMemoryDir_PrefersWorkspaceGormesMemoryOverHermesHome(t *
 	}
 }
 
+func TestLiveTurn_SystemPrompt_IncludesAuthoritativeWorkspaceFact(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace-gormes")
+	workdir := filepath.Join(workspace, "gormes-agent")
+	if err := os.MkdirAll(workdir, 0o700); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workdir, "AGENTS.md"), []byte("workspace-mineru agents may use this repo as historical examples"), 0o600); err != nil {
+		t.Fatalf("write AGENTS.md: %v", err)
+	}
+
+	got := newLiveTurnHarness(t, "telegram").dispatchWithMemory(t.TempDir(), workdir, t.TempDir())
+
+	for _, want := range []string{
+		"## Current Runtime Facts",
+		"Active workspace: `" + workspace + "`",
+		"Current working directory: `" + workdir + "`",
+		"If asked for the active/current workspace, answer from the Active workspace line above",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("SessionContext missing authoritative workspace fact %q. got:\n%s", want, got)
+		}
+	}
+	if strings.Index(got, "Active workspace: `"+workspace+"`") > strings.Index(got, "workspace-mineru agents") {
+		t.Fatalf("authoritative workspace fact must precede stale workspace examples. got:\n%s", got)
+	}
+}
+
 // writeMemory constructs a fake memory dir with optional USER.md and
 // MEMORY.md fixtures. Empty bodies are skipped so callers can produce
 // memory dirs containing just one of the two files.

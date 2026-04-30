@@ -199,15 +199,18 @@ func hasLiveTurnFile(dir, name string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// assembleLiveTurnPrompt composes the live-turn system prompt from five
+// assembleLiveTurnPrompt composes the live-turn system prompt from six
 // optional pieces in fixed order:
 //
-//  1. SOUL.md + project-context block (slice 1).
-//  2. USER.md + MEMORY.md durable user-context block (slice 2).
-//  3. Hermes-format timestamp + session/model/provider block (slice 4).
-//  4. Self-help guidance body when the gate opens for submitText (slice 4).
-//  5. The platform/session block produced by BuildSessionContextPrompt.
+//  1. Authoritative runtime facts derived from the active Gormes process.
+//  2. SOUL.md + project-context block (slice 1).
+//  3. USER.md + MEMORY.md durable user-context block (slice 2).
+//  4. Hermes-format timestamp + session/model/provider block (slice 4).
+//  5. Self-help guidance body when the gate opens for submitText (slice 4).
+//  6. The platform/session block produced by BuildSessionContextPrompt.
 //
+// Runtime facts intentionally precede context files because AGENTS.md and other
+// project documents may contain historical examples from other workspaces.
 // Empty pieces are elided so the byte output collapses to the slice-2 layout
 // when neither the metadata seams nor the self-help gate produce content.
 // When all pieces are empty the result is "" (callers pass sessionBlock != ""
@@ -218,31 +221,39 @@ func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSession
 		contextReport hermes.ContextFilesReport
 		durableBlock  string
 		durableReport hermes.DurableUserContextReport
+		profileDir    string
+		cwd           string
+		memoryDir     string
 	)
 
+	if seams.ProfileDir != nil {
+		profileDir = strings.TrimSpace(seams.ProfileDir())
+	}
+	if seams.CWD != nil {
+		cwd = strings.TrimSpace(seams.CWD())
+	}
+	if seams.MemoryDir != nil {
+		memoryDir = strings.TrimSpace(seams.MemoryDir())
+	}
+
 	if seams.Build != nil {
-		opts := hermes.ContextFilesOptions{}
-		if seams.ProfileDir != nil {
-			opts.ProfileDir = strings.TrimSpace(seams.ProfileDir())
-		}
-		if seams.CWD != nil {
-			opts.CWD = strings.TrimSpace(seams.CWD())
-		}
+		opts := hermes.ContextFilesOptions{ProfileDir: profileDir, CWD: cwd}
 		contextBlock, contextReport = seams.Build(opts)
 	}
 
 	if seams.BuildDurable != nil {
-		opts := hermes.DurableUserContextOptions{}
-		if seams.MemoryDir != nil {
-			opts.MemoryDir = strings.TrimSpace(seams.MemoryDir())
-		}
+		opts := hermes.DurableUserContextOptions{MemoryDir: memoryDir}
 		durableBlock, durableReport = seams.BuildDurable(opts)
 	}
 
+	runtimeFactsBlock := buildRuntimeFactsBlock(profileDir, cwd)
 	metadataBlock := buildMetadataFromSeams(seams, activeSessionID)
 	selfHelpBlock := buildSelfHelpFromSeams(seams, submitText)
 
-	pieces := make([]string, 0, 5)
+	pieces := make([]string, 0, 6)
+	if strings.TrimSpace(runtimeFactsBlock) != "" {
+		pieces = append(pieces, runtimeFactsBlock)
+	}
 	if strings.TrimSpace(contextBlock) != "" {
 		pieces = append(pieces, contextBlock)
 	}
@@ -262,6 +273,65 @@ func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSession
 		return "", contextReport, durableReport
 	}
 	return strings.Join(pieces, "\n\n"), contextReport, durableReport
+}
+
+func buildRuntimeFactsBlock(profileDir, cwd string) string {
+	cwd = strings.TrimSpace(cwd)
+	workspace := activeWorkspaceFromLiveTurnContext(profileDir, cwd)
+	if workspace == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("## Current Runtime Facts")
+	b.WriteString("\n\nActive workspace: `")
+	b.WriteString(workspace)
+	b.WriteString("`")
+	if cwd != "" {
+		b.WriteString("\nCurrent working directory: `")
+		b.WriteString(cwd)
+		b.WriteString("`")
+	}
+	b.WriteString("\n\nIf asked for the active/current workspace, answer from the Active workspace line above. Treat older workspace examples in context files as historical unless they match this runtime fact.")
+	return b.String()
+}
+
+func activeWorkspaceFromLiveTurnContext(profileDir, cwd string) string {
+	if workspace := findWorkspaceNamedAncestor(cwd); workspace != "" {
+		return workspace
+	}
+	if workspace := findWorkspaceNamedAncestor(profileDir); workspace != "" {
+		return workspace
+	}
+	if cwd = strings.TrimSpace(cwd); cwd != "" {
+		if abs, err := filepath.Abs(cwd); err == nil {
+			cwd = abs
+		}
+		if filepath.Base(cwd) == "gormes-agent" {
+			return filepath.Dir(cwd)
+		}
+	}
+	return ""
+}
+
+func findWorkspaceNamedAncestor(start string) string {
+	start = strings.TrimSpace(start)
+	if start == "" {
+		return ""
+	}
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		dir = start
+	}
+	for {
+		if strings.HasPrefix(filepath.Base(dir), "workspace-") {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }
 
 func buildMetadataFromSeams(seams liveTurnPromptSeams, activeSessionID string) string {
