@@ -23594,21 +23594,61 @@
             },
             {
               "name": "Gormes auth add bedrock open-question planning note",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "slice_size": "small",
-              "execution_owner": "docs",
+              "execution_owner": "tools",
               "not_ready_when": [
                 "A builder treats this row as an implementation row instead of a planner-owned open-question note.",
                 "The row is closed without an explicit decision recorded for whether `gormes auth add bedrock` is supported, refused, or deferred."
               ],
               "unblocks": [],
-              "note": "Open-question planning note (no contract, no test_commands). Auditor surprise (c): Hermes' `auth add bedrock` has no handler at all — Bedrock surfaces only in the bare-`auth` Bedrock STS print path which depends on optional `boto3` (`hermes_cli/auth_commands.py:457-476`). The catch-all at `auth_commands.py:336` rejects `--type oauth`, and `auth_type=aws_sdk` bypasses the API-key handler. Gormes default decision (planner): match the Hermes gap — `gormes auth add bedrock` must refuse with bedrock_use_aws_sdk_chain evidence pointing operators to AWS env vars / profile / SSO. Decision 2026-04-29: A — match Hermes gap permanently. The deferred Gormes-owned binding follow-up row will not be added unless Hermes upstream adds hermes auth add bedrock.",
+              "note": "Shipped 2026-04-30: the former open-question note is now a validated parity slice. Hermes has no `auth add bedrock` credential-pool handler; Bedrock appears only as AWS SDK credential-chain status in bare auth. Gormes now matches that gap intentionally by refusing `gormes auth add bedrock` before API-key/OAuth handling, returning safe `bedrock_use_aws_sdk_chain` guidance, and leaving the Bedrock credential pool empty. Focused test: cmd/gormes/auth_command_test.go::TestGormesAuthAddBedrockRefusesCredentialPoolMutation.",
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:hermes_cli/auth_commands.py:336 catch-all + auth_commands.py:457-476 bedrock STS",
-                "note": "Hermes-side gap: planner records the open question rather than inventing a Gormes-only handler that has no Hermes parity counterpart."
-              }
+                "upstream_ref": "hermes:hermes_cli/auth_commands.py bare Bedrock AWS SDK status + absence of auth-add Bedrock handler",
+                "note": "Hermes-side gap is now an explicit Gormes compatibility decision with CLI test coverage; do not add a Gormes-only Bedrock credential-pool handler unless Hermes upstream adds that public command."
+              },
+              "contract": "Preserve Hermes parity for the Bedrock auth gap: `gormes auth add bedrock` refuses credential-pool mutation for API-key or OAuth-style inputs and returns `bedrock_use_aws_sdk_chain` guidance, while bare `gormes auth` remains the redacted AWS credential-chain status surface.",
+              "contract_status": "validated",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "No credential-pool entry is written for Bedrock; operators receive `bedrock_use_aws_sdk_chain` evidence that points to AWS env/profile/SSO/role credential-chain setup and bare `gormes auth` Bedrock identity status without printing tokens, URLs, ARNs, or host paths.",
+              "fixture": "cmd/gormes/auth_command_test.go::TestGormesAuthAddBedrockRefusesCredentialPoolMutation",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/auth.py:304-310",
+                "../hermes-agent/hermes_cli/auth.py:2653-2659",
+                "../hermes-agent/hermes_cli/auth_commands.py:423-442",
+                "cmd/gormes/auth.go:runAuthAddCommand",
+                "cmd/gormes/auth_command_test.go:TestGormesAuthAddBedrockRefusesCredentialPoolMutation",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Credential pool, token vault, and auth commands"
+              ],
+              "ready_when": [
+                "Hermes upstream evidence confirms Bedrock is not a credential-pool `auth add` provider and uses the AWS SDK credential chain in the bare auth readout.",
+                "Gormes auth command tests can exercise the refusal with temp credential stores and neutral placeholder token strings only."
+              ],
+              "write_scope": [
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestGormesAuthAddBedrockRefusesCredentialPoolMutation$' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/config ./internal/hermes ./internal/runtime ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "acceptance": [
+                "`gormes auth add bedrock --type api-key --api-key <placeholder> --inference-url <placeholder>` returns an error containing `bedrock_use_aws_sdk_chain` and AWS credential-chain guidance.",
+                "The command output/error does not include the supplied placeholder token or endpoint.",
+                "The Bedrock credential pool remains empty after the refused command.",
+                "Existing bare `gormes auth` Bedrock identity status remains redacted and non-mutating."
+              ],
+              "done_signal": [
+                "Focused auth command fixture proves Bedrock `auth add` refuses credential-pool mutation with safe `bedrock_use_aws_sdk_chain` guidance; progress validation remains green."
+              ]
             },
             {
               "name": "Gormes profile command binding",

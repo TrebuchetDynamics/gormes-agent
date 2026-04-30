@@ -347,6 +347,9 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 	if provider == "" {
 		return errors.New("gormes auth add: provider is required")
 	}
+	if provider == "bedrock" {
+		return errors.New("gormes auth add bedrock: bedrock_use_aws_sdk_chain; configure AWS credentials through the AWS credential chain (env vars, shared profile, SSO, or role credentials) and use bare `gormes auth` for redacted Bedrock identity status")
+	}
 	authType := normalizeAuthType(opts.AuthType, provider)
 	if authType == config.CredentialAuthOAuth {
 		switch provider {

@@ -16,12 +16,12 @@ func TestGormesAuthAddAPIKeyPersistsManualEntry(t *testing.T) {
 		"auth", "add", "openrouter",
 		"--type", "api-key",
 		"--label", "personal",
-		"--api-key", "sk-test-secret",
+		"--api-key", "plain-openrouter-token",
 	)
 	if err != nil {
 		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if strings.Contains(stdout+stderr, "sk-test-secret") {
+	if strings.Contains(stdout+stderr, "plain-openrouter-token") {
 		t.Fatalf("auth add leaked API key:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 	if !strings.Contains(stdout, "auth_api_key_saved") {
@@ -40,11 +40,42 @@ func TestGormesAuthAddAPIKeyPersistsManualEntry(t *testing.T) {
 	if entry.Label != "personal" || entry.AuthType != config.CredentialAuthAPIKey || entry.Source != "manual" {
 		t.Fatalf("entry metadata = %#v", entry)
 	}
-	if entry.AccessToken != "sk-test-secret" {
+	if entry.AccessToken != "plain-openrouter-token" {
 		t.Fatalf("stored token = %q, want test secret in auth store", entry.AccessToken)
 	}
 	if entry.BaseURL != "https://openrouter.ai/api/v1" || entry.InferenceBaseURL != "https://openrouter.ai/api/v1" {
 		t.Fatalf("entry base URLs = base %q inference %q", entry.BaseURL, entry.InferenceBaseURL)
+	}
+}
+
+func TestGormesAuthAddBedrockRefusesCredentialPoolMutation(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "bedrock",
+		"--type", "api-key",
+		"--label", "aws",
+		"--api-key", "plain-bedrock-token",
+		"--inference-url", "https://bedrock-runtime.example.invalid",
+	)
+	combined := stdout + stderr
+	if err == nil || !strings.Contains(err.Error(), "bedrock_use_aws_sdk_chain") {
+		t.Fatalf("auth add bedrock err = %v, stdout=%s stderr=%s, want bedrock_use_aws_sdk_chain", err, stdout, stderr)
+	}
+	if strings.Contains(combined+err.Error(), "plain-bedrock-token") || strings.Contains(combined+err.Error(), "https://bedrock-runtime.example.invalid") {
+		t.Fatalf("auth add bedrock leaked credential detail:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+	}
+	if !strings.Contains(err.Error(), "AWS credential chain") {
+		t.Fatalf("auth add bedrock err = %v, want AWS credential chain guidance", err)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "bedrock"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	if entries := pool.Entries(); len(entries) != 0 {
+		t.Fatalf("bedrock credential pool entries = %#v, want none", entries)
 	}
 }
 
