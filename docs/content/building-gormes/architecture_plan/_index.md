@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 47/78 subphases shipped · 26 in progress · 5 planned
+**Overall:** 47/79 subphases shipped · 27 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 3/9 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
+| Phase 5 — The Final Purge | 🔨 | 3/19 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -865,6 +865,21 @@ classification and row-backed implementation queue.
 - [ ] Strict-mode CWD + interpreter parity
 - [ ] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over
+
+### 5.V — Visual Fidelity + Content Parity (Plan v3.0 Wave 0) 🔨
+
+- [x] Multi-skin TUI support — 8 built-in skins with full color palettes
+- [x] Per-tool emoji parity with Hermes display.py
+- [x] Banner ASCII art — Hermes logo + caduceus
+- [x] SKILL.md output parity — missing JSON fields
+- [ ] Goncho honcho_reasoning LLM-backed synthesis
+- [x] Web dashboard — React SPA parity
+- [ ] Web dashboard server shell + degraded inventory
+- [ ] Web dashboard React/Vite scaffold + 9-page route manifest
+- [ ] Web dashboard core components + data-state fixtures
+- [ ] Web dashboard PTY chat + event websocket fixtures
+- [ ] Web dashboard theme catalog + switcher parity
+- [ ] Web dashboard OAuth provider flows + EN/ZH i18n
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 

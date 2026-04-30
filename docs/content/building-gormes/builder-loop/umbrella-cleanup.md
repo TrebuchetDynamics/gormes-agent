@@ -58,6 +58,7 @@ and acceptance checks before assigning them to an implementation agent.
 | 5 / 5.R | Strict-mode CWD + interpreter parity | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.R | Project-mode CWD + active venv detection | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.R | Default mode selection + config cut-over | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
+| 5 / 5.V | Web dashboard — React SPA parity | `gateway` | A future builder works on this umbrella directly instead of one child slice | - |
 | 6 / 6.A | Heuristic or LLM-scored signal | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 6 / 6.E | Skill effectiveness scoring | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 6 / 6.F | TUI + Telegram browsing | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |

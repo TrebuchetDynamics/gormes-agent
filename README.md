@@ -264,7 +264,7 @@ Full progress: [docs.gormes.ai/building-gormes/architecture_plan](https://docs.g
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 3/9 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
+| Phase 5 — The Final Purge | 🔨 | 3/19 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 <!-- PROGRESS:END -->
