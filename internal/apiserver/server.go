@@ -97,6 +97,8 @@ type Server struct {
 	previousResponseMisses int
 	now                    func() time.Time
 	mux                    *http.ServeMux
+	sseMu      sync.Mutex
+	sseClients []chan string
 }
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.
@@ -236,7 +238,17 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)
 	s.mux.HandleFunc("/v1/admin/cron/jobs/", s.handleCronAdminJobByID)
 
-	s.registerDashboardWeb(s.mux)
+	s.mux.HandleFunc("/{$}", s.handleTemplDashboard)
+	s.mux.HandleFunc("/chat", s.handleTemplChat)
+	s.mux.HandleFunc("/sessions", s.handleTemplSessions)
+	s.mux.HandleFunc("/config", s.handleTemplConfig)
+	s.mux.HandleFunc("/skills", s.handleTemplSkills)
+	s.mux.HandleFunc("/cron", s.handleTemplCron)
+	s.mux.HandleFunc("/dashboard/events", s.handleDashboardSSE)
+	s.mux.HandleFunc("/dashboard/status", s.handleDashboardStatusFragment)
+	s.mux.HandleFunc("/dashboard/memory", s.handleDashboardMemoryFragment)
+	s.mux.HandleFunc("/agent/execute", s.handleAgentExecute)
+	s.mux.Handle("/static/", staticHandler())
 }
 
 func securityHeaders(next http.Handler) http.Handler {
