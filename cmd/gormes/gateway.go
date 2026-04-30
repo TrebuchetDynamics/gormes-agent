@@ -44,7 +44,6 @@ const gatewayMutatingUnavailableExitCode = 2
 
 var gatewayMutatingUnavailableSubcommands = []string{
 	"start",
-	"stop",
 	"restart",
 	"install",
 	"uninstall",

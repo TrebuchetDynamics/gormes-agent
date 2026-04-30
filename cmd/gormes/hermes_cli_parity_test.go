@@ -289,6 +289,19 @@ func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
 	}
 }
 
+func TestHermesCLIParityManifestGatewayStopIsImplemented(t *testing.T) {
+	entry := requireHermesCLIEntry(t, []string{"gateway", "stop"})
+	if entry.Status != hermesCLIImplemented {
+		t.Fatalf("gateway stop status = %q, want implemented: %+v", entry.Status, entry)
+	}
+	if entry.Target != "cmd/gormes gateway stop" {
+		t.Fatalf("gateway stop target = %q, want cmd/gormes gateway stop", entry.Target)
+	}
+	if !strings.Contains(entry.Residual, "validated runtime PID") {
+		t.Fatalf("gateway stop residual = %q, want validated runtime PID evidence", entry.Residual)
+	}
+}
+
 func TestHermesCLIParityManifestFallbackCommandsMatchHermes(t *testing.T) {
 	for _, path := range [][]string{
 		{"fallback", "list"},

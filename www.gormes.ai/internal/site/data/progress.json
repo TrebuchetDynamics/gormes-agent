@@ -24973,7 +24973,7 @@
             {
               "name": "Gateway mutating-subcommand unavailability stub",
               "status": "complete",
-              "contract": "When `gormes gateway` introduces start/stop/restart/install/uninstall subcommands, each unsupported mutating subcommand surfaces a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out to systemd/launchd",
+              "contract": "Gateway lifecycle CLI provides a local safe `stop` command over validated runtime PID evidence, while unsupported start/restart/install/uninstall subcommands surface a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out to systemd/launchd",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -24982,11 +24982,12 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Mutating subcommands print a deterministic `gateway: <subcommand> is not available; use the systemd/service_restart helper` message and exit with a stable non-zero code; no service-manager call is made under tests.",
+              "degraded_mode": "`gormes gateway stop` is idempotent when runtime status is missing, stale, or pid-reused; it signals only a PID validated as the live Gormes gateway and refuses to stop while active_agents is non-zero. Unsupported mutating subcommands print a deterministic `gateway: <subcommand> is not available; use the systemd/service_restart helper` message and exit with a stable non-zero code; no service-manager call is made under tests.",
               "fixture": "cmd/gormes/gateway_mutating_unavailable_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/gateway.py@edc78e25:systemd_install,launchd_install,systemd_start,launchd_start",
                 "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_stop.go",
                 "cmd/gormes/gateway_status.go",
                 "internal/cli/service_restart.go"
               ],
@@ -24996,6 +24997,7 @@
               ],
               "not_ready_when": [
                 "The slice actually shells out to systemd/launchd/sc.exe in tests, or installs/uninstalls real services from a Go test process.",
+                "`gateway stop` signals a PID without validated live gateway runtime evidence.",
                 "The slice rewrites the existing `gateway status` subcommand or changes the runtime status read path."
               ],
               "blocked_by": [
@@ -25006,24 +25008,27 @@
                 "Webhook/platform management CLI helpers"
               ],
               "acceptance": [
-                "Adding mutating subcommands `start`, `stop`, `restart`, `install`, `uninstall` to gatewayCmd registers a deterministic unavailability handler that returns `gateway: <subcommand> is not available; use the service_restart helper` and exits non-zero.",
-                "A new test in cmd/gormes/gateway_mutating_unavailable_test.go invokes `gormes gateway <subcommand>` for each mutating verb and asserts the error message + non-zero exit code without opening systemd/launchd.",
+                "`gormes gateway stop` reads validated runtime status, sends an interrupt only to the validated live gateway PID when active_agents is zero, waits for status to become non-live, and reports the validation status used for the stop result.",
+                "`gormes gateway stop` exits successfully without signalling when runtime status is missing, stale, stopped, pid-reused, or otherwise not live; it returns an actionable error without signalling when active_agents is non-zero.",
+                "Adding mutating subcommands `start`, `restart`, `install`, `uninstall` to gatewayCmd registers a deterministic unavailability handler that returns `gateway: <subcommand> is not available; use the service_restart helper` and exits non-zero.",
+                "Tests in cmd/gormes/gateway_mutating_unavailable_test.go invoke `gormes gateway stop` and every unsupported mutating verb, asserting signal/no-signal behavior or unavailable error + non-zero exit code without opening systemd/launchd.",
                 "The existing `gateway status` subcommand and runtime status path are unchanged.",
                 "No new gateway runtime state file or service manager dependency is introduced."
               ],
-              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go now registers start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covers each verb, asserts no runtime/state file is opened, and verifies `gateway status` is unaffected. No service-manager dependency or runtime state file was added.",
+              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go originally registered start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covered each verb, asserted no runtime/state file is opened, and verified `gateway status` is unaffected. 2026-04-30 dev-loop hardening promotes `gateway stop` from unavailable stub to safe local stop: cmd/gormes/gateway_stop.go reads validated runtime status, signals only the live gateway PID with os.Interrupt, waits for non-live validation, and treats missing/stale runtime as idempotent no-op so bin/gormes and go-run gateway testing can release sessions.db without killing by process name.",
               "write_scope": [
                 "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_stop.go",
                 "cmd/gormes/gateway_mutating_unavailable_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run 'TestGatewayMutating' -count=1",
+                "go test ./cmd/gormes -run 'TestGatewayStop|TestGatewayMutating' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "TestGatewayMutating* fixtures prove every introduced mutating subcommand returns the stable unavailability error and never invokes a live service manager."
+                "TestGatewayStop* fixtures prove validated live gateway PIDs are interrupted only when active_agents is zero, missing/stale runtimes are no-op, active runtimes with active_agents are refused, and TestGatewayMutating* fixtures prove unsupported mutating subcommands still return the stable unavailability error without invoking a live service manager."
               ],
               "health": {
                 "attempt_count": 1,
@@ -25033,7 +25038,7 @@
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/gateway.py",
-                "note": "Hermes exposes systemd/launchd mutating commands; Gormes intentionally defers them to the service_restart helper and surfaces an unavailability stub on cmd/gormes/gateway.go to keep the mutating surface honest."
+                "note": "Hermes exposes systemd/launchd mutating commands; Gormes intentionally defers service-manager start/restart/install/uninstall to the service_restart helper while providing a Go-native local stop command for validated live gateway runtimes."
               }
             },
             {

@@ -93,7 +93,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowPath([]string{"migrate", "ooenclaw"}, hermesCLICommand, "operator request compatibility", "OpenClaw migration dry-run manifest", "must suggest `gormes migrate openclaw`; must not become a silent import alias"),
 	}
 
-	entries = append(entries, hermesNestedCommands("gateway", "hermes_cli/main.py:gateway_subparsers", "Gateway, platform, webhook, and cron management CLI", []string{"run", "start", "stop", "restart", "status", "install", "uninstall", "setup", "migrate-legacy"})...)
+	entries = append(entries, hermesGatewayNestedCommands()...)
 	entries = append(entries, hermesFallbackCommands()...)
 	entries = append(entries, hermesNestedCommands("slack", "hermes_cli/main.py:slack_sub", "Gateway, platform, webhook, and cron management CLI", []string{"manifest"})...)
 	entries = append(entries, hermesProviderAuthCommands()...)
@@ -200,6 +200,24 @@ func hermesNestedCommands(group, sourceRef, row string, commands []string) []her
 		entry := hermesRowPath([]string{group, command}, hermesCLICommand, sourceRef+":"+command, row, group+" "+command+" handler remains classified by this manifest; implementation lands in its dedicated row")
 		markHermesCLIEntryFlags(&entry)
 		out = append(out, entry)
+	}
+	return out
+}
+
+func hermesGatewayNestedCommands() []hermesCLIParityEntry {
+	out := hermesNestedCommands("gateway", "hermes_cli/main.py:gateway_subparsers", "Gateway, platform, webhook, and cron management CLI", []string{"run", "start", "stop", "restart", "status", "install", "uninstall", "setup", "migrate-legacy"})
+	for i := range out {
+		key := strings.Join(out[i].Path, " ")
+		switch key {
+		case "gateway status":
+			out[i].Status = hermesCLIImplemented
+			out[i].Target = "cmd/gormes gateway status"
+			out[i].Residual = "read-only gateway status command is implemented"
+		case "gateway stop":
+			out[i].Status = hermesCLIImplemented
+			out[i].Target = "cmd/gormes gateway stop"
+			out[i].Residual = "local gateway stop is implemented over validated runtime PID evidence"
+		}
 	}
 	return out
 }

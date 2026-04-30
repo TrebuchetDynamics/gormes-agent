@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 func TestGatewayMutatingSubcommandsAreUnavailable(t *testing.T) {
@@ -44,6 +46,143 @@ func TestGatewayMutatingSubcommandsAreUnavailable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGatewayStopSignalsValidatedLiveRuntime(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayStopRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status: gateway.RuntimeProcessValidationLive,
+					Live:   true,
+					PID:    4242,
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					GatewayState: gateway.GatewayStateStopped,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:  gateway.RuntimeProcessValidationStalePID,
+					Live:    false,
+					PID:     4242,
+					Message: "process is not running",
+				},
+			},
+		},
+	}
+	restoreStore := gatewayStopRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayStopSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "stop", "--timeout=100ms")
+	if err != nil {
+		t.Fatalf("gateway stop: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 1 || signals[0].pid != 4242 || signals[0].signal != os.Interrupt {
+		t.Fatalf("signals = %+v, want one interrupt for pid 4242", signals)
+	}
+	for _, want := range []string{
+		"gateway stop: sent interrupt to pid=4242",
+		"gateway stop: stopped",
+		"stale_pid",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	assertGatewayStopDidNotOpenDurableStores(t)
+}
+
+func TestGatewayStopRefusesActiveAgents(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayStopRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				GatewayState: gateway.GatewayStateRunning,
+				ActiveAgents: 1,
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status: gateway.RuntimeProcessValidationLive,
+				Live:   true,
+				PID:    4242,
+			},
+		}},
+	}
+	restoreStore := gatewayStopRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayStopSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "stop")
+	if err == nil {
+		t.Fatalf("gateway stop should reject active agents\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if len(signals) != 0 {
+		t.Fatalf("signals = %+v, want none when active agents are running", signals)
+	}
+	if !strings.Contains(err.Error(), "active_agents=1") {
+		t.Fatalf("error missing active agent evidence: %v", err)
+	}
+	assertGatewayStopDidNotOpenDurableStores(t)
+}
+
+func TestGatewayStopNoLiveRuntimeIsIdempotent(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayStopRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{{
+			Missing: true,
+			Validation: gateway.RuntimeProcessValidation{
+				Status:  gateway.RuntimeProcessValidationMissingState,
+				Live:    false,
+				Message: "runtime status is missing",
+			},
+		}},
+	}
+	restoreStore := gatewayStopRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayStopSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "stop")
+	if err != nil {
+		t.Fatalf("gateway stop should be idempotent: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 0 {
+		t.Fatalf("signals = %+v, want none for missing runtime", signals)
+	}
+	for _, want := range []string{
+		"gateway stop: no live gateway runtime",
+		"missing_state",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	assertGatewayStopDidNotOpenDurableStores(t)
 }
 
 func TestGatewayMutatingExitCodeIsStable(t *testing.T) {
@@ -86,13 +225,74 @@ func TestGatewayMutatingDoesNotShadowGatewayStatus(t *testing.T) {
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
 }
 
-func executeGatewayMutatingCommand(t *testing.T, sub string) (string, string, error) {
+func executeGatewayMutatingCommand(t *testing.T, sub string, args ...string) (string, string, error) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCommand()
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"gateway", sub})
+	cmdArgs := append([]string{"gateway", sub}, args...)
+	cmd.SetArgs(cmdArgs)
 	err := cmd.Execute()
 	return stdout.String(), stderr.String(), err
+}
+
+func assertGatewayStopDidNotOpenDurableStores(t *testing.T) {
+	t.Helper()
+	for _, path := range []string{
+		config.SessionDBPath(),
+		config.MemoryDBPath(),
+	} {
+		if _, err := os.Stat(path); err == nil {
+			t.Fatalf("gateway stop opened durable store %s", path)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat durable store %s: %v", path, err)
+		}
+	}
+}
+
+type fakeGatewayStopRuntimeStore struct {
+	snapshots []gateway.RuntimeStatusSnapshot
+	err       error
+	reads     int
+}
+
+func (s *fakeGatewayStopRuntimeStore) ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error) {
+	if s.err != nil {
+		return gateway.RuntimeStatusSnapshot{}, s.err
+	}
+	if len(s.snapshots) == 0 {
+		return gateway.RuntimeStatusSnapshot{}, nil
+	}
+	idx := s.reads
+	if idx >= len(s.snapshots) {
+		idx = len(s.snapshots) - 1
+	}
+	s.reads++
+	return s.snapshots[idx], nil
+}
+
+type gatewayStopSignal struct {
+	pid    int
+	signal os.Signal
+}
+
+func gatewayStopRuntimeStoreForTest(t *testing.T, store gatewayStopRuntimeStore) func() {
+	t.Helper()
+	previous := newGatewayStopRuntimeStore
+	newGatewayStopRuntimeStore = func(string) gatewayStopRuntimeStore {
+		return store
+	}
+	return func() {
+		newGatewayStopRuntimeStore = previous
+	}
+}
+
+func gatewayStopSignalForTest(t *testing.T, signal func(int, os.Signal) error) func() {
+	t.Helper()
+	previous := signalGatewayStopProcess
+	signalGatewayStopProcess = signal
+	return func() {
+		signalGatewayStopProcess = previous
+	}
 }
