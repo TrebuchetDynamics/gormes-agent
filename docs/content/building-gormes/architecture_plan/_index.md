@@ -606,7 +606,7 @@ classification and row-backed implementation queue.
 ### 5.C — Browser Automation 🔨
 
 - [x] Browser action contract + event transcript
-- [ ] go-browser-harness Chromedp action backend
+- [x] go-browser-harness Chromedp action backend
 - [ ] Rod
 - [x] Browser provider bridge + Firecrawl fallback
 - [x] Browser Use cloud + Go browser harness bridge

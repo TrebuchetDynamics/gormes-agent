@@ -220,3 +220,102 @@ func decodeHarnessAction(t *testing.T, raw string) BrowserHarnessActionRequest {
 	}
 	return action
 }
+
+// ---------------------------------------------------------------------------
+// New tests required by the chromedp backend row
+// ---------------------------------------------------------------------------
+
+// TestBrowserHarness_NavigateEmitsNewTabActionJSON proves browser_navigate
+// emits --action-json with new_tab=true and does NOT emit Python snippets.
+func TestBrowserHarness_NavigateEmitsNewTabActionJSON(t *testing.T) {
+	runner := &recordingHarnessRunner{
+		result: BrowserHarnessProcessResult{
+			Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","task_id":"nav-task","url":"https://gormes.ai"}`),
+		},
+	}
+	tool := NewBrowserHarnessTool(BrowserToolNavigate, BrowserHarnessToolsConfig{
+		Runner: runner,
+		Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+	})
+
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://gormes.ai","task_id":"nav-task"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	// argv[0] must be "go-browser-harness", argv[1] must be "--action-json"
+	if len(runner.argv) < 3 {
+		t.Fatalf("argv too short: %v", runner.argv)
+	}
+	if runner.argv[0] != defaultBrowserHarnessCommand {
+		t.Fatalf("argv[0] = %q, want %q (not Python browser-harness)", runner.argv[0], defaultBrowserHarnessCommand)
+	}
+	if runner.argv[1] != "--action-json" {
+		t.Fatalf("argv[1] = %q, want --action-json", runner.argv[1])
+	}
+
+	// Decode the action JSON and verify new_tab=true.
+	action := decodeHarnessAction(t, runner.argv[2])
+	if !action.NewTab {
+		t.Fatalf("browser_navigate action JSON must have new_tab=true; got: %#v", action)
+	}
+	if action.URL != "https://gormes.ai" {
+		t.Fatalf("action.URL = %q, want https://gormes.ai", action.URL)
+	}
+
+	// Must NOT contain Python snippets.
+	actionJSONStr := runner.argv[2]
+	for _, pyMarker := range []string{"import json", "new_tab(", "goto_url(", "wait_for_load(", "browser-harness"} {
+		if strings.Contains(actionJSONStr, pyMarker) {
+			t.Fatalf("action JSON contains Python snippet %q; must use Go-native action JSON only", pyMarker)
+		}
+	}
+}
+
+// TestBrowserHarness_DefaultBackendIsGoNotPython proves that under default
+// config (no Command/Protocol override), the harness routes through
+// go-browser-harness --action-json and never emits browser-harness -c Python code.
+func TestBrowserHarness_DefaultBackendIsGoNotPython(t *testing.T) {
+	for _, toolName := range []string{
+		BrowserToolNavigate,
+		BrowserToolSnapshot,
+		BrowserToolBack,
+		BrowserToolScroll,
+	} {
+		t.Run(toolName, func(t *testing.T) {
+			runner := &recordingHarnessRunner{
+				result: BrowserHarnessProcessResult{Stdout: []byte(`{"ok":true}`)},
+			}
+			argsByTool := map[string]string{
+				BrowserToolNavigate: `{"url":"https://example.com","task_id":"default-test"}`,
+				BrowserToolSnapshot: `{"task_id":"default-test"}`,
+				BrowserToolBack:     `{"task_id":"default-test"}`,
+				BrowserToolScroll:   `{"direction":"down","task_id":"default-test"}`,
+			}
+			tool := NewBrowserHarnessTool(toolName, BrowserHarnessToolsConfig{
+				// Deliberately empty Command/Protocol — default routing must choose go-browser-harness.
+				Runner: runner,
+				Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+			})
+			_, err := tool.Execute(context.Background(), json.RawMessage(argsByTool[toolName]))
+			if err != nil {
+				t.Fatalf("[%s] Execute: %v", toolName, err)
+			}
+			if len(runner.argv) < 2 {
+				t.Fatalf("[%s] argv too short: %v", toolName, runner.argv)
+			}
+			if runner.argv[0] != defaultBrowserHarnessCommand {
+				t.Fatalf("[%s] argv[0] = %q, want %q (default must be go-browser-harness, not Python)", toolName, runner.argv[0], defaultBrowserHarnessCommand)
+			}
+			if runner.argv[1] != "--action-json" {
+				t.Fatalf("[%s] argv[1] = %q, want --action-json", toolName, runner.argv[1])
+			}
+			// Must not have Python code as argv[2].
+			if len(runner.argv) >= 3 {
+				if strings.Contains(runner.argv[2], "import json") || strings.Contains(runner.argv[2], "browser-harness") {
+					t.Fatalf("[%s] argv[2] contains Python code: %q", toolName, runner.argv[2])
+				}
+			}
+		})
+	}
+}

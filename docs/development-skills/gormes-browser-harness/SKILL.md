@@ -67,6 +67,44 @@ work in `gormes-builder`.
 6. If a live smoke test is needed, mark it optional and keep it outside the
    required CI gate.
 
+## Chromedp Backend (Default as of 2026-04-29)
+
+`../go-browser-harness/pkg/harness` now provides a live `ChromedpBackend` that
+dispatches browser actions through the Chrome DevTools Protocol (CDP) using the
+`github.com/chromedp/chromedp` and `github.com/chromedp/cdproto` libraries.
+
+### Operator setup
+
+1. Start Chrome with remote debugging enabled:
+   ```sh
+   google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/gormes-chrome
+   ```
+2. Export the endpoint:
+   ```sh
+   export CHROME_REMOTE_DEBUGGING_URL=http://localhost:9222
+   ```
+   A full websocket URL (`ws://localhost:9222/devtools/browser/...`) is also accepted.
+3. Run `go-browser-harness --action-json '{"schema_version":"gormes.browser.action.v1",...}'`
+
+Gormes never auto-launches Chrome. If `CHROME_REMOTE_DEBUGGING_URL` is unset, the
+harness returns `go_browser_harness_backend_unavailable` typed evidence.
+
+### New-tab semantics
+
+`browser_navigate` MUST call `Target.createTarget` (new tab) then
+`Target.activateTarget` before navigating. It never reuses the operator's active tab.
+In the Go action JSON contract this is represented by `new_tab: true` on navigate.
+
+This is enforced at the harness layer in
+`pkg/harness/chromedp_backend.go:ChromedpBackend.runNavigate` and at the tool layer
+in `internal/tools/browser_harness_tools.go:buildActionRequest` (case `browser_navigate`).
+
+### Python browser-harness (legacy path only)
+
+`browser-harness -c` is retained for explicit legacy compatibility only. It must be
+selected by setting `Command: "browser-harness"` and `Protocol: "python-browser-harness"`
+in `BrowserHarnessToolsConfig`. It is never the default.
+
 ## Browser-Harness Mapping Rules
 
 - `go-browser-harness --action-json <gormes.browser.action.v1>` is the default
