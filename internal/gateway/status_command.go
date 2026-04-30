@@ -7,9 +7,18 @@ import (
 	"strings"
 	"time"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
+
+// statusTitleUnavailable is the documented degraded-mode sentinel rendered
+// when the session has no metadata title and no auto-title generation has
+// produced one. Holding the field in the response (rather than silently
+// omitting it) preserves Hermes /status field-order parity and surfaces the
+// auto-title gap as visible operator evidence.
+const statusTitleUnavailable = "title_unavailable"
 
 func (m *Manager) handleStatusCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	_, _ = m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID, m.formatGatewayStatus(ctx, ev))
@@ -34,6 +43,9 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 			lastActivity = formatStatusTime(time.Unix(meta.UpdatedAt, 0))
 		}
 	}
+	if title == "" {
+		title = statusTitleUnavailable
+	}
 
 	tokens := frame.Telemetry.TokensInTotal + frame.Telemetry.TokensOutTotal
 	agentRunning := "No"
@@ -49,23 +61,20 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		connected = strings.Join(platforms, ", ")
 	}
 
+	esc := func(s string) string { return tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, s) }
+
 	lines := []string{
-		"📊 Gormes Gateway Status",
+		"📊 **Gormes Gateway Status**",
 		"",
-		"Session ID:",
-		sessionID,
-	}
-	if title != "" {
-		lines = append(lines, "Title: "+title)
-	}
-	lines = append(lines,
-		"Created: "+created,
-		"Last Activity: "+lastActivity,
-		fmt.Sprintf("Tokens: %d", tokens),
-		"Agent Running: "+agentRunning,
+		"**Session ID:** `" + sessionID + "`",
+		"**Title:** " + esc(title),
+		"**Created:** " + esc(created),
+		"**Last Activity:** " + esc(lastActivity),
+		fmt.Sprintf("**Tokens:** %d", tokens),
+		"**Agent Running:** " + agentRunning,
 		"",
-		"Connected Platforms: "+connected,
-	)
+		"**Connected Platforms:** " + esc(connected),
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -136,13 +145,19 @@ func (m *Manager) persistStatusSession(ctx context.Context, ev InboundEvent, ses
 	}
 }
 
+// ensureStatusSessionMetadata writes durable identity for the session row the
+// /status command resolved. It deliberately does NOT seed a synthetic
+// "Telegram conversation with X" title: the row contract says missing titles
+// must surface the title_unavailable degraded-mode sentinel instead of a
+// hardcoded fake. Auto-title generation is the eventual fix and is tracked
+// as a separate progress row.
 func (m *Manager) ensureStatusSessionMetadata(ctx context.Context, ev InboundEvent, sessionID string) {
 	writer, ok := m.cfg.SessionMap.(sessionMetadataWriter)
 	if !ok {
 		return
 	}
 	source := sessionSourceFromInbound(ev)
-	title := statusSessionTitle(ev)
+	title := ""
 	if existing, ok := m.lookupSessionMetadata(ctx, sessionID); ok && strings.TrimSpace(existing.Title) != "" {
 		title = strings.TrimSpace(existing.Title)
 	}
@@ -160,21 +175,6 @@ func (m *Manager) ensureStatusSessionMetadata(ctx context.Context, ev InboundEve
 	if err := writer.PutMetadata(ctx, meta); err != nil {
 		m.log.Warn("write session metadata for status", "session_id", sessionID, "err", err)
 	}
-}
-
-func statusSessionTitle(ev InboundEvent) string {
-	platform := strings.TrimSpace(ev.Platform)
-	if platform == "" {
-		platform = "gateway"
-	}
-	platform = strings.ToUpper(platform[:1]) + platform[1:]
-	if userID := strings.TrimSpace(ev.UserID); userID != "" {
-		return platform + " conversation with " + userID
-	}
-	if chatID := strings.TrimSpace(ev.ChatID); chatID != "" {
-		return platform + " chat " + chatID
-	}
-	return platform + " gateway session"
 }
 
 func (m *Manager) lookupSessionMetadata(ctx context.Context, sessionID string) (session.Metadata, bool) {

@@ -2177,10 +2177,10 @@
             },
             {
               "name": "Telegram /status Hermes-format closeout",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "`/status` renders Hermes-compatible field order and labels, always includes a real session title when a title exists or can be generated, quotes the triggering Telegram message, and remains a gateway command that never enters the provider/model path.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2219,7 +2219,56 @@
               "ready_when": [
                 "Hermes/Sidon `/status` field order and Telegram reply behavior have been source-audited against gateway references.",
                 "Existing status/session metadata seams can be exercised with fake gateway and Telegram fixtures only."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/status_command.go:formatGatewayStatus (Hermes-compatible bold MarkdownV2 field labels and order: gateway header plus Session ID, Title, Created, Last Activity, Tokens, Agent Running, Connected Platforms)",
+                  "internal/gateway/status_command.go:statusTitleUnavailable (degraded-mode sentinel; renderer surfaces title_unavailable when metadata title is empty rather than silently omitting the line or rendering a synthetic placeholder)",
+                  "internal/gateway/status_command.go:ensureStatusSessionMetadata (no longer seeds a synthetic platform-derived title; status-created sessions persist with empty Title so the renderer surfaces title_unavailable; auto-title generation wiring is tracked separately)",
+                  "internal/gateway/status_command.go:handleStatusCommand (existing sendWithHooksReply path threads ev.MsgID into the channels SendReply when the channel implements gateway.ReplySender, achieving Hermes-style reply quoting with no new outbound API)",
+                  "Value-substring escaping uses tgbotapi.EscapeText(MarkdownV2,...) inline; render.go was untouched (Lane Bs parse-mode work already covers the bots outbound parse mode)."
+                ],
+                "tests": [
+                  "internal/gateway/status_command_test.go:TestStatusCommand_RendersAllRequiredFields (locks bold-label field order)",
+                  "internal/gateway/status_command_test.go:TestStatusCommand_TitleFromMetadata (titles in metadata render verbatim)",
+                  "internal/gateway/status_command_test.go:TestStatusCommand_TitleUnavailable (empty metadata title renders title_unavailable sentinel)",
+                  "internal/gateway/status_command_test.go:TestStatusCommand_ProviderBypass (fakeKernel records zero PlatformEvents after /status)",
+                  "internal/gateway/status_command_test.go:TestStatusCommand_RepliesWithReplyToMsgID (statusReplyChannel sees the inbound MsgID threaded to SendReply)",
+                  "internal/gateway/status_command_test.go:TestStatusCommand_BoldFieldLabels (asserts the bold MarkdownV2 Session ID label and bold gateway header substrings)",
+                  "internal/gateway/status_command_test.go:TestStatusCommand_EscapesMarkdownV2InValueSubstrings (titles with MarkdownV2 specials survive without breaking the bold-label parse)",
+                  "internal/gateway/status_command_test.go:TestManagerStatusCommandRendersHermesStyleGatewayStatus (legacy fixture, updated to bold-label contract)",
+                  "internal/gateway/status_command_test.go:TestManagerStatusCommandInitializesMissingChatSession (status-created sessions persist empty Title and render the title_unavailable sentinel)",
+                  "internal/gateway/status_command_test.go:TestManagerStatusCommandRepliesToInboundTelegramMessage",
+                  "internal/gateway/status_command_test.go:TestManagerStatusCommandReplacesLegacyChatKeySessionID",
+                  "internal/channels/telegram/bot_test.go:TestTelegramBot_StatusReplyThreadsToTriggeringMessage (inbound /status with MessageID=42 surfaces InboundEvent.MsgID=42; outbound SendReply produces tgbotapi.MessageConfig with ReplyToMessageID=42 and ParseMode=MarkdownV2)"
+                ],
+                "sample_rendered_status_body": "📊 **Gormes Gateway Status**\n\n**Session ID:** `sess-123`\n**Title:** Friendly Greeting with Juan\n**Created:** 2026\\-04\\-29 01:42\n**Last Activity:** 2026\\-04\\-29 03:42\n**Tokens:** 7\n**Agent Running:** No\n\n**Connected Platforms:** telegram",
+                "parity_matrix": {
+                  "gateway_header_emoji": "barchart emoji (parity with Hermes)",
+                  "gateway_header_text": "Gormes Gateway Status vs Hermes Hermes Gateway Status (intentional product-name divergence)",
+                  "field_order": "Session ID, Title, Created, Last Activity, Tokens, Agent Running, Connected Platforms (parity with hermes-agent/gateway/run.py:5786-5803)",
+                  "session_id_format": "code-fenced (parity with Hermes)",
+                  "field_labels": "Bold MarkdownV2 (parity with Hermes; unblocked by 6f9ddac66 telegram parse_mode set)",
+                  "title_missing_behavior": "Title line carries title_unavailable sentinel (Gormes-specific degraded-mode evidence; Hermes silently omits the line. Rows degraded_mode contract intentionally diverges from Hermes here)",
+                  "queued_followups_line": "Not rendered yet (Hermes-only; tracked as a separate progress row when /queue lands)",
+                  "agent_running_emoji": "Plain Yes/No in Gormes; Hermes appends bolt emoji to Yes. Minor cosmetic divergence, deferred (no operator-evidence impact)",
+                  "reply_quoting": "ReplyToMessageID threaded via existing sendWithHooksReply -> ReplySender capability check (parity with Sidon /status reply quoting)",
+                  "provider_bypass": "Proven by TestStatusCommand_ProviderBypass: fakeKernel records zero submits"
+                },
+                "scope_decisions": {
+                  "auto_title_generation_wired": false,
+                  "rationale": "internal/hermes/title_generator.go:GenerateTitle remains unwired. This slice closes the rendering gap (title_unavailable sentinel plus verbatim rendering of any metadata-stored title). Wiring GenerateTitle to fire after the first user+assistant turn is a separate progress row to keep this slice TDD-tight and to avoid live LLM coupling.",
+                  "followup_row_recommended": "Auto-title generation wiring: call internal/hermes.GenerateTitle after the first assistant turn completes for status-eligible sessions, persist the result through sessionMetadataWriter.PutMetadata, and gate behind an injectable TitleModelFunc so tests stay hermetic."
+                },
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run Status|Title -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run Status|Reply -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              }
             },
             {
               "name": "Gateway /title manual session title command",

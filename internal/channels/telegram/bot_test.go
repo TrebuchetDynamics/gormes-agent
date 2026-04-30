@@ -313,6 +313,66 @@ func TestBot_DeleteMessage(t *testing.T) {
 	}
 }
 
+// TestTelegramBot_StatusReplyThreadsToTriggeringMessage proves the Telegram
+// adapter captures the inbound MessageID for /status and threads it through
+// to a SendReply call so the outbound Telegram API invocation sets
+// ReplyToMessageID to the same id, matching Sidon/Hermes reply quoting.
+func TestTelegramBot_StatusReplyThreadsToTriggeringMessage(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = b.Run(ctx, inbox) }()
+
+	// Push a /status update with a specific MessageID; the bot must surface
+	// that ID on the InboundEvent so the gateway can thread it back as the
+	// ReplyToMessageID on the outbound status response.
+	mc.updatesCh <- tgbotapi.Update{
+		UpdateID: 1,
+		Message: &tgbotapi.Message{
+			MessageID: 42,
+			Text:      "/status",
+			Chat:      &tgbotapi.Chat{ID: 42},
+			From:      &tgbotapi.User{ID: 7, FirstName: "juan"},
+		},
+	}
+
+	var ev gateway.InboundEvent
+	select {
+	case ev = <-inbox:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("no inbound event")
+	}
+	if ev.Kind != gateway.EventStatus {
+		t.Fatalf("Kind = %v, want EventStatus", ev.Kind)
+	}
+	if ev.MsgID != "42" {
+		t.Fatalf("ev.MsgID = %q, want \"42\"", ev.MsgID)
+	}
+
+	// Now exercise SendReply with the captured MsgID; assert the outbound
+	// MessageConfig carries ReplyToMessageID=42.
+	if _, err := b.SendReply(context.Background(), ev.ChatID, ev.MsgID, "status body"); err != nil {
+		t.Fatal(err)
+	}
+	sent := mc.sentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	msg, ok := sent[0].(tgbotapi.MessageConfig)
+	if !ok {
+		t.Fatalf("sent type = %T, want MessageConfig", sent[0])
+	}
+	if msg.ReplyToMessageID != 42 {
+		t.Fatalf("ReplyToMessageID = %d, want 42", msg.ReplyToMessageID)
+	}
+	if msg.ParseMode != tgbotapi.ModeMarkdownV2 {
+		t.Fatalf("ParseMode = %q, want MarkdownV2 so the bold status labels render", msg.ParseMode)
+	}
+}
+
 func TestBot_NilMessage_Skipped(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)
