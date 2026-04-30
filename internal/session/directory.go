@@ -45,6 +45,12 @@ type Metadata struct {
 	ExpiryFinalizeLastError      string               `json:"expiry_finalize_last_error,omitempty"`
 	ExpiryFinalizeLastEvidenceAt int64                `json:"expiry_finalize_last_evidence_at,omitempty"`
 	MigratedMemoryFlushed        bool                 `json:"migrated_memory_flushed,omitempty"`
+	// TitleManuallySet is true when the title was set by an operator via
+	// /title rather than generated automatically. mergeMetadata treats this
+	// field as sticky-true: once set it cannot be cleared by a plain
+	// PutMetadata call. Use MetadataTitleStore.SetTitle to clear it atomically
+	// (that path uses a read-modify-write that bypasses the sticky guard).
+	TitleManuallySet bool `json:"title_manually_set,omitempty"`
 }
 
 // ExpiryFinalizeStatus is persisted evidence for gateway session-expiry
@@ -90,6 +96,13 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	}
 	if incoming.Title != "" {
 		out.Title = incoming.Title
+	}
+	// TitleManuallySet is sticky-true: incoming=true always sets the flag;
+	// incoming=false (the default zero value) never clears an existing true.
+	// Atomic clearing by auto-title is performed by MetadataTitleStore.SetTitle
+	// via a read-modify-write that directly overwrites the stored value.
+	if incoming.TitleManuallySet {
+		out.TitleManuallySet = true
 	}
 	if incoming.ParentSessionID != "" {
 		if out.ParentSessionID != "" && out.ParentSessionID != incoming.ParentSessionID {

@@ -2330,10 +2330,10 @@
             },
             {
               "name": "Session metadata manual-title protection flag",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Persist a manual-title flag on session.Metadata, expose a concrete SessionTitleStore adapter that surfaces it to PerformAutoTitle, and wire the gateway /title set path to mark titles as manual so future auto-title generation cannot overwrite operator-set names.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2391,7 +2391,11 @@
               ],
               "evidence": [
                 "GAP: User-shipped e23f0421c implements /title without the manual flag, leaving the contract claim 'manual titles are not overwritten by auto-title' (row L2299) unenforced because session.Metadata has no TitleManuallySet field and no concrete SessionTitleStore adapter exists on dev.",
-                "GAP: internal/session/auto_title.go:67 declares Title(sessionID) (current, manual, ok, err) but no in-tree implementation satisfies it; PerformAutoTitle would skip the manual short-circuit silently."
+                "GAP: internal/session/auto_title.go:67 declares Title(sessionID) (current, manual, ok, err) but no in-tree implementation satisfies it; PerformAutoTitle would skip the manual short-circuit silently.",
+                "RED: TestMetadata_TitleManuallySetRoundTripsThroughBolt, TestMergeMetadata_ManualFlagIsStickyTrue, TestMetadata_LegacyDecodeHasManualFlagFalse, TestSessionTitleStore_TitleReturnsManualTrueWhenFlagSet, TestSessionTitleStore_TitleReturnsManualFalseForLegacyRow, TestSessionTitleStore_SetTitleClearsManualFlag, TestSessionTitleStore_TitleReturnsOKFalseForUnknownSession, TestSessionTitleStore_TitleReturnsErrorOnStoreFailure, TestPerformAutoTitle_ManualShortCircuitViaConcreteAdapter, TestTitleCommand_SetPathPersistsManualFlag, TestTitleCommand_ShowPathDoesNotMutateManualFlag — all failed at field-missing compile errors before implementation.",
+                "GREEN: TitleManuallySet bool added to session.Metadata with json:title_manually_set,omitempty. mergeMetadata sticky-true block added after Title merge. MetadataTitleStore adapter in internal/session/title_store.go implements SessionTitleStore via read path (GetMetadata) and SetTitle via setTitleAuto read-modify-write that explicitly clears TitleManuallySet=false on both MemMap and BoltMap, bypassing mergeMetadata's sticky guard. /title set path in internal/gateway/title_command.go adds TitleManuallySet:true to the PutMetadata literal.",
+                "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./... -count=1 — all packages pass. go run ./cmd/progress validate — 7 phases validated. git diff --check — clean.",
+                "scope_decisions: SetTitle clearing strategy is read-modify-write via unexported setTitleAuto methods on MemMap and BoltMap. mergeMetadata sticky-true guard covers the common PutMetadata path; setTitleAuto bypasses it with a direct field assignment. This keeps the public SessionTitleStore interface unchanged and satisfies the auto_title.go contract without a sentinel/pointer extension to mergeMetadata."
               ]
             },
             {

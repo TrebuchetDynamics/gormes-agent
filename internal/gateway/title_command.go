@@ -40,10 +40,11 @@ func (m *Manager) handleTitleCommand(ctx context.Context, ch Channel, ev Inbound
 	}
 
 	meta := session.Metadata{
-		SessionID:   sessionID,
-		Title:       title,
-		UpdatedAt:   m.now().Unix(),
-		LineageKind: session.LineageKindPrimary,
+		SessionID:        sessionID,
+		Title:            title,
+		TitleManuallySet: true,
+		UpdatedAt:        m.now().Unix(),
+		LineageKind:      session.LineageKindPrimary,
 	}
 	if existing, ok := m.lookupSessionMetadata(ctx, sessionID); ok {
 		meta.Source = existing.Source
