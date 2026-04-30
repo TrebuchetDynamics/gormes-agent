@@ -108,28 +108,7 @@ selection.
 - Unblocks: Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures
 - Why now: Unblocks Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures.
 
-## 5. GitHub + Skills.sh registry metadata providers
-
-- Phase: 5 / 5.F
-- Owner: `skills`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: internal/skills adds read-only GitHub and Skills.sh registry providers over the existing HubRegistryProvider/Search seam, normalizing source, install IDs, repo/path, tags, and community/trusted trust evidence from Hermes GitHubSource and SkillsShSource while keeping install, quarantine, guard scanning, and active-store mutation out of scope.
-- Trust class: operator, system
-- Ready when: Hermes index/cache source-router slice is landed or the worker explicitly limits this slice to provider-local fixtures without source-router preference., Tests inject fake HTTP clients and response fixtures; no live GitHub token, gh CLI, registry network, active skill store, or quarantine directory is required.
-- Not ready when: The slice fetches bundle contents for installation, writes active/candidate skills, performs guard scans, shells out to gh, or changes skill prompt/tool exposure., Provider trust rules are guessed instead of derived from Hermes GitHubSource/SkillsShSource and TRUSTED_REPOS evidence., Claude Marketplace or LobeHub behavior is implemented here instead of the separate marketplace row.
-- Degraded mode: GitHub API failures, anonymous rate limits, Skills.sh failures, malformed JSON, and empty registry responses return typed evidence values while preserving partial results from other providers.
-- Fixture: `internal/skills/hub_registry_sources_test.go::TestGitHubRegistryProviderTrustedAndCommunityMetadata+TestSkillsShProviderDelegatesThroughGitHubMetadata`
-- Write scope: `internal/skills/hub_registry_sources.go`, `internal/skills/hub_registry_sources_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/skills -run 'TestGitHubRegistryProvider\|TestSkillsShProvider\|TestRegistryProvidersDoNotInstall' -count=1`, `go test ./internal/skills -count=1`, `go run ./cmd/progress validate`
-- Done signal: GitHub and Skills.sh provider fixtures pass through HubRegistryProvider/Search with degraded evidence and no install/store mutation.
-- Acceptance: TestGitHubRegistryProviderTrustedAndCommunityMetadata proves GitHub fixtures normalize repo/path/name/description/tags, trusted vs community trust evidence, and source=github without live GitHub auth., TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh result identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh., TestGitHubAndSkillsShProvidersDegradedEvidence proves rate limits, non-200 responses, malformed JSON, and empty search responses return typed evidence while preserving partial results from other providers., TestRegistryProvidersDoNotInstall proves this slice has no active-store, quarantine, gateway, provider/model, or install-command dependency.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:284:GitHubSource.search,fetch,inspect,trust_level_for, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:1108:SkillsShSource.search,fetch,inspect,_discover_identifier, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_guard.py:TRUSTED_REPOS, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestSkillSourceRouter,TestUnifiedSearch, internal/skills/hub_search.go:HubRegistryProvider,Search, internal/skills/hub_registry_sources.go:HermesIndexRegistryProvider,WellKnownRegistryProvider,ClawHubRegistryProvider
-- Unblocks: Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Claude Marketplace + LobeHub registry metadata providers
-- Why now: Unblocks Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Claude Marketplace + LobeHub registry metadata providers.
-
-## 6. Web dashboard core components + data-state fixtures
+## 5. Web dashboard core components + data-state fixtures
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -149,7 +128,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ui/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/hooks/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/contexts/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Web dashboard PTY chat + event websocket fixtures
+## 6. Web dashboard PTY chat + event websocket fixtures
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -169,7 +148,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:77-79, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2401-2588, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/lib/gatewayClient.ts
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Web dashboard theme catalog + switcher parity
+## 7. Web dashboard theme catalog + switcher parity
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -189,7 +168,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2919-2962, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/themes/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ThemeSwitcher.tsx
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Web dashboard OAuth provider flows + EN/ZH i18n
+## 8. Web dashboard OAuth provider flows + EN/ZH i18n
 
 - Phase: 5 / 5.V
 - Owner: `gateway`

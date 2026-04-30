@@ -2,16 +2,303 @@ package skills
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 
 const wellKnownSkillsBasePath = "/.well-known/skills"
+
+var trustedSkillRepos = map[string]bool{
+	"openai/skills":     true,
+	"anthropics/skills": true,
+}
+
+type GitHubRegistryTap struct {
+	Repo string
+	Path string
+}
+
+// GitHubRegistryProvider reads SKILL.md metadata from configured GitHub taps
+// through the Contents API. It mirrors Hermes' GitHubSource search-side
+// contract for Gormes' metadata-only hub registry slice: list candidate skill
+// directories, fetch SKILL.md frontmatter for preview metadata, and never
+// mutate the active skill store or quarantine/install directories.
+type GitHubRegistryProvider struct {
+	taps   []GitHubRegistryTap
+	client *http.Client
+}
+
+func NewGitHubRegistryProvider(taps []GitHubRegistryTap, client *http.Client) *GitHubRegistryProvider {
+	clean := make([]GitHubRegistryTap, 0, len(taps))
+	for _, tap := range taps {
+		repo := strings.Trim(strings.TrimSpace(tap.Repo), "/")
+		if repo == "" {
+			continue
+		}
+		clean = append(clean, GitHubRegistryTap{Repo: repo, Path: strings.Trim(strings.TrimSpace(tap.Path), "/")})
+	}
+	return &GitHubRegistryProvider{taps: clean, client: client}
+}
+
+func (p *GitHubRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResult, error) {
+	if p == nil || len(p.taps) == 0 {
+		return nil, ErrRegistryUnavailable
+	}
+	client := p.client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	var (
+		results []HubSearchResult
+		lastErr error
+	)
+	for _, tap := range p.taps {
+		entries, err := githubContents(ctx, client, tap.Repo, tap.Path)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		for _, entry := range entries {
+			if entry.Type != "dir" || strings.HasPrefix(entry.Name, ".") || strings.HasPrefix(entry.Name, "_") {
+				continue
+			}
+			skillPath := strings.Trim(strings.TrimRight(tap.Path, "/")+"/"+entry.Name, "/")
+			meta, err := githubSkillMetadata(ctx, client, tap.Repo, skillPath)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			results = append(results, meta)
+		}
+	}
+	if len(results) == 0 && lastErr != nil {
+		return nil, lastErr
+	}
+	return results, nil
+}
+
+type githubContentEntry struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+func githubContents(ctx context.Context, client *http.Client, repo, path string) ([]githubContentEntry, error) {
+	reqURL := "https://api.github.com/repos/" + repo + "/contents"
+	if strings.TrimSpace(path) != "" {
+		reqURL += "/" + strings.Trim(path, "/")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
+		return nil, ErrRegistryRateLimited
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, ErrRegistryUnavailable
+	}
+	var entries []githubContentEntry
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	return entries, nil
+}
+
+func githubSkillMetadata(ctx context.Context, client *http.Client, repo, skillPath string) (HubSearchResult, error) {
+	skillPath = strings.Trim(skillPath, "/")
+	reqURL := "https://api.github.com/repos/" + repo + "/contents/" + skillPath + "/SKILL.md"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
+		return HubSearchResult{}, ErrRegistryRateLimited
+	}
+	if resp.StatusCode != http.StatusOK {
+		return HubSearchResult{}, ErrRegistryUnavailable
+	}
+	var file struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&file); err != nil {
+		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	if file.Encoding != "base64" {
+		return HubSearchResult{}, ErrRegistryMalformed
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(file.Content, "\n", ""))
+	if err != nil {
+		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	skill, err := Parse(raw, DefaultMaxDocumentBytes)
+	if err != nil {
+		return HubSearchResult{}, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	identifier := repo + "/" + skillPath
+	return HubSearchResult{
+		Name:        skill.Name,
+		Description: skill.Description,
+		Source:      "github",
+		InstallID:   identifier,
+		TrustLevel:  githubTrustLevel(identifier),
+		Tags:        append([]string(nil), skill.HermesTags...),
+	}, nil
+}
+
+// SkillsShRegistryProvider reads skills.sh search metadata as registry preview
+// data. Fetch/install resolution remains out of scope for this slice.
+type SkillsShRegistryProvider struct {
+	query  string
+	limit  int
+	client *http.Client
+}
+
+func NewSkillsShRegistryProvider(query string, limit int, client *http.Client) *SkillsShRegistryProvider {
+	return &SkillsShRegistryProvider{query: strings.TrimSpace(query), limit: limit, client: client}
+}
+
+func (p *SkillsShRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResult, error) {
+	if p == nil || p.query == "" {
+		return nil, ErrRegistryUnavailable
+	}
+	client := p.client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	limit := p.limit
+	if limit <= 0 {
+		limit = 10
+	}
+	u, _ := url.Parse("https://skills.sh/api/search")
+	q := u.Query()
+	q.Set("q", p.query)
+	q.Set("limit", strconv.Itoa(limit))
+	u.RawQuery = q.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, ErrRegistryRateLimited
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, ErrRegistryUnavailable
+	}
+	var data struct {
+		Skills []map[string]any `json:"skills"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	results := make([]HubSearchResult, 0, len(data.Skills))
+	for _, item := range data.Skills {
+		result, ok := skillsShResult(item)
+		if ok {
+			results = append(results, result)
+		}
+	}
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
+}
+
+func skillsShResult(item map[string]any) (HubSearchResult, bool) {
+	canonical := asString(item["id"])
+	repo := asString(item["source"])
+	skillPath := asString(item["skillId"])
+	if strings.Count(canonical, "/") < 2 {
+		if repo == "" || skillPath == "" {
+			return HubSearchResult{}, false
+		}
+		canonical = repo + "/" + skillPath
+	}
+	parts := strings.SplitN(canonical, "/", 3)
+	if len(parts) < 3 {
+		return HubSearchResult{}, false
+	}
+	repo = parts[0] + "/" + parts[1]
+	skillPath = parts[2]
+	name := firstNonEmpty(asString(item["name"]), pathBase(skillPath))
+	desc := "Indexed by skills.sh from " + repo
+	if installs, ok := numberAsInt(item["installs"]); ok {
+		desc += " · " + strconv.FormatInt(int64(installs), 10) + " installs"
+		desc = strings.ReplaceAll(desc, strconv.FormatInt(int64(installs), 10), commaInt(installs))
+	}
+	return HubSearchResult{
+		Name:        name,
+		Description: desc,
+		Source:      "skills.sh",
+		InstallID:   "skills-sh:" + canonical,
+		TrustLevel:  githubTrustLevel(canonical),
+	}, true
+}
+
+func githubTrustLevel(identifier string) string {
+	parts := strings.SplitN(identifier, "/", 3)
+	if len(parts) >= 2 && trustedSkillRepos[parts[0]+"/"+parts[1]] {
+		return "trusted"
+	}
+	return "community"
+}
+
+func pathBase(path string) string {
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return ""
+	}
+	parts := strings.Split(path, "/")
+	return parts[len(parts)-1]
+}
+
+func numberAsInt(v any) (int, bool) {
+	switch n := v.(type) {
+	case int:
+		return n, true
+	case float64:
+		return int(n), true
+	default:
+		return 0, false
+	}
+}
+
+func commaInt(n int) string {
+	s := strconv.Itoa(n)
+	if len(s) <= 3 {
+		return s
+	}
+	var out []byte
+	for i, ch := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, ',')
+		}
+		out = append(out, byte(ch))
+	}
+	return string(out)
+}
 
 // HermesIndexRegistryProvider reads the centralized Hermes skills index from a
 // caller-supplied cache path. It mirrors Hermes' HermesIndexSource search-side

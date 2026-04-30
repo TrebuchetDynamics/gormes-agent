@@ -236,6 +236,166 @@ func TestClawHubProviderDegradedEvidence(t *testing.T) {
 	}
 }
 
+func TestGitHubRegistryProviderReadsTrustedTapMetadata(t *testing.T) {
+	requests := []string{}
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.URL.String())
+		switch req.URL.String() {
+		case "https://api.github.com/repos/openai/skills/contents/skills":
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`[{"type":"dir","name":"planner"},{"type":"file","name":"README.md"},{"type":"dir","name":".private"}]`)),
+			}, nil
+		case "https://api.github.com/repos/openai/skills/contents/skills/planner/SKILL.md":
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body: io.NopCloser(strings.NewReader(`{
+					"content":"LS0tCm5hbWU6IHBsYW5uZXIKZGVzY3JpcHRpb246IFBsYW4gd29yawptZXRhZGF0YToKICBoZXJtZXM6CiAgICB0YWdzOiBbcGxhbm5pbmcsIGRvY3NdCi0tLQojIFBsYW5uZXIKQm9keQo=",
+					"encoding":"base64"
+				}`)),
+			}, nil
+		default:
+			t.Fatalf("unexpected request URL: %s", req.URL.String())
+			return nil, nil
+		}
+	})}
+
+	provider := NewGitHubRegistryProvider([]GitHubRegistryTap{{Repo: "openai/skills", Path: "skills/"}}, client)
+	results, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("Snapshot returned unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("results count = %d (%v), want 1", len(results), results)
+	}
+	got := results[0]
+	if got.Name != "planner" {
+		t.Errorf("Name = %q, want planner", got.Name)
+	}
+	if got.Description != "Plan work" {
+		t.Errorf("Description = %q, want Plan work", got.Description)
+	}
+	if got.Source != "github" {
+		t.Errorf("Source = %q, want github", got.Source)
+	}
+	if got.InstallID != "openai/skills/skills/planner" {
+		t.Errorf("InstallID = %q, want openai/skills/skills/planner", got.InstallID)
+	}
+	if got.TrustLevel != "trusted" {
+		t.Errorf("TrustLevel = %q, want trusted", got.TrustLevel)
+	}
+	if strings.Join(got.Tags, ",") != "planning,docs" {
+		t.Errorf("Tags = %v, want [planning docs]", got.Tags)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("requests = %v, want contents listing plus SKILL.md fetch", requests)
+	}
+}
+
+func TestSkillsShProviderSearchesMetadataWithoutInstalling(t *testing.T) {
+	requests := 0
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.URL.String() != "https://skills.sh/api/search?limit=10&q=plan" {
+			t.Fatalf("unexpected request URL: %s", req.URL.String())
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body: io.NopCloser(strings.NewReader(`{
+				"skills": [
+					{"id":"openai/skills/planner","name":"planner","source":"openai/skills","skillId":"planner","installs":1200},
+					{"id":"bad","name":"skip"}
+				]
+			}`)),
+		}, nil
+	})}
+
+	provider := NewSkillsShRegistryProvider("plan", 10, client)
+	results, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("Snapshot returned unexpected error: %v", err)
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want 1", requests)
+	}
+	if len(results) != 1 {
+		t.Fatalf("results count = %d (%v), want 1", len(results), results)
+	}
+	got := results[0]
+	if got.Name != "planner" {
+		t.Errorf("Name = %q, want planner", got.Name)
+	}
+	if got.Description != "Indexed by skills.sh from openai/skills · 1,200 installs" {
+		t.Errorf("Description = %q, want indexed installs description", got.Description)
+	}
+	if got.Source != "skills.sh" {
+		t.Errorf("Source = %q, want skills.sh", got.Source)
+	}
+	if got.InstallID != "skills-sh:openai/skills/planner" {
+		t.Errorf("InstallID = %q, want skills-sh:openai/skills/planner", got.InstallID)
+	}
+	if got.TrustLevel != "trusted" {
+		t.Errorf("TrustLevel = %q, want trusted", got.TrustLevel)
+	}
+}
+
+func TestGitHubAndSkillsShProvidersDegradedEvidence(t *testing.T) {
+	t.Run("github malformed preserves partial search evidence", func(t *testing.T) {
+		client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.String() {
+			case "https://api.github.com/repos/openai/skills/contents/skills":
+				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`[{"type":"dir","name":"bad"}]`))}, nil
+			case "https://api.github.com/repos/openai/skills/contents/skills/bad/SKILL.md":
+				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{`))}, nil
+			default:
+				t.Fatalf("unexpected request URL: %s", req.URL.String())
+				return nil, nil
+			}
+		})}
+
+		provider := NewGitHubRegistryProvider([]GitHubRegistryTap{{Repo: "openai/skills", Path: "skills/"}}, client)
+		_, err := provider.Snapshot(context.Background())
+		if !errors.Is(err, ErrRegistryMalformed) {
+			t.Fatalf("Snapshot error = %v, want errors.Is(..., %v)", err, ErrRegistryMalformed)
+		}
+
+		resp, err := Search(context.Background(), "planner", []HubRegistryProvider{
+			NewInMemoryRegistryProvider([]HubSearchResult{{Name: "planner", Description: "local fallback", Source: "hermes-index", InstallID: "planner", Score: 1}}, nil),
+			provider,
+		}, HubSearchOptions{})
+		if err != nil {
+			t.Fatalf("Search returned error: %v", err)
+		}
+		if resp.Evidence != HubSearchEvidenceRegistryMalformed {
+			t.Fatalf("Evidence = %q, want %q", resp.Evidence, HubSearchEvidenceRegistryMalformed)
+		}
+		if len(resp.Results) != 1 || resp.Results[0].Description != "local fallback" {
+			t.Fatalf("Results = %#v, want partial fallback result preserved", resp.Results)
+		}
+	})
+
+	t.Run("skills sh status maps to typed evidence", func(t *testing.T) {
+		client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusTooManyRequests, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+		})}
+		provider := NewSkillsShRegistryProvider("plan", 10, client)
+		_, err := provider.Snapshot(context.Background())
+		if !errors.Is(err, ErrRegistryRateLimited) {
+			t.Fatalf("Snapshot error = %v, want errors.Is(..., %v)", err, ErrRegistryRateLimited)
+		}
+	})
+}
+
+func TestRegistryProvidersDoNotInstall(t *testing.T) {
+	// Compile-time guard for the metadata-only slice: hub registry sources only
+	// expose Snapshot and cannot mutate active skill stores or quarantine paths.
+	var _ HubRegistryProvider = NewGitHubRegistryProvider(nil, nil)
+	var _ HubRegistryProvider = NewSkillsShRegistryProvider("", 0, nil)
+}
+
 func TestWellKnownRegistryProviderDegradedEvidence(t *testing.T) {
 	tests := []struct {
 		name       string
