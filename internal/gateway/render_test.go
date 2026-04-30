@@ -68,6 +68,40 @@ func TestFormatToolProgressPlain_IncludesHermesStyleToolTrace(t *testing.T) {
 	}
 }
 
+func TestFormatToolProgressPlainMode_OffSuppressesToolTrace(t *testing.T) {
+	f := kernel.RenderFrame{
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: "tool: browser_navigate: https://example.test"},
+		},
+	}
+	if got := FormatToolProgressPlainMode(f, "off"); got != "" {
+		t.Fatalf("FormatToolProgressPlainMode(off) = %q, want no tool progress", got)
+	}
+}
+
+func TestFormatToolProgressPlainMode_NewSuppressesConsecutiveSameTool(t *testing.T) {
+	f := kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{
+		{At: time.Now(), Text: "tool: read_file: a.txt"},
+		{At: time.Now(), Text: "tool: read_file: b.txt"},
+		{At: time.Now(), Text: "tool: search_files: needle"},
+		{At: time.Now(), Text: "tool: read_file: c.txt"},
+	}}
+
+	got := FormatToolProgressPlainMode(f, "new")
+	for _, want := range []string{
+		`📖 read_file: "a.txt"`,
+		`🔎 search_files: "needle"`,
+		`📖 read_file: "c.txt"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatToolProgressPlainMode(new) missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "b.txt") {
+		t.Fatalf("FormatToolProgressPlainMode(new) rendered consecutive same-tool preview:\n%s", got)
+	}
+}
+
 func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -106,6 +140,19 @@ func TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence(t *testin
 	}
 	if len([]rune(got)) > 130 {
 		t.Fatalf("FormatToolProgressPlain unknown tool trace too long: %d runes in %q", len([]rune(got)), got)
+	}
+}
+
+func TestFormatToolProgressPlain_SuppressesLegacyCompletionNoise(t *testing.T) {
+	got := FormatToolProgressPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{
+		{At: time.Now(), Text: "tool: execute_code: print('hi')"},
+		{At: time.Now(), Text: "tool done: execute_code"},
+	}})
+	if !strings.Contains(got, `🐍 execute_code: "print('hi')"`) {
+		t.Fatalf("FormatToolProgressPlain = %q, want execute_code start event", got)
+	}
+	if strings.Contains(got, "tool done") || strings.Contains(got, `🔧 tool done`) {
+		t.Fatalf("FormatToolProgressPlain leaked legacy completion noise: %q", got)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
 )
 
 var (
@@ -207,6 +208,9 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 
 func conversationForcedBlocks(f kernel.RenderFrame, wrap lipgloss.Style, compact bool) []string {
 	var blocks []string
+	if progress := conversationToolProgressBlock(f, compact); progress != "" {
+		blocks = append(blocks, progress)
+	}
 	if f.DraftText != "" {
 		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrap, compact))
 	}
@@ -214,6 +218,21 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrap lipgloss.Style, compact
 		blocks = append(blocks, conversationErrorBlock(f.LastError, compact))
 	}
 	return blocks
+}
+
+func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
+	texts := make([]string, 0, len(f.SoulEvents))
+	for _, event := range f.SoulEvents {
+		texts = append(texts, event.Text)
+	}
+	progress := tooltrace.FormatBlock(texts)
+	if progress == "" {
+		return ""
+	}
+	if compact {
+		return compactViewportText(progress)
+	}
+	return muted.Render(progress)
 }
 
 func conversationMessageBlock(msg hermes.Message, wrap lipgloss.Style, compact bool) string {

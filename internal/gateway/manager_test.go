@@ -476,6 +476,57 @@ func TestManager_Outbound_ToolProgressPersistsAsSeparateMessage(t *testing.T) {
 	}
 }
 
+func TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage(t *testing.T) {
+	tg := newTypingActionFakeChannel("telegram")
+	frames := make(chan kernel.RenderFrame, 8)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:     map[string]string{"telegram": "42"},
+		CoalesceMs:       10,
+		ToolProgressMode: "off",
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	_ = m.Register(tg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", MsgID: "m1",
+		Kind: EventSubmit, Text: "summarize this reddit post",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseStreaming,
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
+			{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests url='https://example.test'"},
+		},
+	}
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseIdle,
+		History: []hermes.Message{
+			{Role: "user", Content: "summarize this reddit post"},
+			{Role: "assistant", Content: "I read the Reddit post via Reddit's embed endpoint."},
+		},
+	}
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		sent := tg.sentSnapshot()
+		return len(sent) >= 1 && strings.Contains(sent[len(sent)-1].Text, "I read the Reddit post")
+	})
+	for _, msg := range tg.sentSnapshot() {
+		if strings.Contains(msg.Text, "browser_navigate") || strings.Contains(msg.Text, "terminal") {
+			t.Fatalf("tool_progress=off sent tool progress message; sent=%#v", tg.sentSnapshot())
+		}
+	}
+}
+
 func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	tg := &freshFinalFakeChannel{fakeChannel: newFakeChannel("telegram")}
 	frames := make(chan kernel.RenderFrame, 8)

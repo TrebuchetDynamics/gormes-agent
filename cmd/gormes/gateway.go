@@ -259,6 +259,8 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		AllowDiscovery:        allowDiscovery,
 		CoalesceMs:            gatewayCoalesceMs(cfg),
 		FreshFinalAfter:       gatewayFreshFinalAfter(cfg),
+		ToolProgressMode:      cfg.Display.ToolProgress,
+		ToolProgressModes:     gatewayToolProgressModes(cfg),
 		SessionMap:            smap,
 		TitleStore:            titleStore,
 		TitleModel:            titleModel,
@@ -285,6 +287,25 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}
+}
+
+func gatewayToolProgressModes(cfg config.Config) map[string]string {
+	if len(cfg.Display.Platforms) == 0 {
+		return nil
+	}
+	modes := map[string]string{}
+	for platform, display := range cfg.Display.Platforms {
+		key := strings.ToLower(strings.TrimSpace(platform))
+		mode := strings.TrimSpace(display.ToolProgress)
+		if key == "" || mode == "" {
+			continue
+		}
+		modes[key] = mode
+	}
+	if len(modes) == 0 {
+		return nil
+	}
+	return modes
 }
 
 func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, factories gatewayChannelFactories, status gateway.RuntimeStatusWriter, log *slog.Logger) (int, error) {

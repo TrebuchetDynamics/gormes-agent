@@ -33,6 +33,11 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	if _, ok := reg.Get("clarify"); !ok {
 		t.Fatal("clarify not registered")
 	}
+	for _, name := range []string{"read_file", "search_files", "write_file", "patch", "terminal"} {
+		if _, ok := reg.Get(name); !ok {
+			t.Fatalf("%s not registered", name)
+		}
+	}
 	for _, name := range []string{"skills_list", "skill_view"} {
 		if _, ok := reg.Get(name); !ok {
 			t.Fatalf("%s not registered", name)

@@ -709,6 +709,7 @@ classification and row-backed implementation queue.
 - [x] Checkpoint shadow-repo GC policy
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
+- [x] Native file task tool surface
 
 ### 5.M — Mixture of Agents ⏳
 

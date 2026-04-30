@@ -23,6 +23,12 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
 	reg.MustRegister(tools.NewExecuteCodeTool())
+	fileTools := tools.FileTaskToolConfig{}
+	reg.MustRegister(tools.NewReadFileTool(fileTools))
+	reg.MustRegister(tools.NewSearchFilesTool(fileTools))
+	reg.MustRegister(tools.NewWriteFileTool(fileTools))
+	reg.MustRegister(tools.NewPatchTool(fileTools))
+	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{}))
 	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
 		Backend: tools.WebBackendConfig{

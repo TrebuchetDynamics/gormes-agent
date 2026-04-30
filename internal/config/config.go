@@ -29,6 +29,7 @@ type Config struct {
 
 	Hermes     HermesCfg     `toml:"hermes"`
 	Gateway    GatewayCfg    `toml:"gateway"`
+	Display    DisplayCfg    `toml:"display"`
 	TUI        TUICfg        `toml:"tui"`
 	Input      InputCfg      `toml:"input"`
 	Telegram   TelegramCfg   `toml:"telegram"`
@@ -245,6 +246,15 @@ type HermesCfg struct {
 type GatewayCfg struct {
 	ProxyURL string `toml:"proxy_url"`
 	ProxyKey string `toml:"proxy_key"`
+}
+
+type DisplayCfg struct {
+	ToolProgress string                        `toml:"tool_progress"`
+	Platforms    map[string]DisplayPlatformCfg `toml:"platforms"`
+}
+
+type DisplayPlatformCfg struct {
+	ToolProgress string `toml:"tool_progress"`
 }
 
 type TUICfg struct {
@@ -507,6 +517,7 @@ func loadFile(cfg *Config) error {
 type hermesConfigYAML struct {
 	Model     hermesModelConfigYAML               `yaml:"model"`
 	Web       hermesWebConfigYAML                 `yaml:"web"`
+	Display   hermesDisplayConfigYAML             `yaml:"display"`
 	Security  hermesSecurityConfigYAML            `yaml:"security"`
 	Platforms map[string]hermesPlatformConfigYAML `yaml:"platforms"`
 	Streaming hermesStreamingConfigYAML           `yaml:"streaming"`
@@ -520,6 +531,16 @@ type hermesModelConfigYAML struct {
 type hermesWebConfigYAML struct {
 	Backend    string `yaml:"backend"`
 	UseGateway bool   `yaml:"use_gateway"`
+}
+
+type hermesDisplayConfigYAML struct {
+	ToolProgress          interface{}                          `yaml:"tool_progress"`
+	Platforms             map[string]hermesDisplayPlatformYAML `yaml:"platforms"`
+	ToolProgressOverrides map[string]interface{}               `yaml:"tool_progress_overrides"`
+}
+
+type hermesDisplayPlatformYAML struct {
+	ToolProgress interface{} `yaml:"tool_progress"`
 }
 
 type hermesSecurityConfigYAML struct {
@@ -563,6 +584,7 @@ func loadHermesConfigYAML(cfg *Config) error {
 	}
 	applyHermesModelConfig(cfg, hc.Model)
 	applyHermesWebConfig(cfg, hc.Web)
+	applyHermesDisplayConfig(cfg, hc.Display)
 	applyHermesSecurityConfig(cfg, hc.Security)
 	applyHermesTelegramConfig(cfg, hc.Platforms["telegram"], hc.Streaming)
 	applyHermesDiscordConfig(cfg, hc.Platforms["discord"])
@@ -585,6 +607,80 @@ func applyHermesWebConfig(cfg *Config, web hermesWebConfigYAML) {
 	}
 	if web.UseGateway {
 		cfg.Web.UseGateway = true
+	}
+}
+
+func applyHermesDisplayConfig(cfg *Config, display hermesDisplayConfigYAML) {
+	if mode, ok := normalizeHermesToolProgressMode(display.ToolProgress); ok {
+		cfg.Display.ToolProgress = mode
+	}
+	for platform, platformDisplay := range display.Platforms {
+		if mode, ok := normalizeHermesToolProgressMode(platformDisplay.ToolProgress); ok {
+			putDisplayPlatformToolProgress(&cfg.Display, platform, mode)
+		}
+	}
+	for platform, rawMode := range display.ToolProgressOverrides {
+		key := normalizeDisplayPlatformKey(platform)
+		if key == "" {
+			continue
+		}
+		if existing, ok := cfg.Display.Platforms[key]; ok && strings.TrimSpace(existing.ToolProgress) != "" {
+			continue
+		}
+		if mode, ok := normalizeHermesToolProgressMode(rawMode); ok {
+			putDisplayPlatformToolProgress(&cfg.Display, key, mode)
+		}
+	}
+}
+
+func putDisplayPlatformToolProgress(display *DisplayCfg, platform, mode string) {
+	key := normalizeDisplayPlatformKey(platform)
+	if key == "" {
+		return
+	}
+	if display.Platforms == nil {
+		display.Platforms = map[string]DisplayPlatformCfg{}
+	}
+	entry := display.Platforms[key]
+	entry.ToolProgress = mode
+	display.Platforms[key] = entry
+}
+
+func normalizeDisplayPlatformKey(platform string) string {
+	return strings.ToLower(strings.TrimSpace(platform))
+}
+
+func normalizeHermesToolProgressMode(raw interface{}) (string, bool) {
+	switch v := raw.(type) {
+	case nil:
+		return "", false
+	case bool:
+		if v {
+			return "all", true
+		}
+		return "off", true
+	case string:
+		mode := strings.ToLower(strings.TrimSpace(v))
+		if mode == "" {
+			return "", false
+		}
+		switch mode {
+		case "off", "new", "all", "verbose":
+			return mode, true
+		default:
+			return "all", true
+		}
+	default:
+		mode := strings.ToLower(strings.TrimSpace(fmt.Sprint(v)))
+		if mode == "" {
+			return "", false
+		}
+		switch mode {
+		case "off", "new", "all", "verbose":
+			return mode, true
+		default:
+			return "all", true
+		}
 	}
 }
 

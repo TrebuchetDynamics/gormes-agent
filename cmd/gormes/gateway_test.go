@@ -125,6 +125,36 @@ func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 	}
 }
 
+func TestGatewayManagerConfig_ToolProgressDisplayConfig(t *testing.T) {
+	mgrCfg := gatewayManagerConfig(
+		config.Config{
+			Display: config.DisplayCfg{
+				ToolProgress: "new",
+				Platforms: map[string]config.DisplayPlatformCfg{
+					"telegram": {ToolProgress: "off"},
+					"slack":    {ToolProgress: "verbose"},
+				},
+			},
+		},
+		map[string]string{},
+		map[string]bool{},
+		nil,
+		nil,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+	if mgrCfg.ToolProgressMode != "new" {
+		t.Fatalf("ToolProgressMode = %q, want global display.tool_progress", mgrCfg.ToolProgressMode)
+	}
+	if got := mgrCfg.ToolProgressModes["telegram"]; got != "off" {
+		t.Fatalf("ToolProgressModes[telegram] = %q, want per-platform override", got)
+	}
+	if got := mgrCfg.ToolProgressModes["slack"]; got != "verbose" {
+		t.Fatalf("ToolProgressModes[slack] = %q, want per-platform override", got)
+	}
+}
+
 func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	var sawResponsesPath bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

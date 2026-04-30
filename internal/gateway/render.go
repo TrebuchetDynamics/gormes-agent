@@ -8,6 +8,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
 )
 
 const (
@@ -31,7 +32,17 @@ func FormatStreamPlain(f kernel.RenderFrame) string {
 // FormatToolProgressPlain renders the persistent Hermes-style tool progress
 // transcript for gateway platforms that can edit progress messages.
 func FormatToolProgressPlain(f kernel.RenderFrame) string {
-	return truncate(formatToolTraceBlockPlain(f.SoulEvents))
+	return FormatToolProgressPlainMode(f, "all")
+}
+
+// FormatToolProgressPlainMode renders tool progress with Hermes gateway
+// display.tool_progress semantics for the compact progress transcript.
+func FormatToolProgressPlainMode(f kernel.RenderFrame, mode string) string {
+	mode = normalizeGatewayToolProgressMode(mode)
+	if mode == "off" {
+		return ""
+	}
+	return truncate(formatToolTraceBlockPlainMode(f.SoulEvents, mode))
 }
 
 // FormatFinalPlain returns the final assistant text from render history.
@@ -81,7 +92,11 @@ func FormatStreamTelegram(f kernel.RenderFrame) string {
 // FormatToolProgressTelegram renders escaped MarkdownV2 text for Telegram's
 // persistent tool-progress message.
 func FormatToolProgressTelegram(f kernel.RenderFrame) string {
-	progress := FormatToolProgressPlain(f)
+	return FormatToolProgressTelegramMode(f, "all")
+}
+
+func FormatToolProgressTelegramMode(f kernel.RenderFrame, mode string) string {
+	progress := FormatToolProgressPlainMode(f, mode)
 	if strings.TrimSpace(progress) == "" {
 		return ""
 	}
@@ -190,69 +205,38 @@ func streamPreviewCursorActive(f kernel.RenderFrame) bool {
 }
 
 func formatToolTracePlain(text string) string {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return ""
-	}
-	if strings.HasPrefix(text, "tool: ") {
-		payload := strings.TrimSpace(strings.TrimPrefix(text, "tool: "))
-		name, arg, ok := strings.Cut(payload, ":")
-		if ok {
-			name = strings.TrimSpace(name)
-			arg = strings.TrimSpace(arg)
-			if !isKnownToolTraceName(name) {
-				if arg == "" {
-					return "🔧 tool_progress..."
-				}
-				return "🔧 tool_progress: " + quoteAndTruncate(arg, 40)
-			}
-			if arg == "" {
-				return toolTraceIcon(name) + " " + name + "..."
-			}
-			return toolTraceIcon(name) + " " + name + ": " + quoteAndTruncate(arg, 40)
-		}
-		name = strings.TrimSpace(payload)
-		if isKnownToolTraceName(name) {
-			return toolTraceIcon(name) + " " + name + "..."
-		}
-		return "🔧 tool_progress..."
-	}
-	return "🔧 " + text
+	return tooltrace.FormatPlain(text)
 }
 
 func formatToolTraceBlockPlain(events []kernel.SoulEntry) string {
-	var lines []string
-	var last string
-	repeats := 1
-	flush := func() {
-		if last == "" {
-			return
-		}
-		if repeats > 1 {
-			lines = append(lines, fmt.Sprintf("%s (×%d)", last, repeats))
-		} else {
-			lines = append(lines, last)
-		}
-	}
+	return formatToolTraceBlockPlainMode(events, "all")
+}
+
+func formatToolTraceBlockPlainMode(events []kernel.SoulEntry, mode string) string {
+	texts := make([]string, 0, len(events))
 	for _, event := range events {
-		text := strings.TrimSpace(event.Text)
-		if !strings.HasPrefix(text, "tool: ") {
-			continue
-		}
-		line := formatToolTracePlain(text)
-		if line == "" {
-			continue
-		}
-		if line == last {
-			repeats++
-			continue
-		}
-		flush()
-		last = line
-		repeats = 1
+		texts = append(texts, event.Text)
 	}
-	flush()
-	return strings.Join(lines, "\n")
+	return tooltrace.FormatBlockMode(texts, mode)
+}
+
+func toolTraceName(text string) string {
+	payload := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), "tool: "))
+	name, _, ok := strings.Cut(payload, ":")
+	if ok {
+		return strings.TrimSpace(name)
+	}
+	return payload
+}
+
+func normalizeGatewayToolProgressMode(mode string) string {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	switch normalized {
+	case "off", "new", "all", "verbose":
+		return normalized
+	default:
+		return "all"
+	}
 }
 
 func isKnownToolTraceName(name string) bool {

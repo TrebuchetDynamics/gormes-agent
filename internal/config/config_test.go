@@ -449,6 +449,42 @@ platforms:
 	}
 }
 
+func TestLoad_HermesConfigYAMLDisplayToolProgressParity(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+display:
+  tool_progress: new
+  platforms:
+    telegram:
+      tool_progress: false
+    slack:
+      tool_progress: verbose
+  tool_progress_overrides:
+    discord: off
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Display.ToolProgress != "new" {
+		t.Fatalf("Display.ToolProgress = %q, want global Hermes display.tool_progress", cfg.Display.ToolProgress)
+	}
+	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "off" {
+		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want bool false normalized to off", got)
+	}
+	if got := cfg.Display.Platforms["slack"].ToolProgress; got != "verbose" {
+		t.Fatalf("Display.Platforms[slack].ToolProgress = %q, want verbose", got)
+	}
+	if got := cfg.Display.Platforms["discord"].ToolProgress; got != "off" {
+		t.Fatalf("Display.Platforms[discord].ToolProgress = %q, want legacy override", got)
+	}
+}
+
 func TestLoad_HermesConfigYAMLModelProviderParity(t *testing.T) {
 	hermesHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

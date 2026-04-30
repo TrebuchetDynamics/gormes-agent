@@ -2719,7 +2719,7 @@
               "name": "Gateway stream/tool trace formatting fixture matrix",
               "status": "complete",
               "priority": "P1",
-              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, the active streaming cursor, separate tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/skills/cron/search/read/patch/terminal/browser actions.",
+              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, the active streaming cursor, separate tool progress, errors, final answer separation, and Hermes display.tool_progress off/new mode behavior plus config.yaml global/per-platform loading, with Telegram MarkdownV2 escaping and compact labels for memory/skills/cron/search/read/patch/terminal/browser actions.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
@@ -2728,13 +2728,15 @@
                 "operator"
               ],
               "degraded_mode": "Unknown tool events render as bounded generic tool_progress evidence instead of raw provider payloads or dropped traces.",
-              "fixture": "internal/gateway/render_test.go + internal/gateway/manager_test.go + internal/kernel/toolexec_test.go + internal/kernel/tools_test.go",
+              "fixture": "internal/gateway/render_test.go + internal/gateway/manager_test.go + internal/kernel/toolexec_test.go + internal/kernel/tools_test.go + internal/config/config_test.go + cmd/gormes/gateway_test.go",
               "source_refs": [
                 "../hermes-agent/gateway/config.py:StreamingConfig cursor",
                 "../hermes-agent/gateway/stream_consumer.py:render_streaming_message cursor handling",
                 "../hermes-agent/gateway/stream_consumer.py:482-508",
                 "../hermes-agent/agent/display.py:build_tool_preview",
+                "../hermes-agent/gateway/display_config.py:resolve_display_setting",
                 "../hermes-agent/gateway/run.py:progress_callback",
+                "../hermes-agent/gateway/run.py:10058 display.tool_progress resolution",
                 "../hermes-agent/run_agent.py:tool_progress_callback",
                 "../hermes-agent/gateway/run.py",
                 "internal/gateway/render.go"
@@ -2744,6 +2746,9 @@
                 "TestFormatStreamPlain_ActivePreviewAddsHermesCursor and TestFormatStreamTelegram_ActivePreviewAddsHermesCursor prove active assistant previews append Hermes' ` ▉` cursor.",
                 "TestFormatStreamPlain_DoesNotInlineToolProgress proves tool progress is not mixed into assistant stream text.",
                 "TestManager_Outbound_ToolProgressPersistsAsSeparateMessage proves channel-visible tool progress persists as its own editable message and final answer delivery stays separate.",
+                "TestFormatToolProgressPlainMode_OffSuppressesToolTrace and TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage prove display.tool_progress=off suppresses channel-visible tool progress without suppressing the final assistant reply.",
+                "TestFormatToolProgressPlainMode_NewSuppressesConsecutiveSameTool proves display.tool_progress=new reports only tool-name changes while keeping later different-tool progress visible.",
+                "TestLoad_HermesConfigYAMLDisplayToolProgressParity and TestGatewayManagerConfig_ToolProgressDisplayConfig prove Hermes display.tool_progress and display.platforms.<platform>.tool_progress values reach gateway.ManagerConfig.",
                 "TestKernel_ClearsToolProgressSoulAtTurnStart proves stale progress from a previous turn cannot be rendered into a later direct-answer turn.",
                 "TestFormatFinalPlain_DoesNotIncludeStreamingCursor proves final assistant text never keeps the streaming cursor.",
                 "Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels.",
@@ -2760,17 +2765,23 @@
                 "internal/gateway/manager_test.go",
                 "internal/gateway/render.go",
                 "internal/gateway/render_test.go",
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgressPersistsAsSeparateMessage|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/config ./cmd/gormes -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgress(PersistsAsSeparateMessage|OffSuppressesSeparateMessage)|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame|TestLoad_HermesConfigYAMLDisplayToolProgressParity|TestGatewayManagerConfig_ToolProgressDisplayConfig' -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/config -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Renderer, manager, and kernel fixtures prove compact channel-visible started-tool progress parity without leaking progress into assistant final text."
+                "Renderer, manager, config, command-wiring, and kernel fixtures prove compact channel-visible started-tool progress parity without leaking progress into assistant final text."
               ],
               "ready_when": [
                 "Hermes/Sidon stream and tool-trace rendering examples are captured as source-backed fixture expectations.",
@@ -2783,6 +2794,10 @@
                   "internal/kernel/toolexec.go:toolCallPreview emits Hermes' todo merge=true wording as updating N task(s), while merge=false keeps planning N task(s).",
                   "internal/gateway/render.go:streamPreviewCursorActive appends the Hermes streaming cursor only for active preview phases with non-empty assistant draft text.",
                   "internal/gateway/render.go:FormatToolProgressPlain and FormatToolProgressTelegram render multi-line, duplicate-collapsed tool progress separately from assistant stream text.",
+                  "internal/gateway/render.go:FormatToolProgressPlainMode and FormatToolProgressTelegramMode apply Hermes gateway display.tool_progress off/new/all normalization to the compact progress transcript.",
+                  "internal/config/config.go:loadHermesConfigYAML reads Hermes display.tool_progress, display.platforms.<platform>.tool_progress, and legacy display.tool_progress_overrides into Config.Display.",
+                  "cmd/gormes/gateway.go:gatewayManagerConfig wires Config.Display global and per-platform tool progress modes into gateway.ManagerConfig.",
+                  "internal/gateway/manager.go:ManagerConfig.ToolProgressMode and ToolProgressModes wire global and platform-specific modes into editable gateway channel progress rendering.",
                   "internal/gateway/manager.go:dispatchToolProgress sends/edits a separate progress message for editable gateway channels before final assistant delivery.",
                   "internal/gateway/render.go:formatToolTracePlain renders known memory/skills/todo/execute_code/cron/search/read/patch/terminal/browser tool events with compact Hermes-style emoji labels.",
                   "internal/gateway/render.go:isKnownToolTraceName maps unknown tool events to generic bounded tool_progress evidence so raw provider/debug tool names are not exposed."
@@ -2795,12 +2810,23 @@
                   "internal/gateway/render_test.go:TestFormatStreamPlain_DoesNotInlineToolProgress covers assistant stream/tool-progress separation.",
                   "internal/gateway/render_test.go:TestFormatFinalPlain_DoesNotIncludeStreamingCursor covers terminal cursor cleanup.",
                   "internal/gateway/render_test.go:TestFormatToolProgressPlain_ToolTraceFixtureMatrix covers memory, read_file, patch, terminal, browser_navigate, browser_snapshot, skill_view, skills_list, todo, execute_code, and cronjob labels.",
+                  "internal/gateway/render_test.go:TestFormatToolProgressPlainMode_OffSuppressesToolTrace covers display.tool_progress=off renderer suppression.",
+                  "internal/gateway/render_test.go:TestFormatToolProgressPlainMode_NewSuppressesConsecutiveSameTool covers display.tool_progress=new same-tool suppression.",
                   "internal/gateway/render_test.go:TestFormatToolProgressPlain_MineruGatewayTranscriptShape covers the pasted Mineru-style browser/terminal transcript shape with repeat collapsing.",
                   "internal/gateway/render_test.go:TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence covers bounded generic degraded-mode evidence for unknown tool events.",
                   "internal/gateway/manager_test.go:TestManager_Outbound_ToolProgressPersistsAsSeparateMessage proves tool progress is persisted separately from the final assistant reply.",
+                  "internal/gateway/manager_test.go:TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage proves display.tool_progress=off suppresses the separate progress message while still delivering the final answer.",
+                  "internal/config/config_test.go:TestLoad_HermesConfigYAMLDisplayToolProgressParity covers Hermes config.yaml display.tool_progress, display.platforms, bool false normalization, and legacy tool_progress_overrides.",
+                  "cmd/gormes/gateway_test.go:TestGatewayManagerConfig_ToolProgressDisplayConfig covers production gateway ManagerConfig wiring for global and per-platform display modes.",
                   "internal/kernel/tools_test.go:TestKernel_ClearsToolProgressSoulAtTurnStart proves turn-start soul reset prevents stale progress leakage."
                 ],
                 "verification": [
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestFormatToolProgressPlainMode_(Off|New)|TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage' -count=1 failed with missing FormatToolProgressPlainMode and ManagerConfig.ToolProgressMode.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestFormatToolProgressPlainMode_(Off|New)|TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage' -count=1 -> ok",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run TestLoad_HermesConfigYAMLDisplayToolProgressParity -count=1 failed because Config.Display did not exist.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run TestLoad_HermesConfigYAMLDisplayToolProgressParity -count=1 -> ok",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestGatewayManagerConfig_ToolProgressDisplayConfig -count=1 failed because gateway.ManagerConfig.ToolProgressModes did not exist.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestGatewayManagerConfig_ToolProgressDisplayConfig -count=1 -> ok",
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgressPersistsAsSeparateMessage|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame' -count=1 -> ok",
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording -count=1 failed while todo merge=true rendered planning 2 task(s).",
                   "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run 'TestExecuteToolCalls_(TodoMergePreviewUsesUpdatingWording|AppendsToolPreviewSoulEvent)' -count=1 passed after preserving Hermes updating wording.",
@@ -20476,6 +20502,118 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:a32d0752 tools/file_tools.py",
                 "note": "Direct upstream file-read safety regression, kept as a small helper row after the already validated dedup/cache guard."
+              }
+            },
+            {
+              "name": "Native file task tool surface",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes exposes Hermes' model-visible file task tools in the default registry: read_file with path-required schema, 1-indexed offset/limit pagination, LINE_NUM|CONTENT output, total_lines metadata, duplicate-read status stubs, continuation hints, and workspace-root safety; search_files for content/name search; write_file and patch for root-confined edits; and a foreground-only terminal tool with dangerous-command guardrails.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Invalid, missing, outside-root, binary, oversized, or unreadable files return structured JSON errors without leaking file content from outside the configured workspace root. Terminal background/PTY gaps return explicit unsupported/compatibility evidence instead of hanging.",
+              "fixture": "internal/tools/file_read_tool_test.go + internal/tools/terminal_tool_test.go + cmd/gormes/registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/file_tools.py:READ_FILE_SCHEMA",
+                "../hermes-agent/tools/file_tools.py:SEARCH_FILES_SCHEMA",
+                "../hermes-agent/tools/file_tools.py:WRITE_FILE_SCHEMA",
+                "../hermes-agent/tools/file_tools.py:PATCH_SCHEMA",
+                "../hermes-agent/tools/file_tools.py:read_file_tool",
+                "../hermes-agent/tools/file_tools.py:search_tool",
+                "../hermes-agent/tools/file_tools.py:write_file_tool",
+                "../hermes-agent/tools/file_tools.py:patch_tool",
+                "../hermes-agent/tools/file_operations.py:ReadResult",
+                "../hermes-agent/tools/file_operations.py:ShellFileOperations.read_file",
+                "../hermes-agent/tools/terminal_tool.py",
+                "../hermes-agent/tests/tools/test_file_tools.py:TestReadFileHandler",
+                "../hermes-agent/tests/tools/test_terminal_tool.py",
+                "../hermes-agent/toolsets.py:file toolset",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json:read_file"
+              ],
+              "ready_when": [
+                "File read guard helpers are validated, so model-visible read_file can reuse the content/status split instead of inventing a new cache path.",
+                "The slice can run with t.TempDir file fixtures and does not need terminal, provider, Telegram, or live Hermes processes.",
+                "Default registry tests can prove read_file/search_files/write_file/patch/terminal are model-visible without provider, Telegram, or live Hermes processes."
+              ],
+              "not_ready_when": [
+                "The slice ports checkpoint restore, syntax lint, background process registry, PTY execution, terminal-backed cwd tracking, or full Hermes file_tools.py behavior.",
+                "The tool reads outside the configured workspace root or returns outside-root bytes in an error response.",
+                "The slice depends on live ~/.gormes, ~/.hermes, or the developer's current repository files."
+              ],
+              "blocked_by": [
+                "File read repeated-stub BLOCKED escalation"
+              ],
+              "acceptance": [
+                "TestReadFileTool_ReadsLineNumberedWindow writes a temp text file, calls read_file with offset=2 limit=2, and proves LINE_NUM|CONTENT output includes only lines 2-3 with total_lines and continuation hint metadata.",
+                "TestReadFileTool_BlocksPathsOutsideRoot writes an outside temp file and proves a read_file call against that absolute path returns an outside-root error without leaking content.",
+                "TestReadFileTool_BlocksSymlinkEscapingRoot proves a symlink inside the workspace root cannot read bytes from an outside target.",
+                "TestReadFileTool_DuplicateReadReturnsStatusNotContent proves unchanged duplicate reads return a status stub and do not repeat file content.",
+                "TestSearchFilesTool_SearchesContentAndFiles proves search_files handles content search with file_glob and file-name search under the workspace root.",
+                "TestWriteFileAndPatchTools_EditInsideRoot proves write_file creates a root-confined file and patch applies a targeted replacement.",
+                "TestTerminalToolRunsForegroundCommand, TestTerminalToolBlocksDangerousCommandWithoutApproval, and TestTerminalToolRejectsBackgroundUntilProcessRegistryPort prove terminal's foreground happy path, dangerous command approval gate, and background unsupported behavior.",
+                "TestBuildDefaultRegistryDelegationDisabled proves read_file, search_files, write_file, patch, and terminal are registered in the default native tool registry alongside memory, skills, web, browser, and execute_code.",
+                "Existing FileReadGuard and repeated-stub tests remain green so read_file status/evidence stays outside returned file content."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_tool_test.go",
+                "internal/tools/terminal_tool.go",
+                "internal/tools/terminal_tool_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_|^TestSearchFilesTool_|^TestWriteFileAndPatchTools_|^TestTerminalTool|^TestFileReadGuard_|^TestFileReadRepeatedStubBlocked_' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestBuildDefaultRegistryDelegationDisabled$' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./cmd/gormes -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Native file task fixtures prove model-visible registration, read_file pagination/dedup/outside-root behavior, search_files content/name search, write_file/patch root-confined edits, and terminal foreground/guardrail behavior."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go:FileTaskToolConfig constrains file tools to a workspace root and wires FileReadGuard into read_file.",
+                  "internal/tools/file_task_tools.go:ReadFileTool.Schema mirrors Hermes read_file path/offset/limit contract with path required, offset minimum 1, and limit maximum 2000.",
+                  "internal/tools/file_task_tools.go:ReadFileTool.Execute resolves relative, absolute, and ~/ paths under the workspace root before reading, paginating, numbering, deduping, and bounding content.",
+                  "internal/tools/file_task_tools.go:SearchFilesTool, WriteFileTool, and PatchTool provide first-pass root-confined search/edit surfaces.",
+                  "internal/tools/terminal_tool.go:TerminalTool provides foreground shell execution with timeout, output caps, dangerous-command guardrails, and explicit unsupported background behavior.",
+                  "cmd/gormes/registry.go:buildDefaultRegistry registers read_file, search_files, write_file, patch, and terminal by default so providers can call the native local-task surface."
+                ],
+                "tests": [
+                  "internal/tools/file_read_tool_test.go:TestReadFileTool_ReadsLineNumberedWindow covers Hermes-style pagination and line-numbered content.",
+                  "internal/tools/file_read_tool_test.go:TestReadFileTool_BlocksPathsOutsideRoot covers outside-root denial without content leakage.",
+                  "internal/tools/file_read_tool_test.go:TestReadFileTool_BlocksSymlinkEscapingRoot covers symlink escape denial.",
+                  "internal/tools/file_read_tool_test.go:TestReadFileTool_DuplicateReadReturnsStatusNotContent covers duplicate-read status stubs.",
+                  "internal/tools/file_read_tool_test.go:TestSearchFilesTool_SearchesContentAndFiles covers search_files content and file-name targets.",
+                  "internal/tools/file_read_tool_test.go:TestWriteFileAndPatchTools_EditInsideRoot covers write_file and patch root-confined edits.",
+                  "internal/tools/terminal_tool_test.go:TestTerminalToolRunsForegroundCommand, TestTerminalToolBlocksDangerousCommandWithoutApproval, and TestTerminalToolRejectsBackgroundUntilProcessRegistryPort cover terminal first-pass behavior.",
+                  "cmd/gormes/registry_test.go:TestBuildDefaultRegistryDelegationDisabled covers default file task and terminal registration."
+                ],
+                "verification": [
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_' -count=1 failed with undefined NewReadFileTool / ReadFileToolConfig.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestBuildDefaultRegistryDelegationDisabled$' -count=1 failed with read_file not registered.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_DuplicateReadReturnsStatusNotContent$' -count=1 failed because the second unchanged read returned no unchanged status.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_BlocksSymlinkEscapingRoot$' -count=1 failed because the symlinked outside file was readable.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_' -count=1 -> ok",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_DuplicateReadReturnsStatusNotContent$' -count=1 -> ok",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestReadFileTool_BlocksSymlinkEscapingRoot$' -count=1 -> ok",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestBuildDefaultRegistryDelegationDisabled$' -count=1 -> ok",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:69d4800d tools/file_tools.py + tools/file_operations.py + tools/terminal_tool.py",
+                "note": "Ports the first safe local-task surface after the read guard helper rows. Full checkpoint restore, syntax lint, terminal background/process registry, PTY, and shell-backed cwd tracking remain separate follow-up slices."
               }
             }
           ],

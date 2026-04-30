@@ -58,12 +58,18 @@ type ManagerConfig struct {
 	AllowDiscovery  map[string]bool
 	CoalesceMs      int
 	FreshFinalAfter time.Duration
-	SessionMap      session.Map
-	Hooks           *Hooks
-	RuntimeStatus   RuntimeStatusWriter
-	Restart         RestartConfig
-	SessionExpiry   SessionExpiryConfig
-	Now             func() time.Time
+	// ToolProgressMode mirrors Hermes gateway display.tool_progress for
+	// editable channel progress messages. Empty and unknown values default to all.
+	ToolProgressMode string
+	// ToolProgressModes mirrors Hermes display.platforms.<platform>.tool_progress
+	// overrides. Values take precedence over ToolProgressMode for the named platform.
+	ToolProgressModes map[string]string
+	SessionMap        session.Map
+	Hooks             *Hooks
+	RuntimeStatus     RuntimeStatusWriter
+	Restart           RestartConfig
+	SessionExpiry     SessionExpiryConfig
+	Now               func() time.Time
 	// PersistReasoningGlobal is invoked by /reasoning ... --global to persist
 	// the requested effort beyond the calling session. A nil callback or one
 	// that returns an error causes the command to fall back to a session-only
@@ -1454,10 +1460,21 @@ func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
 }
 
 func (m *Manager) formatToolProgress(platform string, f kernel.RenderFrame) string {
+	mode := m.toolProgressMode(platform)
 	if platform == "telegram" {
-		return FormatToolProgressTelegram(f)
+		return FormatToolProgressTelegramMode(f, mode)
 	}
-	return FormatToolProgressPlain(f)
+	return FormatToolProgressPlainMode(f, mode)
+}
+
+func (m *Manager) toolProgressMode(platform string) string {
+	key := strings.ToLower(strings.TrimSpace(platform))
+	if key != "" && len(m.cfg.ToolProgressModes) > 0 {
+		if mode := strings.TrimSpace(m.cfg.ToolProgressModes[key]); mode != "" {
+			return normalizeGatewayToolProgressMode(mode)
+		}
+	}
+	return normalizeGatewayToolProgressMode(m.cfg.ToolProgressMode)
 }
 
 func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
