@@ -2107,6 +2107,614 @@
               ]
             },
             {
+              "name": "Telegram production live-turn provider payload golden",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "The actual `gormes telegram` entrypoint is exercised with fake Telegram ingress and a fake provider capture so the final provider ChatRequest for `What's your name?` contains Gormes SOUL identity, USER.md, MEMORY.md, AGENTS/project context, timestamp, model, provider, Telegram/session metadata, skill/tool guidance, and the user message before provider execution.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "If a context file is missing, the captured request still carries redacted missing-context evidence and never uses post-provider string replacement to force identity.",
+              "fixture": "cmd/gormes/telegram_test.go + internal/gateway/live_turn_prompt_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py:3667-3779",
+                "../hermes-agent/agent/prompt_builder.py",
+                "../hermes-agent/gateway/platforms/telegram.py",
+                "cmd/gormes/telegram.go:telegramManagerConfig",
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/live_turn_prompt_test.go"
+              ],
+              "ready_when": [
+                "Live-turn metadata production wiring (cmd/gormes -> Manager seams) is validated.",
+                "The test can run with temp profile/memory dirs, a fake Telegram client, and a fake provider; no live Telegram, provider network, or Python Hermes runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice only tests helper output instead of the production `gormes telegram` manager construction path.",
+                "The slice rewrites provider output text or replaces `ChatGPT` after the provider returns.",
+                "The slice reads Juan's live ~/.gormes, ~/.hermes, provider tokens, or Telegram token."
+              ],
+              "acceptance": [
+                "A failing test first proves the production `gormes telegram` path can capture the final provider request before execution.",
+                "The captured request contains Gormes identity/SOUL text before the user message.",
+                "The captured request contains USER.md and MEMORY.md durable context from temp fixtures.",
+                "The captured request contains AGENTS/project context, Telegram/session context, timestamp, model, and provider metadata.",
+                "The test proves no output postprocessing is used to change provider identity text."
+              ],
+              "write_scope": [
+                "cmd/gormes/telegram.go",
+                "cmd/gormes/telegram_test.go",
+                "internal/gateway/live_turn_prompt_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway -run 'Telegram.*ProviderPayload|LiveTurn' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/hermes ./internal/runtime -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "The production Telegram entrypoint has a fake-provider golden proving identity and context reach the final provider payload before execution."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:run_agent.py + gateway/platforms/telegram.py",
+                "note": "This closes the dogfood identity regression at the production entrypoint without depending on Python Hermes runtime."
+              }
+            },
+            {
+              "name": "Telegram /status Hermes-format closeout",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "`/status` renders Hermes-compatible field order and labels, always includes a real session title when a title exists or can be generated, quotes the triggering Telegram message, and remains a gateway command that never enters the provider/model path.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If title generation cannot run, status returns structured title_unavailable evidence instead of silently omitting the Title field or rendering a hardcoded fake title.",
+              "fixture": "internal/gateway/status_command_test.go + internal/channels/telegram/bot_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py:4646-4680",
+                "../hermes-agent/hermes_cli/commands.py:267-290",
+                "internal/gateway/status_command.go",
+                "internal/channels/telegram/bot.go"
+              ],
+              "acceptance": [
+                "`/status` output includes Session ID, Title, Created, Last Activity, Tokens, Agent Running, and Connected Platforms.",
+                "Telegram status replies set ReplyToMessageID for the triggering `/status` message.",
+                "A fake provider/model path capture proves `/status` is not submitted as user text.",
+                "Formatting differences from Hermes are either removed or explicitly documented in the parity matrix."
+              ],
+              "write_scope": [
+                "internal/gateway/status_command.go",
+                "internal/gateway/status_command_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram -run 'Status|Title|Telegram|Reply' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Status fixtures prove Hermes-compatible fields, title visibility, reply quoting, and provider bypass."
+              ],
+              "ready_when": [
+                "Hermes/Sidon `/status` field order and Telegram reply behavior have been source-audited against gateway references.",
+                "Existing status/session metadata seams can be exercised with fake gateway and Telegram fixtures only."
+              ]
+            },
+            {
+              "name": "Gateway /title manual session title command",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Implement Hermes-compatible `/title` handling in the gateway: `/title` shows the current title, `/title <name>` sanitizes and stores a manual title, manual titles are not overwritten by auto-title, invalid titles return operator guidance, and the command never reaches the provider.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If the metadata store is unavailable, `/title` returns title_store_unavailable evidence and does not mutate transcript content.",
+              "fixture": "internal/gateway/title_command_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py:6697-6743",
+                "../hermes-agent/tests/gateway/test_title_command.py",
+                "internal/gateway/commands.go",
+                "internal/session/auto_title.go"
+              ],
+              "acceptance": [
+                "`/title` on a session with a title returns that title.",
+                "`/title Friendly Greeting with Juan` stores a manual title and `/status` renders it.",
+                "Manual titles are not overwritten by auto-title.",
+                "Empty, overlong, or unsafe titles return guidance and no mutation.",
+                "A fake provider capture proves `/title` is not sent to the model."
+              ],
+              "write_scope": [
+                "internal/gateway/commands.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/title_command.go",
+                "internal/gateway/title_command_test.go",
+                "internal/gateway/status_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title|Status|Command' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "`/title` set/show/error fixtures pass and `/status` preserves manual titles."
+              ],
+              "ready_when": [
+                "Hermes `/title` command semantics and Gormes session metadata storage have been source-audited.",
+                "The slice can run with fake gateway/session stores and no provider, Telegram, or live profile access."
+              ]
+            },
+            {
+              "name": "Telegram reply_to_mode and reply-context parity",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Telegram replies honor Hermes-style reply mode configuration, fall back cleanly if a target message was deleted, and inbound Telegram reply text can be attached to session context without leaking raw slash commands to the model.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If reply metadata is unavailable, Gormes sends a normal message with reply_context_missing evidence rather than failing the turn.",
+              "fixture": "internal/channels/telegram/reply_mode_test.go + internal/gateway/manager_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py:904-922",
+                "../hermes-agent/gateway/platforms/telegram.py:1022-1032",
+                "../hermes-agent/gateway/platforms/telegram.py:2935-2959",
+                "internal/channels/telegram/bot.go",
+                "internal/gateway/manager.go"
+              ],
+              "acceptance": [
+                "Outbound placeholder, final, error, and `/status` messages obey reply mode.",
+                "Deleted reply target errors fall back to non-reply send with evidence.",
+                "Inbound replied-to message text reaches channel-neutral session context only when Hermes would include it.",
+                "Unit tests use fake Telegram clients only."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/",
+                "internal/gateway/",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'Reply|Telegram' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram reply-mode fixtures prove quoting, fallback, and inbound reply context parity."
+              ],
+              "ready_when": [
+                "Hermes Telegram reply-mode behavior has been mapped to Gormes Telegram adapter and gateway context seams.",
+                "Fake Telegram client fixtures can cover outbound reply, fallback, and inbound reply-context behavior without live Telegram."
+              ]
+            },
+            {
+              "name": "Telegram typing action + placeholder lifecycle parity",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Telegram turn progress matches Hermes/Sidon lifecycle: typing action or placeholder appears while work runs, stale hourglass messages are deleted or finalized, duplicate ghost replies collapse, and final answers remain readable.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If Telegram edit/delete fails, Gormes sends one bounded final message and logs redacted cleanup evidence instead of leaving stale placeholders.",
+              "fixture": "internal/channels/telegram/placeholder_lifecycle_test.go + internal/gateway/coalesce_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/base.py:1718-1724",
+                "../hermes-agent/gateway/platforms/base.py:1976-1986",
+                "../hermes-agent/gateway/platforms/telegram.py:1909-1935",
+                "internal/gateway/coalesce.go",
+                "internal/channels/telegram/bot.go"
+              ],
+              "acceptance": [
+                "Fake Telegram tests prove sendChatAction or placeholder behavior for long turns.",
+                "Final answer cleanup deletes or edits the placeholder exactly once.",
+                "Failure paths do not produce duplicate final messages.",
+                "Fresh-final delete behavior remains covered."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/",
+                "internal/gateway/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'Placeholder|Typing|Coalesce|Final' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram placeholder/typing lifecycle fixtures prove no stale hourglass or duplicate final replies."
+              ],
+              "ready_when": [
+                "Hermes placeholder/typing lifecycle source references have been mapped to Gormes channel/gateway render seams.",
+                "Fake Telegram lifecycle tests can simulate edit/delete failures and final-message cleanup without live Telegram."
+              ]
+            },
+            {
+              "name": "Gateway stream/tool trace formatting fixture matrix",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/search/read/patch/terminal/browser actions.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Unknown tool events render as bounded generic tool_progress evidence instead of raw provider payloads or dropped traces.",
+              "fixture": "internal/gateway/render_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/stream_consumer.py:482-508",
+                "../hermes-agent/gateway/run.py",
+                "internal/gateway/render.go"
+              ],
+              "acceptance": [
+                "Renderer fixtures cover streaming text, final answer separation, provider errors, and tool progress.",
+                "Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels.",
+                "Memory/search/read/patch/terminal/browser traces match the parity matrix examples.",
+                "No renderer emits tokens, raw credential values, or unbounded payloads."
+              ],
+              "write_scope": [
+                "internal/gateway/render.go",
+                "internal/gateway/render_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Render|FormatStream|ToolTrace' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Renderer snapshot/table fixtures prove compact channel-neutral stream and tool trace parity."
+              ],
+              "ready_when": [
+                "Hermes/Sidon stream and tool-trace rendering examples are captured as source-backed fixture expectations.",
+                "The renderer can be tested with pure gateway events and Telegram formatting fixtures without provider or live channel calls."
+              ]
+            },
+            {
+              "name": "Telegram dynamic BotCommand menu wiring",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Telegram startup registers the core command set plus enabled plugin/skill slash commands through the existing dynamic BotCommand helper, respecting Telegram's 100-command cap and emitting hidden-count evidence.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "If dynamic command discovery fails, the bot registers the core menu and logs redacted dynamic_menu_unavailable evidence.",
+              "fixture": "internal/channels/telegram/bot_commands_dynamic_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/commands.py:558-589",
+                "../hermes-agent/gateway/platforms/telegram.py:822-837",
+                "internal/gateway/commands.go:TelegramBotCommandsWith",
+                "internal/channels/telegram/bot.go"
+              ],
+              "acceptance": [
+                "Runtime `setMyCommands` receives core plus enabled dynamic commands in deterministic order.",
+                "Aliases are omitted and command names are Telegram-safe.",
+                "More than 100 commands are capped with hidden-count evidence.",
+                "Core-only fallback remains available."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/",
+                "internal/gateway/commands.go",
+                "internal/skills/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway ./internal/skills -run 'BotCommand|TelegramCommands' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram runtime registration uses the dynamic command helper with deterministic cap/fallback fixtures."
+              ],
+              "ready_when": [
+                "Core Telegram BotCommand registration is already present and the dynamic command helper surface is identified.",
+                "The slice can use fake Bot API request capture and deterministic skill/plugin fixtures without reading live tokens."
+              ]
+            },
+            {
+              "name": "Active Hermes/Sidon profile context root resolver for live turns",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Live-turn context discovery resolves explicit Gormes overrides first, then active Hermes profile roots such as `HERMES_HOME=/home/xel/.hermes` + profile `mineru` or `sidon`, then workspace ancestor SOUL/USER/MEMORY files, without unit tests reading live profile state.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing profile files render missing-context evidence and continue the turn; unsafe paths are rejected with redacted evidence.",
+              "fixture": "internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_constants.py",
+                "../hermes-agent/run_agent.py",
+                "internal/hermes/context_files.go",
+                "internal/hermes/durable_user_context.go",
+                "internal/gateway/live_turn_prompt.go"
+              ],
+              "acceptance": [
+                "Temp-dir tests prove Gormes override wins over Hermes profile discovery.",
+                "`HERMES_HOME=/tmp/.hermes` plus active profile resolves `/tmp/.hermes/profiles/<name>/SOUL.md` and memory files.",
+                "Workspace ancestor SOUL/USER/MEMORY fallback is covered.",
+                "Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`."
+              ],
+              "write_scope": [
+                "internal/hermes/",
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/live_turn_prompt_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot|SOUL|DurableUserContext|LiveTurn' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermetic profile-root resolver fixtures prove production discovery order without live profile reads."
+              ],
+              "ready_when": [
+                "Current live-turn context discovery seams are identified in internal/hermes and internal/gateway.",
+                "Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile."
+              ]
+            },
+            {
+              "name": "Durable context ordering and frozen snapshot decision fixture",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Lock the Gormes/Hermes decision for USER.md and MEMORY.md ordering plus frozen-versus-per-turn durable memory semantics with source-backed provider payload fixtures, then either document the owned divergence or change ordering to match Hermes.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Until the decision is locked, parity matrix rows must mark durable context ordering as partial and avoid claiming strict Hermes prompt equivalence.",
+              "fixture": "internal/gateway/live_turn_prompt_test.go + internal/hermes/durable_user_context_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py:3721-3730",
+                "../hermes-agent/tools/memory_tool.py:105-124",
+                "internal/hermes/durable_user_context.go",
+                "internal/gateway/live_turn_prompt.go"
+              ],
+              "acceptance": [
+                "A fixture proves the current provider payload order for SOUL, AGENTS, USER, MEMORY, metadata, and session context.",
+                "A second fixture proves whether mid-session MEMORY.md writes affect current prompt or only future sessions.",
+                "The progress note records the chosen owned divergence or the implementation changes to Hermes order.",
+                "No test uses live profile or memory files."
+              ],
+              "write_scope": [
+                "internal/hermes/durable_user_context.go",
+                "internal/hermes/durable_user_context_test.go",
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/live_turn_prompt_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'DurableUserContext|LiveTurn|FrozenMemorySnapshot' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Durable context ordering and snapshot semantics are locked by provider-payload fixtures and progress notes."
+              ],
+              "ready_when": [
+                "Hermes durable context insertion and Gormes live-turn prompt helper paths have been source-audited.",
+                "Temp USER.md/MEMORY.md fixtures can capture provider payload ordering and snapshot semantics without live memory reads."
+              ]
+            },
+            {
+              "name": "Live-turn model/tool guidance wiring",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Wire the ported Hermes guidance constants into live-turn prompt assembly so memory guidance, session-search guidance, skills guidance, tool-use enforcement, model-family guidance, and environment hints reach provider requests in the correct role/order when their conditions apply.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If tools or skills are unavailable, the guidance block omits only those gated sections and reports no false capability.",
+              "fixture": "internal/gateway/live_turn_guidance_test.go + internal/kernel/kernel_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py:3667-3712",
+                "../hermes-agent/agent/prompt_builder.py",
+                "internal/hermes/guidance_constants.go",
+                "internal/kernel/kernel.go",
+                "internal/gateway/live_turn_prompt.go"
+              ],
+              "acceptance": [
+                "Provider payload fixtures include memory/session-search/skills guidance only when those capabilities are active.",
+                "Tool-use enforcement guidance is gated by model family.",
+                "Guidance ordering relative to SOUL, durable memory, AGENTS, metadata, and user messages is pinned.",
+                "Disabled tool/skill paths do not advertise unavailable capabilities."
+              ],
+              "write_scope": [
+                "internal/gateway/",
+                "internal/kernel/",
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/hermes -run 'Guidance|Tool|Skill|LiveTurn' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Live-turn guidance fixtures prove Hermes guidance constants reach provider payloads only under their gated conditions."
+              ],
+              "ready_when": [
+                "Hermes guidance constants and Gormes live-turn prompt/kernel seams are identified.",
+                "Provider-payload fixtures can enable and disable tools/skills/model families hermetically."
+              ]
+            },
+            {
+              "name": "Gateway active-turn policy manifest closeout",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Compare the full Hermes gateway slash-command policy set against Gormes CommandDef policies and close remaining bypass, reject, drain, unavailable, and model-leak differences with a manifest fixture.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Unknown policies default to reject-with-guidance during active turns and never leak slash text to the provider.",
+              "fixture": "internal/gateway/active_turn_command_bypass_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/commands.py:267-290",
+                "../hermes-agent/gateway/run.py:2950-3225",
+                "internal/gateway/commands.go",
+                "internal/gateway/manager.go"
+              ],
+              "acceptance": [
+                "A manifest table lists every Hermes slash command policy and the Gormes decision.",
+                "Known control/info commands bypass active turns.",
+                "Mutating commands reject or drain according to the manifest.",
+                "Provider capture proves slash text never reaches the model when intercepted."
+              ],
+              "write_scope": [
+                "internal/gateway/commands.go",
+                "internal/gateway/commands_test.go",
+                "internal/gateway/active_turn_command_bypass_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'ActiveTurn|Command|Slash' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Active-turn command policy manifest fixtures prove bypass/reject/drain parity and no slash leakage."
+              ],
+              "ready_when": [
+                "Hermes slash-command policy sources and Gormes CommandDef registry are available for table-driven comparison.",
+                "Gateway manager tests can prove interception decisions with fake provider captures and no live channels."
+              ]
+            },
+            {
+              "name": "Gateway conversational session metadata refresh",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Normal conversational Telegram turns create or refresh session metadata with Hermes-compatible session ID, created time, last activity time, connected platform evidence, and title eligibility before `/status` renders it.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If metadata persistence fails, `/status` reports session_metadata_unavailable instead of fabricating timestamps.",
+              "fixture": "internal/gateway/session_metadata_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/session.py",
+                "../hermes-agent/gateway/run.py:4646-4680",
+                "internal/gateway/status_command.go",
+                "internal/session/"
+              ],
+              "acceptance": [
+                "A normal user turn creates metadata with stable session ID, CreatedAt, UpdatedAt, and connected platform.",
+                "A later turn updates Last Activity without changing CreatedAt.",
+                "`/status` reflects the same metadata without model submission.",
+                "Legacy `telegram:<chat_id>` identifiers are mapped or explicitly reported."
+              ],
+              "write_scope": [
+                "internal/gateway/",
+                "internal/session/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session -run 'SessionMetadata|Status|Telegram' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Conversational turn fixtures prove created/updated/session/platform metadata refresh semantics for `/status`."
+              ],
+              "ready_when": [
+                "Gormes session metadata and status rendering seams are identified.",
+                "Fake conversational gateway turns can create/update metadata without live Telegram or provider calls."
+              ]
+            },
+            {
+              "name": "Gateway session token accounting parity",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Accumulate per-session provider usage into session metadata so `/status` reports Hermes-compatible token totals rather than only the last usage frame.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "If provider usage is missing, status renders zero or unknown with usage_missing evidence and never guesses token counts.",
+              "fixture": "internal/gateway/token_accounting_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py:4674",
+                "internal/gateway/status_command.go",
+                "internal/gateway/usage_command.go",
+                "internal/hermes/provider_transport.go"
+              ],
+              "acceptance": [
+                "Two fake provider turns with usage values accumulate into one session total.",
+                "`/status` renders the accumulated total.",
+                "Missing usage does not erase existing totals.",
+                "Usage evidence never includes raw provider payloads or credentials."
+              ],
+              "write_scope": [
+                "internal/gateway/",
+                "internal/session/",
+                "internal/hermes/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes -run 'Token|Usage|Status' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Session token accounting fixtures prove accumulated usage appears in `/status` with redacted evidence."
+              ],
+              "ready_when": [
+                "Provider usage surfaces and status rendering seams are identified.",
+                "Fake provider usage frames can exercise accumulation and missing-usage behavior without live provider calls."
+              ]
+            },
+            {
               "name": "DeliveryRouter + --deliver target parsing",
               "status": "complete",
               "note": "TDD landed: --deliver parsing now covers origin/local/platform/platform:chat/platform:chat:thread forms with explicit invalid-shape tests before future adapter routing binds them to live channels."
@@ -7405,6 +8013,118 @@
                 "upstream_ref": "hermes:894e0b93 plugins/memory/honcho/__init__.py",
                 "note": "Hermes supplies the user-visible Honcho plugin compatibility fix; Gormes adapts it to the internal Goncho service while preserving honcho_* tool names."
               }
+            },
+            {
+              "name": "Hermes memory tool over Goncho/local durable store",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Expose the Hermes-visible `memory` tool with add, replace, and remove actions over memory/user targets, backed by Goncho or local durable USER.md/MEMORY.md storage, while preserving safe write responses, redaction, locks, and prompt-insertion semantics.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "If durable memory storage is unavailable, the tool returns memory_store_unavailable evidence and does not mutate prompt context or transcripts.",
+              "fixture": "internal/tools/memory_tool_test.go + internal/memory",
+              "source_refs": [
+                "../hermes-agent/tools/memory_tool.py:222-513",
+                "../hermes-agent/tools/memory_tool.py:105-124",
+                "cmd/gormes/registry.go",
+                "internal/gonchotools/honcho_tools.go",
+                "internal/hermes/durable_user_context.go",
+                "internal/memory/"
+              ],
+              "acceptance": [
+                "Default tool registry exposes a Hermes-compatible `memory` descriptor.",
+                "Add, replace, and remove actions mutate only temp durable memory fixtures in tests.",
+                "memory and user targets map to the intended durable stores without renaming Goncho internally.",
+                "Injection/exfiltration scans and redaction prevent unsafe content from entering provider-visible memory.",
+                "Tool responses are bounded and match Hermes-compatible success/error shapes."
+              ],
+              "write_scope": [
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "internal/tools/memory_tool.go",
+                "internal/tools/memory_tool_test.go",
+                "internal/memory/",
+                "internal/goncho/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/memory ./internal/goncho -run 'MemoryTool|DurableUserContext|Goncho' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run Registry -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermes-compatible `memory` tool fixtures prove safe durable add/replace/remove behavior over Goncho/local memory stores."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:tools/memory_tool.py",
+                "note": "Internal subsystem remains GONCHO/Goncho; public tool name remains Hermes-compatible `memory`."
+              },
+              "ready_when": [
+                "Hermes memory tool actions and Gormes Goncho/local durable context seams have been source-mapped.",
+                "Temp durable memory fixtures can prove add/replace/remove behavior without reading live USER.md/MEMORY.md or external Honcho."
+              ]
+            },
+            {
+              "name": "Goncho memory provider lifecycle adapter",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Create a native Goncho memory-provider lifecycle adapter covering initialize, prefetch, sync turn, pre-compress contribution, memory-write mirror, delegation, and shutdown evidence so Gormes matches Hermes MemoryManager behavior without a hosted Honcho dependency.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Unavailable providers return memory_provider_unavailable evidence and leave ordinary turn execution intact.",
+              "fixture": "internal/memory/provider_lifecycle_test.go + internal/goncho",
+              "source_refs": [
+                "../hermes-agent/agent/memory_manager.py:97",
+                "../hermes-agent/agent/memory_manager.py:178",
+                "../hermes-agent/agent/memory_manager.py:210",
+                "../hermes-agent/agent/memory_manager.py:296",
+                "../hermes-agent/agent/memory_manager.py:315",
+                "../hermes-agent/agent/memory_manager.py:331",
+                "internal/memory/",
+                "internal/goncho/",
+                "internal/kernel/"
+              ],
+              "acceptance": [
+                "Lifecycle tests prove initialize and prefetch run once per session/provider.",
+                "Turn sync mirrors user/assistant exchanges into Goncho with redacted evidence.",
+                "Pre-compress contributions are bounded and ordered before compression.",
+                "Shutdown drains or reports pending memory work without blocking process exit.",
+                "Tests use fake providers and SQLite temp stores only."
+              ],
+              "write_scope": [
+                "internal/memory/",
+                "internal/goncho/",
+                "internal/kernel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/memory ./internal/goncho ./internal/kernel -run 'MemoryProviderLifecycle|ShutdownMemory|PreCompress|Goncho' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Goncho memory-provider lifecycle fixtures prove initialize, prefetch, sync, pre-compress, mirror, delegation, and shutdown behavior."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:agent/memory_manager.py",
+                "note": "Hermes defines lifecycle semantics; Gormes adapts them to the native Goncho/local memory stack."
+              },
+              "ready_when": [
+                "Hermes MemoryManager lifecycle hooks and Gormes Goncho/kernel seams have been source-mapped.",
+                "Fake provider and temp SQLite/local stores can exercise lifecycle behavior without hosted Honcho or provider network."
+              ]
             }
           ],
           "drift_state": {
@@ -9885,6 +10605,57 @@
                 "last_attempt": "2026-04-25T06:55:51Z",
                 "last_success": "2026-04-25T06:55:51Z"
               }
+            },
+            {
+              "name": "OpenAI-compatible developer-role API-boundary swap",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "OpenAI-compatible request serialization maps internal system guidance to provider-expected developer role for GPT-5/Codex model families at the API boundary without mutating stored internal messages or non-matching provider payloads.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Unknown model families keep system role and emit no role-swap claim; provider errors remain redacted.",
+              "fixture": "internal/hermes/openai_compatible_role_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/run_agent/test_provider_parity.py",
+                "../hermes-agent/agent/prompt_builder.py",
+                "internal/hermes/http_client.go",
+                "internal/hermes/guidance_constants.go",
+                "internal/hermes/model_guidance.go"
+              ],
+              "acceptance": [
+                "GPT-5 and Codex model substrings serialize eligible system guidance as developer role.",
+                "Non-GPT/Codex OpenAI-compatible models keep the existing system role.",
+                "The input ChatRequest remains byte-for-byte unmutated after serialization.",
+                "Tool, assistant, user, and tool-result roles are unchanged.",
+                "Fixtures cover OpenAI-compatible and Codex Responses paths as applicable."
+              ],
+              "write_scope": [
+                "internal/hermes/http_client.go",
+                "internal/hermes/openai_compatible_role_test.go",
+                "internal/hermes/model_guidance.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes -run 'DeveloperRole|OpenAICompatible|ModelPromptRole' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OpenAI-compatible request fixtures prove model-gated developer-role serialization without mutating internal messages."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:tests/run_agent/test_provider_parity.py developer-role parity",
+                "note": "Ports the provider API-boundary behavior only; live-turn guidance wiring is tracked separately."
+              },
+              "ready_when": [
+                "Hermes provider parity tests and Gormes OpenAI-compatible serialization seams have been source-audited.",
+                "Hermetic HTTP serialization fixtures can prove role mapping without live provider calls or credential reads."
+              ]
             }
           ],
           "drift_state": {
@@ -15120,6 +15891,116 @@
                 ],
                 "note": "Hermes defines the public browser_* tool names and broad behavior; go-browser-harness is the default Go-native runtime target, with browser-harness retained as behavior reference and explicit legacy compatibility."
               }
+            },
+            {
+              "name": "Browser artifact and console render contract",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Browser tool results expose bounded screenshot paths, DOM snapshots, console logs, page errors, and artifact metadata in a channel-neutral envelope; renderers show safe previews without raw bytes, base64 blobs, private URLs, CDP secrets, or unbounded provider output.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system",
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Oversized or missing artifacts render browser_artifact_unavailable or browser_artifact_truncated evidence and keep the turn readable.",
+              "fixture": "internal/tools/browser_artifact_test.go + internal/gateway/render_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/browser_camofox.py:300",
+                "../hermes-agent/tools/browser_camofox.py:493",
+                "../hermes-agent/tools/browser_camofox.py:583",
+                "../hermes-agent/tools/browser_tool.py",
+                "internal/tools/browser_contract.go",
+                "internal/tools/result_budget.go",
+                "internal/gateway/render.go"
+              ],
+              "acceptance": [
+                "Tool fixtures cover screenshot path, DOM snapshot excerpt, console logs, and page errors.",
+                "Artifact budgets truncate large snapshots with evidence.",
+                "Gateway renderer emits channel-safe artifact summaries without raw image bytes or base64.",
+                "Secrets, cookies, CDP URLs, and private URLs are redacted."
+              ],
+              "write_scope": [
+                "internal/tools/browser_contract.go",
+                "internal/tools/browser_harness_tools.go",
+                "internal/tools/result_budget.go",
+                "internal/tools/browser_artifact_test.go",
+                "internal/gateway/render.go",
+                "internal/gateway/render_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/gateway -run 'Browser.*Artifact|Browser.*Console|Render' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Browser artifact fixtures prove bounded screenshot/snapshot/console/error envelopes and channel-safe rendering."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:tools/browser_camofox.py + tools/browser_tool.py",
+                "note": "Hermes defines artifact semantics; Gormes adapts them to Go browser harness envelopes and shared renderers."
+              },
+              "ready_when": [
+                "Hermes browser tool artifact/result behavior and Gormes browser harness result envelopes are source-mapped.",
+                "Pure internal/tools fixtures can prove artifact budgeting, console/error metadata, and redacted evidence without starting Chrome or cloud browser services."
+              ]
+            },
+            {
+              "name": "Telegram browser artifact rendering",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Telegram rendering for browser results is mobile-readable and Hermes/Sidon-compatible: screenshot/artifact pointers, DOM excerpts, console errors, and browser progress traces are MarkdownV2-safe, bounded, reply-threaded, and separate from final answers.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "If Telegram media delivery is unavailable, Gormes sends a text artifact pointer with browser_artifact_text_fallback evidence.",
+              "fixture": "internal/gateway/telegram_browser_render_test.go + internal/tools/browser_artifact_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py",
+                "../hermes-agent/tools/browser_tool.py",
+                "internal/gateway/render.go",
+                "internal/channels/telegram/bot.go",
+                "internal/tools/browser_harness_tools.go"
+              ],
+              "acceptance": [
+                "Telegram renderer escapes browser artifact text and code blocks correctly.",
+                "Screenshots/artifact pointers are shown without raw bytes or local secret paths.",
+                "Browser progress/tool traces remain distinct from final answer text.",
+                "Reply metadata is preserved when browser output is sent as part of a Telegram turn."
+              ],
+              "write_scope": [
+                "internal/gateway/render.go",
+                "internal/gateway/telegram_browser_render_test.go",
+                "internal/channels/telegram/",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram ./internal/tools -run 'Telegram.*Browser|Browser.*Artifact|Render' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram browser rendering fixtures prove bounded, escaped, reply-safe artifact output."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:gateway/platforms/telegram.py + tools/browser_tool.py",
+                "note": "Keeps browser/tool rendering channel-neutral first, then adapts the visible Telegram surface."
+              },
+              "ready_when": [
+                "The browser artifact result envelope and Telegram renderer seams are identified.",
+                "Fake Telegram/render fixtures can prove screenshot/link/console presentation without live Telegram, Chrome, or cloud browser services."
+              ]
             },
             {
               "name": "Browser hybrid private-URL local sidecar routing",

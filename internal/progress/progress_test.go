@@ -66,10 +66,10 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
 		t.Errorf("Phase 2 = %q, want in_progress", got)
 	}
-	// Phase 3 is complete once the Goncho finish-line compatibility and
-	// webhook worker rows are validated.
-	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 3 = %q, want complete", got)
+	// Phase 3 is back in progress while new Goncho/local durable-memory parity
+	// rows remain planned behind the completed compatibility and webhook rows.
+	if got := p.Phases["3"].DerivedStatus(); got != StatusInProgress {
+		t.Errorf("Phase 3 = %q, want in_progress", got)
 	}
 	// Phase 4 has the Anthropic adapter landed while the rest stays planned.
 	if got := p.Phases["4"].DerivedStatus(); got != StatusInProgress {
@@ -451,8 +451,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.B.5 = %q, want complete after live-turn prompt assembly umbrella validation", got)
+	if got := routing.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.B.5 = %q, want in_progress while planned Telegram/Sidon parity rows remain", got)
 	}
 	routingItems := itemsByName(routing.Items)
 	liveTurnPrompt := routingItems["Hermes live-turn prompt assembly parity (channel-neutral)"]

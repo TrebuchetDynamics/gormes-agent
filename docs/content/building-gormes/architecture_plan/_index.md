@@ -81,13 +81,13 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 46/78 subphases shipped · 24 in progress · 8 planned
+**Overall:** 44/78 subphases shipped · 26 in progress · 8 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
-| Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
+| Phase 2 — The Gateway | 🔨 | 19/21 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 14/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
@@ -171,7 +171,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing ✅
+### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
 - [x] SessionContext prompt injection
@@ -182,6 +182,19 @@ classification and row-backed implementation queue.
 - [x] Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
 - [x] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
 - [x] BlueBubbles iMessage session-context prompt guidance
+- [ ] Telegram production live-turn provider payload golden
+- [ ] Telegram /status Hermes-format closeout
+- [ ] Gateway /title manual session title command
+- [ ] Telegram reply_to_mode and reply-context parity
+- [ ] Telegram typing action + placeholder lifecycle parity
+- [ ] Gateway stream/tool trace formatting fixture matrix
+- [ ] Telegram dynamic BotCommand menu wiring
+- [ ] Active Hermes/Sidon profile context root resolver for live turns
+- [ ] Durable context ordering and frozen snapshot decision fixture
+- [ ] Live-turn model/tool guidance wiring
+- [ ] Gateway active-turn policy manifest closeout
+- [ ] Gateway conversational session metadata refresh
+- [ ] Gateway session token accounting parity
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
 - [x] Non-editable gateway progress/commentary send fallback
@@ -313,7 +326,7 @@ classification and row-backed implementation queue.
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
 
-## Phase 3 — The Black Box (Memory) ✅
+## Phase 3 — The Black Box (Memory) 🔨
 
 *SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries*
 
@@ -401,7 +414,7 @@ classification and row-backed implementation queue.
 - [x] Lineage-aware source-filtered search hits
 - [x] Operator-auditable search evidence
 
-### 3.F — Goncho Honcho Memory Parity ✅
+### 3.F — Goncho Honcho Memory Parity 🔨
 
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
@@ -418,6 +431,8 @@ classification and row-backed implementation queue.
 - [x] Goncho dreaming scheduler contract
 - [x] Goncho CRUD lifecycle invariants
 - [x] Goncho empty peer-card hint contract
+- [ ] Hermes memory tool over Goncho/local durable store
+- [ ] Goncho memory provider lifecycle adapter
 
 ### 3.G — Goncho Drop-In Compatibility Closure ✅
 
@@ -466,6 +481,7 @@ classification and row-backed implementation queue.
 - [x] Codex stream repair + tool-call leak sanitizer
 - [x] Cross-provider reasoning-tag sanitization
 - [x] Tool-call argument repair + schema sanitizer
+- [ ] OpenAI-compatible developer-role API-boundary swap
 
 ### 4.B — Context Engine + Compression 🔨
 
@@ -590,6 +606,8 @@ classification and row-backed implementation queue.
 - [x] Browser provider bridge + Firecrawl fallback
 - [x] Browser Use cloud + Go browser harness bridge
 - [x] Go browser-harness Hermes browser_* tool wrappers
+- [ ] Browser artifact and console render contract
+- [ ] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 
