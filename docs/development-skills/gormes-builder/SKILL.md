@@ -179,6 +179,8 @@ If tests fail from your own changes, fix them before reporting done. If the sele
 
 If the worktree is dirty before you start, preserve existing changes. Do not revert user or previous-agent work. Work with the current tree and mention any verification limits caused by unrelated changes.
 
+If `git push origin development` is rejected because another worker advanced the branch, fetch and inspect the upstream commit before rebasing. When upstream already updated the same `progress.json` row or generated progress/docs/site surfaces, treat upstream generated surfaces as the source of truth during conflict resolution: keep the current slice's code/tests, preserve any stronger upstream acceptance/write-scope evidence, rerun `go run ./cmd/progress write`, and commit only the remaining coherent code/test delta if generated files no longer differ. Do not reapply stale generated progress/site hunks from the pre-rebase commit just to match local notes.
+
 ## Final Report
 
 Report:
