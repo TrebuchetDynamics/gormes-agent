@@ -413,11 +413,22 @@ feature map, coverage ledger, progress rows, and validation all support it.
   turn, use `gormes-tdd-slice` for one focused behavior after source comparison.
 - Do not treat a passing unit test as parity unless upstream behavior was
   compared and source refs are recorded.
+- When a progress row's focused test command passes with Go's `[no tests to run]`
+  or an equivalent empty selector, do not count that as validation. Treat the
+  row's fixture/test-command evidence as stale, inspect current tests and
+  implementation, then do a planner/progress correction before builder handoff
+  or parity claims.
 - Do not mark vague umbrella rows complete.
 - Do not silently accept owned divergences. Name them and explain the boundary.
 - Do not perform broad taxonomy renames without an old-to-new mapping, `rg`
   reference checks before and after, generated-doc refresh, and validation.
 - Preserve dirty user work and unrelated pending changes.
+- Record the baseline `git rev-parse --short HEAD` during preflight, then recheck
+  `git status --short --branch` and HEAD immediately before committing or
+  pushing. If HEAD advanced or new commits appeared during the run, treat that
+  as concurrent work: do not push a mixed slice or layer progress edits on top
+  of it unless you re-audit the new HEAD, restate ownership of only your files,
+  and rerun focused validation.
 - Do not use old Hermes `cli.py` prompt_toolkit TUI refs as the source of truth
   for current full-screen TUI UX when `ui-tui` Ink files cover the behavior.
 - Do not stop at "it works"; parity bugs often hide in visible details:
