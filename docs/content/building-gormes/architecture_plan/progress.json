@@ -2108,10 +2108,10 @@
             },
             {
               "name": "Telegram production live-turn provider payload golden",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "The actual `gormes telegram` entrypoint is exercised with fake Telegram ingress and a fake provider capture so the final provider ChatRequest for `What's your name?` contains Gormes SOUL identity, USER.md, MEMORY.md, AGENTS/project context, timestamp, model, provider, Telegram/session metadata, skill/tool guidance, and the user message before provider execution.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2139,11 +2139,9 @@
                 "The slice reads Juan's live ~/.gormes, ~/.hermes, provider tokens, or Telegram token."
               ],
               "acceptance": [
-                "A failing test first proves the production `gormes telegram` path can capture the final provider request before execution.",
-                "The captured request contains Gormes identity/SOUL text before the user message.",
-                "The captured request contains USER.md and MEMORY.md durable context from temp fixtures.",
-                "The captured request contains AGENTS/project context, Telegram/session context, timestamp, model, and provider metadata.",
-                "The test proves no output postprocessing is used to change provider identity text."
+                "TestTelegramProductionProviderPayloadIncludesOperatorContext exercises the production telegramManagerConfig path with a fake Telegram channel, real gateway.Manager, real kernel, and fake hermes provider capture.",
+                "The captured final provider ChatRequest contains a leading system message with Gormes SOUL identity, USER.md, MEMORY.md, timestamp, model, provider, and Telegram/session metadata before the user message.",
+                "The captured provider request keeps the Telegram user message as the final user message and does not rely on assistant-message or post-provider identity replacement."
               ],
               "write_scope": [
                 "cmd/gormes/telegram.go",
@@ -2159,12 +2157,22 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "The production Telegram entrypoint has a fake-provider golden proving identity and context reach the final provider payload before execution."
+                "Production Telegram entrypoint golden test passes with hermetic temp context fixtures, fake Telegram ingress, fake provider capture, and no live provider/Telegram/Hermes runtime dependency."
               ],
               "provenance": {
                 "origin_type": "porting",
                 "upstream_ref": "hermes:run_agent.py + gateway/platforms/telegram.py",
                 "note": "This closes the dogfood identity regression at the production entrypoint without depending on Python Hermes runtime."
+              },
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/telegram_test.go:TestTelegramProductionProviderPayloadIncludesOperatorContext",
+                  "cmd/gormes/telegram.go:telegramManagerConfig remains the production construction seam under test",
+                  "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_TelegramFinalProviderRequestIncludesOperatorContext remains the shared gateway/provider payload guard"
+                ],
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway -run 'Telegram.*ProviderPayload|LiveTurn' -count=1 -> ok"
+                ]
               }
             },
             {

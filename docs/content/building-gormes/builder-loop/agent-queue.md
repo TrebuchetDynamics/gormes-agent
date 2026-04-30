@@ -22,27 +22,7 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Telegram production live-turn provider payload golden
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P0`
-- Contract: The actual `gormes telegram` entrypoint is exercised with fake Telegram ingress and a fake provider capture so the final provider ChatRequest for `What's your name?` contains Gormes SOUL identity, USER.md, MEMORY.md, AGENTS/project context, timestamp, model, provider, Telegram/session metadata, skill/tool guidance, and the user message before provider execution.
-- Trust class: gateway, system, operator
-- Ready when: Live-turn metadata production wiring (cmd/gormes -> Manager seams) is validated., The test can run with temp profile/memory dirs, a fake Telegram client, and a fake provider; no live Telegram, provider network, or Python Hermes runtime is required.
-- Not ready when: The slice only tests helper output instead of the production `gormes telegram` manager construction path., The slice rewrites provider output text or replaces `ChatGPT` after the provider returns., The slice reads Juan's live ~/.gormes, ~/.hermes, provider tokens, or Telegram token.
-- Degraded mode: If a context file is missing, the captured request still carries redacted missing-context evidence and never uses post-provider string replacement to force identity.
-- Fixture: `cmd/gormes/telegram_test.go + internal/gateway/live_turn_prompt_test.go`
-- Write scope: `cmd/gormes/telegram.go`, `cmd/gormes/telegram_test.go`, `internal/gateway/live_turn_prompt_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `www.gormes.ai/internal/site/data/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway -run 'Telegram.*ProviderPayload\|LiveTurn' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway ./internal/hermes ./internal/runtime -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: The production Telegram entrypoint has a fake-provider golden proving identity and context reach the final provider payload before execution.
-- Acceptance: A failing test first proves the production `gormes telegram` path can capture the final provider request before execution., The captured request contains Gormes identity/SOUL text before the user message., The captured request contains USER.md and MEMORY.md durable context from temp fixtures., The captured request contains AGENTS/project context, Telegram/session context, timestamp, model, and provider metadata., The test proves no output postprocessing is used to change provider identity text.
-- Source refs: ../hermes-agent/run_agent.py:3667-3779, ../hermes-agent/agent/prompt_builder.py, ../hermes-agent/gateway/platforms/telegram.py, cmd/gormes/telegram.go:telegramManagerConfig, internal/gateway/live_turn_prompt.go, internal/gateway/live_turn_prompt_test.go
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Telegram /status Hermes-format closeout
+## 1. Telegram /status Hermes-format closeout
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -62,7 +42,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/run.py:4646-4680, ../hermes-agent/hermes_cli/commands.py:267-290, internal/gateway/status_command.go, internal/channels/telegram/bot.go
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Gateway /title manual session title command
+## 2. Gateway /title manual session title command
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -82,7 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/run.py:6697-6743, ../hermes-agent/tests/gateway/test_title_command.py, internal/gateway/commands.go, internal/session/auto_title.go
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 4. Telegram MarkdownV2 parse-mode rendering closeout
+## 3. Telegram MarkdownV2 parse-mode rendering closeout
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -103,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Telegram /status Hermes-format closeout
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 5. Hermes memory tool over Goncho/local durable store
+## 4. Hermes memory tool over Goncho/local durable store
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -123,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 6. Gateway slash registry parity sweep (recognized-name expansion)
+## 5. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -144,7 +124,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 7. Stateful tool migration queue
+## 6. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -164,7 +144,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 8. Transcription tool contract
+## 7. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -184,7 +164,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 9. Debug helpers
+## 8. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -204,7 +184,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 10. Feishu transport/bootstrap layer
+## 9. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -223,5 +203,25 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/feishu.py:FeishuAdapter, ../hermes-agent/tests/gateway/test_feishu.py:test_build_event_handler_registers_reaction_and_card_processors, ../hermes-agent/tests/gateway/test_feishu.py:TestLoopNotReadyRace, ../hermes-agent/tests/gateway/test_feishu.py:test_webhook_signature, ../hermes-agent/tests/gateway/test_feishu.py:test_url_verification, ../hermes-agent/tests/gateway/test_feishu.py:test_normalize_interactive_card_preserves_title_body_and_actions, internal/channels/feishu/, internal/gateway/event.go, references/go-agent-os/trpc-agent-go/agent/callbacks.go, references/go-agent-os/engram/internal/mcp/activity.go
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
+
+## 10. Telegram reply_to_mode and reply-context parity
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Telegram replies honor Hermes-style reply mode configuration, fall back cleanly if a target message was deleted, and inbound Telegram reply text can be attached to session context without leaking raw slash commands to the model.
+- Trust class: gateway, operator
+- Ready when: Hermes Telegram reply-mode behavior has been mapped to Gormes Telegram adapter and gateway context seams., Fake Telegram client fixtures can cover outbound reply, fallback, and inbound reply-context behavior without live Telegram.
+- Not ready when: -
+- Degraded mode: If reply metadata is unavailable, Gormes sends a normal message with reply_context_missing evidence rather than failing the turn.
+- Fixture: `internal/channels/telegram/reply_mode_test.go + internal/gateway/manager_test.go`
+- Write scope: `internal/channels/telegram/`, `internal/gateway/`, `internal/config/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'Reply\|Telegram' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Telegram reply-mode fixtures prove quoting, fallback, and inbound reply context parity.
+- Acceptance: Outbound placeholder, final, error, and `/status` messages obey reply mode., Deleted reply target errors fall back to non-reply send with evidence., Inbound replied-to message text reaches channel-neutral session context only when Hermes would include it., Unit tests use fake Telegram clients only.
+- Source refs: ../hermes-agent/gateway/platforms/telegram.py:904-922, ../hermes-agent/gateway/platforms/telegram.py:1022-1032, ../hermes-agent/gateway/platforms/telegram.py:2935-2959, internal/channels/telegram/bot.go, internal/gateway/manager.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
