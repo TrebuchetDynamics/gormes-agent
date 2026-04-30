@@ -184,7 +184,7 @@ classification and row-backed implementation queue.
 - [x] BlueBubbles iMessage session-context prompt guidance
 - [x] Telegram production live-turn provider payload golden
 - [x] Telegram /status Hermes-format closeout
-- [ ] Gateway /title manual session title command
+- [x] Gateway /title manual session title command
 - [ ] Telegram reply_to_mode and reply-context parity
 - [ ] Telegram typing action + placeholder lifecycle parity
 - [ ] Gateway stream/tool trace formatting fixture matrix

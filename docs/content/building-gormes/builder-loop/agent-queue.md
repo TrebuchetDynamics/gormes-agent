@@ -22,27 +22,7 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Gateway /title manual session title command
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Implement Hermes-compatible `/title` handling in the gateway: `/title` shows the current title, `/title <name>` sanitizes and stores a manual title, manual titles are not overwritten by auto-title, invalid titles return operator guidance, and the command never reaches the provider.
-- Trust class: gateway, operator
-- Ready when: Hermes `/title` command semantics and Gormes session metadata storage have been source-audited., The slice can run with fake gateway/session stores and no provider, Telegram, or live profile access.
-- Not ready when: -
-- Degraded mode: If the metadata store is unavailable, `/title` returns title_store_unavailable evidence and does not mutate transcript content.
-- Fixture: `internal/gateway/title_command_test.go`
-- Write scope: `internal/gateway/commands.go`, `internal/gateway/manager.go`, `internal/gateway/title_command.go`, `internal/gateway/title_command_test.go`, `internal/gateway/status_command_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title\|Status\|Command' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: `/title` set/show/error fixtures pass and `/status` preserves manual titles.
-- Acceptance: `/title` on a session with a title returns that title., `/title Friendly Greeting with Juan` stores a manual title and `/status` renders it., Manual titles are not overwritten by auto-title., Empty, overlong, or unsafe titles return guidance and no mutation., A fake provider capture proves `/title` is not sent to the model.
-- Source refs: ../hermes-agent/gateway/run.py:6697-6743, ../hermes-agent/tests/gateway/test_title_command.py, internal/gateway/commands.go, internal/session/auto_title.go
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Hermes memory tool over Goncho/local durable store
+## 1. Hermes memory tool over Goncho/local durable store
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -62,7 +42,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Gateway slash registry parity sweep (recognized-name expansion)
+## 2. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -83,7 +63,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 4. Stateful tool migration queue
+## 3. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -103,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 5. Transcription tool contract
+## 4. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -123,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 6. Debug helpers
+## 5. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -143,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 7. Feishu transport/bootstrap layer
+## 6. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -163,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 8. Telegram reply_to_mode and reply-context parity
+## 7. Telegram reply_to_mode and reply-context parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py:904-922, ../hermes-agent/gateway/platforms/telegram.py:1022-1032, ../hermes-agent/gateway/platforms/telegram.py:2935-2959, internal/channels/telegram/bot.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Telegram typing action + placeholder lifecycle parity
+## 8. Telegram typing action + placeholder lifecycle parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/base.py:1718-1724, ../hermes-agent/gateway/platforms/base.py:1976-1986, ../hermes-agent/gateway/platforms/telegram.py:1909-1935, internal/gateway/coalesce.go, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Gateway stream/tool trace formatting fixture matrix
+## 9. Gateway stream/tool trace formatting fixture matrix
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Renderer snapshot/table fixtures prove compact channel-neutral stream and tool trace parity.
 - Acceptance: Renderer fixtures cover streaming text, final answer separation, provider errors, and tool progress., Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels., Memory/search/read/patch/terminal/browser traces match the parity matrix examples., No renderer emits tokens, raw credential values, or unbounded payloads.
 - Source refs: ../hermes-agent/gateway/stream_consumer.py:482-508, ../hermes-agent/gateway/run.py, internal/gateway/render.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Telegram dynamic BotCommand menu wiring
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Telegram startup registers the core command set plus enabled plugin/skill slash commands through the existing dynamic BotCommand helper, respecting Telegram's 100-command cap and emitting hidden-count evidence.
+- Trust class: gateway, system, operator
+- Ready when: Core Telegram BotCommand registration is already present and the dynamic command helper surface is identified., The slice can use fake Bot API request capture and deterministic skill/plugin fixtures without reading live tokens.
+- Not ready when: -
+- Degraded mode: If dynamic command discovery fails, the bot registers the core menu and logs redacted dynamic_menu_unavailable evidence.
+- Fixture: `internal/channels/telegram/bot_commands_dynamic_test.go`
+- Write scope: `internal/channels/telegram/`, `internal/gateway/commands.go`, `internal/skills/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway ./internal/skills -run 'BotCommand\|TelegramCommands' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Telegram runtime registration uses the dynamic command helper with deterministic cap/fallback fixtures.
+- Acceptance: Runtime `setMyCommands` receives core plus enabled dynamic commands in deterministic order., Aliases are omitted and command names are Telegram-safe., More than 100 commands are capped with hidden-count evidence., Core-only fallback remains available.
+- Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

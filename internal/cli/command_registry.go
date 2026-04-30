@@ -150,7 +150,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "status", Description: "Show session info", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "statusbar", Description: "Toggle the context/model status bar", Aliases: []string{"sb"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "steer", Description: "Inject a message after the next tool call", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
-	{Name: "title", Description: "Set a title for the current session", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "title", Description: "Set a title for the current session", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "tools", Description: "Manage tools", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "toolsets", Description: "List available toolsets", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "undo", Description: "Remove the last user/assistant exchange", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

@@ -673,6 +673,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventStatus:
 		m.handleStatusCommand(ctx, ch, ev)
 		return nil
+	case EventTitle:
+		m.handleTitleCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
 			return nil
@@ -727,7 +730,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -778,6 +781,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventStatus:
 		m.handleStatusCommand(ctx, ch, ev)
+		return true
+	case EventTitle:
+		m.handleTitleCommand(ctx, ch, ev)
 		return true
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")

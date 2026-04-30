@@ -75,7 +75,7 @@ var CommandRegistry = []CommandDef{
 	},
 	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "undo", Description: "Remove the last user/assistant exchange", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "title", Description: "Set a title for the current session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "title", Description: "Set a title for the current session", Kind: EventTitle, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "branch", Description: "Branch the current session (explore a different path)", Kind: EventUnknown, Aliases: []string{"fork"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "compress", Description: "Manually compress conversation context", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "rollback", Description: "List or restore filesystem checkpoints", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -151,7 +151,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if !ok {
 		return EventUnknown, ""
 	}
-	if cmd.Kind == EventSteer {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

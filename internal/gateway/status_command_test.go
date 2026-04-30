@@ -42,6 +42,116 @@ func TestParseInboundTextStatus(t *testing.T) {
 	}
 }
 
+func TestTitleCommand_SetsSessionMetadataAndStatusRendersIt(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 29, 11, 30, 0, 0, time.UTC)
+	if err := smap.Put(ctx, "telegram:42", "sess-title-command"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
+	}, fk, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	ev := InboundEvent{Platform: "telegram", ChatID: "42", MsgID: "99", Kind: EventTitle, Text: "/title   Friendly\nGreeting\twith Juan  "}
+	if err := m.handleInbound(ctx, ev); err != nil {
+		t.Fatal(err)
+	}
+
+	meta, ok, err := smap.GetMetadata(ctx, "sess-title-command")
+	if err != nil {
+		t.Fatalf("get metadata: %v", err)
+	}
+	if !ok {
+		t.Fatal("metadata was not persisted")
+	}
+	if meta.Title != "Friendly Greeting with Juan" {
+		t.Fatalf("metadata title = %q, want sanitized title", meta.Title)
+	}
+	if meta.Source != "telegram" || meta.ChatID != "42" {
+		t.Fatalf("metadata source/chat = %q/%q, want telegram/42", meta.Source, meta.ChatID)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 || !strings.Contains(sent[0].Text, "Session title set: Friendly Greeting with Juan") {
+		t.Fatalf("title confirmation not sent: %#v", sent)
+	}
+	if got := fk.submitsSnapshot(); len(got) != 0 {
+		t.Fatalf("/title reached provider/kernel submits: %#v", got)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventTitle, Text: "/title"}); err != nil {
+		t.Fatal(err)
+	}
+	sent = ch.sentSnapshot()
+	if len(sent) != 2 || !strings.Contains(sent[1].Text, "Title: Friendly Greeting with Juan") {
+		t.Fatalf("current title response missing title: %#v", sent)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+	sent = ch.sentSnapshot()
+	if len(sent) != 3 {
+		t.Fatalf("sent count = %d, want 3: %#v", len(sent), sent)
+	}
+	if !strings.Contains(sent[2].Text, "**Title:** Friendly Greeting with Juan") {
+		t.Fatalf("status did not render manual title:\n%s", sent[2].Text)
+	}
+}
+
+func TestTitleCommand_InvalidTitleReturnsGuidanceWithoutMutation(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	if err := smap.Put(ctx, "telegram:42", "sess-title-invalid"); err != nil {
+		t.Fatalf("seed session map: %v", err)
+	}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   smap,
+		Now:          func() time.Time { return time.Date(2026, 4, 29, 11, 45, 0, 0, time.UTC) },
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventTitle, Text: "/title " + strings.Repeat("x", 101)}); err != nil {
+		t.Fatal(err)
+	}
+	meta, ok, err := smap.GetMetadata(ctx, "sess-title-invalid")
+	if err != nil {
+		t.Fatalf("get metadata: %v", err)
+	}
+	if ok && meta.Title != "" {
+		t.Fatalf("invalid title mutated metadata title to %q", meta.Title)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 || !strings.Contains(sent[0].Text, "Title too long (101 chars, max 100)") {
+		t.Fatalf("invalid title guidance not sent: %#v", sent)
+	}
+}
+
+func TestParseInboundTextTitlePreservesPayload(t *testing.T) {
+	kind, body := ParseInboundText("/title Friendly Greeting")
+	if kind != EventTitle || body != "/title Friendly Greeting" {
+		t.Fatalf("ParseInboundText(/title) = (%v, %q), want EventTitle with original payload", kind, body)
+	}
+	cmd, ok := ResolveCommand("/title")
+	if !ok {
+		t.Fatal("/title did not resolve through gateway CommandRegistry")
+	}
+	if cmd.Kind != EventTitle || cmd.ActiveTurnPolicy != CommandActiveTurnPolicyImmediate {
+		t.Fatalf("/title command = (%v, %q), want EventTitle immediate", cmd.Kind, cmd.ActiveTurnPolicy)
+	}
+}
+
 // TestStatusCommand_RendersAllRequiredFields locks in the Hermes-compatible
 // field order and labels documented in the row contract: Session ID, Title,
 // Created, Last Activity, Tokens, Agent Running, Connected Platforms — each

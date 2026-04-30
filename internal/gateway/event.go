@@ -30,6 +30,9 @@ const (
 	// EventStatus renders Hermes-style gateway/session status directly in the
 	// channel, without submitting the slash text to the model.
 	EventStatus
+	// EventTitle sets or reads the current session title directly in the channel,
+	// without submitting the slash text to the model.
+	EventTitle
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
 	EventThreadLifecycle
 )
@@ -53,6 +56,8 @@ func (k EventKind) String() string {
 		return "usage"
 	case EventStatus:
 		return "status"
+	case EventTitle:
+		return "title"
 	case EventThreadLifecycle:
 		return "thread_lifecycle"
 	default:

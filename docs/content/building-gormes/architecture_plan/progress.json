@@ -2272,10 +2272,10 @@
             },
             {
               "name": "Gateway /title manual session title command",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Implement Hermes-compatible `/title` handling in the gateway: `/title` shows the current title, `/title <name>` sanitizes and stores a manual title, manual titles are not overwritten by auto-title, invalid titles return operator guidance, and the command never reaches the provider.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2283,12 +2283,15 @@
                 "operator"
               ],
               "degraded_mode": "If the metadata store is unavailable, `/title` returns title_store_unavailable evidence and does not mutate transcript content.",
-              "fixture": "internal/gateway/title_command_test.go",
+              "fixture": "internal/gateway/status_command_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/run.py:6697-6743",
-                "../hermes-agent/tests/gateway/test_title_command.py",
+                "../hermes-agent/hermes_cli/commands.py:59-96",
+                "../hermes-agent/cli.py:5556-5604",
+                "../hermes-agent/hermes_state.py:559-604",
                 "internal/gateway/commands.go",
-                "internal/session/auto_title.go"
+                "internal/gateway/status_command.go",
+                "internal/gateway/title_command.go",
+                "internal/session/directory.go"
               ],
               "acceptance": [
                 "`/title` on a session with a title returns that title.",
@@ -2298,24 +2301,31 @@
                 "A fake provider capture proves `/title` is not sent to the model."
               ],
               "write_scope": [
+                "internal/gateway/event.go",
                 "internal/gateway/commands.go",
                 "internal/gateway/manager.go",
                 "internal/gateway/title_command.go",
-                "internal/gateway/title_command_test.go",
                 "internal/gateway/status_command_test.go",
+                "internal/cli/command_registry.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title|Status|Command' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/cli ./cmd/gormes -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "`/title` set/show/error fixtures pass and `/status` preserves manual titles."
+                "`/title` set/show/error fixtures pass, the command bypasses provider/kernel submit, CLI active-turn policy marks it ported, and `/status` renders the persisted manual title."
               ],
               "ready_when": [
                 "Hermes `/title` command semantics and Gormes session metadata storage have been source-audited.",
                 "The slice can run with fake gateway/session stores and no provider, Telegram, or live profile access."
+              ],
+              "evidence": [
+                "RED: TestTitleCommand_SetsSessionMetadataAndStatusRendersIt and TestParseInboundTextTitlePreservesPayload failed on missing EventTitle before implementation.",
+                "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestTitleCommand|TestParseInboundTextTitle' -count=1 passed.",
+                "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title|Status|Command' -count=1 passed; gateway/cli/cmd package tests passed."
               ]
             },
             {
