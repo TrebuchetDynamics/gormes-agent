@@ -12432,7 +12432,8 @@
                 "internal/skills/store.go",
                 "internal/skills/parser.go",
                 "internal/skills/status.go",
-                "references/go-agent-os/axe/internal/artifact/tracker.go"
+                "references/go-agent-os/axe/internal/artifact/tracker.go",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:_skill_should_show"
               ],
               "ready_when": [
                 "Phase 2.G skills runtime and SKILL.md frontmatter validation are stable enough to expose active skill snapshots and statuses.",
@@ -12459,7 +12460,7 @@
                 "TestSkillsPromptExternalDirsAndOrdering proves local active skills override external duplicates, external category descriptions are included, and category/skill output is sorted and deduped.",
                 "TestSkillsPromptStatusFiltering proves disabled, unsupported-platform, missing-prerequisite, preprocessing-failed, and frontmatter-invalid skills remain out of the injected prompt while status evidence is preserved for callers."
               ],
-              "note": "Builder-ready tool-calling prompt slice. Hermes defines the skill-index snapshot and conditional tool/toolset filtering contract; Gormes should implement it against the existing internal/skills runtime before native full prompt assembly consumes dynamic skills.",
+              "note": "Builder-ready tool-calling prompt slice. Hermes defines the skill-index snapshot and conditional tool/toolset filtering contract; Gormes should implement it against the existing internal/skills runtime before native full prompt assembly consumes dynamic skills. Partial TDD evidence landed 2026-04-30: internal/skills now parses metadata.hermes fallback_for_tools, fallback_for_toolsets, requires_tools, and requires_toolsets from SKILL.md frontmatter and RuntimeOptions filters prompt injection with Hermes nil-filter backward compatibility. Focused regression: go test ./internal/skills -run TestRuntimeBuildSkillBlockToolsetConditions -count=1. Upstream contract checked against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d agent/prompt_builder.py:_skill_should_show and build_skills_system_prompt.",
               "write_scope": [
                 "internal/hermes/skills_prompt.go",
                 "internal/hermes/skills_prompt_test.go",
