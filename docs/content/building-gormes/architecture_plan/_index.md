@@ -197,7 +197,7 @@ classification and row-backed implementation queue.
 - [x] Durable context ordering and frozen snapshot decision fixture
 - [x] Live-turn model/tool guidance wiring
 - [x] Gateway active-turn policy manifest closeout
-- [ ] Gateway conversational session metadata refresh
+- [x] Gateway conversational session metadata refresh
 - [ ] Gateway session token accounting parity
 - [x] Telegram voice/audio inbound attachment markers
 - [x] DeliveryRouter + --deliver target parsing

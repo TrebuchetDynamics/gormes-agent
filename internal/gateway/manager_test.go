@@ -317,33 +317,77 @@ func TestManager_Inbound_Start_RepliesHelp(t *testing.T) {
 	}
 }
 
-func TestManager_Inbound_SubmitUsesChatScopedSessionOverride(t *testing.T) {
+func TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata(t *testing.T) {
+	ctx := context.Background()
 	tg := newFakeChannel("telegram")
 	fk := &fakeKernel{}
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 30, 1, 0, 0, 0, time.UTC)
 
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats: map[string]string{"telegram": "42"},
-		SessionMap:   session.NewMemMap(),
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
 	}, fk, slog.Default())
 	if err := m.Register(tg); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = m.Run(ctx) }()
-
-	tg.pushInbound(InboundEvent{
-		Platform: "telegram", ChatID: "42", MsgID: "m",
+	if err := m.handleInbound(ctx, InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "user-juan", MsgID: "m1",
 		Kind: EventSubmit, Text: "hello",
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first := fk.submitsSnapshot()[0]
+	if first.SessionID == "" || first.SessionID == "telegram:42" || !strings.HasPrefix(first.SessionID, "20260430_010000_") {
+		t.Fatalf("first submit SessionID = %q, want generated Hermes-style session id", first.SessionID)
+	}
+	mapped, err := smap.Get(ctx, "telegram:42")
+	if err != nil {
+		t.Fatalf("Get session map: %v", err)
+	}
+	if mapped != first.SessionID {
+		t.Fatalf("session map = %q, want first submit session %q", mapped, first.SessionID)
+	}
+	meta, ok, err := smap.GetMetadata(ctx, first.SessionID)
+	if err != nil {
+		t.Fatalf("GetMetadata first: %v", err)
+	}
+	if !ok {
+		t.Fatal("normal submit did not create session metadata")
+	}
+	if meta.Source != "telegram" || meta.ChatID != "42" || meta.UserID != "user-juan" {
+		t.Fatalf("metadata source/chat/user = %q/%q/%q, want telegram/42/user-juan", meta.Source, meta.ChatID, meta.UserID)
+	}
+	if meta.CreatedAt != now.Unix() || meta.UpdatedAt != now.Unix() {
+		t.Fatalf("metadata times = created %d updated %d, want %d", meta.CreatedAt, meta.UpdatedAt, now.Unix())
+	}
 
-	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(fk.submitsSnapshot()) == 1
-	})
-	got := fk.submitsSnapshot()[0]
-	if got.SessionID != "telegram:42" {
-		t.Errorf("SessionID override = %q, want %q", got.SessionID, "telegram:42")
+	m.clearTurn()
+	now = now.Add(5 * time.Minute)
+	if err := m.handleInbound(ctx, InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "user-juan", MsgID: "m2",
+		Kind: EventSubmit, Text: "again",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	second := fk.submitsSnapshot()[1]
+	if second.SessionID != first.SessionID {
+		t.Fatalf("second submit SessionID = %q, want stable %q", second.SessionID, first.SessionID)
+	}
+	meta, ok, err = smap.GetMetadata(ctx, first.SessionID)
+	if err != nil {
+		t.Fatalf("GetMetadata second: %v", err)
+	}
+	if !ok {
+		t.Fatal("metadata disappeared after refresh")
+	}
+	if meta.CreatedAt != time.Date(2026, 4, 30, 1, 0, 0, 0, time.UTC).Unix() {
+		t.Fatalf("CreatedAt changed to %d", meta.CreatedAt)
+	}
+	if meta.UpdatedAt != now.Unix() {
+		t.Fatalf("UpdatedAt = %d, want refreshed %d", meta.UpdatedAt, now.Unix())
 	}
 }
 

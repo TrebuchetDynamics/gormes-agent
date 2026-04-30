@@ -2996,10 +2996,10 @@
             },
             {
               "name": "Gateway conversational session metadata refresh",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Normal conversational Telegram turns create or refresh session metadata with Hermes-compatible session ID, created time, last activity time, connected platform evidence, and title eligibility before `/status` renders it.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -3011,7 +3011,9 @@
               "source_refs": [
                 "../hermes-agent/gateway/session.py",
                 "../hermes-agent/gateway/run.py:4646-4680",
+                "internal/gateway/manager.go:refreshConversationalSessionMetadata",
                 "internal/gateway/status_command.go",
+                "internal/gateway/manager_test.go:TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata",
                 "internal/session/"
               ],
               "acceptance": [
@@ -3031,11 +3033,17 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Conversational turn fixtures prove created/updated/session/platform metadata refresh semantics for `/status`."
+                "Conversational turn fixtures prove created/updated/session/platform metadata refresh semantics for /status."
               ],
               "ready_when": [
                 "Gormes session metadata and status rendering seams are identified.",
                 "Fake conversational gateway turns can create/update metadata without live Telegram or provider calls."
+              ],
+              "note": "Validated native gateway conversational turn metadata refresh: normal Telegram-shaped submits now create a Hermes-style session id, persist chat->session mapping and source/user metadata, preserve CreatedAt, refresh UpdatedAt on later turns, and /status reads the same metadata without provider submission.",
+              "evidence": [
+                "RED: TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata failed with first submit SessionID = \"telegram:42\", proving normal conversational turns still used the legacy chat key and did not create metadata.",
+                "GREEN: internal/gateway/manager.go refreshConversationalSessionMetadata now generates a Hermes-style session id for missing/legacy chat-key sessions, persists the chat->session mapping, writes source/chat/user metadata, preserves CreatedAt through session.mergeMetadata, and refreshes UpdatedAt on later normal turns before provider submission.",
+                "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session -run SessionMetadata|Status|Telegram|SubmitCreatesAndRefreshes -count=1 PASS."
               ]
             },
             {

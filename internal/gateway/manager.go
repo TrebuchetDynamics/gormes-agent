@@ -1685,6 +1685,41 @@ func resumePendingNote(reason string) string {
 		". The conversation history below is intact. If it contains unfinished tool result(s), process them first and summarize what was accomplished, then address the user's new message below.]"
 }
 
+func (m *Manager) refreshConversationalSessionMetadata(ctx context.Context, ev InboundEvent, resolved resolvedSession, source SessionSource) resolvedSession {
+	key := strings.TrimSpace(ev.ChatKey())
+	if key == "" || m.cfg.SessionMap == nil {
+		return resolved
+	}
+	sessionID := strings.TrimSpace(resolved.SessionID)
+	if sessionID == "" || sessionID == key {
+		sessionID = generateStatusSessionID(m.now(), ev)
+		if err := m.cfg.SessionMap.Put(ctx, key, sessionID); err != nil {
+			m.log.Warn("persist conversational session_id", "key", key, "session_id", sessionID, "err", err)
+			if strings.TrimSpace(resolved.SessionID) != "" {
+				return resolved
+			}
+		}
+		resolved.SessionID = sessionID
+	}
+	writer, ok := m.cfg.SessionMap.(sessionMetadataWriter)
+	if !ok || sessionID == "" {
+		return resolved
+	}
+	now := m.now().Unix()
+	meta := session.Metadata{
+		SessionID: sessionID,
+		Source:    source.Platform,
+		ChatID:    source.ChatID,
+		UserID:    source.UserID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := writer.PutMetadata(ctx, meta); err != nil {
+		m.log.Warn("refresh conversational session metadata", "session_id", sessionID, "err", err)
+	}
+	return resolved
+}
+
 func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent) bool {
 	resolved, err := resolveSession(ctx, m.cfg.SessionMap, ev.ChatKey())
 	if err != nil {
@@ -1717,6 +1752,9 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 			submitText = resumePendingNote(reason) + "\n\n" + submitText
 			clearPendingSessionID = resolved.SessionID
 		}
+	}
+	if !clearBlockedMapping {
+		resolved = m.refreshConversationalSessionMetadata(ctx, ev, resolved, source)
 	}
 	m.setPinnedTurnSession(ev.ChatKey(), resolved.SessionID, source)
 	m.setTurnLastUserText(ev.Text)
