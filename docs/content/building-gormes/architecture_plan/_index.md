@@ -186,7 +186,7 @@ classification and row-backed implementation queue.
 - [x] Telegram /status Hermes-format closeout
 - [x] Gateway /title manual session title command
 - [x] Session metadata manual-title protection flag
-- [ ] Gateway auto-title generation wiring
+- [x] Gateway auto-title generation wiring
 - [x] Telegram reply_to_mode and reply-context parity
 - [x] Telegram sendChatAction typing API
 - [ ] Gateway typing-action wiring during stream

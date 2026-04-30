@@ -143,27 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 7. Gateway auto-title generation wiring
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: After an assistant turn finalizes (kernel.PhaseIdle), the gateway invokes session.PerformAutoTitle once per turn against the MetadataTitleStore adapter, using internal/hermes.GenerateTitle as the provider boundary, so untitled sessions get one auto-generated title from the first user+assistant exchange while manual titles, already-titled sessions, blank generator output, and provider failures all surface evidence without retry storms or transcript mutation.
-- Trust class: gateway, operator, system
-- Ready when: Session metadata manual-title protection flag row is complete and merged on dev (provides MetadataTitleStore adapter and TitleManuallySet flag)., internal/hermes.GenerateTitle and TitleModelFunc seam are validated on dev (4.F[0] complete)., Auxiliary-failure callback wiring (4.F[1]) is validated on dev so failure evidence routing is reusable., The slice runs with hermetic in-memory session.Map + a fake TitleModelFunc; no live provider, Telegram, or profile access required.
-- Not ready when: The slice tries to capture user prompts or assistant replies from a future transcript store that does not yet exist on dev — must build []session.TitleTurn from in-process gateway state (last inbound text + PhaseIdle render frame text)., The slice changes session.Metadata schema, mergeMetadata semantics, or the SessionTitleStore interface signature., The slice introduces background goroutines or retry loops; PerformAutoTitle is one synchronous call per turn with bounded evidence.
-- Degraded mode: If the configured TitleModelFunc is nil, PerformAutoTitle returns AutoTitleCodeProviderFailed evidence and the gateway routes it through the existing auxiliary-failure callback (4.F[1]) so operators see why no title was set. Provider errors and blank model output surface auto_title_provider_failed and auto_title_blank_result via the same channel without crashing the foreground turn.
-- Fixture: `internal/gateway/auto_title_wiring_test.go`
-- Write scope: `internal/gateway/auto_title_wiring.go`, `internal/gateway/auto_title_wiring_test.go`, `internal/gateway/manager.go`, `cmd/gormes/gateway.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `www.gormes.ai/internal/site/data/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'AutoTitleWiring\|AutoTitle' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes ./cmd/gormes -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./... -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Gateway dispatchFrame PhaseIdle case fires PerformAutoTitle once per turn against MetadataTitleStore + an injected TitleModelFunc, hermetic fixtures cover all evidence codes (generated, skipped_manual, skipped_titled, provider_failed, blank_result, missing_session), production cmd/gormes/gateway.go injects a real provider-backed TitleModelFunc, and the auxiliary-failure callback surfaces failure evidence without crashing the foreground turn.
-- Acceptance: TestAutoTitleWiring_FirstUserAssistantPairTriggersGeneration drives a full turn through the gateway with an untitled session, a hermetic TitleModelFunc returning "Friendly Test Title", and asserts MetadataTitleStore.Title returns the generated title after the PhaseIdle frame is dispatched., TestAutoTitleWiring_ManualTitledSessionShortCircuits seeds a session with TitleManuallySet=true and asserts the TitleModelFunc is never invoked and the persisted title is unchanged., TestAutoTitleWiring_AlreadyTitledNonManualSessionShortCircuits seeds a session with Title set and TitleManuallySet=false, asserts AutoTitleCodeSkippedTitled evidence and no generator call., TestAutoTitleWiring_ProviderFailureRoutesAuxiliaryEvidence injects a TitleModelFunc that returns an error and asserts title_provider_failed evidence reaches the auxiliary-failure callback wired in 4.F[1]., TestAutoTitleWiring_BlankResultRoutesEvidence injects a TitleModelFunc returning "" and asserts title_blank_result evidence (no metadata write)., TestAutoTitleWiring_OneCallPerTurnNoDoubleFire dispatches two PhaseIdle frames in quick succession for the same session and asserts the generator is invoked at most once on the second turn (because the first turn wrote the title)., TestAutoTitleWiring_NilTitleModelFuncRecordsEvidence proves the manager defaults safely with no panic and routes AutoTitleCodeProviderFailed evidence when ManagerConfig.TitleModel is nil., Production wiring in cmd/gormes/gateway.go injects a real TitleModelFunc backed by the configured provider; a smoke fixture (build + ManagerConfig assertion only, no live LLM) proves the seam is non-nil in production builds.
-- Source refs: internal/gateway/manager.go:864-938 (dispatchFrame, PhaseIdle case at 896), internal/session/auto_title.go:94 (PerformAutoTitle), internal/session/title_store.go (MetadataTitleStore, shipped in bffe3c518), internal/hermes/title_generator.go:91 (GenerateTitle, TitleModelFunc), internal/kernel/title_failure_test.go (auxiliary-failure routing, 4.F[1] complete), ../hermes-agent/agent/title_generator.py@4a2ee6c1:maybe_auto_title, ../hermes-agent/gateway/run.py (auto-title invocation site)
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. Telegram dynamic BotCommand menu wiring
+## 7. Telegram dynamic BotCommand menu wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Durable context ordering and frozen snapshot decision fixture
+## 8. Durable context ordering and frozen snapshot decision fixture
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/run_agent.py:3721-3730, ../hermes-agent/tools/memory_tool.py:105-124, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Live-turn model/tool guidance wiring
+## 9. Live-turn model/tool guidance wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Live-turn guidance fixtures prove Hermes guidance constants reach provider payloads only under their gated conditions.
 - Acceptance: Provider payload fixtures include memory/session-search/skills guidance only when those capabilities are active., Tool-use enforcement guidance is gated by model family., Guidance ordering relative to SOUL, durable memory, AGENTS, metadata, and user messages is pinned., Disabled tool/skill paths do not advertise unavailable capabilities.
 - Source refs: ../hermes-agent/run_agent.py:3667-3712, ../hermes-agent/agent/prompt_builder.py, internal/hermes/guidance_constants.go, internal/kernel/kernel.go, internal/gateway/live_turn_prompt.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Gateway active-turn policy manifest closeout
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Compare the full Hermes gateway slash-command policy set against Gormes CommandDef policies and close remaining bypass, reject, drain, unavailable, and model-leak differences with a manifest fixture.
+- Trust class: gateway, operator
+- Ready when: Hermes slash-command policy sources and Gormes CommandDef registry are available for table-driven comparison., Gateway manager tests can prove interception decisions with fake provider captures and no live channels.
+- Not ready when: -
+- Degraded mode: Unknown policies default to reject-with-guidance during active turns and never leak slash text to the provider.
+- Fixture: `internal/gateway/active_turn_command_bypass_test.go`
+- Write scope: `internal/gateway/commands.go`, `internal/gateway/commands_test.go`, `internal/gateway/active_turn_command_bypass_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'ActiveTurn\|Command\|Slash' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Active-turn command policy manifest fixtures prove bypass/reject/drain parity and no slash leakage.
+- Acceptance: A manifest table lists every Hermes slash command policy and the Gormes decision., Known control/info commands bypass active turns., Mutating commands reject or drain according to the manifest., Provider capture proves slash text never reaches the model when intercepted.
+- Source refs: ../hermes-agent/hermes_cli/commands.py:267-290, ../hermes-agent/gateway/run.py:2950-3225, internal/gateway/commands.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
