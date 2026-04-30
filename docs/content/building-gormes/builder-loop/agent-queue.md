@@ -22,7 +22,27 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Hermes memory tool over Goncho/local durable store
+## 1. Session metadata manual-title protection flag
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Persist a manual-title flag on session.Metadata, expose a concrete SessionTitleStore adapter that surfaces it to PerformAutoTitle, and wire the gateway /title set path to mark titles as manual so future auto-title generation cannot overwrite operator-set names.
+- Trust class: gateway, system
+- Ready when: session.Metadata fields and mergeMetadata semantics on dev are audited., auto_title.go SessionTitleStore interface and PerformAutoTitle manual short-circuit branch on dev are audited., The slice runs with hermetic in-memory session.Map fakes plus the concrete adapter; no provider, Telegram, or profile access required.
+- Not ready when: Auto-title GENERATION wiring (PerformAutoTitle invocation site in the gateway) is being changed in the same slice; that is a sibling row., session.Metadata schema migrations are being changed beyond adding the new omitempty field.
+- Degraded mode: Legacy bbolt rows without the field decode as manual=false (zero value) so existing untitled sessions remain auto-title-eligible. If the adapter cannot read metadata, Title() returns err and PerformAutoTitle records auto_title_store_read_failed evidence rather than silently overwriting.
+- Fixture: `internal/session/title_store_test.go`
+- Write scope: `internal/session/directory.go`, `internal/session/title_store.go`, `internal/session/title_store_test.go`, `internal/session/directory_test.go`, `internal/gateway/title_command.go`, `internal/gateway/title_command_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `www.gormes.ai/internal/site/data/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/session -run 'TitleManually\|TitleStore\|Manual' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title\|Manual' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./... -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Manual-flag round-trip and sticky-merge fixtures pass; SessionTitleStore adapter is wired into a PerformAutoTitle integration fixture proving manual short-circuit; gateway /title set path persists the flag end-to-end.
+- Acceptance: session.Metadata has TitleManuallySet bool with json:"title_manually_set,omitempty"., mergeMetadata flips false->true; an incoming Metadata with TitleManuallySet=false cannot revert an existing TitleManuallySet=true., A concrete SessionTitleStore adapter (over session.Map) implements Title() returning (current, manual, ok, err) sourced from the persisted flag., SessionTitleStore.SetTitle clears TitleManuallySet atomically with the title write so a follow-up Title() returns manual=false (auto-titles are non-manual per the auto_title.go interface contract)., internal/gateway/title_command.go:handleTitleCommand sets TitleManuallySet=true on the PutMetadata call in the /title <name> set path., A fixture wires PerformAutoTitle against the adapter and proves the manual short-circuit (AutoTitleCodeSkippedManual) returns when /title was used first., Legacy decode test confirms a bbolt row written before this slice decodes with TitleManuallySet=false and remains auto-title-eligible.
+- Source refs: internal/session/auto_title.go:59-73, internal/session/auto_title.go:126-144, internal/session/directory.go:27-48, internal/session/directory.go:79-143, internal/gateway/title_command.go, ../hermes-agent/gateway/run.py:7738-7784, ../hermes-agent/hermes_state.py:735-779
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Hermes memory tool over Goncho/local durable store
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -42,7 +62,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Gateway stream/tool trace formatting fixture matrix
+## 3. Gateway stream/tool trace formatting fixture matrix
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -62,7 +82,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/stream_consumer.py:482-508, ../hermes-agent/gateway/run.py, internal/gateway/render.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Gateway slash registry parity sweep (recognized-name expansion)
+## 4. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -83,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 4. Stateful tool migration queue
+## 5. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -103,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 5. Debug helpers
+## 6. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -123,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 6. Feishu transport/bootstrap layer
+## 7. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -143,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 7. Telegram reply_to_mode and reply-context parity
+## 8. Telegram reply_to_mode and reply-context parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -163,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py:904-922, ../hermes-agent/gateway/platforms/telegram.py:1022-1032, ../hermes-agent/gateway/platforms/telegram.py:2935-2959, internal/channels/telegram/bot.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Telegram typing action + placeholder lifecycle parity
+## 9. Telegram typing action + placeholder lifecycle parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +203,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/base.py:1718-1724, ../hermes-agent/gateway/platforms/base.py:1976-1986, ../hermes-agent/gateway/platforms/telegram.py:1909-1935, internal/gateway/coalesce.go, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Telegram dynamic BotCommand menu wiring
+## 10. Telegram dynamic BotCommand menu wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -201,26 +221,6 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Telegram runtime registration uses the dynamic command helper with deterministic cap/fallback fixtures.
 - Acceptance: Runtime `setMyCommands` receives core plus enabled dynamic commands in deterministic order., Aliases are omitted and command names are Telegram-safe., More than 100 commands are capped with hidden-count evidence., Core-only fallback remains available.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Active Hermes/Sidon profile context root resolver for live turns
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Live-turn context discovery resolves explicit Gormes overrides first, then active Hermes profile roots such as `HERMES_HOME=/home/xel/.hermes` + profile `mineru` or `sidon`, then workspace ancestor SOUL/USER/MEMORY files, without unit tests reading live profile state.
-- Trust class: gateway, system
-- Ready when: Current live-turn context discovery seams are identified in internal/hermes and internal/gateway., Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile.
-- Not ready when: -
-- Degraded mode: Missing profile files render missing-context evidence and continue the turn; unsafe paths are rejected with redacted evidence.
-- Fixture: `internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go`
-- Write scope: `internal/hermes/`, `internal/gateway/live_turn_prompt.go`, `internal/gateway/live_turn_prompt_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot\|SOUL\|DurableUserContext\|LiveTurn' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Hermetic profile-root resolver fixtures prove production discovery order without live profile reads.
-- Acceptance: Temp-dir tests prove Gormes override wins over Hermes profile discovery., `HERMES_HOME=/tmp/.hermes` plus active profile resolves `/tmp/.hermes/profiles/<name>/SOUL.md` and memory files., Workspace ancestor SOUL/USER/MEMORY fallback is covered., Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`.
-- Source refs: ../hermes-agent/hermes_constants.py, ../hermes-agent/run_agent.py, internal/hermes/context_files.go, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

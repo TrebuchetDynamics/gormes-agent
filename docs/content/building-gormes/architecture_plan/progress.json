@@ -2329,6 +2329,72 @@
               ]
             },
             {
+              "name": "Session metadata manual-title protection flag",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Persist a manual-title flag on session.Metadata, expose a concrete SessionTitleStore adapter that surfaces it to PerformAutoTitle, and wire the gateway /title set path to mark titles as manual so future auto-title generation cannot overwrite operator-set names.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Legacy bbolt rows without the field decode as manual=false (zero value) so existing untitled sessions remain auto-title-eligible. If the adapter cannot read metadata, Title() returns err and PerformAutoTitle records auto_title_store_read_failed evidence rather than silently overwriting.",
+              "fixture": "internal/session/title_store_test.go",
+              "source_refs": [
+                "internal/session/auto_title.go:59-73",
+                "internal/session/auto_title.go:126-144",
+                "internal/session/directory.go:27-48",
+                "internal/session/directory.go:79-143",
+                "internal/gateway/title_command.go",
+                "../hermes-agent/gateway/run.py:7738-7784",
+                "../hermes-agent/hermes_state.py:735-779"
+              ],
+              "acceptance": [
+                "session.Metadata has TitleManuallySet bool with json:\"title_manually_set,omitempty\".",
+                "mergeMetadata flips false->true; an incoming Metadata with TitleManuallySet=false cannot revert an existing TitleManuallySet=true.",
+                "A concrete SessionTitleStore adapter (over session.Map) implements Title() returning (current, manual, ok, err) sourced from the persisted flag.",
+                "SessionTitleStore.SetTitle clears TitleManuallySet atomically with the title write so a follow-up Title() returns manual=false (auto-titles are non-manual per the auto_title.go interface contract).",
+                "internal/gateway/title_command.go:handleTitleCommand sets TitleManuallySet=true on the PutMetadata call in the /title <name> set path.",
+                "A fixture wires PerformAutoTitle against the adapter and proves the manual short-circuit (AutoTitleCodeSkippedManual) returns when /title was used first.",
+                "Legacy decode test confirms a bbolt row written before this slice decodes with TitleManuallySet=false and remains auto-title-eligible."
+              ],
+              "write_scope": [
+                "internal/session/directory.go",
+                "internal/session/title_store.go",
+                "internal/session/title_store_test.go",
+                "internal/session/directory_test.go",
+                "internal/gateway/title_command.go",
+                "internal/gateway/title_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/session -run 'TitleManually|TitleStore|Manual' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Title|Manual' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./... -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Manual-flag round-trip and sticky-merge fixtures pass; SessionTitleStore adapter is wired into a PerformAutoTitle integration fixture proving manual short-circuit; gateway /title set path persists the flag end-to-end."
+              ],
+              "ready_when": [
+                "session.Metadata fields and mergeMetadata semantics on dev are audited.",
+                "auto_title.go SessionTitleStore interface and PerformAutoTitle manual short-circuit branch on dev are audited.",
+                "The slice runs with hermetic in-memory session.Map fakes plus the concrete adapter; no provider, Telegram, or profile access required."
+              ],
+              "not_ready_when": [
+                "Auto-title GENERATION wiring (PerformAutoTitle invocation site in the gateway) is being changed in the same slice; that is a sibling row.",
+                "session.Metadata schema migrations are being changed beyond adding the new omitempty field."
+              ],
+              "evidence": [
+                "GAP: User-shipped e23f0421c implements /title without the manual flag, leaving the contract claim 'manual titles are not overwritten by auto-title' (row L2299) unenforced because session.Metadata has no TitleManuallySet field and no concrete SessionTitleStore adapter exists on dev.",
+                "GAP: internal/session/auto_title.go:67 declares Title(sessionID) (current, manual, ok, err) but no in-tree implementation satisfies it; PerformAutoTitle would skip the manual short-circuit silently."
+              ]
+            },
+            {
               "name": "Telegram reply_to_mode and reply-context parity",
               "status": "planned",
               "priority": "P1",

@@ -185,6 +185,7 @@ classification and row-backed implementation queue.
 - [x] Telegram production live-turn provider payload golden
 - [x] Telegram /status Hermes-format closeout
 - [x] Gateway /title manual session title command
+- [ ] Session metadata manual-title protection flag
 - [ ] Telegram reply_to_mode and reply-context parity
 - [ ] Telegram typing action + placeholder lifecycle parity
 - [ ] Gateway stream/tool trace formatting fixture matrix
