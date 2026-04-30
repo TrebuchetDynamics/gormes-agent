@@ -191,7 +191,7 @@ classification and row-backed implementation queue.
 - [x] Telegram sendChatAction typing API
 - [ ] Gateway typing-action wiring during stream
 - [x] Placeholder edit-failure fallback hardening
-- [ ] Gateway stream/tool trace formatting fixture matrix
+- [x] Gateway stream/tool trace formatting fixture matrix
 - [ ] Telegram dynamic BotCommand menu wiring
 - [x] Active Hermes/Sidon profile context root resolver for live turns
 - [ ] Durable context ordering and frozen snapshot decision fixture

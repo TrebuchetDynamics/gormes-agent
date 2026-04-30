@@ -42,27 +42,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Gateway stream/tool trace formatting fixture matrix
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/search/read/patch/terminal/browser actions.
-- Trust class: gateway, operator
-- Ready when: Hermes/Sidon stream and tool-trace rendering examples are captured as source-backed fixture expectations., The renderer can be tested with pure gateway events and Telegram formatting fixtures without provider or live channel calls.
-- Not ready when: -
-- Degraded mode: Unknown tool events render as bounded generic tool_progress evidence instead of raw provider payloads or dropped traces.
-- Fixture: `internal/gateway/render_test.go`
-- Write scope: `internal/gateway/render.go`, `internal/gateway/render_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Render\|FormatStream\|ToolTrace' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Renderer snapshot/table fixtures prove compact channel-neutral stream and tool trace parity.
-- Acceptance: Renderer fixtures cover streaming text, final answer separation, provider errors, and tool progress., Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels., Memory/search/read/patch/terminal/browser traces match the parity matrix examples., No renderer emits tokens, raw credential values, or unbounded payloads.
-- Source refs: ../hermes-agent/gateway/stream_consumer.py:482-508, ../hermes-agent/gateway/run.py, internal/gateway/render.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Gateway slash registry parity sweep (recognized-name expansion)
+## 2. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -83,7 +63,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 4. Stateful tool migration queue
+## 3. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -103,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 5. Debug helpers
+## 4. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -123,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 6. Feishu transport/bootstrap layer
+## 5. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -143,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 7. Telegram dynamic BotCommand menu wiring
+## 6. Telegram dynamic BotCommand menu wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -163,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Durable context ordering and frozen snapshot decision fixture
+## 7. Durable context ordering and frozen snapshot decision fixture
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/run_agent.py:3721-3730, ../hermes-agent/tools/memory_tool.py:105-124, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Live-turn model/tool guidance wiring
+## 8. Live-turn model/tool guidance wiring
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/run_agent.py:3667-3712, ../hermes-agent/agent/prompt_builder.py, internal/hermes/guidance_constants.go, internal/kernel/kernel.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Gateway active-turn policy manifest closeout
+## 9. Gateway active-turn policy manifest closeout
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Active-turn command policy manifest fixtures prove bypass/reject/drain parity and no slash leakage.
 - Acceptance: A manifest table lists every Hermes slash command policy and the Gormes decision., Known control/info commands bypass active turns., Mutating commands reject or drain according to the manifest., Provider capture proves slash text never reaches the model when intercepted.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:267-290, ../hermes-agent/gateway/run.py:2950-3225, internal/gateway/commands.go, internal/gateway/manager.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Gateway conversational session metadata refresh
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Normal conversational Telegram turns create or refresh session metadata with Hermes-compatible session ID, created time, last activity time, connected platform evidence, and title eligibility before `/status` renders it.
+- Trust class: gateway, operator
+- Ready when: Gormes session metadata and status rendering seams are identified., Fake conversational gateway turns can create/update metadata without live Telegram or provider calls.
+- Not ready when: -
+- Degraded mode: If metadata persistence fails, `/status` reports session_metadata_unavailable instead of fabricating timestamps.
+- Fixture: `internal/gateway/session_metadata_test.go`
+- Write scope: `internal/gateway/`, `internal/session/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session -run 'SessionMetadata\|Status\|Telegram' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Conversational turn fixtures prove created/updated/session/platform metadata refresh semantics for `/status`.
+- Acceptance: A normal user turn creates metadata with stable session ID, CreatedAt, UpdatedAt, and connected platform., A later turn updates Last Activity without changing CreatedAt., `/status` reflects the same metadata without model submission., Legacy `telegram:<chat_id>` identifiers are mapped or explicitly reported.
+- Source refs: ../hermes-agent/gateway/session.py, ../hermes-agent/gateway/run.py:4646-4680, internal/gateway/status_command.go, internal/session/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

@@ -106,10 +106,24 @@ func formatToolTracePlain(text string) string {
 		if ok {
 			name = strings.TrimSpace(name)
 			arg = strings.TrimSpace(arg)
+			if !isKnownToolTraceName(name) {
+				return "🔧 tool_progress: " + quoteAndTruncate(arg, 96)
+			}
 			return toolTraceIcon(name) + " " + name + ": " + quoteAndTruncate(arg, 96)
 		}
 	}
 	return "🔧 " + text
+}
+
+func isKnownToolTraceName(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "memory", "honcho_context", "honcho_search", "honcho_profile", "honcho_conclude", "session_search",
+		"search_files", "browser_navigate", "browser_snapshot", "web_search",
+		"read_file", "patch", "write_file", "terminal", "execute_code", "process":
+		return true
+	default:
+		return false
+	}
 }
 
 func toolTraceIcon(name string) string {
