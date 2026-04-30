@@ -27539,7 +27539,7 @@
               "name": "Native TUI Hermes skin token renderer",
               "priority": "P2",
               "status": "complete",
-              "contract": "internal/tui exposes a HermesSkin value model and renderer tokens that mirror Hermes prompt_toolkit skin defaults for the interactive TUI: prompt symbol, Hermes-compatible response box shape, Gormes product response label, status bar colors, input-rule color, placeholder style, and width-aware minimal-chrome thresholds. This is a pure helper slice; it does not change Bubble Tea runtime layout yet.",
+              "contract": "internal/tui exposes a HermesSkin value model and renderer tokens that mirror Hermes prompt_toolkit skin defaults for the interactive TUI: prompt symbol, Hermes-style response label shape, status bar colors, input-rule color, placeholder style, and width-aware minimal-chrome thresholds. The response label is an owned Gormes product-identity divergence (`⚕ Gormes`) while preserving the upstream chrome shape. This is a pure helper slice; it does not change Bubble Tea runtime layout yet.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -27567,12 +27567,12 @@
                 "The slice attempts to port user YAML skin loading; start with built-in Hermes-compatible default tokens and an extension point."
               ],
               "acceptance": [
-                "TestHermesSkin_DefaultTokens proves the default prompt symbol is `❯ `, response label contains `Gormes` instead of upstream `Hermes`, input-rule color matches Hermes bronze, and status-bar background/text/strong/dim tokens are stable.",
+                "TestHermesSkin_DefaultTokens proves the default prompt symbol is `❯ `, response label contains `Gormes` and not the upstream `Hermes` product label, input-rule color matches Hermes bronze, and status-bar background/text/strong/dim tokens are stable.",
                 "TestHermesSkin_MinimalChromeThreshold proves width < 64 uses minimal chrome and width >= 64 keeps the full input/status chrome, matching cli.py.",
                 "TestHermesSkin_ProfilePromptPrefix proves a non-default profile name prepends the prompt symbol without changing the state suffix.",
                 "Helper has no filesystem, config, terminal, or provider side effects."
               ],
-              "note": "Complete: TDD landed internal/tui/hermes_skin.go and hermes_skin_test.go. Fixtures prove the default Hermes prompt symbol, Gormes product response label inside the Hermes-compatible response box, bronze input rule, status-bar token fallbacks, width <64 minimal-chrome breakpoint, and profile-prefixed prompt suffix behavior without changing Bubble Tea runtime layout, config persistence, kernel frames, or provider behavior.",
+              "note": "Complete: TDD landed internal/tui/hermes_skin.go and hermes_skin_test.go. Fixtures prove the default Hermes prompt symbol, Gormes-owned response label inside the Hermes-style chrome, bronze input rule, status-bar token fallbacks, width <64 minimal-chrome breakpoint, and profile-prefixed prompt suffix behavior without changing Bubble Tea runtime layout, config persistence, kernel frames, or provider behavior. 2026-04-30 parity follow-up: the response label is intentionally `⚕ Gormes`, not `⚕ Hermes`, because Gormes must preserve its product identity while matching Hermes UX mechanics.",
               "write_scope": [
                 "internal/tui/hermes_skin.go",
                 "internal/tui/hermes_skin_test.go",
@@ -27584,12 +27584,12 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Hermes skin token fixtures pass and no runtime layout/keybinding behavior changes in this slice."
+                "Hermes skin token fixtures pass with the owned Gormes response label and no runtime layout/keybinding behavior changes in this slice."
               ],
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes defines the operator-visible TUI tokens; Gormes ports them as Go-native renderer data before applying them to Bubble Tea. The response label is an owned product-identity divergence: Gormes keeps the Hermes box/chrome contract but does not identify the assistant as upstream Hermes."
+                "note": "Hermes defines the operator-visible TUI tokens; Gormes ports them as Go-native renderer data before applying them to Bubble Tea, with product label text owned by Gormes."
               },
               "unblocks": [
                 "Native TUI Hermes status bar renderer",
@@ -27664,7 +27664,7 @@
               "name": "Native TUI Hermes bottom-pinned chrome layout",
               "priority": "P1",
               "status": "complete",
-              "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: transcript/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, and no Telemetry/Soul side pane. The local full-screen Bubble Tea renderer should use the terminal alternate screen like current Hermes Ink unless an explicit inline mode is added, while preserving Go-native RenderFrame consumption and ensuring completed assistant text is not rendered both as transcript history and live draft.",
+              "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: transcript/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, Gormes-branded response label inside the Hermes response-box shape, and no Telemetry/Soul side pane. The local full-screen Bubble Tea renderer should use the terminal alternate screen like current Hermes Ink unless an explicit inline mode is added, while preserving Go-native RenderFrame consumption and ensuring completed assistant text is not rendered both as transcript history and live draft.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -27699,12 +27699,12 @@
               "acceptance": [
                 "TestHermesChrome_NoSidebar proves View output for a 120x32 frame does not include `Telemetry`, `Soul Monitor`, or side-pane borders.",
                 "TestHermesChrome_BottomPinnedOrder proves output order is conversation, optional spinner/hint, status bar, input rule, prompt/input area, optional voice/image/completion rows.",
-                "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Gormes response label in the Hermes-compatible response box, not `gormes:` dashboard tags or an upstream `⚕ Hermes` product label, while user previews remain visible.",
+                "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Gormes response label in the Hermes response-box shape, not `gormes:` dashboard tags or the upstream `⚕ Hermes` product label, while user previews remain visible.",
                 "TestHermesChrome_MinimalWidthDropsBottomRule proves narrow widths keep prompt/status usable and hide low-value chrome like Hermes.",
                 "TestHermesChrome_UsesAltScreen and TestNativeTUIStartupUsesAltScreen prove local full-screen TUI startup enables alt-screen by default, matching current Hermes Ink and preventing stale scrollback frame fragments.",
                 "TestKernel_FinalIdleClearsDraftAfterHistoryAppend proves the final idle frame moves assistant text into history and clears DraftText so the TUI cannot render the same assistant reply twice."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-label correction: assistant rows keep the Hermes-compatible response box but use `⚕ Gormes`, not upstream `⚕ Hermes`, because the Gormes bot must not present itself as Mineru/Hermes. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows render under the Gormes response label rather than `gormes:` or `⚕ Hermes`, the bottom input rule is dropped below the 64-column minimal-chrome threshold, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
+              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-identity follow-up: assistant rows render under `⚕ Gormes` in the Hermes response-box shape, not the upstream `⚕ Hermes` label. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows do not use `gormes:` dashboard tags, the bottom input rule is dropped below the 64-column minimal-chrome threshold, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",

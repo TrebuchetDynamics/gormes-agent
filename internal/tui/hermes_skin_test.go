@@ -11,8 +11,11 @@ func TestHermesSkin_DefaultTokens(t *testing.T) {
 	if skin.PromptSymbol != "❯ " {
 		t.Fatalf("PromptSymbol = %q, want Hermes default prompt", skin.PromptSymbol)
 	}
-	if skin.ResponseLabel == "" || !strings.Contains(skin.ResponseLabel, "Hermes") {
-		t.Fatalf("ResponseLabel = %q, want Hermes response label", skin.ResponseLabel)
+	if skin.ResponseLabel == "" || !strings.Contains(skin.ResponseLabel, "Gormes") {
+		t.Fatalf("ResponseLabel = %q, want Gormes response label in Hermes-style chrome", skin.ResponseLabel)
+	}
+	if strings.Contains(skin.ResponseLabel, "Hermes") {
+		t.Fatalf("ResponseLabel = %q, must not expose upstream Hermes product label", skin.ResponseLabel)
 	}
 	if skin.Colors.InputRule != "#CD7F32" {
 		t.Fatalf("InputRule color = %q, want Hermes bronze", skin.Colors.InputRule)

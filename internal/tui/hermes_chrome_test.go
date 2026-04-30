@@ -40,7 +40,7 @@ func TestHermesChrome_NoSidebar(t *testing.T) {
 	// row. Bottom-pinned chrome must not draw a sidebar pipe pair on the
 	// conversation row carrying the assistant text.
 	for _, line := range strings.Split(got, "\n") {
-		if !strings.Contains(line, "Hermes") {
+		if !strings.Contains(line, "Gormes") {
 			continue
 		}
 		if strings.Count(line, "│") >= 2 {
@@ -153,10 +153,13 @@ func TestHermesChrome_ResponseBoxLabel(t *testing.T) {
 	got := m.View()
 
 	if strings.Contains(got, "gormes:") {
-		t.Fatalf("View leaked dashboard `gormes:` assistant tag instead of Hermes response label:\n%s", got)
+		t.Fatalf("View leaked dashboard `gormes:` assistant tag instead of Gormes response label:\n%s", got)
 	}
-	if !strings.Contains(got, "Hermes") {
-		t.Fatalf("View missing Hermes response label:\n%s", got)
+	if strings.Contains(got, "⚕ Hermes") {
+		t.Fatalf("View leaked upstream Hermes product label instead of Gormes label:\n%s", got)
+	}
+	if !strings.Contains(got, "Gormes") {
+		t.Fatalf("View missing Gormes response label:\n%s", got)
 	}
 	if !strings.Contains(got, "pong from hermes") {
 		t.Fatalf("View missing assistant content under Hermes label:\n%s", got)

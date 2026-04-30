@@ -34,11 +34,12 @@ type HermesSkinColors struct {
 }
 
 // DefaultHermesSkin returns the built-in Hermes "default" skin tokens used by
-// cli.py/hermes_cli/skin_engine.py for the prompt_toolkit TUI.
+// cli.py/hermes_cli/skin_engine.py, with the response label rebranded for the
+// Gormes product identity.
 func DefaultHermesSkin() HermesSkin {
 	return HermesSkin{
 		Name:          "default",
-		ResponseLabel: " ⚕ Hermes ",
+		ResponseLabel: " ⚕ Gormes ",
 		PromptSymbol:  "❯ ",
 		HelpHeader:    "(^_^)? Available Commands",
 		ToolPrefix:    "┊",

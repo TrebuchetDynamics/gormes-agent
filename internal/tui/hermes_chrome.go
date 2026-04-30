@@ -105,7 +105,8 @@ func HermesChromeUseAltScreen() bool {
 }
 
 // HermesChromeAssistantLabel returns the response-region label rendered above
-// assistant output — matching Hermes' " ⚕ Hermes " response box.
+// assistant output. It keeps Hermes' response-box shape while using Gormes'
+// product label.
 func HermesChromeAssistantLabel() string {
 	return strings.TrimSpace(DefaultHermesSkin().ResponseLabel)
 }
