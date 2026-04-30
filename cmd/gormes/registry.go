@@ -53,6 +53,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
 	}))
+	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
 		Budget: tools.ToolResultBudgetConfig{
 			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),
