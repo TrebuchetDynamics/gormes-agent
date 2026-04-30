@@ -605,6 +605,233 @@ func normalizeClawHubTags(tags any) []string {
 	return out
 }
 
+var claudeMarketplaceRepos = []string{"anthropics/skills", "aiskillstore/marketplace"}
+
+// ClaudeMarketplaceRegistryProvider reads Claude Code marketplace plugin
+// indexes as metadata-only hub search results. It mirrors Hermes'
+// ClaudeMarketplaceSource search contract without fetching or installing skill
+// bundles from the active store.
+type ClaudeMarketplaceRegistryProvider struct {
+	query  string
+	limit  int
+	client *http.Client
+}
+
+func NewClaudeMarketplaceRegistryProvider(query string, limit int, client *http.Client) *ClaudeMarketplaceRegistryProvider {
+	return &ClaudeMarketplaceRegistryProvider{query: strings.TrimSpace(query), limit: limit, client: client}
+}
+
+func (p *ClaudeMarketplaceRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResult, error) {
+	if p == nil || p.query == "" {
+		return nil, ErrRegistryUnavailable
+	}
+	client := p.client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	limit := p.limit
+	if limit <= 0 {
+		limit = 10
+	}
+	query := strings.ToLower(p.query)
+	var (
+		results []HubSearchResult
+		lastErr error
+	)
+	for _, repo := range claudeMarketplaceRepos {
+		plugins, err := claudeMarketplacePlugins(ctx, client, repo)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		for _, plugin := range plugins {
+			name := asString(plugin["name"])
+			desc := asString(plugin["description"])
+			if !strings.Contains(strings.ToLower(name+" "+desc), query) {
+				continue
+			}
+			identifier := claudeMarketplaceIdentifier(repo, asString(plugin["source"]))
+			results = append(results, HubSearchResult{
+				Name:        name,
+				Description: desc,
+				Source:      "claude-marketplace",
+				InstallID:   identifier,
+				TrustLevel:  githubTrustLevel(identifier),
+			})
+			if len(results) >= limit {
+				return results, nil
+			}
+		}
+	}
+	if len(results) == 0 && lastErr != nil {
+		return nil, lastErr
+	}
+	return results, nil
+}
+
+func claudeMarketplacePlugins(ctx context.Context, client *http.Client, repo string) ([]map[string]any, error) {
+	reqURL := "https://api.github.com/repos/" + repo + "/contents/.claude-plugin/marketplace.json"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3.raw")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
+		return nil, ErrRegistryRateLimited
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, ErrRegistryUnavailable
+	}
+	var data struct {
+		Plugins []map[string]any `json:"plugins"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	return data.Plugins, nil
+}
+
+func claudeMarketplaceIdentifier(repo, source string) string {
+	source = strings.TrimSpace(source)
+	if strings.HasPrefix(source, "./") {
+		return repo + "/" + strings.TrimPrefix(source, "./")
+	}
+	if strings.Count(source, "/") >= 1 {
+		return source
+	}
+	return strings.TrimRight(repo, "/") + "/" + source
+}
+
+// LobeHubRegistryProvider reads LobeHub's agent marketplace index as
+// metadata-only hub search results. LobeHub agents remain community-trust prompt
+// templates until a later install/fetch slice converts them to SKILL.md files.
+type LobeHubRegistryProvider struct {
+	query  string
+	limit  int
+	client *http.Client
+}
+
+func NewLobeHubRegistryProvider(query string, limit int, client *http.Client) *LobeHubRegistryProvider {
+	return &LobeHubRegistryProvider{query: strings.TrimSpace(query), limit: limit, client: client}
+}
+
+func (p *LobeHubRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResult, error) {
+	if p == nil || p.query == "" {
+		return nil, ErrRegistryUnavailable
+	}
+	client := p.client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	limit := p.limit
+	if limit <= 0 {
+		limit = 10
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://chat-agents.lobehub.com/index.json", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
+		return nil, ErrRegistryRateLimited
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, ErrRegistryUnavailable
+	}
+	var data any
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	agents, ok := lobeHubAgents(data)
+	if !ok {
+		return nil, ErrRegistryMalformed
+	}
+	query := strings.ToLower(p.query)
+	results := make([]HubSearchResult, 0, len(agents))
+	for _, agent := range agents {
+		meta := lobeHubMeta(agent)
+		identifier := firstNonEmpty(asString(agent["identifier"]), strings.ToLower(strings.ReplaceAll(asString(meta["title"]), " ", "-")))
+		if identifier == "" {
+			continue
+		}
+		title := firstNonEmpty(asString(meta["title"]), identifier)
+		desc := asString(meta["description"])
+		tags := stringSlice(meta["tags"])
+		if !strings.Contains(strings.ToLower(title+" "+desc+" "+strings.Join(tags, " ")), query) {
+			continue
+		}
+		results = append(results, HubSearchResult{
+			Name:        identifier,
+			Description: truncateString(desc, 200),
+			Source:      "lobehub",
+			InstallID:   "lobehub/" + identifier,
+			TrustLevel:  "community",
+			Tags:        tags,
+		})
+		if len(results) >= limit {
+			break
+		}
+	}
+	return results, nil
+}
+
+func lobeHubAgents(data any) ([]map[string]any, bool) {
+	if root, ok := data.(map[string]any); ok {
+		data = root["agents"]
+	}
+	raw, ok := data.([]any)
+	if !ok {
+		return nil, false
+	}
+	agents := make([]map[string]any, 0, len(raw))
+	for _, item := range raw {
+		if agent, ok := item.(map[string]any); ok {
+			agents = append(agents, agent)
+		}
+	}
+	return agents, true
+}
+
+func lobeHubMeta(agent map[string]any) map[string]any {
+	if meta, ok := agent["meta"].(map[string]any); ok {
+		return meta
+	}
+	return agent
+}
+
+func stringSlice(v any) []string {
+	switch tags := v.(type) {
+	case []string:
+		return append([]string(nil), tags...)
+	case []any:
+		out := make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if s := strings.TrimSpace(asString(tag)); s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func truncateString(s string, max int) string {
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max]
+}
+
 func asString(v any) string {
 	s, _ := v.(string)
 	return s
