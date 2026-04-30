@@ -156,6 +156,9 @@ type Manager struct {
 
 	renderChan <-chan kernel.RenderFrame
 
+	typingStop func()
+	typingKey  string
+
 	liveTurnPromptSeams liveTurnPromptSeams
 }
 
@@ -909,6 +912,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	if ch == nil {
 		return
 	}
+	m.updateTypingAction(ctx, ch, chatID, f.Phase)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {

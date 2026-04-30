@@ -5,7 +5,9 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -112,5 +114,38 @@ func TestBot_SendChatAction_RejectsNonNumericChatID(t *testing.T) {
 	reqs := mc.requestMessages()
 	if len(reqs) != 0 {
 		t.Errorf("Request was called %d time(s), want 0", len(reqs))
+	}
+}
+
+func TestBot_StartTyping_ImplementsGatewayTypingCapable(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{}, mc, nil)
+	var _ gateway.TypingCapable = b
+
+	stop, err := b.StartTyping(context.Background(), "12345")
+	if err != nil {
+		t.Fatalf("StartTyping error: %v", err)
+	}
+	if stop == nil {
+		t.Fatal("StartTyping returned nil stop")
+	}
+
+	reqs := mc.requestMessages()
+	if len(reqs) != 1 {
+		t.Fatalf("Request count after StartTyping = %d, want immediate typing action", len(reqs))
+	}
+	cfg, ok := reqs[0].(tgbotapi.ChatActionConfig)
+	if !ok {
+		t.Fatalf("Request payload type = %T, want ChatActionConfig", reqs[0])
+	}
+	if cfg.ChatID != 12345 || cfg.Action != "typing" {
+		t.Fatalf("ChatActionConfig = chat %d action %q, want chat 12345 action typing", cfg.ChatID, cfg.Action)
+	}
+
+	stop()
+	stop()
+	time.Sleep(10 * time.Millisecond)
+	if got := len(mc.requestMessages()); got != 1 {
+		t.Fatalf("Request count after idempotent stop = %d, want no extra typing actions", got)
 	}
 }

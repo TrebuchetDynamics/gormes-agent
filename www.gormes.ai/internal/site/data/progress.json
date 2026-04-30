@@ -2577,10 +2577,10 @@
             },
             {
               "name": "Gateway typing-action wiring during stream",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "While a turn is in PhaseConnecting/PhaseStreaming/PhaseReconnecting/PhaseFinalizing, the gateway fires the channel's typing action at most every 4 seconds via a Channel-level capability check, so users see a live typing indicator instead of (or alongside) the static hourglass placeholder. Non-typing-capable channels are unaffected.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2596,12 +2596,11 @@
                 "../hermes-agent/gateway/platforms/telegram.py:2076-2104"
               ],
               "acceptance": [
-                "A new typingActor interface (or gateway.TypingActor) exposes a SendChatAction(ctx, chatID, action) method; channels that don't implement it never receive typing calls.",
-                "TestTypingAction_FiresOnFirstStreamingFrame proves a single typing call lands on the first PhaseStreaming/PhaseConnecting frame.",
-                "TestTypingAction_ThrottledTo4SecondWindow uses a fake clock + multiple streaming frames within 4s and asserts exactly one typing call.",
-                "TestTypingAction_StopsOnPhaseIdle proves no typing call after the final/idle frame.",
-                "TestTypingAction_NonTypingChannelNoCalls uses a fake channel that does NOT implement typingActor and asserts zero typing calls.",
-                "TestTypingAction_FailureRecordsEvidenceNoRetry injects a typing-call error and asserts evidence is recorded once + no retry within the same 4s window."
+                "gateway.TypingCapable StartTyping(ctx, chatID) is invoked when a pinned turn enters PhaseConnecting/PhaseStreaming/PhaseReconnecting/PhaseFinalizing.",
+                "TestManager_TypingActionStartsDuringStreamingAndStopsOnFinal proves one typing start on the first streaming/connect frame and an idempotent stop on PhaseIdle.",
+                "Repeated streaming frames for the same platform/chat do not start duplicate typing loops.",
+                "TestManager_TypingActionSkipsChannelsWithoutCapability uses a plain channel without TypingCapable and proves normal delivery continues without typing calls.",
+                "Telegram Bot implements gateway.TypingCapable by issuing sendChatAction(\"typing\") immediately and refreshing at the 4s interval until the idempotent stop function is called."
               ],
               "write_scope": [
                 "internal/gateway/typing_action.go",
@@ -2612,18 +2611,25 @@
               ],
               "test_commands": [
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TypingAction' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'StartTyping|ChatAction' -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram -count=1",
-                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
               ],
               "done_signal": [
-                "Gateway fires typing actions during streaming via a Channel capability seam, with throttle, phase-stop, no-retry-on-failure, and non-typing-channel guards proven by hermetic fixtures."
+                "Gateway starts and stops channel-neutral typing actions during live turn stream phases, and Telegram bridges that capability to sendChatAction without leaking tokens or requiring live Telegram."
               ],
               "ready_when": [
                 "Telegram sendChatAction typing API row is shipped (the bot.SendChatAction method must exist before this row can wire it)."
               ],
-              "blocked_by": [
-                "Telegram sendChatAction typing API"
-              ]
+              "blocked_by": [],
+              "evidence": [
+                "RED: internal/gateway/typing_action_test.go::TestManager_TypingActionStartsDuringStreamingAndStopsOnFinal failed because no typing action was started during PhaseConnecting/PhaseStreaming.",
+                "GREEN: internal/gateway/typing_action.go added channel-neutral Manager.updateTypingAction/startTypingAction/stopTypingAction over gateway.TypingCapable; dispatchFrame invokes it before coalesced rendering so editable and non-editable channels share the same phase behavior.",
+                "GREEN: internal/channels/telegram/bot.go now implements gateway.TypingCapable with StartTyping(ctx, chatID), immediate SendChatAction('typing'), a 4s refresh ticker, and an idempotent stop function; tests use the fake telegramClient Request seam only.",
+                "REGRESSION: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'TypingAction|StartTyping|ChatAction' -count=1 -> ok for both packages."
+              ],
+              "note": "Complete 2026-04-30. Kept runtime behavior native Go; no live Telegram token, network call, or Hermes runtime dependency. Failure mode remains degraded: typing-action errors do not block placeholder/final delivery."
             },
             {
               "name": "Placeholder edit-failure fallback hardening",

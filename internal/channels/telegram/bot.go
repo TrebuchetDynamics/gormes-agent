@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -46,8 +47,10 @@ var _ gateway.MessageEditor = (*Bot)(nil)
 var _ gateway.MessageDeleter = (*Bot)(nil)
 var _ gateway.MediaSender = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
+var _ gateway.TypingCapable = (*Bot)(nil)
 
 const telegramCommandLimit = 100
+const telegramTypingRefreshInterval = 4 * time.Second
 
 func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	if log == nil {
@@ -438,6 +441,33 @@ func (b *Bot) SendChatAction(_ context.Context, chatID, action string) error {
 		return fmt.Errorf("telegram: SendChatAction: %w", err)
 	}
 	return nil
+}
+
+// StartTyping starts Telegram's transient typing indicator and refreshes it no
+// more frequently than Telegram's documented five-second display window needs.
+// The returned stop function is idempotent and cancels future refreshes.
+func (b *Bot) StartTyping(ctx context.Context, chatID string) (func(), error) {
+	if err := b.SendChatAction(ctx, chatID, "typing"); err != nil {
+		return nil, err
+	}
+	typingCtx, cancel := context.WithCancel(ctx)
+	var once sync.Once
+	stop := func() { once.Do(cancel) }
+	go func() {
+		ticker := time.NewTicker(telegramTypingRefreshInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-typingCtx.Done():
+				return
+			case <-ticker.C:
+				if err := b.SendChatAction(typingCtx, chatID, "typing"); err != nil {
+					b.log.Debug("telegram typing action refresh failed", "err", err)
+				}
+			}
+		}
+	}()
+	return stop, nil
 }
 
 func parseChatID(s string) (int64, error) {

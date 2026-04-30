@@ -189,7 +189,7 @@ classification and row-backed implementation queue.
 - [x] Gateway auto-title generation wiring
 - [x] Telegram reply_to_mode and reply-context parity
 - [x] Telegram sendChatAction typing API
-- [ ] Gateway typing-action wiring during stream
+- [x] Gateway typing-action wiring during stream
 - [x] Placeholder edit-failure fallback hardening
 - [x] Gateway stream/tool trace formatting fixture matrix
 - [x] Telegram dynamic BotCommand menu wiring
