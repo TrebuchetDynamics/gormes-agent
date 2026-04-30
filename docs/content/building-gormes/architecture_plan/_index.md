@@ -81,12 +81,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 44/78 subphases shipped · 26 in progress · 8 planned
+**Overall:** 43/78 subphases shipped · 27 in progress · 8 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 19/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 18/21 subphases |
 | Phase 3 — The Black Box (Memory) | 🔨 | 14/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 2/9 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
@@ -214,6 +214,7 @@ classification and row-backed implementation queue.
 - [x] Gateway inbound dedup key helper
 - [x] Gateway inbound dedup manager binding
 - [x] Email outbound Date header contract
+- [ ] Telegram MarkdownV2 parse-mode rendering closeout
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -275,10 +276,11 @@ classification and row-backed implementation queue.
 - [x] Durable worker RSS drain integration
 - [x] Durable worker RSS doctor/status evidence
 
-### 2.F.1 — Slash Command Registry + Gateway Dispatch ✅
+### 2.F.1 — Slash Command Registry + Gateway Dispatch 🔨
 
 - [x] Canonical CommandDef registry
 - [x] Gateway slash dispatch + per-platform exposure
+- [ ] Gateway slash registry parity sweep (recognized-name expansion)
 
 ### 2.F.2 — Hook Registry + BOOT.md ✅
 
@@ -611,6 +613,7 @@ classification and row-backed implementation queue.
 - [ ] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
+- [ ] Go browser harness binary repo + integration lane (placeholder)
 
 ### 5.D — Vision + Image Generation 🔨
 

@@ -16,9 +16,10 @@ specific class of parity gap.
 
 ## Top 3 P0 slices recommended for immediate dispatch
 
-These are the highest-leverage slices ready for immediate dispatch.
-All three have draft contracts, evidence, and write-scope already
-inventoried in `progress.json`. None depend on any of the others.
+These are the highest-leverage slices for immediate planner/builder
+dispatch. The first and third already have progress rows; the second
+should be folded into `Gateway stream/tool trace formatting fixture
+matrix` or split by `gormes-planner` before implementation.
 
 1. **`Telegram production live-turn provider payload golden`** (Lane D,
    priority P0).
@@ -35,7 +36,7 @@ inventoried in `progress.json`. None depend on any of the others.
      `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway -run 'Telegram.*ProviderPayload|LiveTurn' -count=1`.
 
 2. **`Telegram MarkdownV2 parse-mode rendering closeout`** (Lane B,
-   priority P0; new in this audit).
+   priority P0; planner refinement).
    - Why: every Gormes bot reply currently shows literal backslashes
      and broken `*bold*` because `internal/gateway/render.go`
      MarkdownV2-escapes outbound text but
@@ -69,15 +70,15 @@ this coordinator brief and `hermes-gormes-parity-matrix.md` deliver.
 ## Per-lane backlog summary
 
 Counts derived from the matrix doc's classifications. Italicized
-entries are existing planned rows; **bold** are new rows added by
-this audit.
+entries are existing planned rows; bold entries need planner refinement
+if they are not already represented in `progress.json`.
 
 ### Lane B — Telegram UX and command parity
 
 **Missing/regressed/partial: 11 areas.**
 
 P0:
-- _Telegram MarkdownV2 parse-mode rendering closeout_ (new).
+- _Telegram MarkdownV2 parse-mode rendering closeout_ (planner refinement).
 - _Telegram /status Hermes-format closeout_ (planned).
 - _Telegram production live-turn provider payload golden_ (planned).
 
@@ -92,7 +93,7 @@ P1:
 
 P2:
 - **`Gateway slash registry parity sweep (recognized-name expansion)`**
-  (new). Mostly mechanical — surface every Hermes-registered command
+  (planner refinement). Mostly mechanical — surface every Hermes-registered command
   in `CommandRegistry` so unknown-command responses get quieter.
 
 ### Lane C — Session/status/title parity

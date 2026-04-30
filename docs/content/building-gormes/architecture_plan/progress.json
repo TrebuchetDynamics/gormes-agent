@@ -3898,6 +3898,137 @@
                 "upstream_ref": "hermes:75b460bc gateway/platforms/email.py",
                 "note": "Hermes fixed outbound Date header generation; Gormes ports the invariant into its native email adapter contract without reopening completed Phase 7.B."
               }
+            },
+            {
+              "name": "Telegram MarkdownV2 parse-mode rendering closeout",
+              "status": "planned",
+              "priority": "P0",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "contract": "internal/channels/telegram/bot.go::Send and SendReply set msgCfg.ParseMode = tgbotapi.ModeMarkdownV2 so that the MarkdownV2-escaped output produced by internal/gateway/render.go::FormatStreamTelegram, FormatFinalTelegram, and FormatErrorTelegram renders as bold/italic/code/spoiler/strike on Telegram clients instead of literal backslashes. A parse-failure fallback resends the same body in plain text via msgCfg.ParseMode = '' when Telegram rejects the MarkdownV2 payload, mirroring Hermes' behavior at gateway/platforms/telegram.py:998-1003. Edit messages (EditMessage) and placeholder sends (SendPlaceholder/SendReplyPlaceholder) honor the same parse-mode policy.",
+              "contract_status": "draft",
+              "degraded_mode": "If Telegram rejects MarkdownV2 (Bot API error 'can't parse entities'), the bot retries the same body once with parse_mode unset and emits redacted telemetry evidence. If the retry also fails, the original error is surfaced via HookOnError and the channel state machine treats the platform as failed for that turn.",
+              "fixture": "internal/channels/telegram/bot_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py:91-122",
+                "../hermes-agent/gateway/platforms/telegram.py:973-1003",
+                "internal/gateway/render.go:48-81",
+                "internal/channels/telegram/bot.go:127-179"
+              ],
+              "ready_when": [
+                "internal/gateway/render.go::FormatStreamTelegram, FormatFinalTelegram, FormatErrorTelegram already MarkdownV2-escape outbound text (verified by render_test.go).",
+                "internal/channels/telegram/bot.go uses tgbotapi which exposes tgbotapi.ModeMarkdownV2 as a parse mode constant.",
+                "Tests can construct MessageConfig values and inspect ParseMode without contacting Telegram."
+              ],
+              "not_ready_when": [
+                "The slice modifies internal/gateway/render.go to change escape behavior — render output stays byte-identical to today's tests.",
+                "The slice removes the MarkdownV2 escape path or routes any string through Telegram unsanitized.",
+                "The slice introduces parse-mode logic in any non-Telegram channel (Slack/Discord/etc.).",
+                "The slice attempts to render unescaped tool output, leaks secrets, or relaxes the existing FormatErrorTelegram sanitization."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Telegram /status Hermes-format closeout"
+              ],
+              "acceptance": [
+                "TestBot_SendSetsMarkdownV2ParseMode: a fake telegram client captures the MessageConfig produced by Bot.Send and asserts ParseMode == 'MarkdownV2'.",
+                "TestBot_SendReplySetsMarkdownV2ParseMode: same as above but for SendReply, and ReplyToMessageID stays correct.",
+                "TestBot_EditMessageSetsMarkdownV2ParseMode: EditMessageText carries ParseMode 'MarkdownV2'.",
+                "TestBot_SendPlaintextFallbackOnParseError: when the fake client returns a Telegram parse-error, the bot retries once with empty ParseMode and the body is byte-identical to the first attempt's text.",
+                "TestBot_SendPlaintextFallbackEvidence: a redaction-safe telemetry hook fires HookOnError-equivalent evidence on the parse-error branch without leaking raw token strings.",
+                "Render tests under internal/gateway/render_test.go continue to pass unchanged (escape behavior preserved)."
+              ],
+              "note": "Critical 2026-04-29 P0 fix: live Telegram evidence shows backslashes in every bot reply because render.go MarkdownV2-escapes but bot.go never sets ParseMode. This regression makes /status, /help, and every streaming reply visually broken on mobile. Closing it requires zero render changes — only the channel-level send wiring + a parse-error fallback.",
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'MarkdownV2|ParseMode|Send|Reply|EditMessage' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Bot fixtures prove ParseMode reaches the MessageConfig wire on Send/SendReply/EditMessage; parse-error fallback retries with empty ParseMode without leaking secrets; existing render tests stay green."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:gateway/platforms/telegram.py parse_mode + format_message",
+                "note": "Hermes posts every Telegram message with parse_mode=ParseMode.MARKDOWN_V2 and falls back to plain text on parse error (line 998). Gormes already produces escaped MarkdownV2 in render.go but the channel never sets parse_mode, defeating the escape work. This slice closes the wiring gap and adds a matching parse-error fallback."
+              }
+            },
+            {
+              "name": "Gateway slash registry parity sweep (recognized-name expansion)",
+              "status": "planned",
+              "priority": "P2",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "contract": "internal/gateway/commands.go::CommandRegistry recognizes every Hermes/Sidon command from cmd/gormes/hermes_cli_parity_test.go's manifest, even when the handler is not yet implemented, so unknown-command replies only fire on actual non-Hermes inputs. Each newly-recognized command lands with ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable and a friendly description, mirroring the existing /retry, /undo, /title, /branch, /compress pattern. Aliases (reset for new, set-home for sethome, gateway for platforms, etc.) resolve to the canonical command. Handler ports remain owned by the 49-file CLI tree port umbrella; this row only changes recognition.",
+              "contract_status": "draft",
+              "degraded_mode": "When an expanded recognized command is sent and no handler exists, the bot replies '/<cmd> is recognized but unavailable' instead of 'unknown command', matching the existing buildRecognizedUnavailableSlashCommands pathway. No live runtime side effects.",
+              "fixture": "internal/gateway/commands_test.go + cmd/gormes/hermes_cli_parity_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/commands.py:59-175",
+                "internal/gateway/commands.go:38-90",
+                "internal/gateway/commands.go:107-119",
+                "cmd/gormes/hermes_cli_parity_test.go"
+              ],
+              "ready_when": [
+                "cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifest is complete and enumerates the canonical Hermes command tree.",
+                "internal/gateway/commands.go::buildRecognizedUnavailableSlashCommands already wires the unavailable-but-recognized fallback for 13 commands.",
+                "Tests can drive the expanded set without touching handlers."
+              ],
+              "not_ready_when": [
+                "The slice attempts to implement any handler beyond what the existing CommandRegistry pattern provides.",
+                "The slice silently rewires existing aliases (reset, snap, fork, bg, q, tasks) — those remain on their current canonical commands.",
+                "The slice changes the active-turn policy of any already-recognized command.",
+                "The slice introduces new commands not present in Hermes COMMAND_REGISTRY."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "49-file CLI tree port"
+              ],
+              "acceptance": [
+                "TestCommandRegistry_RecognizesAllHermesCommands: every command name and alias from cmd/gormes/hermes_cli_parity_test.go's Hermes inventory resolves via ResolveCommand.",
+                "TestCommandRegistry_UnimplementedHermesCommandsAreUnavailable: every newly-added entry has ActiveTurnPolicy CommandActiveTurnPolicyUnavailable.",
+                "TestCommandRegistry_UnknownCommandRepliesUnchanged: '/does-not-exist' still produces 'unknown command' (regression guard).",
+                "TestSlackSubcommandMap_StaysCanonical: SlackSubcommandMap output is byte-stable for existing entries while gaining the new ones.",
+                "TestTelegramBotCommands_RegistryOrder: TelegramBotCommands() lists in registry order and includes the new entries.",
+                "go test ./internal/gateway -run 'CommandRegistry|ActiveTurn|TelegramBotCommands' -count=1 passes."
+              ],
+              "note": "Mostly-mechanical row that closes the visible 'unknown command' noise gap. Today the registry has 20 commands; Hermes has ~50. Adding the missing 30+ as recognized-but-unavailable means /tools, /config, /model, /skin, /voice etc. get a friendly 'recognized but unavailable' reply instead of 'unknown command'. Handler ports remain in the 49-file CLI tree port umbrella.",
+              "write_scope": [
+                "internal/gateway/commands.go",
+                "internal/gateway/commands_test.go",
+                "internal/gateway/active_turn_command_bypass_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'CommandRegistry|ActiveTurn|TelegramBotCommands|Slack' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./cmd/gormes -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Every Hermes command from the parity manifest resolves via ResolveCommand; unknown-command replies only fire for actual non-Hermes inputs."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:hermes_cli/commands.py COMMAND_REGISTRY",
+                "note": "The Hermes parity manifest is already complete; this slice surfaces the inventory in the runtime registry so the slash UX matches Hermes immediately, even before each handler port lands."
+              }
             }
           ],
           "drift_state": {
@@ -16186,6 +16317,72 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:7317d69f tools/url_safety.py",
                 "note": "Direct browser security drift from Hermes; Gormes ports it as a pure Go safety helper before browser runtime work."
+              }
+            },
+            {
+              "name": "Go browser harness binary repo + integration lane (placeholder)",
+              "status": "planned",
+              "priority": "P2",
+              "slice_size": "umbrella",
+              "execution_owner": "tools",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "contract": "Reserves the integration slot for the future Go browser harness binary repository so Gormes can drop in the runtime backend without re-doing the contract. The Gormes side already ships internal/tools/browser_harness_tools.go (12 browser_* tool wrappers) and internal/tools/browser_contract.go (BrowserAction validation, SSRF guard) that exec a configured Command via BrowserHarnessBridge.Run. This umbrella row tracks: (1) the future sibling Go repo that hosts the binary, (2) the JSON action contract version pinned at gormes.browser.action.v1, (3) the integration test that proves the contract still validates after the binary materializes, and (4) the install/discovery path Gormes uses to find the binary (PATH lookup vs vendored path).",
+              "contract_status": "draft",
+              "degraded_mode": "Until the binary exists, every browser_* tool execution returns ErrBrowserHarnessUnavailable evidence (already implemented and tested by browser_harness_tools_test.go). The umbrella does not change runtime behavior; it documents the integration surface so the future repo lands cleanly.",
+              "fixture": "internal/tools/browser_harness_tools_test.go + internal/tools/browser_contract_test.go",
+              "source_refs": [
+                "internal/tools/browser_harness_tools.go:13-110",
+                "internal/tools/browser_harness_tools.go:browserHarnessActionSchemaVersion",
+                "internal/tools/browser_contract.go:BrowserAction",
+                "internal/tools/browser_contract.go:ValidateBrowserAction",
+                "internal/tools/browser_ssrf_guard.go",
+                "../hermes-agent/agent/browser_tools.py",
+                "../hermes-agent/tools/browser_tools.py"
+              ],
+              "ready_when": [
+                "internal/tools/browser_harness_tools.go is shipped with the 12 browser_* tool wrappers and a deterministic ErrBrowserHarnessUnavailable degraded path.",
+                "internal/tools/browser_contract.go::ValidateBrowserAction enforces SSRF + private-URL routing for every BrowserAction kind.",
+                "Phase 5.C umbrella exists and references this row as the integration slot."
+              ],
+              "not_ready_when": [
+                "The slice attempts to vendor or embed Chromium / Rod / chromedp directly inside Gormes; the harness binary is the architectural decoupling point.",
+                "The slice changes the JSON action contract before the future repo's first integration test exists.",
+                "The slice removes ErrBrowserHarnessUnavailable degraded behavior."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "go-browser-harness Chromedp action backend",
+                "Browser provider bridge + Firecrawl fallback",
+                "Browser Use cloud + Go browser harness bridge"
+              ],
+              "acceptance": [
+                "Documentation row in docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md cites this row as the lane G integration slot.",
+                "JSON contract version constant browserHarnessActionSchemaVersion stays pinned at gormes.browser.action.v1 until the future repo's first integration test ships.",
+                "The umbrella stays inventory-only — no runtime code under cmd/, internal/runtime/, or internal/tools/browser_harness_tools.go changes as part of this row.",
+                "Once the sibling repo materializes, this row's done_signal closes when an end-to-end test in this repo can exec the harness binary against gormes.browser.action.v1 and observe a PageSnapshot or ErrBrowserHarnessUnavailable."
+              ],
+              "note": "Placeholder umbrella reserved by the parity matrix audit (2026-04-29). The Gormes-side contract and degraded path are already complete; the missing piece is the Go binary that consumes the JSON action stream. Until that binary lands, browser_* tools degrade deterministically. Treating this as an umbrella avoids creating runtime work today but keeps lane G's integration plan visible in the dispatch surface.",
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md",
+                "docs/content/building-gormes/architecture_plan/parity-lane-coordinator-brief.md",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'BrowserHarness|BrowserContract|SSRF' -count=1",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Umbrella row is referenced by lane G builders and the sibling go-browser-harness repo's bring-up plan; closes when an integration test against the harness binary lands."
+              ],
+              "provenance": {
+                "origin_type": "owned",
+                "upstream_ref": "gormes:internal/tools/browser_harness_tools.go (Go-native action contract)",
+                "note": "The harness binary is a Gormes-owned architectural choice — Hermes embeds Playwright/CDP directly in Python. Splitting the binary into a sibling Go repo lets Gormes ship the contract surface today and bind a runtime backend later without coupling Chromium versioning to the agent release."
               }
             }
           ],

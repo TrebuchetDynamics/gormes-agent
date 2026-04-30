@@ -82,7 +82,28 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/run.py:6697-6743, ../hermes-agent/tests/gateway/test_title_command.py, internal/gateway/commands.go, internal/session/auto_title.go
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 4. Hermes memory tool over Goncho/local durable store
+## 4. Telegram MarkdownV2 parse-mode rendering closeout
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P0`
+- Contract: internal/channels/telegram/bot.go::Send and SendReply set msgCfg.ParseMode = tgbotapi.ModeMarkdownV2 so that the MarkdownV2-escaped output produced by internal/gateway/render.go::FormatStreamTelegram, FormatFinalTelegram, and FormatErrorTelegram renders as bold/italic/code/spoiler/strike on Telegram clients instead of literal backslashes. A parse-failure fallback resends the same body in plain text via msgCfg.ParseMode = '' when Telegram rejects the MarkdownV2 payload, mirroring Hermes' behavior at gateway/platforms/telegram.py:998-1003. Edit messages (EditMessage) and placeholder sends (SendPlaceholder/SendReplyPlaceholder) honor the same parse-mode policy.
+- Trust class: gateway, operator
+- Ready when: internal/gateway/render.go::FormatStreamTelegram, FormatFinalTelegram, FormatErrorTelegram already MarkdownV2-escape outbound text (verified by render_test.go)., internal/channels/telegram/bot.go uses tgbotapi which exposes tgbotapi.ModeMarkdownV2 as a parse mode constant., Tests can construct MessageConfig values and inspect ParseMode without contacting Telegram.
+- Not ready when: The slice modifies internal/gateway/render.go to change escape behavior — render output stays byte-identical to today's tests., The slice removes the MarkdownV2 escape path or routes any string through Telegram unsanitized., The slice introduces parse-mode logic in any non-Telegram channel (Slack/Discord/etc.)., The slice attempts to render unescaped tool output, leaks secrets, or relaxes the existing FormatErrorTelegram sanitization.
+- Degraded mode: If Telegram rejects MarkdownV2 (Bot API error 'can't parse entities'), the bot retries the same body once with parse_mode unset and emits redacted telemetry evidence. If the retry also fails, the original error is surfaced via HookOnError and the channel state machine treats the platform as failed for that turn.
+- Fixture: `internal/channels/telegram/bot_test.go`
+- Write scope: `internal/channels/telegram/bot.go`, `internal/channels/telegram/bot_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `www.gormes.ai/internal/site/data/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'MarkdownV2\|ParseMode\|Send\|Reply\|EditMessage' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Bot fixtures prove ParseMode reaches the MessageConfig wire on Send/SendReply/EditMessage; parse-error fallback retries with empty ParseMode without leaking secrets; existing render tests stay green.
+- Acceptance: TestBot_SendSetsMarkdownV2ParseMode: a fake telegram client captures the MessageConfig produced by Bot.Send and asserts ParseMode == 'MarkdownV2'., TestBot_SendReplySetsMarkdownV2ParseMode: same as above but for SendReply, and ReplyToMessageID stays correct., TestBot_EditMessageSetsMarkdownV2ParseMode: EditMessageText carries ParseMode 'MarkdownV2'., TestBot_SendPlaintextFallbackOnParseError: when the fake client returns a Telegram parse-error, the bot retries once with empty ParseMode and the body is byte-identical to the first attempt's text., TestBot_SendPlaintextFallbackEvidence: a redaction-safe telemetry hook fires HookOnError-equivalent evidence on the parse-error branch without leaking raw token strings., Render tests under internal/gateway/render_test.go continue to pass unchanged (escape behavior preserved).
+- Source refs: ../hermes-agent/gateway/platforms/telegram.py:91-122, ../hermes-agent/gateway/platforms/telegram.py:973-1003, internal/gateway/render.go:48-81, internal/channels/telegram/bot.go:127-179
+- Unblocks: Telegram /status Hermes-format closeout
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 5. Hermes memory tool over Goncho/local durable store
 
 - Phase: 3 / 3.F
 - Owner: `memory`
@@ -102,7 +123,28 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 5. Stateful tool migration queue
+## 6. Gateway slash registry parity sweep (recognized-name expansion)
+
+- Phase: 2 / 2.F.1
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: internal/gateway/commands.go::CommandRegistry recognizes every Hermes/Sidon command from cmd/gormes/hermes_cli_parity_test.go's manifest, even when the handler is not yet implemented, so unknown-command replies only fire on actual non-Hermes inputs. Each newly-recognized command lands with ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable and a friendly description, mirroring the existing /retry, /undo, /title, /branch, /compress pattern. Aliases (reset for new, set-home for sethome, gateway for platforms, etc.) resolve to the canonical command. Handler ports remain owned by the 49-file CLI tree port umbrella; this row only changes recognition.
+- Trust class: gateway, operator
+- Ready when: cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifest is complete and enumerates the canonical Hermes command tree., internal/gateway/commands.go::buildRecognizedUnavailableSlashCommands already wires the unavailable-but-recognized fallback for 13 commands., Tests can drive the expanded set without touching handlers.
+- Not ready when: The slice attempts to implement any handler beyond what the existing CommandRegistry pattern provides., The slice silently rewires existing aliases (reset, snap, fork, bg, q, tasks) — those remain on their current canonical commands., The slice changes the active-turn policy of any already-recognized command., The slice introduces new commands not present in Hermes COMMAND_REGISTRY.
+- Degraded mode: When an expanded recognized command is sent and no handler exists, the bot replies '/<cmd> is recognized but unavailable' instead of 'unknown command', matching the existing buildRecognizedUnavailableSlashCommands pathway. No live runtime side effects.
+- Fixture: `internal/gateway/commands_test.go + cmd/gormes/hermes_cli_parity_test.go`
+- Write scope: `internal/gateway/commands.go`, `internal/gateway/commands_test.go`, `internal/gateway/active_turn_command_bypass_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `www.gormes.ai/internal/site/data/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'CommandRegistry\|ActiveTurn\|TelegramBotCommands\|Slack' -count=1`, `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./cmd/gormes -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Every Hermes command from the parity manifest resolves via ResolveCommand; unknown-command replies only fire for actual non-Hermes inputs.
+- Acceptance: TestCommandRegistry_RecognizesAllHermesCommands: every command name and alias from cmd/gormes/hermes_cli_parity_test.go's Hermes inventory resolves via ResolveCommand., TestCommandRegistry_UnimplementedHermesCommandsAreUnavailable: every newly-added entry has ActiveTurnPolicy CommandActiveTurnPolicyUnavailable., TestCommandRegistry_UnknownCommandRepliesUnchanged: '/does-not-exist' still produces 'unknown command' (regression guard)., TestSlackSubcommandMap_StaysCanonical: SlackSubcommandMap output is byte-stable for existing entries while gaining the new ones., TestTelegramBotCommands_RegistryOrder: TelegramBotCommands() lists in registry order and includes the new entries., go test ./internal/gateway -run 'CommandRegistry\|ActiveTurn\|TelegramBotCommands' -count=1 passes.
+- Source refs: ../hermes-agent/hermes_cli/commands.py:59-175, internal/gateway/commands.go:38-90, internal/gateway/commands.go:107-119, cmd/gormes/hermes_cli_parity_test.go
+- Unblocks: 49-file CLI tree port
+- Why now: Unblocks 49-file CLI tree port.
+
+## 7. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -122,7 +164,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 6. Transcription tool contract
+## 8. Transcription tool contract
 
 - Phase: 5 / 5.E
 - Owner: `tools`
@@ -142,7 +184,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot
 - Why now: Unblocks TTS synthesis + voice-mode state, Gateway media transcription hooks, Voice attachment handling for Signal and QQ Bot.
 
-## 7. Debug helpers
+## 9. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -162,7 +204,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 8. Feishu transport/bootstrap layer
+## 10. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -181,45 +223,5 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/feishu.py:FeishuAdapter, ../hermes-agent/tests/gateway/test_feishu.py:test_build_event_handler_registers_reaction_and_card_processors, ../hermes-agent/tests/gateway/test_feishu.py:TestLoopNotReadyRace, ../hermes-agent/tests/gateway/test_feishu.py:test_webhook_signature, ../hermes-agent/tests/gateway/test_feishu.py:test_url_verification, ../hermes-agent/tests/gateway/test_feishu.py:test_normalize_interactive_card_preserves_title_body_and_actions, internal/channels/feishu/, internal/gateway/event.go, references/go-agent-os/trpc-agent-go/agent/callbacks.go, references/go-agent-os/engram/internal/mcp/activity.go
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
-
-## 9. Telegram reply_to_mode and reply-context parity
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Telegram replies honor Hermes-style reply mode configuration, fall back cleanly if a target message was deleted, and inbound Telegram reply text can be attached to session context without leaking raw slash commands to the model.
-- Trust class: gateway, operator
-- Ready when: Hermes Telegram reply-mode behavior has been mapped to Gormes Telegram adapter and gateway context seams., Fake Telegram client fixtures can cover outbound reply, fallback, and inbound reply-context behavior without live Telegram.
-- Not ready when: -
-- Degraded mode: If reply metadata is unavailable, Gormes sends a normal message with reply_context_missing evidence rather than failing the turn.
-- Fixture: `internal/channels/telegram/reply_mode_test.go + internal/gateway/manager_test.go`
-- Write scope: `internal/channels/telegram/`, `internal/gateway/`, `internal/config/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'Reply\|Telegram' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Telegram reply-mode fixtures prove quoting, fallback, and inbound reply context parity.
-- Acceptance: Outbound placeholder, final, error, and `/status` messages obey reply mode., Deleted reply target errors fall back to non-reply send with evidence., Inbound replied-to message text reaches channel-neutral session context only when Hermes would include it., Unit tests use fake Telegram clients only.
-- Source refs: ../hermes-agent/gateway/platforms/telegram.py:904-922, ../hermes-agent/gateway/platforms/telegram.py:1022-1032, ../hermes-agent/gateway/platforms/telegram.py:2935-2959, internal/channels/telegram/bot.go, internal/gateway/manager.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Telegram typing action + placeholder lifecycle parity
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Telegram turn progress matches Hermes/Sidon lifecycle: typing action or placeholder appears while work runs, stale hourglass messages are deleted or finalized, duplicate ghost replies collapse, and final answers remain readable.
-- Trust class: gateway, operator
-- Ready when: Hermes placeholder/typing lifecycle source references have been mapped to Gormes channel/gateway render seams., Fake Telegram lifecycle tests can simulate edit/delete failures and final-message cleanup without live Telegram.
-- Not ready when: -
-- Degraded mode: If Telegram edit/delete fails, Gormes sends one bounded final message and logs redacted cleanup evidence instead of leaving stale placeholders.
-- Fixture: `internal/channels/telegram/placeholder_lifecycle_test.go + internal/gateway/coalesce_test.go`
-- Write scope: `internal/channels/telegram/`, `internal/gateway/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'Placeholder\|Typing\|Coalesce\|Final' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Telegram placeholder/typing lifecycle fixtures prove no stale hourglass or duplicate final replies.
-- Acceptance: Fake Telegram tests prove sendChatAction or placeholder behavior for long turns., Final answer cleanup deletes or edits the placeholder exactly once., Failure paths do not produce duplicate final messages., Fresh-final delete behavior remains covered.
-- Source refs: ../hermes-agent/gateway/platforms/base.py:1718-1724, ../hermes-agent/gateway/platforms/base.py:1976-1986, ../hermes-agent/gateway/platforms/telegram.py:1909-1935, internal/gateway/coalesce.go, internal/channels/telegram/bot.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

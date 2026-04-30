@@ -35,16 +35,16 @@ Lane key (per the parity operating model):
 |---|---|---|---|---|
 | 1 | `/status` heading + fields + reply quoting + gateway-side execution | partial | B/C | Telegram /status Hermes-format closeout (planned) |
 | 2 | `/help` and Telegram setMyCommands menu | partial | B | Telegram dynamic BotCommand menu wiring (planned) |
-| 3 | Slash command registry (Hermes vs Gormes command names + aliases) | partial | B/H | Hermes CLI command-tree parity manifest (complete inventory); Telegram slash registry handler-coverage gap (new) |
+| 3 | Slash command registry (Hermes vs Gormes command names + aliases) | partial | B/H | Hermes CLI command-tree parity manifest (complete inventory); Telegram slash registry handler-coverage gap (planner refinement) |
 | 4 | Unknown command behavior | parity | B | Active-turn slash bypass tests cover unknown |
 | 5 | Unavailable command behavior | parity | B | active_turn_command_bypass_test (covered) |
 | 6 | Active-turn slash bypass behavior | parity | B | Gateway active-turn policy manifest closeout (planned for closeout edge cases) |
 | 7 | Busy/admission behavior | parity | B | Active-turn follow-up queue + late-arrival drain policy (complete) |
 | 8 | Telegram reply quoting (every bot response) | partial | B | Telegram reply_to_mode and reply-context parity (planned) |
 | 9 | Telegram message threading (forum topic threads) | partial | B | Telegram reply_to_mode and reply-context parity (planned) |
-| 10 | Telegram markdown rendering (bold/italic/code/headers/spoilers/strike) | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (new) |
-| 11 | Telegram code blocks | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (new) |
-| 12 | Telegram bullets/headings | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (new) |
+| 10 | Telegram markdown rendering (bold/italic/code/headers/spoilers/strike) | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
+| 11 | Telegram code blocks | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
+| 12 | Telegram bullets/headings | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
 | 13 | Error message formatting | parity | B | Existing render_test fixtures cover sanitization |
 | 14 | Progress messages (interim) | parity | B | Coalescer + render_test cover stream cadence |
 | 15 | Final answer separation | parity | B | Coalescer fresh-final + sendNoEdit cover phase split |
@@ -54,7 +54,7 @@ Lane key (per the parity operating model):
 | 19 | Streaming cadence | parity | B | Coalescer window + freshFinalAfter govern cadence |
 | 20 | Tool trace formatting (memory/search_files/read_file/patch/terminal icons) | partial | B | Gateway stream/tool trace formatting fixture matrix (planned) |
 | 21 | Duplicate collapse | partial | B | Restart duplicate-suppression covers operator path; chat-text dedup not implemented (new low-priority gap) |
-| 22 | Mobile-readable formatting | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (new) |
+| 22 | Mobile-readable formatting | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
 | 23 | Identity / persona ("My name is Gormes" not "ChatGPT") | parity | D | Live-turn SOUL.md and project context wiring (channel-neutral) (complete) |
 | 24 | Final provider request includes Gormes identity (integration test) | parity at gateway, planned at production cmd | D | Telegram production live-turn provider payload golden (planned, P0) |
 | 25 | Final provider request includes USER.md / MEMORY.md | parity at gateway | D | Live-turn USER.md and MEMORY.md durable user context block (channel-neutral) (complete) |
@@ -723,7 +723,7 @@ Classification, Progress row).
 - **Status**: `partial`.
 - **Lane**: B/H.
 - **Progress row**: `49-file CLI tree port` (planned umbrella) +
-  `Gateway slash registry parity sweep` (new).
+  `Gateway slash registry parity sweep` (planner refinement).
 
 ### 44-48. Memory/Goncho areas
 

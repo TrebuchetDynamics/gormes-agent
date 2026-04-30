@@ -500,8 +500,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if hooks.Priority != "P1" {
 		t.Fatalf("Phase 2.F.1 priority = %q, want P1", hooks.Priority)
 	}
-	if got := hooks.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.F.1 = %q, want complete", got)
+	if got := hooks.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.F.1 = %q, want in_progress while the recognized-name expansion row remains planned", got)
 	}
 	hookItemsF1 := itemsByName(hooks.Items)
 	commandRegistry := hookItemsF1["Canonical CommandDef registry"]
