@@ -16849,10 +16849,10 @@
             },
             {
               "name": "TTS tool contract + media delivery seam",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Gormes ports Hermes text_to_speech as a native Go tool/result contract and channel-neutral MEDIA delivery seam: text_to_speech validates text/output path/provider choice, returns success/file_path/media_tag or typed redacted errors, and gateway final-response delivery strips MEDIA tags while sending local audio through platform voice/audio senders such as Telegram sendVoice/sendAudio.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -16884,17 +16884,19 @@
               "acceptance": [
                 "TestTextToSpeechToolDescriptor proves the text_to_speech schema matches Hermes fields text and output_path.",
                 "TestTextToSpeechResultEnvelope proves success returns file_path and MEDIA tag while failures are typed and redacted using fake synthesizers.",
-                "TestGatewayMediaDeliveryStripsMediaTags proves final responses deliver local media through a channel voice/audio sender and remove MEDIA tags from visible text.",
-                "TestTelegramSendVoiceUsesVoiceBubbleForOgg proves Telegram sends .ogg/.opus as sendVoice and other audio as sendAudio with reply_to preserved."
+                "TestPrepareMediaDeliveryContentExtractsHermesTags and TestManagerFinalResponseDeliversMediaWithoutLeakingTag prove final responses deliver local media through a channel voice/audio sender and remove MEDIA tags from visible text.",
+                "TestBot_SendMediaUsesTelegramVoiceAndAudio proves Telegram sends voice-compatible audio through sendVoice and other audio through sendAudio with reply_to preserved."
               ],
               "write_scope": [
                 "internal/tools/tts_tool.go",
+                "internal/tools/tts_command_provider.go",
                 "internal/tools/tts_tool_test.go",
                 "internal/gateway/media_delivery.go",
                 "internal/gateway/media_delivery_test.go",
                 "internal/channels/telegram/bot.go",
                 "internal/channels/telegram/bot_test.go",
                 "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -16906,6 +16908,12 @@
               ],
               "done_signal": [
                 "Fake TTS and fake channel delivery fixtures prove text_to_speech can produce a MEDIA tag and gateway/Telegram can deliver it as native audio without leaking the tag in final text."
+              ],
+              "evidence": [
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run '^TestTextToSpeech' -count=1 -> pass",
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'MediaDelivery|FinalResponseDeliversMedia' -count=1 -> pass",
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run '^TestBot_SendMediaUsesTelegramVoiceAndAudio$' -count=1 -> pass",
+                "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestBuildDefaultRegistryDelegationDisabled$' -count=1 -> pass"
               ],
               "provenance": {
                 "origin_type": "porting",

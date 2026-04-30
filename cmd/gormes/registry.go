@@ -23,6 +23,13 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
 	reg.MustRegister(tools.NewExecuteCodeTool())
+	ttsProviders := map[string]tools.TTSProvider{}
+	if edge := tools.NewEdgeTTSCommandProviderFromEnv(); edge != nil {
+		ttsProviders["edge"] = edge
+	}
+	reg.MustRegister(tools.NewTextToSpeechTool(tools.NewTTSRunner(tools.TTSConfig{
+		OutputDir: filepath.Join(config.GormesHome(), "cache", "audio"),
+	}, ttsProviders)))
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
 		Budget: tools.ToolResultBudgetConfig{
 			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),

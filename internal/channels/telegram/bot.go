@@ -40,6 +40,7 @@ type Bot struct {
 var _ gateway.Channel = (*Bot)(nil)
 var _ gateway.MessageEditor = (*Bot)(nil)
 var _ gateway.MessageDeleter = (*Bot)(nil)
+var _ gateway.MediaSender = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
 
 func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
@@ -275,6 +276,39 @@ func (b *Bot) SendReply(ctx context.Context, chatID, replyToMsgID, text string) 
 	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
 	msgCfg.ReplyToMessageID = replyID
 	msg, err := b.sendWithParseFallback(msgCfg)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(msg.MessageID), nil
+}
+
+func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
+	_ = ctx
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	mediaPath := strings.TrimSpace(media.Path)
+	if mediaPath == "" {
+		return "", fmt.Errorf("telegram: media path is required")
+	}
+	replyID := 0
+	if strings.TrimSpace(replyToMsgID) != "" {
+		replyID, err = strconv.Atoi(replyToMsgID)
+		if err != nil {
+			return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+		}
+	}
+	var msg tgbotapi.Message
+	if media.AsVoice {
+		cfg := tgbotapi.NewVoice(id, tgbotapi.FilePath(mediaPath))
+		cfg.ReplyToMessageID = replyID
+		msg, err = b.client.Send(cfg)
+	} else {
+		cfg := tgbotapi.NewAudio(id, tgbotapi.FilePath(mediaPath))
+		cfg.ReplyToMessageID = replyID
+		msg, err = b.client.Send(cfg)
+	}
 	if err != nil {
 		return "", err
 	}

@@ -894,14 +894,16 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 
 	switch f.Phase {
 	case kernel.PhaseIdle:
+		finalText, media := m.formatFinalDelivery(platform, f)
 		if *co != nil {
-			(*co).flushImmediateFinal(ctx, m.formatFinal(platform, f), true)
+			(*co).flushImmediateFinal(ctx, finalText, true)
 			(*coCancel)()
 			*co = nil
 			*coCancel = nil
 		} else {
-			_, _ = m.sendWithHooks(ctx, ch, chatID, m.formatFinal(platform, f))
+			_, _ = m.sendWithHooks(ctx, ch, chatID, finalText)
 		}
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		text := m.formatError(platform, f)
@@ -938,7 +940,9 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID string) bool {
 	switch f.Phase {
 	case kernel.PhaseIdle:
-		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatFinal(ch.Name(), f))
+		finalText, media := m.formatFinalDelivery(ch.Name(), f)
+		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, finalText)
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
 		return true
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatError(ch.Name(), f))
@@ -1340,6 +1344,47 @@ func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
 		return FormatFinalTelegram(f)
 	}
 	return FormatFinalPlain(f)
+}
+
+func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (string, []OutboundMedia) {
+	content := PrepareMediaDeliveryContent(FinalAssistantText(f))
+	text := content.Text
+	if strings.TrimSpace(text) == "" && len(content.Media) > 0 {
+		text = "Audio attached."
+	}
+	if platform == "telegram" {
+		return FormatFinalTelegramText(text), content.Media
+	}
+	return FormatFinalPlainText(text), content.Media
+}
+
+func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID string, media []OutboundMedia) {
+	if len(media) == 0 || ch == nil {
+		return
+	}
+	sender, ok := ch.(MediaSender)
+	if !ok {
+		for _, item := range media {
+			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, "Media attachment unavailable: "+item.Path)
+		}
+		return
+	}
+	for _, item := range media {
+		if _, err := sender.SendMedia(ctx, chatID, replyToMsgID, item); err != nil {
+			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+				Platform:      ch.Name(),
+				PlatformState: PlatformStateFailed,
+				ErrorMessage:  err.Error(),
+			})
+			m.fireHook(ctx, HookEvent{
+				Point:    HookOnError,
+				Platform: ch.Name(),
+				ChatID:   chatID,
+				Text:     "MEDIA:" + item.Path,
+				Err:      err,
+			})
+		}
+	}
 }
 
 func (m *Manager) formatError(platform string, f kernel.RenderFrame) string {

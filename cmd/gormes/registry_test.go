@@ -20,6 +20,9 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	if _, ok := reg.Get("execute_code"); !ok {
 		t.Fatal("execute_code not registered")
 	}
+	if _, ok := reg.Get("text_to_speech"); !ok {
+		t.Fatal("text_to_speech not registered")
+	}
 	for _, name := range []string{"browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_cdp", "browser_dialog"} {
 		if _, ok := reg.Get(name); !ok {
 			t.Fatalf("%s not registered", name)

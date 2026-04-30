@@ -627,7 +627,7 @@ classification and row-backed implementation queue.
 - [ ] Voice mode port
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
-- [ ] TTS tool contract + media delivery seam
+- [x] TTS tool contract + media delivery seam
 - [ ] TTS synthesis + voice-mode state
 
 ### 5.F — Skills System (Remaining) 🔨

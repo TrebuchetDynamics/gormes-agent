@@ -2,6 +2,8 @@ package telegram
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -311,6 +313,46 @@ func TestBot_SendReplySetsTelegramReplyToMessageID(t *testing.T) {
 	}
 }
 
+func TestBot_SendMediaUsesTelegramVoiceAndAudio(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+
+	voicePath := writeTelegramTestMedia(t, "voice.ogg")
+	voiceID, err := b.SendMedia(context.Background(), "42", "99", gateway.OutboundMedia{
+		Path:    voicePath,
+		AsVoice: true,
+	})
+	if err != nil {
+		t.Fatalf("SendMedia voice: %v", err)
+	}
+	if voiceID == "" {
+		t.Fatal("voice msg ID empty")
+	}
+
+	audioPath := writeTelegramTestMedia(t, "audio.mp3")
+	if _, err := b.SendMedia(context.Background(), "42", "", gateway.OutboundMedia{Path: audioPath}); err != nil {
+		t.Fatalf("SendMedia audio: %v", err)
+	}
+
+	sent := mc.sentMessages()
+	if len(sent) != 2 {
+		t.Fatalf("sent count = %d, want 2", len(sent))
+	}
+	voice, ok := sent[0].(tgbotapi.VoiceConfig)
+	if !ok {
+		t.Fatalf("sent[0] type = %T, want VoiceConfig", sent[0])
+	}
+	if voice.ReplyToMessageID != 99 {
+		t.Fatalf("voice ReplyToMessageID = %d, want 99", voice.ReplyToMessageID)
+	}
+	if _, ok := voice.File.(tgbotapi.FilePath); !ok {
+		t.Fatalf("voice file = %T, want FilePath", voice.File)
+	}
+	if _, ok := sent[1].(tgbotapi.AudioConfig); !ok {
+		t.Fatalf("sent[1] type = %T, want AudioConfig", sent[1])
+	}
+}
+
 func TestBot_SendPlaceholder(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)
@@ -325,6 +367,15 @@ func TestBot_SendPlaceholder(t *testing.T) {
 	if !strings.Contains(mc.lastSentText(), "⏳") {
 		t.Errorf("placeholder text = %q", mc.lastSentText())
 	}
+}
+
+func writeTelegramTestMedia(t *testing.T, name string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, []byte("audio"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func TestBot_EditMessage(t *testing.T) {

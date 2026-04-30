@@ -23,6 +23,20 @@ type ReplySender interface {
 	SendReply(ctx context.Context, chatID, replyToMsgID, text string) (msgID string, err error)
 }
 
+// OutboundMedia is a local file that should be delivered through a platform's
+// native media path instead of being shown as a raw MEDIA tag in assistant text.
+type OutboundMedia struct {
+	Path    string
+	AsVoice bool
+}
+
+// MediaSender is implemented by channels that can send local files as native
+// platform media. replyToMsgID is optional and preserves reply quoting when the
+// channel supports it.
+type MediaSender interface {
+	SendMedia(ctx context.Context, chatID, replyToMsgID string, media OutboundMedia) (msgID string, err error)
+}
+
 // DisconnectCapable is implemented by channels that can release resources
 // outside their Run loop after a failed startup.
 type DisconnectCapable interface {

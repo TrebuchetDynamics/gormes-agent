@@ -28,12 +28,24 @@ func FormatStreamPlain(f kernel.RenderFrame) string {
 
 // FormatFinalPlain returns the final assistant text from render history.
 func FormatFinalPlain(f kernel.RenderFrame) string {
+	return FormatFinalPlainText(FinalAssistantText(f))
+}
+
+// FinalAssistantText returns the raw final assistant text from render history.
+func FinalAssistantText(f kernel.RenderFrame) string {
 	for i := len(f.History) - 1; i >= 0; i-- {
 		if f.History[i].Role == "assistant" {
-			return truncate(f.History[i].Content)
+			return f.History[i].Content
 		}
 	}
-	return "(empty reply)"
+	return ""
+}
+
+func FormatFinalPlainText(text string) string {
+	if strings.TrimSpace(text) == "" {
+		return "(empty reply)"
+	}
+	return truncate(text)
 }
 
 // FormatErrorPlain renders a terminal error frame.
@@ -64,12 +76,14 @@ func FormatStreamTelegram(f kernel.RenderFrame) string {
 
 // FormatFinalTelegram renders the final assistant message for Telegram.
 func FormatFinalTelegram(f kernel.RenderFrame) string {
-	for i := len(f.History) - 1; i >= 0; i-- {
-		if f.History[i].Role == "assistant" {
-			return truncate(tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, f.History[i].Content))
-		}
+	return FormatFinalTelegramText(FinalAssistantText(f))
+}
+
+func FormatFinalTelegramText(text string) string {
+	if strings.TrimSpace(text) == "" {
+		return "_\\(empty reply\\)_"
 	}
-	return "_\\(empty reply\\)_"
+	return truncate(tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, text))
 }
 
 // FormatErrorTelegram renders an error frame for Telegram MarkdownV2.
