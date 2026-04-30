@@ -723,7 +723,7 @@ classification and row-backed implementation queue.
 - [x] Session search tool execution wrapper
 - [x] Session shutdown memory transcript handoff
 - [x] Debug helpers
-- [ ] Debug share paste sweep scheduler contract
+- [x] Debug share paste sweep scheduler contract
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
 - [x] Backend usage-limit stdin health bypass

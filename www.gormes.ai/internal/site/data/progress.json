@@ -21201,9 +21201,9 @@
             {
               "name": "Debug share paste sweep scheduler contract",
               "priority": "P4",
-              "status": "planned",
-              "contract": "Gormes debug-share planning owns a persisted paste-deletion queue and an hourly scheduler hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
-              "contract_status": "draft",
+              "status": "complete",
+              "contract": "Gormes debug-share owns an injectable paste-deletion queue helper and an hourly scheduler cadence hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -21213,8 +21213,10 @@
               "degraded_mode": "If the scheduler is not running, debug-share status reports paste_sweep_scheduler_unavailable and the CLI fallback can still sweep pending entries on the next debug invocation.",
               "fixture": "internal/cli/debug_paste_sweep_test.go::TestDebugPasteSweep_*",
               "source_refs": [
-                "../hermes-agent/hermes_cli/debug.py@90a3e73d:_sweep_expired_pastes",
-                "../hermes-agent/gateway/run.py@90a3e73d:_start_cron_ticker",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/hermes_cli/debug.py@69d4800d:_sweep_expired_pastes",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/run.py@69d4800d:_start_cron_ticker",
+                "internal/cli/debug_paste_sweep.go",
+                "internal/cron/debug_paste_sweep.go",
                 "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Debug helpers"
               ],
               "ready_when": [
@@ -21236,7 +21238,7 @@
                 "TestDebugPasteSweep_DeleteFailureRetainsEntryWithEvidence proves a failed fake delete keeps the row and reports paste_delete_failed evidence.",
                 "TestDebugPasteSweep_SchedulerCadence proves the hourly hook calls the sweeper on the configured cadence without starting a real gateway or sleeping."
               ],
-              "note": "Added from Hermes 90a3e73d. Keep draft/blocked until Debug helpers have a Go-native queue; this captures the upstream retention lesson without adding a live network task to the current hot queue.",
+              "note": "Complete: TDD landed an injectable Go-native debug paste sweep helper and scheduler cadence hook. internal/cli/debug_paste_sweep_test.go proves expired paste.rs URLs are passed to a fake deleter once, future entries remain queued, and delete failures retain entries with paste_delete_failed evidence. internal/cron/debug_paste_sweep_test.go proves hourly cadence without goroutines, gateway startup, sleeps, or network DELETE calls.",
               "write_scope": [
                 "internal/cli/debug_paste_sweep.go",
                 "internal/cli/debug_paste_sweep_test.go",
@@ -21252,10 +21254,20 @@
               "done_signal": [
                 "Debug paste sweep fixtures prove fake-clock deletion, retention on failure, pending-count evidence, and hourly scheduler cadence without network calls."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-30T12:19:00Z",
+                "last_success": "2026-04-30T12:19:00Z"
+              },
+              "evidence": {
+                "implementation": "internal/cli/debug_paste_sweep.go, internal/cron/debug_paste_sweep.go",
+                "tests": "go test ./internal/cli -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cron -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cli ./internal/cron -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "The implementation keeps paste deletion, persistence, and wall-clock scheduling injectable; no production network DELETEs or gateway process are required by the fixtures."
+              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:90a3e73d hermes_cli/debug.py + gateway/run.py",
-                "note": "Hermes moved paste.rs cleanup from opportunistic debug invocation to the gateway cron ticker; Gormes should adapt the queue/sweeper contract after native debug helpers exist."
+                "upstream_ref": "hermes:69d4800d hermes_cli/debug.py + gateway/run.py",
+                "note": "Hermes keeps pending paste.rs cleanup in hermes_cli/debug.py and invokes _sweep_expired_pastes from the gateway cron ticker; Gormes adapts the queue/sweeper contract as injectable Go helpers before any live debug-share upload surface."
               }
             },
             {
