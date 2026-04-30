@@ -765,7 +765,7 @@ classification and row-backed implementation queue.
 - [x] Model and profile selector seam (Cobra + gateway)
 - [x] Gormes top-level logout provider shortcut
 - [x] Gormes login removed-command typo suggestion contract
-- [ ] Gormes model interactive provider/model picker
+- [x] Gormes model interactive provider/model picker
 - [ ] Gormes setup minimal sectioned wizard slice
 - [ ] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default

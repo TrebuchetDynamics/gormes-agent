@@ -23945,10 +23945,10 @@
             },
             {
               "name": "Gormes model interactive provider/model picker",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
-              "contract": "`gormes model [--portal-url URL] [--inference-url URL] [--client-id ID] [--scope S] [--no-browser] [--timeout SEC] [--ca-bundle PATH] [--insecure]` runs an interactive provider+model picker over the existing model registry, static alias resolver, and the new `Model and profile selector seam (Cobra + gateway)` interface: it requires a TTY, shows current provider/model, presents the provider menu (selection-only — no provider auth flow is triggered from this command), fetches the model catalog, prompts model selection, and persists `model.default` and `model.provider` to the active config. Provider auth is the responsibility of `gormes auth add` (including the explicit `--emergency-import-from-codex-cli` override) — `gormes model` never offers OAuth, device-code, or vendor-CLI import flows.",
-              "contract_status": "draft",
+              "contract": "`gormes model` runs a selection-only interactive provider+model picker over the Hermes provider registry manifest and the `Model and profile selector seam (Cobra + gateway)` interface: it requires a TTY, shows the current provider/model, presents a provider menu, prompts for the model identifier, and persists only `hermes.model` and `hermes.provider` to the active Gormes config TOML. Provider auth is the responsibility of `gormes auth add` (including the explicit `--emergency-import-from-codex-cli` override) — `gormes model` never offers OAuth, device-code, or vendor-CLI import flows.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -23993,13 +23993,13 @@
                 "Gateway, platform, webhook, and cron management CLI"
               ],
               "acceptance": [
-                "TestModelPickerRequiresTTY proves a non-TTY invocation returns model_picker_requires_tty exit code 2 and does not read the model catalog.",
-                "TestModelPickerProviderMenuShowsCurrent proves the menu fixture renders the active provider/model first and lists all providers from the registry.",
-                "TestModelPickerSelectionOnlyDoesNotInvokeAuthFlow proves no fixture provider-auth seam (OAuth, device-code, vendor-CLI import) is invoked when the credential pool is empty for the chosen provider; instead the picker emits operator guidance pointing at `gormes auth add <provider>`.",
-                "TestModelPickerPersistsModelAndProvider proves successful selection writes `model.default` and `model.provider` to the active Hermes config.yaml-compatible store with redacted output.",
-                "TestModelPickerCancellationLeavesConfigUntouched proves Ctrl-C / cancel mid-prompt does not mutate any config file."
+                "TestModelPickerRequiresTTY proves a non-TTY invocation returns model_picker_requires_tty and does not read the provider catalog or persist config.",
+                "TestModelPickerProviderMenuShowsCurrent proves the menu fixture renders the active provider first/annotated and lists providers from the registry seam.",
+                "TestModelPickerSelectionOnlyDoesNotInvokeAuthFlow proves the picker does not invoke OAuth, device-code, vendor-CLI import, or any auth seam; it only emits guidance for `gormes auth add <provider>`.",
+                "TestModelPickerPersistsModelAndProvider plus TestModelCommandDefaultPersistWritesConfig prove successful selection writes only the active model/provider to the config store with no credential fields.",
+                "TestModelPickerCancellationLeavesConfigUntouched proves cancel during model selection does not mutate the config store."
               ],
-              "note": "Reuses the already-shipped Provider endpoint flag row (19324), TUI launch model override + static alias resolver (21722), Hermes config.yaml model/provider runtime bridge (21051), and the new `Model and profile selector seam (Cobra + gateway)` interface. Q6 decision: gormes model is selection-only; Codex CLI import is dropped from this row and lives only behind the explicit --emergency-import-from-codex-cli flag in the strict-isolation row. Coordinates with gateway `_handle_model_command` overlap noted in the Gateway, platform, webhook, and cron management CLI umbrella — both the Cobra command and the gateway slash command consume the same selector seam.",
+              "note": "Complete: TDD shipped the selection-only `gormes model` command plus `internal/cli` model picker seam. The picker enforces the non-TTY guard, renders the current provider first/annotated, never invokes auth flows, persists only `hermes.model`/`hermes.provider` in the Gormes config TOML, and leaves config untouched on cancellation. Production provider choices come from the Hermes provider registry manifest; credentials remain delegated to `gormes auth add <provider>`.",
               "write_scope": [
                 "cmd/gormes/model.go",
                 "cmd/gormes/model_picker_test.go",
@@ -24008,13 +24008,13 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestModelPicker' -count=1",
+                "go test ./cmd/gormes -run '^TestModelPicker|^TestModelCommandDefaultPersist' -count=1",
                 "go test ./internal/cli -run '^TestModelPicker' -count=1",
                 "go test ./cmd/gormes ./internal/cli ./internal/config -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Model picker fixtures prove TTY guard, provider menu rendering, conditional login dispatch, legacy Codex import distinct from strict auth-add, persisted model/provider, and cancel-without-mutation behavior."
+                "Model picker fixtures prove TTY guard, provider menu rendering, selection-only auth guidance, persisted model/provider, and cancel-without-mutation behavior."
               ],
               "provenance": {
                 "origin_type": "hybrid",
