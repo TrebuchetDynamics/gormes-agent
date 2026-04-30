@@ -42,7 +42,27 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/tools/memory_tool.py:222-513, ../hermes-agent/tools/memory_tool.py:105-124, cmd/gormes/registry.go, internal/gonchotools/honcho_tools.go, internal/hermes/durable_user_context.go, internal/memory/
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Gateway slash registry parity sweep (recognized-name expansion)
+## 2. Gateway stream/tool trace formatting fixture matrix
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/search/read/patch/terminal/browser actions.
+- Trust class: gateway, operator
+- Ready when: Hermes/Sidon stream and tool-trace rendering examples are captured as source-backed fixture expectations., The renderer can be tested with pure gateway events and Telegram formatting fixtures without provider or live channel calls.
+- Not ready when: -
+- Degraded mode: Unknown tool events render as bounded generic tool_progress evidence instead of raw provider payloads or dropped traces.
+- Fixture: `internal/gateway/render_test.go`
+- Write scope: `internal/gateway/render.go`, `internal/gateway/render_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Render\|FormatStream\|ToolTrace' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Renderer snapshot/table fixtures prove compact channel-neutral stream and tool trace parity.
+- Acceptance: Renderer fixtures cover streaming text, final answer separation, provider errors, and tool progress., Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels., Memory/search/read/patch/terminal/browser traces match the parity matrix examples., No renderer emits tokens, raw credential values, or unbounded payloads.
+- Source refs: ../hermes-agent/gateway/stream_consumer.py:482-508, ../hermes-agent/gateway/run.py, internal/gateway/render.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 3. Gateway slash registry parity sweep (recognized-name expansion)
 
 - Phase: 2 / 2.F.1
 - Owner: `gateway`
@@ -63,7 +83,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: 49-file CLI tree port
 - Why now: Unblocks 49-file CLI tree port.
 
-## 3. Stateful tool migration queue
+## 4. Stateful tool migration queue
 
 - Phase: 5 / 5.A
 - Owner: `tools`
@@ -83,7 +103,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: File write/patch tool port, Checkpoint restore tool port, Terminal process execution port
 - Why now: Unblocks File write/patch tool port, Checkpoint restore tool port, Terminal process execution port.
 
-## 4. Debug helpers
+## 5. Debug helpers
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -103,7 +123,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging
 - Why now: Unblocks Multi-model coordination, Debug share paste sweep scheduler contract, Web/search tool debug logging.
 
-## 5. Feishu transport/bootstrap layer
+## 6. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -123,7 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 6. Telegram reply_to_mode and reply-context parity
+## 7. Telegram reply_to_mode and reply-context parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -143,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py:904-922, ../hermes-agent/gateway/platforms/telegram.py:1022-1032, ../hermes-agent/gateway/platforms/telegram.py:2935-2959, internal/channels/telegram/bot.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Telegram typing action + placeholder lifecycle parity
+## 8. Telegram typing action + placeholder lifecycle parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -161,26 +181,6 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Telegram placeholder/typing lifecycle fixtures prove no stale hourglass or duplicate final replies.
 - Acceptance: Fake Telegram tests prove sendChatAction or placeholder behavior for long turns., Final answer cleanup deletes or edits the placeholder exactly once., Failure paths do not produce duplicate final messages., Fresh-final delete behavior remains covered.
 - Source refs: ../hermes-agent/gateway/platforms/base.py:1718-1724, ../hermes-agent/gateway/platforms/base.py:1976-1986, ../hermes-agent/gateway/platforms/telegram.py:1909-1935, internal/gateway/coalesce.go, internal/channels/telegram/bot.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. Gateway stream/tool trace formatting fixture matrix
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/search/read/patch/terminal/browser actions.
-- Trust class: gateway, operator
-- Ready when: Hermes/Sidon stream and tool-trace rendering examples are captured as source-backed fixture expectations., The renderer can be tested with pure gateway events and Telegram formatting fixtures without provider or live channel calls.
-- Not ready when: -
-- Degraded mode: Unknown tool events render as bounded generic tool_progress evidence instead of raw provider payloads or dropped traces.
-- Fixture: `internal/gateway/render_test.go`
-- Write scope: `internal/gateway/render.go`, `internal/gateway/render_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Render\|FormatStream\|ToolTrace' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Renderer snapshot/table fixtures prove compact channel-neutral stream and tool trace parity.
-- Acceptance: Renderer fixtures cover streaming text, final answer separation, provider errors, and tool progress., Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels., Memory/search/read/patch/terminal/browser traces match the parity matrix examples., No renderer emits tokens, raw credential values, or unbounded payloads.
-- Source refs: ../hermes-agent/gateway/stream_consumer.py:482-508, ../hermes-agent/gateway/run.py, internal/gateway/render.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 9. Telegram dynamic BotCommand menu wiring
