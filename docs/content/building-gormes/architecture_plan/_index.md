@@ -183,7 +183,7 @@ classification and row-backed implementation queue.
 - [x] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
 - [x] BlueBubbles iMessage session-context prompt guidance
 - [x] Telegram production live-turn provider payload golden
-- [ ] Telegram /status Hermes-format closeout
+- [x] Telegram /status Hermes-format closeout
 - [ ] Gateway /title manual session title command
 - [ ] Telegram reply_to_mode and reply-context parity
 - [ ] Telegram typing action + placeholder lifecycle parity
