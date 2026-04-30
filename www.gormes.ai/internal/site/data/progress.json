@@ -20663,7 +20663,7 @@
                 "Gateway/TUI resume fixtures persist a one-shot route for the awaiting session and clear it after the next user reply.",
                 "Cron/oneshot fixtures return clarify_unavailable or clarify_timeout evidence and never wait for interactive input."
               ],
-              "note": "Partial TDD slice landed native internal/tools clarify descriptor + callback seam: TestClarifyTool covers required/blank question invalid evidence, choices list validation, whitespace stripping, non-string stringification, max-four truncation, noninteractive clarify_unavailable output, callback user_response output, and route-missing evidence; cmd/gormes registry fixtures prove the tool is in the default runtime registry. Remaining row work is gateway/TUI one-shot resume route persistence and live callback binding. Donor-backed row: Hermes owns clarify schema/toolset behavior as captured in upstream_tool_parity_manifest; trpc-agent-go supplies the await-user-reply route shape. Adapt the route concept to Gormes session/gateway state and preserve the existing oneshot safety behavior.",
+              "note": "Partial TDD slices now cover the native internal/tools clarify descriptor + callback seam and the shared gateway one-shot resume broker. TestClarifyTool covers required/blank question invalid evidence, choices list validation, whitespace stripping, non-string stringification, max-four truncation, noninteractive clarify_unavailable output, callback user_response output, and route-missing evidence; cmd/gormes registry fixtures prove the tool is in the default runtime registry. TestClarifyResumeBroker covers pending route persistence with question/choices evidence, trimmed next-reply delivery, one-shot cleanup after resume, timeout cleanup on context cancellation, and typed route-missing evidence for missing platform/chat routes. Remaining row work is production binding between tool execution and gateway/TUI channel send/resume plumbing so live turns can actually ask the user and resume without blocking noninteractive contexts. Donor-backed row: Hermes owns clarify schema/toolset behavior as captured in upstream_tool_parity_manifest; trpc-agent-go supplies the await-user-reply route shape. Adapt the route concept to Gormes session/gateway state and preserve the existing oneshot safety behavior.",
               "write_scope": [
                 "internal/tools/clarify_tool.go",
                 "internal/tools/clarify_tool_test.go",
@@ -20677,7 +20677,8 @@
                 "go test ./internal/tools -run TestClarifyTool -count=1",
                 "go test ./internal/gateway -run TestClarifyResume -count=1",
                 "go test ./cmd/gormes -run TestOneshotClarify -count=1",
-                "go run ./cmd/progress validate"
+                "go run ./cmd/progress validate",
+                "go test ./internal/gateway -run TestClarifyResumeBroker -count=1"
               ],
               "done_signal": [
                 "Clarify fixtures prove Hermes schema validation, platform callback output, gateway/TUI one-shot resume routing, and noninteractive unavailable/timeout evidence without live UI."
