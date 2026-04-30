@@ -19547,9 +19547,9 @@
             },
             {
               "name": "Approval mode config normalization",
-              "status": "planned",
+              "status": "complete",
               "contract": "Pure approval-mode parser normalizes config-loaded values before dangerous-command prompting is wired: bool false maps to off to preserve YAML 1.1 bare `off`, bool true maps to manual, strings trim/lowercase with empty and unknown values behaving as manual, and only manual, smart, and off are returned to GuardCommand callers; hardline blocks remain non-bypassable and recoverable dangerous commands use the normalized mode without starting prompts or auxiliary LLM review in this slice.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -19593,7 +19593,7 @@
                 "TestApprovalModeDoesNotBypassHardline proves GuardCommand('rm -rf /', mode off/smart/manual) remains hardline blocked.",
                 "TestApprovalModeOffBypassesRecoverable proves GuardCommand('git reset --hard', mode off) bypasses only recoverable approval while manual/smart still mark approval_required for later prompt/smart rows."
               ],
-              "note": "Builder-ready dangerous-command config slice. Hermes approval.py has a regression guard for YAML bare off parsing; Gormes should freeze that parser before wiring prompts, smart approval, cron policy, or execute_code enforcement.",
+              "note": "Complete: current HEAD already contains the row-local TDD implementation in internal/tools/approval_mode.go and internal/tools/approval_mode_test.go. Focused validation proves YAML boolean false maps to off, bool true maps to manual, string modes trim/lowercase, unsupported values default to manual with approval_mode_defaulted evidence, off bypasses only recoverable dangerous commands, and hardline commands remain non-bypassable across off/smart/manual.",
               "write_scope": [
                 "internal/tools/approval_mode.go",
                 "internal/tools/approval_mode_test.go",
@@ -19606,7 +19606,8 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Approval-mode fixtures prove YAML boolean off, string mode folding, invalid-value defaulting, hardline non-bypassability, and recoverable off-mode behavior without prompts or LLM calls."
+                "Approval-mode fixtures prove YAML boolean off, string mode folding, invalid-value defaulting, hardline non-bypassability, and recoverable off-mode behavior without prompts or LLM calls.",
+                "Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestNormalizeApprovalMode|TestApprovalMode' -count=1."
               ],
               "provenance": {
                 "origin_type": "hybrid",

@@ -683,7 +683,7 @@ classification and row-backed implementation queue.
 - [ ] Dangerous action gating
 - [x] Hardline command pattern table + DetectHardline function
 - [x] Recoverable dangerous patterns + blocked-result schema
-- [ ] Approval mode config normalization
+- [x] Approval mode config normalization
 - [x] Gateway hook auto-accept strict parser
 - [ ] Subagent dangerous-command non-interactive approval policy
 - [ ] Concurrent tool approval callback propagation
