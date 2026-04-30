@@ -79,6 +79,74 @@ func TestBot_ToInboundEvent_Submit(t *testing.T) {
 	}
 }
 
+func TestBot_ToInboundEvent_VoiceMessageIsNotBlank(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = b.Run(ctx, inbox) }()
+
+	mc.pushVoiceUpdate(42, tgbotapi.Voice{
+		FileID:       "voice-file-id",
+		FileUniqueID: "voice-unique-id",
+		Duration:     66,
+		MimeType:     "audio/ogg",
+	})
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventSubmit {
+			t.Fatalf("Kind = %v, want submit", ev.Kind)
+		}
+		if strings.TrimSpace(ev.Text) == "" {
+			t.Fatalf("voice event text is blank: %+v", ev)
+		}
+		if !strings.Contains(ev.Text, "Telegram voice message") || !strings.Contains(ev.Text, "66s") {
+			t.Fatalf("voice marker text = %q", ev.Text)
+		}
+		if got := ev.SubmitText(); strings.TrimSpace(got) == "" || !strings.Contains(got, "voice-file-id") {
+			t.Fatalf("SubmitText() = %q, want nonblank voice attachment evidence", got)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("no inbound event")
+	}
+}
+
+func TestBot_ToInboundEvent_AudioMessageWithCaptionPreservesCaptionAndMarker(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = b.Run(ctx, inbox) }()
+
+	mc.pushAudioUpdate(42, "please transcribe", tgbotapi.Audio{
+		FileID:       "audio-file-id",
+		FileUniqueID: "audio-unique-id",
+		Duration:     12,
+		MimeType:     "audio/mpeg",
+		FileName:     "sample.mp3",
+	})
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventSubmit {
+			t.Fatalf("Kind = %v, want submit", ev.Kind)
+		}
+		if !strings.Contains(ev.Text, "please transcribe") || !strings.Contains(ev.Text, "Telegram audio message") {
+			t.Fatalf("audio text = %q", ev.Text)
+		}
+		if len(ev.Attachments) != 1 || ev.Attachments[0].Kind != "audio" || ev.Attachments[0].FileName != "sample.mp3" {
+			t.Fatalf("attachments = %+v", ev.Attachments)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("no inbound event")
+	}
+}
+
 func TestBot_ToInboundEvent_Commands(t *testing.T) {
 	cases := []struct {
 		text string

@@ -99,7 +99,7 @@ func (b *Bot) toInboundEvent(u tgbotapi.Update) (gateway.InboundEvent, bool) {
 	}
 
 	chatID := u.Message.Chat.ID
-	text := strings.TrimSpace(u.Message.Text)
+	text, attachments := telegramInboundTextAndAttachments(u.Message)
 
 	if b.cfg.RequireMention && telegramIsGroupChat(u.Message.Chat) {
 		if !telegramGroupMentionGateAddressed(text, u.Message.Entities, b.cfg.BotUsername, true) {
@@ -115,13 +115,95 @@ func (b *Bot) toInboundEvent(u tgbotapi.Update) (gateway.InboundEvent, bool) {
 	}
 
 	return gateway.InboundEvent{
-		Platform: "telegram",
-		ChatID:   strconv.FormatInt(chatID, 10),
-		UserID:   userID,
-		MsgID:    strconv.Itoa(u.Message.MessageID),
-		Kind:     kind,
-		Text:     body,
+		Platform:    "telegram",
+		ChatID:      strconv.FormatInt(chatID, 10),
+		UserID:      userID,
+		MsgID:       strconv.Itoa(u.Message.MessageID),
+		Kind:        kind,
+		Text:        body,
+		Attachments: attachments,
 	}, true
+}
+
+func telegramInboundTextAndAttachments(msg *tgbotapi.Message) (string, []gateway.Attachment) {
+	if msg == nil {
+		return "", nil
+	}
+
+	text := strings.TrimSpace(msg.Text)
+	if text == "" {
+		text = strings.TrimSpace(msg.Caption)
+	}
+
+	var attachments []gateway.Attachment
+	var markers []string
+	if msg.Voice != nil {
+		marker, attachment := telegramVoiceAttachment(msg.Voice)
+		markers = append(markers, marker)
+		attachments = append(attachments, attachment)
+	}
+	if msg.Audio != nil {
+		marker, attachment := telegramAudioAttachment(msg.Audio)
+		markers = append(markers, marker)
+		attachments = append(attachments, attachment)
+	}
+
+	for _, marker := range markers {
+		if marker == "" {
+			continue
+		}
+		if text == "" {
+			text = marker
+		} else {
+			text += "\n\n" + marker
+		}
+	}
+	return text, attachments
+}
+
+func telegramVoiceAttachment(voice *tgbotapi.Voice) (string, gateway.Attachment) {
+	if voice == nil {
+		return "", gateway.Attachment{}
+	}
+	mediaType := strings.TrimSpace(voice.MimeType)
+	attachment := gateway.Attachment{
+		Kind:      "voice",
+		MediaType: mediaType,
+		SourceID:  strings.TrimSpace(voice.FileID),
+	}
+	return telegramAudioMarker("voice", voice.Duration, mediaType, ""), attachment
+}
+
+func telegramAudioAttachment(audio *tgbotapi.Audio) (string, gateway.Attachment) {
+	if audio == nil {
+		return "", gateway.Attachment{}
+	}
+	mediaType := strings.TrimSpace(audio.MimeType)
+	fileName := strings.TrimSpace(audio.FileName)
+	attachment := gateway.Attachment{
+		Kind:      "audio",
+		MediaType: mediaType,
+		FileName:  fileName,
+		SourceID:  strings.TrimSpace(audio.FileID),
+	}
+	return telegramAudioMarker("audio", audio.Duration, mediaType, fileName), attachment
+}
+
+func telegramAudioMarker(kind string, duration int, mediaType, fileName string) string {
+	var parts []string
+	if duration > 0 {
+		parts = append(parts, fmt.Sprintf("duration=%ds", duration))
+	}
+	if mediaType = strings.TrimSpace(mediaType); mediaType != "" {
+		parts = append(parts, "mime="+mediaType)
+	}
+	if fileName = strings.TrimSpace(fileName); fileName != "" {
+		parts = append(parts, "file="+fileName)
+	}
+	if len(parts) == 0 {
+		return fmt.Sprintf("[Telegram %s message attached]", kind)
+	}
+	return fmt.Sprintf("[Telegram %s message attached: %s]", kind, strings.Join(parts, ", "))
 }
 
 func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {

@@ -86,6 +86,31 @@ func (m *mockClient) pushTextUpdate(chatID int64, text string) {
 	}
 }
 
+func (m *mockClient) pushVoiceUpdate(chatID int64, voice tgbotapi.Voice) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID: 1,
+			Voice:     &voice,
+			Chat:      &tgbotapi.Chat{ID: chatID},
+			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
+func (m *mockClient) pushAudioUpdate(chatID int64, caption string, audio tgbotapi.Audio) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID: 1,
+			Caption:   caption,
+			Audio:     &audio,
+			Chat:      &tgbotapi.Chat{ID: chatID},
+			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
 func (m *mockClient) sentMessages() []tgbotapi.Chattable {
 	m.mu.Lock()
 	defer m.mu.Unlock()
