@@ -12494,7 +12494,7 @@
                 "The disk snapshot is reused after any SKILL.md or DESCRIPTION.md mtime/size drift, or after platform/disabled/tool/toolset filters change.",
                 "Condition filtering treats missing available-tools/toolsets as restrictive; Hermes keeps backward compatibility by showing all skills when both filters are unknown."
               ],
-              "note": "Builder-ready tool-calling prompt slice. Hermes defines the skill-index snapshot and conditional tool/toolset filtering contract; Gormes should implement it against the existing internal/skills runtime before native full prompt assembly consumes dynamic skills. Partial TDD evidence landed 2026-04-30: internal/skills now parses metadata.hermes fallback_for_tools, fallback_for_toolsets, requires_tools, and requires_toolsets from SKILL.md frontmatter and RuntimeOptions filters prompt injection with Hermes nil-filter backward compatibility. Focused regression: go test ./internal/skills -run TestRuntimeBuildSkillBlockToolsetConditions -count=1. Upstream contract checked against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d agent/prompt_builder.py:_skill_should_show and build_skills_system_prompt.",
+              "note": "Planner correction 2026-04-30T17:26Z: the previous row-local command `go test ./internal/hermes ./internal/skills -run 'TestSkillsPrompt' -count=1` passed with [no tests to run], so it is stale validation evidence and must not be counted. Hermes 69d4800d still defines the skill-index snapshot and conditional tool/toolset filtering contract in agent/prompt_builder.py lines 520-882 plus tests/agent/test_prompt_builder.py lines 856-1017. Gormes partial TDD evidence is limited to internal/skills parsing/status filtering (internal/skills/{types.go,status.go,parser.go,store.go} and TestRuntimeBuildSkillBlockToolsetConditions); the remaining internal/hermes skills prompt snapshot builder still needs RED tests before implementation.",
               "provenance": {
                 "note": "Hermes defines the prompt snapshot behavior and metadata.hermes condition keys; Axe provides a bounded filesystem artifact pattern reference for snapshot-path hardening.",
                 "origin_type": "hybrid",
@@ -12512,24 +12512,26 @@
               ],
               "slice_size": "medium",
               "source_refs": [
-                "../hermes-agent/agent/prompt_builder.py:_build_skills_manifest",
-                "../hermes-agent/agent/prompt_builder.py:_load_skills_snapshot",
-                "../hermes-agent/agent/prompt_builder.py:_write_skills_snapshot",
-                "../hermes-agent/agent/prompt_builder.py:_build_snapshot_entry",
-                "../hermes-agent/agent/prompt_builder.py:_skill_should_show",
-                "../hermes-agent/agent/prompt_builder.py:build_skills_system_prompt",
-                "../hermes-agent/agent/skill_utils.py:extract_skill_conditions",
-                "../hermes-agent/tests/agent/test_prompt_builder.py:TestSkillShouldShow",
-                "../hermes-agent/tests/agent/test_prompt_builder.py:TestBuildSkillsSystemPromptConditional",
-                "internal/skills/store.go",
-                "internal/skills/parser.go",
-                "internal/skills/status.go",
-                "references/go-agent-os/axe/internal/artifact/tracker.go",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:_skill_should_show"
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:520:_build_skills_manifest",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:533:_load_skills_snapshot",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:551:_write_skills_snapshot",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:570:_build_snapshot_entry",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:623:_skill_should_show",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/prompt_builder.py:654:build_skills_system_prompt",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/agent/skill_utils.py:249:extract_skill_conditions",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/agent/test_prompt_builder.py:856:TestSkillShouldShow",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/agent/test_prompt_builder.py:908:TestBuildSkillsSystemPromptConditional",
+                "internal/skills/types.go:41-44:SkillConditions tool/toolset fields",
+                "internal/skills/status.go:30-107:RuntimeOptions and skillConditionsMatch",
+                "internal/skills/parser.go:257-260:metadata.hermes condition parsing",
+                "internal/skills/store.go:121:BuildSkillBlockWithOptions",
+                "internal/skills/store_test.go:82:TestRuntimeBuildSkillBlockToolsetConditions",
+                "references/go-agent-os/axe/internal/artifact/tracker.go"
               ],
               "status": "planned",
               "test_commands": [
-                "go test ./internal/hermes ./internal/skills -run 'TestSkillsPrompt' -count=1",
+                "go test ./internal/skills -run TestRuntimeBuildSkillBlockToolsetConditions -count=1",
+                "go test ./internal/skills -run 'TestRuntimeBuildSkillBlockToolsetConditions|TestRuntimeBuildSkillBlock_InvalidFrontmatterExcludedAndStatusReported' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "trust_class": [
