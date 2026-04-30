@@ -10864,10 +10864,10 @@
             },
             {
               "name": "OpenAI-compatible developer-role API-boundary swap",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "OpenAI-compatible request serialization maps internal system guidance to provider-expected developer role for GPT-5/Codex model families at the API boundary without mutating stored internal messages or non-matching provider payloads.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -10911,7 +10911,8 @@
               "ready_when": [
                 "Hermes provider parity tests and Gormes OpenAI-compatible serialization seams have been source-audited.",
                 "Hermetic HTTP serialization fixtures can prove role mapping without live provider calls or credential reads."
-              ]
+              ],
+              "note": "Complete: TDD added OpenAI-compatible request serialization fixtures proving GPT-5/Codex model families map the leading internal system message to provider-boundary developer role without mutating ChatRequest messages. Non-developer models keep system role, user/assistant/tool roles remain unchanged, late system messages are not rewritten, and Codex Responses continues to carry system guidance through instructions rather than a developer input role. Verified with focused internal/hermes DeveloperRole/OpenAICompatible/ModelPromptRole tests."
             }
           ],
           "drift_state": {

@@ -484,7 +484,7 @@ classification and row-backed implementation queue.
 - [x] Codex stream repair + tool-call leak sanitizer
 - [x] Cross-provider reasoning-tag sanitization
 - [x] Tool-call argument repair + schema sanitizer
-- [ ] OpenAI-compatible developer-role API-boundary swap
+- [x] OpenAI-compatible developer-role API-boundary swap
 
 ### 4.B — Context Engine + Compression 🔨
 

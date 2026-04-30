@@ -462,9 +462,14 @@ func providerRetryReason(err *HTTPError) string {
 
 func makeOpenAICompatibleMessages(messages []Message, provider, model, baseURL string) []orMessage {
 	out := make([]orMessage, 0, len(messages))
-	for _, msg := range messages {
+	promptRole := string(ModelPromptRole(model))
+	for idx, msg := range messages {
+		role := msg.Role
+		if idx == 0 && role == "system" && promptRole == string(PromptRoleDeveloper) {
+			role = promptRole
+		}
 		wire := orMessage{
-			Role:       msg.Role,
+			Role:       role,
 			Content:    msg.Content,
 			ToolCallID: msg.ToolCallID,
 			Name:       msg.Name,
