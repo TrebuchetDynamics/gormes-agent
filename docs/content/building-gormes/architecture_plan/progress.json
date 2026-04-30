@@ -6526,16 +6526,76 @@
             {
               "name": "Manager remember-source hook",
               "status": "planned",
-              "note": "TDD: persist allowed inbound SessionSource records through gateway.Manager before periodic refresh or send-target resolution starts depending on the directory.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "priority": "P1",
+              "contract": "Gormes persists allowed inbound SessionSource records from the shared gateway.Manager into a channel-directory source ledger before directory refresh or delivery-target resolution depends on remembered sessions. The hook must derive entries from the same normalized InboundEvent source used for live-turn session context, skip unauthorized/discovery-rejected inbound events, preserve Telegram thread/topic and Discord parent/guild metadata when present, and expose a fakeable store seam so future channel-directory refresh can merge remembered sources without live platform SDK calls.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If the remembered-source store is unavailable, Manager logs/surfaces channel_directory_source_unavailable evidence and still processes the inbound turn normally; it must not block Telegram replies, leak host paths, or mutate channel_directory.json directly.",
+              "fixture": "internal/gateway/channel_directory_source_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/channel_directory.py:_build_from_sessions",
+                "../hermes-agent/gateway/channel_directory.py:_session_entry_id",
+                "../hermes-agent/gateway/channel_directory.py:_session_entry_name",
+                "internal/gateway/session_context.go:sessionSourceFromInbound",
+                "internal/gateway/manager.go:submitPinned",
+                "internal/gateway/channel_directory.go:ChannelDirectoryEntry",
+                "internal/gateway/authorization.go",
+                "internal/gateway/pairing_store.go"
+              ],
+              "ready_when": [
+                "Channel directory atomic persistence + lookup is complete and exposes ChannelDirectoryEntry plus temp-root store fixtures.",
+                "The builder can test Manager with fake Channel/SessionMap/store seams and no live Telegram, Slack, or Discord SDK calls.",
+                "Authorization and pairing tests already prove which inbound events are allowed; this slice hooks only after the shared Manager allow/discovery gate accepts an event."
+              ],
+              "not_ready_when": [
+                "The implementation writes directly to channel_directory.json instead of a remembered-source ledger consumed by the later refresh slice.",
+                "Unauthorized or pairing-pending inbound events are remembered as delivery targets.",
+                "A store write failure prevents the user turn from reaching the kernel or emits local filesystem paths/secrets in channel-visible text."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Channel directory refresh + stale-target invalidation",
+                "Notify-to delivery routing",
+                "Cron delivery target planner"
+              ],
+              "acceptance": [
+                "TestManagerRememberSourceHook_PersistsAllowedInboundSource proves an allowed Telegram-shaped submit records platform, chat_id, chat_name, chat_type, user_id, user_name, thread_id, and message_id through a fake store before kernel submission.",
+                "TestManagerRememberSourceHook_SkipsUnauthorizedOrPendingDiscovery proves rejected inbound events do not create remembered source records.",
+                "TestRememberedSourceEntry_FormatsHermesSessionDirectoryFields proves Telegram topics become composite chat_id:thread_id IDs and Hermes-style names, while Discord guild/parent metadata is preserved for later directory refresh.",
+                "TestManagerRememberSourceHook_DegradesWithoutBlockingTurn proves injected store failures surface channel_directory_source_unavailable evidence/logging without blocking submitPinned or sending host paths to the channel.",
+                "Existing session-context, authorization, pairing, and channel-directory lookup tests stay green."
+              ],
+              "note": "Planner refinement: split the previous inventory-only placeholder into a builder-ready Manager hook slice after validating that Channel directory atomic persistence + lookup is already complete. The implementation should persist a small remembered-source ledger only; merging that ledger into channel_directory.json remains in the separate refresh/stale-target row.",
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/session_context.go",
+                "internal/gateway/channel_directory_source.go",
+                "internal/gateway/channel_directory_source_test.go",
+                "internal/gateway/manager_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'RememberSource|ChannelDirectorySource|Authorization|Pairing|SessionContext' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Manager remember-source hook records only allowed inbound sources through a fakeable ledger, preserves Hermes session-directory fields, degrades without blocking turns, and leaves channel_directory refresh/merge to the next row."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/channel_directory.py",
+                  "hermes:gateway/session.py",
+                  "gormes:internal/gateway/session_context.go",
+                  "gormes:internal/gateway/manager.go"
+                ],
+                "note": "Hermes derives directory entries from session origin data; Gormes needs an explicit Go-native remembered-source hook because live gateway state is managed by Manager and session.Metadata does not carry all channel-directory display fields."
+              }
             },
             {
               "name": "Mirror + sticker cache surfaces",

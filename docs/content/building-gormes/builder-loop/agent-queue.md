@@ -22,7 +22,28 @@ candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Feishu transport/bootstrap layer
+## 1. Manager remember-source hook
+
+- Phase: 2 / 2.F.4
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes persists allowed inbound SessionSource records from the shared gateway.Manager into a channel-directory source ledger before directory refresh or delivery-target resolution depends on remembered sessions. The hook must derive entries from the same normalized InboundEvent source used for live-turn session context, skip unauthorized/discovery-rejected inbound events, preserve Telegram thread/topic and Discord parent/guild metadata when present, and expose a fakeable store seam so future channel-directory refresh can merge remembered sources without live platform SDK calls.
+- Trust class: gateway, operator
+- Ready when: Channel directory atomic persistence + lookup is complete and exposes ChannelDirectoryEntry plus temp-root store fixtures., The builder can test Manager with fake Channel/SessionMap/store seams and no live Telegram, Slack, or Discord SDK calls., Authorization and pairing tests already prove which inbound events are allowed; this slice hooks only after the shared Manager allow/discovery gate accepts an event.
+- Not ready when: The implementation writes directly to channel_directory.json instead of a remembered-source ledger consumed by the later refresh slice., Unauthorized or pairing-pending inbound events are remembered as delivery targets., A store write failure prevents the user turn from reaching the kernel or emits local filesystem paths/secrets in channel-visible text.
+- Degraded mode: If the remembered-source store is unavailable, Manager logs/surfaces channel_directory_source_unavailable evidence and still processes the inbound turn normally; it must not block Telegram replies, leak host paths, or mutate channel_directory.json directly.
+- Fixture: `internal/gateway/channel_directory_source_test.go`
+- Write scope: `internal/gateway/manager.go`, `internal/gateway/session_context.go`, `internal/gateway/channel_directory_source.go`, `internal/gateway/channel_directory_source_test.go`, `internal/gateway/manager_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'RememberSource\|ChannelDirectorySource\|Authorization\|Pairing\|SessionContext' -count=1`, `go run ./cmd/progress validate`
+- Done signal: Manager remember-source hook records only allowed inbound sources through a fakeable ledger, preserves Hermes session-directory fields, degrades without blocking turns, and leaves channel_directory refresh/merge to the next row.
+- Acceptance: TestManagerRememberSourceHook_PersistsAllowedInboundSource proves an allowed Telegram-shaped submit records platform, chat_id, chat_name, chat_type, user_id, user_name, thread_id, and message_id through a fake store before kernel submission., TestManagerRememberSourceHook_SkipsUnauthorizedOrPendingDiscovery proves rejected inbound events do not create remembered source records., TestRememberedSourceEntry_FormatsHermesSessionDirectoryFields proves Telegram topics become composite chat_id:thread_id IDs and Hermes-style names, while Discord guild/parent metadata is preserved for later directory refresh., TestManagerRememberSourceHook_DegradesWithoutBlockingTurn proves injected store failures surface channel_directory_source_unavailable evidence/logging without blocking submitPinned or sending host paths to the channel., Existing session-context, authorization, pairing, and channel-directory lookup tests stay green.
+- Source refs: ../hermes-agent/gateway/channel_directory.py:_build_from_sessions, ../hermes-agent/gateway/channel_directory.py:_session_entry_id, ../hermes-agent/gateway/channel_directory.py:_session_entry_name, internal/gateway/session_context.go:sessionSourceFromInbound, internal/gateway/manager.go:submitPinned, internal/gateway/channel_directory.go:ChannelDirectoryEntry, internal/gateway/authorization.go, internal/gateway/pairing_store.go
+- Unblocks: Channel directory refresh + stale-target invalidation, Notify-to delivery routing, Cron delivery target planner
+- Why now: Unblocks Channel directory refresh + stale-target invalidation, Notify-to delivery routing, Cron delivery target planner.
+
+## 2. Feishu transport/bootstrap layer
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -42,7 +63,7 @@ keep row-specific execution facts in `progress.json`.
 - Unblocks: Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding
 - Why now: Unblocks Feishu drive-comment rule + pairing seam, Feishu drive-comment reply workflow, Feishu live SDK binding.
 
-## 2. Clarify
+## 3. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`
