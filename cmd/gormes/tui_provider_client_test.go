@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 func TestTUIUsesCodexCredentialPoolWhenEndpointEmpty(t *testing.T) {
@@ -94,5 +97,46 @@ func TestTUIStartupDoesNotProbeProviderHealth(t *testing.T) {
 	}
 	if providerRequests != 0 {
 		t.Fatalf("providerRequests = %d, want 0 before the first submitted turn", providerRequests)
+	}
+}
+
+func TestTUIStartupFallsBackWhenSessionDBLocked(t *testing.T) {
+	setupNativeTUITestEnv(t)
+
+	locked, err := session.OpenBolt(config.SessionDBPath())
+	if err != nil {
+		t.Fatalf("lock session DB: %v", err)
+	}
+	defer locked.Close()
+
+	cmd := newRootCommand()
+	if err := cmd.Flags().Set("offline", "true"); err != nil {
+		t.Fatalf("set offline: %v", err)
+	}
+	var stderr bytes.Buffer
+	cmd.SetErr(&stderr)
+
+	var programRuns int
+	err = runResolvedTUIWithRuntime(cmd, tuiInvocation{
+		Config: config.Config{Hermes: config.HermesCfg{Model: "fixture-model"}},
+	}, rootRuntime{
+		tuiProgramFactory: func(_ tea.Model, _ ...tea.ProgramOption) tuiProgram {
+			return fakeTUIProgram{run: func() { programRuns++ }}
+		},
+	})
+	if err != nil {
+		t.Fatalf("runResolvedTUIWithRuntime: %v", err)
+	}
+	if programRuns != 1 {
+		t.Fatalf("programRuns = %d, want 1", programRuns)
+	}
+	for _, want := range []string{
+		"session persistence unavailable",
+		"running TUI with in-memory session state",
+		"sessions.db",
+	} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("stderr missing %q:\n%s", want, stderr.String())
+		}
 	}
 }

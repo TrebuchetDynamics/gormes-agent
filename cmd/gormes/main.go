@@ -401,13 +401,14 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	}
 
 	// Phase 2.C — open the session map; honor --resume.
-	smap, err := session.OpenBolt(config.SessionDBPath())
+	smap, boltMap, err := openTUISessionMap(cmd)
 	if err != nil {
 		return fmt.Errorf("session map: %w", err)
 	}
 	defer smap.Close()
-	sessionMirror := startSessionIndexMirror(smap, slog.Default())
-	defer sessionMirror.Stop()
+	if sessionMirror := startSessionIndexMirror(boltMap, slog.Default()); sessionMirror != nil {
+		defer sessionMirror.Stop()
+	}
 
 	resumeFlag, _ := cmd.Flags().GetString("resume")
 	pctx := context.Background()
@@ -512,6 +513,21 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	_, err = prog.Run()
 	close(programDone)
 	return err
+}
+
+func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, error) {
+	path := config.SessionDBPath()
+	smap, err := session.OpenBolt(path)
+	if err == nil {
+		return smap, smap, nil
+	}
+	if errors.Is(err, session.ErrDBLocked) {
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"session persistence unavailable: %v\nrunning TUI with in-memory session state; stop the other Gormes process using %s to resume persisted sessions.\n",
+			err, path)
+		return session.NewMemMap(), nil, nil
+	}
+	return nil, nil, err
 }
 
 func redactRuntimeSecretText(text string, secrets ...string) string {
