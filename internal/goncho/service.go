@@ -34,6 +34,7 @@ type Service struct {
 	dreamIdle       time.Duration
 	sessions        SessionDirectory
 	log             *slog.Logger
+	dialecticCaller DialecticCaller
 }
 
 const maxPeerCardFacts = 40
@@ -76,6 +77,10 @@ func NewService(db *sql.DB, cfg Config, log *slog.Logger) *Service {
 		log:             log,
 	}
 }
+
+func (s *Service) SetDialecticCaller(dc DialecticCaller) { s.dialecticCaller = dc }
+
+func (s *Service) DialecticCaller() DialecticCaller { return s.dialecticCaller }
 
 func (s *Service) SetProfile(ctx context.Context, peer string, card []string) error {
 	scope, err := s.defaultPeerCardScope(peer)
