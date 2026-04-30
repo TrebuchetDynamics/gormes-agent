@@ -24294,72 +24294,56 @@
             },
             {
               "name": "Hermes fallback provider chain CLI commands",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
-              "contract": "`gormes fallback {list|ls|add|remove|rm|clear}` manages the operator-visible `fallback_providers` chain in the active Hermes-compatible config: list/ls render the current chain with provider, model, account/profile evidence, and a current marker; add appends a provider+model pair after delegating to the shared model picker (no separate picker is implemented here); remove deletes one entry by index, id, or exact label using the same resolution semantics as the credential-pool surface; rm and clear are destructive and require explicit confirmation; ls is a pure alias of list and rm is a pure alias of remove.",
-              "contract_status": "draft",
-              "slice_size": "medium",
+              "contract": "Current Hermes CLI parity does not include a `fallback` top-level parser or nested fallback provider chain commands. Gormes must omit the stale `fallback` command set from `cmd/gormes` parity inventory rather than implementing non-upstream `fallback_providers` CLI behavior.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Empty chain renders an empty-state list and exits 0; corrupt fallback config returns fallback_chain_corrupt without partial mutation; remove/rm/clear without explicit confirmation flag in non-TTY tests return fallback_destructive_unconfirmed; remove against an unknown index/id/label returns fallback_target_missing with the current chain echoed for operator context; the model picker dependency being unavailable in the add path returns fallback_picker_unavailable rather than re-implementing the picker locally; appending a (provider, model, account) tuple already present at index N still mutates the chain but additionally emits fallback_duplicate_unreachable informational evidence naming the existing index so the operator is warned.",
-              "fixture": "cmd/gormes/fallback_command_test.go",
+              "degraded_mode": "If future upstream Hermes reintroduces a fallback provider chain, the CLI parity manifest test fails until a fresh source-backed row with current parser refs is added; no provider credentials, model picker, or config mutation are touched by this retirement slice.",
+              "fixture": "cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifestOmitsRetiredFallbackCommands",
               "source_refs": [
-                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_list",
-                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_add",
-                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_remove",
-                "../hermes-agent/hermes_cli/fallback_cmd.py:cmd_fallback_clear",
-                "../hermes-agent/hermes_cli/main.py:fallback_parser ls/rm aliases",
-                "cmd/gormes/hermes_cli_parity.go:hermesFallbackCommands",
-                "internal/config/credential_pool.go"
+                "/home/xel/.hermes/hermes-agent/hermes_cli/main.py (searched: no fallback parser)",
+                "/home/xel/.hermes/hermes-agent/hermes_cli/ (searched: no fallback_cmd.py)",
+                "cmd/gormes/hermes_cli_parity.go:hermesCLIParityManifest",
+                "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifestOmitsRetiredFallbackCommands"
               ],
               "ready_when": [
-                "Gormes model interactive provider/model picker row is at minimum planned so the add subcommand can name the picker delegation seam.",
-                "Tests inject a fake config loader/writer and a fake model picker; no live providers, browser, keychain, or network access is required.",
-                "Hermes auth credential-pool command surface is complete so the remove resolver can mirror its index/id/label semantics."
+                "Hermes source inspection confirms `hermes_cli/main.py` contains no fallback parser and `hermes_cli/fallback_cmd.py` is absent in the active upstream checkout.",
+                "The parity manifest has a regression test proving stale fallback entries are omitted."
               ],
               "not_ready_when": [
-                "The slice re-implements the model picker instead of delegating to `Gormes model interactive provider/model picker`.",
-                "The slice mutates `fallback_providers` config without backing up or recording dry-run intent.",
-                "Destructive subcommands (`remove`, `rm`, `clear`) execute without confirmation in non-TTY tests.",
-                "The slice silently treats `ls` and `rm` as separate commands instead of aliases of `list` and `remove`.",
-                "The slice silently accepts a duplicate (provider, model, account) tuple without emitting fallback_duplicate_unreachable evidence on stdout/stderr."
+                "A current upstream Hermes checkout contains `fallback` parser or `hermes_cli/fallback_cmd.py` symbols that need a real Gormes command row.",
+                "The manifest leaves any `fallback` top-level or nested entry that would advertise a non-upstream command."
               ],
-              "blocked_by": [
-                "Gormes model interactive provider/model picker"
-              ],
+              "blocked_by": [],
               "unblocks": [],
               "acceptance": [
-                "TestGormesFallbackListRendersRedactedChain proves `gormes fallback list` and `gormes fallback ls` render the current chain with provider, model, account/profile label, and current marker over a fake config and never echo raw secrets.",
-                "TestGormesFallbackAddDelegatesToModelPicker proves `gormes fallback add` invokes the injected model-picker seam, then appends the chosen provider+model to `fallback_providers` without re-implementing picker logic and without duplicating an identical existing entry.",
-                "TestGormesFallbackRemoveResolvesIndexIDLabel proves `gormes fallback remove` resolves a target by numeric index, by stable id, and by exact label, mirroring the credential-pool resolver semantics.",
-                "TestGormesFallbackClearRequiresConfirmation proves `gormes fallback clear` without an explicit confirmation flag returns fallback_destructive_unconfirmed exit code 2 and does not mutate the chain.",
-                "TestGormesFallbackAliasResolution proves `ls` resolves to `list` and `rm` resolves to `remove` as pure aliases (no divergent code path).",
-                "TestGormesFallbackEmptyChainRendersEmptyState proves an empty `fallback_providers` exits 0 with an empty-state message and no error.",
-                "TestGormesFallbackPickerUnavailableTypedEvidence proves a fake picker-unavailable seam in `add` returns fallback_picker_unavailable and leaves the chain untouched.",
-                "TestFallbackAddEmitsDuplicateEvidenceForUnreachableEntries proves appending an exact (provider, model, account) tuple already present at index N causes the new entry to be appended AND the command to emit fallback_duplicate_unreachable evidence naming the existing index. The chain is mutated; the operator is warned but not blocked."
+                "TestHermesCLIParityManifestOmitsRetiredFallbackCommands proves the top-level `fallback` command and stale nested `list/ls/add/remove/rm/clear/show/set` entries are absent from the current Hermes CLI parity manifest.",
+                "TestHermesCLIParityManifest and TestHermesCLIParityManifestNestedParserInventoryMatchesHermes remain green with the retired fallback command set removed."
               ],
-              "note": "Materializes the parity-manifest residual `Hermes fallback provider chain CLI commands` referenced from `cmd/gormes/hermes_cli_parity.go:hermesFallbackCommands`. The row name is matched verbatim to the manifest `Row:` label so the existing `TestHermesCLIParityManifestFallbackCommandsMatchHermes` test continues to pass without Go changes for this gap. The `internal/config/fallback.go` write_scope path is intentionally a not-yet-existing file so this row claims fresh ownership rather than overlapping with the credential-pool file.",
+              "note": "Reconciles a stale builder-ready row: the active upstream Hermes checkout no longer ships `hermes_cli/fallback_cmd.py` or a `fallback` parser in `hermes_cli/main.py`, so implementing `gormes fallback` would create a Gormes-only command while claiming Hermes parity. The manifest now treats fallback as retired by omission, and the row is closed with source-inspection evidence rather than runtime command code.",
               "write_scope": [
-                "cmd/gormes/fallback.go",
-                "cmd/gormes/fallback_command_test.go",
-                "internal/config/fallback.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestGormesFallback' -count=1",
+                "go test ./cmd/gormes -run 'TestHermesCLIParityManifestOmitsRetiredFallbackCommands|TestHermesCLIParityManifest$|TestHermesCLIParityManifestNestedParserInventoryMatchesHermes' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Fallback CLI fixtures prove redacted list/ls rendering, picker-delegated add, index/id/label remove resolution, destructive-confirmation gating on clear, alias resolution for ls/rm, empty-state rendering, and typed picker-unavailable evidence."
+                "CLI parity manifest omits the retired fallback command set and progress no longer offers `gormes fallback` as a builder-ready Hermes-parity slice."
               ],
               "provenance": {
-                "origin_type": "hybrid",
-                "upstream_ref": "hermes:hermes_cli/fallback_cmd.py + hermes_cli/main.py fallback_parser",
-                "note": "Hermes ships fallback list/add/remove/clear with ls/rm aliases over the `fallback_providers` config; Gormes mirrors the surface as a thin Go-native CLI binding that delegates picker logic to the shared model picker row."
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:hermes_cli/main.py current parser inventory; hermes_cli/fallback_cmd.py absent",
+                "note": "Earlier progress evidence referenced stale fallback source paths. Current source inspection found no fallback parser or fallback_cmd.py, so the parity-safe action is to retire the row and remove manifest entries."
               }
             },
             {

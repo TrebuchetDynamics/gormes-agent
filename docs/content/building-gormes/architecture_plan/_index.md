@@ -770,7 +770,7 @@ classification and row-backed implementation queue.
 - [ ] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default
 - [x] Gormes mcp login browser callback flow
-- [ ] Hermes fallback provider chain CLI commands
+- [x] Hermes fallback provider chain CLI commands
 - [x] Provider endpoint/API-key root flags + runtime resolution
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface

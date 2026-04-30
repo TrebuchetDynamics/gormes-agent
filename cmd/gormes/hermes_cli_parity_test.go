@@ -16,7 +16,7 @@ func TestHermesCLIParityManifest(t *testing.T) {
 	}
 
 	wantTopLevel := []string{
-		"chat", "model", "fallback", "gateway", "setup", "whatsapp", "slack", "login", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
+		"chat", "model", "gateway", "setup", "whatsapp", "slack", "login", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
 	}
 	for _, path := range wantTopLevel {
 		entry := requireHermesCLIEntry(t, []string{path})
@@ -27,7 +27,6 @@ func TestHermesCLIParityManifest(t *testing.T) {
 
 	wantNested := [][]string{
 		{"gateway", "run"}, {"gateway", "restart"}, {"gateway", "status"}, {"gateway", "install"}, {"gateway", "migrate-legacy"},
-		{"fallback", "list"}, {"fallback", "ls"}, {"fallback", "add"}, {"fallback", "remove"}, {"fallback", "rm"}, {"fallback", "clear"},
 		{"auth", "add"}, {"auth", "list"}, {"auth", "remove"}, {"auth", "reset"}, {"auth", "status"}, {"auth", "logout"}, {"auth", "spotify"},
 		{"cron", "list"}, {"cron", "create"}, {"cron", "add"}, {"cron", "edit"}, {"cron", "remove"}, {"cron", "delete"}, {"cron", "status"}, {"cron", "tick"},
 		{"webhook", "subscribe"}, {"webhook", "add"}, {"webhook", "test"},
@@ -54,9 +53,6 @@ func TestHermesCLIParityManifest(t *testing.T) {
 
 func TestHermesCLIParityManifestNestedParserInventoryMatchesHermes(t *testing.T) {
 	want := map[string][][]string{
-		"fallback": {
-			{"fallback", "list"}, {"fallback", "ls"}, {"fallback", "add"}, {"fallback", "remove"}, {"fallback", "rm"}, {"fallback", "clear"},
-		},
 		"gateway": {
 			{"gateway", "run"}, {"gateway", "start"}, {"gateway", "stop"}, {"gateway", "restart"}, {"gateway", "status"}, {"gateway", "install"}, {"gateway", "uninstall"}, {"gateway", "setup"}, {"gateway", "migrate-legacy"},
 		},
@@ -302,25 +298,21 @@ func TestHermesCLIParityManifestGatewayStopIsImplemented(t *testing.T) {
 	}
 }
 
-func TestHermesCLIParityManifestFallbackCommandsMatchHermes(t *testing.T) {
+func TestHermesCLIParityManifestOmitsRetiredFallbackCommands(t *testing.T) {
 	for _, path := range [][]string{
+		{"fallback"},
 		{"fallback", "list"},
 		{"fallback", "ls"},
 		{"fallback", "add"},
 		{"fallback", "remove"},
 		{"fallback", "rm"},
 		{"fallback", "clear"},
+		{"fallback", "show"},
+		{"fallback", "set"},
 	} {
-		entry := requireHermesCLIEntry(t, path)
-		if entry.Row != "Hermes fallback provider chain CLI commands" {
-			t.Fatalf("%v row = %q, want Hermes fallback provider chain CLI commands: %+v", path, entry.Row, entry)
+		if entry, ok := findHermesCLIEntry(path); ok {
+			t.Fatalf("retired fallback command %v should not remain in current Hermes parity manifest: %+v", path, entry)
 		}
-	}
-	if entry, ok := findHermesCLIEntry([]string{"fallback", "show"}); ok {
-		t.Fatalf("stale fallback show entry should not remain: %+v", entry)
-	}
-	if entry, ok := findHermesCLIEntry([]string{"fallback", "set"}); ok {
-		t.Fatalf("stale fallback set entry should not remain: %+v", entry)
 	}
 }
 

@@ -47,7 +47,6 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries := []hermesCLIParityEntry{
 		hermesImplementedCommand("chat", "hermes_cli/main.py:chat", "cmd/gormes root TUI/oneshot"),
 		hermesRowCommand("model", "hermes_cli/main.py:model_command", "Gormes model interactive provider/model picker", "interactive model picker and account-aware provider switching remain row-backed"),
-		hermesCommandSet("fallback", "hermes_cli/main.py:fallback", "fallback provider chain handlers remain row-backed", "Hermes fallback provider chain CLI commands"),
 		hermesCommandSet("gateway", "hermes_cli/main.py:gateway", "gateway lifecycle subcommands are partly implemented; missing mutating/service commands remain row-backed", "Gateway, platform, webhook, and cron management CLI"),
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
 		hermesRowCommand("whatsapp", "hermes_cli/main.py:whatsapp", "Gateway, platform, webhook, and cron management CLI", "WhatsApp platform management remains row-backed"),
@@ -94,7 +93,6 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	}
 
 	entries = append(entries, hermesGatewayNestedCommands()...)
-	entries = append(entries, hermesFallbackCommands()...)
 	entries = append(entries, hermesNestedCommands("slack", "hermes_cli/main.py:slack_sub", "Gateway, platform, webhook, and cron management CLI", []string{"manifest"})...)
 	entries = append(entries, hermesProviderAuthCommands()...)
 	entries = append(entries, hermesNestedCommands("cron", "hermes_cli/main.py:cron_subparsers", "Gateway, platform, webhook, and cron management CLI", []string{"list", "create", "edit", "pause", "resume", "run", "remove", "status", "tick"})...)
@@ -341,36 +339,6 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 		}
 		entry.Destructive = command.destructive
 		entry.RedactsSecrets = command.redacts
-		out = append(out, entry)
-	}
-	return out
-}
-
-func hermesFallbackCommands() []hermesCLIParityEntry {
-	commands := []struct {
-		path      []string
-		sourceRef string
-		residual  string
-		aliasFor  []string
-	}{
-		{path: []string{"fallback", "list"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_list", residual: "fallback chain list renderer remains row-backed"},
-		{path: []string{"fallback", "ls"}, sourceRef: "hermes_cli/main.py:fallback aliases", residual: "fallback ls alias resolves to fallback list", aliasFor: []string{"fallback", "list"}},
-		{path: []string{"fallback", "add"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_add", residual: "fallback add uses the Hermes model picker then appends provider/model to fallback_providers"},
-		{path: []string{"fallback", "remove"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_remove", residual: "fallback remove deletes a selected provider/model fallback entry", aliasFor: nil},
-		{path: []string{"fallback", "rm"}, sourceRef: "hermes_cli/main.py:fallback aliases", residual: "fallback rm alias resolves to fallback remove", aliasFor: []string{"fallback", "remove"}},
-		{path: []string{"fallback", "clear"}, sourceRef: "hermes_cli/fallback_cmd.py:cmd_fallback_clear", residual: "fallback clear removes all fallback provider entries after confirmation"},
-	}
-	out := make([]hermesCLIParityEntry, 0, len(commands))
-	for _, command := range commands {
-		kind := hermesCLICommand
-		if len(command.aliasFor) > 0 {
-			kind = hermesCLIAlias
-		}
-		entry := hermesRowPath(command.path, kind, command.sourceRef, "Hermes fallback provider chain CLI commands", command.residual)
-		entry.AliasFor = slices.Clone(command.aliasFor)
-		if command.path[1] == "remove" || command.path[1] == "rm" || command.path[1] == "clear" {
-			entry.Destructive = true
-		}
 		out = append(out, entry)
 	}
 	return out
