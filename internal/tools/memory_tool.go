@@ -26,7 +26,7 @@ const (
 )
 
 const (
-	memoryEntryDelimiter   = "\n\n§\n\n"
+	memoryEntryDelimiter   = "\n§\n"
 	memoryDefaultCharLimit = 20000
 	userDefaultCharLimit   = 12000
 )
@@ -269,10 +269,12 @@ func readMemoryEntries(path string) ([]string, error) {
 	}
 	parts := strings.Split(body, memoryEntryDelimiter)
 	entries := make([]string, 0, len(parts))
+	seen := map[string]bool{}
 	for _, part := range parts {
 		entry := strings.TrimSpace(part)
-		if entry != "" {
+		if entry != "" && !seen[entry] {
 			entries = append(entries, entry)
+			seen[entry] = true
 		}
 	}
 	return entries, nil

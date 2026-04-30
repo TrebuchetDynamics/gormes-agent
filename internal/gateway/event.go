@@ -33,6 +33,8 @@ const (
 	// EventTitle sets or reads the current session title directly in the channel,
 	// without submitting the slash text to the model.
 	EventTitle
+	// EventVerbose cycles gateway tool-progress display for the calling platform.
+	EventVerbose
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
 	EventThreadLifecycle
 )
@@ -58,6 +60,8 @@ func (k EventKind) String() string {
 		return "status"
 	case EventTitle:
 		return "title"
+	case EventVerbose:
+		return "verbose"
 	case EventThreadLifecycle:
 		return "thread_lifecycle"
 	default:

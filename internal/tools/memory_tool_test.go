@@ -118,6 +118,62 @@ func TestMemoryToolReadsDurableMemoryWithoutMutating(t *testing.T) {
 	}
 }
 
+func TestMemoryToolReadsHermesDelimitedEntriesAndDeduplicates(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "MEMORY.md")
+	hermesBody := strings.Join([]string{
+		"Hermes delimiter compatibility stays intact.",
+		"Hermes delimiter compatibility stays intact.",
+		"Duplicate entries are hidden from tool responses.",
+	}, "\n§\n") + "\n"
+	if err := os.WriteFile(path, []byte(hermesBody), 0o600); err != nil {
+		t.Fatalf("write Hermes-delimited fixture: %v", err)
+	}
+	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir})
+
+	result := executeMemoryTool(t, tool, map[string]any{
+		"action": "read",
+		"target": "memory",
+	})
+
+	want := []string{
+		"Hermes delimiter compatibility stays intact.",
+		"Duplicate entries are hidden from tool responses.",
+	}
+	if !result.Success || !reflect.DeepEqual(result.Entries, want) {
+		t.Fatalf("entries = %#v success=%v, want deduplicated Hermes-delimited entries %#v", result.Entries, result.Success, want)
+	}
+	if result.EntryCount != len(want) {
+		t.Fatalf("entry_count = %d, want %d", result.EntryCount, len(want))
+	}
+}
+
+func TestMemoryToolWritesHermesEntryDelimiter(t *testing.T) {
+	dir := t.TempDir()
+	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir})
+	for _, content := range []string{"First durable entry.", "Second durable entry."} {
+		result := executeMemoryTool(t, tool, map[string]any{
+			"action":  "add",
+			"target":  "memory",
+			"content": content,
+		})
+		if !result.Success {
+			t.Fatalf("add %q result = %#v, want success", content, result)
+		}
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, "MEMORY.md"))
+	if err != nil {
+		t.Fatalf("read memory file: %v", err)
+	}
+	if !strings.Contains(string(raw), "First durable entry.\n§\nSecond durable entry.") {
+		t.Fatalf("MEMORY.md = %q, want Hermes entry delimiter", raw)
+	}
+	if strings.Contains(string(raw), "\n\n§\n\n") {
+		t.Fatalf("MEMORY.md = %q, should not use legacy double-blank delimiter", raw)
+	}
+}
+
 func TestMemoryToolLimitExceededReturnsCurrentEntriesAndUsage(t *testing.T) {
 	dir := t.TempDir()
 	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir, MemoryCharLimit: 60})

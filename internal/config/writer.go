@@ -33,6 +33,7 @@ var allowedTOMLSections = map[string]struct{}{
 	"skills":     {},
 	"delegation": {},
 	"goncho":     {},
+	"display":    {},
 }
 
 // secretAliases maps user-typed secret aliases (e.g. `api_key`) to the

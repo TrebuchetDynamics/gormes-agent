@@ -122,6 +122,112 @@ func TestManager_Inbound_AllowedChat_Submit(t *testing.T) {
 	}
 }
 
+func TestManager_Inbound_VerboseDisabledSendsHermesGateGuidance(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m",
+		Kind: EventVerbose, Text: "/verbose",
+	})
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.sentSnapshot()) == 1
+	})
+	got := tg.sentSnapshot()[0].Text
+	for _, want := range []string{
+		"The `/verbose` command is not enabled for messaging platforms.",
+		"display:",
+		"tool_progress_command: true",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("/verbose disabled response missing %q in %q", want, got)
+		}
+	}
+	if strings.Contains(got, "unavailable in this build") {
+		t.Fatalf("/verbose disabled response = %q, want Hermes gated guidance instead of unavailable text", got)
+	}
+}
+
+func TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	var persistedPlatform, persistedMode string
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:               map[string]string{"telegram": "42"},
+		ToolProgressCommandEnabled: true,
+		ToolProgressMode:           "all",
+		ToolProgressModes:          map[string]string{"telegram": "off"},
+		PersistToolProgressMode: func(platform, mode string) error {
+			persistedPlatform = platform
+			persistedMode = mode
+			return nil
+		},
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m",
+		Kind: EventVerbose, Text: "/verbose",
+	})
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.sentSnapshot()) == 1
+	})
+	got := tg.sentSnapshot()[0].Text
+	for _, want := range []string{
+		"⚙️ Tool progress: **NEW**",
+		"saved for **telegram**",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("/verbose enabled response missing %q in %q", want, got)
+		}
+	}
+	if strings.Contains(got, "unavailable in this build") {
+		t.Fatalf("/verbose enabled response = %q, want cycle result", got)
+	}
+	if persistedPlatform != "telegram" || persistedMode != "new" {
+		t.Fatalf("persisted = (%q, %q), want (telegram, new)", persistedPlatform, persistedMode)
+	}
+	if got := m.toolProgressMode("telegram"); got != "new" {
+		t.Fatalf("toolProgressMode(telegram) = %q, want runtime override new", got)
+	}
+}
+
+func TestManager_ToolProgressModeUsesHermesPlatformDefaults(t *testing.T) {
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.Default())
+	for _, tc := range []struct {
+		platform string
+		want     string
+	}{
+		{platform: "telegram", want: "all"},
+		{platform: "discord", want: "all"},
+		{platform: "slack", want: "off"},
+		{platform: "mattermost", want: "new"},
+		{platform: "signal", want: "off"},
+		{platform: "email", want: "off"},
+		{platform: "unknown", want: "all"},
+	} {
+		if got := m.toolProgressMode(tc.platform); got != tc.want {
+			t.Fatalf("toolProgressMode(%q) = %q, want Hermes platform default %q", tc.platform, got, tc.want)
+		}
+	}
+}
+
 func TestManager_Inbound_AppendsAttachmentsToSubmittedText(t *testing.T) {
 	tg := newFakeChannel("dingtalk")
 	fk := &fakeKernel{}

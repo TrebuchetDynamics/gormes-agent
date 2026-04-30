@@ -2719,7 +2719,7 @@
               "name": "Gateway stream/tool trace formatting fixture matrix",
               "status": "complete",
               "priority": "P1",
-              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, the active streaming cursor, separate tool progress, errors, final answer separation, and Hermes display.tool_progress off/new mode behavior plus config.yaml global/per-platform loading, with Telegram MarkdownV2 escaping and compact labels for memory/skills/cron/search/read/patch/terminal/browser actions.",
+              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, the active streaming cursor, separate tool progress, errors, final answer separation, Hermes display.tool_progress off/new mode behavior plus config.yaml global/per-platform loading, and Hermes `/verbose` gate/cycle/persistence behavior, with Telegram MarkdownV2 escaping and compact labels for memory/skills/cron/search/read/patch/terminal/browser actions.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
@@ -2737,6 +2737,8 @@
                 "../hermes-agent/gateway/display_config.py:resolve_display_setting",
                 "../hermes-agent/gateway/run.py:progress_callback",
                 "../hermes-agent/gateway/run.py:10058 display.tool_progress resolution",
+                "../hermes-agent/gateway/run.py:7469 _handle_verbose_command",
+                "../hermes-agent/tests/gateway/test_verbose_command.py",
                 "../hermes-agent/run_agent.py:tool_progress_callback",
                 "../hermes-agent/gateway/run.py",
                 "internal/gateway/render.go"
@@ -2749,6 +2751,9 @@
                 "TestFormatToolProgressPlainMode_OffSuppressesToolTrace and TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage prove display.tool_progress=off suppresses channel-visible tool progress without suppressing the final assistant reply.",
                 "TestFormatToolProgressPlainMode_NewSuppressesConsecutiveSameTool proves display.tool_progress=new reports only tool-name changes while keeping later different-tool progress visible.",
                 "TestLoad_HermesConfigYAMLDisplayToolProgressParity and TestGatewayManagerConfig_ToolProgressDisplayConfig prove Hermes display.tool_progress and display.platforms.<platform>.tool_progress values reach gateway.ManagerConfig.",
+                "TestParseInboundText and TestManager_Inbound_VerboseDisabledSendsHermesGateGuidance prove `/verbose` is recognized by gateway dispatch and returns Hermes' config-gated guidance when display.tool_progress_command is false.",
+                "TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform, TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride, and TestGatewayManagerConfig_ToolProgressDisplayConfig prove enabled `/verbose` cycles off -> new -> all -> verbose -> off, writes display.platforms.<platform>.tool_progress to config.yaml, and exposes the production persistence hook.",
+                "TestManager_ToolProgressModeUsesHermesPlatformDefaults proves gateway progress falls back to Hermes' per-platform defaults when no global or per-platform user mode is configured.",
                 "TestKernel_ClearsToolProgressSoulAtTurnStart proves stale progress from a previous turn cannot be rendered into a later direct-answer turn.",
                 "TestFormatFinalPlain_DoesNotIncludeStreamingCursor proves final assistant text never keeps the streaming cursor.",
                 "Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels.",
@@ -2763,16 +2768,21 @@
                 "internal/kernel/tools_test.go",
                 "internal/gateway/manager.go",
                 "internal/gateway/manager_test.go",
+                "internal/gateway/commands.go",
+                "internal/gateway/commands_test.go",
+                "internal/gateway/event.go",
                 "internal/gateway/render.go",
                 "internal/gateway/render_test.go",
+                "internal/cli/command_registry.go",
                 "internal/config/config.go",
+                "internal/config/hermes_display_writer.go",
                 "internal/config/config_test.go",
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/config ./cmd/gormes -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgress(PersistsAsSeparateMessage|OffSuppressesSeparateMessage)|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame|TestLoad_HermesConfigYAMLDisplayToolProgressParity|TestGatewayManagerConfig_ToolProgressDisplayConfig' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/config ./cmd/gormes -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgress(PersistsAsSeparateMessage|OffSuppressesSeparateMessage)|TestManager_Inbound_Verbose(CyclesAndPersistsPerPlatform|DisabledSendsHermesGateGuidance)|TestParseInboundText/verbose|TestSlashCommandPolicyParityWithCLIRegistry|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame|TestLoad_HermesConfigYAMLDisplayToolProgressParity|TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride|TestGatewayManagerConfig_ToolProgressDisplayConfig' -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/config -count=1",
@@ -2781,7 +2791,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Renderer, manager, config, command-wiring, and kernel fixtures prove compact channel-visible started-tool progress parity without leaking progress into assistant final text."
+                "Renderer, manager, config, command-wiring, /verbose persistence, and kernel fixtures prove compact channel-visible started-tool progress parity without leaking progress into assistant final text."
               ],
               "ready_when": [
                 "Hermes/Sidon stream and tool-trace rendering examples are captured as source-backed fixture expectations.",
@@ -2795,9 +2805,12 @@
                   "internal/gateway/render.go:streamPreviewCursorActive appends the Hermes streaming cursor only for active preview phases with non-empty assistant draft text.",
                   "internal/gateway/render.go:FormatToolProgressPlain and FormatToolProgressTelegram render multi-line, duplicate-collapsed tool progress separately from assistant stream text.",
                   "internal/gateway/render.go:FormatToolProgressPlainMode and FormatToolProgressTelegramMode apply Hermes gateway display.tool_progress off/new/all normalization to the compact progress transcript.",
-                  "internal/config/config.go:loadHermesConfigYAML reads Hermes display.tool_progress, display.platforms.<platform>.tool_progress, and legacy display.tool_progress_overrides into Config.Display.",
-                  "cmd/gormes/gateway.go:gatewayManagerConfig wires Config.Display global and per-platform tool progress modes into gateway.ManagerConfig.",
+                  "internal/config/config.go:loadHermesConfigYAML reads Hermes display.tool_progress, display.tool_progress_command, display.platforms.<platform>.tool_progress, and legacy display.tool_progress_overrides into Config.Display.",
+                  "internal/config/hermes_display_writer.go:SetHermesDisplayPlatformToolProgress writes display.platforms.<platform>.tool_progress to config.yaml with an atomic temp-file rename for `/verbose` persistence.",
+                  "cmd/gormes/gateway.go:gatewayManagerConfig wires Config.Display global/per-platform tool progress modes, display.tool_progress_command, and the production `/verbose` persistence hook into gateway.ManagerConfig.",
                   "internal/gateway/manager.go:ManagerConfig.ToolProgressMode and ToolProgressModes wire global and platform-specific modes into editable gateway channel progress rendering.",
+                  "internal/gateway/manager.go:handleVerboseCommand mirrors Hermes' config-gated `/verbose` UX by returning setup guidance when disabled and cycling the current platform mode when enabled.",
+                  "internal/gateway/manager.go:defaultToolProgressModeForPlatform mirrors Hermes display_config tier defaults so Telegram/Discord default to all, Mattermost/Matrix/Feishu/WhatsApp default to new, and Slack/low-noise channels default to off.",
                   "internal/gateway/manager.go:dispatchToolProgress sends/edits a separate progress message for editable gateway channels before final assistant delivery.",
                   "internal/gateway/render.go:formatToolTracePlain renders known memory/skills/todo/execute_code/cron/search/read/patch/terminal/browser tool events with compact Hermes-style emoji labels.",
                   "internal/gateway/render.go:isKnownToolTraceName maps unknown tool events to generic bounded tool_progress evidence so raw provider/debug tool names are not exposed."
@@ -2816,8 +2829,13 @@
                   "internal/gateway/render_test.go:TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence covers bounded generic degraded-mode evidence for unknown tool events.",
                   "internal/gateway/manager_test.go:TestManager_Outbound_ToolProgressPersistsAsSeparateMessage proves tool progress is persisted separately from the final assistant reply.",
                   "internal/gateway/manager_test.go:TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage proves display.tool_progress=off suppresses the separate progress message while still delivering the final answer.",
-                  "internal/config/config_test.go:TestLoad_HermesConfigYAMLDisplayToolProgressParity covers Hermes config.yaml display.tool_progress, display.platforms, bool false normalization, and legacy tool_progress_overrides.",
-                  "cmd/gormes/gateway_test.go:TestGatewayManagerConfig_ToolProgressDisplayConfig covers production gateway ManagerConfig wiring for global and per-platform display modes.",
+                  "internal/gateway/commands_test.go:TestParseInboundText covers `/verbose` parsing into EventVerbose.",
+                  "internal/gateway/manager_test.go:TestManager_Inbound_VerboseDisabledSendsHermesGateGuidance covers Hermes' disabled `/verbose` config-gate guidance.",
+                  "internal/gateway/manager_test.go:TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform covers enabled per-platform `/verbose` cycling and persistence callbacks.",
+                  "internal/gateway/manager_test.go:TestManager_ToolProgressModeUsesHermesPlatformDefaults covers Hermes platform defaults for telegram, discord, slack, mattermost, signal, email, and unknown platforms.",
+                  "internal/config/config_test.go:TestLoad_HermesConfigYAMLDisplayToolProgressParity covers Hermes config.yaml display.tool_progress, display.tool_progress_command, display.platforms, bool false normalization, and legacy tool_progress_overrides.",
+                  "internal/config/config_test.go:TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride covers config.yaml per-platform writeback used by `/verbose`.",
+                  "cmd/gormes/gateway_test.go:TestGatewayManagerConfig_ToolProgressDisplayConfig covers production gateway ManagerConfig wiring for global/per-platform display modes, `/verbose` command gating, and the persistence hook.",
                   "internal/kernel/tools_test.go:TestKernel_ClearsToolProgressSoulAtTurnStart proves turn-start soul reset prevents stale progress leakage."
                 ],
                 "verification": [
@@ -2826,6 +2844,12 @@
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run TestLoad_HermesConfigYAMLDisplayToolProgressParity -count=1 failed because Config.Display did not exist.",
                   "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run TestLoad_HermesConfigYAMLDisplayToolProgressParity -count=1 -> ok",
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestGatewayManagerConfig_ToolProgressDisplayConfig -count=1 failed because gateway.ManagerConfig.ToolProgressModes did not exist.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestGatewayManagerConfig_ToolProgressDisplayConfig -count=1 -> ok",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run 'TestLoad_HermesConfigYAMLDisplayToolProgressParity|TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride' -count=1 failed because SetHermesDisplayPlatformToolProgress was missing after the display.tool_progress_command gate fixture was added.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run 'TestLoad_HermesConfigYAMLDisplayToolProgressParity|TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride' -count=1 -> ok",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestParseInboundText|TestManager_Inbound_Verbose' -count=1 -> ok",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run TestManager_ToolProgressModeUsesHermesPlatformDefaults -count=1 failed because Slack defaulted to all instead of Hermes' off.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestManager_ToolProgressModeUsesHermesPlatformDefaults|TestManager_Inbound_Verbose' -count=1 -> ok",
                   "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestGatewayManagerConfig_ToolProgressDisplayConfig -count=1 -> ok",
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgressPersistsAsSeparateMessage|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame' -count=1 -> ok",
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording -count=1 failed while todo merge=true rendered planning 2 task(s).",
@@ -8799,6 +8823,8 @@
                 "Default tool registry exposes a Hermes-compatible `memory` descriptor.",
                 "Add, replace, and remove actions mutate only temp durable USER.md/MEMORY.md fixtures in tests.",
                 "Read action returns bounded live entries and usage without mutating durable USER.md/MEMORY.md fixtures.",
+                "Read action parses Hermes `\\n§\\n` delimited memory files and deduplicates repeated entries while preserving first occurrence order.",
+                "Add/write actions persist memory entries with Hermes' `\\n§\\n` delimiter instead of the legacy double-blank delimiter.",
                 "Replace accepts Hermes' `content` field as a compatibility alias when Gormes' `new_content` field is omitted.",
                 "Limit-exceeded add responses return current_entries and current usage without leaking or persisting the rejected content.",
                 "memory and user targets map to the intended durable stores without renaming Goncho internally.",
@@ -8847,7 +8873,9 @@
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolRejectsUnsafePromptInjectionContent -count=1 failed when role-hijack content was accepted and persisted.",
                   "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolRejectsUnsafePromptInjectionContent -count=1 passed after porting the missing Hermes memory threat patterns.",
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolLimitExceededReturnsCurrentEntriesAndUsage -count=1 failed until current_entries and usage were added to limit-exceeded responses.",
-                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(LimitExceededReturnsCurrentEntriesAndUsage|RejectsUnsafePromptInjectionContent)' -count=1 passed."
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(LimitExceededReturnsCurrentEntriesAndUsage|RejectsUnsafePromptInjectionContent)' -count=1 passed.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReadsHermesDelimitedEntriesAndDeduplicates|WritesHermesEntryDelimiter)' -count=1 failed because Hermes-delimited files were parsed as one entry and writes used the legacy double-blank delimiter.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReadsHermesDelimitedEntriesAndDeduplicates|WritesHermesEntryDelimiter)' -count=1 passed after switching to Hermes delimiter and deduping loaded entries."
                 ]
               }
             },

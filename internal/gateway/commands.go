@@ -104,7 +104,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "tools", Description: "Manage tools", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "toolsets", Description: "List available toolsets", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "update", Description: "Update Gormes to the latest version", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "verbose", Description: "Cycle tool progress display", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "verbose", Description: "Cycle tool progress display", Kind: EventVerbose, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "voice", Description: "Toggle voice mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "yolo", Description: "Toggle YOLO mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},

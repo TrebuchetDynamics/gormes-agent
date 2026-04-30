@@ -37,6 +37,7 @@ source-backed parity lessons for future rows and tests:
 | Switching between `go run ./cmd/gormes`, `./bin/gormes`, and installed `gormes` caused `sessions.db` locks | Development source, local binary, installed binary, runtime home, and gateway owner are separate surfaces. Use `gormes gateway status/stop` or isolated homes; never delete session state to clear a lock. |
 | Telegram showed hourglass/status bubbles, duplicate final replies, or raw `tool iteration limit exceeded` text | Gateway UX is a first-class contract. Fixtures must assert message count, send/edit/delete order, tool-progress visibility, and final text together. |
 | Pasted tool progress like `📚 skill_view: "plan"` and `🐍 execute_code: "..."` | This is Hermes gateway/channel progress, not the current Ink TUI shelf. Gormes must preserve emoji, snake_case tool names, preview truncation, `new/all/verbose` modes, and `(×N)` collapse where channels expose that form. |
+| Gormes only showed `🔧 tool done: execute_code` while Hermes exposed `read_file`, `search_files`, `terminal`, `write_file`, and `patch` as distinct actions | Tool progress rendering is not tool inventory. Gormes needs both the shared renderer that formats started-tool events and native descriptors/handlers registered in the default runtime registry so the model can choose the same task tools Hermes exposes. |
 | Gormes bot answered as Hermes or lacked the expected default persona/reset behavior | Persona, SOUL.md, USER.md, MEMORY.md, skill templates, and agent-template reset behavior are part of the live-turn prompt contract, not copy-only docs. |
 | Confusion about whether `install.sh` needs pushed `main` | Final-user install validates a cloned branch. Dirty development work is validated with `go run ./cmd/gormes` or a rebuilt `./bin/gormes`; pushing is not required for local proof. |
 
@@ -55,6 +56,19 @@ source-backed parity lessons for future rows and tests:
 | Visible degraded mode | GBrain + Hermes | Missing embeddings, provider limits, stale extraction, plugin/tool gaps, and dead letters surface in status/doctor/audit. |
 
 ## Latest Sync Notes
+
+The 2026-04-30 Gormes dogfood/docs pass locks two more operator lessons into
+the roadmap:
+
+- Gateway/TUI/Slack/Discord progress now share one Hermes-style tool-trace
+  renderer, including emoji labels, quoted previews, `(×N)` duplicate
+  collapse, and suppression of legacy `tool done:` noise.
+- The default registry now exposes first-pass native local task tools:
+  `read_file`, `search_files`, `write_file`, `patch`, and foreground
+  `terminal`. This closes the immediate `execute_code` collapse, while
+  background process registry, PTY, fuzzy patch/lint/checkpoint restore,
+  session-bound `todo`, and session-bound `session_search` remain explicit
+  follow-up parity work.
 
 The 2026-04-27 upstream Hermes sync adds a few contract deltas that are now
 split in `progress.json`:

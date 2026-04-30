@@ -455,6 +455,7 @@ func TestLoad_HermesConfigYAMLDisplayToolProgressParity(t *testing.T) {
 	t.Setenv("HERMES_HOME", hermesHome)
 	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
 display:
+  tool_progress_command: true
   tool_progress: new
   platforms:
     telegram:
@@ -474,6 +475,9 @@ display:
 	if cfg.Display.ToolProgress != "new" {
 		t.Fatalf("Display.ToolProgress = %q, want global Hermes display.tool_progress", cfg.Display.ToolProgress)
 	}
+	if !cfg.Display.ToolProgressCommand {
+		t.Fatal("Display.ToolProgressCommand = false, want true from Hermes display.tool_progress_command")
+	}
 	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "off" {
 		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want bool false normalized to off", got)
 	}
@@ -482,6 +486,33 @@ display:
 	}
 	if got := cfg.Display.Platforms["discord"].ToolProgress; got != "off" {
 		t.Fatalf("Display.Platforms[discord].ToolProgress = %q, want legacy override", got)
+	}
+}
+
+func TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+display:
+  tool_progress: all
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SetHermesDisplayPlatformToolProgress("Telegram", "new"); err != nil {
+		t.Fatalf("SetHermesDisplayPlatformToolProgress: %v", err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Display.ToolProgress != "all" {
+		t.Fatalf("Display.ToolProgress = %q, want existing global mode preserved", cfg.Display.ToolProgress)
+	}
+	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "new" {
+		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want persisted new override", got)
 	}
 }
 

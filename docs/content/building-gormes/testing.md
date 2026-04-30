@@ -61,7 +61,10 @@ Borrow these fixture classes from the Hermes and GBrain studies:
 - **Provider transcripts:** replay request/stream fixtures for text,
   reasoning, tool-call deltas, finish reasons, usage, and retryable errors.
 - **Tool schema parity:** compare upstream tool names, toolsets, JSON schemas,
-  result envelopes, trust classes, and availability/degraded status.
+  result envelopes, trust classes, availability/degraded status, and default
+  registry exposure. A renderer fixture for `📖 read_file: "x"` is not proof
+  that the model can call `read_file`; `cmd/gormes` registry tests must prove
+  the descriptor is present.
 - **Memory scope negatives:** prove same-chat default recall, opt-in user-scope
   widening, source allowlists, deny paths, and no cross-chat leakage.
 - **Compression replay:** prove head/tail preservation, tool call/result pair
@@ -85,7 +88,13 @@ test. A final answer alone is not sufficient proof.
 - **Tool progress:** assert the correct surface. Gateway progress uses
   `emoji tool_name: "preview"` with `new/all/verbose` modes, bounded previews,
   and `(×N)` collapse. Current TUI shelves use Title Case tool calls. Do not
-  mix the two contracts in one fixture.
+  mix the two contracts in one fixture. Pair these with default-registry
+  assertions when the bug is "Gormes collapsed all work into execute_code."
+- **Local task tools:** for `read_file`, `search_files`, `write_file`,
+  `patch`, and `terminal`, use temp roots and fake/small processes. Cover
+  outside-root denial, symlink escape denial, duplicate-read status behavior,
+  dangerous-command approval, timeout/error envelopes, and explicit
+  unsupported evidence for background/PTY gaps.
 - **Runtime surface:** for installer or lock reports, run the same focused
   command through the intended surface: `go run ./cmd/gormes`, `./bin/gormes`,
   or installed `gormes`, with an explicit `GORMES_HOME`. Record binary path and

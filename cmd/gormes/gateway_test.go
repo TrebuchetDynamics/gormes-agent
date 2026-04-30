@@ -129,7 +129,8 @@ func TestGatewayManagerConfig_ToolProgressDisplayConfig(t *testing.T) {
 	mgrCfg := gatewayManagerConfig(
 		config.Config{
 			Display: config.DisplayCfg{
-				ToolProgress: "new",
+				ToolProgress:        "new",
+				ToolProgressCommand: true,
 				Platforms: map[string]config.DisplayPlatformCfg{
 					"telegram": {ToolProgress: "off"},
 					"slack":    {ToolProgress: "verbose"},
@@ -146,6 +147,12 @@ func TestGatewayManagerConfig_ToolProgressDisplayConfig(t *testing.T) {
 	)
 	if mgrCfg.ToolProgressMode != "new" {
 		t.Fatalf("ToolProgressMode = %q, want global display.tool_progress", mgrCfg.ToolProgressMode)
+	}
+	if !mgrCfg.ToolProgressCommandEnabled {
+		t.Fatal("ToolProgressCommandEnabled = false, want display.tool_progress_command")
+	}
+	if mgrCfg.PersistToolProgressMode == nil {
+		t.Fatal("PersistToolProgressMode = nil, want production /verbose persistence hook")
 	}
 	if got := mgrCfg.ToolProgressModes["telegram"]; got != "off" {
 		t.Fatalf("ToolProgressModes[telegram] = %q, want per-platform override", got)

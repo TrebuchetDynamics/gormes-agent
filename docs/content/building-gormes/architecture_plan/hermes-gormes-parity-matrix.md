@@ -58,9 +58,9 @@ Lane key (per the parity operating model):
 | 17 | Hourglass lifecycle (no clutter) | parity | B | Telegram typing action + placeholder lifecycle parity (planned for typing-indicator polish) |
 | 18 | Message edits vs new messages | parity | B | Coalescer placeholder-then-edit fixture covers it |
 | 19 | Streaming cadence | parity | B | Coalescer window + freshFinalAfter govern cadence |
-| 20 | Tool trace formatting (memory/search_files/read_file/patch/terminal icons) | partial | B | Gateway stream/tool trace formatting fixture matrix (planned) |
+| 20 | Tool trace formatting (memory/search_files/read_file/patch/terminal icons) | partial only for configurable skin emoji overrides; channel renderer parity is validated | B | Gateway stream/tool trace formatting fixture matrix (complete/validated); Native TUI Hermes tool progress + modal panel renderers (complete/validated) |
 | 21 | Duplicate collapse | partial | B | Restart duplicate-suppression covers operator path; chat-text dedup not implemented (new low-priority gap) |
-| 22 | Mobile-readable formatting | parity for MarkdownV2 parse-mode; partial for broader style polish | B | Telegram MarkdownV2 parse-mode rendering closeout (complete); Gateway stream/tool trace formatting fixture matrix (planned) |
+| 22 | Mobile-readable formatting | parity for MarkdownV2 parse-mode and shared tool-progress traces; partial for broader style polish | B | Telegram MarkdownV2 parse-mode rendering closeout (complete); Gateway stream/tool trace formatting fixture matrix (complete/validated); Native TUI Hermes tool progress + modal panel renderers (complete/validated) |
 | 23 | Identity / persona ("My name is Gormes" not "ChatGPT") | parity | D | Live-turn SOUL.md and project context wiring (channel-neutral) (complete) |
 | 24 | Final provider request includes Gormes identity (integration test) | parity at gateway, planned at production cmd | D | Telegram production live-turn provider payload golden (planned, P0) |
 | 25 | Final provider request includes USER.md / MEMORY.md | parity at gateway | D | Live-turn USER.md and MEMORY.md durable user context block (channel-neutral) (complete) |
@@ -444,23 +444,39 @@ Classification, Progress row).
 - **Hermes source**: `../hermes-agent/agent/display.py::get_tool_emoji`
   + per-tool registrations (file_tools `read_file = 📖`, `search_files
   = 🔎`, memory_tool `🧠`, web tools `🔎`).
-- **Gormes source**: `internal/gateway/render.go:98-114`
-  (`formatToolTracePlain`) hardcodes the same icons:
+- **Gormes source**: `internal/tooltrace/tooltrace.go` provides the
+  shared Hermes-style formatter used by gateway, TUI, Slack, and
+  Discord. It recognizes the same visible action families:
   - `🧠` memory
-  - `🔎` search_files / browser_navigate / browser_snapshot / web_search
+  - `📚` skill tools
+  - `📋` todo
+  - `🔎` search_files
+  - `🔍` web_search
+  - browser action icons
   - `📖` read_file
-  - `🔧` patch / fallback / unknown
-  - `🖥` terminal
-- **Gap**: Gormes hardcodes the icon mapping. Hermes lets per-tool
-  registrations declare their emoji, and the skin engine
-  (`hermes_cli/skin_engine.py`) supports `tool_emojis` overrides.
-  Gormes has no skin engine.
-- **Status**: `partial`. Icon set matches; declarative override surface
-  missing.
-- **Test coverage**: `internal/gateway/render_test.go::TestFormatStreamPlain_IncludesHermesStyleToolTrace`.
+  - `🔧` patch / write_file / fallback
+  - `💻` terminal / process
+  - `🐍` execute_code
+- **Gap**: Channel-visible formatting is validated, including
+  duplicate collapse, `new/all/off` display modes, bounded previews,
+  and suppression of `tool done:` completion noise. The remaining
+  partial is narrower: Hermes' skin engine
+  (`hermes_cli/skin_engine.py`) can provide `tool_emojis` overrides,
+  while Gormes currently uses a fixed Go mapping.
+- **Status**: `partial` only for configurable skin emoji overrides;
+  channel renderer parity is complete/validated.
+- **Test coverage**:
+  `internal/tooltrace/tooltrace_test.go`,
+  `internal/gateway/render_test.go`,
+  `internal/slack/render_test.go`,
+  `internal/discord/render_test.go`,
+  `internal/tui/viewport_history_test.go`.
 - **Lane**: B.
 - **Progress row**: `Gateway stream/tool trace formatting fixture matrix`
-  (planned).
+  (complete/validated) plus `Native TUI Hermes tool progress + modal
+  panel renderers` (complete/validated). Future skin YAML loading or
+  per-tool emoji overrides belong under the TUI skin-engine lane, not
+  this renderer row.
 
 ### 21. Duplicate collapse
 
@@ -481,13 +497,15 @@ Classification, Progress row).
 - **Gormes source**: #10 is now complete for Telegram ParseMode and
   parse-error fallback, so mobile clients receive the same MarkdownV2
   transport contract. Remaining mobile readability work is broader
-  renderer/content polish (tool traces, long final layout, status title
-  quality), not parse-mode wiring.
+  renderer/content polish (long final layout, status title quality,
+  modal ergonomics), not parse-mode wiring or shared tool-trace
+  formatting.
 - **Status**: `partial` overall; `parity` for MarkdownV2 parse-mode.
 - **Lane**: B.
 - **Progress row**: `Telegram MarkdownV2 parse-mode rendering closeout`
   (complete) plus `Gateway stream/tool trace formatting fixture matrix`
-  for remaining presentation polish.
+  and `Native TUI Hermes tool progress + modal panel renderers`
+  (complete/validated) for the now-shipped tool-progress surfaces.
 
 ### 23. Identity / persona ("My name is Gormes" not "ChatGPT")
 

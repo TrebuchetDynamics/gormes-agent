@@ -61,6 +61,12 @@ type ManagerConfig struct {
 	// ToolProgressMode mirrors Hermes gateway display.tool_progress for
 	// editable channel progress messages. Empty and unknown values default to all.
 	ToolProgressMode string
+	// ToolProgressCommandEnabled gates Hermes' /verbose command on messaging
+	// platforms. Hermes defaults this gate off.
+	ToolProgressCommandEnabled bool
+	// PersistToolProgressMode saves /verbose mode changes. Production writes
+	// display.platforms.<platform>.tool_progress into config.yaml.
+	PersistToolProgressMode func(platform, mode string) error
 	// ToolProgressModes mirrors Hermes display.platforms.<platform>.tool_progress
 	// overrides. Values take precedence over ToolProgressMode for the named platform.
 	ToolProgressModes map[string]string
@@ -725,6 +731,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTitle:
 		m.handleTitleCommand(ctx, ch, ev)
 		return nil
+	case EventVerbose:
+		m.handleVerboseCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
 			return nil
@@ -834,11 +843,70 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 	case EventTitle:
 		m.handleTitleCommand(ctx, ch, ev)
 		return true
+	case EventVerbose:
+		m.handleVerboseCommand(ctx, ch, ev)
+		return true
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return true
 	default:
 		return false
+	}
+}
+
+func (m *Manager) handleVerboseCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	if !m.cfg.ToolProgressCommandEnabled {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "The `/verbose` command is not enabled for messaging platforms.\n\nEnable it in `config.yaml`:\n```yaml\ndisplay:\n  tool_progress_command: true\n```")
+		return
+	}
+	platform := strings.ToLower(strings.TrimSpace(ev.Platform))
+	if platform == "" {
+		platform = "unknown"
+	}
+	mode := nextToolProgressMode(m.toolProgressMode(platform))
+	if m.cfg.ToolProgressModes == nil {
+		m.cfg.ToolProgressModes = map[string]string{}
+	}
+	m.cfg.ToolProgressModes[platform] = mode
+
+	text := toolProgressModeDescription(mode)
+	if m.cfg.PersistToolProgressMode == nil {
+		text += "\n_(could not save to config: persistence unavailable)_"
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+		return
+	}
+	if err := m.cfg.PersistToolProgressMode(platform, mode); err != nil {
+		text += "\n_(could not save to config: " + err.Error() + ")_"
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+		return
+	}
+	text += "\n_(saved for **" + platform + "** — takes effect on next message)_"
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+}
+
+func nextToolProgressMode(current string) string {
+	switch normalizeGatewayToolProgressMode(current) {
+	case "off":
+		return "new"
+	case "new":
+		return "all"
+	case "all":
+		return "verbose"
+	default:
+		return "off"
+	}
+}
+
+func toolProgressModeDescription(mode string) string {
+	switch normalizeGatewayToolProgressMode(mode) {
+	case "off":
+		return "⚙️ Tool progress: **OFF** — no tool activity shown."
+	case "new":
+		return "⚙️ Tool progress: **NEW** — shown when tool changes (preview length: `display.tool_preview_length`, default 40)."
+	case "verbose":
+		return "⚙️ Tool progress: **VERBOSE** — every tool call with full arguments."
+	default:
+		return "⚙️ Tool progress: **ALL** — every tool call shown (preview length: `display.tool_preview_length`, default 40)."
 	}
 }
 
@@ -1474,7 +1542,24 @@ func (m *Manager) toolProgressMode(platform string) string {
 			return normalizeGatewayToolProgressMode(mode)
 		}
 	}
-	return normalizeGatewayToolProgressMode(m.cfg.ToolProgressMode)
+	if mode := strings.TrimSpace(m.cfg.ToolProgressMode); mode != "" {
+		return normalizeGatewayToolProgressMode(mode)
+	}
+	return defaultToolProgressModeForPlatform(key)
+}
+
+func defaultToolProgressModeForPlatform(platform string) string {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case "telegram", "discord", "api_server":
+		return "all"
+	case "mattermost", "matrix", "feishu", "whatsapp":
+		return "new"
+	case "slack", "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
+		"email", "sms", "webhook", "homeassistant":
+		return "off"
+	default:
+		return "all"
+	}
 }
 
 func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {

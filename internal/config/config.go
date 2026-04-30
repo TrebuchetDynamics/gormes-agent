@@ -249,8 +249,9 @@ type GatewayCfg struct {
 }
 
 type DisplayCfg struct {
-	ToolProgress string                        `toml:"tool_progress"`
-	Platforms    map[string]DisplayPlatformCfg `toml:"platforms"`
+	ToolProgress        string                        `toml:"tool_progress"`
+	ToolProgressCommand bool                          `toml:"tool_progress_command"`
+	Platforms           map[string]DisplayPlatformCfg `toml:"platforms"`
 }
 
 type DisplayPlatformCfg struct {
@@ -535,6 +536,7 @@ type hermesWebConfigYAML struct {
 
 type hermesDisplayConfigYAML struct {
 	ToolProgress          interface{}                          `yaml:"tool_progress"`
+	ToolProgressCommand   bool                                 `yaml:"tool_progress_command"`
 	Platforms             map[string]hermesDisplayPlatformYAML `yaml:"platforms"`
 	ToolProgressOverrides map[string]interface{}               `yaml:"tool_progress_overrides"`
 }
@@ -614,6 +616,7 @@ func applyHermesDisplayConfig(cfg *Config, display hermesDisplayConfigYAML) {
 	if mode, ok := normalizeHermesToolProgressMode(display.ToolProgress); ok {
 		cfg.Display.ToolProgress = mode
 	}
+	cfg.Display.ToolProgressCommand = display.ToolProgressCommand
 	for platform, platformDisplay := range display.Platforms {
 		if mode, ok := normalizeHermesToolProgressMode(platformDisplay.ToolProgress); ok {
 			putDisplayPlatformToolProgress(&cfg.Display, platform, mode)
