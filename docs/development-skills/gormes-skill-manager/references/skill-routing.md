@@ -24,6 +24,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Need to improve `www.gormes.ai` landing page content or UI | `gormes-landing-web` | `gormes-planner` only if roadmap/progress claims need edits |
 | Stuck on a Go implementation shape and want a donor file to read before writing code | `gormes-references` | `gormes-tdd-slice` once the donor pattern is identified |
 | Provider/auth/streaming/quota/retry problem specifically | `gormes-provider-parity` | `gormes-tdd-slice` once the parity target + donor file are pinned |
+| Need to run, install, rebuild, or validate local Gormes binaries, managed source clones, PATH command refresh, gateway ownership, or sessions.db locks | `gormes-dev-runtime` | `gormes-tdd-slice` only if runtime code changes are needed |
 | Need to create or improve a skill | `gormes-skill-manager` + system `skill-creator` | validate all affected skills |
 
 ## Feature-Map-First Routing
@@ -52,7 +53,8 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | README/public repo messaging | `gormes-readme` | Covered by the periodic README evidence workflow. |
 | Landing page content/UI | `gormes-landing-web` | Covered by the focused public homepage workflow. |
 | Docs/Hugo/site sync | `gormes-planner` | Add `gormes-docs-web-sync` if progress docs and broader site data updates keep drifting. |
-| Release/install packaging | `gormes-planner` -> future release rows | Add `gormes-release-packager` when installer, service, OCI, and version gates are active. |
+| Dev run/install/runtime operations | `gormes-dev-runtime` | Covered for local `go run`, `bin/gormes`, install.sh, PATH, gateway, and session DB ownership decisions. |
+| Release/install packaging | `gormes-planner` -> future release rows | Add `gormes-release-packager` when service, OCI, version gates, and public release publishing go beyond the local/source-backed installer loop. |
 
 ## Good Skill Chains
 

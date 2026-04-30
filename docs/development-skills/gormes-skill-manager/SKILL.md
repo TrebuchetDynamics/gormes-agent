@@ -40,6 +40,10 @@ Pick the primary intent:
 - **Browser automation, Browser Use, browser-harness, CDP, or `/browser connect` parity**:
   use `gormes-browser-harness`, then `gormes-parity-auditor`/`gormes-planner`
   for rows or `gormes-builder` + `gormes-tdd-slice` for a single runtime slice.
+- **Local run/install/runtime operations**: use `gormes-dev-runtime` when the
+  task involves `go run ./cmd/gormes`, `bin/gormes`, `install.sh`, managed
+  source checkouts, PATH shadowing, gateway process ownership, or
+  `sessions.db` locks.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.
@@ -83,6 +87,7 @@ Do not create a skill for one-off context, a single row, or a vague theme.
 Use names like:
 
 - `gormes-provider-parity`
+- `gormes-dev-runtime`
 - `gormes-goncho-compat`
 - `gormes-channel-adapter`
 - `gormes-docs-web-sync`
