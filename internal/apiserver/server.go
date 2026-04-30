@@ -235,6 +235,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
 	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)
 	s.mux.HandleFunc("/v1/admin/cron/jobs/", s.handleCronAdminJobByID)
+
+	s.registerDashboardWeb(s.mux)
 }
 
 func securityHeaders(next http.Handler) http.Handler {
