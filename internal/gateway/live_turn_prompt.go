@@ -49,8 +49,9 @@ type liveTurnPromptSeams struct {
 }
 
 // defaultLiveTurnPromptSeams returns the production wiring: context dirs from
-// explicit env/config locations or workspace ancestors, CWD from TERMINAL_CWD
-// or os.Getwd(), and the real hermes entry points.
+// explicit Gormes env/config locations or Gormes workspace ancestors, CWD from
+// TERMINAL_CWD or os.Getwd(), and the real hermes entry points. Upstream
+// HERMES_HOME is intentionally not a live persona/memory source.
 //
 // The slice-4 metadata clock and active model/provider getters default to nil
 // so callers that have not configured them produce an empty metadata block.
@@ -91,9 +92,6 @@ func defaultLiveTurnProfileDir(cwd string) string {
 	if migrated := filepath.Join(gormesHome, "memory"); hasLiveTurnFile(migrated, "SOUL.md") {
 		return migrated
 	}
-	if hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME")); hermesHome != "" && hasLiveTurnFile(hermesHome, "SOUL.md") {
-		return hermesHome
-	}
 	if root := findLiveTurnAncestorWith(cwd, "SOUL.md"); root != "" {
 		return root
 	}
@@ -110,17 +108,6 @@ func defaultLiveTurnMemoryDir(cwd string) string {
 	}
 	if dir := filepath.Join(gormesHome, "memories"); hasAnyLiveTurnFile(dir, "USER.md", "MEMORY.md") {
 		return dir
-	}
-	if hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME")); hermesHome != "" {
-		if dir := filepath.Join(hermesHome, "memories"); hasAnyLiveTurnFile(dir, "USER.md", "MEMORY.md") {
-			return dir
-		}
-		if dir := filepath.Join(hermesHome, "memory"); hasAnyLiveTurnFile(dir, "USER.md", "MEMORY.md") {
-			return dir
-		}
-		if hasAnyLiveTurnFile(hermesHome, "USER.md", "MEMORY.md") {
-			return hermesHome
-		}
 	}
 	if root := findLiveTurnAncestorWithAny(cwd, "USER.md", "MEMORY.md"); root != "" {
 		return root

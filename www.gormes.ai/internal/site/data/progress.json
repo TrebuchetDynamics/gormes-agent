@@ -2758,28 +2758,29 @@
             },
             {
               "name": "Active Hermes/Sidon profile context root resolver for live turns",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
-              "contract": "Live-turn context discovery resolves explicit Gormes overrides first, then active Hermes profile roots such as `HERMES_HOME=/home/xel/.hermes` + profile `mineru` or `sidon`, then workspace ancestor SOUL/USER/MEMORY files, without unit tests reading live profile state.",
-              "contract_status": "draft",
+              "contract": "Live-turn context discovery resolves explicit Gormes overrides first, then Gormes-owned home/profile files and Gormes workspace ancestor SOUL/USER/MEMORY files. Upstream HERMES_HOME may be inspected by migration/config tooling, but it is not a live persona or durable-memory fallback for gateway turns, preventing Mineru/Hermes profile fall-through in the Telegram dogfood bot.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Missing profile files render missing-context evidence and continue the turn; unsafe paths are rejected with redacted evidence.",
+              "degraded_mode": "Missing Gormes-owned profile or memory files render missing-context evidence and continue the turn from the platform/session block; HERMES_HOME content is ignored unless explicitly migrated into Gormes-owned files or selected through GORMES_CONTEXT_HOME/GORMES_CONTEXT_MEMORY_DIR.",
               "fixture": "internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_constants.py",
-                "../hermes-agent/run_agent.py",
+                "../hermes-agent/hermes_constants.py (reference only; no runtime dependency)",
+                "../hermes-agent/run_agent.py (reference only; no runtime dependency)",
                 "internal/hermes/context_files.go",
                 "internal/hermes/durable_user_context.go",
-                "internal/gateway/live_turn_prompt.go"
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/live_turn_prompt_test.go"
               ],
               "acceptance": [
-                "Temp-dir tests prove Gormes override wins over Hermes profile discovery.",
-                "`HERMES_HOME=/tmp/.hermes` plus active profile resolves `/tmp/.hermes/profiles/<name>/SOUL.md` and memory files.",
+                "Temp-dir tests prove Gormes override wins over all implicit discovery.",
+                "When HERMES_HOME contains a SOUL.md or memory files and the active workspace contains Gormes-owned context, production live-turn discovery selects the workspace/Gormes files instead of Hermes profile content.",
                 "Workspace ancestor SOUL/USER/MEMORY fallback is covered.",
                 "Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`."
               ],
@@ -2795,11 +2796,14 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Hermetic profile-root resolver fixtures prove production discovery order without live profile reads."
+                "Production defaultLiveTurnProfileDir/defaultLiveTurnMemoryDir ignore HERMES_HOME as a live persona/memory source, prefer explicit Gormes context env, GORMES_HOME files, and workspace ancestor context, with regression tests proving no Mineru/Hermes fall-through."
               ],
               "ready_when": [
                 "Current live-turn context discovery seams are identified in internal/hermes and internal/gateway.",
                 "Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile."
+              ],
+              "evidence": [
+                "Validated 2026-04-29: added regression tests TestDefaultLiveTurnProfileDir_PrefersWorkspaceGormesContextOverHermesHome and TestDefaultLiveTurnMemoryDir_PrefersWorkspaceGormesMemoryOverHermesHome; updated internal/gateway/live_turn_prompt.go so HERMES_HOME is not a live profile/memory fallback. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestDefaultLiveTurn(ProfileDir|MemoryDir)|LiveTurn' -count=1."
               ]
             },
             {

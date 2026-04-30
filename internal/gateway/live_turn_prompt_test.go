@@ -206,6 +206,58 @@ func TestLiveTurn_SystemPrompt_ThreatBlocked(t *testing.T) {
 	}
 }
 
+func TestDefaultLiveTurnProfileDir_PrefersWorkspaceGormesContextOverHermesHome(t *testing.T) {
+	gHome := t.TempDir()
+	hermesHome := t.TempDir()
+	workspace := t.TempDir()
+	workdir := filepath.Join(workspace, "gormes-agent")
+	if err := os.MkdirAll(workdir, 0o700); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hermesHome, "SOUL.md"), []byte("You are Mineru."), 0o600); err != nil {
+		t.Fatalf("write Hermes SOUL.md: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "SOUL.md"), []byte("You are Gormes."), 0o600); err != nil {
+		t.Fatalf("write workspace SOUL.md: %v", err)
+	}
+	t.Setenv("GORMES_HOME", gHome)
+	t.Setenv("HERMES_HOME", hermesHome)
+	t.Setenv("GORMES_CONTEXT_HOME", "")
+
+	got := defaultLiveTurnProfileDir(workdir)
+	if got != workspace {
+		t.Fatalf("defaultLiveTurnProfileDir must not fall through to HERMES_HOME persona; got %q want workspace %q", got, workspace)
+	}
+}
+
+func TestDefaultLiveTurnMemoryDir_PrefersWorkspaceGormesMemoryOverHermesHome(t *testing.T) {
+	gHome := t.TempDir()
+	hermesHome := t.TempDir()
+	workspace := t.TempDir()
+	workdir := filepath.Join(workspace, "gormes-agent")
+	workspaceMemory := filepath.Join(workspace, "memory")
+	hermesMemory := filepath.Join(hermesHome, "memories")
+	for _, dir := range []string{workdir, workspaceMemory, hermesMemory} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(hermesMemory, "USER.md"), []byte("Name: Mineru"), 0o600); err != nil {
+		t.Fatalf("write Hermes USER.md: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceMemory, "USER.md"), []byte("Name: Juan"), 0o600); err != nil {
+		t.Fatalf("write workspace USER.md: %v", err)
+	}
+	t.Setenv("GORMES_HOME", gHome)
+	t.Setenv("HERMES_HOME", hermesHome)
+	t.Setenv("GORMES_CONTEXT_MEMORY_DIR", "")
+
+	got := defaultLiveTurnMemoryDir(workdir)
+	if got != workspaceMemory {
+		t.Fatalf("defaultLiveTurnMemoryDir must not fall through to HERMES_HOME memory; got %q want workspace memory %q", got, workspaceMemory)
+	}
+}
+
 // writeMemory constructs a fake memory dir with optional USER.md and
 // MEMORY.md fixtures. Empty bodies are skipped so callers can produce
 // memory dirs containing just one of the two files.

@@ -183,27 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Active Hermes/Sidon profile context root resolver for live turns
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Live-turn context discovery resolves explicit Gormes overrides first, then active Hermes profile roots such as `HERMES_HOME=/home/xel/.hermes` + profile `mineru` or `sidon`, then workspace ancestor SOUL/USER/MEMORY files, without unit tests reading live profile state.
-- Trust class: gateway, system
-- Ready when: Current live-turn context discovery seams are identified in internal/hermes and internal/gateway., Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile.
-- Not ready when: -
-- Degraded mode: Missing profile files render missing-context evidence and continue the turn; unsafe paths are rejected with redacted evidence.
-- Fixture: `internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go`
-- Write scope: `internal/hermes/`, `internal/gateway/live_turn_prompt.go`, `internal/gateway/live_turn_prompt_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot\|SOUL\|DurableUserContext\|LiveTurn' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Hermetic profile-root resolver fixtures prove production discovery order without live profile reads.
-- Acceptance: Temp-dir tests prove Gormes override wins over Hermes profile discovery., `HERMES_HOME=/tmp/.hermes` plus active profile resolves `/tmp/.hermes/profiles/<name>/SOUL.md` and memory files., Workspace ancestor SOUL/USER/MEMORY fallback is covered., Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`.
-- Source refs: ../hermes-agent/hermes_constants.py, ../hermes-agent/run_agent.py, internal/hermes/context_files.go, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Durable context ordering and frozen snapshot decision fixture
+## 9. Durable context ordering and frozen snapshot decision fixture
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Durable context ordering and snapshot semantics are locked by provider-payload fixtures and progress notes.
 - Acceptance: A fixture proves the current provider payload order for SOUL, AGENTS, USER, MEMORY, metadata, and session context., A second fixture proves whether mid-session MEMORY.md writes affect current prompt or only future sessions., The progress note records the chosen owned divergence or the implementation changes to Hermes order., No test uses live profile or memory files.
 - Source refs: ../hermes-agent/run_agent.py:3721-3730, ../hermes-agent/tools/memory_tool.py:105-124, internal/hermes/durable_user_context.go, internal/gateway/live_turn_prompt.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Live-turn model/tool guidance wiring
+
+- Phase: 2 / 2.B.5
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Wire the ported Hermes guidance constants into live-turn prompt assembly so memory guidance, session-search guidance, skills guidance, tool-use enforcement, model-family guidance, and environment hints reach provider requests in the correct role/order when their conditions apply.
+- Trust class: gateway, system
+- Ready when: Hermes guidance constants and Gormes live-turn prompt/kernel seams are identified., Provider-payload fixtures can enable and disable tools/skills/model families hermetically.
+- Not ready when: -
+- Degraded mode: If tools or skills are unavailable, the guidance block omits only those gated sections and reports no false capability.
+- Fixture: `internal/gateway/live_turn_guidance_test.go + internal/kernel/kernel_test.go`
+- Write scope: `internal/gateway/`, `internal/kernel/`, `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/hermes -run 'Guidance\|Tool\|Skill\|LiveTurn' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Live-turn guidance fixtures prove Hermes guidance constants reach provider payloads only under their gated conditions.
+- Acceptance: Provider payload fixtures include memory/session-search/skills guidance only when those capabilities are active., Tool-use enforcement guidance is gated by model family., Guidance ordering relative to SOUL, durable memory, AGENTS, metadata, and user messages is pinned., Disabled tool/skill paths do not advertise unavailable capabilities.
+- Source refs: ../hermes-agent/run_agent.py:3667-3712, ../hermes-agent/agent/prompt_builder.py, internal/hermes/guidance_constants.go, internal/kernel/kernel.go, internal/gateway/live_turn_prompt.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
