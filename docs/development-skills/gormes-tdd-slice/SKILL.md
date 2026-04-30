@@ -91,6 +91,18 @@ Write the smallest implementation that passes this test. Stay inside write scope
 
 Add the next behavior only after the prior test is green. Do not write a batch of imagined tests first.
 
+For broad builder rows that enumerate several equivalent adapters or providers, a
+cron-sized TDD pass may ship one source-backed adapter/provider as the vertical
+slice when the row contract is otherwise too large for one safe run. In that
+case:
+
+- keep the progress row planned unless every acceptance bullet is now satisfied;
+- update the row note with the exact partial evidence and remaining adapters;
+- add a search/aggregation-level regression when the slice introduces a new
+  typed degraded condition, not only a provider-local test;
+- do not mark umbrella or multi-provider rows complete from one provider's green
+  tests.
+
 ### 5. Refactor While Green
 
 Only refactor after tests pass. Prefer deep modules: small interface, substantial hidden implementation, clear locality.
