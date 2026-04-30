@@ -25810,9 +25810,10 @@
                 "Tests cover non-root user layout, Termux PREFIX layout, explicit --dir/--bin-dir overrides, and root Linux behavior.",
                 "If Gormes diverges from Hermes' /usr/local/lib + /usr/local/bin FHS root default, the help text and README state the divergence and offer explicit override flags.",
                 "If Gormes adopts the FHS root default, legacy installs under $GORMES_INSTALL_HOME/gormes-agent are preserved in place and site copy stays byte-equal to scripts/install.sh.",
+                "If an older `gormes` command already appears earlier on PATH than the installer target, rerunning install.sh refreshes that active command path instead of leaving the stale binary in charge.",
                 "No test performs a live git clone, package-manager install, or root-owned write."
               ],
-              "note": "Complete: Gormes now ports Hermes' root-Linux FHS installer policy for new root installs: code defaults to /usr/local/lib/gormes-agent, the command defaults to /usr/local/bin/gormes, and data remains under GORMES_INSTALL_HOME. Existing legacy root checkouts under $GORMES_INSTALL_HOME/gormes-agent are preserved with the legacy user-scoped command directory, Termux keeps PREFIX/bin, and explicit --dir/--bin-dir overrides win. The served site installer copy remains byte-equal to scripts/install.sh, and www.gormes.ai/README.md documents the root/FHS policy.",
+              "note": "Complete: Gormes now ports Hermes' root-Linux FHS installer policy for new root installs: code defaults to /usr/local/lib/gormes-agent, the command defaults to /usr/local/bin/gormes, and data remains under GORMES_INSTALL_HOME. Existing legacy root checkouts under $GORMES_INSTALL_HOME/gormes-agent are preserved with the legacy user-scoped command directory, Termux keeps PREFIX/bin, and explicit --dir/--bin-dir overrides win. The served site installer copy remains byte-equal to scripts/install.sh, and www.gormes.ai/README.md documents the root/FHS policy. 2026-04-30 update hardens reruns so install.sh also refreshes an existing active PATH command such as $HOME/go/bin/gormes when it would otherwise shadow the freshly published binary.",
               "write_scope": [
                 "scripts/install.sh",
                 "www.gormes.ai/internal/site/installers/install.sh",

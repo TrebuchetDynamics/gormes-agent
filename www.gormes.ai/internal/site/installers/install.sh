@@ -168,6 +168,14 @@ path_contains_dir() {
   esac
 }
 
+active_command_path() {
+  found=$(command -v gormes 2>/dev/null || true)
+  case "$found" in
+    /*|*/*) printf '%s\n' "$found" ;;
+    *) printf '\n' ;;
+  esac
+}
+
 check_platform() {
   case "$(platform_name)" in
     Linux*|Darwin*) ;;
@@ -543,6 +551,16 @@ publish_command() {
   build_bin="$(managed_bin_dir)/gormes"
   published_bin="${bin_dir}/gormes"
 
+  publish_built_binary "$build_bin" "$published_bin"
+  update_active_command "$build_bin" "$published_bin"
+}
+
+publish_built_binary() {
+  build_bin="$1"
+  published_bin="$2"
+  bin_dir=$(parent_dir "$published_bin")
+
+  [ ! -d "$published_bin" ] || fail "cannot replace directory with gormes command: ${published_bin}"
   mkdir -p "$bin_dir"
   if [ ! -w "$bin_dir" ]; then
     fail "cannot write to ${bin_dir}; rerun with --bin-dir or GORMES_BIN_DIR"
@@ -564,11 +582,29 @@ publish_command() {
   mv -f "$tmp" "$published_bin" || fail "could not publish ${published_bin}"
 }
 
+update_active_command() {
+  build_bin="$1"
+  published_bin="$2"
+  active_bin=$(active_command_path)
+
+  [ -n "$active_bin" ] || return 0
+  [ "$active_bin" != "$published_bin" ] || return 0
+  [ "$active_bin" != "$build_bin" ] || return 0
+
+  log "updating active PATH command ${active_bin}"
+  publish_built_binary "$build_bin" "$active_bin"
+}
+
 verify_install() {
   published_bin="$(pick_bin_dir)/gormes"
 
   [ -x "$published_bin" ] || fail "published command is not executable: ${published_bin}"
   "$published_bin" version >/dev/null 2>&1 || fail "verification failed: ${published_bin} version"
+
+  active_bin=$(active_command_path)
+  if [ -n "$active_bin" ]; then
+    "$active_bin" version >/dev/null 2>&1 || fail "verification failed: active PATH command ${active_bin} version"
+  fi
 
   if "$published_bin" doctor --offline >/dev/null 2>&1; then
     log "offline doctor passed"
@@ -584,6 +620,10 @@ print_summary() {
   log "Core install: succeeded"
   log "Managed checkout: $(managed_checkout_dir)"
   log "Published command: ${published_bin}"
+  active_bin=$(active_command_path)
+  if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ]; then
+    log "Updated active PATH command: ${active_bin}"
+  fi
   log "Verification: succeeded"
 
   if path_contains_dir "$bin_dir"; then
