@@ -104,6 +104,40 @@ type HubSearchResponse struct {
 	Evidence HubSearchEvidence `json:"evidence,omitempty"`
 }
 
+// PreferHermesIndexProvider mirrors Hermes' source-router preference for the
+// centralized skills index. When the injected index provider has cached entries,
+// callers should consult it first and skip duplicate remote API providers for
+// this search pass. If the index is unavailable, malformed, or empty, the
+// caller-supplied fallback provider list is returned unchanged with typed
+// evidence when available.
+func PreferHermesIndexProvider(ctx context.Context, index HubRegistryProvider, fallbacks []HubRegistryProvider) ([]HubRegistryProvider, HubSearchEvidence) {
+	if index == nil {
+		return append([]HubRegistryProvider(nil), fallbacks...), ""
+	}
+	snap, err := index.Snapshot(ctx)
+	if err != nil {
+		evidence := registryErrorEvidence(err)
+		return append([]HubRegistryProvider(nil), fallbacks...), evidence
+	}
+	if len(snap) == 0 {
+		return append([]HubRegistryProvider(nil), fallbacks...), HubSearchEvidenceNoResults
+	}
+	return []HubRegistryProvider{index}, ""
+}
+
+func registryErrorEvidence(err error) HubSearchEvidence {
+	switch {
+	case errors.Is(err, ErrRegistryUnavailable):
+		return HubSearchEvidenceRegistryUnavailable
+	case errors.Is(err, ErrRegistryRateLimited):
+		return HubSearchEvidenceRateLimited
+	case errors.Is(err, ErrRegistryMalformed):
+		return HubSearchEvidenceRegistryMalformed
+	default:
+		return ""
+	}
+}
+
 // Search merges the read-only snapshots from each provider, filters them by
 // substring match on Name+Description, dedupes by InstallID, and sorts by
 // Score descending then Name ascending. It never touches the active or

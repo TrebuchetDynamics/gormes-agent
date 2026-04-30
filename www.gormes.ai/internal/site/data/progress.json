@@ -18244,9 +18244,9 @@
             {
               "name": "Hermes index provider cache + source-router preference",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/skills adds a read-only HermesIndexRegistryProvider and source-router preference helper that consume cached centralized Hermes skills index fixtures before consulting duplicate remote API providers, mirroring HermesIndexSource plus create_source_router/parallel_search_sources without installing or mutating active skills.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -18258,8 +18258,8 @@
               "source_refs": [
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search",
-                "internal/skills/hub_search.go",
-                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider"
+                "internal/skills/hub_search.go:PreferHermesIndexProvider,Search",
+                "internal/skills/hub_registry_sources.go:HermesIndexRegistryProvider,WellKnownRegistryProvider,ClawHubRegistryProvider"
               ],
               "ready_when": [
                 "HubRegistryProvider/Search is validated and WellKnown/ClawHub read-only provider fixtures are green.",
@@ -18293,7 +18293,7 @@
               "done_signal": [
                 "HermesIndex provider and source-router preference fixtures pass with fake cache/provider inputs, and existing WellKnown/ClawHub provider tests remain green."
               ],
-              "note": "Added by 2026-04-30 parity sweep after verifying Hermes @69d4800d still defines HermesIndexSource plus source-router preference functions and current Gormes @5c8941beb does not yet have HermesIndex/centralized-cache provider code."
+              "note": "Complete 2026-04-30: source-backed TDD slice added HermesIndexRegistryProvider in internal/skills/hub_registry_sources.go and PreferHermesIndexProvider in internal/skills/hub_search.go. RED first failed on undefined NewHermesIndexRegistryProvider/PreferHermesIndexProvider; GREEN passes TestHermesIndexProviderPrefersCachedIndex, TestHermesIndexProviderMalformedOrMissingEvidence, TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable, and full go test ./internal/skills -count=1. The implementation reads only caller-injected cache paths, performs no remote API calls or active-store writes, and falls back to caller-supplied providers with typed evidence for missing/malformed centralized index fixtures."
             },
             {
               "name": "Marketplace/GitHub registry metadata providers",

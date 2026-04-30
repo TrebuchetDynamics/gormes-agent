@@ -6,11 +6,77 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 )
 
 const wellKnownSkillsBasePath = "/.well-known/skills"
+
+// HermesIndexRegistryProvider reads the centralized Hermes skills index from a
+// caller-supplied cache path. It mirrors Hermes' HermesIndexSource search-side
+// contract for Gormes' read-only hub registry layer: no remote API calls, no
+// active skill-store writes, and typed degraded evidence for missing or
+// malformed cache files.
+type HermesIndexRegistryProvider struct {
+	cachePath string
+}
+
+// NewHermesIndexRegistryProvider returns a read-only centralized-index
+// provider. cachePath must be injected by callers/tests; the provider does not
+// hard-code operator-specific Hermes/Gormes homes.
+func NewHermesIndexRegistryProvider(cachePath string) *HermesIndexRegistryProvider {
+	return &HermesIndexRegistryProvider{cachePath: strings.TrimSpace(cachePath)}
+}
+
+// Snapshot converts cached centralized index metadata into normalized hub
+// search results. Empty or unnamed entries are skipped; a syntactically valid
+// empty index returns an empty result set without error.
+func (p *HermesIndexRegistryProvider) Snapshot(ctx context.Context) ([]HubSearchResult, error) {
+	if p == nil || p.cachePath == "" {
+		return nil, ErrRegistryUnavailable
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	raw, err := os.ReadFile(p.cachePath)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryUnavailable, err)
+	}
+	var index struct {
+		Skills []struct {
+			Name        string   `json:"name"`
+			Description string   `json:"description"`
+			Source      string   `json:"source"`
+			Identifier  string   `json:"identifier"`
+			TrustLevel  string   `json:"trust_level"`
+			Tags        []string `json:"tags"`
+			Score       float64  `json:"score"`
+		} `json:"skills"`
+	}
+	if err := json.Unmarshal(raw, &index); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRegistryMalformed, err)
+	}
+	results := make([]HubSearchResult, 0, len(index.Skills))
+	for _, skill := range index.Skills {
+		name := strings.TrimSpace(skill.Name)
+		if name == "" {
+			continue
+		}
+		results = append(results, HubSearchResult{
+			Name:        name,
+			Description: skill.Description,
+			Source:      firstNonEmpty(skill.Source, "hermes-index"),
+			InstallID:   strings.TrimSpace(skill.Identifier),
+			Score:       skill.Score,
+			TrustLevel:  firstNonEmpty(skill.TrustLevel, "community"),
+			Tags:        append([]string(nil), skill.Tags...),
+		})
+	}
+	return results, nil
+}
 
 // WellKnownRegistryProvider reads metadata from a domain exposing
 // /.well-known/skills/index.json. It mirrors Hermes' WellKnownSkillSource

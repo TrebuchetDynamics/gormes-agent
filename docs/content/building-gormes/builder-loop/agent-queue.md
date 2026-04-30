@@ -48,28 +48,7 @@ selection.
 - Unblocks: Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures
 - Why now: Unblocks Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures.
 
-## 2. Hermes index provider cache + source-router preference
-
-- Phase: 5 / 5.F
-- Owner: `skills`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: internal/skills adds a read-only HermesIndexRegistryProvider and source-router preference helper that consume cached centralized Hermes skills index fixtures before consulting duplicate remote API providers, mirroring HermesIndexSource plus create_source_router/parallel_search_sources without installing or mutating active skills.
-- Trust class: operator, system
-- Ready when: HubRegistryProvider/Search is validated and WellKnown/ClawHub read-only provider fixtures are green., The worker can inject temp cache roots and fake providers; no live network, gh CLI, token, install flow, or active store is required.
-- Not ready when: The slice downloads arbitrary skill bundles, writes active/candidate skills, runs guard scans, or changes prompt injection., The source-router preference is implemented by hard-coding operator-specific paths instead of injected cache roots and provider lists.
-- Degraded mode: Missing, malformed, expired, or unavailable centralized index fixtures return typed hub-search evidence and fall back to the caller-supplied provider list without panics or active-store writes.
-- Fixture: `internal/skills/hub_registry_sources_test.go::TestHermesIndexProviderPrefersCachedIndex`
-- Write scope: `internal/skills/hub_registry_sources.go`, `internal/skills/hub_registry_sources_test.go`, `internal/skills/hub_search.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/skills -run 'TestHermesIndexProvider\|TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable' -count=1`, `go test ./internal/skills -count=1`, `go run ./cmd/progress validate`
-- Done signal: HermesIndex provider and source-router preference fixtures pass with fake cache/provider inputs, and existing WellKnown/ClawHub provider tests remain green.
-- Acceptance: TestHermesIndexProviderPrefersCachedIndex proves centralized index fixtures return normalized metadata with no remote API calls., TestHermesIndexProviderMalformedOrMissingEvidence proves missing/malformed cache files return typed evidence and do not panic., TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable proves source_filter=all prefers the centralized index before duplicate GitHub/Skills.sh remote API providers., The helper imports neither active store mutators nor gateway adapters and performs no filesystem writes outside an injected temp cache in tests.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search, internal/skills/hub_search.go, internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider
-- Unblocks: Marketplace/GitHub registry metadata providers, Skill registries unavailable-network UX fixtures
-- Why now: Unblocks Marketplace/GitHub registry metadata providers, Skill registries unavailable-network UX fixtures.
-
-## 3. Marketplace/GitHub registry metadata providers
+## 2. Marketplace/GitHub registry metadata providers
 
 - Phase: 5 / 5.F
 - Owner: `skills`

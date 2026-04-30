@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 )
@@ -13,6 +14,93 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
+}
+
+func TestHermesIndexProviderPrefersCachedIndex(t *testing.T) {
+	tmp := t.TempDir()
+	cachePath := tmp + "/hermes-skills-index.json"
+	if err := os.WriteFile(cachePath, []byte(`{
+		"skills": [
+			{"name":"planner","description":"Plan work","source":"skills-sh","identifier":"skills-sh/planner","trust_level":"trusted","repo":"openai/skills","path":"skills/planner","tags":["planning","docs"],"score":0.9},
+			{"name":"","description":"skip unnamed"}
+		]
+	}`), 0o600); err != nil {
+		t.Fatalf("write cache fixture: %v", err)
+	}
+
+	provider := NewHermesIndexRegistryProvider(cachePath)
+	results, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("Snapshot returned unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("results count = %d (%v), want 1", len(results), results)
+	}
+	got := results[0]
+	if got.Name != "planner" {
+		t.Errorf("Name = %q, want planner", got.Name)
+	}
+	if got.Description != "Plan work" {
+		t.Errorf("Description = %q, want Plan work", got.Description)
+	}
+	if got.Source != "skills-sh" {
+		t.Errorf("Source = %q, want skills-sh", got.Source)
+	}
+	if got.InstallID != "skills-sh/planner" {
+		t.Errorf("InstallID = %q, want skills-sh/planner", got.InstallID)
+	}
+	if got.TrustLevel != "trusted" {
+		t.Errorf("TrustLevel = %q, want trusted", got.TrustLevel)
+	}
+	if strings.Join(got.Tags, ",") != "planning,docs" {
+		t.Errorf("Tags = %v, want [planning docs]", got.Tags)
+	}
+	if got.Score != 0.9 {
+		t.Errorf("Score = %v, want 0.9", got.Score)
+	}
+}
+
+func TestHermesIndexProviderMalformedOrMissingEvidence(t *testing.T) {
+	t.Run("missing", func(t *testing.T) {
+		provider := NewHermesIndexRegistryProvider(t.TempDir() + "/missing.json")
+		_, err := provider.Snapshot(context.Background())
+		if !errors.Is(err, ErrRegistryUnavailable) {
+			t.Fatalf("Snapshot error = %v, want errors.Is(..., %v)", err, ErrRegistryUnavailable)
+		}
+	})
+
+	t.Run("malformed", func(t *testing.T) {
+		cachePath := t.TempDir() + "/index.json"
+		if err := os.WriteFile(cachePath, []byte(`{`), 0o600); err != nil {
+			t.Fatalf("write malformed fixture: %v", err)
+		}
+		provider := NewHermesIndexRegistryProvider(cachePath)
+		_, err := provider.Snapshot(context.Background())
+		if !errors.Is(err, ErrRegistryMalformed) {
+			t.Fatalf("Snapshot error = %v, want errors.Is(..., %v)", err, ErrRegistryMalformed)
+		}
+	})
+}
+
+func TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable(t *testing.T) {
+	index := NewInMemoryRegistryProvider([]HubSearchResult{{Name: "planner", Description: "from index", Source: "hermes-index", InstallID: "skills-sh/planner", Score: 1}}, nil)
+	remote := NewInMemoryRegistryProvider([]HubSearchResult{{Name: "planner", Description: "from remote", Source: "skills-sh", InstallID: "skills-sh/planner", Score: 2}}, nil)
+
+	providers, evidence := PreferHermesIndexProvider(context.Background(), index, []HubRegistryProvider{remote})
+	if evidence != "" {
+		t.Fatalf("evidence = %q, want empty", evidence)
+	}
+	if len(providers) != 1 || providers[0] != index {
+		t.Fatalf("providers = %#v, want only the index provider", providers)
+	}
+
+	resp, err := Search(context.Background(), "planner", providers, HubSearchOptions{})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(resp.Results) != 1 || resp.Results[0].Description != "from index" {
+		t.Fatalf("Search results = %#v, want centralized index result only", resp.Results)
+	}
 }
 
 func TestWellKnownRegistryProviderReadsIndexMetadata(t *testing.T) {
