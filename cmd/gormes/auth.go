@@ -71,6 +71,7 @@ func newAuthAddCommand() *cobra.Command {
 	var timeout string
 	var insecure bool
 	var caBundle string
+	var emergencyImportFromCodexCLI string
 
 	cmd := &cobra.Command{
 		Use:   "add <provider>",
@@ -78,18 +79,19 @@ func newAuthAddCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runAuthAddCommand(cmd, authAddOptions{
-				Provider:     args[0],
-				AuthType:     authType,
-				Label:        label,
-				APIKey:       apiKey,
-				InferenceURL: inferenceURL,
-				PortalURL:    portalURL,
-				ClientID:     clientID,
-				Scope:        scope,
-				NoBrowser:    noBrowser,
-				Timeout:      timeout,
-				Insecure:     insecure,
-				CABundle:     caBundle,
+				Provider:                    args[0],
+				AuthType:                    authType,
+				Label:                       label,
+				APIKey:                      apiKey,
+				InferenceURL:                inferenceURL,
+				PortalURL:                   portalURL,
+				ClientID:                    clientID,
+				Scope:                       scope,
+				NoBrowser:                   noBrowser,
+				Timeout:                     timeout,
+				Insecure:                    insecure,
+				CABundle:                    caBundle,
+				EmergencyImportFromCodexCLI: emergencyImportFromCodexCLI,
 			})
 		},
 	}
@@ -104,6 +106,7 @@ func newAuthAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&timeout, "timeout", "", "OAuth timeout")
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "disable OAuth TLS verification")
 	cmd.Flags().StringVar(&caBundle, "ca-bundle", "", "OAuth CA bundle")
+	cmd.Flags().StringVar(&emergencyImportFromCodexCLI, "emergency-import-from-codex-cli", "", "explicitly import Codex CLI auth.json after accepting the refresh-token race envelope")
 	return cmd
 }
 
@@ -172,18 +175,19 @@ func newAuthLogoutCommand() *cobra.Command {
 }
 
 type authAddOptions struct {
-	Provider     string
-	AuthType     string
-	Label        string
-	APIKey       string
-	InferenceURL string
-	PortalURL    string
-	ClientID     string
-	Scope        string
-	NoBrowser    bool
-	Timeout      string
-	Insecure     bool
-	CABundle     string
+	Provider                    string
+	AuthType                    string
+	Label                       string
+	APIKey                      string
+	InferenceURL                string
+	PortalURL                   string
+	ClientID                    string
+	Scope                       string
+	NoBrowser                   bool
+	Timeout                     string
+	Insecure                    bool
+	CABundle                    string
+	EmergencyImportFromCodexCLI string
 }
 
 type anthropicOAuthLoginRequest struct {
@@ -535,6 +539,9 @@ func runAuthAddQwenOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
 }
 
 func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
+	if importPath := strings.TrimSpace(opts.EmergencyImportFromCodexCLI); importPath != "" {
+		return runAuthAddCodexEmergencyImportCommand(cmd, opts, importPath)
+	}
 	login := authCodexOAuthLogin
 	if login == nil {
 		login = runCodexDeviceCodeLogin
@@ -555,6 +562,32 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 	}
 	if status.Code != config.CodexOAuthStatusAuthorized {
 		return fmt.Errorf("gormes auth add %s --type oauth: %s", config.CodexOAuthProvider, status.Code)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
+	fmt.Fprintln(cmd.OutOrStdout(), "Hermes will keep working independently with its own session; the Codex CLI / VS Code extension cannot rotate Gormes tokens.")
+	return nil
+}
+
+func runAuthAddCodexEmergencyImportCommand(cmd *cobra.Command, opts authAddOptions, importPath string) error {
+	fmt.Fprintln(cmd.OutOrStdout(), "Codex CLI / VS Code refresh-token race warning: this emergency import copies a vendor CLI auth.json into Gormes' independent credential pool. Continue only if you accept that future Codex CLI or VS Code refreshes may rotate their own token state without updating Gormes. redacted=true")
+	status, err := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{}).ImportCodexCLITokens(config.CodexCLIImportRequest{
+		AuthPath:  importPath,
+		Explicit:  true,
+		Label:     strings.TrimSpace(opts.Label),
+		BaseURL:   providerBaseURL(config.CodexOAuthProvider, opts.InferenceURL),
+		AccountID: "",
+	})
+	if err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", config.CodexOAuthProvider)
+	}
+	if status.Code != config.CodexOAuthStatusAuthorized {
+		code := status.Code
+		if status.Evidence == config.CodexOAuthEvidenceImportExpired {
+			code = "codex_emergency_import_jwt_expired"
+		} else if code == config.CodexOAuthStatusImportNotRequested || code == config.CodexOAuthStatusImportRejected {
+			code = "codex_external_import_blocked"
+		}
+		return fmt.Errorf("gormes auth add %s --type oauth: %s", config.CodexOAuthProvider, code)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 	return nil

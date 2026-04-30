@@ -757,7 +757,7 @@ classification and row-backed implementation queue.
 - [x] Gormes agent template reset command
 - [ ] Gormes auth bare interactive credential-pool readout
 - [x] Gormes auth status per-provider aggregator
-- [ ] Gormes auth add openai-codex strict isolation contract
+- [x] Gormes auth add openai-codex strict isolation contract
 - [ ] Gormes auth add bedrock open-question planning note
 - [x] Gormes profile command binding
 - [x] Model and profile selector seam (Cobra + gateway)

@@ -119,10 +119,15 @@ func (s *CodexOAuthStateStore) SaveTokens(tokens CodexOAuthTokens) (CodexOAuthAu
 		LastStatus:         CredentialStatusOK,
 		MaxConcurrentLease: 1,
 	}
-	entries, err := s.codexCredentialEntries()
+	home, err := credentialPoolHermesHome(s.hermesHome)
 	if err != nil {
 		return CodexOAuthAuthStatus{}, err
 	}
+	store, err := readCredentialPoolAuthStore(home)
+	if err != nil {
+		return CodexOAuthAuthStatus{}, err
+	}
+	entries := cloneCredentialEntries(store.CredentialPool[CodexOAuthProvider])
 	replaced := false
 	for i := range entries {
 		if entries[i].ID == entry.ID {
@@ -135,10 +140,17 @@ func (s *CodexOAuthStateStore) SaveTokens(tokens CodexOAuthTokens) (CodexOAuthAu
 	if !replaced {
 		entries = append(entries, entry)
 	}
-	if err := SaveCredentialPoolEntries(CredentialPoolOptions{
-		HermesHome: s.hermesHome,
-		Provider:   CodexOAuthProvider,
-	}, entries); err != nil {
+	if store.CredentialPool == nil {
+		store.CredentialPool = make(map[string][]PooledCredential)
+	}
+	store.CredentialPool[CodexOAuthProvider] = normalizeCredentialEntries(entries)
+	if store.SuppressedSources != nil {
+		delete(store.SuppressedSources, CodexOAuthProvider)
+		if len(store.SuppressedSources) == 0 {
+			store.SuppressedSources = nil
+		}
+	}
+	if err := writeCredentialPoolAuthStore(home, store); err != nil {
 		return CodexOAuthAuthStatus{}, err
 	}
 	return CodexOAuthAuthStatus{

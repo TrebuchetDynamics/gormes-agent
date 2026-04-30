@@ -23183,10 +23183,10 @@
             },
             {
               "name": "Gormes auth add openai-codex strict isolation contract",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "`gormes auth add openai-codex` runs only the device-code OAuth flow against the Gormes-owned Codex auth.json under the credential pool; it never imports tokens from `~/.codex/auth.json` by default, never reads Codex CLI / VS Code refresh tokens by default, and prints an explicit `(Hermes will keep working independently with its own session)` envelope so the Codex CLI / VS Code extension cannot rotate Gormes tokens. When the explicit flag --emergency-import-from-codex-cli <path> is set, performs vendor-CLI import from the given path with a screen-filling warning about the Codex CLI / VS Code refresh-token race envelope; refuses if the JWT access token in the imported file is expired (matches existing 8908 row contract). Without the flag, default device-code-only behavior is preserved unchanged.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -23231,19 +23231,20 @@
                 "TestAuthAddCodexClearsDeviceCodeSuppression proves a successful relink unsets the `device_code` source-suppression marker so future inference picks up the new entry.",
                 "TestAuthAddCodexEmergencyImportFlagRequiresExplicitInvocation proves the `--emergency-import-from-codex-cli` flag is opt-in only, emits the screen-filling race-envelope warning, and refuses an imported file whose JWT is expired."
               ],
-              "note": "Encodes auditor surprise (a): Hermes' pooled `auth add openai-codex` path is stricter than `hermes model`. The Codex CLI / VS Code refresh-token race makes silent import-during-add unsafe. Backend Codex auth store (row 8908) is already shipped; this is the strict CLI binding contract. Q6 decision (2026-04-29): legacy import via gormes model is dropped; the --emergency-import-from-codex-cli flag is the only labeled override path. See codex-vendor-cli-isolation.md for the race envelope explainer.",
+              "note": "Validated strict Codex auth-add isolation: default `auth add openai-codex` ignores vendor Codex CLI auth files and runs device-code only, prints the Hermes-independent session envelope, leaves the credential pool untouched on device-code failure, clears stale device-code suppression on successful relink, and requires explicit `--emergency-import-from-codex-cli` with refresh-token-race warning plus expired-JWT rejection for vendor imports.",
               "write_scope": [
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_add_codex_strict_test.go",
+                "internal/config/codex_oauth_state.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestAuthAddCodex' -count=1",
-                "go test ./cmd/gormes ./internal/config -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestAuthAddCodex' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/config -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Codex strict-isolation fixtures prove device-code-only behavior, external-import rejection with redirect, isolation envelope message, atomic failure, and suppression cleanup."
+                "Codex strict-isolation fixtures prove device-code-only behavior, no silent vendor auth import, isolation envelope output, atomic failure, suppression cleanup, and explicit emergency-import expired-JWT rejection."
               ],
               "provenance": {
                 "origin_type": "hybrid",
