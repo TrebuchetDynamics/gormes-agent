@@ -17,6 +17,13 @@ Choose one surface: provider routing, tools, prompt/context, sessions, Goncho me
 
 If the user asks for "everything", do one pass that produces a subsystem map and the next three audit passes.
 
+For concrete operator reports like "TUI looks bad", "tool calls are exposed",
+"hourglass is wrong", "installer runs Hermes", or "answer duplicated", audit
+that visible behavior first. Hidden UX details are parity surfaces, not polish.
+Preserve the user's transcript or terminal output as evidence and classify the
+exact artifact: extra message, wrong label, wrong process owner, stale binary,
+wrong home directory, leaked tool call, or missing reset/template state.
+
 ### 2. Build A Module Map
 
 List:
@@ -29,6 +36,21 @@ List:
 - progress rows that already cover the surface.
 
 Use `rg`, `find`, and `jq`. Do not infer parity from package names alone.
+
+Pick the active upstream implementation before classifying. For current
+full-screen TUI UX, inspect `../hermes-agent/ui-tui/src/components` and
+`../hermes-agent/ui-tui/src/__tests__` before falling back to older `cli.py`
+prompt_toolkit code. For installer/runtime behavior, route implementation
+questions through `gormes-dev-runtime` after recording the upstream evidence.
+For prompt identity, memory, skills, and reset defaults, include
+`hermes_cli/default_soul.py`, `agent/prompt_builder.py`, `tools/memory_tool.py`,
+`agent/memory_manager.py`, `agent/skill_commands.py`, and `tools/skills_tool.py`
+as applicable, then compare against `internal/agenttemplate`,
+`internal/gateway/live_turn_prompt.go`, `internal/tools`, and `internal/skills`.
+For tool-loop reports, include `../hermes-agent/run_agent.py` max-iteration
+handling, then compare against the completed Gormes `Kernel tool loop` row,
+`internal/kernel/kernel.go`, and `internal/kernel/tools_test.go` before
+opening new work.
 
 For CLI/config/migration audits, include these exact upstream anchors when in
 scope: `hermes_cli/main.py` parser commands, `hermes_cli/commands.py` slash
@@ -44,6 +66,8 @@ For each upstream behavior:
 - **planned**: represented by a builder-ready progress row;
 - **vague**: represented by an umbrella or underspecified row;
 - **missing**: no useful Gormes code or progress row;
+- **stale-upstream**: existing Gormes evidence or progress refs target retired
+  upstream behavior while a newer Hermes source defines the active contract;
 - **owned**: Gormes intentionally diverges with a better Go-native contract.
 
 Classify against the upstream repo, the coverage ledger, and the feature map.
@@ -89,6 +113,20 @@ For every `vague` or `missing` item, propose a tracer-bullet row:
 - dependencies.
 
 Do not edit runtime code. Edit `progress.json` only when the user asked for the audit to apply changes.
+
+When the audit discovers stale refs on a row that is otherwise complete, update
+the row's source refs, acceptance, and note instead of opening a duplicate row.
+When runtime behavior is wrong too, hand one observable behavior to
+`gormes-tdd-slice` with the active upstream refs included.
+
+If a row is already complete, prefer adding correction evidence or a small
+follow-up row over reopening the umbrella. In particular, do not duplicate the
+completed `Gormes agent template reset command`; audit its actual files and
+tests first.
+
+Also avoid duplicating the completed `Kernel tool loop` row. If its focused
+tests pass, classify live raw iteration-limit output as stale runtime,
+provider-stream, or channel-rendering follow-up with a transcript fixture.
 
 ## Validation
 

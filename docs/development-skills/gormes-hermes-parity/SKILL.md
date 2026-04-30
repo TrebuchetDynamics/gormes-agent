@@ -35,6 +35,11 @@ Keep each run bounded. If the user says "everything", produce a subsystem map
 and the next three concrete passes instead of trying to audit the whole repo in
 one turn.
 
+When the user reports a concrete parity bug and says "continue working", this
+skill may hand the current bounded behavior directly to `gormes-tdd-slice`
+after the upstream contract is identified. Still keep the slice narrow, prove a
+RED test first, and update the canonical row evidence after GREEN.
+
 ## Delegation Through Skill Manager
 
 Use `gormes-skill-manager` whenever the sweep discovers work that is bigger
@@ -50,7 +55,10 @@ feature_map_area:
 progress_row:
 recommended_skill_chain:
 source_refs:
+observed_transcript_or_terminal_output:
+visible_artifacts:
 write_scope:
+red_test_hint:
 validation:
 blocked_by:
 ```
@@ -66,6 +74,7 @@ Route typical follow-ups this way:
 | Need package/API boundary design | `gormes-interface-designer` |
 | Need provider/auth/model behavior | `gormes-provider-parity` |
 | Need browser automation parity | `gormes-browser-harness` |
+| Need install/build/run validation, PATH shadowing, source clones, or session DB locks | `gormes-dev-runtime` |
 | Need donor Go implementation shape | `gormes-references` |
 
 When the agent runtime supports parallel workers and the user has authorized
@@ -138,6 +147,9 @@ Run lightweight discovery before editing:
 
 ```sh
 git status --short --branch
+pwd
+git rev-parse --show-toplevel
+which -a gormes || true
 go run ./cmd/progress validate
 git rev-parse --short HEAD
 git -C ../hermes-agent rev-parse --short HEAD || true
@@ -148,6 +160,17 @@ git -C ../gbrain rev-parse --short HEAD || true
 Then inspect the relevant feature-map section, upstream coverage ledger,
 matching `progress.json` rows, and current Gormes packages. Use `rg`, `find`,
 and `jq`; do not infer parity from file names alone.
+
+Before editing, identify unrelated dirty work. Treat new or modified files that
+are outside the selected slice as user/parallel-agent work: do not revert them,
+do not fold them into the parity claim, and call out any validation impact.
+
+Keep four paths separate in every parity note: source checkout, Gormes runtime
+home (`GORMES_HOME` / default `~/.gormes`), installer-managed checkout, and
+upstream Hermes checkout. In the Sages workspace family, an agent may edit from
+`workspace-mineru` while runtime/dev config belongs in a `workspace-gormes` or
+`GORMES_HOME` location; discover that relationship instead of hard-coding an
+operator-specific path into code, tests, rows, or skills.
 
 ### 3. Inventory Upstream Behavior
 
@@ -160,6 +183,26 @@ docs, request/response contracts, fixtures, and registration points from:
 
 If a sibling checkout is missing, record the missing source as a blocker. Do
 not replace upstream evidence with memory or guesses.
+
+### 3a. Pick The Active Upstream Contract
+
+Hermes has multiple historical implementations. Pick the active user-visible
+contract before comparing:
+
+| Surface | Prefer these upstream refs first | Legacy refs are useful for |
+|---|---|---|
+| Full-screen TUI / visual UX | `../hermes-agent/ui-tui/src/components/appLayout.tsx`, `appChrome.tsx`, `messageLine.tsx`, `thinking.tsx`, related `ui-tui/src/__tests__` | Older `cli.py` prompt_toolkit details only when current Ink does not cover the behavior |
+| Classic CLI prompts/status | `../hermes-agent/cli.py` and `../hermes-agent/tests/cli` | Current Ink only for shared semantics |
+| Telegram/channel-visible behavior | channel adapters, gateway event handlers, tool progress renderers, Telegram tests | TUI-only renderers only as shape hints |
+| Install/runtime behavior | `install.sh`, packaging docs, command startup paths, current Gormes dev-runtime skill | Historical installer notes only as migration context |
+| Prompt identity, memory, and defaults | `../hermes-agent/hermes_cli/default_soul.py`, `agent/prompt_builder.py`, `tools/memory_tool.py`, `agent/memory_manager.py`, gateway reset tests | Old prompt snippets only as migration context |
+| Skills and template expansion | `../hermes-agent/agent/skill_commands.py`, `skill_preprocessing.py`, `skill_utils.py`, `tools/skills_tool.py`, `tools/skills_sync.py` | Website skill docs only as catalog evidence |
+| Streaming/tool-call/channel UX | `../hermes-agent/tests/gateway/test_stream_consumer.py`, `test_update_streaming.py`, channel adapter tests, tool progress renderers | Model-loop code only when the UX is emitted there |
+| Tool loop and iteration budget | `../hermes-agent/run_agent.py:_handle_max_iterations`, `run_conversation max_iterations`, tool-loop tests | Provider adapters only when the provider malformed tool calls |
+
+If sources disagree, classify the old behavior as `stale-upstream` unless the
+user explicitly wants legacy parity. Update row refs and acceptance so future
+agents do not keep re-implementing retired chrome or command behavior.
 
 ### 4. Compare To Gormes
 
@@ -174,6 +217,21 @@ For each upstream behavior:
 
 Use `gormes-parity-auditor` for the detailed source comparison when the surface
 is not already clear. Use `gormes-planner` before editing rows or planning docs.
+
+### 4a. Preserve Operator Evidence
+
+For live parity reports, capture the artifact before reducing it to a row:
+
+- channel or surface: Telegram, TUI, CLI, installer, gateway log, etc.;
+- exact user input and visible output, including duplicate messages;
+- transient status artifacts such as hourglass, typing, edits, deletes, and
+  "still working" messages;
+- whether the final content was correct but surrounding UX was wrong;
+- which binary/home/source surface was running.
+
+This evidence belongs in the task packet or progress note. Do not paraphrase a
+duplicate-message, tool-loop, or hourglass bug into "tool calling failed"; the
+message sequence is the contract future tests need.
 
 ### 5. Record Progress
 
@@ -201,10 +259,12 @@ show the row is already complete, do a docs/progress reconciliation slice instea
 of creating new runtime work. Verify the completed row's focused tests first,
 update the parity matrix/detail sections and coordinator next-slice ordering to
 remove stale blocker language, run the progress/docs gates, and commit only the
-docs/progress surfaces. Example: after `Telegram MarkdownV2 parse-mode rendering
-closeout` was complete, stale matrix/brief docs still advertised it as a
-regressed planner-refinement P0; the correct bounded pass was to reconcile those
-docs and promote the next P0 rows, not reimplement ParseMode wiring.
+docs/progress surfaces.
+
+When a progress command fails on an unrelated row while recording evidence,
+fix only schema-level metadata that blocks validation and is objectively wrong
+(for example invalid `trust_class` values). Do not silently rewrite unrelated
+contracts or claim that blocker as part of the selected parity slice.
 
 ### 6. Safe Taxonomy And Restructure Mode
 
@@ -307,6 +367,8 @@ feature map, coverage ledger, progress rows, and validation all support it.
 
 - Do not implement runtime code in a parity sweep. Create or refine builder-ready
   rows, then use `gormes-builder` and `gormes-tdd-slice` for implementation.
+  Exception: when the user asks to continue a concrete parity bug in the same
+  turn, use `gormes-tdd-slice` for one focused behavior after source comparison.
 - Do not treat a passing unit test as parity unless upstream behavior was
   compared and source refs are recorded.
 - Do not mark vague umbrella rows complete.
@@ -314,3 +376,50 @@ feature map, coverage ledger, progress rows, and validation all support it.
 - Do not perform broad taxonomy renames without an old-to-new mapping, `rg`
   reference checks before and after, generated-doc refresh, and validation.
 - Preserve dirty user work and unrelated pending changes.
+- Do not use old Hermes `cli.py` prompt_toolkit TUI refs as the source of truth
+  for current full-screen TUI UX when `ui-tui` Ink files cover the behavior.
+- Do not stop at "it works"; parity bugs often hide in visible details:
+  duplicate replies, hourglass/status messages, boxed composer chrome, stale
+  product labels, tool-progress exposure, hidden retries, and platform-specific
+  formatting.
+
+## Recent Failure Patterns To Check
+
+- **TUI looks bad:** inspect current Hermes Ink first. Common Gormes regressions
+  are rounded input cards, repeated prompt glyph rows, idle `phase:` debug
+  chrome, standalone full-width input rules, stale `⚕ model │ ctx` status
+  footers, assistant rows labeled as Hermes, and duplicate assistant output
+  from history plus live draft.
+- **Installer/dev runtime confusion:** route through `gormes-dev-runtime`.
+  Validate whether the user is running `go run ./cmd/gormes`, `bin/gormes`, or
+  installed `~/.gormes/bin/gormes`; keep Gormes independent from Hermes
+  api_server startup; handle `sessions.db` locks with explicit owner/status or
+  in-memory fallback evidence.
+- **Workspace identity drift:** do not let `workspace-mineru`,
+  `workspace-gormes`, `~/.gormes`, `$HOME/.gormes/gormes-agent`, and
+  `../hermes-agent` collapse into one concept. If a test needs a real-ish home,
+  set `GORMES_HOME` or use temp fixtures. If code needs a default, use config
+  APIs and discovery, never a developer's absolute path.
+- **Agent reset/default template drift:** check the existing
+  `Gormes agent template reset command` progress row plus
+  `internal/agenttemplate` and `cmd/gormes/agent_reset_test.go` before opening
+  new work. Follow-ups should refine that behavior, not create duplicate reset
+  rows.
+- **Skills/tool parity:** if platform-visible behavior depends on skills, check
+  both tool registration (`skills_list`, `skill_view`) and the agent persona /
+  template defaults. Hidden channel UX matters as much as CLI output.
+- **Telegram/channel transcript bugs:** preserve the user's before/after
+  transcript as evidence. Count outbound messages, edits, deletes, transient
+  status messages, and final answer text; duplicate final replies and visible
+  hourglass/status messages are regressions even when the final content is
+  correct.
+- **Tool iteration / bad tool-calling reports:** first check the completed
+  `Kernel tool loop` row, `internal/kernel/kernel.go`, and
+  `internal/kernel/tools_test.go`. Hermes defaults to a 90-turn budget and asks
+  for one toolless summary on exhaustion. A raw
+  `tool iteration limit exceeded (10)` reaching Telegram/TUI is either stale
+  binary/runtime evidence or a channel finalization bug unless the kernel
+  fixtures fail.
+- **Progress drift:** `progress.json` is canonical. After editing it, run
+  `go run ./cmd/progress write`; if generated docs change, include them and
+  validate. Never create side queues.

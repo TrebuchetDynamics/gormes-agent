@@ -258,7 +258,7 @@ func formatToolTraceBlockPlain(events []kernel.SoulEntry) string {
 func isKnownToolTraceName(name string) bool {
 	switch strings.TrimSpace(name) {
 	case "memory", "honcho_context", "honcho_search", "honcho_profile", "honcho_conclude", "session_search",
-		"skill_view", "skills_list", "skill_manage", "cronjob",
+		"skill_view", "skills_list", "skill_manage", "todo", "cronjob",
 		"search_files", "web_search", "web_extract", "web_crawl",
 		"browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_scroll",
 		"browser_back", "browser_press", "browser_get_images", "browser_vision", "browser_cdp", "browser_dialog",
@@ -275,6 +275,8 @@ func toolTraceIcon(name string) string {
 		return "🧠"
 	case "skill_view", "skills_list", "skill_manage":
 		return "📚"
+	case "todo":
+		return "📋"
 	case "cronjob":
 		return "⏰"
 	case "search_files":
@@ -307,8 +309,10 @@ func toolTraceIcon(name string) string {
 		return "📖"
 	case "patch", "write_file":
 		return "🔧"
-	case "terminal", "execute_code", "process":
+	case "terminal", "process":
 		return "💻"
+	case "execute_code":
+		return "🐍"
 	default:
 		return "🔧"
 	}

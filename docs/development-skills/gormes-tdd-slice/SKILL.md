@@ -9,6 +9,11 @@ description: Implement one Gormes progress.json row using tracer-bullet test-dri
 
 Ship one narrow Gormes behavior with a red-green-refactor loop. Tests must verify public behavior, not implementation details.
 
+For Hermes parity bugs, the RED test must encode the upstream-visible behavior
+or artifact, including negative visual/output details. "It works" is not enough
+when the bug is duplicate output, stale labels, boxed chrome, hidden tool-call
+noise, or platform-visible formatting.
+
 ## Workflow
 
 ### 1. Select One Behavior
@@ -22,6 +27,11 @@ Use the selected `progress.json` row or choose one builder-ready row. State:
 - allowed write scope.
 
 If the row is too broad, split/refine it before coding.
+
+For UI/TUI/channel parity, identify the active upstream implementation before
+writing the test. Current full-screen TUI UX comes from
+`../hermes-agent/ui-tui`, while older `cli.py` prompt_toolkit code is only a
+legacy/detail donor when current Ink does not cover the behavior.
 
 ### 2. RED
 
@@ -39,6 +49,32 @@ that helper the exported contract for the slice.
 
 Run the focused test and confirm it fails for the right reason.
 
+For visual/output regressions, prefer explicit artifact tests:
+
+- absence of stale product labels such as `Hermes` where Gormes owns the label;
+- absence of duplicate assistant messages or history+draft double-rendering;
+- absence of debug/status noise in idle chrome;
+- absence of old boxes/rules/prompt rows when current Hermes no longer renders
+  them;
+- presence and order of user-visible rows, not private helper state.
+
+For Telegram or other channel bugs, turn the user's transcript into a fixture.
+Assert the outbound operation sequence: status sends, edits/deletes, tool-call
+visibility, final-message count, and final text. A correct final answer is not
+green if an extra hourglass, leaked tool progress, or duplicate final reply was
+also sent.
+
+For tool-loop regressions, test the boundary that leaked to the user. Kernel
+budget bugs belong in `internal/kernel` and should prove Hermes' 90-turn
+default plus toolless summary fallback. Channel bugs belong in gateway/channel
+tests and should prove raw budget errors, tool-call XML, or provider repair
+diagnostics do not become final user messages.
+
+For runtime-lock or installer-adjacent tests, isolate state with
+`GORMES_HOME` temp dirs unless the behavior under test is the real persisted
+home. Never make a test pass by depending on the developer's live
+`workspace-gormes`, `workspace-mineru`, `~/.gormes`, or `~/.hermes` paths.
+
 ### 3. GREEN
 
 Write the smallest implementation that passes this test. Stay inside write scope. Do not add speculative future behavior.
@@ -55,6 +91,11 @@ Only refactor after tests pass. Prefer deep modules: small interface, substantia
 
 Run row `test_commands`, focused package tests, `go run ./cmd/progress
 validate`, and the gates in `references/gates.md`.
+
+If the worktree contains unrelated user or parallel-agent changes, do not
+revert them. Run the focused tests for the selected behavior first, then broaden
+only as far as the current tree permits. If unrelated failures block a full
+gate, report them separately with file paths and failure commands.
 
 ## Final Report
 

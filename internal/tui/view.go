@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -11,7 +12,6 @@ import (
 )
 
 var (
-	border    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
 	muted     = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
 	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("69")).Bold(true)
 	botStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
@@ -32,15 +32,14 @@ func (m Model) View() string {
 		return "terminal too narrow — resize to at least 20×10"
 	}
 
-	editorHeight := m.editor.Height()
+	editor := m.editor
+	editorHeight := promptHeightForValue(editor.Value())
+	editor.SetHeight(editorHeight)
 	if editorHeight < 1 {
 		editorHeight = 1
 	}
-	editorBlockH := editorHeight + 2 // border adds 2 rows
-	chromeOverhead := 1 + 1 + 1      // status bar + top rule + bottom rule
-	if DefaultHermesSkin().UseMinimalChrome(m.width) {
-		chromeOverhead = 1 + 1 // status bar + top rule (bottom rule dropped)
-	}
+	editorBlockH := editorHeight
+	chromeOverhead := 1                                   // status rule
 	convH := m.height - editorBlockH - chromeOverhead - 1 // -1 for spinner/hint reserve
 	if convH < 3 {
 		convH = 3
@@ -53,18 +52,16 @@ func (m Model) View() string {
 
 	conv := conversationViewportTail(m.frame, convW, convH)
 
-	editorW := m.width - 2
+	editorW := m.width
 	if editorW < 10 {
 		editorW = 10
 	}
-	prompt := border.Width(editorW).Render(m.editor.View())
+	editor.SetWidth(editorW)
+	prompt := editor.View()
 
 	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	hint := muted.Render(fmt.Sprintf(
-		"phase: %s · session: %s · %s%s",
-		m.frame.Phase, shortSessionID(m.frame.SessionID), m.mouseStatus(), statusSuffix(m.statusMessage),
-	))
+	hint := renderHermesHint(m.frame, m.mouseStatus(), m.statusMessage)
 
 	return RenderHermesChrome(HermesChromeInput{
 		Width:        m.width,
@@ -75,17 +72,88 @@ func (m Model) View() string {
 	})
 }
 
+func renderHermesHint(f kernel.RenderFrame, mouseStatus, statusMessage string) string {
+	var parts []string
+	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
+		parts = append(parts, strings.ToLower(f.Phase.String()))
+		if f.SessionID != "" {
+			parts = append(parts, "session "+shortSessionID(f.SessionID))
+		}
+	}
+	if mouseStatus == "mouse: disabled" {
+		parts = append(parts, mouseStatus)
+	}
+	if statusMessage != "" {
+		parts = append(parts, statusMessage)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return muted.Render(strings.Join(parts, " · "))
+}
+
+func promptHeightForValue(value string) int {
+	if value == "" {
+		return 1
+	}
+	lines := strings.Count(value, "\n") + 1
+	if lines < 1 {
+		return 1
+	}
+	if lines > 4 {
+		return 4
+	}
+	return lines
+}
+
 // hermesStatusModelFromFrame projects the kernel render frame onto the data
 // shape expected by RenderHermesStatusBar.
 func hermesStatusModelFromFrame(f kernel.RenderFrame) HermesStatusModel {
 	out := HermesStatusModel{
-		ModelName: f.Model,
+		StatusLabel:     hermesStatusLabelFromPhase(f.Phase),
+		ModelName:       f.Model,
+		ReasoningEffort: string(f.ReasoningEffort.Requested),
+		CWDLabel:        hermesWorkingDirLabel(),
 	}
 	if f.ContextStatus != nil {
 		out.ContextTokens = f.ContextStatus.LastTotalTokens
 		out.ContextLength = f.ContextStatus.ContextLength
 	}
 	return out
+}
+
+func hermesStatusLabelFromPhase(phase kernel.Phase) string {
+	switch phase {
+	case kernel.PhaseIdle:
+		return "ready"
+	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseFinalizing:
+		return "running…"
+	case kernel.PhaseCancelling:
+		return "cancelling…"
+	case kernel.PhaseReconnecting:
+		return "reconnecting…"
+	case kernel.PhaseFailed:
+		return "error"
+	default:
+		return strings.ToLower(phase.String())
+	}
+}
+
+func hermesWorkingDirLabel() string {
+	cwd, err := os.Getwd()
+	if err != nil || cwd == "" {
+		return ""
+	}
+	home, err := os.UserHomeDir()
+	if err == nil && home != "" && (cwd == home || strings.HasPrefix(cwd, home+"/")) {
+		cwd = "~" + strings.TrimPrefix(cwd, home)
+	}
+	const max = 40
+	if len([]rune(cwd)) <= max {
+		return cwd
+	}
+	r := []rune(cwd)
+	return "…" + string(r[len(r)-(max-1):])
 }
 
 // renderConv is the legacy entry point retained for tests that pre-date the

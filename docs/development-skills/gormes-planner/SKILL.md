@@ -38,6 +38,13 @@ If the task might instead be parity audit, implementation, TDD, interface design
     `../hermes-agent/gateway/run.py`, and the matching Gormes `cmd/gormes`
     and `internal/cli` surfaces before changing rows.
 
+For TUI and channel UX parity, choose the active upstream implementation
+explicitly. `../hermes-agent/ui-tui` is authoritative for the current
+full-screen terminal app; `../hermes-agent/cli.py` remains evidence
+for legacy prompt-toolkit behavior and command semantics. If a progress row
+points only at stale upstream files, refine the row before handing it to a
+builder.
+
 ## Workflow
 
 ### 1. Bound The Pass
@@ -111,6 +118,46 @@ When planning Hermes command or config parity:
   `ooenclaw` should be planned as deterministic suggestions to
   `gormes migrate openclaw`, not silent aliases, unless a dedicated
   compatibility row explicitly changes that API policy.
+
+### Persona, Templates, Skills, And Reset Defaults
+
+When planning agent-default or "Gormes bot persona" parity, inspect the
+upstream sources that actually seed and inject identity:
+`../hermes-agent/hermes_cli/default_soul.py`,
+`../hermes-agent/hermes_cli/config.py`,
+`../hermes-agent/hermes_cli/profiles.py`,
+`../hermes-agent/agent/prompt_builder.py`, and
+`../hermes-agent/docker/SOUL.md` when container defaults matter. Rows must say
+whether Gormes is porting Hermes' default `SOUL.md`, intentionally replacing
+the brand text with Gormes identity, or preserving user-owned local
+customization.
+
+For skills parity, use exact sources such as
+`../hermes-agent/agent/skill_commands.py`,
+`../hermes-agent/agent/skill_preprocessing.py`,
+`../hermes-agent/agent/skill_utils.py`,
+`../hermes-agent/tools/skills_tool.py`,
+`../hermes-agent/tools/skill_manager_tool.py`, and
+`../hermes-agent/tools/skills_sync.py`. Plan user-visible skill behavior:
+load order, template files, linked references, enabled/disabled/platform
+filtering, reset/sync commands, and how skill tool calls appear to the model.
+
+For reset behavior, separate session reset from development-environment reset.
+Hermes session reset evidence lives in files such as
+`../hermes-agent/tests/gateway/test_session_boundary_hooks.py`,
+`../hermes-agent/tests/gateway/test_session_reset_notify.py`,
+`../hermes-agent/tests/gateway/test_session_model_reset.py`, and
+`../hermes-agent/tests/run_agent/test_session_reset_fix.py`. A Gormes
+development reset follow-up must first inspect the completed `Gormes agent
+template reset command` row, `internal/agenttemplate`, and
+`cmd/gormes/agent_reset_test.go`. Extend or correct that surface with explicit
+write_scope, fixture state, and acceptance; do not hide reset behavior inside
+installer or generic runtime rows, and do not create a duplicate reset row.
+
+Workspace-specific paths such as `workspace-gormes` and `workspace-mineru` are
+planning evidence, not product defaults. Rows may require discovery or
+fixture-backed behavior around those layouts, but must reject hard-coded
+operator paths in Gormes code.
 
 ### 4. Rewrite Rows For Builders
 

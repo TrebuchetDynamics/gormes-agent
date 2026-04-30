@@ -7,26 +7,26 @@ import (
 )
 
 // HermesChromeInput is the pure input to RenderHermesChrome. The TUI renderer
-// pre-builds each section (conversation tail, optional spinner/hint, status
-// bar, prompt+input area, optional voice/image/completion rows) and asks this
-// helper to assemble the bottom-pinned ordering Hermes' prompt_toolkit run
-// loop produces in cli.py:_build_tui_layout_children.
+// pre-builds each section (conversation tail, optional activity/hint row,
+// status rule, prompt+input area, optional voice/image/completion rows) and
+// asks this helper to assemble the bottom-pinned ordering Hermes' Ink TUI
+// renders in ui-tui/src/components/appLayout.tsx.
 type HermesChromeInput struct {
-	// Width is the terminal column budget. Used to pick the input rule and
-	// minimal-chrome thresholds; never used to truncate caller-rendered
-	// section text.
+	// Width is retained as the caller's terminal column budget for future
+	// optional-row renderers. The chrome assembler does not synthesize
+	// standalone full-width rule rows.
 	Width int
 
 	// Conversation is the pre-rendered scrollback/output region (history
 	// tail + optional draft + optional last-error block).
 	Conversation string
 
-	// Spinner is the optional spinner/hint line shown above the status bar
+	// Spinner is the optional activity/hint line shown above the status bar
 	// while a turn is in flight or while a TUI hint is forced. Empty means
 	// the row is dropped.
 	Spinner string
 
-	// StatusBar is the single-line Hermes-compatible footer rendered by
+	// StatusBar is the single-line Hermes-compatible status rule rendered by
 	// RenderHermesStatusBar.
 	StatusBar string
 
@@ -41,31 +41,22 @@ type HermesChromeInput struct {
 }
 
 // RenderHermesChrome assembles the bottom-pinned chrome stack used by
-// Hermes' prompt_toolkit Application(full_screen=False) frontend. Layout
-// order matches cli.py:_build_tui_layout_children:
+// Hermes' Ink frontend. Layout order matches ComposerPane in
+// ui-tui/src/components/appLayout.tsx:
 //
 //	conversation
 //	(optional) spinner/hint
 //	status bar
-//	top input rule
 //	prompt + input area
-//	(optional) bottom input rule — dropped on minimal-chrome widths
 //	(optional) voice status
 //	(optional) image bar
 //	(optional) completions menu
 //
 // All sections are caller-rendered strings; this helper only picks order,
-// drops empty optional rows, and inserts the bronze input rule.
+// and drops empty optional rows. Current Hermes Ink uses StatusRule as the
+// composer separator and does not inject standalone full-width input rules.
 func RenderHermesChrome(in HermesChromeInput) string {
-	width := in.Width
-	if width < 1 {
-		width = 1
-	}
-	minimal := DefaultHermesSkin().UseMinimalChrome(width)
-
-	rule := hermesChromeInputRule(width)
-
-	parts := make([]string, 0, 9)
+	parts := make([]string, 0, 7)
 	if in.Conversation != "" {
 		parts = append(parts, in.Conversation)
 	}
@@ -75,12 +66,8 @@ func RenderHermesChrome(in HermesChromeInput) string {
 	if in.StatusBar != "" {
 		parts = append(parts, in.StatusBar)
 	}
-	parts = append(parts, rule)
 	if in.Prompt != "" {
 		parts = append(parts, in.Prompt)
-	}
-	if !minimal {
-		parts = append(parts, rule)
 	}
 	if in.VoiceStatus != "" {
 		parts = append(parts, in.VoiceStatus)
@@ -109,11 +96,4 @@ func HermesChromeUseAltScreen() bool {
 // product label.
 func HermesChromeAssistantLabel() string {
 	return strings.TrimSpace(DefaultHermesSkin().ResponseLabel)
-}
-
-func hermesChromeInputRule(width int) string {
-	if width < 1 {
-		width = 1
-	}
-	return strings.Repeat("─", width)
 }

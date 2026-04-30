@@ -22,30 +22,6 @@ var (
 	errAuthBareAWSIdentityUnavailable = errors.New("aws_identity_unavailable")
 )
 
-func newLoginCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "login",
-		Short:        "Removed compatibility shim; use auth/model/setup",
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), "The 'gormes login' command has been removed.")
-			fmt.Fprintln(cmd.OutOrStdout(), "Use 'gormes auth' to manage credentials,")
-			fmt.Fprintln(cmd.OutOrStdout(), "'gormes model' to select a provider, or 'gormes setup' for full setup.")
-			return nil
-		},
-	}
-	cmd.Flags().String("provider", "", "ignored compatibility flag")
-	cmd.Flags().String("portal-url", "", "ignored compatibility flag")
-	cmd.Flags().String("inference-url", "", "ignored compatibility flag")
-	cmd.Flags().String("client-id", "", "ignored compatibility flag")
-	cmd.Flags().String("scope", "", "ignored compatibility flag")
-	cmd.Flags().Bool("no-browser", false, "ignored compatibility flag")
-	cmd.Flags().String("timeout", "", "ignored compatibility flag")
-	cmd.Flags().Bool("insecure", false, "ignored compatibility flag")
-	cmd.Flags().String("ca-bundle", "", "ignored compatibility flag")
-	return cmd
-}
-
 func newAuthCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "auth",

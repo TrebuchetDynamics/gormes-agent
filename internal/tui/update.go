@@ -319,7 +319,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		m.editor.SetWidth(maxInt(msg.Width-4, 20))
+		m.editor.SetWidth(maxInt(msg.Width, 20))
 
 	case tea.KeyMsg:
 		switch msg.Type {

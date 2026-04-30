@@ -7,6 +7,14 @@ description: Use when fixing or implementing Gormes provider, auth, credential, 
 
 Use this skill whenever Gormes has provider, auth, credential, endpoint, model-routing, streaming, account-usage, rate-limit, retry, or Telegram-visible provider error problems.
 
+Do not use this skill as a catch-all for every "tool calling is bad" report.
+Raw iteration-budget errors, duplicate final messages, hourglass/status leaks,
+and TUI/tool-progress exposure start in `gormes-hermes-parity` and usually land
+in `gormes-tdd-slice` against kernel or channel fixtures. Use this skill when
+the evidence points to provider request/response shaping, stream repair,
+malformed tool-call payloads, retry/rate-limit handling, or safe provider error
+rendering.
+
 ## Mission
 
 Make Gormes provider behavior feel like Hermes to existing Hermes users while implementing the runtime natively in Go.
@@ -84,6 +92,8 @@ Classify the failure:
 - model/provider drift;
 - unsafe raw provider error leaking to Telegram;
 - runtime bug such as constructing a relative `/v1/responses` URL.
+- provider stream/tool-call repair failure, as distinct from a kernel
+  iteration-budget or channel duplicate-send bug.
 
 ### 2. Preserve Hermes UX Before Choosing Implementation
 

@@ -92,8 +92,9 @@ tool-call parser families so unsupported behavior remains visible.
 
 The current Gormes root help exposes these top-level commands:
 
-`auth`, `completion`, `config`, `doctor`, `gateway`, `goncho`, `login`,
-`memory`, `migrate`, `session`, `telegram`, `usage`, `version`.
+`agent`, `auth`, `completion`, `config`, `doctor`, `fallback`, `gateway`,
+`goncho`, `logout`, `mcp`, `memory`, `migrate`, `model`, `profile`, `session`,
+`setup`, `telegram`, `usage`, `version`.
 
 Current implemented or stubbed subcommand highlights:
 
@@ -108,14 +109,15 @@ Current implemented or stubbed subcommand highlights:
 - `gormes migrate`: `hermes`, `openclaw`.
 - `gormes telegram`: native Telegram bot adapter entry point.
 - `gormes usage`: provider account usage read model flags.
-- `gormes login`: compatibility shim; it must remain a deprecation redirect, not
-  a new OAuth implementation surface.
+- `gormes login`: intentionally not registered; the unknown-command path emits
+  `unknown_command_login_suggested_auth_add` and points operators at
+  `gormes auth add <provider> --type oauth`.
 
-Known absent root commands from current Gormes help include `model`, `fallback`,
-`setup`, `whatsapp`, `slack`, `logout`, `status`, `cron`, `webhook`, `hooks`,
+Known absent root commands from current Gormes help include `whatsapp`, `slack`,
+`status`, `cron`, `webhook`, `hooks`,
 `dump`, `debug`, `backup`, `import`, `pairing`, `skills`, `plugins`, `tools`,
-`mcp`, `sessions`, `insights`, `claw`, `update`, `uninstall`, `acp`, `profile`,
-`dashboard`, and `logs`. These absences are not ignored; they are row-backed
+`sessions`, `insights`, `claw`, `update`, `uninstall`, `acp`, `dashboard`,
+and `logs`. These absences are not ignored; they are row-backed
 below.
 
 ## Current upstream nested parser inventory
@@ -126,7 +128,7 @@ message handlers and dynamic plugin commands.
 
 | Hermes parser group | Current upstream nested commands / aliases | Current manifest state | Progress action |
 |---|---|---|---|
-| `fallback` | `list`/`ls`, `add`, `remove`/`rm`, `clear` | Captured. | Handler work remains under fallback command rows. |
+| `fallback` | `list`/`ls`, `add`, `remove`/`rm`, `clear` | Implemented in `cmd/gormes fallback`. | Fixtures cover redacted list rendering, picker-delegated add, destructive gating, aliases, duplicate evidence, and picker-unavailable evidence. |
 | `gateway` | `run`, `start`, `stop`, `restart`, `status`, `install`, `uninstall`, `setup`, `migrate-legacy` | Captured; gateway message handlers stay separate as `gateway-handler` entries. | Management handlers remain in `Gateway, platform, webhook, and cron management CLI`. |
 | `slack` | `manifest` | Captured. | Platform handler work stays row-backed. |
 | `auth` | `add`, `list`, `remove`, `reset`, `status`, `logout`, `spotify` | Captured; stale `auth login` and `auth refresh` are excluded. | Keep non-deprecated provider login through `auth add <provider> --type oauth`. |
@@ -160,13 +162,13 @@ Status values:
 | Hermes command | Gormes state | Backlog owner / proof | Notes |
 |---|---|---|---|
 | `chat` / root interactive | Partial | `cmd/gormes root TUI/oneshot`; Phase `5.O` root flags rows | Native TUI/oneshot exists; full Hermes chat UX is still broader than root help parity. |
-| `model` | Row-backed | Phase `5.O`: `Gormes model interactive provider/model picker` | Must select provider/model and run needed OAuth flows. |
-| `fallback` | Row-backed | Phase `5.O`: fallback provider chain rows; CLI manifest rows | Current Hermes subcommands are `list`/`ls`, `add`, `remove`/`rm`, and `clear`. |
+| `model` | Implemented | `cmd/gormes model`; Phase `5.O`: `Gormes model interactive provider/model picker` | Selection-only provider/model picker is visible; provider auth remains in `gormes auth add` by Gormes strict-isolation decision. |
+| `fallback` | Implemented | `cmd/gormes fallback`; Phase `5.O`: `Hermes fallback provider chain CLI commands` | Current Hermes subcommands are `list`/`ls`, `add`, `remove`/`rm`, and `clear`; Gormes stores the chain in `fallback_providers` and delegates add to the shared model picker. |
 | `gateway` | Partial | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` plus `Gateway management CLI read-model closeout` | `status` exists; mutating service commands are explicit unavailable stubs. |
-| `setup` | Row-backed | Phase `5.O`: `Gormes setup minimal sectioned wizard slice`; `Gormes config command surface` | Must preserve Hermes wizard semantics where relevant. |
+| `setup` | Partial | `cmd/gormes setup`; Phase `5.O`: `Gormes setup minimal sectioned wizard slice` | Minimal section UX is visible; model delegates to the shared picker or noninteractive defaults, while non-model sections return typed unsupported evidence. |
 | `whatsapp` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Platform management surface not yet visible as a root command. |
 | `slack` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Current Hermes nested command is `slack manifest`. |
-| `login` | Excluded/deprecated | Phase `5.O`: `Gormes login deprecated-redirect contract` | Must print deprecation guidance and exit cleanly; do not run OAuth work here. |
+| `login` | Excluded/deprecated | Phase `5.O`: `Gormes login removed-command typo suggestion contract` | Not registered as a command; unknown-command output suggests `gormes auth add <provider> --type oauth` and never runs OAuth. |
 | `logout` | Row-backed | Phase `5.O`: `Gormes top-level logout provider shortcut`; auth rows | `gormes auth logout` exists; top-level shortcut remains separate parity work. |
 | `auth` | Partial | Phase `5.O`: auth command rows; `hermes-auth-cli-parity.md` | API-key and pool operations exist; Codex device-code OAuth is in progress/native, while Anthropic, Nous, Google Gemini CLI, Qwen, and Spotify remain row-backed. |
 | `status` | Partial | Phase `5.O`: `Diagnostics, backup, logs, and status CLI`; gateway status rows | Current equivalent is `gormes gateway status`, not full Hermes root status. |
@@ -228,10 +230,10 @@ Codex CLI token import may exist only as an explicitly labeled emergency bridge.
 | `auth reset <provider>` | Clears credential exhaustion/cooldown/auth-failure state. | Implemented. | Phase `5.O`: auth command surface rows. |
 | `auth logout <provider>` | Clears provider auth and resets matching model provider config. | Implemented for native credential pool; top-level shortcut remains row-backed. | Phase `5.O`: `Gormes top-level logout provider shortcut`. |
 | `auth spotify` | Separate Spotify control-plane PKCE, not inference provider selection. | Planned. | Phase `5.O`: `Hermes auth Spotify service-provider subcommand`. |
-| `model` | Interactive provider/model picker; invokes provider login as needed. | Planned. | Phase `5.O`: `Gormes model interactive provider/model picker`. |
-| `setup model` | Wizard path into provider/model setup. | Planned. | Phase `5.O`: `Gormes setup minimal sectioned wizard slice`. |
+| `model` | Interactive provider/model picker; upstream invokes provider login as needed. | Implemented as selection-only `gormes model`; use `gormes auth add <provider>` for auth. | Phase `5.O`: `Gormes model interactive provider/model picker`. |
+| `setup model` | Wizard path into provider/model setup. | Implemented as `gormes setup model`, delegating to the shared picker or env/config defaults with `--non-interactive`. | Phase `5.O`: `Gormes setup minimal sectioned wizard slice`. |
 | `mcp login <name>` | OAuth re-auth for OAuth MCP servers only. | Planned. | Phase `5.O`: `Gormes mcp login OAuth re-auth bridge`. |
-| top-level `login` | Deprecated shim; prints guidance to use `auth`, `model`, or `setup`; exits `0`. | Visible as `gormes login`; must stay a redirect shim. | Phase `5.O`: `Gormes login deprecated-redirect contract`. |
+| top-level `login` | Hermes keeps a deprecated shim; Gormes owns the Q1B decision to avoid registering it. | Not visible; `gormes login` exits non-zero through unknown-command suggestion `gormes auth add <provider> --type oauth`. | Phase `5.O`: `Gormes login removed-command typo suggestion contract`. |
 
 ## Runtime parity notes from live Telegram dogfood
 

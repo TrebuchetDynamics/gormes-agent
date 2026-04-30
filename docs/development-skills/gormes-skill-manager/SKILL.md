@@ -30,6 +30,16 @@ Pick the primary intent:
   `gormes-planner` inside the bounded sweep. Use the same route when parity
   taxonomy, roadmap group names, or feature-map sections need source-backed
   renames or restructures.
+- **Concrete Gormes-vs-Hermes UX bug** such as ugly TUI chrome, duplicate
+  replies, visible hourglass/status messages, hidden tool-progress mismatch,
+  Telegram formatting drift, or stale product labels: use
+  `gormes-hermes-parity` to pick the active upstream contract, then
+  `gormes-tdd-slice` for one observable behavior.
+- **Tool iteration limit, bad tool calling, or leaked tool-call text**: start
+  with `gormes-hermes-parity` to decide whether the bug is kernel loop,
+  provider stream repair, or channel rendering. Route provider malformed
+  tool-call payloads to `gormes-provider-parity`; route visible duplicate or
+  raw budget errors to `gormes-tdd-slice` with a transcript fixture.
 - **Map upstream parity**: use `gormes-parity-auditor`, then `gormes-planner` if rows need edits.
 - **Plan roadmap rows**: use `gormes-planner`.
 - **Plan Hermes CLI/config/migration parity**: use `gormes-parity-auditor`
@@ -49,12 +59,22 @@ Pick the primary intent:
   task involves `go run ./cmd/gormes`, `bin/gormes`, `install.sh`, managed
   source checkouts, PATH shadowing, gateway process ownership, or
   `sessions.db` locks.
+- **Workspace identity confusion**: use `gormes-dev-runtime` first when the
+  request mixes `workspace-mineru`, `workspace-gormes`, `~/.gormes`,
+  installer-managed clones, or `GORMES_HOME`. Then route any remaining parity
+  behavior through `gormes-hermes-parity`.
+- **Agent persona, SOUL.md defaults, reset-template behavior, or skills tool
+  exposure**: use `gormes-hermes-parity` for source-backed Hermes behavior,
+  then `gormes-planner` or `gormes-tdd-slice` depending on whether the row is
+  missing or builder-ready.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.
 - **Audit README or public repo messaging**: use `gormes-readme`.
 - **Improve landing page content or UI**: use `gormes-landing-web`.
 - **Create or improve skills**: use system `skill-creator` plus this manager.
+  Fold repeated mistakes into existing class-level skills before creating a
+  new one, and keep the update as process guidance rather than a session diary.
 
 If more than one applies, choose a chain with at most three skills. Do not load every Gormes skill.
 
@@ -68,6 +88,17 @@ When `gormes-hermes-parity` emits a follow-up task packet, treat its
 `validation` fields as the routing input. Return the smallest skill chain that
 can finish that packet, and preserve the packet in the handoff so builder or
 planner agents do not rediscover the same context.
+
+If a request spans runtime validation plus UX parity, split the routing:
+`gormes-dev-runtime` proves which binary/process is running, while
+`gormes-hermes-parity` identifies the upstream contract and hands one behavior
+to `gormes-tdd-slice`. Do not let installer debugging consume TUI or Telegram
+parity work.
+
+If a request says only "tool calling is bad", demand one visible artifact or
+run a small local fixture. Then classify it as provider parsing, kernel
+iteration, tool descriptor/schema, channel status UX, or stale binary before
+choosing the builder skill.
 
 ### 2. Prefer Existing Skills
 

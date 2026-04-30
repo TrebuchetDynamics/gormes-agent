@@ -31,6 +31,18 @@ const (
 	userDefaultCharLimit   = 12000
 )
 
+const memoryToolDescription = `Save durable information to persistent memory that survives across sessions. Memory is injected into future turns, so keep it compact and focused on facts that will still matter later.
+
+WHEN TO SAVE:
+- User corrects you or says "remember this" / "don't do that again"
+- User shares a stable preference, habit, or personal detail
+- You discover a durable environment fact, project convention, tool quirk, or workflow rule
+
+Do NOT save task progress, session outcomes, completed-work logs, or temporary TODO state to memory; use session_search to recall those from past transcripts.
+
+Targets: user stores facts about the user; memory stores assistant/environment notes.
+Actions: add, replace, remove, read (inspect current entries; does not mutate).`
+
 type MemoryToolConfig struct {
 	MemoryDir       string
 	MemoryCharLimit int
@@ -43,15 +55,16 @@ type MemoryTool struct {
 }
 
 type MemoryToolResult struct {
-	Success    bool     `json:"success"`
-	Target     string   `json:"target,omitempty"`
-	Entries    []string `json:"entries,omitempty"`
-	Usage      string   `json:"usage,omitempty"`
-	EntryCount int      `json:"entry_count"`
-	Message    string   `json:"message,omitempty"`
-	Evidence   string   `json:"evidence,omitempty"`
-	Error      string   `json:"error,omitempty"`
-	Matches    []string `json:"matches,omitempty"`
+	Success        bool     `json:"success"`
+	Target         string   `json:"target,omitempty"`
+	Entries        []string `json:"entries,omitempty"`
+	CurrentEntries []string `json:"current_entries,omitempty"`
+	Usage          string   `json:"usage,omitempty"`
+	EntryCount     int      `json:"entry_count"`
+	Message        string   `json:"message,omitempty"`
+	Evidence       string   `json:"evidence,omitempty"`
+	Error          string   `json:"error,omitempty"`
+	Matches        []string `json:"matches,omitempty"`
 }
 
 type memoryToolArgs struct {
@@ -67,11 +80,11 @@ func NewMemoryTool(cfg MemoryToolConfig) *MemoryTool { return &MemoryTool{cfg: c
 func (*MemoryTool) Name() string { return MemoryToolName }
 
 func (*MemoryTool) Description() string {
-	return "Save durable memories about the user or environment. Supports add, replace, and remove on user or memory targets."
+	return memoryToolDescription
 }
 
 func (*MemoryTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","enum":["add","replace","remove"],"description":"Memory mutation to perform."},"target":{"type":"string","enum":["user","memory"],"description":"user stores facts about Juan; memory stores assistant/environment notes."},"content":{"type":"string","description":"Content for add."},"old_text":{"type":"string","description":"Substring identifying the entry to replace or remove."},"new_content":{"type":"string","description":"Replacement content for replace."}},"required":["action","target"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","enum":["add","replace","remove","read"],"description":"Memory action to perform: add, replace, remove, or read current entries without mutation."},"target":{"type":"string","enum":["user","memory"],"description":"user stores facts about the user; memory stores assistant/environment notes."},"content":{"type":"string","description":"Content for add, and Hermes-compatible replacement content when new_content is omitted."},"old_text":{"type":"string","description":"Substring identifying the entry to replace or remove."},"new_content":{"type":"string","description":"Replacement content for replace; content is also accepted for Hermes compatibility."}},"required":["action","target"]}`)
 }
 
 func (*MemoryTool) Timeout() time.Duration { return 0 }
@@ -114,12 +127,21 @@ func (t *MemoryTool) execute(in memoryToolArgs) MemoryToolResult {
 	case "add":
 		return t.add(path, target, entries, in.Content)
 	case "replace":
-		return t.replace(path, target, entries, in.OldText, in.NewContent)
+		return t.replace(path, target, entries, in.OldText, replacementContent(in))
 	case "remove":
 		return t.remove(path, target, entries, in.OldText)
+	case "read":
+		return memorySuccess(target, entries, t.limitFor(target), "Entries read.")
 	default:
-		return memoryError(MemoryEvidenceInvalidArgs, "action must be add, replace, or remove")
+		return memoryError(MemoryEvidenceInvalidArgs, "action must be add, replace, remove, or read")
 	}
+}
+
+func replacementContent(in memoryToolArgs) string {
+	if strings.TrimSpace(in.NewContent) != "" {
+		return in.NewContent
+	}
+	return in.Content
 }
 
 func (t *MemoryTool) add(path, target string, entries []string, content string) MemoryToolResult {
@@ -137,7 +159,7 @@ func (t *MemoryTool) add(path, target string, entries []string, content string) 
 	}
 	updated := append(append([]string(nil), entries...), content)
 	if overLimit(updated, t.limitFor(target)) {
-		return memoryError(MemoryEvidenceLimitExceeded, "memory target would exceed character limit")
+		return memoryLimitError(entries, t.limitFor(target), "memory target would exceed character limit")
 	}
 	if err := writeMemoryEntries(path, updated); err != nil {
 		return memoryError(MemoryEvidenceStoreUnavailable, "write durable memory store")
@@ -324,18 +346,35 @@ func overLimit(entries []string, limit int) bool {
 
 func memorySuccess(target string, entries []string, limit int, message string) MemoryToolResult {
 	entries = append([]string(nil), entries...)
+	return MemoryToolResult{
+		Success:    true,
+		Target:     target,
+		Entries:    entries,
+		Usage:      memoryUsage(entries, limit),
+		EntryCount: len(entries),
+		Message:    message,
+	}
+}
+
+func memoryUsage(entries []string, limit int) string {
 	chars := utf8.RuneCountInString(strings.Join(entries, memoryEntryDelimiter))
 	pct := 0
 	if limit > 0 {
 		pct = min(100, int(float64(chars)/float64(limit)*100))
 	}
+	return fmt.Sprintf("%d%% — %d/%d chars", pct, chars, limit)
+}
+
+func memoryLimitError(currentEntries []string, limit int, message string) MemoryToolResult {
+	currentEntries = append([]string(nil), currentEntries...)
 	return MemoryToolResult{
-		Success:    true,
-		Target:     target,
-		Entries:    entries,
-		Usage:      fmt.Sprintf("%d%% — %d/%d chars", pct, chars, limit),
-		EntryCount: len(entries),
-		Message:    message,
+		Success:        false,
+		Entries:        []string{},
+		CurrentEntries: currentEntries,
+		Usage:          memoryUsage(currentEntries, limit),
+		EntryCount:     len(currentEntries),
+		Evidence:       MemoryEvidenceLimitExceeded,
+		Error:          message,
 	}
 }
 
@@ -348,11 +387,17 @@ var memoryThreatPatterns = []struct {
 	id string
 }{
 	{regexp.MustCompile(`(?i)ignore\s+(previous|all|above|prior)\s+instructions`), "prompt_injection"},
+	{regexp.MustCompile(`(?i)you\s+are\s+now\s+`), "role_hijack"},
 	{regexp.MustCompile(`(?i)do\s+not\s+tell\s+the\s+user`), "deception_hide"},
 	{regexp.MustCompile(`(?i)system\s+prompt\s+override`), "sys_prompt_override"},
 	{regexp.MustCompile(`(?i)disregard\s+(your|all|any)\s+(instructions|rules|guidelines)`), "disregard_rules"},
+	{regexp.MustCompile(`(?i)act\s+as\s+(if|though)\s+you\s+(have\s+no|don't\s+have)\s+(restrictions|limits|rules)`), "bypass_restrictions"},
 	{regexp.MustCompile(`(?i)curl\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`), "exfil_curl"},
-	{regexp.MustCompile(`(?i)cat\s+[^\n]*(\.env|credentials|\.netrc|\.pgpass)`), "read_secrets"},
+	{regexp.MustCompile(`(?i)wget\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`), "exfil_wget"},
+	{regexp.MustCompile(`(?i)cat\s+[^\n]*(\.env|credentials|\.netrc|\.pgpass|\.npmrc|\.pypirc)`), "read_secrets"},
+	{regexp.MustCompile(`(?i)authorized_keys`), "ssh_backdoor"},
+	{regexp.MustCompile(`(?i)\$HOME/\.ssh|~/\.ssh`), "ssh_access"},
+	{regexp.MustCompile(`(?i)\$HOME/\.hermes/\.env|~/\.hermes/\.env`), "hermes_env"},
 }
 
 var memoryInvisibleChars = []rune{'\u200b', '\u200c', '\u200d', '\u2060', '\ufeff', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e'}

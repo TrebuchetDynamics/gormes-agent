@@ -13,7 +13,10 @@ import (
 // and per-prompt elapsed seconds — without coupling to Bubble Tea, providers,
 // or wall-clock IO.
 type HermesStatusModel struct {
+	StatusLabel     string
 	ModelName       string
+	ReasoningEffort string
+	Fast            bool
 	ContextTokens   int
 	ContextLength   int
 	SessionDuration int64
@@ -22,6 +25,7 @@ type HermesStatusModel struct {
 	PromptElapsed    int64
 	PromptLive       bool
 	HasPromptElapsed bool
+	CWDLabel         string
 }
 
 // HermesStatusContextSeverity classifies the context-usage percent into the
@@ -55,16 +59,20 @@ func HermesStatusBarContextSeverity(percent *int) HermesStatusContextSeverity {
 	}
 }
 
-// RenderHermesStatusBar renders the single-line Hermes-compatible footer for
-// the given width. Width tiers match cli.py:_build_status_bar_text:
-// <52 columns drops to model+duration, <76 columns adds context percent, and
-// ≥76 columns shows the full model/context/percent/duration/prompt-elapsed
-// layout. Output is trimmed with an ellipsis so it never wraps.
+// RenderHermesStatusBar renders the single-line Hermes-compatible status rule
+// for the given width. The row follows current Hermes Ink's StatusRule shape:
+// a leading rule/status segment, bar-separated model/usage details, and an
+// optional cwd label on the right. Width tiers keep the row readable on small
+// terminals and output is trimmed with an ellipsis so it never wraps.
 func RenderHermesStatusBar(model HermesStatusModel, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	short := hermesStatusShortModel(model.ModelName)
+	status := strings.TrimSpace(model.StatusLabel)
+	if status == "" {
+		status = "ready"
+	}
+	short := hermesStatusModelLabel(model.ModelName, model.ReasoningEffort, model.Fast)
 	duration := hermesStatusDurationLabel(model.SessionDuration)
 	percent := hermesStatusPercent(model.ContextTokens, model.ContextLength)
 	percentLabel := "--"
@@ -72,12 +80,12 @@ func RenderHermesStatusBar(model HermesStatusModel, width int) string {
 		percentLabel = fmt.Sprintf("%d%%", *percent)
 	}
 
-	var line string
+	parts := []string{status, short}
 	switch {
 	case width < 52:
-		line = fmt.Sprintf("⚕ %s · %s", short, duration)
+		parts = append(parts, duration)
 	case width < 76:
-		line = fmt.Sprintf("⚕ %s · %s · %s", short, percentLabel, duration)
+		parts = append(parts, percentLabel, duration)
 	default:
 		var contextLabel string
 		if model.ContextLength > 0 {
@@ -88,22 +96,26 @@ func RenderHermesStatusBar(model HermesStatusModel, width int) string {
 		} else {
 			contextLabel = "ctx --"
 		}
-		parts := []string{
-			"⚕ " + short,
-			contextLabel,
-			percentLabel,
-			duration,
+		parts = append(parts, contextLabel)
+		if percent != nil {
+			parts = append(parts, fmt.Sprintf("[%s] %s", hermesStatusContextBar(*percent), percentLabel))
+		} else {
+			parts = append(parts, percentLabel)
 		}
+		parts = append(parts, duration)
 		if model.HasPromptElapsed {
 			parts = append(parts, hermesStatusPromptElapsed(model.PromptElapsed, model.PromptLive))
 		}
-		line = strings.Join(parts, " │ ")
 	}
 
+	line := "─ " + strings.Join(parts, " │ ")
+	if cwd := strings.TrimSpace(model.CWDLabel); cwd != "" && width >= 76 {
+		line += " ─ " + cwd
+	}
 	return hermesStatusTrimToWidth(line, width)
 }
 
-func hermesStatusShortModel(name string) string {
+func hermesStatusModelLabel(name, effort string, fast bool) string {
 	if name == "" {
 		return "unknown"
 	}
@@ -113,10 +125,52 @@ func hermesStatusShortModel(name string) string {
 	if strings.HasSuffix(name, ".gguf") {
 		name = strings.TrimSuffix(name, ".gguf")
 	}
-	if lipgloss.Width(name) > 26 {
-		name = hermesStatusTrimToWidth(name, 26)
+	name = strings.TrimPrefix(name, "claude-")
+	name = strings.TrimPrefix(name, "claude_")
+	name = strings.TrimPrefix(name, "anthropic-")
+	name = strings.TrimPrefix(name, "anthropic_")
+	name = strings.NewReplacer("-", " ", "_", " ").Replace(name)
+	name = strings.TrimSpace(name)
+	pieces := []string{name}
+	if e := hermesStatusEffortLabel(effort); e != "" {
+		pieces = append(pieces, e)
 	}
-	return name
+	if fast {
+		pieces = append(pieces, "fast")
+	}
+	label := strings.Join(pieces, " ")
+	if lipgloss.Width(label) > 26 {
+		label = hermesStatusTrimToWidth(label, 26)
+	}
+	return label
+}
+
+func hermesStatusEffortLabel(effort string) string {
+	value := strings.ToLower(strings.TrimSpace(effort))
+	switch value {
+	case "", "medium", "normal", "default":
+		return ""
+	default:
+		return value
+	}
+}
+
+func hermesStatusContextBar(percent int) string {
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	const width = 10
+	filled := int((float64(percent)/100)*width + 0.5)
+	if filled < 0 {
+		filled = 0
+	}
+	if filled > width {
+		filled = width
+	}
+	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
 }
 
 func hermesStatusDurationLabel(seconds int64) string {

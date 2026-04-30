@@ -22,7 +22,5 @@ Use this page when choosing implementation work. If a row is too broad, split
 the row in `progress.json` before assigning it.
 
 <!-- PROGRESS:START kind=next-slices -->
-| Phase | Slice | Contract | Trust class | Fixture | Why now |
-|---|---|---|---|---|---|
-| 5 / 5.N | Clarify | Gormes ports Hermes clarify as a schema-validated, interruptible user-reply tool: required question text, up to four trimmed choices, platform-added Other behavior, callback/resume routing for gateway and TUI, deterministic unavailable output in non-interactive cron/oneshot contexts, and one-shot resume-token cleanup after the next user reply. | operator, gateway, child-agent, system | `internal/tools/clarify_tool_test.go; internal/gateway/clarify_resume_test.go` | Contract metadata is present; ready for a focused spec or fixture slice. |
+_No contract-ready progress rows are available._
 <!-- PROGRESS:END -->

@@ -2747,7 +2747,7 @@
                 "TestKernel_ClearsToolProgressSoulAtTurnStart proves stale progress from a previous turn cannot be rendered into a later direct-answer turn.",
                 "TestFormatFinalPlain_DoesNotIncludeStreamingCursor proves final assistant text never keeps the streaming cursor.",
                 "Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels.",
-                "Memory/skills/cron/search/read/patch/terminal/browser traces match the parity matrix examples.",
+                "Memory/skills/todo/execute_code/cron/search/read/patch/terminal/browser traces match the parity matrix examples.",
                 "No renderer emits tokens, raw credential values, or unbounded payloads."
               ],
               "write_scope": [
@@ -2782,7 +2782,7 @@
                   "internal/gateway/render.go:streamPreviewCursorActive appends the Hermes streaming cursor only for active preview phases with non-empty assistant draft text.",
                   "internal/gateway/render.go:FormatToolProgressPlain and FormatToolProgressTelegram render multi-line, duplicate-collapsed tool progress separately from assistant stream text.",
                   "internal/gateway/manager.go:dispatchToolProgress sends/edits a separate progress message for editable gateway channels before final assistant delivery.",
-                  "internal/gateway/render.go:formatToolTracePlain renders known memory/skills/cron/search/read/patch/terminal/browser tool events with compact Hermes-style emoji labels.",
+                  "internal/gateway/render.go:formatToolTracePlain renders known memory/skills/todo/execute_code/cron/search/read/patch/terminal/browser tool events with compact Hermes-style emoji labels.",
                   "internal/gateway/render.go:isKnownToolTraceName maps unknown tool events to generic bounded tool_progress evidence so raw provider/debug tool names are not exposed."
                 ],
                 "tests": [
@@ -2791,7 +2791,7 @@
                   "internal/gateway/render_test.go:TestFormatStreamTelegram_ActivePreviewAddsHermesCursor covers the Telegram renderer cursor.",
                   "internal/gateway/render_test.go:TestFormatStreamPlain_DoesNotInlineToolProgress covers assistant stream/tool-progress separation.",
                   "internal/gateway/render_test.go:TestFormatFinalPlain_DoesNotIncludeStreamingCursor covers terminal cursor cleanup.",
-                  "internal/gateway/render_test.go:TestFormatToolProgressPlain_ToolTraceFixtureMatrix covers memory, read_file, patch, terminal, browser_navigate, browser_snapshot, skill_view, skills_list, and cronjob labels.",
+                  "internal/gateway/render_test.go:TestFormatToolProgressPlain_ToolTraceFixtureMatrix covers memory, read_file, patch, terminal, browser_navigate, browser_snapshot, skill_view, skills_list, todo, execute_code, and cronjob labels.",
                   "internal/gateway/render_test.go:TestFormatToolProgressPlain_MineruGatewayTranscriptShape covers the pasted Mineru-style browser/terminal transcript shape with repeat collapsing.",
                   "internal/gateway/render_test.go:TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence covers bounded generic degraded-mode evidence for unknown tool events.",
                   "internal/gateway/manager_test.go:TestManager_Outbound_ToolProgressPersistsAsSeparateMessage proves tool progress is persisted separately from the final assistant reply.",
@@ -2799,6 +2799,7 @@
                 ],
                 "verification": [
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgressPersistsAsSeparateMessage|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame' -count=1 -> ok",
+                  "go test ./internal/gateway -run TestFormatToolProgressPlain_ToolTraceFixtureMatrix -count=1 -> ok",
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1 -> ok",
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -count=1 -> ok"
                 ]
@@ -8744,7 +8745,7 @@
               "name": "Hermes memory tool over Goncho/local durable store",
               "status": "complete",
               "priority": "P0",
-              "contract": "Expose the Hermes-visible `memory` tool with add, replace, and remove actions over memory/user targets, backed by Goncho or local durable USER.md/MEMORY.md storage, while preserving safe write responses, redaction, locks, and prompt-insertion semantics.",
+              "contract": "Expose the Hermes-visible `memory` tool with add, replace, and remove actions plus a Gormes read-only inspection action over memory/user targets, backed by Goncho or local durable USER.md/MEMORY.md storage, while preserving safe write responses, redaction, locks, prompt-insertion semantics, and Hermes-compatible replace content arguments.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
@@ -8755,6 +8756,7 @@
               "degraded_mode": "If durable memory storage is unavailable, the tool returns memory_store_unavailable evidence and does not mutate prompt context or transcripts.",
               "fixture": "internal/tools/memory_tool_test.go + internal/memory",
               "source_refs": [
+                "../hermes-agent/tools/memory_tool.py:1-24",
                 "../hermes-agent/tools/memory_tool.py:222-513",
                 "../hermes-agent/tools/memory_tool.py:105-124",
                 "cmd/gormes/registry.go",
@@ -8765,8 +8767,11 @@
               "acceptance": [
                 "Default tool registry exposes a Hermes-compatible `memory` descriptor.",
                 "Add, replace, and remove actions mutate only temp durable USER.md/MEMORY.md fixtures in tests.",
+                "Read action returns bounded live entries and usage without mutating durable USER.md/MEMORY.md fixtures.",
+                "Replace accepts Hermes' `content` field as a compatibility alias when Gormes' `new_content` field is omitted.",
+                "Limit-exceeded add responses return current_entries and current usage without leaking or persisting the rejected content.",
                 "memory and user targets map to the intended durable stores without renaming Goncho internally.",
-                "Injection/exfiltration scans reject unsafe content before durable memory writes.",
+                "Injection/exfiltration scans reject Hermes role-hijack, bypass, secret-read, wget/curl exfiltration, SSH backdoor, and hidden unicode patterns before durable memory writes.",
                 "Tool responses are bounded and match Hermes-compatible success/error shapes with redacted degraded evidence."
               ],
               "write_scope": [
@@ -8785,7 +8790,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Hermes-compatible `memory` tool fixtures prove safe durable add/replace/remove behavior over local durable memory stores and default registry exposure."
+                "Hermes-compatible `memory` tool fixtures prove safe durable add/replace/remove/read behavior, replace content-field compatibility, bounded guidance, and default registry exposure."
               ],
               "provenance": {
                 "origin_type": "porting",
@@ -8797,15 +8802,21 @@
                 "Temp durable memory fixtures can prove add/replace/remove behavior without reading live USER.md/MEMORY.md or external Honcho."
               ],
               "health": {
-                "last_attempt": "2026-04-30T05:30:00Z",
-                "last_success": "2026-04-30T05:30:00Z",
+                "last_attempt": "2026-04-30T16:24:20Z",
+                "last_success": "2026-04-30T16:24:20Z",
                 "backends_tried": [
                   "codex"
                 ],
                 "evidence": [
                   "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run ^TestMemoryTool -count=1 failed on undefined MemoryTool APIs.",
                   "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run ^TestMemoryTool -count=1 passed.",
-                  "RED/GREEN registry: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run ^TestBuildDefaultRegistryDelegationDisabled$ -count=1 failed until memory registration was added, then passed."
+                  "RED/GREEN registry: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run ^TestBuildDefaultRegistryDelegationDisabled$ -count=1 failed until memory registration was added, then passed.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReplaceAcceptsHermesContentField|ReadsDurableMemoryWithoutMutating|SchemaDocumentsReadActionAndGuidance)' -count=1 failed until read, content-field replace compatibility, and guidance were implemented.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryTool -count=1 passed.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolRejectsUnsafePromptInjectionContent -count=1 failed when role-hijack content was accepted and persisted.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolRejectsUnsafePromptInjectionContent -count=1 passed after porting the missing Hermes memory threat patterns.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolLimitExceededReturnsCurrentEntriesAndUsage -count=1 failed until current_entries and usage were added to limit-exceeded responses.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(LimitExceededReturnsCurrentEntriesAndUsage|RejectsUnsafePromptInjectionContent)' -count=1 passed."
                 ]
               }
             },
@@ -20625,9 +20636,9 @@
             },
             {
               "name": "Clarify",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes clarify as a schema-validated, interruptible user-reply tool: required question text, up to four trimmed choices, platform-added Other behavior, callback/resume routing for gateway and TUI, deterministic unavailable output in non-interactive cron/oneshot contexts, and one-shot resume-token cleanup after the next user reply.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -20670,6 +20681,8 @@
                 "internal/gateway/clarify_resume.go",
                 "internal/gateway/clarify_resume_test.go",
                 "internal/tui/",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
                 "cmd/gormes/oneshot_safety_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
@@ -20683,6 +20696,19 @@
               "done_signal": [
                 "Clarify fixtures prove Hermes schema validation, platform callback output, gateway/TUI one-shot resume routing, and noninteractive unavailable/timeout evidence without live UI."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-30T16:30:30Z",
+                "last_success": "2026-04-30T16:30:30Z",
+                "evidence": [
+                  "RED: go test ./internal/tools -run TestClarifyToolSimpleQuestionWithCallback -count=1 failed because NewClarifyTool, ClarifyToolConfig, and ClarifyPrompt were missing.",
+                  "GREEN: go test ./internal/tools -run TestClarifyToolSimpleQuestionWithCallback -count=1 passed after adding internal/tools/clarify_tool.go.",
+                  "RED: go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1 failed because clarify was not registered.",
+                  "GREEN: go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1 passed after registering clarify in buildDefaultRegistry.",
+                  "RED: go test ./internal/gateway -run TestClarifyResume -count=1 failed because the ClarifyResumeStore API was missing.",
+                  "GREEN: go test ./internal/gateway -run TestClarifyResume -count=1 passed after adding one-shot request-id resume storage."
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:tools/clarify_tool.py",
@@ -20693,7 +20719,7 @@
               "name": "Session search tool schema and argument validation",
               "priority": "P3",
               "status": "complete",
-              "contract": "internal/tools defines a session_search Tool descriptor, JSON schema, timeout, and argument validator for query, scope, sources, mode, limit, and current_session_id without registering the tool globally or reading memory",
+              "contract": "internal/sessionsearchtool defines a session_search Tool descriptor with Hermes-style recall guidance, JSON schema, timeout, and argument validator for query, role_filter, scope, sources, mode, limit, and current_session_id without registering the tool globally or reading memory",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -20703,8 +20729,9 @@
                 "system"
               ],
               "degraded_mode": "Invalid input returns session_search_invalid_args evidence instead of widening recall or falling back to global search.",
-              "fixture": "internal/tools/session_search_tool_schema_test.go::TestSessionSearchToolSchema_*",
+              "fixture": "internal/sessionsearchtool/session_search_tool_schema_test.go::TestSessionSearchToolSchema_*",
               "source_refs": [
+                "../hermes-agent/tools/session_search_tool.py:530-567",
                 "../hermes-agent/tools/session_search_tool.py@dbe50155",
                 "../hermes-agent/tests/tools/test_session_search.py@dbe50155",
                 "internal/tools/tool.go",
@@ -20724,29 +20751,35 @@
                 "Session search tool execution wrapper"
               ],
               "acceptance": [
-                "TestSessionSearchToolSchema_Descriptor proves Name()==\"session_search\", Description is non-empty, Timeout is deterministic, and Schema exposes query/scope/sources/mode/limit/current_session_id.",
-                "TestSessionSearchToolSchema_DefaultArgs proves omitted scope/sources/mode normalize to same-chat/default mode without memory access.",
-                "TestSessionSearchToolSchema_RejectsUnsafeScope proves unknown scope, unknown mode, negative limit, and non-string sources return session_search_invalid_args evidence.",
+                "TestSessionSearchToolSchema_Descriptor proves Name()==\"session_search\", Description ports Hermes recall guidance for recent mode, proactive use, OR-heavy search syntax, and same-chat safety, Timeout is deterministic, and Schema exposes query/role_filter/scope/sources/mode/limit/current_session_id.",
+                "TestSessionSearchToolSchema_DefaultArgs proves omitted scope/sources/mode normalize to same-chat/default mode without memory access and role_filter round-trips as Hermes-compatible comma-separated input.",
+                "TestSessionSearchToolSchema_RejectsUnsafeScope proves unknown scope, unknown mode, negative limit, non-string role_filter, and non-string sources return session_search_invalid_args evidence.",
                 "TestSessionSearchToolSchema_NotRegisteredGlobally proves the row does not edit internal/tools/builtin.go or register the tool outside the local test registry."
               ],
-              "note": "TDD landed: internal/tools now defines a descriptor-only session_search Tool plus argument validation for query, scope, sources, mode, limit, and current_session_id. The validator defaults omitted scope/sources/mode to same-chat, empty allowlist, and default mode; unsafe scope, mode, negative limit, or non-string sources return session_search_invalid_args evidence. The tool remains unregistered globally and does not call memory, SQLite, Goncho, or the gateway runtime.",
+              "note": "TDD landed: internal/sessionsearchtool now defines a descriptor-only session_search Tool plus argument validation for query, role_filter, scope, sources, mode, limit, and current_session_id. The descriptor ports Hermes recall guidance for recent mode, proactive use, OR-heavy FTS5 search syntax, and role_filter while preserving Gormes' explicit same-chat default. The validator defaults omitted scope/sources/mode to same-chat, empty allowlist, and default mode; unsafe scope, mode, negative limit, non-string role_filter, or non-string sources return session_search_invalid_args evidence. The tool remains unregistered globally and does not call memory, SQLite, Goncho, or the gateway runtime.",
               "write_scope": [
-                "internal/tools/session_search_tool.go",
-                "internal/tools/session_search_tool_schema_test.go",
+                "internal/sessionsearchtool/session_search_tool.go",
+                "internal/sessionsearchtool/session_search_tool_schema_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools -run '^TestSessionSearchToolSchema_' -count=1",
-                "go test ./internal/tools -count=1",
-                "go run ./cmd/progress validate"
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run '^TestSessionSearchToolSchema_' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "session_search descriptor and argument fixtures pass without SQLite, memory ranking, Goncho service construction, or global registry binding."
+                "session_search descriptor guidance and argument fixtures pass without SQLite, memory ranking, Goncho service construction, or global registry binding."
               ],
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-27T12:26:26Z",
-                "last_success": "2026-04-27T12:26:26Z"
+                "attempt_count": 3,
+                "last_attempt": "2026-04-30T15:18:12Z",
+                "last_success": "2026-04-30T15:18:12Z",
+                "evidence": [
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolSchema_Descriptor -count=1 failed until Hermes recall guidance appeared in Description().",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolSchema_Descriptor -count=1 passed.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 failed until role_filter schema and validation were added.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 passed."
+                ]
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -20758,7 +20791,7 @@
               "name": "Session search tool execution wrapper",
               "priority": "P3",
               "status": "complete",
-              "contract": "internal/tools session_search executes over existing internal/memory SearchSessions/SearchMessages APIs, preserving same-chat defaults, explicit user/source widening, lineage-root exclusion in recent mode, and Goncho/Honcho-compatible evidence without changing ranking or persistence",
+              "contract": "internal/sessionsearchtool session_search executes over existing internal/memory SearchSessions/SearchMessages APIs, preserving same-chat defaults, explicit user/source widening, Hermes role_filter turn narrowing, hidden tool-source isolation by default, lineage-root exclusion in recent mode, and Goncho/Honcho-compatible evidence without changing ranking or persistence",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -20768,9 +20801,15 @@
                 "system"
               ],
               "degraded_mode": "Tool result reports session_search_unavailable, source_filter_denied, lineage_root_excluded, or session_search_invalid_args evidence instead of widening recall silently.",
-              "fixture": "internal/tools/session_search_tool_execution_test.go::TestSessionSearchToolExecution_*",
+              "fixture": "internal/sessionsearchtool/session_search_tool_execution_test.go::TestSessionSearchToolExecution_* + internal/memory/session_catalog_test.go",
               "source_refs": [
                 "../hermes-agent/tools/session_search_tool.py@dbe50155",
+                "../hermes-agent/tools/session_search_tool.py:281-294",
+                "../hermes-agent/tools/session_search_tool.py:319-362",
+                "../hermes-agent/tools/session_search_tool.py:263",
+                "../hermes-agent/tools/session_search_tool.py:407-414",
+                "../hermes-agent/tools/session_search_tool.py:553-561",
+                "../hermes-agent/tests/tools/test_session_search.py:25-32",
                 "../hermes-agent/tests/tools/test_session_search.py@dbe50155",
                 "internal/memory/session_catalog.go:SearchSessions",
                 "internal/memory/session_catalog.go:SearchMessages",
@@ -20797,27 +20836,42 @@
               "acceptance": [
                 "TestSessionSearchToolExecution_SameChatDefault seeds two chats and proves no cross-chat hit appears without explicit scope=user or sources.",
                 "TestSessionSearchToolExecution_UserScopeSourceFilter passes scope=user sources=[telegram] and proves only the allowed source sessions return with source evidence.",
+                "TestSessionSearchToolExecution_RoleFilter passes role_filter=user and proves assistant-role matches are omitted from tool results.",
+                "TestSessionSearchToolExecution_HidesToolSourceByDefault proves source=tool sessions are hidden by default and only returned when explicitly requested via sources=[tool].",
+                "TestSessionSearchToolExecution_ResultMessages proves empty query hits return the Hermes no-match message and recent mode returns the Hermes guidance message.",
+                "TestSessionCatalog_SearchMessagesFiltersByRole proves memory.SearchMessages applies role filters in SQL without changing ranking or source fences.",
                 "TestSessionSearchToolExecution_RecentModeExcludesCurrentLineageRoot seeds root and compressed child sessions, runs recent mode from the child, and proves the current root is excluded deterministically per Hermes dbe50155.",
                 "TestSessionSearchToolExecution_DegradedEvidence covers missing session directory and denied source widening without panics or hidden fallback widening."
               ],
-              "note": "TDD landed: internal/tools/session_search now has an opt-in execution wrapper over seeded SQLite plus session.Metadata, preserving same-chat defaults, scope=user source-filtered widening with memory.CrossChatRecallEvidence, recent-mode current-lineage-root exclusion evidence, and fail-closed degraded evidence for unavailable bindings or denied source widening. Registration remains a later row.",
+              "note": "TDD landed: internal/sessionsearchtool now has an opt-in execution wrapper over seeded SQLite plus session.Metadata, preserving same-chat defaults, scope=user source-filtered widening with memory.CrossChatRecallEvidence, Hermes role_filter turn narrowing, hidden source=tool isolation by default with explicit source override, Hermes success messages for no-match and recent-mode results, recent-mode current-lineage-root exclusion evidence, and fail-closed degraded evidence for unavailable bindings or denied source widening. Registration remains a later row.",
               "write_scope": [
-                "internal/tools/session_search_tool.go",
-                "internal/tools/session_search_tool_execution_test.go",
+                "internal/sessionsearchtool/session_search_tool.go",
+                "internal/sessionsearchtool/session_search_tool_execution_test.go",
+                "internal/memory/session_catalog.go",
+                "internal/memory/session_catalog_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools -run '^TestSessionSearchToolExecution_' -count=1",
-                "go test ./internal/tools ./internal/memory ./internal/goncho -count=1",
-                "go run ./cmd/progress validate"
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run '^TestSessionSearchToolExecution_' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run '^TestSessionCatalog_SearchMessages' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool ./internal/memory ./internal/goncho -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Session search execution fixtures prove same-chat defaults, opt-in user/source widening, current-lineage-root exclusion, and degraded evidence while memory ranking/persistence stay unchanged."
+                "Session search execution fixtures prove same-chat defaults, opt-in user/source widening, role_filter narrowing, hidden source isolation, no-match/recent-mode result messages, current-lineage-root exclusion, and degraded evidence while memory ranking/persistence stay unchanged."
               ],
               "health": {
-                "attempt_count": 2,
-                "last_attempt": "2026-04-27T13:21:45Z",
-                "last_success": "2026-04-27T13:21:45Z"
+                "attempt_count": 5,
+                "last_attempt": "2026-04-30T16:36:46Z",
+                "last_success": "2026-04-30T16:36:46Z",
+                "evidence": [
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_RoleFilter -count=1 and GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestSessionCatalog_SearchMessagesFiltersByRole -count=1 failed until role_filter was threaded to memory.SearchFilter.Roles.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run 'TestSessionSearchToolSchema_(Descriptor|DefaultArgs|RejectsUnsafeScope)|TestSessionSearchToolExecution_RoleFilter' -count=1 and GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestSessionCatalog_SearchMessagesFiltersByRole -count=1 passed.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_ResultMessages -count=1 failed until successful no-match and recent-mode responses included Hermes-style message text.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_ResultMessages -count=1 passed.",
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_HidesToolSourceByDefault -count=1 failed while source=tool sessions appeared in default user-scope results.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/sessionsearchtool -run TestSessionSearchToolExecution_HidesToolSourceByDefault -count=1 passed after filtering hidden tool sessions unless sources=[tool] is explicit."
+                ]
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -22486,11 +22540,11 @@
                 "CLI dump support-summary helper"
               ],
               "acceptance": [
-                "FormatContextLength, DisplayToolsetName, and banner version labels match upstream golden fixtures.",
+                "FormatContextLength and DisplayToolsetName match upstream golden fixtures; banner version labels preserve explicit upstream agent names while defaulting empty Gormes callers to `Gormes Agent`.",
                 "Output helpers return strings or writer-bound functions with deterministic newline and prompt behavior.",
                 "Tests run without terminal/TTY detection, clock access, config files, or network calls."
               ],
-              "note": "Complete: TDD added pure internal/cli banner and output formatting helpers without command wiring. Fixtures prove Hermes-compatible context length rounding, toolset display normalization, injected banner version labels, plain output lines, writer-bound newline behavior, and prompt/default parsing without TTY detection, config files, clock access, or network calls.",
+              "note": "Complete: TDD added pure internal/cli banner and output formatting helpers without command wiring. Fixtures prove Hermes-compatible context length rounding, toolset display normalization, injected banner version labels, plain output lines, writer-bound newline behavior, and prompt/default parsing without TTY detection, config files, clock access, or network calls. 2026-04-30 parity follow-up: FormatBannerVersionLabel still preserves explicit upstream `Hermes Agent` golden fixtures, but an empty AgentName now defaults to the Gormes product label `Gormes Agent`.",
               "write_scope": [
                 "internal/cli/banner.go",
                 "internal/cli/banner_output_test.go",
@@ -23561,9 +23615,6 @@
                 "Hermes auth OAuth provider adapters",
                 "Codex OAuth state + stale-token relogin"
               ],
-              "unblocks": [
-                "Gormes model interactive provider/model picker"
-              ],
               "acceptance": [
                 "TestAuthAddCodexAlwaysRunsDeviceCode proves a fake `~/.codex/auth.json` containing valid tokens is ignored on the default code path and the device-code transport is invoked exactly once.",
                 "TestAuthAddCodexRejectsExternalImportFlag proves any attempt to pass an unlabeled import flag (or env override mimicking the Codex CLI path, without the explicit --emergency-import-from-codex-cli flag) returns codex_external_import_blocked with the redirect message pointing operators to the explicit override flag.",
@@ -23889,6 +23940,9 @@
                 "../hermes-agent/hermes_cli/auth.py:3848-3853:login_command",
                 "../hermes-agent/hermes_cli/main.py:8186-8227:login_parser",
                 "cmd/gormes/main.go:newRootCommandWithRuntime",
+                "cmd/gormes/main.go:rootCommandArgs",
+                "cmd/gormes/login_typo_suggestion_test.go",
+                "cmd/gormes/auth_command_test.go:TestGormesLoginPrintsUnknownCommandSuggestion",
                 "cmd/gormes/hermes_cli_parity.go:55",
                 "internal/cli/typo_suggestions.go",
                 "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
@@ -23906,26 +23960,23 @@
                 "The slice performs OAuth work, opens browsers, contacts portal_url, or mutates auth.json.",
                 "The suggestion message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
               ],
-              "blocked_by": [
-                "Hermes auth command-tree manifest refresh",
-                "Gormes top-level logout provider shortcut"
-              ],
-              "unblocks": [
-                "Gormes model interactive provider/model picker"
-              ],
               "acceptance": [
                 "TestGormesLoginUnknownCommandEmitsTypoSuggestion proves `gormes login` returns a non-zero exit with the deterministic suggestion message `did you mean \"gormes auth add <provider> --type oauth\"?`.",
                 "TestGormesLoginWithProviderFlagsEmitsSuggestion proves `gormes login --provider openai-codex` produces the same suggestion (the legacy flags are recognized contextually in the suggestion text, not parsed by Cobra).",
-                "TestGormesLoginIsNotRegisteredAsCobraCommand proves `cobra.Command.Find` for `login` returns unknown — there is no registered `login` subcommand on the root.",
+                "TestGormesLoginIsNotRegisteredAsCobraCommand proves `cobra.Command.Find` for `login` resolves only to the root and no registered `login` subcommand or alias exists.",
                 "TestGormesLoginSuggestionParityWithMigrateTypo proves the suggestion pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, no silent execution of the suggested command, no OAuth side effects.",
                 "TestGormesLoginSuggestionRedactsProviderArgValues proves no fixture provider-name string passed via `--provider <value>` leaks into stdout/stderr beyond the literal suggestion template."
               ],
               "note": "Validated: gormes no longer registers a top-level login Cobra command; executeRootCommand emits deterministic unknown-command guidance did you mean \"gormes auth add <provider> --type oauth\"? for login with or without legacy provider flags, while redacting provider argument values and performing no OAuth side effects. Evidence: go test ./cmd/gormes -run ^TestGormesLogin -count=1; go test ./internal/cli -run ^TestTypoSuggestion -count=1.",
               "write_scope": [
                 "cmd/gormes/login_typo_suggestion_test.go",
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_command_test.go",
                 "cmd/gormes/main.go",
                 "internal/cli/typo_suggestions.go",
                 "internal/cli/typo_suggestions_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -23955,14 +24006,14 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Non-TTY invocation returns model_picker_requires_tty without launching a browser; provider menu cancellation leaves config untouched; provider-specific login failures return per-provider evidence (codex_device_code_failed, anthropic_oauth_failed, etc.) without partial config writes; model catalog fetch errors fall back to the static alias resolver with model_catalog_unavailable evidence.",
+              "degraded_mode": "Non-TTY invocation returns model_picker_requires_tty without launching a browser or reading the model catalog; provider/model menu cancellation leaves config untouched; missing provider credentials emit selection-only guidance pointing at `gormes auth add <provider>` without running OAuth, device-code, vendor-CLI import, or mutating auth.json.",
               "fixture": "cmd/gormes/model_picker_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/main.py:7862-7902:model_parser",
                 "../hermes-agent/hermes_cli/main.py:1445-1448:cmd_model",
                 "../hermes-agent/hermes_cli/main.py:1451+:select_provider_and_model",
                 "../hermes-agent/hermes_cli/auth.py:3856+:_login_openai_codex",
-                "internal/hermes/model_alias_resolver.go",
+                "internal/hermes/model_registry.go",
                 "internal/config/config.go:HermesCfg",
                 "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
               ],
@@ -24003,8 +24054,11 @@
               "write_scope": [
                 "cmd/gormes/model.go",
                 "cmd/gormes/model_picker_test.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/hermes_cli_parity.go",
                 "internal/cli/model_picker.go",
                 "internal/cli/model_picker_test.go",
+                "internal/hermes/model_registry.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -24024,10 +24078,10 @@
             },
             {
               "name": "Gormes setup minimal sectioned wizard slice",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "`gormes setup [section] [--non-interactive] [--reset] [--reconfigure] [--quick]` runs a deliberately minimal sectioned wizard: with no `section`, prints the section list and exits without running prompts; with `section=model`, dispatches to the shared model picker (same path as `gormes model`); with any other section, returns setup_section_unsupported and the operator-facing recommended command. `--non-interactive` uses defaults/env and never prompts; `--reset` and `--reconfigure` are accepted but rejected as setup_full_wizard_unsupported in this initial slice.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -24056,10 +24110,6 @@
                 "The slice silently runs the model picker when `gormes setup` is invoked with no section (must print the section list and exit).",
                 "The slice duplicates the model picker code path instead of delegating to the `Gormes model interactive provider/model picker` row."
               ],
-              "blocked_by": [
-                "Gormes model interactive provider/model picker",
-                "Gormes config command surface"
-              ],
               "unblocks": [
                 "Gormes uninstall dry-run command contract",
                 "Hermes config migration dry-run manifest"
@@ -24069,12 +24119,15 @@
                 "TestSetupModelSectionDelegatesToPicker proves `gormes setup model` invokes the same picker entry point as `gormes model` with the same redaction and TTY guards.",
                 "TestSetupOtherSectionsReturnUnsupported proves `gormes setup tts`, `gormes setup terminal`, `gormes setup gateway`, `gormes setup tools`, and `gormes setup agent` each return setup_section_unsupported with exit code 2 and the canonical section list.",
                 "TestSetupResetReconfigureRejected proves `gormes setup --reset` and `gormes setup --reconfigure` return setup_full_wizard_unsupported and point operators to `gormes config edit` plus the auth/provider rows.",
-                "TestSetupNonInteractiveUsesDefaults proves `gormes setup model --non-interactive` falls back to env/config defaults without prompting and does not invoke the menu seam."
+                "TestSetupNonInteractiveUsesDefaults proves `gormes setup model --non-interactive` falls back to env/config defaults without prompting and does not invoke the menu seam.",
+                "TestSetupModelRequiresTTYWithoutNonInteractive proves `gormes setup model` without a TTY returns setup_requires_tty and points operators at --non-interactive instead of leaking lower-level picker evidence."
               ],
-              "note": "Materializes part of the prior placeholder `Setup/uninstall dry-run command contracts`. Bounded by design: only the model section delegates; tts/terminal/gateway/tools/agent stay row-backed. Auditor input plus the planner skill rule require explicit not_ready_when for the full wizard. Pairs with the `Gormes uninstall dry-run command contract` row that materializes the other half of the placeholder.",
+              "note": "Complete 2026-04-30: added `cmd/gormes setup` with Hermes-compatible section flags, section-list-only default UX, model-section delegation to the shared model picker, noninteractive env/config default resolution, full-wizard --reset/--reconfigure rejection, and typed unsupported evidence for tts/terminal/gateway/tools/agent. Bounded by design: only the model section delegates; tts/terminal/gateway/tools/agent stay row-backed.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/setup_minimal_test.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/hermes_cli_parity.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -24083,7 +24136,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Setup minimal-slice fixtures prove section-list-only default, model-section delegation, unsupported-section evidence for non-model sections, --reset/--reconfigure rejection, and non-interactive defaults."
+                "Setup minimal-slice fixtures prove section-list-only default, model-section delegation, unsupported-section evidence for non-model sections, --reset/--reconfigure rejection, non-interactive defaults, and TTY guidance."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -27667,9 +27720,9 @@
               "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
               "fixture": "internal/tui/hermes_status_bar_test.go::TestHermesStatusBar_*",
               "source_refs": [
-                "../hermes-agent/cli.py:_get_status_bar_snapshot",
-                "../hermes-agent/cli.py:_build_status_bar_text",
-                "../hermes-agent/cli.py:_get_status_bar_fragments",
+                "../hermes-agent/ui-tui/src/components/appChrome.tsx:StatusRule",
+                "../hermes-agent/ui-tui/src/components/appChrome.tsx:modelLabel",
+                "../hermes-agent/ui-tui/src/app/useMainApp.ts:appStatus",
                 "../hermes-agent/cli.py:_status_bar_context_style",
                 "../hermes-agent/tests/cli/test_cli_status_bar.py",
                 "internal/kernel/frame.go:RenderFrame",
@@ -27684,13 +27737,13 @@
                 "The slice adds live provider usage/account calls; status reads only existing frame/timing data."
               ],
               "acceptance": [
-                "TestHermesStatusBar_WideTerminal renders model, context token fraction, percentage bar, session duration, and prompt elapsed in one line.",
-                "TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration matches Hermes <76-column collapse.",
-                "TestHermesStatusBar_NarrowWidthCollapsesToModelDuration matches Hermes <52-column collapse.",
+                "TestHermesStatusBar_WideTerminal renders the current Hermes Ink status-rule shape with `─ ready`, shortened model label, context token fraction, percentage bar, session duration, prompt elapsed, cwd label, and no old `⚕` footer prefix.",
+                "TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration preserves the status-rule shape while hiding wide-only prompt elapsed output.",
+                "TestHermesStatusBar_NarrowWidthCollapsesToModelDuration preserves the status-rule shape, keeps the model readable, and does not leak the old `⚕` footer prefix.",
                 "TestHermesStatusBar_TrimsToWidth proves long model names and wide glyphs never wrap past the announced width.",
                 "TestHermesStatusBar_ContextThresholdStyles proves >=95 critical, >80 bad, >=50 warn, and lower good classifications."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_status_bar.go and internal/tui/hermes_status_bar_test.go porting Hermes cli.py:_get_status_bar_snapshot/_build_status_bar_text/_status_bar_context_style as pure helpers. Locked invariants: ⚕-prefixed model + ` │ ` separators above 76 columns with model/ctx-used/ctx-total/percent/duration/prompt-elapsed; ` · ` mid tier collapses to model/percent/duration below 76; narrow tier below 52 collapses to model/duration; lipgloss.Width-based ellipsis trim guarantees the rendered line never exceeds the announced terminal width even with CJK glyphs; context severity matches Hermes' nil/<50/50–80/81–94/≥95 dim/good/warn/bad/critical bands.",
+              "note": "Complete: TDD added internal/tui/hermes_status_bar.go and internal/tui/hermes_status_bar_test.go. 2026-04-30 visual parity refresh updates the renderer from the older prompt_toolkit footer to current Hermes Ink StatusRule shape: leading `─ ready`, bar-separated model/usage/timing details, shortened model labels matching ui-tui modelLabel, optional cwd on the right, no old `⚕` footer prefix, and no middot footer separators. Width tiers remain Go-owned readability guards; lipgloss.Width-based ellipsis trim guarantees the rendered line never exceeds the announced terminal width even with CJK glyphs; context severity matches Hermes' nil/<50/50–80/81–94/≥95 dim/good/warn/bad/critical bands.",
               "write_scope": [
                 "internal/tui/hermes_status_bar.go",
                 "internal/tui/hermes_status_bar_test.go",
@@ -27706,8 +27759,8 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes status bar behavior is ported as a pure Go renderer before Bubble Tea layout integration."
+                "upstream_ref": "hermes:ui-tui StatusRule",
+                "note": "Current Hermes Ink owns the active full-screen status-rule contract; classic cli.py remains useful only for legacy context severity thresholds."
               },
               "blocked_by": [
                 "Native TUI Hermes skin token renderer"
@@ -27720,7 +27773,7 @@
               "name": "Native TUI Hermes bottom-pinned chrome layout",
               "priority": "P1",
               "status": "complete",
-              "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: transcript/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, Gormes-branded response label inside the Hermes response-box shape, and no Telemetry/Soul side pane. The local full-screen Bubble Tea renderer should use the terminal alternate screen like current Hermes Ink unless an explicit inline mode is added, while preserving Go-native RenderFrame consumption and ensuring completed assistant text is not rendered both as transcript history and live draft.",
+              "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: transcript/output above, an activity/status hint row only when there is useful non-idle evidence, single-line Hermes Ink-style status rule, unboxed prompt line with Hermes prompt symbol that expands only for multiline drafts, optional rows below the prompt, Gormes-branded response label inside the Hermes response-box shape, and no Telemetry/Soul side pane or standalone full-width input rules. The local full-screen Bubble Tea renderer should use the terminal alternate screen like current Hermes Ink unless an explicit inline mode is added, while preserving Go-native RenderFrame consumption and ensuring completed assistant text is not rendered both as transcript history and live draft.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -27732,11 +27785,9 @@
               "fixture": "internal/tui/hermes_chrome_test.go::TestHermesChrome_*",
               "source_refs": [
                 "../hermes-agent/ui-tui/src/components/appLayout.tsx:AlternateScreen default Shell",
+                "../hermes-agent/ui-tui/src/components/appLayout.tsx:ComposerPane",
+                "../hermes-agent/ui-tui/src/components/appChrome.tsx:StatusRule",
                 "../hermes-agent/ui-tui/src/app/turnController.ts:recordMessageComplete finalTail streaming clear",
-                "../hermes-agent/cli.py:_build_tui_layout_children",
-                "../hermes-agent/cli.py:_tui_input_rule_height",
-                "../hermes-agent/cli.py:_spinner_widget_height",
-                "../hermes-agent/cli.py:_get_tui_prompt_fragments",
                 "../hermes-agent/tests/cli/test_cli_status_bar.py",
                 "internal/kernel/kernel.go:runTurn final assistant history append",
                 "internal/tui/view.go:View,renderConv,conversationViewportTail",
@@ -27754,16 +27805,19 @@
               ],
               "acceptance": [
                 "TestHermesChrome_NoSidebar proves View output for a 120x32 frame does not include `Telemetry`, `Soul Monitor`, or side-pane borders.",
-                "TestHermesChrome_BottomPinnedOrder proves output order is conversation, optional spinner/hint, status bar, input rule, prompt/input area, optional voice/image/completion rows.",
+                "TestHermesChrome_BottomPinnedOrder proves output order is conversation, optional spinner/hint, status rule, prompt/input area, optional voice/image/completion rows.",
                 "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Gormes response label in the Hermes response-box shape, not `gormes:` dashboard tags or the upstream `⚕ Hermes` product label, while user previews remain visible.",
-                "TestHermesChrome_MinimalWidthDropsBottomRule proves narrow widths keep prompt/status usable and hide low-value chrome like Hermes.",
+                "TestHermesChrome_InputPromptIsUnboxedSingleLineByDefault proves idle input renders as one unboxed Hermes prompt line instead of a rounded card with repeated prompt glyphs, does not show debug `phase:` chrome in the idle composer, and does not render standalone full-width input rules.",
+                "TestHermesChrome_DoesNotInjectStandaloneInputRules proves the assembler does not synthesize old prompt_toolkit input-rule rows at narrow or wide widths.",
+                "TestHermesChrome_OptionalRowsRemainBelowPrompt proves optional voice/image/completion rows remain below the prompt after standalone rule removal.",
                 "TestHermesChrome_UsesAltScreen and TestNativeTUIStartupUsesAltScreen prove local full-screen TUI startup enables alt-screen by default, matching current Hermes Ink and preventing stale scrollback frame fragments.",
                 "TestKernel_FinalIdleClearsDraftAfterHistoryAppend proves the final idle frame moves assistant text into history and clears DraftText so the TUI cannot render the same assistant reply twice."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-identity follow-up: assistant rows render under `⚕ Gormes` in the Hermes response-box shape, not the upstream `⚕ Hermes` label. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows do not use `gormes:` dashboard tags, the bottom input rule is dropped below the 64-column minimal-chrome threshold, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
+              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-identity follow-up: assistant rows render under `⚕ Gormes` in the Hermes response-box shape, not the upstream `⚕ Hermes` label. 2026-04-30 visual follow-up: the input area no longer renders as a rounded box/card or six repeated prompt rows; idle input is one unboxed Hermes prompt line, multiline drafts expand up to four rows, idle chrome no longer shows the developer-only `phase: Idle · session · mouse` row unless there is actionable non-idle/status evidence, and current Hermes Ink StatusRule now provides composer separation without old standalone full-width input rules. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows do not use `gormes:` dashboard tags, idle input does not render rounded border glyphs, idle composer output does not leak debug phase chrome, no standalone input-rule rows are injected, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",
+                "internal/tui/update.go",
                 "internal/tui/hermes_chrome.go",
                 "internal/tui/hermes_chrome_test.go",
                 "internal/kernel/kernel.go",
@@ -29169,13 +29223,13 @@
                 "note": "GBrain defines source-swamp resistance; Gormes adapts it as explainable source-tier scoring for skills and memory."
               }
             },
-            {
-              "name": "Delta-bounded skill and memory maintenance passes",
-              "status": "planned",
-              "contract": "Learning-loop maintenance accepts changed source IDs, per-source sync-anchor evidence, and stale semantic-refresh hints so skill/memory extraction, scoring, and embedding refresh can no-op or process only changed records instead of rescanning the whole local corpus",
-              "contract_status": "draft",
-              "slice_size": "small",
-              "execution_owner": "skills",
+      {
+        "name": "Delta-bounded skill and memory maintenance passes",
+        "status": "complete",
+        "contract": "Learning-loop maintenance accepts changed source IDs, per-source sync-anchor evidence, and stale semantic-refresh hints so skill/memory extraction, scoring, and embedding refresh can no-op or process only changed records instead of rescanning the whole local corpus",
+        "contract_status": "validated",
+        "slice_size": "small",
+        "execution_owner": "skills",
               "trust_class": [
                 "operator",
                 "system"
@@ -29196,21 +29250,18 @@
                 "internal/skills/selector.go",
                 "internal/memory/semantic_sql.go"
               ],
-              "ready_when": [
-                "Hybrid lexical + semantic lookup and Source-aware retrieval damping fixtures are validated so maintenance evidence can reuse score explanations and source tiers.",
-                "The worker can use fake skill/memory rows plus injected source-anchor and stale-count callbacks; no live embeddings, Ollama, Postgres/PGLite, git cat-file, or tree-sitter runtime is required."
+        "ready_when": [
+          "The row is an evidence-only maintenance planner: it can run before retrieval scoring because it does not change skill selection, prompt injection, or memory recall.",
+          "The worker can use fake skill/memory rows plus injected source-anchor and stale-count callbacks; no live embeddings, Ollama, Postgres/PGLite, git cat-file, or tree-sitter runtime is required."
               ],
               "not_ready_when": [
                 "The slice ports GBrain's sync/import command, TypeScript extractors, SQL ranking builders, or a repository-wide code indexer.",
                 "The slice requires live embedding calls or reads the whole checkout/memory corpus in unit tests.",
                 "The slice changes prompt injection or skill selection behavior before the maintenance evidence shape is fixture-locked."
               ],
-              "blocked_by": [
-                "Source-aware retrieval damping fixtures"
-              ],
-              "unblocks": [
-                "Skill effectiveness scoring"
-              ],
+        "unblocks": [
+          "Skill effectiveness scoring"
+        ],
               "acceptance": [
                 "TestDeltaMaintenance_NoChangedSourcesReturnsNoop passes an empty changed-source list and asserts no extractor/scorer/embedding callback is invoked and status evidence is delta_noop.",
                 "TestDeltaMaintenance_ProcessesOnlyChangedSources passes two changed skill or memory source IDs and asserts only those IDs reach the fake extractor/scorer.",
@@ -29220,23 +29271,42 @@
                 "TestDeltaMaintenance_FullScanFallbackIsExplicit omits changed-source evidence and asserts the returned plan marks full_scan_fallback instead of hiding a whole-corpus scan.",
                 "Score/status explanations carry source IDs, stale counts, and fallback reason strings without importing GBrain's database runtime."
               ],
-              "note": "GBrain e2961c0 fixed production loops that re-read 54K markdown files and pulled unnecessary embedding data on every autopilot cycle. GBrain e734937/v0.22.5 added the follow-on sourceId cycle-sync fix so a per-source last_commit anchor prevents garbage-collected global anchors from forcing a full reimport. Gormes should preserve both lessons for future skill/memory maintenance: delta inputs, source-scoped anchors, and stale-only refresh are operator-visible contracts, not hidden performance magic.",
-              "write_scope": [
-                "internal/skills/delta_maintenance.go",
-                "internal/skills/delta_maintenance_test.go",
-                "internal/memory/semantic_sql.go",
-                "docs/content/upstream-gbrain/",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
+        "note": "Complete 2026-04-30: TDD added a pure internal/skills delta-maintenance planner that accepts changed skill/memory source IDs, records per-source/global/missing anchor evidence, invokes extractor/scorer callbacks only for changed sources, skips stale loaders/embedders when staleCount=0, and returns explicit full_scan_fallback evidence when changed-source evidence is absent. GBrain e2961c0 fixed production loops that re-read 54K markdown files and pulled unnecessary embedding data on every autopilot cycle. GBrain e734937/v0.22.5 added the follow-on sourceId cycle-sync fix so a per-source last_commit anchor prevents garbage-collected global anchors from forcing a full reimport. Gormes preserves those lessons as operator-visible maintenance evidence without importing GBrain's runtime.",
+        "write_scope": [
+          "internal/skills/delta_maintenance.go",
+          "internal/skills/delta_maintenance_test.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
               "test_commands": [
                 "go test ./internal/skills ./internal/memory -run 'TestDeltaMaintenance_' -count=1",
                 "go test ./internal/skills ./internal/memory -count=1",
                 "go run ./cmd/progress validate"
               ],
-              "done_signal": [
-                "Delta maintenance fixtures prove no-op, changed-source-only, source-anchor evidence, stale-count-zero, and explicit full-scan fallback behavior with operator-visible evidence and no live embedding/runtime imports."
-              ],
-              "provenance": {
+        "done_signal": [
+          "Delta maintenance fixtures prove no-op, changed-source-only, source-anchor evidence, stale-count-zero, and explicit full-scan fallback behavior with operator-visible evidence and no live embedding/runtime imports."
+        ],
+        "evidence": {
+          "implementation": [
+            "internal/skills/delta_maintenance.go:RunDeltaMaintenance plans learning-loop maintenance from changed skill/memory source IDs and injected callbacks.",
+            "internal/skills/delta_maintenance.go records source_anchor_per_source, source_anchor_global_fallback, source_anchor_missing, stale_refresh_empty, delta_noop, delta_sources_missing, and full_scan_fallback evidence without scanning the corpus."
+          ],
+          "tests": [
+            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_NoChangedSourcesReturnsNoop",
+            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_ProcessesOnlyChangedSources",
+            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_SourceAnchorEvidence",
+            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_GlobalAnchorFallbackIsExplicit",
+            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_StaleRefreshSkipsWhenCountZero",
+            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_FullScanFallbackIsExplicit"
+          ],
+          "verification": [
+            "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills -run TestDeltaMaintenance_ -count=1 -> ok",
+            "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills ./internal/memory -run 'TestDeltaMaintenance_' -count=1 -> ok",
+            "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills ./internal/memory -count=1 -> ok",
+            "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate -> ok",
+            "git diff --check -> ok"
+          ]
+        },
+        "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:e734937 src/core/cycle.ts",
                 "note": "GBrain provides the delta/stale/source-anchor maintenance lessons; Gormes adapts them to local skills and memory maintenance evidence without importing GBrain's database runtime."
@@ -29341,6 +29411,82 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
+            },
+            {
+              "name": "Native skills list/view tool surface",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes registers Hermes-compatible read-only `skills_list` and `skill_view` native tools by default. `skills_list` returns available skills, categories, count, source/trust/status metadata, and a skill_view hint. `skill_view` loads SKILL.md content, frontmatter metadata, linked references/templates/assets/scripts, and safe linked-file reads while rejecting path traversal without leaking file contents.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing skills or linked files return bounded JSON errors with available skills/files hints. Invalid traversal requests are rejected before filesystem reads.",
+              "fixture": "internal/tools/skills_tools_test.go + cmd/gormes/registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/skills_tool.py:skills_list",
+                "../hermes-agent/tools/skills_tool.py:skill_view",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
+                "internal/skills/store.go:Store.SnapshotActive",
+                "internal/skills/list.go:bundledSkillsRoot"
+              ],
+              "acceptance": [
+                "skills_list descriptor name/schema match the upstream manifest and list active skills with categories and count.",
+                "skills_list category filtering returns only matching skills and categories.",
+                "skill_view descriptor name/schema match the upstream manifest and return SKILL.md content, description, tags, related skills, readiness_status=available, and linked_files.",
+                "skill_view file_path reads a linked file inside the skill directory.",
+                "skill_view rejects `..` traversal and symlink escapes before reading outside the skill directory and does not leak the blocked file content.",
+                "The default Gormes registry includes skills_list and skill_view even when delegation is disabled."
+              ],
+              "write_scope": [
+                "internal/tools/skills_tools.go",
+                "internal/tools/skills_tools_test.go",
+                "internal/skills/list.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "www.gormes.ai/internal/site/data/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestSkills(List|View)|TestSkillsTools' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills -run TestListInstalledSkills -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./cmd/gormes -run 'TestSkills(List|View)|TestSkillsTools|TestListInstalledSkills|TestBuildDefaultRegistryDelegationDisabled' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Native default registry and focused tool fixtures prove Hermes-style skills_list/skill_view calls can drive the channel-visible skill tool progress transcript with actual Gormes tool execution."
+              ],
+              "ready_when": [
+                "The upstream Hermes skills tool schema and file-safety behavior are available in ../hermes-agent/tools/skills_tool.py.",
+                "The Gormes static skills store can enumerate active and bundled SKILL.md documents without live network calls."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/skills_tools.go implements read-only SkillsListTool and SkillViewTool using internal/skills Store/Parse/PreprocessSkillContent.",
+                  "cmd/gormes/registry.go registers skills_list and skill_view before browser/delegation tooling.",
+                  "internal/skills/list.go exports DefaultRoot, BundledRoot, and LoadSkillDocs so registry-backed tools can share the same skills roots as CLI catalog code."
+                ],
+                "tests": [
+                  "internal/tools/skills_tools_test.go:TestSkillsListToolListsAvailableSkillsAndCategories",
+                  "internal/tools/skills_tools_test.go:TestSkillsListToolFiltersByCategory",
+                  "internal/tools/skills_tools_test.go:TestSkillViewToolReturnsSkillContentAndLinkedFiles",
+                  "internal/tools/skills_tools_test.go:TestSkillViewToolReadsLinkedFileAndRejectsTraversal",
+                  "internal/tools/skills_tools_test.go:TestSkillsToolsSchemasMatchUpstreamToolNames",
+                  "cmd/gormes/registry_test.go:TestBuildDefaultRegistryDelegationDisabled"
+                ],
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestSkills(List|View)|TestSkillsTools' -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills -run TestListInstalledSkills -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./cmd/gormes -run 'TestSkills(List|View)|TestSkillsTools|TestListInstalledSkills|TestBuildDefaultRegistryDelegationDisabled' -count=1 -> ok"
+                ]
+              }
             }
           ]
         }

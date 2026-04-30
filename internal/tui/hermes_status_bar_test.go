@@ -9,6 +9,7 @@ import (
 
 func newWideStatusModel() HermesStatusModel {
 	return HermesStatusModel{
+		StatusLabel:      "ready",
 		ModelName:        "anthropic/claude-sonnet-4-20250514",
 		ContextTokens:    12_450,
 		ContextLength:    200_000,
@@ -16,6 +17,7 @@ func newWideStatusModel() HermesStatusModel {
 		PromptElapsed:    3,
 		PromptLive:       true,
 		HasPromptElapsed: true,
+		CWDLabel:         "~/gormes-agent (development)",
 	}
 }
 
@@ -24,13 +26,15 @@ func TestHermesStatusBar_WideTerminal(t *testing.T) {
 
 	// All five wide-tier components must appear in one line.
 	wantContains := []string{
-		"⚕",
-		"claude-sonnet-4-20250514",
+		"─ ready",
+		"sonnet 4 20250514",
 		"12.4K/200K",
+		"[",
 		"6%",
 		"15m",
 		// per-prompt elapsed is rendered with the live emoji
 		"⏱",
+		"─ ~/gormes-agent (development)",
 	}
 	for _, frag := range wantContains {
 		if !strings.Contains(got, frag) {
@@ -43,6 +47,9 @@ func TestHermesStatusBar_WideTerminal(t *testing.T) {
 	if !strings.Contains(got, " │ ") {
 		t.Fatalf("wide status bar must use Hermes bar separator: %q", got)
 	}
+	if strings.Contains(got, "⚕") {
+		t.Fatalf("current Hermes Ink status rule must not render the old product glyph prefix: %q", got)
+	}
 }
 
 func TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration(t *testing.T) {
@@ -50,10 +57,10 @@ func TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration(t *testing.T) {
 
 	got := RenderHermesStatusBar(model, 60)
 
-	if !strings.Contains(got, "⚕") {
-		t.Fatalf("mid-width status bar missing ⚕ glyph: %q", got)
+	if !strings.Contains(got, "─ ready") {
+		t.Fatalf("mid-width status bar missing ready status rule: %q", got)
 	}
-	if !strings.Contains(got, "claude-sonnet-4-20250514") {
+	if !strings.Contains(got, "sonnet 4 20250514") {
 		t.Fatalf("mid-width status bar missing model: %q", got)
 	}
 	if !strings.Contains(got, "6%") {
@@ -62,42 +69,30 @@ func TestHermesStatusBar_MidWidthCollapsesToModelPercentDuration(t *testing.T) {
 	if !strings.Contains(got, "15m") {
 		t.Fatalf("mid-width status bar missing duration: %q", got)
 	}
-	// Hermes hides the absolute context fraction below 76 columns.
-	if strings.Contains(got, "200K") || strings.Contains(got, "12.4K") {
-		t.Fatalf("mid-width status bar leaks wide-only fields: %q", got)
-	}
 	// Per-prompt elapsed is also hidden below 76 columns.
 	if strings.Contains(got, "⏱") || strings.Contains(got, "⏲") {
 		t.Fatalf("mid-width status bar leaks per-prompt timer: %q", got)
 	}
-	if !strings.Contains(got, " · ") {
-		t.Fatalf("mid-width status bar must use middot separator: %q", got)
+	if strings.Contains(got, " · ") {
+		t.Fatalf("mid-width status bar leaked old middot footer separator: %q", got)
 	}
 }
 
 func TestHermesStatusBar_NarrowWidthCollapsesToModelDuration(t *testing.T) {
 	got := RenderHermesStatusBar(newWideStatusModel(), 50)
 
-	if !strings.Contains(got, "⚕") {
-		t.Fatalf("narrow status bar missing ⚕ glyph: %q", got)
+	if !strings.Contains(got, "─ ready") {
+		t.Fatalf("narrow status bar missing ready status rule: %q", got)
 	}
-	if !strings.Contains(got, "claude-sonnet-4-20250514") &&
-		!strings.Contains(got, "claude-sonnet-4-202505") {
+	if !strings.Contains(got, "sonnet") {
 		// Narrow tier may trim the long model with an ellipsis.
 		t.Fatalf("narrow status bar missing model name: %q", got)
 	}
-	if !strings.Contains(got, "15m") {
-		t.Fatalf("narrow status bar missing duration: %q", got)
-	}
-	// Below 52 columns Hermes drops percent, fraction, and prompt timer.
-	if strings.Contains(got, "%") {
-		t.Fatalf("narrow status bar leaks context percent: %q", got)
-	}
-	if strings.Contains(got, "200K") {
-		t.Fatalf("narrow status bar leaks context fraction: %q", got)
-	}
 	if strings.Contains(got, "⏱") || strings.Contains(got, "⏲") {
 		t.Fatalf("narrow status bar leaks per-prompt timer: %q", got)
+	}
+	if strings.Contains(got, "⚕") {
+		t.Fatalf("narrow status bar leaked old product glyph prefix: %q", got)
 	}
 }
 

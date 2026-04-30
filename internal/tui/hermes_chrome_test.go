@@ -120,8 +120,8 @@ func TestHermesChrome_BottomPinnedOrder_View(t *testing.T) {
 	got := m.View()
 
 	convIdx := strings.Index(got, "pong from hermes")
-	// The status bar carries the model name, which is unique to that row.
-	statusIdx := strings.Index(got, "claude-sonnet-4-20250514")
+	// The status rule carries the current Hermes Ink status + model label.
+	statusIdx := strings.Index(got, "─ ready │ sonnet 4 20250514")
 	promptIdx := strings.Index(got, "❯")
 
 	if convIdx < 0 {
@@ -173,51 +173,75 @@ func TestHermesChrome_ResponseBoxLabel(t *testing.T) {
 	}
 }
 
-func TestHermesChrome_MinimalWidthDropsBottomRule(t *testing.T) {
-	in := HermesChromeInput{
-		Width:        50,
-		Conversation: "<<CONV>>",
-		StatusBar:    "<<STATUS>>",
-		Prompt:       "<<PROMPT>>",
-	}
+func TestHermesChrome_InputPromptIsUnboxedSingleLineByDefault(t *testing.T) {
+	frames := make(chan kernel.RenderFrame, 1)
+	f := newHermesChromeFrame()
+	frames <- f
+	m := NewModel(frames, func(string) {}, func() {})
+	m.width = 120
+	m.height = 32
+	m.frame = f
 
-	got := RenderHermesChrome(in)
+	got := m.View()
 
-	if !strings.Contains(got, "<<STATUS>>") {
-		t.Fatalf("narrow chrome dropped status bar:\n%s", got)
+	for _, banned := range []string{"╭", "╮", "╰", "╯"} {
+		if strings.Contains(got, banned) {
+			t.Fatalf("View rendered boxed input chrome %q; Hermes prompt should be unboxed:\n%s", banned, got)
+		}
 	}
-	if !strings.Contains(got, "<<PROMPT>>") {
-		t.Fatalf("narrow chrome dropped prompt:\n%s", got)
+	if count := strings.Count(got, "❯"); count != 1 {
+		t.Fatalf("View rendered %d prompt symbols, want one single-line idle prompt:\n%s", count, got)
 	}
+	if strings.Contains(got, "phase:") {
+		t.Fatalf("View rendered debug phase chrome in idle state; Hermes keeps idle composer chrome quiet:\n%s", got)
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if isStandaloneInputRuleLine(line) {
+			t.Fatalf("View rendered standalone full-width input rule %q; current Hermes Ink uses the status rule as composer separation:\n%s", line, got)
+		}
+	}
+}
 
-	// Hermes hides the bottom input rule below 64 columns. The top rule
-	// stays so the prompt is still visually separated from the status bar.
-	bottomRule := strings.Repeat("─", 8)
-	statusIdx := strings.Index(got, "<<STATUS>>")
-	promptIdx := strings.Index(got, "<<PROMPT>>")
-	tail := got[promptIdx+len("<<PROMPT>>"):]
-	if strings.Contains(tail, bottomRule) {
-		t.Fatalf("narrow chrome rendered a bottom rule below the prompt:\n%s", got)
-	}
+func TestHermesChrome_DoesNotInjectStandaloneInputRules(t *testing.T) {
+	for _, width := range []int{50, 120} {
+		got := RenderHermesChrome(HermesChromeInput{
+			Width:        width,
+			Conversation: "<<CONV>>",
+			StatusBar:    "<<STATUS>>",
+			Prompt:       "<<PROMPT>>",
+		})
 
-	// At 120 cols, the bottom rule re-appears beneath the prompt. This pins
-	// the asymmetric Hermes _tui_input_rule_height("top"=1, "bottom"=0|1) rule.
-	wide := RenderHermesChrome(HermesChromeInput{
+		if !strings.Contains(got, "<<STATUS>>") {
+			t.Fatalf("width=%d: chrome dropped status bar:\n%s", width, got)
+		}
+		if !strings.Contains(got, "<<PROMPT>>") {
+			t.Fatalf("width=%d: chrome dropped prompt:\n%s", width, got)
+		}
+		for _, line := range strings.Split(got, "\n") {
+			if isStandaloneInputRuleLine(line) {
+				t.Fatalf("width=%d: chrome injected standalone input rule %q:\n%s", width, line, got)
+			}
+		}
+	}
+}
+
+func TestHermesChrome_OptionalRowsRemainBelowPrompt(t *testing.T) {
+	got := RenderHermesChrome(HermesChromeInput{
 		Width:        120,
 		Conversation: "<<CONV>>",
 		StatusBar:    "<<STATUS>>",
 		Prompt:       "<<PROMPT>>",
+		VoiceStatus:  "<<VOICE>>",
 	})
-	wTail := wide[strings.Index(wide, "<<PROMPT>>")+len("<<PROMPT>>"):]
-	if !strings.Contains(wTail, bottomRule) {
-		t.Fatalf("wide chrome should render a bottom rule beneath the prompt:\n%s", wide)
-	}
 
-	// Sanity: the narrow chrome still inserts a top rule between status and prompt.
-	between := got[statusIdx+len("<<STATUS>>") : promptIdx]
-	if !strings.Contains(between, bottomRule) {
-		t.Fatalf("narrow chrome must keep top rule between status and prompt:\n%q", between)
+	if strings.Index(got, "<<PROMPT>>") >= strings.Index(got, "<<VOICE>>") {
+		t.Fatalf("voice row must remain below prompt:\n%s", got)
 	}
+}
+
+func isStandaloneInputRuleLine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	return len(trimmed) >= 8 && strings.Trim(trimmed, "─") == ""
 }
 
 func TestHermesChrome_UsesAltScreen(t *testing.T) {

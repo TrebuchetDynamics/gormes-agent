@@ -123,6 +123,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	// line instead of the textarea default cursor marker.
 	normalPrompt, _ := DefaultHermesSkin().PromptSymbols("default")
 	ta.Prompt = normalPrompt
+	ta.SetHeight(1)
 	ta.Focus()
 	return Model{
 		editor:        ta,

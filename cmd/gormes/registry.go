@@ -23,6 +23,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
 	reg.MustRegister(tools.NewExecuteCodeTool())
+	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
 		Backend: tools.WebBackendConfig{
 			Backend:             cfg.Web.Backend,
@@ -53,7 +54,12 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
 	}))
-	reg.MustRegister(tools.NewClarifyTool(nil))
+	for _, tool := range tools.NewSkillsTools(tools.SkillsToolsConfig{
+		Root:        cfg.SkillsRoot(),
+		BundledRoot: skills.BundledRoot(),
+	}) {
+		reg.MustRegister(tool)
+	}
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
 		Budget: tools.ToolResultBudgetConfig{
 			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),

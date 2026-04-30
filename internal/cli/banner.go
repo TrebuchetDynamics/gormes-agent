@@ -48,7 +48,7 @@ func DisplayToolsetName(toolsetName string) string {
 func FormatBannerVersionLabel(version BannerVersion) string {
 	agentName := version.AgentName
 	if agentName == "" {
-		agentName = "Hermes Agent"
+		agentName = "Gormes Agent"
 	}
 	base := fmt.Sprintf("%s v%s (%s)", agentName, version.Version, version.ReleaseDate)
 	if version.GitState == nil || version.GitState.Upstream == "" || version.GitState.Local == "" {

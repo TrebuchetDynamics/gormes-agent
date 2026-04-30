@@ -20,6 +20,7 @@ type SearchFilter struct {
 	Sources          []string
 	SessionIDs       []string
 	Query            string
+	Roles            []string
 	CurrentSessionID string
 	CurrentChatKey   string
 }
@@ -214,7 +215,7 @@ func SearchMessages(ctx context.Context, db *sql.DB, metas []session.Metadata, f
 
 	sessionIDs, chatKeys, metaBySession, metaByChat := metadataIndexes(selected)
 	lineage := buildSearchLineageIndex(selected)
-	query, args := buildTurnSearchQuery(filter.Query, sessionIDs, chatKeys, limit, false)
+	query, args := buildTurnSearchQuery(filter.Query, sessionIDs, chatKeys, filter.Roles, limit, false)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("session catalog: search messages: %w", err)
@@ -253,7 +254,7 @@ func SearchSessions(ctx context.Context, db *sql.DB, metas []session.Metadata, f
 
 	sessionIDs, chatKeys, metaBySession, metaByChat := metadataIndexes(selected)
 	lineage := buildSearchLineageIndex(selected)
-	query, args := buildTurnSearchQuery(filter.Query, sessionIDs, chatKeys, limit, true)
+	query, args := buildTurnSearchQuery(filter.Query, sessionIDs, chatKeys, filter.Roles, limit, true)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("session catalog: search sessions: %w", err)
@@ -469,9 +470,9 @@ func (idx searchLineageIndex) statusFor(sessionID string) string {
 	return session.LineageStatusOK
 }
 
-func buildTurnSearchQuery(rawQuery string, sessionIDs, chatKeys []string, limit int, sessionsOnly bool) (string, []any) {
+func buildTurnSearchQuery(rawQuery string, sessionIDs, chatKeys, roles []string, limit int, sessionsOnly bool) (string, []any) {
 	var b strings.Builder
-	args := make([]any, 0, len(sessionIDs)+len(chatKeys)+2)
+	args := make([]any, 0, len(sessionIDs)+len(chatKeys)+len(roles)+2)
 	if sessionsOnly {
 		b.WriteString(`SELECT t.session_id, t.chat_id, MAX(t.ts_unix) AS latest_turn_unix FROM turns t`)
 	} else {
@@ -494,6 +495,10 @@ func buildTurnSearchQuery(rawQuery string, sessionIDs, chatKeys []string, limit 
 	}
 	b.WriteString(`)`)
 	b.WriteString(` AND t.memory_sync_status = 'ready'`)
+	if normalizedRoles := normalizeRoles(roles); len(normalizedRoles) > 0 {
+		b.WriteString(` AND `)
+		appendInClause(&b, "t.role", normalizedRoles, &args)
+	}
 
 	if sessionsOnly {
 		b.WriteString(` GROUP BY t.session_id, t.chat_id ORDER BY latest_turn_unix DESC, t.session_id ASC LIMIT ?`)
@@ -502,6 +507,21 @@ func buildTurnSearchQuery(rawQuery string, sessionIDs, chatKeys []string, limit 
 	}
 	args = append(args, limit)
 	return b.String(), args
+}
+
+func normalizeRoles(roles []string) []string {
+	if len(roles) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(roles))
+	for _, role := range roles {
+		role = strings.ToLower(strings.TrimSpace(role))
+		if role == "" || slices.Contains(out, role) {
+			continue
+		}
+		out = append(out, role)
+	}
+	return out
 }
 
 func appendInClause(b *strings.Builder, column string, values []string, args *[]any) {

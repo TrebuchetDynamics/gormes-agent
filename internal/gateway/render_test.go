@@ -82,6 +82,8 @@ func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 		{name: "snapshot", event: "tool: browser_snapshot", want: `📸 browser_snapshot...`},
 		{name: "skill_view", event: "tool: skill_view: gormes-hermes-parity", want: `📚 skill_view: "gormes-hermes-parity"`},
 		{name: "skills_list", event: "tool: skills_list", want: `📚 skills_list...`},
+		{name: "todo", event: "tool: todo: planning 5 task(s)", want: `📋 todo: "planning 5 task(s)"`},
+		{name: "execute_code", event: "tool: execute_code: from hermes_tools import terminal, search_files", want: `🐍 execute_code: "from hermes_tools import terminal, se..."`},
 		{name: "cronjob", event: "tool: cronjob: run", want: `⏰ cronjob: "run"`},
 	}
 	for _, tt := range tests {

@@ -81,7 +81,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 47/78 subphases shipped · 24 in progress · 7 planned
+**Overall:** 47/78 subphases shipped · 26 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -711,7 +711,7 @@ classification and row-backed implementation queue.
 ### 5.N — Misc Operator Tools 🔨
 
 - [x] Todo
-- [ ] Clarify
+- [x] Clarify
 - [x] Session search tool schema and argument validation
 - [x] Session search tool execution wrapper
 - [x] Session shutdown memory transcript handoff
@@ -766,7 +766,7 @@ classification and row-backed implementation queue.
 - [x] Gormes top-level logout provider shortcut
 - [x] Gormes login removed-command typo suggestion contract
 - [x] Gormes model interactive provider/model picker
-- [ ] Gormes setup minimal sectioned wizard slice
+- [x] Gormes setup minimal sectioned wizard slice
 - [ ] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default
 - [x] Gormes mcp login browser callback flow
@@ -875,20 +875,21 @@ classification and row-backed implementation queue.
 - [x] Hermes creative skill metadata compatibility
 - [ ] Portable SKILL.md format
 
-### 6.D — Skill Retrieval + Matching ⏳
+### 6.D — Skill Retrieval + Matching 🔨
 
 - [ ] Hybrid lexical + semantic lookup
 - [ ] Source-aware retrieval damping fixtures
-- [ ] Delta-bounded skill and memory maintenance passes
+- [x] Delta-bounded skill and memory maintenance passes
 - [ ] Code Cathedral II code-context retrieval fixtures
 
 ### 6.E — Feedback Loop ⏳
 
 - [ ] Skill effectiveness scoring
 
-### 6.F — Skill Surface ⏳
+### 6.F — Skill Surface 🔨
 
 - [ ] TUI + Telegram browsing
+- [x] Native skills list/view tool surface
 
 ## Phase 7 — Paused Channel Backlog 🔨
 

@@ -150,6 +150,44 @@ func TestSessionCatalog_SearchMessagesSkipsInterruptedSyncRows(t *testing.T) {
 	}
 }
 
+func TestSessionCatalog_SearchMessagesFiltersByRole(t *testing.T) {
+	store, err := OpenSqlite(t.TempDir()+"/memory.db", 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer func() {
+		if err := store.Close(context.Background()); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	now := time.Now().Unix()
+	if _, err := store.DB().ExecContext(ctx,
+		`INSERT INTO turns(session_id, role, content, ts_unix, chat_id)
+		 VALUES
+		 ('sess-1', 'assistant', 'Atlas assistant note', ?, 'telegram:42'),
+		 ('sess-1', 'user', 'Atlas user note', ?, 'telegram:42')`,
+		now-10, now,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := SearchMessages(ctx, store.DB(), []session.Metadata{
+		{SessionID: "sess-1", Source: "telegram", ChatID: "42", UserID: "user-juan"},
+	}, SearchFilter{
+		UserID: "user-juan",
+		Query:  "Atlas",
+		Roles:  []string{"user"},
+	}, 10)
+	if err != nil {
+		t.Fatalf("SearchMessages: %v", err)
+	}
+	if len(hits) != 1 || hits[0].Role != "user" || hits[0].Content != "Atlas user note" {
+		t.Fatalf("SearchMessages hits = %+v, want user role hit only", hits)
+	}
+}
+
 func TestSessionCatalog_SearchMessagesUnknownCurrentBindingDeniesUserScope(t *testing.T) {
 	store, err := OpenSqlite(t.TempDir()+"/memory.db", 0, nil)
 	if err != nil {
