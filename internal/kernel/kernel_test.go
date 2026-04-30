@@ -75,8 +75,8 @@ func drainUntilIdle(t *testing.T, ch <-chan RenderFrame, minSeq uint64, timeout 
 	}
 }
 
-// Test 1: 2000-token burst coalesces to < 500 render frames; final draft
-// is the concatenation of all tokens.
+// Test 1: 2000-token burst coalesces to < 500 render frames; final history
+// contains the concatenated assistant response.
 func TestKernel_ProviderOutpacesTUI_Coalesces(t *testing.T) {
 	k, mc := fixture(t)
 
@@ -103,9 +103,8 @@ func TestKernel_ProviderOutpacesTUI_Coalesces(t *testing.T) {
 
 	frames, final := drainUntilIdle(t, k.Render(), initial.Seq, 5*time.Second)
 
-	if final.DraftText != "" && final.DraftText != strings.Repeat("x", 2000) {
-		// DraftText may be cleared on final idle frame; we mainly care about
-		// the history entry. Check both conditions permissively.
+	if final.DraftText != "" {
+		t.Fatalf("final idle DraftText = %q, want empty after assistant history append", final.DraftText)
 	}
 	// The last assistant message in history must match 2000 x's.
 	if len(final.History) == 0 {
@@ -122,6 +121,43 @@ func TestKernel_ProviderOutpacesTUI_Coalesces(t *testing.T) {
 	// Coalescing invariant: frames < 500 for a 2000-token burst.
 	if frames >= 500 {
 		t.Errorf("emitted %d render frames for 2000 tokens; coalescer failed to bound output", frames)
+	}
+}
+
+func TestKernel_FinalIdleClearsDraftAfterHistoryAppend(t *testing.T) {
+	k, mc := fixture(t)
+
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "Hi! How can I help?"},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 5},
+	}, "sess-final-clear")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	initial := <-k.Render()
+	if initial.Phase != PhaseIdle {
+		t.Fatalf("initial phase = %v, want Idle", initial.Phase)
+	}
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "hi"}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, final := drainUntilIdle(t, k.Render(), initial.Seq, 2*time.Second)
+
+	if final.DraftText != "" {
+		t.Fatalf("final idle DraftText = %q, want empty once assistant text is in history", final.DraftText)
+	}
+	if got, want := len(final.History), 2; got != want {
+		t.Fatalf("history entries = %d, want %d: %#v", got, want, final.History)
+	}
+	if got := final.History[0]; got.Role != "user" || got.Content != "hi" {
+		t.Fatalf("first history entry = %#v, want user hi", got)
+	}
+	if got := final.History[1]; got.Role != "assistant" || got.Content != "Hi! How can I help?" {
+		t.Fatalf("second history entry = %#v, want final assistant reply", got)
 	}
 }
 

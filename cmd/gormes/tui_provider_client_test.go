@@ -133,6 +133,7 @@ func TestTUIStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 	for _, want := range []string{
 		"session persistence unavailable",
 		"running TUI with in-memory session state",
+		"gormes gateway stop",
 		"sessions.db",
 	} {
 		if !strings.Contains(stderr.String(), want) {

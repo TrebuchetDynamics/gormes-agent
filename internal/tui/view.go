@@ -22,8 +22,9 @@ var (
 // cli.py:_build_tui_layout_children: scrollback/conversation, optional
 // spinner/hint row, single-line status footer, bronze input rule, prompt +
 // input area, optional bottom rule (dropped on minimal widths), and reserved
-// voice/image/completion slots. The TUI runs in normal scrollback rather
-// than alt-screen so output persists after exit, matching Hermes.
+// voice/image/completion slots. The TUI runs in the alternate screen like
+// current Hermes Ink so repeated full-screen render ticks do not smear stale
+// frame fragments into normal scrollback.
 //
 // View never panics on any non-negative (width, height) input.
 func (m Model) View() string {

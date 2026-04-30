@@ -483,11 +483,9 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		SessionExport: newTUISaveExportFunc(),
 		OfflineSmoke:  offline,
 	})
-	// Hermes runs prompt_toolkit Application(full_screen=False) so the TUI
-	// lives in normal terminal scrollback. The Bubble Tea port mirrors that:
-	// no alt-screen unless tui.HermesChromeUseAltScreen() flips, which today
-	// always returns false. Output stays after exit and resize history is
-	// preserved, matching the bottom-pinned Hermes operator feel.
+	// Hermes' current Ink TUI runs in an alternate screen by default. The
+	// Bubble Tea port mirrors that for the full-screen dashboard so repeated
+	// render ticks do not leave stale frame fragments in normal scrollback.
 	var programOptions []tea.ProgramOption
 	if tui.HermesChromeUseAltScreen() {
 		programOptions = append(programOptions, tea.WithAltScreen())
@@ -523,7 +521,7 @@ func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, error
 	}
 	if errors.Is(err, session.ErrDBLocked) {
 		fmt.Fprintf(cmd.ErrOrStderr(),
-			"session persistence unavailable: %v\nrunning TUI with in-memory session state; stop the other Gormes process using %s to resume persisted sessions.\n",
+			"session persistence unavailable: %v\nrunning TUI with in-memory session state; run `gormes gateway stop` to release the persisted session DB, or `gormes gateway status` to inspect the owner. persisted_path=%s\n",
 			err, path)
 		return session.NewMemMap(), nil, nil
 	}

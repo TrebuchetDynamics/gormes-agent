@@ -10,13 +10,12 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
-// TestNativeTUIStartupDoesNotForceAltScreen proves runResolvedTUIWithRuntime
-// no longer wraps the Bubble Tea program in tea.WithAltScreen. Hermes runs
-// prompt_toolkit Application(full_screen=False), and the Gormes bottom-pinned
-// chrome ports that contract: the program must live in normal scrollback so
-// history persists after exit. A future explicit config flag may opt back in,
-// but the default startup path must not raise alt-screen mode.
-func TestNativeTUIStartupDoesNotForceAltScreen(t *testing.T) {
+// TestNativeTUIStartupUsesAltScreen proves the Go Bubble Tea TUI runs as a
+// coherent full-screen surface. Upstream Hermes' current Ink TUI uses an
+// alternate screen unless explicitly launched in inline mode; running Gormes'
+// multi-line dashboard in normal scrollback leaves stale frame fragments in
+// the terminal after each render tick.
+func TestNativeTUIStartupUsesAltScreen(t *testing.T) {
 	setupNativeTUITestEnv(t)
 
 	cfg, err := config.Load(nil)
@@ -41,14 +40,18 @@ func TestNativeTUIStartupDoesNotForceAltScreen(t *testing.T) {
 	}
 
 	altScreenPtr := reflect.ValueOf(tea.WithAltScreen()).Pointer()
+	foundAltScreen := false
 	for _, opt := range captured {
 		ptr := reflect.ValueOf(opt).Pointer()
 		if ptr == altScreenPtr {
-			t.Fatal("local TUI startup forced tea.WithAltScreen; bottom-pinned Hermes chrome must run in normal scrollback")
+			foundAltScreen = true
 		}
 		if name := runtime.FuncForPC(ptr).Name(); name != "" && containsAltScreen(name) {
-			t.Fatalf("local TUI startup forced alt-screen-like option %q; bottom-pinned Hermes chrome must run in normal scrollback", name)
+			foundAltScreen = true
 		}
+	}
+	if !foundAltScreen {
+		t.Fatal("local TUI startup did not enable tea.WithAltScreen; full-screen Bubble Tea renders must not smear stale frames into normal scrollback")
 	}
 }
 

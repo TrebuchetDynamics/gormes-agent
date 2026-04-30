@@ -562,13 +562,15 @@ toolLoop:
 		k.phase = PhaseCancelling
 		k.emitFrame("cancelled")
 	} else if k.draft != "" {
-		k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})
+		finalContent := k.draft
+		k.history = append(k.history, hermes.Message{Role: "assistant", Content: finalContent})
+		k.draft = ""
 		// Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
 		// handles I/O off the hot path. 250ms context bound kept as a safety net
 		// in case someone injects a synchronous store in the future.
 		payload := map[string]any{
 			"session_id":         k.sessionID,
-			"content":            k.draft,
+			"content":            finalContent,
 			"ts_unix":            time.Now().Unix(),
 			"chat_id":            k.cfg.ChatKey,
 			"turn_key":           turnKey,

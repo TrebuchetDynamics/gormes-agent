@@ -25826,7 +25826,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Unix installer tests and docs prove the root/FHS vs user-scoped policy and keep the served installer byte-equal to the canonical script."
+                "Unix installer tests and docs prove the root/FHS vs user-scoped policy, active PATH command refresh, and byte-equal served installer copy."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -27224,7 +27224,7 @@
               "name": "Native TUI Hermes bottom-pinned chrome layout",
               "priority": "P1",
               "status": "complete",
-              "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: scrollback/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, and no Telemetry/Soul side pane. The TUI should run in normal terminal scrollback like Hermes prompt_toolkit, not as a full-screen dashboard, while preserving Go-native RenderFrame consumption.",
+              "contract": "Gormes local Bubble Tea TUI replaces the dashboard/sidebar chrome with Hermes bottom-pinned chat contract: transcript/output above, spinner or hint row, single-line status footer, bronze input rule, dynamic multiline prompt with Hermes prompt symbol, and no Telemetry/Soul side pane. The local full-screen Bubble Tea renderer should use the terminal alternate screen like current Hermes Ink unless an explicit inline mode is added, while preserving Go-native RenderFrame consumption and ensuring completed assistant text is not rendered both as transcript history and live draft.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -27235,19 +27235,21 @@
               "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
               "fixture": "internal/tui/hermes_chrome_test.go::TestHermesChrome_*",
               "source_refs": [
-                "../hermes-agent/cli.py:HermesCLI.run bottom-pinned prompt_toolkit Application(full_screen=False)",
+                "../hermes-agent/ui-tui/src/components/appLayout.tsx:AlternateScreen default Shell",
+                "../hermes-agent/ui-tui/src/app/turnController.ts:recordMessageComplete finalTail streaming clear",
                 "../hermes-agent/cli.py:_build_tui_layout_children",
                 "../hermes-agent/cli.py:_tui_input_rule_height",
                 "../hermes-agent/cli.py:_spinner_widget_height",
                 "../hermes-agent/cli.py:_get_tui_prompt_fragments",
                 "../hermes-agent/tests/cli/test_cli_status_bar.py",
+                "internal/kernel/kernel.go:runTurn final assistant history append",
                 "internal/tui/view.go:View,renderConv,conversationViewportTail",
                 "cmd/gormes/main.go:runResolvedTUIWithRuntime"
               ],
               "ready_when": [
                 "Native TUI renderConv viewport budget binding is complete so conversation tail rendering is bounded.",
                 "Native TUI Hermes skin token renderer and status bar renderer are complete.",
-                "The worker may edit cmd/gormes/main.go only to remove/adjust alt-screen program options and must keep --offline local-smoke behavior intact."
+                "The worker may edit cmd/gormes/main.go and internal/tui/hermes_chrome.go to keep local alt-screen behavior aligned with current Hermes Ink, and may edit internal/kernel finalization only to prevent transcript/draft duplicate rendering."
               ],
               "not_ready_when": [
                 "The slice imports prompt_toolkit, Python, Node/Ink, or Hermes runtime code.",
@@ -27259,31 +27261,35 @@
                 "TestHermesChrome_BottomPinnedOrder proves output order is conversation, optional spinner/hint, status bar, input rule, prompt/input area, optional voice/image/completion rows.",
                 "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Hermes response label/border, not `gormes:` dashboard tags, while user previews remain visible.",
                 "TestHermesChrome_MinimalWidthDropsBottomRule proves narrow widths keep prompt/status usable and hide low-value chrome like Hermes.",
-                "A cmd/gormes test proves local TUI startup no longer forces alt-screen when running the Hermes-compatible local chrome, unless a future explicit config flag opts back in."
+                "TestHermesChrome_UsesAltScreen and TestNativeTUIStartupUsesAltScreen prove local full-screen TUI startup enables alt-screen by default, matching current Hermes Ink and preventing stale scrollback frame fragments.",
+                "TestKernel_FinalIdleClearsDraftAfterHistoryAppend proves the final idle frame moves assistant text into history and clears DraftText so the TUI cannot render the same assistant reply twice."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go; dropped tea.WithAltScreen from cmd/gormes/main.go behind tui.HermesChromeUseAltScreen so the TUI runs in normal scrollback; added cmd/gormes/tui_hermes_chrome_test.go to lock the no-alt-screen invariant. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows render under the Hermes response label rather than `gormes:`, the bottom input rule is dropped below the 64-column minimal-chrome threshold, and gormes never enters the terminal alt-screen by default.",
+              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status bar + bronze input rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows render under the Hermes response label rather than `gormes:`, the bottom input rule is dropped below the 64-column minimal-chrome threshold, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",
                 "internal/tui/hermes_chrome.go",
                 "internal/tui/hermes_chrome_test.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/kernel_test.go",
                 "cmd/gormes/main.go",
                 "cmd/gormes/tui_*_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
+                "go test ./internal/kernel -run 'TestKernel_FinalIdleClearsDraftAfterHistoryAppend|TestKernel_ProviderOutpacesTUI_Coalesces' -count=1",
                 "go test ./internal/tui -run '^TestHermesChrome_' -count=1",
                 "go test ./cmd/gormes -run 'Test.*TUI' -count=1",
-                "go test ./cmd/gormes ./internal/tui -count=1",
+                "go test ./cmd/gormes ./internal/tui ./internal/kernel -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Hermes chrome fixtures prove bottom-pinned, no-sidebar local TUI output; cmd/gormes tests prove --offline still boots locally without provider calls."
+                "Hermes chrome fixtures prove bottom-pinned, no-sidebar local TUI output; cmd/gormes tests prove --offline still boots locally without provider calls and with alt-screen enabled; kernel tests prove final assistant text is not duplicated between history and DraftText."
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes owns the visual/operator contract; Gormes implements it with Bubble Tea and Go renderer helpers, not Python prompt_toolkit."
+                "upstream_ref": "hermes:ui-tui Ink AlternateScreen + turnController message.complete handling",
+                "note": "Current Hermes Ink owns the active full-screen/operator contract; classic prompt_toolkit remains useful for chrome details. Gormes implements parity with Bubble Tea and Go renderer helpers, not Python prompt_toolkit or Node/Ink runtime code."
               },
               "blocked_by": [
                 "Native TUI renderConv viewport budget binding",

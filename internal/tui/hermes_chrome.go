@@ -96,11 +96,12 @@ func RenderHermesChrome(in HermesChromeInput) string {
 }
 
 // HermesChromeUseAltScreen reports whether the bottom-pinned Hermes chrome
-// should be rendered in the terminal alt-screen. Hermes runs prompt_toolkit
-// with Application(full_screen=False), so the answer is always false: the
-// TUI must live in normal scrollback and let history persist after exit.
+// should be rendered in the terminal alt-screen. Upstream Hermes' current Ink
+// TUI uses an alternate screen by default and only skips it for explicit inline
+// mode. Gormes' Bubble Tea surface is likewise a full-screen renderer; normal
+// scrollback leaves stale frame fragments visible after render ticks.
 func HermesChromeUseAltScreen() bool {
-	return false
+	return true
 }
 
 // HermesChromeAssistantLabel returns the response-region label rendered above

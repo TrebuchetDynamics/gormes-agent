@@ -217,8 +217,8 @@ func TestHermesChrome_MinimalWidthDropsBottomRule(t *testing.T) {
 	}
 }
 
-func TestHermesChrome_AltScreenStaysOff(t *testing.T) {
-	if HermesChromeUseAltScreen() {
-		t.Fatal("HermesChromeUseAltScreen() = true; bottom-pinned Hermes chrome must run in normal scrollback")
+func TestHermesChrome_UsesAltScreen(t *testing.T) {
+	if !HermesChromeUseAltScreen() {
+		t.Fatal("HermesChromeUseAltScreen() = false; full-screen Hermes chrome must use alt-screen to avoid stale render frames")
 	}
 }
