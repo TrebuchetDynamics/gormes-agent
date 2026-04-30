@@ -114,6 +114,79 @@ func TestBot_ToInboundEvent_VoiceMessageIsNotBlank(t *testing.T) {
 	}
 }
 
+func TestBot_ToInboundEvent_VoiceMessageIncludesTranscriptWhenTranscriberConfigured(t *testing.T) {
+	mc := newMockClient()
+	mc.telegramFiles["voice-file-id"] = tgbotapi.File{FileID: "voice-file-id", FilePath: "voice/file_0.ogg"}
+	mc.downloads["voice/file_0.ogg"] = []byte("ogg bytes")
+	b := New(Config{
+		AllowedChatID: 42,
+		AudioTranscriber: fakeAudioTranscriber{
+			Transcript: "please check the Gormes audio path",
+		},
+	}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = b.Run(ctx, inbox) }()
+
+	mc.pushVoiceUpdate(42, tgbotapi.Voice{
+		FileID:       "voice-file-id",
+		FileUniqueID: "voice-unique-id",
+		Duration:     9,
+		MimeType:     "audio/ogg",
+	})
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventSubmit {
+			t.Fatalf("Kind = %v, want submit", ev.Kind)
+		}
+		if !strings.Contains(ev.Text, `[The user sent a voice message~ Here's what they said: "please check the Gormes audio path"]`) {
+			t.Fatalf("voice text = %q, want Hermes-style transcript before marker", ev.Text)
+		}
+		if !strings.Contains(ev.Text, "Telegram voice message") {
+			t.Fatalf("voice text = %q, want marker preserved", ev.Text)
+		}
+		if len(ev.Attachments) != 1 || ev.Attachments[0].Kind != "voice" || ev.Attachments[0].Error != "" {
+			t.Fatalf("attachments = %+v", ev.Attachments)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("no inbound event")
+	}
+}
+
+func TestBot_ToInboundEvent_VoiceMessageFallsBackWhenDownloadFails(t *testing.T) {
+	mc := newMockClient()
+	mc.getFileErr = errTelegramTestDownload
+	b := New(Config{
+		AllowedChatID:    42,
+		AudioTranscriber: fakeAudioTranscriber{Transcript: "should not run"},
+	}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = b.Run(ctx, inbox) }()
+
+	mc.pushVoiceUpdate(42, tgbotapi.Voice{FileID: "voice-file-id", Duration: 9, MimeType: "audio/ogg"})
+
+	select {
+	case ev := <-inbox:
+		if !strings.Contains(ev.Text, "Telegram voice message") {
+			t.Fatalf("voice text = %q, want marker fallback", ev.Text)
+		}
+		if strings.Contains(ev.Text, "voice-file-id") || strings.Contains(ev.Text, "bot") || strings.Contains(ev.Text, "token") {
+			t.Fatalf("voice text leaks transport details: %q", ev.Text)
+		}
+		if len(ev.Attachments) != 1 || ev.Attachments[0].Error == "" {
+			t.Fatalf("attachments = %+v, want sanitized error", ev.Attachments)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("no inbound event")
+	}
+}
+
 func TestBot_ToInboundEvent_AudioMessageWithCaptionPreservesCaptionAndMarker(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)

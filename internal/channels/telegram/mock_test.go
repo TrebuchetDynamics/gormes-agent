@@ -1,10 +1,14 @@
 package telegram
 
 import (
+	"context"
+	"errors"
 	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+var errTelegramTestDownload = errors.New("telegram download failed")
 
 type mockClient struct {
 	updatesCh chan tgbotapi.Update
@@ -17,14 +21,20 @@ type mockClient struct {
 
 	SendFn          func(c tgbotapi.Chattable) (tgbotapi.Message, error)
 	DeleteMessageFn func(chatID int64, messageID int) error
+	telegramFiles   map[string]tgbotapi.File
+	downloads       map[string][]byte
+	getFileErr      error
+	downloadErr     error
 }
 
 var _ telegramClient = (*mockClient)(nil)
 
 func newMockClient() *mockClient {
 	return &mockClient{
-		updatesCh: make(chan tgbotapi.Update, 16),
-		nextMsgID: 1000,
+		updatesCh:     make(chan tgbotapi.Update, 16),
+		nextMsgID:     1000,
+		telegramFiles: map[string]tgbotapi.File{},
+		downloads:     map[string][]byte{},
 	}
 }
 
@@ -62,6 +72,30 @@ func (m *mockClient) DeleteMessage(chatID int64, messageID int) error {
 		return m.DeleteMessageFn(chatID, messageID)
 	}
 	return nil
+}
+
+func (m *mockClient) GetFile(config tgbotapi.FileConfig) (tgbotapi.File, error) {
+	if m.getFileErr != nil {
+		return tgbotapi.File{}, m.getFileErr
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if f, ok := m.telegramFiles[config.FileID]; ok {
+		return f, nil
+	}
+	return tgbotapi.File{FileID: config.FileID, FilePath: config.FileID}, nil
+}
+
+func (m *mockClient) DownloadFile(_ context.Context, filePath string) ([]byte, error) {
+	if m.downloadErr != nil {
+		return nil, m.downloadErr
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if data, ok := m.downloads[filePath]; ok {
+		return append([]byte(nil), data...), nil
+	}
+	return nil, errTelegramTestDownload
 }
 
 func (m *mockClient) StopReceivingUpdates() {

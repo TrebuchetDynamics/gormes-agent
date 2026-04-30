@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"testing"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -13,7 +14,7 @@ func TestBot_ToInboundEvent_GroupMentionGate_BareCommandDropped(t *testing.T) {
 	update := groupUpdate(-100, "/status", []tgbotapi.MessageEntity{
 		{Type: "bot_command", Offset: 0, Length: 7},
 	})
-	if _, ok := b.toInboundEvent(update); ok {
+	if _, ok := b.toInboundEvent(context.Background(), update); ok {
 		t.Fatal("expected bare /status in group to be dropped when require_mention=true")
 	}
 }
@@ -23,7 +24,7 @@ func TestBot_ToInboundEvent_GroupMentionGate_BotCommandSuffixAccepted(t *testing
 	update := groupUpdate(-100, "/start@gormes_bot", []tgbotapi.MessageEntity{
 		{Type: "bot_command", Offset: 0, Length: 17},
 	})
-	ev, ok := b.toInboundEvent(update)
+	ev, ok := b.toInboundEvent(context.Background(), update)
 	if !ok {
 		t.Fatal("expected /start@gormes_bot in group to be accepted")
 	}
@@ -38,7 +39,7 @@ func TestBot_ToInboundEvent_GroupMentionGate_PlainTextMentionAccepted(t *testing
 	update := groupUpdate(-100, text, []tgbotapi.MessageEntity{
 		{Type: "mention", Offset: len("hello "), Length: len("@gormes_bot")},
 	})
-	ev, ok := b.toInboundEvent(update)
+	ev, ok := b.toInboundEvent(context.Background(), update)
 	if !ok {
 		t.Fatal("expected mention-addressed group text to be accepted")
 	}
@@ -47,11 +48,10 @@ func TestBot_ToInboundEvent_GroupMentionGate_PlainTextMentionAccepted(t *testing
 	}
 }
 
-
 func TestBot_ToInboundEvent_DMBypassesMentionGate(t *testing.T) {
 	b := New(Config{RequireMention: true, BotUsername: "gormes_bot"}, newMockClient(), nil)
 	update := dmUpdate(42, "hello")
-	ev, ok := b.toInboundEvent(update)
+	ev, ok := b.toInboundEvent(context.Background(), update)
 	if !ok {
 		t.Fatal("expected DM text to be accepted regardless of mention gate")
 	}

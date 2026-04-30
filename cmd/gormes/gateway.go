@@ -190,6 +190,9 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 			return telegram.New(telegram.Config{
 				AllowedChatID:     cfg.Telegram.AllowedChatID,
 				FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
+				RequireMention:    cfg.Telegram.RequireMention,
+				BotUsername:       cfg.Telegram.BotUsername,
+				AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
 			}, tc, log), nil
 		},
 		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {

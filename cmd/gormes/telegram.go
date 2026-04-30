@@ -195,6 +195,9 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	bot := telegram.New(telegram.Config{
 		AllowedChatID:     cfg.Telegram.AllowedChatID,
 		FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
+		RequireMention:    cfg.Telegram.RequireMention,
+		BotUsername:       cfg.Telegram.BotUsername,
+		AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
 	}, tc, slog.Default())
 	go ext.Run(rootCtx)
 

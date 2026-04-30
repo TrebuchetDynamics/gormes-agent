@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -17,6 +18,10 @@ import (
 type Config struct {
 	AllowedChatID     int64
 	FirstRunDiscovery bool
+	// AudioTranscriber optionally turns Telegram voice/audio attachments into
+	// text before they reach the gateway. When nil or degraded, the adapter
+	// still emits deterministic attachment markers instead of blank turns.
+	AudioTranscriber AudioTranscriber
 	// RequireMention gates group inbound messages so only those addressed to
 	// BotUsername (mention or bot_command @suffix) reach the gateway.
 	RequireMention bool
@@ -82,7 +87,7 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 			if !ok {
 				return nil
 			}
-			if ev, ok := b.toInboundEvent(u); ok {
+			if ev, ok := b.toInboundEvent(ctx, u); ok {
 				select {
 				case inbox <- ev:
 				case <-ctx.Done():
@@ -93,13 +98,13 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 	}
 }
 
-func (b *Bot) toInboundEvent(u tgbotapi.Update) (gateway.InboundEvent, bool) {
+func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.InboundEvent, bool) {
 	if u.Message == nil {
 		return gateway.InboundEvent{}, false
 	}
 
 	chatID := u.Message.Chat.ID
-	text, attachments := telegramInboundTextAndAttachments(u.Message)
+	text, attachments := b.telegramInboundTextAndAttachments(ctx, u.Message)
 
 	if b.cfg.RequireMention && telegramIsGroupChat(u.Message.Chat) {
 		if !telegramGroupMentionGateAddressed(text, u.Message.Entities, b.cfg.BotUsername, true) {
@@ -125,7 +130,7 @@ func (b *Bot) toInboundEvent(u tgbotapi.Update) (gateway.InboundEvent, bool) {
 	}, true
 }
 
-func telegramInboundTextAndAttachments(msg *tgbotapi.Message) (string, []gateway.Attachment) {
+func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbotapi.Message) (string, []gateway.Attachment) {
 	if msg == nil {
 		return "", nil
 	}
@@ -139,11 +144,34 @@ func telegramInboundTextAndAttachments(msg *tgbotapi.Message) (string, []gateway
 	var markers []string
 	if msg.Voice != nil {
 		marker, attachment := telegramVoiceAttachment(msg.Voice)
+		if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
+			Kind:      "voice",
+			FileID:    attachment.SourceID,
+			MediaType: attachment.MediaType,
+			Duration:  time.Duration(msg.Voice.Duration) * time.Second,
+		}); err == nil && strings.TrimSpace(transcript) != "" {
+			markers = append(markers, telegramAudioTranscriptMarker("voice", transcript))
+		} else if err != nil {
+			attachment.Error = sanitizeTelegramAudioError(err)
+			b.log.Warn("telegram audio transcription unavailable", "kind", "voice", "err", attachment.Error)
+		}
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)
 	}
 	if msg.Audio != nil {
 		marker, attachment := telegramAudioAttachment(msg.Audio)
+		if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
+			Kind:      "audio",
+			FileID:    attachment.SourceID,
+			MediaType: attachment.MediaType,
+			FileName:  attachment.FileName,
+			Duration:  time.Duration(msg.Audio.Duration) * time.Second,
+		}); err == nil && strings.TrimSpace(transcript) != "" {
+			markers = append(markers, telegramAudioTranscriptMarker("audio", transcript))
+		} else if err != nil {
+			attachment.Error = sanitizeTelegramAudioError(err)
+			b.log.Warn("telegram audio transcription unavailable", "kind", "audio", "err", attachment.Error)
+		}
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)
 	}
@@ -159,6 +187,18 @@ func telegramInboundTextAndAttachments(msg *tgbotapi.Message) (string, []gateway
 		}
 	}
 	return text, attachments
+}
+
+func telegramInboundTextAndAttachments(msg *tgbotapi.Message) (string, []gateway.Attachment) {
+	return New(Config{}, nil, nil).telegramInboundTextAndAttachments(context.Background(), msg)
+}
+
+func telegramAudioTranscriptMarker(kind, transcript string) string {
+	label := "voice message"
+	if strings.EqualFold(strings.TrimSpace(kind), "audio") {
+		label = "audio message"
+	}
+	return fmt.Sprintf("[The user sent a %s~ Here's what they said: %q]", label, strings.Join(strings.Fields(transcript), " "))
 }
 
 func telegramVoiceAttachment(voice *tgbotapi.Voice) (string, gateway.Attachment) {
