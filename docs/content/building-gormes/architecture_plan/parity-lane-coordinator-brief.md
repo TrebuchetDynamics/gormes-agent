@@ -17,9 +17,10 @@ specific class of parity gap.
 ## Top 3 P0 slices recommended for immediate dispatch
 
 These are the highest-leverage slices for immediate planner/builder
-dispatch. The first and third already have progress rows; the second
-should be folded into `Gateway stream/tool trace formatting fixture
-matrix` or split by `gormes-planner` before implementation.
+dispatch. `Telegram MarkdownV2 parse-mode rendering closeout` used to
+be in this trio but is now complete/validated in `progress.json`, with
+wire-level ParseMode and fallback fixtures in
+`internal/channels/telegram/bot_parse_mode_test.go`.
 
 1. **`Telegram production live-turn provider payload golden`** (Lane D,
    priority P0).
@@ -35,33 +36,28 @@ matrix` or split by `gormes-planner` before implementation.
    - Test command:
      `GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/gateway -run 'Telegram.*ProviderPayload|LiveTurn' -count=1`.
 
-2. **`Telegram MarkdownV2 parse-mode rendering closeout`** (Lane B,
-   priority P0; planner refinement).
-   - Why: every Gormes bot reply currently shows literal backslashes
-     and broken `*bold*` because `internal/gateway/render.go`
-     MarkdownV2-escapes outbound text but
-     `internal/channels/telegram/bot.go::Send` /
-     `SendReply` never set `msgCfg.ParseMode = "MarkdownV2"`. Mobile
-     readability is regressed.
-   - Fixture: `internal/channels/telegram/bot_test.go` (new asserts on
-     constructed `tgbotapi.MessageConfig.ParseMode`) +
-     `internal/gateway/render_test.go` (existing escape fixtures).
-   - Test command:
-     `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'ParseMode|MarkdownV2|FormatStreamTelegram|FormatFinalTelegram|FormatErrorTelegram' -count=1`.
-
-3. **`Telegram /status Hermes-format closeout`** (Lane B+C, priority
+2. **`Telegram /status Hermes-format closeout`** (Lane B+C, priority
    P0).
    - Why: visible-everywhere chat command. Today's output already
-     reply-quotes the triggering message and bypasses the model, but
-     field labels lack bold (regression of #10 above), and Title
-     either is missing or shows a synthetic
-     "Telegram conversation with <user_id>" instead of an
-     LLM-generated title. The best closeout sequence: ship #2 first
-     so the bold labels render, then ship this row.
+     reply-quotes the triggering message and bypasses the model, and
+     the completed MarkdownV2 parse-mode row now lets bold labels
+     render. The remaining closeout is status content: a real
+     LLM-generated Title and session metadata instead of synthetic
+     title fallback.
    - Fixture: `internal/gateway/status_command_test.go` +
      `internal/channels/telegram/bot_test.go`.
    - Test command:
      `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram -run 'Status|Title|Telegram|Reply' -count=1`.
+
+3. **`Gateway session token accounting parity`** (Lane C, priority P0).
+   - Why: `/status` should report durable session token totals even
+     after the live render frame is stale; the planned row persists
+     provider usage into session metadata instead of relying only on
+     the manager's last in-memory frame.
+   - Fixture: `internal/gateway/status_command_test.go` + session
+     metadata fixtures.
+   - Test command:
+     `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Status|Token|Usage' -count=1`.
 
 The fourth complementary slice (not in the P0 trio because it's an
 inventory, not a behavior change) is the parity matrix itself, which
@@ -75,12 +71,17 @@ if they are not already represented in `progress.json`.
 
 ### Lane B — Telegram UX and command parity
 
-**Missing/regressed/partial: 11 areas.**
+**Missing/regressed/partial: 8 areas.**
 
 P0:
-- _Telegram MarkdownV2 parse-mode rendering closeout_ (planner refinement).
-- _Telegram /status Hermes-format closeout_ (planned).
+- _Telegram /status Hermes-format closeout_ (planned; unblocked by the
+  completed MarkdownV2 parse-mode row).
 - _Telegram production live-turn provider payload golden_ (planned).
+
+Completed P0:
+- _Telegram MarkdownV2 parse-mode rendering closeout_ (complete/validated;
+  ParseMode and parse-error fallback are covered by
+  `internal/channels/telegram/bot_parse_mode_test.go`).
 
 P1:
 - _Telegram reply_to_mode and reply-context parity_ (planned). Covers
@@ -186,9 +187,10 @@ P1:
 ## Cross-lane dependencies
 
 - **Lane B #2 (`Telegram MarkdownV2 parse-mode rendering closeout`)
-  unblocks Lane B #3 (`Telegram /status Hermes-format closeout`):**
-  the /status Hermes target uses `**Field:**` bold labels which
-  require MarkdownV2 to render.
+  is complete and unblocks Lane B #3 (`Telegram /status Hermes-format
+  closeout`):** the /status Hermes target uses `**Field:**` bold labels;
+  `internal/channels/telegram/bot_parse_mode_test.go` now proves
+  MarkdownV2 ParseMode and parse-error fallback on send/reply/edit paths.
 - **Lane D #1 (`Telegram production live-turn provider payload golden`)
   unblocks no other slice but proves the full chain end-to-end.** The
   gateway-level test passes; the production binary test does not yet
@@ -227,13 +229,11 @@ P1:
    `cmd/gormes/telegram.go::telegramManagerConfig` may construct the
    manager with different seam defaults than the test. The Lane D #1
    slice exists specifically to close this risk.
-4. **MarkdownV2 fallback strategy**: when the bot replies with text
-   that breaks MarkdownV2 parsing (rare, but possible — e.g. a `*` in
-   a tool name), Hermes falls back to plain text. Gormes today doesn't
-   have a parse-mode fallback path. The new
-   `Telegram MarkdownV2 parse-mode rendering closeout` row must
-   include a parse-failure fallback or the regression flips to a
-   different failure mode.
+4. **MarkdownV2 fallback strategy**: shipped. When Telegram rejects
+   MarkdownV2 parsing, `sendWithParseFallback` retries the byte-identical
+   body once with `ParseMode` unset; keep the fallback covered by
+   `TestBot_Send_FallsBackToPlainOnMarkdownV2ParseError` as later
+   renderer rows change output shape.
 5. **Auto-title side effects**: wiring `hermes.GenerateTitle` into the
    gateway live turn means an extra provider call per session, which
    will increase token spend and may produce a delayed title-update

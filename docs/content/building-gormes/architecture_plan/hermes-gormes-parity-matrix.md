@@ -42,9 +42,9 @@ Lane key (per the parity operating model):
 | 7 | Busy/admission behavior | parity | B | Active-turn follow-up queue + late-arrival drain policy (complete) |
 | 8 | Telegram reply quoting (every bot response) | partial | B | Telegram reply_to_mode and reply-context parity (planned) |
 | 9 | Telegram message threading (forum topic threads) | partial | B | Telegram reply_to_mode and reply-context parity (planned) |
-| 10 | Telegram markdown rendering (bold/italic/code/headers/spoilers/strike) | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
-| 11 | Telegram code blocks | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
-| 12 | Telegram bullets/headings | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
+| 10 | Telegram markdown rendering (bold/italic/code/headers/spoilers/strike) | parity | B | Telegram MarkdownV2 parse-mode rendering closeout (complete) |
+| 11 | Telegram code blocks | parity | B | Telegram MarkdownV2 parse-mode rendering closeout (complete) |
+| 12 | Telegram bullets/headings | parity | B | Telegram MarkdownV2 parse-mode rendering closeout (complete) |
 | 13 | Error message formatting | parity | B | Existing render_test fixtures cover sanitization |
 | 14 | Progress messages (interim) | parity | B | Coalescer + render_test cover stream cadence |
 | 15 | Final answer separation | parity | B | Coalescer fresh-final + sendNoEdit cover phase split |
@@ -54,7 +54,7 @@ Lane key (per the parity operating model):
 | 19 | Streaming cadence | parity | B | Coalescer window + freshFinalAfter govern cadence |
 | 20 | Tool trace formatting (memory/search_files/read_file/patch/terminal icons) | partial | B | Gateway stream/tool trace formatting fixture matrix (planned) |
 | 21 | Duplicate collapse | partial | B | Restart duplicate-suppression covers operator path; chat-text dedup not implemented (new low-priority gap) |
-| 22 | Mobile-readable formatting | regressed | B | Telegram MarkdownV2 parse-mode rendering closeout (planner refinement) |
+| 22 | Mobile-readable formatting | parity for MarkdownV2 parse-mode; partial for broader style polish | B | Telegram MarkdownV2 parse-mode rendering closeout (complete); Gateway stream/tool trace formatting fixture matrix (planned) |
 | 23 | Identity / persona ("My name is Gormes" not "ChatGPT") | parity | D | Live-turn SOUL.md and project context wiring (channel-neutral) (complete) |
 | 24 | Final provider request includes Gormes identity (integration test) | parity at gateway, planned at production cmd | D | Telegram production live-turn provider payload golden (planned, P0) |
 | 25 | Final provider request includes USER.md / MEMORY.md | parity at gateway | D | Live-turn USER.md and MEMORY.md durable user context block (channel-neutral) (complete) |
@@ -156,11 +156,12 @@ Classification, Progress row).
 - **Evidence command**:
   `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run Status -count=1`
 - **Live Telegram evidence**: when the user sends `/status`, Gormes
-  replies (threaded to the request) with the field block. The visible
-  delta from Hermes is missing bold in the field labels (no MarkdownV2)
-  and Title showing as a synthetic
-  "Telegram conversation with <user_id>" instead of an LLM-generated
-  title.
+  replies (threaded to the request) with the field block. MarkdownV2
+  parse-mode is now set on Telegram sends, replies, and edits, so the
+  bold field labels render instead of appearing as literal escaped
+  markup. The remaining visible delta from Hermes is Title quality:
+  live status can still show a synthetic "Telegram conversation with
+  <user_id>" title until the session/title rows finish.
 
 ### 2. /help and slash menu (setMyCommands / getMyCommands)
 
@@ -313,49 +314,56 @@ Classification, Progress row).
   posts with `parse_mode=ParseMode.MARKDOWN_V2` and falls back to plain
   on parse failure (line 998).
 - **Gormes source**:
-  - render side: `internal/gateway/render.go:48-81`
+  - render side: `internal/gateway/render.go`
     (`FormatStreamTelegram`, `FormatFinalTelegram`, `FormatErrorTelegram`)
-    use `tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, ...)` on every
+    uses `tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, ...)` on every
     Telegram-bound string.
-  - send side: `internal/channels/telegram/bot.go:127-157`
-    (`Send`, `SendReply`) construct `tgbotapi.NewMessage(...)` and never
-    set `msgCfg.ParseMode = "MarkdownV2"`.
-- **Net effect on Telegram**: the user sees backslash-escaped output
-  ("Hello\, world\!" with literal backslashes) because the bot API
-  treats the message as plain text. Bold, italic, code, headers,
-  spoilers, and strikethrough all break visibly.
-- **Status**: `regressed`. Render and channel are out of sync.
-- **Test coverage**: render_test asserts the escape happens, but no
-  test asserts ParseMode actually reaches the wire. None of the
-  channel send tests inspect ParseMode on the constructed message.
+  - send side: `internal/channels/telegram/bot.go::Send`,
+    `SendReply`, and `EditMessage` set `ParseMode =
+    tgbotapi.ModeMarkdownV2`; `SendPlaceholder` and
+    `SendReplyPlaceholder` inherit this through Send/SendReply.
+  - fallback side: `internal/channels/telegram/bot.go::sendWithParseFallback`
+    retries once with `ParseMode` unset on parse/markdown errors while
+    preserving the byte-identical message body.
+- **Net effect on Telegram**: escaped MarkdownV2 from the shared render
+  layer now reaches Telegram with the matching parse mode, so bold,
+  italic, code, spoiler, strike, status labels, and code-like snippets
+  render instead of showing literal backslashes.
+- **Status**: `parity` for parse-mode wiring and parse-error fallback.
+- **Test coverage**: `internal/channels/telegram/bot_parse_mode_test.go`
+  covers Send, SendReply, EditMessage, parse-error fallback, and
+  render-layer byte preservation. `internal/gateway/render_test.go`
+  continues to cover escaping/sanitization.
 - **Lane**: B.
-- **Progress row**: new — `Telegram MarkdownV2 parse-mode rendering closeout`.
+- **Progress row**: `Telegram MarkdownV2 parse-mode rendering closeout`
+  (complete, validated).
 - **Evidence command**:
-  `grep -n "ParseMode\|parse_mode" internal/channels/telegram/*.go` —
-  returns no matches.
-- **Live Telegram evidence**: any bot reply containing `*bold*`, `_em_`,
-  `` `code` ``, `~~strike~~`, or `||spoiler||` shows literal asterisks
-  and backslashes instead of formatting.
+  `GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'MarkdownV2|ParseMode|Send|Reply|EditMessage' -count=1`.
 
 ### 11. Telegram code blocks
 
 - **Hermes source**: same as #10. Triple-backtick blocks render via
   MarkdownV2 fenced code.
-- **Gormes source**: same as #10 — escaping is performed but parse mode
-  is plain, so triple backticks pass through as literal backticks.
-- **Status**: `regressed`.
+- **Gormes source**: same as #10 — rendering escapes MarkdownV2 and the
+  Telegram channel now sets MarkdownV2 parse mode on sends/replies/edits.
+- **Status**: `parity` for the parse-mode transport layer; content-level
+  code-block styling remains owned by the shared renderer fixtures.
 - **Lane**: B.
 - **Progress row**: same as #10 (`Telegram MarkdownV2 parse-mode
-  rendering closeout`).
+  rendering closeout`, complete).
 
 ### 12. Telegram bullets / headings
 
 - **Hermes source**: same as #10. Bullets and headings rely on
   client-side rendering of MarkdownV2.
-- **Gormes source**: same as #10.
-- **Status**: `regressed`.
+- **Gormes source**: same as #10. Parse-mode wiring is complete; broader
+  mobile-readable style polish remains under stream/tool trace and
+  Telegram UX rows.
+- **Status**: `parity` for parse-mode transport; `partial` only for
+  broader style polish outside this row.
 - **Lane**: B.
-- **Progress row**: same as #10.
+- **Progress row**: same as #10 for parse-mode, with remaining style
+  polish row-backed by `Gateway stream/tool trace formatting fixture matrix`.
 
 ### 13. Error message formatting
 
@@ -464,11 +472,16 @@ Classification, Progress row).
 ### 22. Mobile-readable formatting
 
 - **Hermes source**: MarkdownV2 enables bold/italic/code on mobile.
-- **Gormes source**: same regression as #10 — escapes are emitted but
-  parse mode is plain, so mobile users see backslash noise.
-- **Status**: `regressed`.
+- **Gormes source**: #10 is now complete for Telegram ParseMode and
+  parse-error fallback, so mobile clients receive the same MarkdownV2
+  transport contract. Remaining mobile readability work is broader
+  renderer/content polish (tool traces, long final layout, status title
+  quality), not parse-mode wiring.
+- **Status**: `partial` overall; `parity` for MarkdownV2 parse-mode.
 - **Lane**: B.
-- **Progress row**: same as #10.
+- **Progress row**: `Telegram MarkdownV2 parse-mode rendering closeout`
+  (complete) plus `Gateway stream/tool trace formatting fixture matrix`
+  for remaining presentation polish.
 
 ### 23. Identity / persona ("My name is Gormes" not "ChatGPT")
 
