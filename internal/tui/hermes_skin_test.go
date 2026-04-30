@@ -23,9 +23,9 @@ func TestHermesSkin_DefaultTokens(t *testing.T) {
 
 	wantStatus := map[string]string{
 		"background": "#1a1a2e",
-		"text":       "#FFF8DC",
+		"text":       "#C0C0C0",
 		"strong":     "#FFD700",
-		"dim":        "#B8860B",
+		"dim":        "#8B8682",
 	}
 	gotStatus := map[string]string{
 		"background": skin.Colors.StatusBarBackground,
@@ -72,5 +72,66 @@ func TestHermesSkin_ProfilePromptPrefix(t *testing.T) {
 	defaultPrompt, defaultSuffix := skin.PromptSymbols("default")
 	if defaultPrompt != "❯ " || defaultSuffix != "❯ " {
 		t.Fatalf("default profile prompt/suffix = %q/%q, want unprefixed Hermes arrow", defaultPrompt, defaultSuffix)
+	}
+}
+
+func TestHermesSkin_BannerColors(t *testing.T) {
+	skin := DefaultHermesSkin()
+
+	wantBanner := map[string]string{
+		"border": "#CD7F32",
+		"title":  "#FFD700",
+		"accent": "#FFBF00",
+		"dim":    "#B8860B",
+		"text":   "#FFF8DC",
+	}
+	gotBanner := map[string]string{
+		"border": skin.Colors.BannerBorder,
+		"title":  skin.Colors.BannerTitle,
+		"accent": skin.Colors.BannerAccent,
+		"dim":    skin.Colors.BannerDim,
+		"text":   skin.Colors.BannerText,
+	}
+	for name, want := range wantBanner {
+		if got := gotBanner[name]; got != want {
+			t.Fatalf("banner %s color = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestHermesSkin_UIColors(t *testing.T) {
+	skin := DefaultHermesSkin()
+
+	if skin.Colors.UIOk != "#4caf50" {
+		t.Fatalf("UI ok color = %q, want #4caf50", skin.Colors.UIOk)
+	}
+	if skin.Colors.UIError != "#ef5350" {
+		t.Fatalf("UI error color = %q, want #ef5350", skin.Colors.UIError)
+	}
+	if skin.Colors.UIWarn != "#ffa726" {
+		t.Fatalf("UI warn color = %q, want #ffa726", skin.Colors.UIWarn)
+	}
+}
+
+func TestHermesSkin_ToolEmojis(t *testing.T) {
+	skin := DefaultHermesSkin()
+
+	tests := []struct {
+		tool  string
+		emoji string
+	}{
+		{"web_search", "🔍"},
+		{"terminal", "💻"},
+		{"read_file", "📖"},
+		{"write_file", "✍️"},
+		{"memory", "🧠"},
+		{"execute_code", "🐍"},
+		{"delegate_task", "🔀"},
+		{"unknown_tool", "⚡"},
+	}
+	for _, tc := range tests {
+		if got := skin.ToolEmoji(tc.tool); got != tc.emoji {
+			t.Fatalf("ToolEmoji(%q) = %q, want %q", tc.tool, got, tc.emoji)
+		}
 	}
 }
