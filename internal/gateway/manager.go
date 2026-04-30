@@ -1364,8 +1364,8 @@ func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToM
 	}
 	sender, ok := ch.(MediaSender)
 	if !ok {
-		for _, item := range media {
-			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, "Media attachment unavailable: "+item.Path)
+		for range media {
+			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, "Media attachment unavailable.")
 		}
 		return
 	}
@@ -1380,7 +1380,7 @@ func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToM
 				Point:    HookOnError,
 				Platform: ch.Name(),
 				ChatID:   chatID,
-				Text:     "MEDIA:" + item.Path,
+				Text:     "MEDIA:[redacted]",
 				Err:      err,
 			})
 		}

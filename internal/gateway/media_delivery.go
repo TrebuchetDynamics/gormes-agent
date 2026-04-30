@@ -74,6 +74,9 @@ func cleanOutboundMediaPath(raw string) (string, bool) {
 	if value == "." || value == ".." {
 		return "", false
 	}
+	if !supportedOutboundMediaExt(filepath.Ext(value)) {
+		return "", false
+	}
 	if !filepath.IsAbs(value) {
 		for _, segment := range strings.Split(filepath.ToSlash(value), "/") {
 			if segment == ".." {
@@ -82,6 +85,15 @@ func cleanOutboundMediaPath(raw string) (string, bool) {
 		}
 	}
 	return value, true
+}
+
+func supportedOutboundMediaExt(ext string) bool {
+	switch strings.ToLower(strings.TrimSpace(ext)) {
+	case ".mp3", ".ogg", ".opus", ".wav", ".m4a", ".aac", ".flac":
+		return true
+	default:
+		return false
+	}
 }
 
 func trimMediaDeliveryText(text string) string {
