@@ -22,16 +22,16 @@ func FormatStreamPlain(f kernel.RenderFrame) string {
 		body += streamPreviewCursor
 	}
 	tail := ""
-	if len(f.SoulEvents) > 0 {
-		last := f.SoulEvents[len(f.SoulEvents)-1]
-		if last.Text != "" && last.Text != "idle" {
-			tail = "\n\n" + formatToolTracePlain(last.Text)
-		}
-	}
 	if f.Phase == kernel.PhaseReconnecting {
 		tail += "\n\nreconnecting…"
 	}
 	return truncate(body + tail)
+}
+
+// FormatToolProgressPlain renders the persistent Hermes-style tool progress
+// transcript for gateway platforms that can edit progress messages.
+func FormatToolProgressPlain(f kernel.RenderFrame) string {
+	return truncate(formatToolTraceBlockPlain(f.SoulEvents))
 }
 
 // FormatFinalPlain returns the final assistant text from render history.
@@ -72,16 +72,20 @@ func FormatStreamTelegram(f kernel.RenderFrame) string {
 		body += streamPreviewCursor
 	}
 	tail := ""
-	if len(f.SoulEvents) > 0 {
-		last := f.SoulEvents[len(f.SoulEvents)-1]
-		if last.Text != "" && last.Text != "idle" {
-			tail = "\n\n_" + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, formatToolTracePlain(last.Text)) + "_"
-		}
-	}
 	if f.Phase == kernel.PhaseReconnecting {
 		tail += "\n\n_reconnecting…_"
 	}
 	return truncate(body + tail)
+}
+
+// FormatToolProgressTelegram renders escaped MarkdownV2 text for Telegram's
+// persistent tool-progress message.
+func FormatToolProgressTelegram(f kernel.RenderFrame) string {
+	progress := FormatToolProgressPlain(f)
+	if strings.TrimSpace(progress) == "" {
+		return ""
+	}
+	return truncate(tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, progress))
 }
 
 // FormatFinalTelegram renders the final assistant message for Telegram.
@@ -197,18 +201,67 @@ func formatToolTracePlain(text string) string {
 			name = strings.TrimSpace(name)
 			arg = strings.TrimSpace(arg)
 			if !isKnownToolTraceName(name) {
-				return "🔧 tool_progress: " + quoteAndTruncate(arg, 96)
+				if arg == "" {
+					return "🔧 tool_progress..."
+				}
+				return "🔧 tool_progress: " + quoteAndTruncate(arg, 40)
 			}
-			return toolTraceIcon(name) + " " + name + ": " + quoteAndTruncate(arg, 96)
+			if arg == "" {
+				return toolTraceIcon(name) + " " + name + "..."
+			}
+			return toolTraceIcon(name) + " " + name + ": " + quoteAndTruncate(arg, 40)
 		}
+		name = strings.TrimSpace(payload)
+		if isKnownToolTraceName(name) {
+			return toolTraceIcon(name) + " " + name + "..."
+		}
+		return "🔧 tool_progress..."
 	}
 	return "🔧 " + text
+}
+
+func formatToolTraceBlockPlain(events []kernel.SoulEntry) string {
+	var lines []string
+	var last string
+	repeats := 1
+	flush := func() {
+		if last == "" {
+			return
+		}
+		if repeats > 1 {
+			lines = append(lines, fmt.Sprintf("%s (×%d)", last, repeats))
+		} else {
+			lines = append(lines, last)
+		}
+	}
+	for _, event := range events {
+		text := strings.TrimSpace(event.Text)
+		if !strings.HasPrefix(text, "tool: ") {
+			continue
+		}
+		line := formatToolTracePlain(text)
+		if line == "" {
+			continue
+		}
+		if line == last {
+			repeats++
+			continue
+		}
+		flush()
+		last = line
+		repeats = 1
+	}
+	flush()
+	return strings.Join(lines, "\n")
 }
 
 func isKnownToolTraceName(name string) bool {
 	switch strings.TrimSpace(name) {
 	case "memory", "honcho_context", "honcho_search", "honcho_profile", "honcho_conclude", "session_search",
-		"search_files", "browser_navigate", "browser_snapshot", "web_search",
+		"skill_view", "skills_list", "skill_manage", "cronjob",
+		"search_files", "web_search", "web_extract", "web_crawl",
+		"browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_scroll",
+		"browser_back", "browser_press", "browser_get_images", "browser_vision", "browser_cdp", "browser_dialog",
 		"read_file", "patch", "write_file", "terminal", "execute_code", "process":
 		return true
 	default:
@@ -220,14 +273,42 @@ func toolTraceIcon(name string) string {
 	switch strings.TrimSpace(name) {
 	case "memory", "honcho_context", "honcho_search", "honcho_profile", "honcho_conclude", "session_search":
 		return "🧠"
-	case "search_files", "browser_navigate", "browser_snapshot", "web_search":
+	case "skill_view", "skills_list", "skill_manage":
+		return "📚"
+	case "cronjob":
+		return "⏰"
+	case "search_files":
 		return "🔎"
+	case "web_search":
+		return "🔍"
+	case "web_extract":
+		return "📄"
+	case "web_crawl":
+		return "🕸️"
+	case "browser_navigate":
+		return "🌐"
+	case "browser_snapshot":
+		return "📸"
+	case "browser_click":
+		return "👆"
+	case "browser_type", "browser_press":
+		return "⌨️"
+	case "browser_scroll":
+		return "📜"
+	case "browser_back":
+		return "◀️"
+	case "browser_get_images":
+		return "🖼️"
+	case "browser_vision":
+		return "👁️"
+	case "browser_cdp", "browser_dialog":
+		return "🖥️"
 	case "read_file":
 		return "📖"
 	case "patch", "write_file":
 		return "🔧"
 	case "terminal", "execute_code", "process":
-		return "🖥"
+		return "💻"
 	default:
 		return "🔧"
 	}
@@ -235,10 +316,15 @@ func toolTraceIcon(name string) string {
 
 func quoteAndTruncate(s string, limit int) string {
 	s = strings.ReplaceAll(strings.TrimSpace(s), "\n", " ")
+	s = strings.Join(strings.Fields(s), " ")
 	if limit > 0 {
 		runes := []rune(s)
 		if len(runes) > limit {
-			s = string(runes[:limit-1]) + "…"
+			if limit <= 3 {
+				s = string(runes[:limit])
+			} else {
+				s = string(runes[:limit-3]) + "..."
+			}
 		}
 	}
 	return `"` + s + `"`

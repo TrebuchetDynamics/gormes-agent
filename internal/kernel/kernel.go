@@ -288,6 +288,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	model = selectTurnModel(k.cfg.Model, model)
 	providerStatus := hermes.ProviderStatusOf(k.client)
 	reasoningEvidence := selectTurnReasoningEffort(k.cfg.ReasoningEffort, reasoningOverride, providerStatus)
+	k.soul = nil
 
 	// 1. Admission. Reject locally before any HTTP.
 	if err := k.cfg.Admission.Validate(text); err != nil {

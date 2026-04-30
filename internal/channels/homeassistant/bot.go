@@ -109,7 +109,7 @@ func (b *Bot) Send(ctx context.Context, _ string, text string) (string, error) {
 	if text == "" {
 		return "", fmt.Errorf("homeassistant: notification text is empty")
 	}
-	return b.client.SendNotification(ctx, "Hermes Agent", text)
+	return b.client.SendNotification(ctx, "Gormes Agent", text)
 }
 
 func (b *Bot) toInboundEvent(msg StateChangeEvent) (gateway.InboundEvent, bool) {

@@ -219,9 +219,11 @@ func TestTypingAction_StopsOnPhaseIdle(t *testing.T) {
 	}
 }
 
-func TestTypingAction_NonTypingChannelNoCalls(t *testing.T) {
+func TestTypingAction_NonTypingChannelStillDeliversStreamFrame(t *testing.T) {
 	ch := newFakeChannel("telegram")
-	m := NewManagerWithSubmitter(ManagerConfig{}, nil, slog.Default())
+	m := NewManagerWithSubmitter(ManagerConfig{
+		CoalesceMs: 10,
+	}, nil, slog.Default())
 	if err := m.Register(ch); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -239,6 +241,17 @@ func TestTypingAction_NonTypingChannelNoCalls(t *testing.T) {
 		Phase:     kernel.PhaseStreaming,
 		DraftText: "working",
 	}, &co, &coCancel)
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(ch.sentSnapshot()) > 0
+	})
+	sent := ch.sentSnapshot()
+	if sent[0].Text == "⏳" {
+		t.Fatalf("non-typing channel sent static placeholder %q instead of stream content", sent[0].Text)
+	}
+	if !strings.Contains(sent[0].Text, "working") {
+		t.Fatalf("non-typing channel sent %q, want stream content", sent[0].Text)
+	}
 }
 
 func TestTypingAction_FailureRecordsEvidenceNoRetry(t *testing.T) {

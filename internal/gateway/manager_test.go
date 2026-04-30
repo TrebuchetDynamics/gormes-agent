@@ -425,6 +425,57 @@ func TestManager_Outbound_StreamsToPinnedChannel(t *testing.T) {
 	})
 }
 
+func TestManager_Outbound_ToolProgressPersistsAsSeparateMessage(t *testing.T) {
+	tg := newTypingActionFakeChannel("telegram")
+	frames := make(chan kernel.RenderFrame, 8)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		CoalesceMs:   10,
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	_ = m.Register(tg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", MsgID: "m1",
+		Kind: EventSubmit, Text: "summarize this reddit post",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseStreaming,
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
+			{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests url='https://example.test'"},
+		},
+	}
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseIdle,
+		History: []hermes.Message{
+			{Role: "user", Content: "summarize this reddit post"},
+			{Role: "assistant", Content: "I read the Reddit post via Reddit's embed endpoint."},
+		},
+	}
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		sent := tg.sentSnapshot()
+		return len(sent) >= 2 &&
+			strings.Contains(sent[0].Text, "browser") &&
+			strings.Contains(sent[1].Text, "I read the Reddit post")
+	})
+	sent := tg.sentSnapshot()
+	if strings.Contains(sent[1].Text, "browser_navigate") || strings.Contains(sent[1].Text, "terminal") {
+		t.Fatalf("final answer contains tool progress; sent=%#v", sent)
+	}
+}
+
 func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	tg := &freshFinalFakeChannel{fakeChannel: newFakeChannel("telegram")}
 	frames := make(chan kernel.RenderFrame, 8)

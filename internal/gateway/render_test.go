@@ -39,7 +39,7 @@ func TestFormatFinalPlain_DoesNotIncludeStreamingCursor(t *testing.T) {
 	}
 }
 
-func TestFormatStreamPlain_IncludesHermesStyleToolTrace(t *testing.T) {
+func TestFormatStreamPlain_DoesNotInlineToolProgress(t *testing.T) {
 	f := kernel.RenderFrame{
 		DraftText: "draft",
 		SoulEvents: []kernel.SoulEntry{
@@ -47,15 +47,28 @@ func TestFormatStreamPlain_IncludesHermesStyleToolTrace(t *testing.T) {
 		},
 	}
 	got := FormatStreamPlain(f)
-	if !strings.Contains(got, "draft") {
-		t.Fatalf("FormatStreamPlain lost draft body: %q", got)
+	if strings.Contains(got, "search_files") {
+		t.Fatalf("FormatStreamPlain = %q, want assistant stream without inline tool progress", got)
 	}
-	if !strings.Contains(got, `🔎 search_files: "Approval mode config normalization"`) {
-		t.Fatalf("FormatStreamPlain = %q, want Hermes-style search_files trace", got)
+	if got != "draft" {
+		t.Fatalf("FormatStreamPlain = %q, want draft only", got)
 	}
 }
 
-func TestFormatStreamPlain_ToolTraceFixtureMatrix(t *testing.T) {
+func TestFormatToolProgressPlain_IncludesHermesStyleToolTrace(t *testing.T) {
+	f := kernel.RenderFrame{
+		DraftText: "draft",
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: "tool: search_files: Approval mode config normalization"},
+		},
+	}
+	got := FormatToolProgressPlain(f)
+	if !strings.Contains(got, `🔎 search_files: "Approval mode config normalization"`) {
+		t.Fatalf("FormatToolProgressPlain = %q, want Hermes-style search_files trace", got)
+	}
+}
+
+func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 	tests := []struct {
 		name  string
 		event string
@@ -64,29 +77,61 @@ func TestFormatStreamPlain_ToolTraceFixtureMatrix(t *testing.T) {
 		{name: "memory", event: "tool: memory: recall Juan context", want: `🧠 memory: "recall Juan context"`},
 		{name: "read", event: "tool: read_file: internal/gateway/render.go", want: `📖 read_file: "internal/gateway/render.go"`},
 		{name: "patch", event: "tool: patch: replace render tail", want: `🔧 patch: "replace render tail"`},
-		{name: "terminal", event: "tool: terminal: go test ./internal/gateway", want: `🖥 terminal: "go test ./internal/gateway"`},
-		{name: "browser", event: "tool: browser_navigate: https://gormes.ai", want: `🔎 browser_navigate: "https://gormes.ai"`},
+		{name: "terminal", event: "tool: terminal: go test ./internal/gateway", want: `💻 terminal: "go test ./internal/gateway"`},
+		{name: "browser", event: "tool: browser_navigate: https://gormes.ai", want: `🌐 browser_navigate: "https://gormes.ai"`},
+		{name: "snapshot", event: "tool: browser_snapshot", want: `📸 browser_snapshot...`},
+		{name: "skill_view", event: "tool: skill_view: gormes-hermes-parity", want: `📚 skill_view: "gormes-hermes-parity"`},
+		{name: "skills_list", event: "tool: skills_list", want: `📚 skills_list...`},
+		{name: "cronjob", event: "tool: cronjob: run", want: `⏰ cronjob: "run"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatStreamPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{{At: time.Now(), Text: tt.event}}})
+			got := FormatToolProgressPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{{At: time.Now(), Text: tt.event}}})
 			if !strings.Contains(got, tt.want) {
-				t.Fatalf("FormatStreamPlain(%q) = %q, want %q", tt.event, got, tt.want)
+				t.Fatalf("FormatToolProgressPlain(%q) = %q, want %q", tt.event, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestFormatStreamPlain_UnknownToolUsesGenericBoundedEvidence(t *testing.T) {
-	got := FormatStreamPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{{At: time.Now(), Text: "tool: custom_provider_debug: " + strings.Repeat("payload ", 40)}}})
+func TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence(t *testing.T) {
+	got := FormatToolProgressPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{{At: time.Now(), Text: "tool: custom_provider_debug: " + strings.Repeat("payload ", 40)}}})
 	if !strings.Contains(got, `🔧 tool_progress: "payload payload`) {
-		t.Fatalf("FormatStreamPlain unknown tool = %q, want generic bounded tool_progress evidence", got)
+		t.Fatalf("FormatToolProgressPlain unknown tool = %q, want generic bounded tool_progress evidence", got)
 	}
 	if strings.Contains(got, "custom_provider_debug") {
-		t.Fatalf("FormatStreamPlain leaked unknown provider tool name in %q", got)
+		t.Fatalf("FormatToolProgressPlain leaked unknown provider tool name in %q", got)
 	}
 	if len([]rune(got)) > 130 {
-		t.Fatalf("FormatStreamPlain unknown tool trace too long: %d runes in %q", len([]rune(got)), got)
+		t.Fatalf("FormatToolProgressPlain unknown tool trace too long: %d runes in %q", len([]rune(got)), got)
+	}
+}
+
+func TestFormatToolProgressPlain_MineruGatewayTranscriptShape(t *testing.T) {
+	f := kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{
+		{At: time.Now(), Text: "tool: skill_view: gormes-hermes-parity"},
+		{At: time.Now(), Text: "tool: cronjob: list"},
+		{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
+		{At: time.Now(), Text: "tool: browser_navigate: https://old.reddit.com/r/WebAfterAI/s/example"},
+		{At: time.Now(), Text: "tool: terminal: python3 - <<'PY'\nimport requests\nurl='https://example.test'\nPY"},
+		{At: time.Now(), Text: "tool: browser_snapshot"},
+		{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests, url..."},
+		{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests, url..."},
+	}}
+
+	got := FormatToolProgressPlain(f)
+	for _, want := range []string{
+		`📚 skill_view: "gormes-hermes-parity"`,
+		`⏰ cronjob: "list"`,
+		`🌐 browser_navigate: "https://www.reddit.com/r/WebAfterAI/s..."`,
+		`🌐 browser_navigate: "https://old.reddit.com/r/WebAfterAI/s..."`,
+		`💻 terminal: "python3 - <<'PY' import requests url=..."`,
+		`📸 browser_snapshot...`,
+		`💻 terminal: "python3 - <<'PY' import requests, url..." (×2)`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatToolProgressPlain missing %q in:\n%s", want, got)
+		}
 	}
 }
 

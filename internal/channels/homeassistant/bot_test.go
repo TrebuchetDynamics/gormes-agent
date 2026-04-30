@@ -123,8 +123,11 @@ func TestBot_Send_UsesPersistentNotificationTitle(t *testing.T) {
 	if len(mc.notifications) != 1 {
 		t.Fatalf("notification count = %d, want 1", len(mc.notifications))
 	}
-	if mc.notifications[0].Title != "Hermes Agent" {
-		t.Fatalf("title = %q, want Hermes Agent", mc.notifications[0].Title)
+	if mc.notifications[0].Title != "Gormes Agent" {
+		t.Fatalf("title = %q, want Gormes Agent", mc.notifications[0].Title)
+	}
+	if mc.notifications[0].Title == "Hermes Agent" {
+		t.Fatalf("title = %q, stale upstream product label leaked", mc.notifications[0].Title)
 	}
 	if mc.notifications[0].Message != "all good" {
 		t.Fatalf("message = %q, want all good", mc.notifications[0].Message)

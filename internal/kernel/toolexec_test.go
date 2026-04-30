@@ -57,6 +57,56 @@ func TestExecuteToolCalls_PanicRecovered(t *testing.T) {
 	}
 }
 
+func TestExecuteToolCalls_AppendsToolPreviewSoulEvent(t *testing.T) {
+	reg := tools.NewRegistry()
+	for _, name := range []string{"terminal", "skill_view", "skills_list", "cronjob", "browser_snapshot"} {
+		reg.MustRegister(&tools.MockTool{NameStr: name})
+	}
+	k := newKernelWithRegistry(t, reg)
+
+	_ = k.executeToolCalls(context.Background(), []hermes.ToolCall{
+		{
+			ID:        "c1",
+			Name:      "terminal",
+			Arguments: json.RawMessage(`{"command":"python3 - <<'PY'\nimport requests\nurl='https://example.test'\nPY"}`),
+		},
+		{ID: "c2", Name: "skill_view", Arguments: json.RawMessage(`{"name":"gormes-hermes-parity"}`)},
+		{ID: "c3", Name: "skills_list", Arguments: json.RawMessage(`{}`)},
+		{ID: "c4", Name: "cronjob", Arguments: json.RawMessage(`{"action":"run","job_id":"abc"}`)},
+		{ID: "c5", Name: "browser_snapshot", Arguments: json.RawMessage(`{}`)},
+	})
+
+	got := soulTexts(k.soul)
+	for _, want := range []string{
+		"tool: terminal: python3 - <<'PY' import requests url='https://example.test' PY",
+		"tool: skill_view: gormes-hermes-parity",
+		"tool: skills_list",
+		"tool: cronjob: run",
+		"tool: browser_snapshot",
+	} {
+		if !containsString(got, want) {
+			t.Fatalf("soul events = %#v, want %q", got, want)
+		}
+	}
+}
+
+func soulTexts(entries []SoulEntry) []string {
+	out := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, entry.Text)
+	}
+	return out
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestExecuteToolCalls_TimeoutHonoured(t *testing.T) {
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.MockTool{

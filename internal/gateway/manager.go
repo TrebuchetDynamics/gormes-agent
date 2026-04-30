@@ -170,6 +170,12 @@ type Manager struct {
 
 	typingActionMu   sync.Mutex
 	typingActionLast map[string]time.Time
+
+	toolProgressMu     sync.Mutex
+	toolProgressMsgID  string
+	toolProgressText   string
+	toolProgressChatID string
+	toolProgressPlat   string
 }
 
 type channelRunFailure struct {
@@ -924,6 +930,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		return
 	}
 	m.maybeSendTypingAction(ctx, ch, f.Phase, chatID)
+	m.dispatchToolProgress(ctx, ch, platform, chatID, f)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
@@ -985,6 +992,52 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		}
 		(*co).setPending(text)
 	}
+}
+
+func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform, chatID string, f kernel.RenderFrame) {
+	if _, ok := ch.(MessageEditor); !ok {
+		return
+	}
+	text := m.formatToolProgress(platform, f)
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+
+	m.toolProgressMu.Lock()
+	sameTarget := m.toolProgressPlat == platform && m.toolProgressChatID == chatID
+	if sameTarget && m.toolProgressText == text {
+		m.toolProgressMu.Unlock()
+		return
+	}
+	msgID := ""
+	if sameTarget {
+		msgID = m.toolProgressMsgID
+	}
+	m.toolProgressMu.Unlock()
+
+	if msgID != "" {
+		if editor, ok := ch.(MessageEditor); ok {
+			if err := editor.EditMessage(ctx, chatID, msgID, text); err == nil {
+				m.toolProgressMu.Lock()
+				if m.toolProgressPlat == platform && m.toolProgressChatID == chatID && m.toolProgressMsgID == msgID {
+					m.toolProgressText = text
+				}
+				m.toolProgressMu.Unlock()
+				return
+			}
+		}
+	}
+
+	newMsgID, err := m.sendWithHooks(ctx, ch, chatID, text)
+	if err != nil {
+		return
+	}
+	m.toolProgressMu.Lock()
+	m.toolProgressPlat = platform
+	m.toolProgressChatID = chatID
+	m.toolProgressMsgID = newMsgID
+	m.toolProgressText = text
+	m.toolProgressMu.Unlock()
 }
 
 func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID string) bool {
@@ -1316,6 +1369,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.resetToolProgress()
 }
 
 func (m *Manager) clearTurn() {
@@ -1330,6 +1384,7 @@ func (m *Manager) clearTurn() {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.resetToolProgress()
 }
 
 func (m *Manager) setTurnLastUserText(text string) {
@@ -1396,6 +1451,13 @@ func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
 		return FormatStreamTelegram(f)
 	}
 	return FormatStreamPlain(f)
+}
+
+func (m *Manager) formatToolProgress(platform string, f kernel.RenderFrame) string {
+	if platform == "telegram" {
+		return FormatToolProgressTelegram(f)
+	}
+	return FormatToolProgressPlain(f)
 }
 
 func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
@@ -1534,7 +1596,17 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
 	m.turnFrameSeen = false
+	m.resetToolProgress()
 	return next, true
+}
+
+func (m *Manager) resetToolProgress() {
+	m.toolProgressMu.Lock()
+	defer m.toolProgressMu.Unlock()
+	m.toolProgressMsgID = ""
+	m.toolProgressText = ""
+	m.toolProgressChatID = ""
+	m.toolProgressPlat = ""
 }
 
 func (m *Manager) markDrainTimeoutResumePending(ctx context.Context, reason DrainTimeoutReason) {

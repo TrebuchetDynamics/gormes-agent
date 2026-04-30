@@ -2643,7 +2643,7 @@
                 "TestTypingActionCapableChannelSendsFirstTextInsteadOfHourglass proves first visible text is the assistant draft, not the static hourglass placeholder.",
                 "TestTypingAction_ThrottledTo4SecondWindow uses a fake clock + multiple streaming frames within 4s and asserts exactly one typing call.",
                 "TestTypingAction_StopsOnPhaseIdle proves no typing call after the final/idle frame.",
-                "TestTypingAction_NonTypingChannelNoCalls uses a fake channel that does NOT implement typingActor and asserts zero typing calls.",
+                "TestTypingAction_NonTypingChannelStillDeliversStreamFrame uses a fake channel that does NOT implement TypingActionCapable and asserts normal stream delivery continues through the non-typing path.",
                 "TestTypingAction_FailureRecordsEvidenceNoRetry injects a typing-call error and asserts evidence is recorded once + no retry within the same 4s window.",
                 "TestCoalescer_FinalEditFailureDoesNotResendAlreadyVisibleFinal proves the typing-capable initial-text path does not duplicate a final response when a terminal edit fails."
               ],
@@ -2719,7 +2719,7 @@
               "name": "Gateway stream/tool trace formatting fixture matrix",
               "status": "complete",
               "priority": "P1",
-              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, the active streaming cursor, tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/search/read/patch/terminal/browser actions.",
+              "contract": "Channel-neutral stream rendering has source-backed fixtures for Hermes/Sidon text deltas, the active streaming cursor, separate tool progress, errors, and final answer separation, with Telegram MarkdownV2 escaping and compact labels for memory/skills/cron/search/read/patch/terminal/browser actions.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
@@ -2728,34 +2728,48 @@
                 "operator"
               ],
               "degraded_mode": "Unknown tool events render as bounded generic tool_progress evidence instead of raw provider payloads or dropped traces.",
-              "fixture": "internal/gateway/render_test.go",
+              "fixture": "internal/gateway/render_test.go + internal/gateway/manager_test.go + internal/kernel/toolexec_test.go + internal/kernel/tools_test.go",
               "source_refs": [
                 "../hermes-agent/gateway/config.py:StreamingConfig cursor",
                 "../hermes-agent/gateway/stream_consumer.py:render_streaming_message cursor handling",
                 "../hermes-agent/gateway/stream_consumer.py:482-508",
+                "../hermes-agent/agent/display.py:build_tool_preview",
+                "../hermes-agent/gateway/run.py:progress_callback",
+                "../hermes-agent/run_agent.py:tool_progress_callback",
                 "../hermes-agent/gateway/run.py",
                 "internal/gateway/render.go"
               ],
               "acceptance": [
-                "Renderer fixtures cover streaming text, final answer separation, provider errors, and tool progress.",
+                "Renderer fixtures cover streaming text, final answer separation, provider errors, and separate tool progress.",
                 "TestFormatStreamPlain_ActivePreviewAddsHermesCursor and TestFormatStreamTelegram_ActivePreviewAddsHermesCursor prove active assistant previews append Hermes' ` ▉` cursor.",
+                "TestFormatStreamPlain_DoesNotInlineToolProgress proves tool progress is not mixed into assistant stream text.",
+                "TestManager_Outbound_ToolProgressPersistsAsSeparateMessage proves channel-visible tool progress persists as its own editable message and final answer delivery stays separate.",
+                "TestKernel_ClearsToolProgressSoulAtTurnStart proves stale progress from a previous turn cannot be rendered into a later direct-answer turn.",
                 "TestFormatFinalPlain_DoesNotIncludeStreamingCursor proves final assistant text never keeps the streaming cursor.",
                 "Telegram renderer escapes MarkdownV2 while preserving code blocks and compact labels.",
-                "Memory/search/read/patch/terminal/browser traces match the parity matrix examples.",
+                "Memory/skills/cron/search/read/patch/terminal/browser traces match the parity matrix examples.",
                 "No renderer emits tokens, raw credential values, or unbounded payloads."
               ],
               "write_scope": [
+                "internal/kernel/kernel.go",
+                "internal/kernel/toolexec.go",
+                "internal/kernel/toolexec_test.go",
+                "internal/kernel/tools_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_test.go",
                 "internal/gateway/render.go",
                 "internal/gateway/render_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Render|FormatStream|ToolTrace' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgressPersistsAsSeparateMessage|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Renderer snapshot/table fixtures prove compact channel-neutral stream and tool trace parity."
+                "Renderer, manager, and kernel fixtures prove compact channel-visible started-tool progress parity without leaking progress into assistant final text."
               ],
               "ready_when": [
                 "Hermes/Sidon stream and tool-trace rendering examples are captured as source-backed fixture expectations.",
@@ -2763,20 +2777,30 @@
               ],
               "evidence": {
                 "implementation": [
+                  "internal/kernel/kernel.go:runTurn clears per-turn soul/tool-progress state before admission so old started-tool lines cannot leak into a new turn.",
+                  "internal/kernel/toolexec.go:toolCallSoulText and toolCallPreview emit started-tool preview events using Hermes' primary arguments such as cronjob.action, skill_view.name, browser_navigate.url, search_files.pattern, terminal.command, and execute_code.code.",
                   "internal/gateway/render.go:streamPreviewCursorActive appends the Hermes streaming cursor only for active preview phases with non-empty assistant draft text.",
-                  "internal/gateway/render.go:formatToolTracePlain renders known memory/search/read/patch/terminal/browser tool events with compact Hermes-style emoji labels.",
+                  "internal/gateway/render.go:FormatToolProgressPlain and FormatToolProgressTelegram render multi-line, duplicate-collapsed tool progress separately from assistant stream text.",
+                  "internal/gateway/manager.go:dispatchToolProgress sends/edits a separate progress message for editable gateway channels before final assistant delivery.",
+                  "internal/gateway/render.go:formatToolTracePlain renders known memory/skills/cron/search/read/patch/terminal/browser tool events with compact Hermes-style emoji labels.",
                   "internal/gateway/render.go:isKnownToolTraceName maps unknown tool events to generic bounded tool_progress evidence so raw provider/debug tool names are not exposed."
                 ],
                 "tests": [
+                  "internal/kernel/toolexec_test.go:TestExecuteToolCalls_AppendsToolPreviewSoulEvent covers terminal, skill_view, skills_list, cronjob, and browser_snapshot preview soul events.",
                   "internal/gateway/render_test.go:TestFormatStreamPlain_ActivePreviewAddsHermesCursor covers the plain renderer cursor.",
                   "internal/gateway/render_test.go:TestFormatStreamTelegram_ActivePreviewAddsHermesCursor covers the Telegram renderer cursor.",
+                  "internal/gateway/render_test.go:TestFormatStreamPlain_DoesNotInlineToolProgress covers assistant stream/tool-progress separation.",
                   "internal/gateway/render_test.go:TestFormatFinalPlain_DoesNotIncludeStreamingCursor covers terminal cursor cleanup.",
-                  "internal/gateway/render_test.go:TestFormatStreamPlain_ToolTraceFixtureMatrix covers memory, read_file, patch, terminal, and browser_navigate labels.",
-                  "internal/gateway/render_test.go:TestFormatStreamPlain_UnknownToolUsesGenericBoundedEvidence covers bounded generic degraded-mode evidence for unknown tool events."
+                  "internal/gateway/render_test.go:TestFormatToolProgressPlain_ToolTraceFixtureMatrix covers memory, read_file, patch, terminal, browser_navigate, browser_snapshot, skill_view, skills_list, and cronjob labels.",
+                  "internal/gateway/render_test.go:TestFormatToolProgressPlain_MineruGatewayTranscriptShape covers the pasted Mineru-style browser/terminal transcript shape with repeat collapsing.",
+                  "internal/gateway/render_test.go:TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence covers bounded generic degraded-mode evidence for unknown tool events.",
+                  "internal/gateway/manager_test.go:TestManager_Outbound_ToolProgressPersistsAsSeparateMessage proves tool progress is persisted separately from the final assistant reply.",
+                  "internal/kernel/tools_test.go:TestKernel_ClearsToolProgressSoulAtTurnStart proves turn-start soul reset prevents stale progress leakage."
                 ],
                 "verification": [
-                  "go test ./internal/gateway -run 'TestFormatStreamPlain_ActivePreviewAddsHermesCursor|TestFormatStreamTelegram_ActivePreviewAddsHermesCursor|TestFormatFinalPlain_DoesNotIncludeStreamingCursor' -count=1 -> ok",
-                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestFormatStreamPlain_(IncludesHermesStyleToolTrace|ToolTraceFixtureMatrix|UnknownToolUsesGenericBoundedEvidence)' -count=1 -> ok"
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel -run 'TestFormatToolProgress|TestFormatStreamPlain_DoesNotInlineToolProgress|TestManager_Outbound_ToolProgressPersistsAsSeparateMessage|TestExecuteToolCalls_AppendsToolPreviewSoulEvent|TestKernel_ClearsToolProgressSoulAtTurnStart|TestTypingAction_NonTypingChannelStillDeliversStreamFrame' -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -count=1 -> ok"
                 ]
               }
             },
@@ -29867,7 +29891,7 @@
             {
               "name": "BlueBubbles + HomeAssistant adapters",
               "status": "complete",
-              "note": "TDD landed: internal/channels/bluebubbles and internal/channels/homeassistant now freeze webhook-auth, cached home-channel delivery, filtered state-change formatting, cooldown, and persistent-notification contracts before any SDK wiring."
+              "note": "TDD landed: internal/channels/bluebubbles and internal/channels/homeassistant now freeze webhook-auth, cached home-channel delivery, filtered state-change formatting, cooldown, and persistent-notification contracts before any SDK wiring. 2026-04-30 parity follow-up: Home Assistant persistent notifications use the Gormes product title (`Gormes Agent`) and reject the stale upstream `Hermes Agent` title in TestBot_Send_UsesPersistentNotificationTitle."
             },
             {
               "name": "BlueBubbles iMessage bubble formatting parity",

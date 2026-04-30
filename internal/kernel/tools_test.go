@@ -91,6 +91,41 @@ func TestKernel_ToolCallHandshake_Echo(t *testing.T) {
 	}
 }
 
+func TestKernel_ClearsToolProgressSoulAtTurnStart(t *testing.T) {
+	mc := hermes.NewMockClient()
+	finalAnswer := "No tools needed."
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: len(finalAnswer)},
+	}, "sess-clean")
+
+	k := New(Config{
+		Model:           "hermes-agent",
+		Endpoint:        "http://mock",
+		Admission:       Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		MaxToolDuration: 5 * time.Second,
+	}, mc, store.NewNoop(), telemetry.New(), nil)
+	k.soul = []SoulEntry{{At: time.Now(), Text: "tool: terminal: stale command from previous turn"}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	<-k.Render()
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "answer directly"}); err != nil {
+		t.Fatal(err)
+	}
+
+	final := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && lastAssistantMessage(f.History) != nil
+	}, 5*time.Second)
+	for _, event := range final.SoulEvents {
+		if strings.Contains(event.Text, "stale command") {
+			t.Fatalf("stale tool progress survived into new turn: %#v", final.SoulEvents)
+		}
+	}
+}
+
 func TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen(t *testing.T) {
 	mc := hermes.NewMockClient()
 	reg := tools.NewRegistry()
