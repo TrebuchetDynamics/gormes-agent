@@ -500,10 +500,15 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if hooks.Priority != "P1" {
 		t.Fatalf("Phase 2.F.1 priority = %q, want P1", hooks.Priority)
 	}
-	if got := hooks.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.F.1 = %q, want in_progress while the recognized-name expansion row remains planned", got)
-	}
 	hookItemsF1 := itemsByName(hooks.Items)
+	registrySweep, hasRegistrySweep := hookItemsF1["Gateway slash registry parity sweep (recognized-name expansion)"]
+	wantHooksStatus := StatusComplete
+	if hasRegistrySweep {
+		wantHooksStatus = StatusInProgress
+	}
+	if got := hooks.DerivedStatus(); got != wantHooksStatus {
+		t.Fatalf("Phase 2.F.1 = %q, want %q", got, wantHooksStatus)
+	}
 	commandRegistry := hookItemsF1["Canonical CommandDef registry"]
 	if commandRegistry.Status != StatusComplete {
 		t.Fatalf("Phase 2.F.1 command registry status = %q, want complete", commandRegistry.Status)
@@ -517,6 +522,9 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	if !strings.Contains(dispatch.Note, "Telegram") || !strings.Contains(dispatch.Note, "Slack") {
 		t.Fatalf("Phase 2.F.1 dispatch note = %q, want Telegram/Slack detail", dispatch.Note)
+	}
+	if hasRegistrySweep && (registrySweep.Status != StatusPlanned || registrySweep.ContractStatus != ContractStatusDraft || registrySweep.ExecutionOwner != ExecutionOwnerGateway) {
+		t.Fatalf("Phase 2.F.1 registry sweep metadata = status %q contract_status %q owner %q, want planned draft gateway", registrySweep.Status, registrySweep.ContractStatus, registrySweep.ExecutionOwner)
 	}
 
 	hookRegistry := p.Phases["2"].Subphases["2.F.2"]
