@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
@@ -41,13 +42,14 @@ type sessionResumeClearer interface {
 }
 
 type activeTurnSnapshot struct {
-	Platform   string
-	ChatID     string
-	MsgID      string
-	SessionKey string
-	SessionID  string
-	Source     SessionSource
-	Cancelled  bool
+	Platform     string
+	ChatID       string
+	MsgID        string
+	SessionKey   string
+	SessionID    string
+	Source       SessionSource
+	Cancelled    bool
+	LastUserText string
 }
 
 // ManagerConfig drives the shared gateway manager.
@@ -56,12 +58,24 @@ type ManagerConfig struct {
 	AllowDiscovery  map[string]bool
 	CoalesceMs      int
 	FreshFinalAfter time.Duration
-	SessionMap      session.Map
-	Hooks           *Hooks
-	RuntimeStatus   RuntimeStatusWriter
-	Restart         RestartConfig
-	SessionExpiry   SessionExpiryConfig
-	Now             func() time.Time
+	// ToolProgressMode mirrors Hermes gateway display.tool_progress for
+	// editable channel progress messages. Empty and unknown values default to all.
+	ToolProgressMode string
+	// ToolProgressCommandEnabled gates Hermes' /verbose command on messaging
+	// platforms. Hermes defaults this gate off.
+	ToolProgressCommandEnabled bool
+	// PersistToolProgressMode saves /verbose mode changes. Production writes
+	// display.platforms.<platform>.tool_progress into config.yaml.
+	PersistToolProgressMode func(platform, mode string) error
+	// ToolProgressModes mirrors Hermes display.platforms.<platform>.tool_progress
+	// overrides. Values take precedence over ToolProgressMode for the named platform.
+	ToolProgressModes map[string]string
+	SessionMap        session.Map
+	Hooks             *Hooks
+	RuntimeStatus     RuntimeStatusWriter
+	Restart           RestartConfig
+	SessionExpiry     SessionExpiryConfig
+	Now               func() time.Time
 	// PersistReasoningGlobal is invoked by /reasoning ... --global to persist
 	// the requested effort beyond the calling session. A nil callback or one
 	// that returns an error causes the command to fall back to a session-only
@@ -70,6 +84,59 @@ type ManagerConfig struct {
 	// AccountUsage renders /usage provider account-limit evidence. Runtime token
 	// telemetry is read from the manager's latest render frame.
 	AccountUsage AccountUsageProvider
+	// ContextFilesProfile overrides the profile directory used for live-turn
+	// SOUL.md discovery. Empty falls back to config.GormesHome() at call time.
+	// Tests inject hermetic temp directories so no live ~/.gormes state is read.
+	ContextFilesProfile string
+	// ContextFilesCWD overrides the working directory used for project-context
+	// discovery (HERMES.md / .hermes.md / AGENTS.md / CLAUDE.md / .cursorrules).
+	// Empty falls back to os.Getwd() at call time.
+	ContextFilesCWD string
+	// ContextFilesMemoryDir overrides the memory directory used for live-turn
+	// USER.md and MEMORY.md durable user-context discovery. Empty falls back
+	// to <config.GormesHome()>/memory at call time. Tests inject hermetic
+	// temp directories so no live ~/.gormes/memory state is read.
+	ContextFilesMemoryDir string
+	// LiveTurnNow overrides the clock used to render the live-turn timestamp
+	// line. Nil leaves the clock unset, which suppresses the "Conversation
+	// started: ..." line so slice-1+2 byte output stays stable. Production
+	// wiring should set this to time.Now (or an equivalent UTC/zone-aware
+	// closure); tests wire a fixed clock.
+	LiveTurnNow func() time.Time
+	// LiveTurnActiveModel returns the active model name rendered on the
+	// `Model: ...` line. Nil or empty result drops the line.
+	LiveTurnActiveModel func() string
+	// LiveTurnActiveProvider returns the active provider name rendered on
+	// the `Provider: ...` line. Nil or empty result drops the line. Only
+	// non-secret display names are exposed — never base URLs or API keys.
+	LiveTurnActiveProvider func() string
+	// TitleModel is the provider boundary for auto-title generation. It is
+	// called at most once per PhaseIdle frame for sessions without an existing
+	// title. Nil disables the LLM call; PerformAutoTitle surfaces
+	// AutoTitleCodeProviderFailed evidence through AuxiliaryFailureSink.
+	TitleModel hermes.TitleModelFunc
+	// TitleStore is the persistence boundary for auto-title generation. When
+	// non-nil it is used directly; when nil and SessionMap is non-nil the
+	// production wiring constructs a MetadataTitleStore at startup and injects
+	// it here. Tests always inject a hermetic store via this field.
+	TitleStore session.SessionTitleStore
+	// AuxiliaryFailureSink receives AutoTitleEvidence for non-complete outcomes
+	// (provider failures, blank results, store errors, skip evidence). Nil
+	// discards non-complete evidence silently. The sink must not block or panic;
+	// panics are recovered and discarded.
+	AuxiliaryFailureSink AutoTitleAuxiliarySink
+	// CoalescerEvidenceSink receives CoalescerEvidence for non-happy-path
+	// finalize outcomes (edit_failed_fallback, send_final_failed). Nil
+	// discards evidence silently; production behavior is unchanged. The sink
+	// must not block or panic.
+	CoalescerEvidenceSink CoalescerEvidenceSink
+	// RememberedSourceStore records allowed inbound channel origins in a small
+	// channel-directory source ledger. Nil disables the hook. Failures are
+	// degraded and must not block user turns.
+	RememberedSourceStore RememberedSourceStore
+	// TypingActionEvidenceSink receives redacted non-fatal typing-action
+	// failures. Nil discards evidence silently.
+	TypingActionEvidenceSink TypingActionEvidenceSink
 }
 
 type kernelSubmitter interface {
@@ -87,17 +154,19 @@ type Manager struct {
 	mu       sync.Mutex
 	channels map[string]Channel
 
-	turnMu         sync.Mutex
-	turnPlatform   string
-	turnChatID     string
-	turnMsgID      string
-	turnSessionKey string
-	turnSessionID  string
-	turnSource     SessionSource
-	turnCancelled  bool
-	shuttingDown   bool
-	followUps      []InboundEvent
-	lastUsageFrame kernel.RenderFrame
+	turnMu           sync.Mutex
+	turnPlatform     string
+	turnChatID       string
+	turnMsgID        string
+	turnSessionKey   string
+	turnSessionID    string
+	turnSource       SessionSource
+	turnCancelled    bool
+	turnFrameSeen    bool
+	turnLastUserText string // captures the last inbound submit text for auto-title
+	shuttingDown     bool
+	followUps        []InboundEvent
+	lastUsageFrame   kernel.RenderFrame
 
 	reasoningMu    sync.Mutex
 	reasoningState map[string]SessionReasoningState
@@ -105,6 +174,20 @@ type Manager struct {
 	inboundDedup *MessageDeduplicator
 
 	renderChan <-chan kernel.RenderFrame
+
+	typingStop func()
+	typingKey  string
+
+	liveTurnPromptSeams liveTurnPromptSeams
+
+	typingActionMu   sync.Mutex
+	typingActionLast map[string]time.Time
+
+	toolProgressMu     sync.Mutex
+	toolProgressMsgID  string
+	toolProgressText   string
+	toolProgressChatID string
+	toolProgressPlat   string
 }
 
 type channelRunFailure struct {
@@ -113,9 +196,10 @@ type channelRunFailure struct {
 }
 
 type hookedPlaceholderEditor struct {
-	base     placeholderEditor
-	manager  *Manager
-	platform string
+	base         placeholderEditor
+	manager      *Manager
+	platform     string
+	replyToMsgID string
 }
 
 func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID string) (string, error) {
@@ -128,7 +212,19 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 		Text:     placeholderText,
 	})
 
-	msgID, err := h.base.SendPlaceholder(ctx, chatID)
+	var (
+		msgID string
+		err   error
+	)
+	if h.replyToMsgID != "" {
+		if replySender, ok := h.base.(ReplyPlaceholderCapable); ok {
+			msgID, err = replySender.SendReplyPlaceholder(ctx, chatID, h.replyToMsgID)
+		} else {
+			msgID, err = h.base.SendPlaceholder(ctx, chatID)
+		}
+	} else {
+		msgID, err = h.base.SendPlaceholder(ctx, chatID)
+	}
 	if err != nil {
 		h.manager.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 			Platform:      h.platform,
@@ -172,7 +268,19 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 		Text:     text,
 	})
 
-	msgID, err := sender.Send(ctx, chatID, text)
+	var (
+		msgID string
+		err   error
+	)
+	if h.replyToMsgID != "" {
+		if replySender, ok := h.base.(ReplySender); ok {
+			msgID, err = replySender.SendReply(ctx, chatID, h.replyToMsgID, text)
+		} else {
+			msgID, err = sender.Send(ctx, chatID, text)
+		}
+	} else {
+		msgID, err = sender.Send(ctx, chatID, text)
+	}
 	if err != nil {
 		h.manager.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 			Platform:      h.platform,
@@ -250,13 +358,41 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	if cfg.AllowDiscovery == nil {
 		cfg.AllowDiscovery = map[string]bool{}
 	}
+	seams := defaultLiveTurnPromptSeams()
+	if dir := strings.TrimSpace(cfg.ContextFilesProfile); dir != "" {
+		seams.ProfileDir = func() string { return dir }
+	}
+	explicitContextFixture := strings.TrimSpace(cfg.ContextFilesProfile) != "" || strings.TrimSpace(cfg.ContextFilesCWD) != ""
+	if cwd := strings.TrimSpace(cfg.ContextFilesCWD); cwd != "" {
+		seams.CWD = func() string { return cwd }
+	}
+	if memDir := strings.TrimSpace(cfg.ContextFilesMemoryDir); memDir != "" {
+		seams.MemoryDir = func() string { return memDir }
+	} else if explicitContextFixture {
+		// Tests and callers that provide explicit profile/CWD fixtures without a
+		// memory fixture expect durable USER.md/MEMORY.md context to be absent.
+		// Production gateway wiring leaves these fields empty and uses the default
+		// workspace/profile discovery above.
+		seams.MemoryDir = func() string { return "" }
+	}
+	if cfg.LiveTurnNow != nil {
+		seams.Now = cfg.LiveTurnNow
+	}
+	if cfg.LiveTurnActiveModel != nil {
+		seams.ActiveModel = cfg.LiveTurnActiveModel
+	}
+	if cfg.LiveTurnActiveProvider != nil {
+		seams.ActiveProvider = cfg.LiveTurnActiveProvider
+	}
 	return &Manager{
-		cfg:            cfg,
-		kernel:         k,
-		log:            log,
-		channels:       map[string]Channel{},
-		reasoningState: map[string]SessionReasoningState{},
-		inboundDedup:   NewMessageDeduplicator(defaultInboundDedupMaxSize),
+		cfg:                 cfg,
+		kernel:              k,
+		log:                 log,
+		channels:            map[string]Channel{},
+		reasoningState:      map[string]SessionReasoningState{},
+		inboundDedup:        NewMessageDeduplicator(defaultInboundDedupMaxSize),
+		liveTurnPromptSeams: seams,
+		typingActionLast:    map[string]time.Time{},
 	}
 }
 
@@ -589,7 +725,19 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventUsage:
 		m.handleUsageCommand(ctx, ch, ev)
 		return nil
+	case EventStatus:
+		m.handleStatusCommand(ctx, ch, ev)
+		return nil
+	case EventTitle:
+		m.handleTitleCommand(ctx, ch, ev)
+		return nil
+	case EventVerbose:
+		m.handleVerboseCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
+		if m.handleSlashSubmitCommand(ctx, ch, ev) {
+			return nil
+		}
 		if m.kernel == nil {
 			return nil
 		}
@@ -614,11 +762,168 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	return nil
 }
 
+func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev InboundEvent) bool {
+	body := strings.TrimSpace(ev.Text)
+	if !strings.HasPrefix(body, "/") {
+		return false
+	}
+
+	cmd, ok := ResolveCommand(body)
+	if !ok {
+		name := slashCommandName(body)
+		if isRecognizedUnavailableSlashCommand(name) {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+name+" is recognized but unavailable in this build")
+		} else {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command — no slash command by that name is available")
+		}
+		return true
+	}
+	if m.hasActiveTurn() && cmd.ActiveTurnPolicy == CommandActiveTurnPolicyReject {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Gormes is busy — finish the current turn or send /stop before /"+cmd.Name)
+		return true
+	}
+	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+cmd.Name+" is recognized but unavailable in this build")
+		return true
+	}
+	commandEvent := ev
+	commandEvent.Kind = cmd.Kind
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle {
+		commandEvent.Text = body
+	} else {
+		commandEvent.Text = ""
+	}
+	return m.dispatchCommandEvent(ctx, ch, commandEvent)
+}
+
+func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev InboundEvent) bool {
+	switch ev.Kind {
+	case EventStart:
+		if _, err := m.sendWithHooks(ctx, ch, ev.ChatID, startGreeting); err != nil {
+			m.log.Warn("send greeting", "platform", ev.Platform, "chat_id", ev.ChatID, "err", err)
+		}
+		return true
+	case EventCancel:
+		m.markTurnCancelled()
+		if m.kernel != nil {
+			_ = m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
+		}
+		return true
+	case EventReset:
+		if m.kernel == nil {
+			return true
+		}
+		if err := m.kernel.ResetSession(); err != nil {
+			if errors.Is(err, kernel.ErrResetDuringTurn) {
+				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cannot reset during active turn — send /stop first.")
+			} else {
+				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset failed: "+err.Error())
+			}
+			return true
+		}
+		if m.cfg.SessionMap != nil {
+			if err := m.cfg.SessionMap.Put(ctx, ev.ChatKey(), ""); err != nil {
+				m.log.Warn("clear session mapping", "key", ev.ChatKey(), "err", err)
+			}
+		}
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
+		return true
+	case EventRestart:
+		_ = m.handleRestartCommand(ctx, ch, ev)
+		return true
+	case EventSteer:
+		m.handleSteerCommand(ctx, ch, ev)
+		return true
+	case EventUsage:
+		m.handleUsageCommand(ctx, ch, ev)
+		return true
+	case EventStatus:
+		m.handleStatusCommand(ctx, ch, ev)
+		return true
+	case EventTitle:
+		m.handleTitleCommand(ctx, ch, ev)
+		return true
+	case EventVerbose:
+		m.handleVerboseCommand(ctx, ch, ev)
+		return true
+	case EventUnknown:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
+		return true
+	default:
+		return false
+	}
+}
+
+func (m *Manager) handleVerboseCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	if !m.cfg.ToolProgressCommandEnabled {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "The `/verbose` command is not enabled for messaging platforms.\n\nEnable it in `config.yaml`:\n```yaml\ndisplay:\n  tool_progress_command: true\n```")
+		return
+	}
+	platform := strings.ToLower(strings.TrimSpace(ev.Platform))
+	if platform == "" {
+		platform = "unknown"
+	}
+	mode := nextToolProgressMode(m.toolProgressMode(platform))
+	if m.cfg.ToolProgressModes == nil {
+		m.cfg.ToolProgressModes = map[string]string{}
+	}
+	m.cfg.ToolProgressModes[platform] = mode
+
+	text := toolProgressModeDescription(mode)
+	if m.cfg.PersistToolProgressMode == nil {
+		text += "\n_(could not save to config: persistence unavailable)_"
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+		return
+	}
+	if err := m.cfg.PersistToolProgressMode(platform, mode); err != nil {
+		text += "\n_(could not save to config: " + err.Error() + ")_"
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+		return
+	}
+	text += "\n_(saved for **" + platform + "** — takes effect on next message)_"
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+}
+
+func nextToolProgressMode(current string) string {
+	switch normalizeGatewayToolProgressMode(current) {
+	case "off":
+		return "new"
+	case "new":
+		return "all"
+	case "all":
+		return "verbose"
+	default:
+		return "off"
+	}
+}
+
+func toolProgressModeDescription(mode string) string {
+	switch normalizeGatewayToolProgressMode(mode) {
+	case "off":
+		return "⚙️ Tool progress: **OFF** — no tool activity shown."
+	case "new":
+		return "⚙️ Tool progress: **NEW** — shown when tool changes (preview length: `display.tool_preview_length`, default 40)."
+	case "verbose":
+		return "⚙️ Tool progress: **VERBOSE** — every tool call with full arguments."
+	default:
+		return "⚙️ Tool progress: **ALL** — every tool call shown (preview length: `display.tool_preview_length`, default 40)."
+	}
+}
+
 func (m *Manager) handleSteerCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	parsed := ParseSteerCommand(ev.Text, steerPayloadMetadataFromInbound(ev))
 	if parsed.Evidence != "" {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(parsed.Evidence))
 		return
+	}
+
+	if m.hasActiveTurn() {
+		if m.kernel != nil {
+			if err := m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSteer, Text: parsed.Guidance}); err == nil {
+				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(SteerEvidenceInjected)+": pending for next tool-result boundary; "+string(SteerEvidencePreview)+": "+parsed.Preview)
+				return
+			}
+		}
 	}
 
 	followUp := ev
@@ -678,9 +983,19 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	m.turnMu.Lock()
 	platform := m.turnPlatform
 	chatID := m.turnChatID
+	replyToMsgID := m.turnMsgID
+	sessionID := m.turnSessionID
+	lastUserText := m.turnLastUserText
+	staleInitialIdle := platform != "" && chatID != "" && !m.turnFrameSeen && isStartupIdleFrame(f)
+	if !staleInitialIdle && platform != "" && chatID != "" {
+		m.turnFrameSeen = true
+	}
 	m.turnMu.Unlock()
 
 	if platform == "" || chatID == "" {
+		return
+	}
+	if staleInitialIdle {
 		return
 	}
 
@@ -688,9 +1003,14 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	if ch == nil {
 		return
 	}
+	m.maybeSendTypingAction(ctx, ch, f.Phase, chatID)
+	m.dispatchToolProgress(ctx, ch, platform, chatID, f)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
-		if m.sendNoEdit(ctx, ch, f, chatID) {
+		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
+			if f.Phase == kernel.PhaseIdle {
+				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
+			}
 			m.drainNextFollowUp(ctx)
 		}
 		return
@@ -698,14 +1018,17 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 
 	switch f.Phase {
 	case kernel.PhaseIdle:
+		finalText, media := m.formatFinalDelivery(platform, f)
 		if *co != nil {
-			(*co).flushImmediateFinal(ctx, m.formatFinal(platform, f), true)
+			(*co).flushImmediateFinal(ctx, finalText, true)
 			(*coCancel)()
 			*co = nil
 			*coCancel = nil
 		} else {
-			_, _ = m.sendWithHooks(ctx, ch, chatID, m.formatFinal(platform, f))
+			_, _ = m.sendWithHooks(ctx, ch, chatID, finalText)
 		}
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
+		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		text := m.formatError(platform, f)
@@ -719,42 +1042,101 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		}
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
+		text := m.formatStream(platform, f)
+		if text == "" {
+			return
+		}
 		if *co == nil {
 			cCtx, cancel := context.WithCancel(ctx)
 			*coCancel = cancel
-			nc := newCoalescer(hookedPlaceholderEditor{
-				base:     pe,
-				manager:  m,
-				platform: platform,
-			}, time.Duration(m.cfg.CoalesceMs)*time.Millisecond, chatID,
+			opts := []coalescerOption{
 				coalescerFreshFinalAfter(m.cfg.FreshFinalAfter),
 				coalescerNow(m.now),
-			)
+				coalescerEvidenceSink(m.cfg.CoalescerEvidenceSink),
+				coalescerInitialTextSend(),
+			}
+			nc := newCoalescer(hookedPlaceholderEditor{
+				base:         pe,
+				manager:      m,
+				platform:     platform,
+				replyToMsgID: replyToMsgID,
+			}, time.Duration(m.cfg.CoalesceMs)*time.Millisecond, chatID, opts...)
 			*co = nc
 			go nc.run(cCtx)
-			nc.flushImmediate(ctx, "⏳")
 		}
-		(*co).setPending(m.formatStream(platform, f))
+		(*co).setPending(text)
 	}
 }
 
-func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID string) bool {
+func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform, chatID string, f kernel.RenderFrame) {
+	if _, ok := ch.(MessageEditor); !ok {
+		return
+	}
+	text := m.formatToolProgress(platform, f)
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+
+	m.toolProgressMu.Lock()
+	sameTarget := m.toolProgressPlat == platform && m.toolProgressChatID == chatID
+	if sameTarget && m.toolProgressText == text {
+		m.toolProgressMu.Unlock()
+		return
+	}
+	msgID := ""
+	if sameTarget {
+		msgID = m.toolProgressMsgID
+	}
+	m.toolProgressMu.Unlock()
+
+	if msgID != "" {
+		if editor, ok := ch.(MessageEditor); ok {
+			if err := editor.EditMessage(ctx, chatID, msgID, text); err == nil {
+				m.toolProgressMu.Lock()
+				if m.toolProgressPlat == platform && m.toolProgressChatID == chatID && m.toolProgressMsgID == msgID {
+					m.toolProgressText = text
+				}
+				m.toolProgressMu.Unlock()
+				return
+			}
+		}
+	}
+
+	newMsgID, err := m.sendWithHooks(ctx, ch, chatID, text)
+	if err != nil {
+		return
+	}
+	m.toolProgressMu.Lock()
+	m.toolProgressPlat = platform
+	m.toolProgressChatID = chatID
+	m.toolProgressMsgID = newMsgID
+	m.toolProgressText = text
+	m.toolProgressMu.Unlock()
+}
+
+func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID string) bool {
 	switch f.Phase {
 	case kernel.PhaseIdle:
-		_, _ = m.sendWithHooks(ctx, ch, chatID, m.formatFinal(ch.Name(), f))
+		finalText, media := m.formatFinalDelivery(ch.Name(), f)
+		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, finalText)
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
 		return true
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
-		_, _ = m.sendWithHooks(ctx, ch, chatID, m.formatError(ch.Name(), f))
+		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatError(ch.Name(), f))
 		return true
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
 		if text := m.formatStream(ch.Name(), f); text != "" {
-			_, _ = m.sendWithHooks(ctx, ch, chatID, text)
+			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, text)
 		}
 	}
 	return false
 }
 
 func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text string) (string, error) {
+	return m.sendWithHooksReply(ctx, ch, chatID, "", text)
+}
+
+func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, replyToMsgID, text string) (string, error) {
 	if ch == nil {
 		return "", nil
 	}
@@ -766,7 +1148,19 @@ func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text st
 	}
 	m.fireHook(ctx, ev)
 
-	msgID, err := ch.Send(ctx, chatID, text)
+	var (
+		msgID string
+		err   error
+	)
+	if replyToMsgID != "" {
+		if replySender, ok := ch.(ReplySender); ok {
+			msgID, err = replySender.SendReply(ctx, chatID, replyToMsgID, text)
+		} else {
+			msgID, err = ch.Send(ctx, chatID, text)
+		}
+	} else {
+		msgID, err = ch.Send(ctx, chatID, text)
+	}
 	if err != nil {
 		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 			Platform:      ch.Name(),
@@ -1047,6 +1441,9 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnSessionID = ""
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
+	m.turnFrameSeen = false
+	m.turnLastUserText = ""
+	m.resetToolProgress()
 }
 
 func (m *Manager) clearTurn() {
@@ -1059,6 +1456,15 @@ func (m *Manager) clearTurn() {
 	m.turnSessionID = ""
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
+	m.turnFrameSeen = false
+	m.turnLastUserText = ""
+	m.resetToolProgress()
+}
+
+func (m *Manager) setTurnLastUserText(text string) {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	m.turnLastUserText = text
 }
 
 func (m *Manager) hasActiveTurn() bool {
@@ -1103,13 +1509,14 @@ func (m *Manager) activeTurnSnapshot() (activeTurnSnapshot, bool) {
 		return activeTurnSnapshot{}, false
 	}
 	return activeTurnSnapshot{
-		Platform:   m.turnPlatform,
-		ChatID:     m.turnChatID,
-		MsgID:      m.turnMsgID,
-		SessionKey: m.turnSessionKey,
-		SessionID:  m.turnSessionID,
-		Source:     m.turnSource,
-		Cancelled:  m.turnCancelled,
+		Platform:     m.turnPlatform,
+		ChatID:       m.turnChatID,
+		MsgID:        m.turnMsgID,
+		SessionKey:   m.turnSessionKey,
+		SessionID:    m.turnSessionID,
+		Source:       m.turnSource,
+		Cancelled:    m.turnCancelled,
+		LastUserText: m.turnLastUserText,
 	}, true
 }
 
@@ -1120,6 +1527,41 @@ func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
 	return FormatStreamPlain(f)
 }
 
+func (m *Manager) formatToolProgress(platform string, f kernel.RenderFrame) string {
+	mode := m.toolProgressMode(platform)
+	if platform == "telegram" {
+		return FormatToolProgressTelegramMode(f, mode)
+	}
+	return FormatToolProgressPlainMode(f, mode)
+}
+
+func (m *Manager) toolProgressMode(platform string) string {
+	key := strings.ToLower(strings.TrimSpace(platform))
+	if key != "" && len(m.cfg.ToolProgressModes) > 0 {
+		if mode := strings.TrimSpace(m.cfg.ToolProgressModes[key]); mode != "" {
+			return normalizeGatewayToolProgressMode(mode)
+		}
+	}
+	if mode := strings.TrimSpace(m.cfg.ToolProgressMode); mode != "" {
+		return normalizeGatewayToolProgressMode(mode)
+	}
+	return defaultToolProgressModeForPlatform(key)
+}
+
+func defaultToolProgressModeForPlatform(platform string) string {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case "telegram", "discord", "api_server":
+		return "all"
+	case "mattermost", "matrix", "feishu", "whatsapp":
+		return "new"
+	case "slack", "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
+		"email", "sms", "webhook", "homeassistant":
+		return "off"
+	default:
+		return "all"
+	}
+}
+
 func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
 	if platform == "telegram" {
 		return FormatFinalTelegram(f)
@@ -1127,11 +1569,60 @@ func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
 	return FormatFinalPlain(f)
 }
 
+func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (string, []OutboundMedia) {
+	content := PrepareMediaDeliveryContent(FinalAssistantText(f))
+	text := content.Text
+	if strings.TrimSpace(text) == "" && len(content.Media) > 0 {
+		text = "Audio attached."
+	}
+	if platform == "telegram" {
+		return FormatFinalTelegramText(text), content.Media
+	}
+	return FormatFinalPlainText(text), content.Media
+}
+
+func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID string, media []OutboundMedia) {
+	if len(media) == 0 || ch == nil {
+		return
+	}
+	sender, ok := ch.(MediaSender)
+	if !ok {
+		for range media {
+			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, "Media attachment unavailable.")
+		}
+		return
+	}
+	for _, item := range media {
+		if _, err := sender.SendMedia(ctx, chatID, replyToMsgID, item); err != nil {
+			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+				Platform:      ch.Name(),
+				PlatformState: PlatformStateFailed,
+				ErrorMessage:  err.Error(),
+			})
+			m.fireHook(ctx, HookEvent{
+				Point:    HookOnError,
+				Platform: ch.Name(),
+				ChatID:   chatID,
+				Text:     "MEDIA:[redacted]",
+				Err:      err,
+			})
+		}
+	}
+}
+
 func (m *Manager) formatError(platform string, f kernel.RenderFrame) string {
 	if platform == "telegram" {
 		return FormatErrorTelegram(f)
 	}
 	return FormatErrorPlain(f)
+}
+
+func isStartupIdleFrame(f kernel.RenderFrame) bool {
+	return f.Phase == kernel.PhaseIdle &&
+		f.StatusText == "idle" &&
+		f.DraftText == "" &&
+		f.LastError == "" &&
+		len(f.History) == 0
 }
 
 func (m *Manager) persistSession(ctx context.Context, f kernel.RenderFrame) {
@@ -1206,7 +1697,18 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 	m.turnSessionID = ""
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
+	m.turnFrameSeen = false
+	m.resetToolProgress()
 	return next, true
+}
+
+func (m *Manager) resetToolProgress() {
+	m.toolProgressMu.Lock()
+	defer m.toolProgressMu.Unlock()
+	m.toolProgressMsgID = ""
+	m.toolProgressText = ""
+	m.toolProgressChatID = ""
+	m.toolProgressPlat = ""
 }
 
 func (m *Manager) markDrainTimeoutResumePending(ctx context.Context, reason DrainTimeoutReason) {
@@ -1377,12 +1879,62 @@ func resumePendingNote(reason string) string {
 		". The conversation history below is intact. If it contains unfinished tool result(s), process them first and summarize what was accomplished, then address the user's new message below.]"
 }
 
+func (m *Manager) refreshConversationalSessionMetadata(ctx context.Context, ev InboundEvent, resolved resolvedSession, source SessionSource) resolvedSession {
+	key := strings.TrimSpace(ev.ChatKey())
+	if key == "" || m.cfg.SessionMap == nil {
+		return resolved
+	}
+	sessionID := strings.TrimSpace(resolved.SessionID)
+	if sessionID == "" || sessionID == key {
+		sessionID = generateStatusSessionID(m.now(), ev)
+		if err := m.cfg.SessionMap.Put(ctx, key, sessionID); err != nil {
+			m.log.Warn("persist conversational session_id", "key", key, "session_id", sessionID, "err", err)
+			if strings.TrimSpace(resolved.SessionID) != "" {
+				return resolved
+			}
+		}
+		resolved.SessionID = sessionID
+	}
+	writer, ok := m.cfg.SessionMap.(sessionMetadataWriter)
+	if !ok || sessionID == "" {
+		return resolved
+	}
+	now := m.now().Unix()
+	meta := session.Metadata{
+		SessionID: sessionID,
+		Source:    source.Platform,
+		ChatID:    source.ChatID,
+		UserID:    source.UserID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := writer.PutMetadata(ctx, meta); err != nil {
+		m.log.Warn("refresh conversational session metadata", "session_id", sessionID, "err", err)
+	}
+	return resolved
+}
+
+func (m *Manager) rememberAllowedInboundSource(ctx context.Context, source SessionSource) {
+	store := m.cfg.RememberedSourceStore
+	if store == nil {
+		return
+	}
+	entry := RememberedSourceEntryFromSessionSource(source)
+	if entry.Platform == "" || entry.ID == "" {
+		return
+	}
+	if err := store.RememberSource(ctx, entry); err != nil {
+		m.log.Warn("channel_directory_source_unavailable", "platform", entry.Platform, "code", "channel_directory_source_unavailable")
+	}
+}
+
 func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent) bool {
 	resolved, err := resolveSession(ctx, m.cfg.SessionMap, ev.ChatKey())
 	if err != nil {
 		m.log.Warn("load session mapping", "key", ev.ChatKey(), "err", err)
 	}
 	source := sessionSourceFromInbound(ev)
+	m.rememberAllowedInboundSource(ctx, source)
 	submitText := ev.SubmitText()
 	var clearPendingSessionID string
 	var clearBlockedMapping bool
@@ -1410,8 +1962,12 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 			clearPendingSessionID = resolved.SessionID
 		}
 	}
+	if !clearBlockedMapping {
+		resolved = m.refreshConversationalSessionMetadata(ctx, ev, resolved, source)
+	}
 	m.setPinnedTurnSession(ev.ChatKey(), resolved.SessionID, source)
-	sessionContext := BuildSessionContextPrompt(SessionContext{
+	m.setTurnLastUserText(ev.Text)
+	sessionBlock := BuildSessionContextPrompt(SessionContext{
 		Source:                source,
 		SessionKey:            ev.ChatKey(),
 		SessionID:             resolved.SessionID,
@@ -1422,6 +1978,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
+	sessionContext, _, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, submitText, resolved.SessionID, sessionBlock)
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,

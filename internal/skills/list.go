@@ -176,6 +176,16 @@ func bundledSkillsRoot() string {
 	return findBundledSkillsRoot()
 }
 
+// BundledRoot returns the discovered read-only bundled skills catalog root.
+func BundledRoot() string {
+	return bundledSkillsRoot()
+}
+
+// LoadSkillDocs returns parsed SKILL.md documents under root in stable order.
+func LoadSkillDocs(root string, maxBytes int) ([]Skill, error) {
+	return loadSkillDocsFromDir(root, maxBytes)
+}
+
 func findBundledSkillsRoot() string {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -221,6 +231,11 @@ func defaultSkillsRoot() string {
 		return filepath.Join(".local", "share", "gormes", "skills")
 	}
 	return filepath.Join(home, ".local", "share", "gormes", "skills")
+}
+
+// DefaultRoot returns the default user-writable skills root.
+func DefaultRoot() string {
+	return defaultSkillsRoot()
 }
 
 func categoryFromSkillPath(activeDir, skillPath string) string {

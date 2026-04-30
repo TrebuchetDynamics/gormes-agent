@@ -153,6 +153,7 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 		t.Fatalf("mkdir fakebin: %v", err)
 	}
 
+	linkBasicUnixTools(t, bin)
 	writeExecutable(t, filepath.Join(bin, "git"), fakeGitScript())
 	writeExecutable(t, filepath.Join(bin, "go"), fakeGoScript("go", "go1.25.0"))
 
@@ -265,7 +266,7 @@ func TestInstallSH_DefaultManagedPaths(t *testing.T) {
 	out, err := runInstallSH(t,
 		`printf '%s|%s|%s\n' "$(managed_home_dir)" "$(managed_checkout_dir)" "$(pick_bin_dir)"`,
 		"HOME="+home,
-		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
 	)
 	if err != nil {
@@ -283,7 +284,7 @@ func TestInstallSH_TermuxUsesPrefixBin(t *testing.T) {
 	out, err := runInstallSH(t,
 		`printf '%s\n' "$(pick_bin_dir)"`,
 		"HOME="+home,
-		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
 		"PREFIX=/data/data/com.termux/files/usr",
 		"TERMUX_VERSION=0.118.0",
@@ -296,13 +297,81 @@ func TestInstallSH_TermuxUsesPrefixBin(t *testing.T) {
 	}
 }
 
+func TestInstallSH_RootLinuxDefaultsToFHSLayout(t *testing.T) {
+	home := t.TempDir()
+	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
+	out, err := runInstallSH(t,
+		`printf '%s|%s|%s\n' "$(managed_home_dir)" "$(managed_checkout_dir)" "$(pick_bin_dir)"`,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_EFFECTIVE_UID=0",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("runInstallSH: %v\n%s", err, out)
+	}
+	want := home + "/.gormes|/usr/local/lib/gormes-agent|/usr/local/bin"
+	if strings.TrimSpace(out) != want {
+		t.Fatalf("root paths = %q, want %q", strings.TrimSpace(out), want)
+	}
+}
+
+func TestInstallSH_RootLinuxPreservesLegacyUserScopedCheckout(t *testing.T) {
+	home := t.TempDir()
+	legacy := filepath.Join(home, ".gormes", "gormes-agent", ".git")
+	if err := os.MkdirAll(legacy, 0o755); err != nil {
+		t.Fatalf("mkdir legacy checkout: %v", err)
+	}
+	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
+	out, err := runInstallSH(t,
+		`printf '%s|%s|%s\n' "$(managed_home_dir)" "$(managed_checkout_dir)" "$(pick_bin_dir)"`,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_EFFECTIVE_UID=0",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("runInstallSH: %v\n%s", err, out)
+	}
+	want := home + "/.gormes|" + home + "/.gormes/gormes-agent|" + home + "/.local/bin"
+	if strings.TrimSpace(out) != want {
+		t.Fatalf("legacy root paths = %q, want %q", strings.TrimSpace(out), want)
+	}
+}
+
+func TestInstallSH_ExplicitDirAndBinDirOverrideRootFHSLayout(t *testing.T) {
+	home := t.TempDir()
+	overrideDir := filepath.Join(home, "src", "gormes-agent")
+	overrideBin := filepath.Join(home, "bin")
+	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
+	out, err := runInstallSH(t,
+		`parse_args --dir "$OVERRIDE_DIR" --bin-dir "$OVERRIDE_BIN"; printf '%s|%s\n' "$(managed_checkout_dir)" "$(pick_bin_dir)"`,
+		"HOME="+home,
+		"OVERRIDE_DIR="+overrideDir,
+		"OVERRIDE_BIN="+overrideBin,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_EFFECTIVE_UID=0",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("runInstallSH: %v\n%s", err, out)
+	}
+	want := overrideDir + "|" + overrideBin
+	if strings.TrimSpace(out) != want {
+		t.Fatalf("explicit override paths = %q, want %q", strings.TrimSpace(out), want)
+	}
+}
+
 func TestInstallSH_WindowsShellHintMentionsPowerShell(t *testing.T) {
 	home := t.TempDir()
 	fakebin, logPath := writeFakeUnixToolchain(t, t.TempDir())
 	out, err := runInstallSH(t,
 		`UNAME=MSYS_NT-10.0 check_platform`,
 		"HOME="+home,
-		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
 	)
 	if err == nil {
@@ -320,7 +389,7 @@ func TestInstallSH_FirstInstallCreatesManagedCheckoutAndPublishedCommand(t *test
 
 	out, err := runInstallScript(t,
 		"HOME="+home,
-		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
 	)
 	if err != nil {
@@ -353,6 +422,39 @@ func TestInstallSH_FirstInstallCreatesManagedCheckoutAndPublishedCommand(t *test
 	}
 }
 
+func TestInstallSH_UpdatesExistingCommandEarlierOnPATH(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	staleBin := filepath.Join(root, "go", "bin")
+	staleCommand := filepath.Join(staleBin, "gormes")
+	if err := os.MkdirAll(staleBin, 0o755); err != nil {
+		t.Fatalf("mkdir stale bin: %v", err)
+	}
+	writeExecutable(t, staleCommand, "#!/bin/sh\nprintf 'stale gormes\\n'\n")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+staleBin+string(os.PathListSeparator)+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+
+	buildBin := filepath.Join(home, ".gormes", "bin", "gormes")
+	target, err := os.Readlink(staleCommand)
+	if err != nil {
+		t.Fatalf("stale PATH command was not replaced with a link to the managed build: %v\n%s", err, out)
+	}
+	if target != buildBin {
+		t.Fatalf("active PATH command target = %q, want %q", target, buildBin)
+	}
+	if !strings.Contains(out, "Updated active PATH command: "+staleCommand) {
+		t.Fatalf("summary/log missing active command update:\n%s", out)
+	}
+}
+
 func TestInstallSH_RerunUpdatesManagedCheckoutWithoutCloning(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
@@ -370,7 +472,7 @@ func TestInstallSH_RerunUpdatesManagedCheckoutWithoutCloning(t *testing.T) {
 
 	out, err := runInstallScript(t,
 		"HOME="+home,
-		"PATH="+fakebin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
 	)
 	if err != nil {

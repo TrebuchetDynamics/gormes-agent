@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -77,13 +79,83 @@ func TestRuntimeBuildSkillBlockSelectsAndRendersActiveSkills(t *testing.T) {
 	}
 }
 
+func TestRuntimeBuildSkillBlockToolsetConditions(t *testing.T) {
+	root := t.TempDir()
+	writeSkillDocWithFrontmatter(t, filepath.Join(root, "active", "fallback-terminal", "SKILL.md"), `name: fallback-terminal
+description: Use when terminal is unavailable
+metadata:
+  hermes:
+    fallback_for_tools: [terminal]
+`, "Fallback body.")
+	writeSkillDocWithFrontmatter(t, filepath.Join(root, "active", "needs-browser", "SKILL.md"), `name: needs-browser
+description: Use when browser tools are enabled
+metadata:
+  hermes:
+    requires_toolsets: [browser]
+`, "Browser body.")
+	writeSkillDocWithFrontmatter(t, filepath.Join(root, "active", "always", "SKILL.md"), `name: always
+description: Always visible
+`, "Always body.")
+
+	runtime := NewRuntime(root, 8*1024, 10, "")
+	_, names, statuses, err := runtime.BuildSkillBlockWithOptions(context.Background(), "always browser", RuntimeOptions{
+		AvailableTools:    []string{"terminal"},
+		AvailableToolsets: []string{"browser"},
+	})
+	if err != nil {
+		t.Fatalf("BuildSkillBlockWithOptions() error = %v", err)
+	}
+
+	wantNames := []string{"always", "needs-browser"}
+	if !sameStrings(names, wantNames) {
+		t.Fatalf("names = %#v, want %#v", names, wantNames)
+	}
+	assertSkillStatus(t, statuses, "fallback-terminal", SkillStatusConditionExcluded)
+	assertSkillStatus(t, statuses, "needs-browser", SkillStatusAvailable)
+
+	_, names, _, err = runtime.BuildSkillBlockWithOptions(context.Background(), "always browser terminal unavailable", RuntimeOptions{})
+	if err != nil {
+		t.Fatalf("BuildSkillBlockWithOptions() with nil filters error = %v", err)
+	}
+	wantNames = []string{"always", "fallback-terminal", "needs-browser"}
+	if !sameStrings(names, wantNames) {
+		t.Fatalf("names with nil filters = %#v, want %#v", names, wantNames)
+	}
+}
+
 func writeSkillDoc(t *testing.T, path, name, description, body string) {
+	t.Helper()
+	writeSkillDocWithFrontmatter(t, path, "name: "+name+"\ndescription: "+description, body)
+}
+
+func writeSkillDocWithFrontmatter(t *testing.T, path, frontmatter, body string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("MkdirAll(%q): %v", filepath.Dir(path), err)
 	}
-	raw := "---\nname: " + name + "\ndescription: " + description + "\n---\n\n" + body
+	raw := "---\n" + strings.TrimSpace(frontmatter) + "\n---\n\n" + body
 	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
 		t.Fatalf("WriteFile(%q): %v", path, err)
 	}
+}
+
+func sameStrings(got, want []string) bool {
+	gotCopy := append([]string(nil), got...)
+	wantCopy := append([]string(nil), want...)
+	sort.Strings(gotCopy)
+	sort.Strings(wantCopy)
+	return reflect.DeepEqual(gotCopy, wantCopy)
+}
+
+func assertSkillStatus(t *testing.T, statuses []SkillStatus, name string, want SkillStatusCode) {
+	t.Helper()
+	for _, status := range statuses {
+		if status.Name == name {
+			if status.Status != want {
+				t.Fatalf("status %s = %s (%s), want %s", name, status.Status, status.Reason, want)
+			}
+			return
+		}
+	}
+	t.Fatalf("status for %s not found in %#v", name, statuses)
 }

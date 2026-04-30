@@ -30,10 +30,18 @@ type Skill struct {
 	Triggers         []string
 	Exclusions       []string
 	ReviewState      string
+	Conditions       SkillConditions
 }
 
 type CredentialGroup struct {
 	AnyOf []string
+}
+
+type SkillConditions struct {
+	FallbackForTools    []string
+	FallbackForToolsets []string
+	RequiresTools       []string
+	RequiresToolsets    []string
 }
 
 // Validate enforces the minimal Phase 2.G0 contract for a parsed skill.

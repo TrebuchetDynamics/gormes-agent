@@ -197,6 +197,38 @@ func TestPlatformToolsetStatusLeavesHomeAssistantOffWithoutHASSToken(t *testing.
 	}
 }
 
+func TestPlatformToolsetConfigYuanbaoAllowedOnYuanbaoOnly(t *testing.T) {
+	cfg, _ := parseToolsetConfigYAML(t, `platform_toolsets: {}`)
+
+	for _, platform := range []string{"cli", "cron", "telegram"} {
+		report, err := cfg.SavePlatformSelection(platform, []string{"web", "yuanbao"})
+		if err != nil {
+			t.Fatalf("SavePlatformSelection(%s): %v", platform, err)
+		}
+		assertNotContains(t, cfg.PlatformToolsets[platform], "yuanbao")
+		assertIssue(t, report, PlatformToolsetIssueRestrictedToolset, "yuanbao")
+	}
+
+	report, err := cfg.SavePlatformSelection("yuanbao", []string{"web", "yuanbao"})
+	if err != nil {
+		t.Fatalf("SavePlatformSelection(yuanbao): %v", err)
+	}
+	assertContains(t, cfg.PlatformToolsets["yuanbao"], "yuanbao")
+	assertNoIssue(t, report, PlatformToolsetIssueRestrictedToolset)
+}
+
+func TestPlatformToolsetConfigYuanbaoNotInDefaultRuntimeToolsets(t *testing.T) {
+	cfg, _ := parseToolsetConfigYAML(t, `platform_toolsets: {}`)
+
+	for _, platform := range []string{"cli", "cron", "telegram", "discord", "slack"} {
+		status, err := cfg.PlatformStatus(platform)
+		if err != nil {
+			t.Fatalf("PlatformStatus(%s): %v", platform, err)
+		}
+		assertNotContains(t, status.RuntimeToolsets, "yuanbao")
+	}
+}
+
 func parseToolsetConfigYAML(t *testing.T, body string) (PlatformToolsetConfig, PlatformToolsetReport) {
 	t.Helper()
 	var raw any

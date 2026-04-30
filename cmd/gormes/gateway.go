@@ -24,6 +24,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/slack"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
@@ -44,7 +45,6 @@ const gatewayMutatingUnavailableExitCode = 2
 
 var gatewayMutatingUnavailableSubcommands = []string{
 	"start",
-	"stop",
 	"restart",
 	"install",
 	"uninstall",
@@ -79,6 +79,7 @@ type gatewayChannelFactories struct {
 	Telegram gatewayChannelFactory
 	Discord  gatewayChannelFactory
 	Slack    gatewayChannelFactory
+	Yuanbao  gatewayChannelFactory
 }
 
 func runGateway(cmd *cobra.Command, _ []string) error {
@@ -86,8 +87,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
-	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled {
-		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], or [slack] in config.toml")
+	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Yuanbao.Enabled {
+		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 	}
 
 	smap, err := session.OpenBolt(config.SessionDBPath())
@@ -110,13 +111,16 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	hc := newGatewayHermesClient(cfg)
+	hc, err := newGatewayHermesClient(cfg)
+	if err != nil {
+		return fmt.Errorf("provider setup: %w", err)
+	}
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signals)
-	reg := buildDefaultRegistry(rootCtx, cfg.Delegation, cfg.SkillsRoot(), hc, cfg.Hermes.Model)
+	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
 	k := kernel.New(kernel.Config{
@@ -124,7 +128,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
-		MaxToolIterations: 10,
+		MaxToolIterations: kernel.DefaultMaxToolIterations,
 		MaxToolDuration:   30 * time.Second,
 		ToolAudit:         toolAudit,
 	}, hc, mstore, telemetry.New(), slog.Default())
@@ -147,14 +151,14 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		ServiceManagerAvailable: gateway.EnvironmentServiceManagerAvailable,
 		DrainTimeout:            kernel.ShutdownBudget,
 	}
-	mgr := gateway.NewManager(gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hooks, runtimeStatus, restartCfg), k, slog.Default())
+	mgr := gateway.NewManager(gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg), k, slog.Default())
 
 	registeredChannels, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, defaultGatewayChannelFactories(), runtimeStatus, slog.Default())
 	if err != nil {
 		return err
 	}
 	if registeredChannels == 0 {
-		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], or [slack] in config.toml")
+		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 	}
 
 	go k.Run(rootCtx)
@@ -172,8 +176,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	return mgr.Run(rootCtx)
 }
 
-func newGatewayHermesClient(cfg config.Config) hermes.Client {
-	return hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, cfg.Hermes.Provider)
+func newGatewayHermesClient(cfg config.Config) (hermes.Client, error) {
+	return newProviderHTTPClient(cfg, cfg.Hermes.Provider)
 }
 
 func defaultGatewayChannelFactories() gatewayChannelFactories {
@@ -186,6 +190,10 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 			return telegram.New(telegram.Config{
 				AllowedChatID:     cfg.Telegram.AllowedChatID,
 				FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
+				RequireMention:    cfg.Telegram.RequireMention,
+				BotUsername:       cfg.Telegram.BotUsername,
+				AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
+				DynamicCommands:   gatewayTelegramDynamicCommands(context.Background(), cfg),
 			}, tc, log), nil
 		},
 		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
@@ -201,7 +209,26 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 		Slack: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
 			return slack.NewChannel(slack.NewRealClient(cfg.Slack.BotToken, cfg.Slack.AppToken), log), nil
 		},
+		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
+			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
+		},
 	}
+}
+
+func gatewayTelegramDynamicCommands(ctx context.Context, cfg config.Config) []gateway.PlatformCommand {
+	runtime := skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
+	skillCommands, _, err := runtime.SkillSlashCommands(ctx, skills.RuntimeOptions{})
+	if err != nil || len(skillCommands) == 0 {
+		return nil
+	}
+	commands := make([]gateway.PlatformCommand, 0, len(skillCommands))
+	for _, cmd := range skillCommands {
+		commands = append(commands, gateway.PlatformCommand{
+			Name:        strings.TrimPrefix(cmd.Command, "/"),
+			Description: cmd.Description,
+		})
+	}
+	return commands
 }
 
 func gatewayCoalesceMs(cfg config.Config) int {
@@ -225,16 +252,33 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 	return time.Duration(cfg.Telegram.FreshFinalAfterSeconds * float64(time.Second))
 }
 
-func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, smap session.Map, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, smap session.Map, hc hermes.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
-		AllowedChats:    allowedChats,
-		AllowDiscovery:  allowDiscovery,
-		CoalesceMs:      gatewayCoalesceMs(cfg),
-		FreshFinalAfter: gatewayFreshFinalAfter(cfg),
-		SessionMap:      smap,
-		Hooks:           hooks,
-		RuntimeStatus:   runtimeStatus,
-		Restart:         restart,
+		AllowedChats:               allowedChats,
+		AllowDiscovery:             allowDiscovery,
+		CoalesceMs:                 gatewayCoalesceMs(cfg),
+		FreshFinalAfter:            gatewayFreshFinalAfter(cfg),
+		ToolProgressMode:           cfg.Display.ToolProgress,
+		ToolProgressCommandEnabled: cfg.Display.ToolProgressCommand,
+		PersistToolProgressMode:    config.SetHermesDisplayPlatformToolProgress,
+		ToolProgressModes:          gatewayToolProgressModes(cfg),
+		SessionMap:                 smap,
+		TitleStore:                 titleStore,
+		TitleModel:                 titleModel,
+		Hooks:                      hooks,
+		RuntimeStatus:              runtimeStatus,
+		Restart:                    restart,
+		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
+		LiveTurnNow:                func() time.Time { return time.Now() },
+		LiveTurnActiveModel: func() string {
+			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
+			return firstUsageString(resolution.Model, cfg.Hermes.Model)
+		},
+		LiveTurnActiveProvider: func() string {
+			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
+			return firstUsageString(resolution.Provider, cfg.Hermes.Provider)
+		},
 		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
 			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
@@ -245,6 +289,25 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}
+}
+
+func gatewayToolProgressModes(cfg config.Config) map[string]string {
+	if len(cfg.Display.Platforms) == 0 {
+		return nil
+	}
+	modes := map[string]string{}
+	for platform, display := range cfg.Display.Platforms {
+		key := strings.ToLower(strings.TrimSpace(platform))
+		mode := strings.TrimSpace(display.ToolProgress)
+		if key == "" || mode == "" {
+			continue
+		}
+		modes[key] = mode
+	}
+	if len(modes) == 0 {
+		return nil
+	}
+	return modes
 }
 
 func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, factories gatewayChannelFactories, status gateway.RuntimeStatusWriter, log *slog.Logger) (int, error) {
@@ -291,35 +354,64 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 		log.Info("gateway: discord channel enabled", "allowed_channel_id", cfg.Discord.AllowedChannelID)
 	}
 
-	if !cfg.Slack.Enabled {
-		return registered, nil
-	}
-	if cfg.Slack.AllowedChannelID != "" {
-		allowedChats["slack"] = cfg.Slack.AllowedChannelID
-	}
-	allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
+	if cfg.Slack.Enabled {
+		if cfg.Slack.AllowedChannelID != "" {
+			allowedChats["slack"] = cfg.Slack.AllowedChannelID
+		}
+		allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
 
-	if missing := missingSlackCredentials(cfg.Slack); len(missing) > 0 {
-		errText := "slack: missing " + strings.Join(missing, ",")
-		writeGatewayChannelDegraded(status, "slack", errText)
-		log.Warn("gateway: slack channel disabled by missing credentials", "missing", strings.Join(missing, ","))
-		return registered, nil
+		if missing := missingSlackCredentials(cfg.Slack); len(missing) > 0 {
+			errText := "slack: missing " + strings.Join(missing, ",")
+			writeGatewayChannelDegraded(status, "slack", errText)
+			log.Warn("gateway: slack channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+		} else {
+			if factories.Slack == nil {
+				return registered, fmt.Errorf("register slack: missing channel factory")
+			}
+			ch, err := factories.Slack(cfg, log)
+			if err != nil {
+				errText := "slack: startup failed: " + err.Error()
+				writeGatewayChannelDegraded(status, "slack", errText)
+				log.Warn("gateway: slack channel startup failed", "err", err)
+			} else {
+				if err := mgr.Register(ch); err != nil {
+					return registered, fmt.Errorf("register slack: %w", err)
+				}
+				registered++
+				log.Info("gateway: slack channel enabled", "allowed_channel_id", cfg.Slack.AllowedChannelID)
+			}
+		}
 	}
-	if factories.Slack == nil {
-		return registered, fmt.Errorf("register slack: missing channel factory")
+
+	if cfg.Yuanbao.Enabled {
+		if cfg.Yuanbao.AllowedConversationID != "" {
+			allowedChats["yuanbao"] = cfg.Yuanbao.AllowedConversationID
+		}
+		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
+
+		if missing := cfg.Yuanbao.MissingCredentials(); len(missing) > 0 {
+			errText := "yuanbao: missing " + strings.Join(missing, ",")
+			writeGatewayChannelDegraded(status, "yuanbao", errText)
+			log.Warn("gateway: yuanbao channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+			return registered, nil
+		}
+		if factories.Yuanbao == nil {
+			return registered, fmt.Errorf("register yuanbao: missing channel factory")
+		}
+		ch, err := factories.Yuanbao(cfg, log)
+		if err != nil {
+			errText := "yuanbao: startup failed: " + err.Error()
+			writeGatewayChannelDegraded(status, "yuanbao", errText)
+			log.Warn("gateway: yuanbao channel startup failed", "err", err)
+			return registered, nil
+		}
+		if err := mgr.Register(ch); err != nil {
+			return registered, fmt.Errorf("register yuanbao: %w", err)
+		}
+		registered++
+		log.Info("gateway: yuanbao channel enabled", "allowed_conversation_id", cfg.Yuanbao.AllowedConversationID)
 	}
-	ch, err := factories.Slack(cfg, log)
-	if err != nil {
-		errText := "slack: startup failed: " + err.Error()
-		writeGatewayChannelDegraded(status, "slack", errText)
-		log.Warn("gateway: slack channel startup failed", "err", err)
-		return registered, nil
-	}
-	if err := mgr.Register(ch); err != nil {
-		return registered, fmt.Errorf("register slack: %w", err)
-	}
-	registered++
-	log.Info("gateway: slack channel enabled", "allowed_channel_id", cfg.Slack.AllowedChannelID)
+
 	return registered, nil
 }
 

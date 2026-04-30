@@ -18,8 +18,11 @@ select the narrowest skill that matches the pass:
 | Pass | Skill |
 |---|---|
 | Decide direction with the operator | `grill-me` |
+| Route substantial work or improve repo-local skills | `gormes-skill-manager` |
+| Reconcile hidden Hermes/Gormes UX details or recurring parity reports | `gormes-hermes-parity` |
 | Audit upstream parity | `gormes-parity-auditor` |
 | Refine phases, rows, docs, or dependency order | `gormes-planner` |
+| Validate installer, `go run`, local binary, PATH, runtime home, gateway owner, or `sessions.db` behavior | `gormes-dev-runtime` |
 | Compare package/API shapes | `gormes-interface-designer` |
 | Implement a `progress.json` row | `gormes-builder` |
 | Drive one behavior through red-green-refactor | `gormes-tdd-slice` |
@@ -27,6 +30,12 @@ select the narrowest skill that matches the pass:
 
 Do not load every skill. A good pass normally uses one skill; a complex pass
 uses at most three.
+
+For live dogfood reports, route the surface first. Installer/PATH/home/session
+ownership bugs use `gormes-dev-runtime`; visible Hermes-vs-Gormes UX bugs use
+`gormes-hermes-parity`; implementation of one proven behavior uses
+`gormes-tdd-slice`. Do not let a stale installed binary or wrong `GORMES_HOME`
+turn into speculative TUI/provider work.
 
 ## Planner Pass
 
@@ -120,6 +129,12 @@ For each behavior, record:
 - progress row coverage;
 - classification;
 - recommended row if vague or missing.
+
+For operator-visible parity, preserve the user's transcript or terminal output
+before summarizing. Include extra hourglass/status messages, duplicate replies,
+wrong product labels, raw tool-iteration errors, leaked tool-call text, and
+which runtime surface was running. These details are the contract future tests
+must freeze.
 
 ## Interface Design Pass
 

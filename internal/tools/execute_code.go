@@ -68,11 +68,11 @@ func NewExecuteCodeTool() *ExecuteCodeTool {
 func (*ExecuteCodeTool) Name() string { return "execute_code" }
 
 func (*ExecuteCodeTool) Description() string {
-	return "Run a small code snippet in a guarded local sandbox with language selection, output caps, timeout handling, and filesystem/network guards."
+	return "Run a Python code snippet in a guarded local sandbox with optional language selection, output caps, timeout handling, and filesystem/network guards."
 }
 
 func (*ExecuteCodeTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"language":{"type":"string","description":"runtime to use (currently sh or python)"},"code":{"type":"string","description":"code snippet to execute"},"timeout_ms":{"type":"integer","description":"optional per-run timeout in milliseconds"},"stdout_limit_bytes":{"type":"integer","description":"optional stdout capture cap in bytes"},"stderr_limit_bytes":{"type":"integer","description":"optional stderr capture cap in bytes"}},"required":["language","code"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"language":{"type":"string","description":"optional runtime to use (defaults to python; currently sh or python)"},"code":{"type":"string","description":"Python code snippet to execute"},"timeout_ms":{"type":"integer","description":"optional per-run timeout in milliseconds"},"stdout_limit_bytes":{"type":"integer","description":"optional stdout capture cap in bytes"},"stderr_limit_bytes":{"type":"integer","description":"optional stderr capture cap in bytes"}},"required":["code"]}`)
 }
 
 func (t *ExecuteCodeTool) Timeout() time.Duration {
@@ -93,15 +93,16 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 	if err := json.Unmarshal(args, &in); err != nil {
 		return nil, fmt.Errorf("execute_code: invalid args: %w", err)
 	}
-	if strings.TrimSpace(in.Language) == "" {
-		return nil, fmt.Errorf("execute_code: language is required")
-	}
 	if strings.TrimSpace(in.Code) == "" {
 		return nil, fmt.Errorf("execute_code: code is required")
 	}
+	language := strings.TrimSpace(in.Language)
+	if language == "" {
+		language = "python"
+	}
 
 	req := CodeExecutionRequest{
-		Language:         strings.TrimSpace(in.Language),
+		Language:         language,
 		Code:             in.Code,
 		Timeout:          durationOrDefault(in.TimeoutMS, t.DefaultTimeout, defaultExecuteCodeTimeout),
 		StdoutLimitBytes: intOrDefault(in.StdoutLimitBytes, t.DefaultStdoutCap, defaultExecuteCodeStdoutLimit),

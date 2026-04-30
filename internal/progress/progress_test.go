@@ -66,8 +66,8 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
 		t.Errorf("Phase 2 = %q, want in_progress", got)
 	}
-	// Phase 3 is complete once the Goncho finish-line compatibility and
-	// webhook worker rows are validated.
+	// Phase 3 is complete once the Goncho/local durable-memory parity rows,
+	// compatibility rows, webhook rows, and lifecycle adapter are validated.
 	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 3 = %q, want complete", got)
 	}
@@ -452,9 +452,16 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
 	if got := routing.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.B.5 = %q, want complete", got)
+		t.Fatalf("Phase 2.B.5 = %q, want complete after Gateway session token accounting parity closed the remaining planned Telegram/Sidon parity row", got)
 	}
 	routingItems := itemsByName(routing.Items)
+	liveTurnPrompt := routingItems["Hermes live-turn prompt assembly parity (channel-neutral)"]
+	if liveTurnPrompt.Status != StatusComplete || liveTurnPrompt.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 2.B.5 live-turn prompt umbrella = status %q contract_status %q, want complete/validated", liveTurnPrompt.Status, liveTurnPrompt.ContractStatus)
+	}
+	if !strings.Contains(liveTurnPrompt.Note, "completed child rows") || !strings.Contains(liveTurnPrompt.Fixture, "live_turn_prompt_test.go") {
+		t.Fatalf("Phase 2.B.5 live-turn prompt evidence = note %q fixture %q, want completed child rows + live_turn_prompt_test.go", liveTurnPrompt.Note, liveTurnPrompt.Fixture)
+	}
 	sessionStore := routingItems["Gateway session store + SessionSource parity"]
 	if sessionStore.Status != StatusComplete {
 		t.Fatalf("Phase 2.B.5 session store status = %q, want complete", sessionStore.Status)
@@ -493,10 +500,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if hooks.Priority != "P1" {
 		t.Fatalf("Phase 2.F.1 priority = %q, want P1", hooks.Priority)
 	}
-	if got := hooks.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.F.1 = %q, want complete", got)
-	}
 	hookItemsF1 := itemsByName(hooks.Items)
+	registrySweep, hasRegistrySweep := hookItemsF1["Gateway slash registry parity sweep (recognized-name expansion)"]
+	if got := hooks.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.F.1 = %q, want complete after slash registry parity sweep closeout", got)
+	}
 	commandRegistry := hookItemsF1["Canonical CommandDef registry"]
 	if commandRegistry.Status != StatusComplete {
 		t.Fatalf("Phase 2.F.1 command registry status = %q, want complete", commandRegistry.Status)
@@ -510,6 +518,9 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	if !strings.Contains(dispatch.Note, "Telegram") || !strings.Contains(dispatch.Note, "Slack") {
 		t.Fatalf("Phase 2.F.1 dispatch note = %q, want Telegram/Slack detail", dispatch.Note)
+	}
+	if hasRegistrySweep && (registrySweep.Status != StatusComplete || registrySweep.ContractStatus != ContractStatusValidated || registrySweep.ExecutionOwner != ExecutionOwnerGateway) {
+		t.Fatalf("Phase 2.F.1 registry sweep metadata = status %q contract_status %q owner %q, want complete validated gateway", registrySweep.Status, registrySweep.ContractStatus, registrySweep.ExecutionOwner)
 	}
 
 	hookRegistry := p.Phases["2"].Subphases["2.F.2"]
@@ -620,15 +631,21 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if matrixBot.Status != StatusPlanned {
 		t.Fatalf("Phase 7.C matrix bot status = %q, want planned", matrixBot.Status)
 	}
-	if !strings.Contains(matrixBot.Note, "internal/channels/threadtext") || !strings.Contains(matrixBot.Note, "thread") {
-		t.Fatalf("Phase 7.C matrix bot note = %q, want threadtext/thread detail", matrixBot.Note)
+	if matrixBot.ContractStatus != ContractStatusDraft || len(matrixBot.WriteScope) == 0 || len(matrixBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C matrix bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", matrixBot.ContractStatus, len(matrixBot.WriteScope), len(matrixBot.TestCommands))
+	}
+	if !containsString(matrixBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(matrixBot.Contract, "thread roots") {
+		t.Fatalf("Phase 7.C matrix bot refs=%v contract=%q, want threadtext/thread detail", matrixBot.SourceRefs, matrixBot.Contract)
 	}
 	mattermostBot := matrixItems["Mattermost shared-chassis bot seam"]
 	if mattermostBot.Status != StatusPlanned {
 		t.Fatalf("Phase 7.C mattermost bot status = %q, want planned", mattermostBot.Status)
 	}
-	if !strings.Contains(mattermostBot.Note, "internal/channels/threadtext") || !strings.Contains(mattermostBot.Note, "REST/WS") {
-		t.Fatalf("Phase 7.C mattermost bot note = %q, want threadtext/REST-WS detail", mattermostBot.Note)
+	if mattermostBot.ContractStatus != ContractStatusDraft || len(mattermostBot.WriteScope) == 0 || len(mattermostBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C mattermost bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", mattermostBot.ContractStatus, len(mattermostBot.WriteScope), len(mattermostBot.TestCommands))
+	}
+	if !containsString(mattermostBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(mattermostBot.Contract, "REST/websocket") {
+		t.Fatalf("Phase 7.C mattermost bot refs=%v contract=%q, want threadtext/REST-WS detail", mattermostBot.SourceRefs, mattermostBot.Contract)
 	}
 	matrixBootstrap := matrixItems["Matrix real client/bootstrap layer"]
 	if matrixBootstrap.Status != StatusPlanned {
@@ -683,8 +700,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.E QQ Bot shared-chassis bot seam note = %q, want QQ detail", qqBot.Note)
 	}
 	feishuTransport := longTailItems["Feishu transport/bootstrap layer"]
-	if feishuTransport.Status != StatusPlanned {
-		t.Fatalf("Phase 7.E Feishu transport/bootstrap status = %q, want planned", feishuTransport.Status)
+	if feishuTransport.Status != StatusComplete {
+		t.Fatalf("Phase 7.E Feishu transport/bootstrap status = %q, want complete", feishuTransport.Status)
+	}
+	if feishuTransport.ContractStatus != ContractStatusValidated || !strings.Contains(feishuTransport.Note, "ResolveBootstrapConfig") || !strings.Contains(feishuTransport.Note, "LoopBuffer") {
+		t.Fatalf("Phase 7.E Feishu transport/bootstrap evidence = contract_status %q note %q, want validated bootstrap/loop evidence", feishuTransport.ContractStatus, feishuTransport.Note)
 	}
 	dingTalkTransport := longTailItems["DingTalk transport/bootstrap layer"]
 	if dingTalkTransport.Status != StatusComplete {
@@ -811,28 +831,37 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 lifecycle writers note = %q, want runtime status store evidence", lifecycleWriters.Note)
 	}
 
-	if got := operator.DerivedStatus(); got != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 = %q, want planned", got)
+	if got := operator.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.F.4 = %q, want in_progress while notify-to and directory rows remain planned", got)
 	}
 	operatorItems := itemsByName(operator.Items)
-	homeRules := operatorItems["Home channel ownership rules"]
-	if homeRules.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 home channel ownership status = %q, want planned", homeRules.Status)
+	homeRules := operatorItems["Home channel ownership resolver fixtures"]
+	if homeRules.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 home channel ownership resolver status = %q, want complete", homeRules.Status)
+	}
+	if homeRules.ContractStatus != ContractStatusValidated || len(homeRules.WriteScope) == 0 || len(homeRules.TestCommands) == 0 || !strings.Contains(homeRules.Note, "MissingHomeChannelError") {
+		t.Fatalf("Phase 2.F.4 home channel resolver evidence = status %q scope=%d tests=%d note=%q, want validated builder row", homeRules.ContractStatus, len(homeRules.WriteScope), len(homeRules.TestCommands), homeRules.Note)
 	}
 	notifyRoute := operatorItems["Notify-to delivery routing"]
 	if notifyRoute.Status != StatusPlanned {
 		t.Fatalf("Phase 2.F.4 notify-to routing status = %q, want planned", notifyRoute.Status)
 	}
 	directory := operatorItems["Channel directory atomic persistence + lookup"]
-	if directory.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 channel directory contract status = %q, want planned", directory.Status)
+	if directory.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 channel directory contract status = %q, want complete", directory.Status)
 	}
-	if !strings.Contains(directory.Note, "gateway/channel_directory.py") || !strings.Contains(directory.Note, "channel_directory.json") {
-		t.Fatalf("Phase 2.F.4 channel directory contract note = %q, want channel-directory-donor/json detail", directory.Note)
+	if directory.ContractStatus != ContractStatusValidated || len(directory.WriteScope) == 0 || len(directory.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 channel directory readiness = contract_status %q scope=%d tests=%d, want validated builder row", directory.ContractStatus, len(directory.WriteScope), len(directory.TestCommands))
+	}
+	if !containsString(directory.SourceRefs, "../hermes-agent/gateway/channel_directory.py:DIRECTORY_PATH") || !strings.Contains(directory.Contract, "channel_directory.json") || !strings.Contains(directory.Note, "atomic temp-file persistence") {
+		t.Fatalf("Phase 2.F.4 channel directory refs=%v contract=%q note=%q, want shipped channel-directory evidence", directory.SourceRefs, directory.Contract, directory.Note)
 	}
 	rememberSource := operatorItems["Manager remember-source hook"]
-	if rememberSource.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 manager remember-source status = %q, want planned", rememberSource.Status)
+	if rememberSource.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 manager remember-source status = %q, want complete", rememberSource.Status)
+	}
+	if rememberSource.ContractStatus != ContractStatusValidated || len(rememberSource.WriteScope) == 0 || len(rememberSource.TestCommands) == 0 || !strings.Contains(rememberSource.Note, "remembered-source ledger") {
+		t.Fatalf("Phase 2.F.4 manager remember-source evidence = status %q scope=%d tests=%d note=%q, want validated remembered-source ledger row", rememberSource.ContractStatus, len(rememberSource.WriteScope), len(rememberSource.TestCommands), rememberSource.Note)
 	}
 }
 

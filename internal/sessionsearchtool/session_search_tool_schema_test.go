@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,17 @@ func TestSessionSearchToolSchema_Descriptor(t *testing.T) {
 	}
 	if tool.Description() == "" {
 		t.Fatal("Description() is empty")
+	}
+	for _, want := range []string{
+		"Search your long-term memory of past conversations",
+		"TWO MODES:",
+		"USE THIS PROACTIVELY",
+		"Use OR between keywords",
+		"same-chat",
+	} {
+		if !strings.Contains(tool.Description(), want) {
+			t.Fatalf("Description() missing %q:\n%s", want, tool.Description())
+		}
 	}
 	if got := tool.Timeout(); got != 5*time.Second {
 		t.Fatalf("Timeout() = %v, want 5s", got)
@@ -42,7 +54,7 @@ func TestSessionSearchToolSchema_Descriptor(t *testing.T) {
 	if schema.Type != "object" {
 		t.Fatalf("schema type = %q, want object", schema.Type)
 	}
-	for _, name := range []string{"query", "scope", "sources", "mode", "limit", "current_session_id"} {
+	for _, name := range []string{"query", "role_filter", "scope", "sources", "mode", "limit", "current_session_id"} {
 		if _, ok := schema.Properties[name]; !ok {
 			t.Fatalf("schema properties missing %q: %s", name, tool.Schema())
 		}
@@ -52,6 +64,9 @@ func TestSessionSearchToolSchema_Descriptor(t *testing.T) {
 	}
 	if got := schema.Properties["query"].Type; got != "string" {
 		t.Fatalf("query type = %q, want string", got)
+	}
+	if got := schema.Properties["role_filter"].Type; got != "string" {
+		t.Fatalf("role_filter type = %q, want string", got)
 	}
 	if got := schema.Properties["scope"].Enum; !slices.Equal(got, []string{"same-chat", "user"}) {
 		t.Fatalf("scope enum = %v, want same-chat,user", got)
@@ -77,12 +92,15 @@ func TestSessionSearchToolSchema_Descriptor(t *testing.T) {
 }
 
 func TestSessionSearchToolSchema_DefaultArgs(t *testing.T) {
-	args, evidence := ValidateSessionSearchArgs(json.RawMessage(`{"query":"orchid","limit":4,"current_session_id":"sess-1"}`))
+	args, evidence := ValidateSessionSearchArgs(json.RawMessage(`{"query":"orchid","role_filter":"user,assistant","limit":4,"current_session_id":"sess-1"}`))
 	if evidence != nil {
 		t.Fatalf("ValidateSessionSearchArgs returned evidence: %+v", evidence)
 	}
 	if args.Query != "orchid" {
 		t.Fatalf("Query = %q, want orchid", args.Query)
+	}
+	if args.RoleFilter != "user,assistant" {
+		t.Fatalf("RoleFilter = %q, want user,assistant", args.RoleFilter)
 	}
 	if args.Scope != "same-chat" {
 		t.Fatalf("Scope = %q, want same-chat", args.Scope)
@@ -111,6 +129,7 @@ func TestSessionSearchToolSchema_RejectsUnsafeScope(t *testing.T) {
 		{name: "unknown mode", raw: `{"mode":"archive"}`, wantField: "mode"},
 		{name: "negative limit", raw: `{"limit":-1}`, wantField: "limit"},
 		{name: "non-string source", raw: `{"sources":["discord",7]}`, wantField: "sources"},
+		{name: "non-string role filter", raw: `{"role_filter":7}`, wantField: "role_filter"},
 	}
 
 	for _, tt := range tests {

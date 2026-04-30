@@ -16,7 +16,7 @@
       "messages": [
         {
           "role": "system",
-          "content": "Goncho memory context:\nProfile facts:\n- Prefers exact evidence-first reports\n\nCurrent conclusions:\n- The user prefers exact evidence-first reports."
+          "content": "You have persistent memory across sessions. Save durable facts using the memory tool: user preferences, environment details, tool quirks, and stable conventions. Memory is injected into every turn, so keep it compact and focused on facts that will still matter later.\nPrioritize what reduces future user steering — the most valuable memory is one that prevents the user from having to correct or remind you again. User preferences and recurring corrections matter more than procedural task details.\nDo NOT save task progress, session outcomes, completed-work logs, or temporary TODO state to memory; use session_search to recall those from past transcripts. If you've discovered a new way to do something, solved a problem that could be necessary later, save it as a skill with the skill tool.\nWrite memories as declarative facts, not instructions to yourself. 'User prefers concise responses' ✓ — 'Always respond concisely' ✗. 'Project uses pytest with xdist' ✓ — 'Run tests with pytest -n 4' ✗. Imperative phrasing gets re-read as a directive in later sessions and can cause repeated work or override the user's current request. Procedures and workflows belong in skills, not memory.\n\nGoncho memory context:\nProfile facts:\n- Prefers exact evidence-first reports\n\nCurrent conclusions:\n- The user prefers exact evidence-first reports."
         },
         {
           "role": "user",

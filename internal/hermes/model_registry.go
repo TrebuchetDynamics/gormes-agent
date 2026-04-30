@@ -134,6 +134,20 @@ func LookupModelMetadata(query ModelRegistryQuery) ModelMetadataResult {
 	return DefaultModelRegistry().Lookup(query)
 }
 
+func (r ModelRegistry) Entries() []ModelRegistryEntry {
+	entries := make([]ModelRegistryEntry, 0, len(r.entries))
+	for _, entry := range r.entries {
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Provider == entries[j].Provider {
+			return entries[i].Model < entries[j].Model
+		}
+		return entries[i].Provider < entries[j].Provider
+	})
+	return entries
+}
+
 func (r ModelRegistry) Lookup(query ModelRegistryQuery) ModelMetadataResult {
 	result := ModelMetadataResult{
 		Registry: r.Snapshot(),

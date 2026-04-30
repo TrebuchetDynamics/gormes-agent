@@ -89,6 +89,19 @@ func TestBannerVersionLabelsMatchUpstreamGolden(t *testing.T) {
 	}
 }
 
+func TestBannerVersionDefaultAgentNameIsGormes(t *testing.T) {
+	got := FormatBannerVersionLabel(BannerVersion{
+		Version:     "0.11.0",
+		ReleaseDate: "2026.4.23",
+	})
+	if got != "Gormes Agent v0.11.0 (2026.4.23)" {
+		t.Fatalf("FormatBannerVersionLabel default = %q, want Gormes Agent", got)
+	}
+	if strings.Contains(got, "Hermes Agent") {
+		t.Fatalf("FormatBannerVersionLabel default leaked upstream product label: %q", got)
+	}
+}
+
 func TestOutputLinesMatchUpstreamPlainGolden(t *testing.T) {
 	tests := []struct {
 		name string

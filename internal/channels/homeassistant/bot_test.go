@@ -2,6 +2,7 @@ package homeassistant
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -54,12 +55,22 @@ func TestBot_Run_WatchesDomainsAndFormatsClimateEvents(t *testing.T) {
 
 func TestBot_Run_SuppressesEventsInsideCooldown(t *testing.T) {
 	mc := newMockClient()
+	var nowMu sync.Mutex
 	now := time.Unix(1_700_000_000, 0)
 	b := New(Config{
 		WatchAll: true,
 		Cooldown: 30 * time.Second,
 	}, mc, nil)
-	b.now = func() time.Time { return now }
+	b.now = func() time.Time {
+		nowMu.Lock()
+		defer nowMu.Unlock()
+		return now
+	}
+	advanceNow := func(d time.Duration) {
+		nowMu.Lock()
+		defer nowMu.Unlock()
+		now = now.Add(d)
+	}
 	inbox := make(chan gateway.InboundEvent, 2)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -89,7 +100,7 @@ func TestBot_Run_SuppressesEventsInsideCooldown(t *testing.T) {
 	mc.push(second)
 	assertNoInbound(t, inbox)
 
-	now = now.Add(31 * time.Second)
+	advanceNow(31 * time.Second)
 	mc.push(first)
 	select {
 	case <-inbox:
@@ -112,8 +123,11 @@ func TestBot_Send_UsesPersistentNotificationTitle(t *testing.T) {
 	if len(mc.notifications) != 1 {
 		t.Fatalf("notification count = %d, want 1", len(mc.notifications))
 	}
-	if mc.notifications[0].Title != "Hermes Agent" {
-		t.Fatalf("title = %q, want Hermes Agent", mc.notifications[0].Title)
+	if mc.notifications[0].Title != "Gormes Agent" {
+		t.Fatalf("title = %q, want Gormes Agent", mc.notifications[0].Title)
+	}
+	if mc.notifications[0].Title == "Hermes Agent" {
+		t.Fatalf("title = %q, stale upstream product label leaked", mc.notifications[0].Title)
 	}
 	if mc.notifications[0].Message != "all good" {
 		t.Fatalf("message = %q, want all good", mc.notifications[0].Message)

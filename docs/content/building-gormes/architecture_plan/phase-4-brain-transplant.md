@@ -92,3 +92,40 @@ Phase 4 should not start with "port `run_agent.py`." The next execution agents s
 16. **4.C prompt-builder context-file discovery** — SOUL/HERMES/AGENTS/CLAUDE ordering, truncation, frontmatter stripping, and prompt-injection scans after the context-engine contract is pinned.
 
 Only after the Bedrock request, stream, credential, and stale-client slices are green should more provider-specific Bedrock work land. This keeps retry, role mapping, and tool-call continuation bugs visible instead of hiding them behind a large native-agent-loop rewrite.
+
+## Go donor pointers
+
+Phase 4 is the densest donor area in Gormes. Almost every sub-phase has a
+working Go shape under `references/go-agent-os/`. Route through the
+`gormes-provider-parity` skill
+(`docs/development-skills/gormes-provider-parity/SKILL.md`) for
+adapter/auth/retry work and the `gormes-references` skill
+(`docs/development-skills/gormes-references/SKILL.md`) for context-engine,
+kernel, and credential work. The full provider table lives in
+`references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`.
+
+| Phase 4 problem | Donor file | Notes |
+|---|---|---|
+| 4.A provider-neutral stream/tool-call interfaces | `nanobot/pkg/runtime/runtime.go`, `trpc-agent-go/model/` | Adapter contract pattern |
+| 4.A Codex OAuth flow (PKCE + verifier/state + pasted redirect) | `goclaw/internal/oauth/openai.go::ExchangeCode` | Code permitted with provenance (2026-04-29) |
+| 4.A Codex token refresh + bounded HTTP timeout | `goclaw/internal/oauth/openai_quota_transport.go` | Same permission |
+| 4.A error classification (`reauth_required`, `payment_required`, `quota_*`, `rate_limited`, `provider_unavailable`, `network_*`) | `goclaw/internal/providers/` | User-actionable error classes |
+| 4.A tool-call argument repair / schema sanitizer at provider boundary | `nanobot/pkg/tools/flows.go` | Pre-call gate pattern |
+| 4.A stream-error mapping + drift detection | `plandex` (per-file MIT/AGPL check) | Provider drift handling |
+| 4.B context compressor — image-token budget by decoded dimensions | `nanobot/pkg/agents/tokencount.go` | WebP decode + per-provider estimate |
+| 4.B context compressor — protected head/tail truncation | `nanobot/pkg/agents/truncate.go` | Already handles tool-result truncation invariants |
+| 4.B context references — stable-handle store with sanitized paths | `axe/internal/artifact/tracker.go` | Path-traversal guard for reference handles |
+| 4.B per-turn token budget (compression trigger threshold) | `axe/internal/budget/budget.go` | Reset + overflow signal |
+| 4.C native prompt builder — runtime wiring for system layers | `nanobot/pkg/runtime/runtime.go` | `Options.Merge` + `Complete` defaults |
+| 4.E trajectory writer — append-only with redaction gates | `engram/internal/mcp/activity.go` | Same redaction/audit shape used in Phase 3 |
+| 4.G token vault — per-provider OAuth state + stale-token classification | `goclaw/internal/oauth/openai.go`, `goclaw/internal/oauth/openai_quota_transport.go` | Code permitted; convert types to Gormes-native names |
+| 4.H retry/backoff + `Retry-After` consumption | `plandex` provider retry/drift code | Patterns-only unless per-file license check passes |
+| 4.H rate-limit tracker (degraded state + last-known-good evidence) | `goclaw/internal/oauth/openai_quota_transport.go` | Quota-transport classification used as a model |
+| 4.H streaming interrupt retry suppression — cancellable session-scoped workers | `trpc-agent-go/agent/await_user_reply.go` | Pause/resume contract without leaks |
+| 4.I native-runtime callback pipeline (before/after turn lifecycle) | `trpc-agent-go/model/callbacks.go`, `trpc-agent-go/agent/callbacks.go` | Before/after split keeps kernel restraint |
+
+Permission summary: `goclaw` is **code permitted with provenance**;
+`nanobot`/`adk-go`/`trpc-agent-go` are Apache 2.0 (adapt + attribute);
+`engram`/`axe` are MIT (adapt + attribute); `plandex` requires per-file
+license check before code copy. Always add a
+`// Adapted from <donor>/...::Symbol` comment on the receiving Gormes file.

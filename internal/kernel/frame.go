@@ -82,6 +82,10 @@ const (
 	// k.lastError. Valid from PhaseIdle and PhaseFailed; rejected with
 	// ErrResetDuringTurn via the event's ack channel otherwise.
 	PlatformEventResetSession
+	// PlatformEventSteer carries operator guidance for an in-flight turn.
+	// The kernel stores it only until the next completed tool-result batch,
+	// then appends it to the final tool result before the next provider call.
+	PlatformEventSteer
 )
 
 type PlatformEvent struct {

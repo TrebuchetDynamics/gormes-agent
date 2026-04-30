@@ -27,6 +27,9 @@ import (
 // practice this is rare with a 16-slot buffer.
 var ErrEventMailboxFull = errors.New("kernel: event mailbox full")
 
+// DefaultMaxToolIterations matches upstream Hermes' normal-turn default.
+const DefaultMaxToolIterations = 90
+
 type Config struct {
 	Model    string
 	Endpoint string
@@ -36,7 +39,7 @@ type Config struct {
 	ReasoningEffort   string
 	Admission         Admission
 	Tools             *tools.Registry // nil → tool_calls are treated as fatal
-	MaxToolIterations int             // default 10 when zero
+	MaxToolIterations int             // default DefaultMaxToolIterations when zero
 	MaxToolDuration   time.Duration   // default 30s when zero
 	// InitialSessionID primes k.sessionID at New() — used by adapters that
 	// load a persisted session handle from internal/session before starting
@@ -108,6 +111,7 @@ type Kernel struct {
 	activeReasoning hermes.ReasoningEffortEvidence
 	lastError       string
 	retryStatus     RetryStatus
+	pendingSteers   []string
 }
 
 func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log *slog.Logger) *Kernel {
@@ -130,6 +134,44 @@ func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log
 		activeModel: cfg.Model,
 		retryStatus: NewRetryStatus(),
 	}
+}
+
+func (k *Kernel) liveTurnGuidanceBlocks(model string) []string {
+	blocks := make([]string, 0, 5)
+	if k.toolRegistered("memory") {
+		blocks = append(blocks, hermes.MemoryGuidance)
+	}
+	if k.toolRegistered("session_search") {
+		blocks = append(blocks, hermes.SessionSearchGuidance)
+	}
+	modelLower := strings.ToLower(strings.TrimSpace(model))
+	if modelMatchesAny(modelLower, hermes.ToolUseEnforcementModels) {
+		blocks = append(blocks, hermes.ToolUseEnforcementGuidance)
+	}
+	if modelMatchesAny(modelLower, []string{"gpt", "codex", "o1", "o3", "o4"}) {
+		blocks = append(blocks, hermes.OpenAIModelExecutionGuidance)
+	} else if modelMatchesAny(modelLower, []string{"gemini", "gemma"}) {
+		blocks = append(blocks, hermes.GoogleModelOperationalGuidance)
+	}
+	return blocks
+}
+
+func (k *Kernel) toolRegistered(name string) bool {
+	if k.cfg.Tools == nil {
+		return false
+	}
+	_, ok := k.cfg.Tools.Get(name)
+	return ok
+}
+
+func modelMatchesAny(model string, needles []string) bool {
+	for _, needle := range needles {
+		needle = strings.ToLower(strings.TrimSpace(needle))
+		if needle != "" && strings.Contains(model, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 // Render returns the receive side of the render mailbox. The channel is
@@ -185,7 +227,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 		case e := <-k.events:
 			switch e.Kind {
 			case PlatformEventSubmit:
-				if k.phase != PhaseIdle {
+				if k.phase != PhaseIdle && k.phase != PhaseFailed {
 					k.lastError = ErrTurnInFlight.Error()
 					k.emitFrame("still processing previous turn")
 					continue
@@ -225,6 +267,9 @@ func (k *Kernel) Run(ctx context.Context) error {
 				}
 			case PlatformEventQuit:
 				return nil
+			case PlatformEventSteer:
+				// No active turn or tool boundary: ignore here. Gateway keeps
+				// its existing queue/degraded fallback for non-active turns.
 			}
 		}
 	}
@@ -238,10 +283,12 @@ func (k *Kernel) Run(ctx context.Context) error {
 // to the store.Command payload and is otherwise opaque to the kernel.
 func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, model, reasoningOverride string) {
 	prov := newProvenance(k.cfg.Endpoint)
+	defer func() { k.pendingSteers = nil }()
 	turnKey := prov.LocalRunID
 	model = selectTurnModel(k.cfg.Model, model)
 	providerStatus := hermes.ProviderStatusOf(k.client)
 	reasoningEvidence := selectTurnReasoningEffort(k.cfg.ReasoningEffort, reasoningOverride, providerStatus)
+	k.soul = nil
 
 	// 1. Admission. Reject locally before any HTTP.
 	if err := k.cfg.Admission.Validate(text); err != nil {
@@ -289,10 +336,13 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	// tool results appended to the message history. Capped at MaxToolIterations
 	// to prevent runaway agent loops.
 	msgs := []hermes.Message{{Role: "user", Content: text}}
-	systemMsgs := make([]hermes.Message, 0, 3)
+	systemMsgs := make([]hermes.Message, 0, 8)
 
 	if sessionContext != "" {
 		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: sessionContext})
+	}
+	for _, guidance := range k.liveTurnGuidanceBlocks(model) {
+		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: guidance})
 	}
 
 	if k.cfg.Recall != nil {
@@ -308,7 +358,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 		})
 		recallCancel()
 		if ctxStr != "" {
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: ctxStr})
+			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.MemoryGuidance + "\n\n" + ctxStr})
 		}
 	}
 	if k.cfg.Skills != nil {
@@ -316,6 +366,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 		if err != nil {
 			k.log.Warn("kernel: skill runtime failed; continuing without skills", "err", err)
 		} else if block != "" {
+			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.SkillsGuidance})
 			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: block})
 			if len(skillNames) > 0 && k.cfg.SkillUsage != nil {
 				if err := k.cfg.SkillUsage.RecordSkillUsage(ctx, skillNames); err != nil {
@@ -351,7 +402,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	}
 	maxIter := k.cfg.MaxToolIterations
 	if maxIter <= 0 {
-		maxIter = 10
+		maxIter = DefaultMaxToolIterations
 	}
 
 	var (
@@ -472,12 +523,17 @@ toolLoop:
 		// tool_calls round. Execute tools and append results to the request.
 		toolIteration++
 		if toolIteration > maxIter {
-			k.phase = PhaseFailed
-			k.lastError = fmt.Sprintf("tool iteration limit exceeded (%d)", maxIter)
-			k.activeModel = k.cfg.Model
-			k.activeReasoning = hermes.ReasoningEffortEvidence{}
-			k.emitFrame(k.lastError)
-			return
+			summaryDelta, summaryDone, summarySessionID, summaryCancelled := k.requestMaxIterationSummary(ctx, request, maxIter)
+			if summarySessionID != "" {
+				latestSessionID = summarySessionID
+			}
+			if summaryDone {
+				finalDelta = summaryDelta
+				gotFinal = true
+				k.updateContextEngineUsage(summaryDelta)
+			}
+			cancelled = summaryCancelled
+			break toolLoop
 		}
 
 		runCtx, cancelRun := context.WithCancel(ctx)
@@ -488,6 +544,7 @@ toolLoop:
 			break toolLoop
 		}
 		results := toolOutcome.Results
+		k.applyPendingSteersToToolResults(results)
 
 		// Append the assistant's tool-requesting message plus one tool-result
 		// message per call. The draft so far is captured in the assistant
@@ -556,13 +613,15 @@ toolLoop:
 		k.phase = PhaseCancelling
 		k.emitFrame("cancelled")
 	} else if k.draft != "" {
-		k.history = append(k.history, hermes.Message{Role: "assistant", Content: k.draft})
+		finalContent := k.draft
+		k.history = append(k.history, hermes.Message{Role: "assistant", Content: finalContent})
+		k.draft = ""
 		// Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
 		// handles I/O off the hot path. 250ms context bound kept as a safety net
 		// in case someone injects a synchronous store in the future.
 		payload := map[string]any{
 			"session_id":         k.sessionID,
-			"content":            k.draft,
+			"content":            finalContent,
 			"ts_unix":            time.Now().Unix(),
 			"chat_id":            k.cfg.ChatKey,
 			"turn_key":           turnKey,
@@ -582,7 +641,89 @@ toolLoop:
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model
 	k.activeReasoning = hermes.ReasoningEffortEvidence{}
+	k.pendingSteers = nil
 	k.emitFrame("idle")
+}
+
+const maxIterationSummaryRequest = "You've reached the maximum number of tool-calling iterations allowed. Please provide a final response summarizing what you've found and accomplished so far, without calling any more tools."
+
+func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base hermes.ChatRequest, maxIter int) (hermes.Event, bool, string, bool) {
+	req := base
+	req.Stream = true
+	req.Tools = nil
+	req.Messages = append(append([]hermes.Message(nil), base.Messages...), hermes.Message{
+		Role:    "user",
+		Content: maxIterationSummaryRequest,
+	})
+
+	k.lastError = ""
+	k.phase = PhaseFinalizing
+	k.emitFrame(fmt.Sprintf("iteration budget exhausted (%d/%d); requesting summary", maxIter, maxIter))
+
+	runCtx, cancelRun := context.WithCancel(ctx)
+	stream, err := k.client.OpenStream(runCtx, req)
+	if err != nil {
+		cancelRun()
+		k.draft = fmt.Sprintf("I reached the maximum iterations (%d) but couldn't summarize. Error: %s", maxIter, err)
+		k.emitFrame("iteration summary failed")
+		return hermes.Event{}, false, "", false
+	}
+
+	k.phase = PhaseStreaming
+	k.emitFrame("streaming iteration summary")
+	var (
+		finalDelta         hermes.Event
+		gotFinal           bool
+		fatalErr           error
+		cancelled          bool
+		replaceOnNextToken bool
+	)
+	outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken)
+	summarySessionID := stream.SessionID()
+	_ = stream.Close()
+
+	if cancelled || outcome == streamOutcomeCancelled {
+		return finalDelta, gotFinal, summarySessionID, true
+	}
+	if fatalErr != nil && strings.TrimSpace(k.draft) == "" {
+		k.draft = fmt.Sprintf("I reached the maximum iterations (%d) but couldn't summarize. Error: %s", maxIter, fatalErr)
+		k.emitFrame("iteration summary failed")
+		return hermes.Event{}, false, summarySessionID, false
+	}
+	if strings.TrimSpace(k.draft) == "" {
+		k.draft = "I reached the iteration limit and couldn't generate a summary."
+		k.emitFrame("iteration summary unavailable")
+		return finalDelta, gotFinal, summarySessionID, false
+	}
+	return finalDelta, gotFinal, summarySessionID, false
+}
+
+const steerToolResultMarker = "\n\n[Gormes operator /steer guidance before next provider call]\n"
+
+func (k *Kernel) queueSteerGuidance(text string) {
+	guidance := strings.TrimSpace(text)
+	if guidance == "" {
+		return
+	}
+	const maxSteerGuidanceBytes = 4096
+	if len(guidance) > maxSteerGuidanceBytes {
+		guidance = guidance[:maxSteerGuidanceBytes]
+	}
+	k.pendingSteers = append(k.pendingSteers, guidance)
+	k.addSoul("steer queued")
+	k.emitFrame("steer queued")
+}
+
+func (k *Kernel) applyPendingSteersToToolResults(results []toolResult) {
+	if len(k.pendingSteers) == 0 || len(results) == 0 {
+		return
+	}
+	guidance := strings.Join(k.pendingSteers, "\n\n")
+	last := len(results) - 1
+	results[last].Content += steerToolResultMarker + guidance
+	k.pendingSteers = nil
+	k.addSoul("steer applied")
+	k.emitFrame("steer applied")
 }
 
 func (k *Kernel) updateContextEngineUsage(ev hermes.Event) {
@@ -658,6 +799,8 @@ func (k *Kernel) handleRetryEvent(e PlatformEvent) bool {
 		if e.ack != nil {
 			e.ack <- ErrResetDuringTurn
 		}
+	case PlatformEventSteer:
+		k.queueSteerGuidance(e.Text)
 	}
 	return false
 }
@@ -741,6 +884,8 @@ streamLoop:
 				cancelRun()
 				outcome = streamOutcomeCancelled
 				break streamLoop
+			case PlatformEventSteer:
+				k.queueSteerGuidance(e.Text)
 			}
 
 		case res, ok := <-deltaCh:

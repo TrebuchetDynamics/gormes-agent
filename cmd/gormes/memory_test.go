@@ -50,6 +50,7 @@ func TestMemoryStatusCommand_MissingDatabase(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(dataHome, "gormes"))
 
 	cmd := newRootCommand()
 	var stdout, stderr bytes.Buffer
@@ -105,6 +106,7 @@ func seedMemoryStatusDB(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(dataHome, "gormes"))
 
 	store, err := memory.OpenSqlite(config.MemoryDBPath(), 8, nil)
 	if err != nil {

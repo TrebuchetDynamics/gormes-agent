@@ -127,6 +127,64 @@ func TestDoctorCmdInvokesCustomEndpointReadiness(t *testing.T) {
 	}
 }
 
+func TestDoctorOfflineOutputDoesNotMentionHermesAPIServer(t *testing.T) {
+	setupCustomEndpointDoctorEnv(t)
+
+	stdout, err := captureDoctorStdout(t, func() error {
+		cmd := newRootCommand()
+		cmd.SetArgs([]string{"doctor", "--offline"})
+		return cmd.Execute()
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s", err, stdout)
+	}
+
+	for _, forbidden := range []string{"api_server", "API_SERVER_ENABLED", "hermes gateway start"} {
+		if strings.Contains(stdout, forbidden) {
+			t.Fatalf("doctor output contains obsolete Hermes API-server guidance %q:\n%s", forbidden, stdout)
+		}
+	}
+}
+
+func TestDoctorWebToolsStatusReportsManagedGateway(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+	if err := os.WriteFile(filepath.Join(gormesHome, "auth.json"), []byte(`{
+  "providers": {
+    "nous": {
+      "access_token": "nous-doctor-token",
+      "expires_at": "2999-01-01T00:00:00Z"
+    }
+  }
+}`), 0o600); err != nil {
+		t.Fatalf("write auth store: %v", err)
+	}
+
+	got := doctorWebToolsStatus(config.Config{
+		Web: config.WebCfg{Backend: "firecrawl", UseGateway: true},
+	})
+	if got.Name != "Web tools" || got.Status != doctor.StatusPass {
+		t.Fatalf("doctor web status = %+v, want Web tools PASS", got)
+	}
+	for _, want := range []string{"backend=firecrawl", "route=managed", "source=auth_store"} {
+		if !strings.Contains(got.Summary, want) {
+			t.Fatalf("summary = %q, want %q", got.Summary, want)
+		}
+	}
+	toolset, ok := findItem(got.Items, "toolset")
+	if !ok {
+		t.Fatalf("missing toolset item in %+v", got.Items)
+	}
+	for _, name := range []string{"web_search", "web_extract", "web_crawl"} {
+		if !strings.Contains(toolset.Note, name) {
+			t.Fatalf("toolset note = %q, missing %s", toolset.Note, name)
+		}
+	}
+	if strings.Contains(got.Format(), "nous-doctor-token") {
+		t.Fatalf("doctor web status leaked token:\n%s", got.Format())
+	}
+}
+
 func findItem(items []doctor.ItemInfo, name string) (doctor.ItemInfo, bool) {
 	for _, it := range items {
 		if it.Name == name {

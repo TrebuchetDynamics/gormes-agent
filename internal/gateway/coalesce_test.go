@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestCoalescer_PlaceholderThenEdit(t *testing.T) {
+func TestCoalescer_FirstContentThenEdit(t *testing.T) {
 	ch := newFakeChannel("test")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -18,14 +18,15 @@ func TestCoalescer_PlaceholderThenEdit(t *testing.T) {
 
 	c.setPending("first")
 	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(ch.sentSnapshot()) == 1
+		edits := ch.editsSnapshot()
+		return len(edits) == 1 && edits[0].Text == "first"
 	})
 
 	time.Sleep(25 * time.Millisecond)
 	c.setPending("second")
 	waitFor(t, 200*time.Millisecond, func() bool {
 		edits := ch.editsSnapshot()
-		return len(edits) == 1 && edits[0].Text == "second"
+		return len(edits) == 2 && edits[1].Text == "second"
 	})
 }
 

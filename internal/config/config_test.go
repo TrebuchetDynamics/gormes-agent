@@ -15,15 +15,27 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+	gormesHome, err := os.MkdirTemp("", "gormes-config-test-gormes-home-*")
+	if err != nil {
+		panic(err)
+	}
 	oldHermesHome, hadHermesHome := os.LookupEnv("HERMES_HOME")
+	oldGormesHome, hadGormesHome := os.LookupEnv("GORMES_HOME")
 	os.Setenv("HERMES_HOME", hermesHome)
+	os.Setenv("GORMES_HOME", gormesHome)
 	code := m.Run()
 	if hadHermesHome {
 		os.Setenv("HERMES_HOME", oldHermesHome)
 	} else {
 		os.Unsetenv("HERMES_HOME")
 	}
+	if hadGormesHome {
+		os.Setenv("GORMES_HOME", oldGormesHome)
+	} else {
+		os.Unsetenv("GORMES_HOME")
+	}
 	_ = os.RemoveAll(hermesHome)
+	_ = os.RemoveAll(gormesHome)
 	os.Exit(code)
 }
 
@@ -35,8 +47,8 @@ func TestLoad_BuiltinDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Hermes.Endpoint != "http://127.0.0.1:8642" {
-		t.Errorf("default endpoint = %q", cfg.Hermes.Endpoint)
+	if cfg.Hermes.Endpoint != "" {
+		t.Errorf("default endpoint = %q, want empty so gateway does not silently dial implicit localhost", cfg.Hermes.Endpoint)
 	}
 	if cfg.Hermes.Model != "hermes-agent" {
 		t.Errorf("default model = %q", cfg.Hermes.Model)
@@ -52,6 +64,7 @@ func TestLoad_BuiltinDefaults(t *testing.T) {
 func TestLoad_TUIMouseTrackingDefaultsOnWhenTUISectionOmitsIt(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	_ = os.MkdirAll(dir, 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
@@ -71,6 +84,7 @@ theme = "light"
 func TestLoad_TUIMouseTrackingFromFile(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	_ = os.MkdirAll(dir, 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
@@ -90,6 +104,7 @@ mouse_tracking = false
 func TestLoad_EnvOverridesFile(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	_ = os.MkdirAll(dir, 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
@@ -110,6 +125,7 @@ endpoint = "http://file:8642"
 func TestLoad_GatewayProxyURLFromConfigNormalizesTrailingSlash(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("GATEWAY_PROXY_URL", "")
 	dir := filepath.Join(cfgHome, "gormes")
 	_ = os.MkdirAll(dir, 0o755)
@@ -130,6 +146,7 @@ proxy_url = "http://config-proxy:8642/"
 func TestLoad_GatewayProxyEnvOverridesConfigAndBlankEnvIsUnset(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	_ = os.MkdirAll(dir, 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
@@ -199,6 +216,7 @@ func TestLoad_TelegramDefaults(t *testing.T) {
 func TestLoad_TelegramRequireMentionFields(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -240,6 +258,7 @@ func TestLoad_TelegramRequireMentionDefaults(t *testing.T) {
 func TestLoad_TelegramRequireMentionInvalidType(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -279,6 +298,7 @@ func TestLoad_TelegramFreshFinalAfterSeconds(t *testing.T) {
 	t.Run("explicit zero disables", func(t *testing.T) {
 		cfgHome := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 		dir := filepath.Join(cfgHome, "gormes")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
@@ -302,6 +322,7 @@ fresh_final_after_seconds = 0
 	t.Run("nonzero toml", func(t *testing.T) {
 		cfgHome := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 		dir := filepath.Join(cfgHome, "gormes")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
@@ -343,6 +364,7 @@ func TestLoad_HermesConfigYAMLTelegramTokenParity(t *testing.T) {
 	cfgHome := t.TempDir()
 	hermesHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("HERMES_HOME", hermesHome)
 	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
 platforms:
@@ -378,6 +400,119 @@ streaming:
 	}
 	if cfg.Telegram.FreshFinalAfterSeconds != 17.5 {
 		t.Fatalf("Telegram.FreshFinalAfterSeconds = %v, want 17.5", cfg.Telegram.FreshFinalAfterSeconds)
+	}
+}
+
+func TestLoad_HermesConfigYAMLChannelHomeParity(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+platforms:
+  discord:
+    enabled: true
+    token: discord-token
+    home_channel:
+      chat_id: D-home
+  slack:
+    enabled: true
+    token: slack-bot-token
+    home_channel:
+      chat_id: C-home
+    extra:
+      app_token: slack-app-token
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Discord.Token != "discord-token" {
+		t.Fatalf("Discord.Token = %q, want Hermes config.yaml token", cfg.Discord.Token)
+	}
+	if cfg.Discord.AllowedChannelID != "D-home" {
+		t.Fatalf("Discord.AllowedChannelID = %q, want home_channel chat_id", cfg.Discord.AllowedChannelID)
+	}
+	if !cfg.Slack.Enabled {
+		t.Fatal("Slack.Enabled = false, want true from Hermes config.yaml platforms.slack.enabled")
+	}
+	if cfg.Slack.BotToken != "slack-bot-token" {
+		t.Fatalf("Slack.BotToken = %q, want Hermes config.yaml token", cfg.Slack.BotToken)
+	}
+	if cfg.Slack.AppToken != "slack-app-token" {
+		t.Fatalf("Slack.AppToken = %q, want Hermes config.yaml extra.app_token", cfg.Slack.AppToken)
+	}
+	if cfg.Slack.AllowedChannelID != "C-home" {
+		t.Fatalf("Slack.AllowedChannelID = %q, want home_channel chat_id", cfg.Slack.AllowedChannelID)
+	}
+}
+
+func TestLoad_HermesConfigYAMLDisplayToolProgressParity(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+display:
+  tool_progress_command: true
+  tool_progress: new
+  platforms:
+    telegram:
+      tool_progress: false
+    slack:
+      tool_progress: verbose
+  tool_progress_overrides:
+    discord: off
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Display.ToolProgress != "new" {
+		t.Fatalf("Display.ToolProgress = %q, want global Hermes display.tool_progress", cfg.Display.ToolProgress)
+	}
+	if !cfg.Display.ToolProgressCommand {
+		t.Fatal("Display.ToolProgressCommand = false, want true from Hermes display.tool_progress_command")
+	}
+	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "off" {
+		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want bool false normalized to off", got)
+	}
+	if got := cfg.Display.Platforms["slack"].ToolProgress; got != "verbose" {
+		t.Fatalf("Display.Platforms[slack].ToolProgress = %q, want verbose", got)
+	}
+	if got := cfg.Display.Platforms["discord"].ToolProgress; got != "off" {
+		t.Fatalf("Display.Platforms[discord].ToolProgress = %q, want legacy override", got)
+	}
+}
+
+func TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+display:
+  tool_progress: all
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SetHermesDisplayPlatformToolProgress("Telegram", "new"); err != nil {
+		t.Fatalf("SetHermesDisplayPlatformToolProgress: %v", err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Display.ToolProgress != "all" {
+		t.Fatalf("Display.ToolProgress = %q, want existing global mode preserved", cfg.Display.ToolProgress)
+	}
+	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "new" {
+		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want persisted new override", got)
 	}
 }
 
@@ -451,6 +586,62 @@ platforms:
 	}
 }
 
+func TestLoad_HermesConfigYAMLWebBackend(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+web:
+  backend: parallel
+  use_gateway: true
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Web.Backend != "parallel" {
+		t.Fatalf("Web.Backend = %q, want parallel from Hermes config.yaml", cfg.Web.Backend)
+	}
+	if !cfg.Web.UseGateway {
+		t.Fatal("Web.UseGateway = false, want true from Hermes config.yaml")
+	}
+}
+
+func TestLoad_HermesConfigYAMLWebsiteBlocklist(t *testing.T) {
+	hermesHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+security:
+  website_blocklist:
+    enabled: true
+    domains:
+      - example.com
+      - https://www.evil.test/path
+    shared_files:
+      - community-blocklist.txt
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Security.WebsiteBlocklist.Enabled {
+		t.Fatal("Security.WebsiteBlocklist.Enabled = false, want true")
+	}
+	if got, want := strings.Join(cfg.Security.WebsiteBlocklist.Domains, ","), "example.com,https://www.evil.test/path"; got != want {
+		t.Fatalf("WebsiteBlocklist.Domains = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(cfg.Security.WebsiteBlocklist.SharedFiles, ","), "community-blocklist.txt"; got != want {
+		t.Fatalf("WebsiteBlocklist.SharedFiles = %q, want %q", got, want)
+	}
+}
+
 func TestLoad_DiscordDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg, err := Load(nil)
@@ -468,6 +659,7 @@ func TestLoad_DiscordDefaults(t *testing.T) {
 func TestLoad_DiscordFromFile(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	cfgDir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -506,6 +698,7 @@ first_run_discovery = true
 func TestLoad_SlackFromFile(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	cfgDir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -549,6 +742,7 @@ first_run_discovery = true
 func TestLoad_SlackEnvOverridesFile(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	cfgDir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -620,6 +814,7 @@ func TestLoad_ResumeFlagEmptyDefault(t *testing.T) {
 func TestLoad_DelegationMaxWaitingFromConfig(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -643,6 +838,7 @@ max_waiting = 7
 func TestLoad_DelegationMaxWaitingRejectsNegative(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	dir := filepath.Join(cfgHome, "gormes")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -662,20 +858,23 @@ max_waiting = -1
 
 func TestSessionDBPath_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-xdg")
+	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := SessionDBPath()
-	want := "/tmp/gormes-test-xdg/gormes/sessions.db"
+	want := "/tmp/gormes-test-home/sessions.db"
 	if got != want {
 		t.Errorf("SessionDBPath() = %q, want %q", got, want)
 	}
 }
 
-func TestSessionDBPath_DefaultsToHomeLocalShare(t *testing.T) {
+func TestSessionDBPath_DefaultsToHomeDotGormes(t *testing.T) {
+	home := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", "")
-	home, _ := os.UserHomeDir()
+	t.Setenv("GORMES_HOME", "")
+	t.Setenv("HOME", home)
 	got := SessionDBPath()
-	want := filepath.Join(home, ".local", "share", "gormes", "sessions.db")
+	want := filepath.Join(home, ".gormes", "sessions.db")
 	if got != want {
-		t.Errorf("SessionDBPath() with empty XDG_DATA_HOME = %q, want %q", got, want)
+		t.Errorf("SessionDBPath() with empty GORMES_HOME = %q, want %q", got, want)
 	}
 }
 
@@ -692,29 +891,34 @@ func TestLoad_MemoryQueueCapDefault(t *testing.T) {
 
 func TestMemoryDBPath_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-memxdg")
+	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := MemoryDBPath()
-	want := "/tmp/gormes-test-memxdg/gormes/memory.db"
+	want := "/tmp/gormes-test-home/memory.db"
 	if got != want {
 		t.Errorf("MemoryDBPath() = %q, want %q", got, want)
 	}
 }
 
-func TestMemoryDBPath_DefaultsToHomeLocalShare(t *testing.T) {
+func TestMemoryDBPath_DefaultsToHomeDotGormes(t *testing.T) {
+	home := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", "")
-	home, _ := os.UserHomeDir()
+	t.Setenv("GORMES_HOME", "")
+	t.Setenv("HOME", home)
 	got := MemoryDBPath()
-	want := filepath.Join(home, ".local", "share", "gormes", "memory.db")
+	want := filepath.Join(home, ".gormes", "memory.db")
 	if got != want {
 		t.Errorf("MemoryDBPath() default = %q, want %q", got, want)
 	}
 }
 
-func TestSkillsRoot_DefaultsToHomeLocalShare(t *testing.T) {
+func TestSkillsRoot_DefaultsToHomeDotGormes(t *testing.T) {
+	home := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", "")
-	home, _ := os.UserHomeDir()
+	t.Setenv("GORMES_HOME", "")
+	t.Setenv("HOME", home)
 	var cfg Config
 	got := cfg.SkillsRoot()
-	want := filepath.Join(home, ".local", "share", "gormes", "skills")
+	want := filepath.Join(home, ".gormes", "skills")
 	if got != want {
 		t.Errorf("SkillsRoot() default = %q, want %q", got, want)
 	}
@@ -722,20 +926,22 @@ func TestSkillsRoot_DefaultsToHomeLocalShare(t *testing.T) {
 
 func TestSkillsRoot_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-skills")
+	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	var cfg Config
 	got := cfg.SkillsRoot()
-	want := "/tmp/gormes-test-skills/gormes/skills"
+	want := "/tmp/gormes-test-home/skills"
 	if got != want {
 		t.Errorf("SkillsRoot() = %q, want %q", got, want)
 	}
 }
 
-func TestHooksRoot_DefaultsToHomeLocalShare(t *testing.T) {
+func TestHooksRoot_DefaultsToHomeDotGormes(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "")
+	t.Setenv("GORMES_HOME", "")
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	got := HooksRoot()
-	want := filepath.Join(home, ".local", "share", "gormes", "hooks")
+	want := filepath.Join(home, ".gormes", "hooks")
 	if got != want {
 		t.Errorf("HooksRoot() default = %q, want %q", got, want)
 	}
@@ -743,8 +949,9 @@ func TestHooksRoot_DefaultsToHomeLocalShare(t *testing.T) {
 
 func TestHooksRoot_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-hooks")
+	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := HooksRoot()
-	want := "/tmp/gormes-test-hooks/gormes/hooks"
+	want := "/tmp/gormes-test-home/hooks"
 	if got != want {
 		t.Errorf("HooksRoot() = %q, want %q", got, want)
 	}
@@ -752,8 +959,9 @@ func TestHooksRoot_HonorsXDG(t *testing.T) {
 
 func TestGatewayRuntimeStatusPath_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-status")
+	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := GatewayRuntimeStatusPath()
-	want := "/tmp/gormes-test-status/gormes/gateway_state.json"
+	want := "/tmp/gormes-test-home/gateway_state.json"
 	if got != want {
 		t.Errorf("GatewayRuntimeStatusPath() = %q, want %q", got, want)
 	}
@@ -761,30 +969,33 @@ func TestGatewayRuntimeStatusPath_HonorsXDG(t *testing.T) {
 
 func TestGatewayLockDir_HonorsXDGStateHome(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", "/tmp/gormes-test-state")
+	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := GatewayLockDir()
-	want := "/tmp/gormes-test-state/gormes/gateway-locks"
+	want := "/tmp/gormes-test-home/gateway-locks"
 	if got != want {
 		t.Errorf("GatewayLockDir() = %q, want %q", got, want)
 	}
 }
 
-func TestGatewayLockDir_DefaultsToHomeLocalState(t *testing.T) {
+func TestGatewayLockDir_DefaultsToHomeDotGormes(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", "")
+	t.Setenv("GORMES_HOME", "")
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	got := GatewayLockDir()
-	want := filepath.Join(home, ".local", "state", "gormes", "gateway-locks")
+	want := filepath.Join(home, ".gormes", "gateway-locks")
 	if got != want {
 		t.Errorf("GatewayLockDir() default = %q, want %q", got, want)
 	}
 }
 
-func TestBootPath_DefaultsToHomeLocalShare(t *testing.T) {
+func TestBootPath_DefaultsToHomeDotGormes(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "")
+	t.Setenv("GORMES_HOME", "")
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	got := BootPath()
-	want := filepath.Join(home, ".local", "share", "gormes", "BOOT.md")
+	want := filepath.Join(home, ".gormes", "BOOT.md")
 	if got != want {
 		t.Errorf("BootPath() default = %q, want %q", got, want)
 	}
@@ -792,8 +1003,9 @@ func TestBootPath_DefaultsToHomeLocalShare(t *testing.T) {
 
 func TestBootPath_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-boot")
+	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := BootPath()
-	want := "/tmp/gormes-test-boot/gormes/BOOT.md"
+	want := "/tmp/gormes-test-home/BOOT.md"
 	if got != want {
 		t.Errorf("BootPath() = %q, want %q", got, want)
 	}
@@ -896,6 +1108,7 @@ func TestLoad_ConfigVersionDefault(t *testing.T) {
 func TestLoad_ConfigVersionMissingInFileTreatedAsV1(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 
 	cfgDir := filepath.Join(cfgHome, "gormes")
 	_ = os.MkdirAll(cfgDir, 0o755)
@@ -960,11 +1173,11 @@ func TestDelegationCfgResolvedRunLogPathHonorsOverride(t *testing.T) {
 	}
 }
 
-func TestDelegationCfgResolvedRunLogPathDefaultsToXDG(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-xdg")
+func TestDelegationCfgResolvedRunLogPathDefaultsToGormesHome(t *testing.T) {
+	t.Setenv("GORMES_HOME", "/tmp/gormes-home")
 
 	var cfg DelegationCfg
-	want := "/tmp/gormes-xdg/gormes/subagents/runs.jsonl"
+	want := "/tmp/gormes-home/subagents/runs.jsonl"
 	if got := cfg.ResolvedRunLogPath(); got != want {
 		t.Errorf("ResolvedRunLogPath() = %q, want %q", got, want)
 	}
@@ -1017,6 +1230,7 @@ func TestLegacyHermesHome_NotDetectedWhenNothingIsThere(t *testing.T) {
 func TestLoad_ConfigVersionFromFutureBinaryErrors(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 
 	cfgDir := filepath.Join(cfgHome, "gormes")
 	_ = os.MkdirAll(cfgDir, 0o755)

@@ -17,6 +17,7 @@ const (
 	SkillStatusMissingPrerequisite SkillStatusCode = "missing-prerequisite"
 	SkillStatusPreprocessingFailed SkillStatusCode = "preprocessing-failed"
 	SkillStatusFrontmatterInvalid  SkillStatusCode = "frontmatter-invalid"
+	SkillStatusConditionExcluded   SkillStatusCode = "condition-excluded"
 )
 
 type SkillStatus struct {
@@ -31,6 +32,8 @@ type RuntimeOptions struct {
 	Platform           string
 	Env                map[string]string
 	Preprocess         PreprocessOptions
+	AvailableTools     []string
+	AvailableToolsets  []string
 }
 
 func prepareSkills(ctx context.Context, in []Skill, opts RuntimeOptions) ([]Skill, []SkillStatus) {
@@ -50,6 +53,9 @@ func prepareSkills(ctx context.Context, in []Skill, opts RuntimeOptions) ([]Skil
 			missing := missingSkillCredentials(skill, opts.Env)
 			status.Status = SkillStatusMissingPrerequisite
 			status.Reason = "missing environment variables: " + strings.Join(missing, ", ")
+		case !skillConditionsMatch(skill.Conditions, opts.AvailableTools, opts.AvailableToolsets):
+			status.Status = SkillStatusConditionExcluded
+			status.Reason = "skill condition excluded by available tools or toolsets"
 		default:
 			preprocessOpts := opts.Preprocess
 			if preprocessOpts.SkillDir == "" && skill.Path != "" {
@@ -75,6 +81,46 @@ func isSkillDisabled(skill Skill, disabled map[string]bool) bool {
 	}
 	name := strings.TrimSpace(skill.Name)
 	return disabled[name] || disabled[strings.ToLower(name)]
+}
+
+func skillConditionsMatch(conditions SkillConditions, availableTools, availableToolsets []string) bool {
+	if availableTools == nil && availableToolsets == nil {
+		return true
+	}
+	tools := stringSet(availableTools)
+	toolsets := stringSet(availableToolsets)
+	for _, toolset := range conditions.FallbackForToolsets {
+		if toolsets[toolset] {
+			return false
+		}
+	}
+	for _, tool := range conditions.FallbackForTools {
+		if tools[tool] {
+			return false
+		}
+	}
+	for _, toolset := range conditions.RequiresToolsets {
+		if !toolsets[toolset] {
+			return false
+		}
+	}
+	for _, tool := range conditions.RequiresTools {
+		if !tools[tool] {
+			return false
+		}
+	}
+	return true
+}
+
+func stringSet(values []string) map[string]bool {
+	out := make(map[string]bool, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			out[value] = true
+		}
+	}
+	return out
 }
 
 func skillMatchesPlatform(skill Skill, platform string) bool {

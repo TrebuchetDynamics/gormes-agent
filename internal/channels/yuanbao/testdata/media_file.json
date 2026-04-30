@@ -1,0 +1,11 @@
+[
+  {
+    "msg_type": "TIMFileElem",
+    "msg_content": {
+      "uuid": "file-uuid-002",
+      "file_name": "report.pdf",
+      "file_size": 1048576,
+      "url": "https://cos.example.com/files/report.pdf"
+    }
+  }
+]

@@ -1,4 +1,4 @@
-// Command gormes is the Go frontend for Hermes Agent (Phase 1).
+// Command gormes is the Go-native Hermes-compatible agent runtime.
 package main
 
 import (
@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -37,9 +38,20 @@ func main() {
 	}()
 
 	root := newRootCommand()
-	if err := root.Execute(); err != nil {
+	if err := executeRootCommand(root, os.Args[1:]...); err != nil {
 		os.Exit(exitCodeFromError(err))
 	}
+}
+
+func executeRootCommand(root *cobra.Command, args ...string) error {
+	if suggestion, ok := cli.TypoSuggestion(args); ok {
+		fmt.Fprintf(root.ErrOrStderr(), "unknown command %q for %q\n%s\n", args[0], root.CommandPath(), suggestion)
+		return newExitCodeError(1, fmt.Errorf("unknown command %q for %q; %s", args[0], root.CommandPath(), suggestion))
+	}
+	if len(args) > 0 {
+		root.SetArgs(args)
+	}
+	return root.Execute()
 }
 
 func newRootCommand() *cobra.Command {
@@ -60,10 +72,8 @@ type tuiInvocation struct {
 	Config    config.Config
 	// RemoteURL, when non-empty, switches startup to remote-TUI mode:
 	// gormes connects to the gateway's SSE event stream instead of
-	// instantiating a local kernel + hermes HTTP client. The api_server
-	// health check is skipped because the operator's brain lives on
-	// the remote side. Empty leaves Phase-1 local Bubble Tea behavior
-	// intact.
+	// instantiating a local kernel + provider client. Empty leaves local
+	// Bubble Tea behavior intact.
 	RemoteURL string
 }
 
@@ -102,7 +112,7 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	resetGonchoDoctorFlags()
 	root := &cobra.Command{
 		Use:          "gormes",
-		Short:        "Go frontend for Hermes Agent",
+		Short:        "Go-native Hermes-compatible agent runtime",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRootCommand(cmd, args, runtime)
@@ -115,8 +125,8 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	root.Flags().String("api-key", "", "provider API key override for --oneshot or TUI startup; invocation-only and never persisted")
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
-	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses api_server, kernel, and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newUsageCommand())
+	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newAgentCommand(), newUsageCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newMCPCommand())
 	return root
 }
 
@@ -225,7 +235,7 @@ type oneshotClientFactory func(context.Context, config.Config, oneshotInvocation
 type oneshotKernelConfigurer func(*kernel.Config)
 
 func newOneshotHTTPClient(_ context.Context, cfg config.Config, invocation oneshotInvocation) (hermes.Client, error) {
-	return hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, invocation.Inference.Provider), nil
+	return newProviderHTTPClient(cfg, invocation.Inference.Provider)
 }
 
 func runResolvedOneshot(cmd *cobra.Command, invocation oneshotInvocation) error {
@@ -372,47 +382,45 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		runtime.tuiProgramFactory = defaultTUIProgramFactory
 	}
 
-	// --remote <url> bypasses kernel/hermes/api_server entirely and runs
-	// the SSE-backed remote TUI instead. Local Bubble Tea behaviour is
-	// preserved when --remote is empty.
+	// --remote <url> bypasses the local kernel and provider setup entirely
+	// and runs the SSE-backed remote TUI instead. Local Bubble Tea behaviour
+	// is preserved when --remote is empty.
 	if invocation.RemoteURL != "" {
 		return runRemoteTUIWithRuntime(cmd, invocation, runtime)
 	}
 
 	cfg := invocation.Config
 	if p, ok := config.LegacyHermesHome(); ok {
-		slog.Info("detected upstream Hermes home — Gormes uses XDG paths and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
+		slog.Info("detected upstream Hermes home — Gormes uses GormesHome and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
 	}
 
 	modelName := invocation.Inference.Model
 	if modelName == "" {
 		modelName = cfg.Hermes.Model
 	}
-	c := hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, invocation.Inference.Provider)
+	providerName := firstNonEmpty(invocation.Inference.Provider, cfg.Hermes.Provider)
 
-	// Health check: 2s budget. Surface an actionable error if unreachable.
 	offline, _ := cmd.Flags().GetBool("offline")
+	c := hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, providerName)
 	if !offline {
-		healthCtx, healthCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		if err := c.Health(healthCtx); err != nil {
-			healthCancel()
+		var err error
+		c, err = newProviderHTTPClient(cfg, providerName)
+		if err != nil {
 			redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-			fmt.Fprintf(os.Stderr,
-				"provider endpoint not reachable at %s: %v\n\nConfigure [hermes] endpoint/api_key/model for a live turn, or pass --offline to run the local TUI smoke path without network submits.\n",
-				cfg.Hermes.Endpoint, redactedErr)
+			fmt.Fprintf(os.Stderr, "provider setup failed: %s\n", redactedErr)
 			return errors.New(redactedErr)
 		}
-		healthCancel()
 	}
 
 	// Phase 2.C — open the session map; honor --resume.
-	smap, err := session.OpenBolt(config.SessionDBPath())
+	smap, boltMap, err := openTUISessionMap(cmd)
 	if err != nil {
 		return fmt.Errorf("session map: %w", err)
 	}
 	defer smap.Close()
-	sessionMirror := startSessionIndexMirror(smap, slog.Default())
-	defer sessionMirror.Stop()
+	if sessionMirror := startSessionIndexMirror(boltMap, slog.Default()); sessionMirror != nil {
+		defer sessionMirror.Stop()
+	}
 
 	resumeFlag, _ := cmd.Flags().GetString("resume")
 	pctx := context.Background()
@@ -441,8 +449,8 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		Model:             modelName,
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
-		Tools:             buildDefaultRegistry(rootCtx, cfg.Delegation, cfg.SkillsRoot(), c, modelName),
-		MaxToolIterations: 10,
+		Tools:             buildDefaultRegistry(rootCtx, cfg, c, modelName),
+		MaxToolIterations: kernel.DefaultMaxToolIterations,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		ToolAudit:         toolAudit,
@@ -487,7 +495,13 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		SessionExport: newTUISaveExportFunc(),
 		OfflineSmoke:  offline,
 	})
-	programOptions := []tea.ProgramOption{tea.WithAltScreen()}
+	// Hermes' current Ink TUI runs in an alternate screen by default. The
+	// Bubble Tea port mirrors that for the full-screen dashboard so repeated
+	// render ticks do not leave stale frame fragments in normal scrollback.
+	var programOptions []tea.ProgramOption
+	if tui.HermesChromeUseAltScreen() {
+		programOptions = append(programOptions, tea.WithAltScreen())
+	}
 	if cfg.TUI.MouseTracking {
 		programOptions = append(programOptions, tea.WithMouseAllMotion())
 	}
@@ -509,6 +523,21 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	_, err = prog.Run()
 	close(programDone)
 	return err
+}
+
+func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, error) {
+	path := config.SessionDBPath()
+	smap, err := session.OpenBolt(path)
+	if err == nil {
+		return smap, smap, nil
+	}
+	if errors.Is(err, session.ErrDBLocked) {
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"session persistence unavailable: %v\nrunning TUI with in-memory session state; run `gormes gateway stop` to release the persisted session DB, or `gormes gateway status` to inspect the owner. persisted_path=%s\n",
+			err, path)
+		return session.NewMemMap(), nil, nil
+	}
+	return nil, nil, err
 }
 
 func redactRuntimeSecretText(text string, secrets ...string) string {

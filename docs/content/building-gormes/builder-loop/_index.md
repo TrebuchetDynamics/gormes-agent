@@ -32,6 +32,19 @@ maximize worker count or churn through vague rows.
 5. Use `gormes-builder` and `gormes-tdd-slice` for implementation.
 6. Update evidence only for the selected row.
 
+## If The Queue Is Empty
+
+An empty [Agent Queue](agent-queue/) or [Next Slices](next-slices/) page means
+the generated selector found no unblocked contract-ready rows. It does not mean
+there is no remaining roadmap work.
+
+Use `gormes-planner`, not `gormes-builder`, when the queue is empty. Pick one
+planned row from `progress.json`, [Contract Readiness](../contract-readiness/),
+or the phase pages, then make it builder-ready by adding concrete source refs,
+write scope, test commands, acceptance, degraded-mode behavior, and done
+signal. After that, regenerate progress docs with `go run ./cmd/progress write`
+when the generated surfaces need to change.
+
 ## Start Here
 
 - [Skill Builder Handoff](builder-loop-handoff/) explains the shared skill

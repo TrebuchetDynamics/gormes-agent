@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -185,7 +186,7 @@ func TestManagerHooksOnError(t *testing.T) {
 }
 
 func TestManagerHooksObservePlaceholderSendDuringStreaming(t *testing.T) {
-	tg := newFakeChannel("telegram")
+	tg := newTypingActionFakeChannel("telegram")
 	frames := make(chan kernel.RenderFrame, 8)
 	fk := &fakeKernel{}
 	hooks := NewHooks()
@@ -228,16 +229,16 @@ func TestManagerHooksObservePlaceholderSendDuringStreaming(t *testing.T) {
 	if got[0].Point != HookBeforeSend || got[1].Point != HookAfterSend {
 		t.Fatalf("hook points = %v, want before_send then after_send", []HookPoint{got[0].Point, got[1].Point})
 	}
-	if got[0].Text != "⏳" {
-		t.Fatalf("before_send text = %q, want placeholder marker", got[0].Text)
+	if !strings.Contains(got[0].Text, "partial") {
+		t.Fatalf("before_send text = %q, want first stream content", got[0].Text)
 	}
 	if got[1].MsgID == "" {
-		t.Fatal("after_send MsgID = empty, want placeholder message id")
+		t.Fatal("after_send MsgID = empty, want first stream message id")
 	}
 }
 
 func TestManagerHooksObservePlaceholderSendWhenFirstFrameArrivesDuringSubmit(t *testing.T) {
-	tg := newFakeChannel("telegram")
+	tg := newTypingActionFakeChannel("telegram")
 	fk := newImmediateFrameKernel()
 	defer close(fk.release)
 
@@ -272,11 +273,11 @@ func TestManagerHooksObservePlaceholderSendWhenFirstFrameArrivesDuringSubmit(t *
 	if got[0].Point != HookBeforeSend || got[1].Point != HookAfterSend {
 		t.Fatalf("hook points = %v, want before_send then after_send", []HookPoint{got[0].Point, got[1].Point})
 	}
-	if got[0].Text != "⏳" {
-		t.Fatalf("before_send text = %q, want placeholder marker", got[0].Text)
+	if !strings.Contains(got[0].Text, "partial") {
+		t.Fatalf("before_send text = %q, want first stream content", got[0].Text)
 	}
 	if got[1].MsgID == "" {
-		t.Fatal("after_send MsgID = empty, want placeholder message id")
+		t.Fatal("after_send MsgID = empty, want first stream message id")
 	}
 }
 

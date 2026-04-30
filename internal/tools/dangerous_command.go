@@ -136,13 +136,34 @@ func DetectDangerous(cmd string) (bool, string) {
 // GuardCommand applies the pure dangerous-command guard. Hardline matches
 // always block first; recoverable dangerous matches require approval.
 func GuardCommand(cmd, mode string) BlockedResult {
+	approvalMode := NormalizeApprovalMode(mode)
 	if matched, description := DetectHardline(cmd); matched {
-		return blockedResult(cmd, mode, description, "hardline", true, false)
+		return blockedResult(cmd, approvalMode.Mode, description, "hardline", true, false)
 	}
 	if matched, description := DetectDangerous(cmd); matched {
-		return blockedResult(cmd, mode, description, "dangerous", false, true)
+		if approvalMode.Mode == ApprovalModeOff {
+			return approvedRecoverableResult(cmd, approvalMode.Mode, description)
+		}
+		return blockedResult(cmd, approvalMode.Mode, description, "dangerous", false, true)
 	}
 	return BlockedResult{}
+}
+
+func approvedRecoverableResult(cmd, mode, description string) BlockedResult {
+	return BlockedResult{
+		Approved:         true,
+		Hardline:         false,
+		ApprovalRequired: false,
+		Description:      description,
+		Operator:         mode,
+		Command:          cmd,
+		Evidence: map[string]string{
+			"approval_mode":       mode,
+			"command":             cmd,
+			"detector":            "dangerous",
+			"pattern_description": description,
+		},
+	}
 }
 
 func blockedResult(cmd, mode, description, detector string, hardline, approvalRequired bool) BlockedResult {
@@ -154,6 +175,7 @@ func blockedResult(cmd, mode, description, detector string, hardline, approvalRe
 		Operator:         mode,
 		Command:          cmd,
 		Evidence: map[string]string{
+			"approval_mode":       mode,
 			"command":             cmd,
 			"detector":            detector,
 			"pattern_description": description,

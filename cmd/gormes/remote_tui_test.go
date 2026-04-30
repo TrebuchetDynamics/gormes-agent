@@ -41,16 +41,16 @@ func TestRemoteTUI_FlagThreadsThroughRunResolvedTUI(t *testing.T) {
 }
 
 // TestRemoteTUI_StartupBypassesAPIServerHealthAndPackageManagers proves
-// that --remote <url> skips the api_server health probe and never spawns
+// that --remote <url> skips local provider health probes and never spawns
 // node/npm/python — the remote SSE consumer is pure Go HTTP. Local
 // Bubble Tea continues to run and the program factory is invoked once.
 func TestRemoteTUI_StartupBypassesAPIServerHealthAndPackageManagers(t *testing.T) {
 	setupNativeTUITestEnv(t)
 
-	var apiServerHits atomic.Int32
+	var healthHits atomic.Int32
 	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
-			apiServerHits.Add(1)
+			healthHits.Add(1)
 		}
 		if r.URL.Path == "/events" {
 			w.Header().Set("Content-Type", "text/event-stream")
@@ -85,14 +85,14 @@ func TestRemoteTUI_StartupBypassesAPIServerHealthAndPackageManagers(t *testing.T
 	if programRuns.Load() != 1 {
 		t.Fatalf("programRuns = %d; want 1", programRuns.Load())
 	}
-	if apiServerHits.Load() != 0 {
-		t.Errorf("apiServerHits = %d; want 0 (remote mode bypasses api_server health)", apiServerHits.Load())
+	if healthHits.Load() != 0 {
+		t.Errorf("healthHits = %d; want 0 (remote mode bypasses local provider health)", healthHits.Load())
 	}
 	if data, err := os.ReadFile(commandLog); err == nil {
 		t.Fatalf("--remote startup invoked package command unexpectedly:\n%s", data)
 	}
 	if strings.Contains(stderr, "api_server not reachable") {
-		t.Fatalf("stderr surfaced api_server health error in remote mode:\n%s", stderr)
+		t.Fatalf("stderr surfaced obsolete API-server health error in remote mode:\n%s", stderr)
 	}
 }
 

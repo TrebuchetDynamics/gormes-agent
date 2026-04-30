@@ -19,6 +19,25 @@ const (
 	sessionSearchMaxLimit     = 5
 )
 
+const hiddenSessionSearchSource = "tool"
+
+const sessionSearchDescription = `Search your long-term memory of past conversations, or browse recent sessions. This is your recall -- every past session is searchable through the local Gormes memory catalog.
+
+TWO MODES:
+1. Recent sessions (no query): call with no query to see what was worked on recently. Returns session hits, previews, and timestamps without an auxiliary model call.
+2. Keyword search (with query): search for specific topics across prior sessions.
+
+USE THIS PROACTIVELY when:
+- The user says "we did this before", "remember when", "last time", or "as I mentioned"
+- The user asks about a topic you worked on before but do not have in current context
+- The user references a project, person, or concept that seems familiar but is not in memory
+- You want to check if you solved a similar problem before
+- The user asks "what did we do about X?" or "how did we fix Y?"
+
+Gormes keeps same-chat recall as the safe default. Use scope=user with explicit source filters only when you need cross-chat recall and the current session binding can prove it.
+
+Search syntax: Use OR between keywords for broad recall (elevenlabs OR baseten OR funding), phrases for exact match ("docker networking"), boolean operators (python NOT java), and prefix search (deploy*). If a broad OR query returns nothing, try individual keyword searches.`
+
 // SessionSearchDirectory exposes the canonical session metadata needed to bind
 // session_search execution to the current chat before any recall widening.
 type SessionSearchDirectory interface {
@@ -50,6 +69,7 @@ func NewSessionSearchTool(config SessionSearchToolConfig) *SessionSearchTool {
 // SessionSearchArgs is the normalized argument shape for session_search.
 type SessionSearchArgs struct {
 	Query            string   `json:"query,omitempty"`
+	RoleFilter       string   `json:"role_filter,omitempty"`
 	Scope            string   `json:"scope"`
 	Sources          []string `json:"sources,omitempty"`
 	Mode             string   `json:"mode"`
@@ -71,6 +91,7 @@ type sessionSearchResult struct {
 	Mode          string                          `json:"mode,omitempty"`
 	Query         string                          `json:"query,omitempty"`
 	Count         int                             `json:"count"`
+	Message       string                          `json:"message,omitempty"`
 	Results       []SessionSearchHit              `json:"results,omitempty"`
 	Evidence      []SessionSearchEvidence         `json:"evidence,omitempty"`
 	ScopeEvidence *memory.CrossChatRecallEvidence `json:"scope_evidence,omitempty"`
@@ -98,11 +119,11 @@ type SessionSearchLineage struct {
 func (*SessionSearchTool) Name() string { return "session_search" }
 
 func (*SessionSearchTool) Description() string {
-	return "Search prior session transcripts or browse recent sessions using explicit same-chat or user-scoped recall controls."
+	return sessionSearchDescription
 }
 
 func (*SessionSearchTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"query":{"type":"string","description":"Optional keyword, phrase, or boolean search query. Omit to browse recent sessions."},"scope":{"type":"string","enum":["same-chat","user"],"default":"same-chat","description":"Recall scope. same-chat is the safe default; user may widen only when later execution can prove the current session binding."},"sources":{"type":"array","items":{"type":"string"},"description":"Optional source allowlist such as discord, telegram, slack, or matrix."},"mode":{"type":"string","enum":["default","recent","search"],"default":"default","description":"default chooses recent or search behavior from query presence; recent browses sessions; search runs keyword recall."},"limit":{"type":"integer","default":3,"minimum":0,"maximum":5,"description":"Maximum sessions to return. Defaults to 3 and is capped at 5."},"current_session_id":{"type":"string","description":"Current chat/session identifier used by later execution to prove same-chat or user-scope boundaries."}},"required":[]}`)
+	return json.RawMessage(`{"type":"object","properties":{"query":{"type":"string","description":"Optional keyword, phrase, or boolean search query. Omit to browse recent sessions."},"role_filter":{"type":"string","description":"Optional comma-separated turn roles to search, for example user or user,assistant."},"scope":{"type":"string","enum":["same-chat","user"],"default":"same-chat","description":"Recall scope. same-chat is the safe default; user may widen only when later execution can prove the current session binding."},"sources":{"type":"array","items":{"type":"string"},"description":"Optional source allowlist such as discord, telegram, slack, or matrix."},"mode":{"type":"string","enum":["default","recent","search"],"default":"default","description":"default chooses recent or search behavior from query presence; recent browses sessions; search runs keyword recall."},"limit":{"type":"integer","default":3,"minimum":0,"maximum":5,"description":"Maximum sessions to return. Defaults to 3 and is capped at 5."},"current_session_id":{"type":"string","description":"Current chat/session identifier used by later execution to prove same-chat or user-scope boundaries."}},"required":[]}`)
 }
 
 func (*SessionSearchTool) Timeout() time.Duration { return 5 * time.Second }
@@ -147,12 +168,14 @@ func (t *SessionSearchTool) Execute(ctx context.Context, args json.RawMessage) (
 	if err != nil {
 		return nil, err
 	}
+	metas = visibleSessionSearchMetadata(metas, normalized.Sources)
 	mode := sessionSearchMode(normalized)
 	if normalized.Scope == "user" {
 		filter := memory.SearchFilter{
 			UserID:           current.UserID,
 			Sources:          normalized.Sources,
 			Query:            normalized.Query,
+			Roles:            sessionSearchRoleFilter(normalized.RoleFilter),
 			CurrentSessionID: normalized.CurrentSessionID,
 			CurrentChatKey:   sessionSearchChatKey(current),
 		}
@@ -174,6 +197,7 @@ func (t *SessionSearchTool) Execute(ctx context.Context, args json.RawMessage) (
 		Sources:          normalized.Sources,
 		SessionIDs:       sameChatSessionIDs(metas, current),
 		Query:            normalized.Query,
+		Roles:            sessionSearchRoleFilter(normalized.RoleFilter),
 		CurrentSessionID: normalized.CurrentSessionID,
 	}
 	if !sameChatSourceFilterAllowed(normalized.Sources, current) {
@@ -214,6 +238,7 @@ func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args Sessi
 			Args:          &args,
 			Mode:          mode,
 			Count:         len(results),
+			Message:       fmt.Sprintf("Showing %d most recent sessions. Use a keyword query to search specific topics.", len(results)),
 			Results:       results,
 			Evidence:      evidence,
 			ScopeEvidence: scopeEvidence,
@@ -234,9 +259,17 @@ func (t *SessionSearchTool) executeSessionSearch(ctx context.Context, args Sessi
 		Mode:          mode,
 		Query:         args.Query,
 		Count:         len(results),
+		Message:       sessionSearchResultMessage(len(results)),
 		Results:       results,
 		ScopeEvidence: scopeEvidence,
 	})
+}
+
+func sessionSearchResultMessage(count int) string {
+	if count == 0 {
+		return "No matching sessions found."
+	}
+	return ""
 }
 
 func sourceFilterDeniedEvidence(reason string) SessionSearchEvidence {
@@ -437,6 +470,14 @@ func ValidateSessionSearchArgs(raw json.RawMessage) (SessionSearchArgs, *Session
 		args.Query = strings.TrimSpace(query)
 	}
 
+	if value, ok := fields["role_filter"]; ok {
+		roleFilter, err := sessionSearchString(value)
+		if err != nil {
+			return args, invalidSessionSearchArgs("role_filter", err.Error())
+		}
+		args.RoleFilter = strings.TrimSpace(roleFilter)
+	}
+
 	if value, ok := fields["scope"]; ok {
 		scope, err := sessionSearchString(value)
 		if err != nil {
@@ -521,6 +562,48 @@ func sessionSearchString(raw json.RawMessage) (string, error) {
 
 func normalizeSessionSearchLabel(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func sessionSearchRoleFilter(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	roles := make([]string, 0, len(parts))
+	for _, part := range parts {
+		role := normalizeSessionSearchLabel(part)
+		if role == "" || slices.Contains(roles, role) {
+			continue
+		}
+		roles = append(roles, role)
+	}
+	return roles
+}
+
+func visibleSessionSearchMetadata(metas []session.Metadata, sources []string) []session.Metadata {
+	if slices.Contains(normalizedSessionSearchLabels(sources), hiddenSessionSearchSource) {
+		return metas
+	}
+	out := make([]session.Metadata, 0, len(metas))
+	for _, meta := range metas {
+		if normalizeSessionSearchLabel(meta.Source) == hiddenSessionSearchSource {
+			continue
+		}
+		out = append(out, meta)
+	}
+	return out
+}
+
+func normalizedSessionSearchLabels(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		label := normalizeSessionSearchLabel(value)
+		if label == "" || slices.Contains(out, label) {
+			continue
+		}
+		out = append(out, label)
+	}
+	return out
 }
 
 func invalidSessionSearchArgs(field, reason string) *SessionSearchEvidence {

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -12,6 +13,30 @@ type DeliveryTarget struct {
 	ThreadID   string
 	IsOrigin   bool
 	IsExplicit bool
+}
+
+// HomeChannelTargets maps a platform name to its configured channel-neutral
+// home target. Values usually come from Hermes platforms.<name>.home_channel.
+type HomeChannelTargets map[string]DeliveryTarget
+
+// HomeChannelDiscoveryFallback carries a discovery-owned source that can be
+// used as the home channel only when that platform explicitly allows discovery.
+type HomeChannelDiscoveryFallback struct {
+	Source           SessionSource
+	DiscoveryEnabled bool
+}
+
+// MissingHomeChannelError is returned when a platform-only delivery target has
+// no explicit, configured, or discovery-approved home channel.
+type MissingHomeChannelError struct {
+	Platform string
+}
+
+func (e MissingHomeChannelError) Error() string {
+	if e.Platform == "" {
+		return "gateway: missing home channel"
+	}
+	return fmt.Sprintf("gateway: missing home channel for %s", e.Platform)
 }
 
 func (t DeliveryTarget) String() string {
@@ -29,6 +54,59 @@ func (t DeliveryTarget) String() string {
 		return platform + ":" + t.ChatID
 	}
 	return platform + ":" + t.ChatID + ":" + t.ThreadID
+}
+
+// ResolveHomeChannelTarget expands a platform-only delivery target (for
+// example "discord") to that platform's configured home channel. Explicit
+// targets, origin, and local remain unchanged so callers can preserve per-turn
+// source routing and user-specified destinations. The bool return is false
+// when no configured home exists; callers that need degradation evidence should
+// use ResolveHomeChannelTargetWithFallback.
+func ResolveHomeChannelTarget(target DeliveryTarget, homes HomeChannelTargets) (DeliveryTarget, bool) {
+	resolved, err := ResolveHomeChannelTargetWithFallback(target, homes, HomeChannelDiscoveryFallback{})
+	if err != nil {
+		return target, false
+	}
+	return resolved, resolved != target
+}
+
+// ResolveHomeChannelTargetWithFallback resolves platform-name targets through
+// the shared home-channel hierarchy: explicit/origin/local targets are already
+// resolved, configured home_channel wins, discovery-owned source follows only
+// when enabled, and missing homes return MissingHomeChannelError.
+func ResolveHomeChannelTargetWithFallback(target DeliveryTarget, homes HomeChannelTargets, fallback HomeChannelDiscoveryFallback) (DeliveryTarget, error) {
+	if target.IsOrigin || target.IsExplicit || strings.EqualFold(target.Platform, "local") || strings.TrimSpace(target.ChatID) != "" {
+		return target, nil
+	}
+	platform := strings.ToLower(strings.TrimSpace(target.Platform))
+	if platform == "" {
+		return target, MissingHomeChannelError{}
+	}
+	if homes != nil {
+		if home, ok := homes[platform]; ok && strings.TrimSpace(home.ChatID) != "" {
+			home.Platform = strings.ToLower(strings.TrimSpace(firstNonEmptyString(home.Platform, platform)))
+			home.ChatID = strings.TrimSpace(home.ChatID)
+			home.ThreadID = strings.TrimSpace(home.ThreadID)
+			return home, nil
+		}
+	}
+	if fallback.DiscoveryEnabled && strings.EqualFold(fallback.Source.Platform, platform) && strings.TrimSpace(fallback.Source.ChatID) != "" {
+		return DeliveryTarget{
+			Platform: platform,
+			ChatID:   strings.TrimSpace(fallback.Source.ChatID),
+			ThreadID: strings.TrimSpace(fallback.Source.ThreadID),
+		}, nil
+	}
+	return target, MissingHomeChannelError{Platform: platform}
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // ParseDeliveryTarget converts a single --deliver token into a typed target.

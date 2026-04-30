@@ -33,5 +33,25 @@ One runtime, multiple interfaces. The agent lives in the kernel; each gateway is
 
 Agents that only live in a terminal are academic. Agents that live where the operator lives — on their phone, in their team chat — are infrastructure. Gormes's split-binary-then-unified design lets each adapter ship independently without dragging the TUI's deps.
 
+## Donor pointers
+
+When implementing a new gateway slice, route through the
+`gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`)
+before re-deriving a shape. The most useful Go donors for gateway/runtime work
+live under `references/go-agent-os/`:
+
+| Gateway problem | Donor file |
+|---|---|
+| Adapter chassis with explicit dependency layering | `nanobot/pkg/runtime/runtime.go` |
+| Tool service with before/after hooks (slash + tool dispatch) | `nanobot/pkg/tools/service.go`, `nanobot/pkg/tools/flows.go` |
+| Await-user-reply / pause-and-resume across active turns | `trpc-agent-go/agent/await_user_reply.go` |
+| Provider/agent callback pipeline (turn lifecycle hooks) | `trpc-agent-go/model/callbacks.go`, `trpc-agent-go/agent/callbacks.go` |
+| Cancellable session-scoped workers (fan-out without leaks) | `nanobot/pkg/runtime/runtime.go` plus `trpc-agent-go/agent/await_user_reply.go` |
+| Telegram-safe error sanitization, raw HTML truncation | `nanobot/pkg/agents/truncate.go` |
+
+For PicoClaw's per-channel adapter inventory, see [Gateway Donor Map](../../gateway-donor-map/).
+For provider/auth/streaming/quota/retry behavior visible at the gateway edge,
+use the `gormes-provider-parity` skill and
+`references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` instead.
+
 See [Phase 2](../../architecture_plan/phase-2-gateway/) for the Gateway ledger.
-For donor-code reconnaissance against PicoClaw's Go adapters, see [Gateway Donor Map](../../gateway-donor-map/).

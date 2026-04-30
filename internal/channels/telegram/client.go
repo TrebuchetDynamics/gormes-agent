@@ -4,6 +4,8 @@
 package telegram
 
 import (
+	"context"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -20,9 +22,19 @@ type telegramClient interface {
 	// an effectively-ignored Message with the same ID.
 	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 
+	// Request sends non-message Telegram API requests such as setMyCommands.
+	Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
+
 	// DeleteMessage removes a bot-posted message through the Bot API
 	// deleteMessage request path.
 	DeleteMessage(chatID int64, messageID int) error
+
+	// GetFile resolves Telegram file metadata for an attachment file_id.
+	GetFile(config tgbotapi.FileConfig) (tgbotapi.File, error)
+
+	// DownloadFile downloads a Telegram file path into memory without exposing
+	// token-bearing URLs to callers or logs.
+	DownloadFile(ctx context.Context, filePath string) ([]byte, error)
 
 	// StopReceivingUpdates signals the long-poll loop to stop. Called on
 	// graceful shutdown.

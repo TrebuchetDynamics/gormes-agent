@@ -14,6 +14,8 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Situation | Use | Then |
 |---|---|---|
 | User wants to stress-test direction or make a hard decision | `grill-me` | `gormes-planner` after decision |
+| User wants a recurring/periodic Hermes-in-Go parity sweep or to record current parity progress | `gormes-hermes-parity` | `gormes-parity-auditor` for source comparison, then `gormes-planner` for row updates |
+| Need to safely rename or restructure parity taxonomy, feature-map groupings, or progress row categories | `gormes-hermes-parity` | `gormes-planner` for progress/docs edits, then `gormes-builder` only if runtime compatibility code is needed |
 | Need to compare Hermes/Honcho/GBrain against Gormes | `gormes-parity-auditor` | `gormes-planner` to update rows |
 | Need Hermes CLI/config/migration parity, including `migrate hermes`, `migrate openclaw`, or typo requests like `migrate ooenclaw` | `gormes-parity-auditor` | `gormes-planner` updates manifest/config/migration rows and keeps typos as suggestions unless a compatibility row exists |
 | Need to update roadmap/progress rows | `gormes-planner` | `gormes-builder` for selected row |
@@ -22,6 +24,9 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Need strict red-green-refactor on one behavior | `gormes-tdd-slice` | `gormes-builder` final report |
 | Need to audit or periodically refresh README/public repository messaging | `gormes-readme` | `gormes-planner` only if roadmap rows need edits |
 | Need to improve `www.gormes.ai` landing page content or UI | `gormes-landing-web` | `gormes-planner` only if roadmap/progress claims need edits |
+| Stuck on a Go implementation shape and want a donor file to read before writing code | `gormes-references` | `gormes-tdd-slice` once the donor pattern is identified |
+| Provider/auth/streaming/quota/retry problem specifically | `gormes-provider-parity` | `gormes-tdd-slice` once the parity target + donor file are pinned |
+| Need to run, install, rebuild, or validate local Gormes binaries, managed source clones, PATH command refresh, gateway ownership, or sessions.db locks | `gormes-dev-runtime` | `gormes-tdd-slice` only if runtime code changes are needed |
 | Need to create or improve a skill | `gormes-skill-manager` + system `skill-creator` | validate all affected skills |
 
 ## Feature-Map-First Routing
@@ -40,6 +45,8 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 
 | Lane | Current route | Skill gap decision |
 |---|---|---|
+| Whole-program recurring parity progress | `gormes-hermes-parity` -> `gormes-parity-auditor` -> `gormes-planner` | Covered by the periodic parity sweep workflow. |
+| Implementation lookup (any subsystem) | `gormes-references` -> `gormes-tdd-slice` | Covered. Use this whenever a worker is about to invent a Go shape that probably exists in a donor. |
 | 1.D skill control plane | `gormes-skill-manager` -> `skill-creator` -> `gormes-planner` | Covered by this routing table. |
 | 3.G Goncho/Honcho compatibility | `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-goncho-compat` only after SDK-style fixtures repeat across multiple rows. |
 | 4.I normal-turn e2e | `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-e2e-operator` when service orchestration or Playwright-style harnesses repeat. |
@@ -49,12 +56,16 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | README/public repo messaging | `gormes-readme` | Covered by the periodic README evidence workflow. |
 | Landing page content/UI | `gormes-landing-web` | Covered by the focused public homepage workflow. |
 | Docs/Hugo/site sync | `gormes-planner` | Add `gormes-docs-web-sync` if progress docs and broader site data updates keep drifting. |
-| Release/install packaging | `gormes-planner` -> future release rows | Add `gormes-release-packager` when installer, service, OCI, and version gates are active. |
+| Dev run/install/runtime operations | `gormes-dev-runtime` | Covered for local `go run`, `bin/gormes`, install.sh, PATH, gateway, and session DB ownership decisions. |
+| Release/install packaging | `gormes-planner` -> future release rows | Add `gormes-release-packager` when service, OCI, version gates, and public release publishing go beyond the local/source-backed installer loop. |
 
 ## Good Skill Chains
 
 - Upstream gap to implementation:
   `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice`
+
+- Periodic parity sweep to builder-ready rows:
+  `gormes-hermes-parity` -> `gormes-parity-auditor` -> `gormes-planner`
 
 - Ambiguous package/interface:
   `gormes-interface-designer` -> `gormes-planner` -> `gormes-builder`

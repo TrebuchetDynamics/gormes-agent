@@ -50,6 +50,7 @@ func Parse(raw []byte, maxBytes int) (Skill, error) {
 	skill.Triggers = frontmatterStringList(frontmatter["triggers"])
 	skill.Exclusions = frontmatterStringList(frontmatter["exclusions"])
 	skill.ReviewState = reviewState(frontmatter)
+	skill.Conditions = skillConditions(frontmatter)
 
 	skill.Body = strings.Trim(strings.Join(lines[end+1:], "\n"), "\n")
 	if err := skill.Validate(maxBytes); err != nil {
@@ -248,6 +249,28 @@ func reviewState(frontmatter map[string]any) string {
 		return frontmatterString(review, "state")
 	}
 	return ""
+}
+
+func skillConditions(frontmatter map[string]any) SkillConditions {
+	hermes := hermesMetadata(frontmatter)
+	return SkillConditions{
+		FallbackForTools:    dedupeStrings(frontmatterStringList(hermes["fallback_for_tools"])),
+		FallbackForToolsets: dedupeStrings(frontmatterStringList(hermes["fallback_for_toolsets"])),
+		RequiresTools:       dedupeStrings(frontmatterStringList(hermes["requires_tools"])),
+		RequiresToolsets:    dedupeStrings(frontmatterStringList(hermes["requires_toolsets"])),
+	}
+}
+
+func hermesMetadata(frontmatter map[string]any) map[string]any {
+	if metadata, ok := frontmatter["metadata"].(map[string]any); ok {
+		if hermes, ok := metadata["hermes"].(map[string]any); ok {
+			return hermes
+		}
+	}
+	if hermes, ok := frontmatter["hermes"].(map[string]any); ok {
+		return hermes
+	}
+	return nil
 }
 
 func appendStringValue(out []string, value any) []string {

@@ -6,24 +6,28 @@
 package subagent
 
 import (
+	"errors"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
+var ErrSubagentApprovalDenied = errors.New("subagent approval denied")
+
 // SubagentConfig is the per-subagent configuration handed to the Runner.
 // Defaults are applied at Spawn time, not at TOML decode time.
 type SubagentConfig struct {
-	Goal          string
-	Context       string
-	MaxIterations int           // 0 → DefaultMaxIterations at Spawn time
-	EnabledTools  []string      // empty → all parent tools minus BlockedTools
-	Model         string        // empty → inherit from parent
-	Timeout       time.Duration // 0 → no timeout
-	toolExecutor  tools.ToolExecutor
-	toolAudit     audit.Recorder
-	agentID       string
+	Goal                         string
+	Context                      string
+	MaxIterations                int           // 0 → DefaultMaxIterations at Spawn time
+	EnabledTools                 []string      // empty → all parent tools minus BlockedTools
+	Model                        string        // empty → inherit from parent
+	Timeout                      time.Duration // 0 → no timeout
+	DangerousCommandApprovalMode string        // empty/manual/smart → noninteractive deny; off → approve recoverable only
+	toolExecutor                 tools.ToolExecutor
+	toolAudit                    audit.Recorder
+	agentID                      string
 }
 
 // EventType discriminates SubagentEvent values streamed from runner to parent.

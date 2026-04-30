@@ -139,4 +139,27 @@ Do not widen the Phase 2 OS-AI spine to absorb Honcho-specific compatibility wor
 
 > **Note on binary size:** The static CGO-free binary currently builds at **~17 MB** (measured: `bin/gormes` from `make build` with `-trimpath -ldflags="-s -w"` at commit `8aa9a6e6`, post-2.D). Phase 2.D added `robfig/cron/v3` (~20 KB) and ~1500 lines of Go across `internal/cron/`. The 3.D semantic-fusion additions (Embedder, `entity_embeddings` table, cosine scan) were absorbed within the same 17 MB envelope. Remains well within the 25 MB hard moat with ~8 MB headroom.
 
+## Go donor pointers
+
+Before writing a new Phase 2 slice, route through the `gormes-references`
+skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+donor file that already shapes the seam.
+
+| Phase 2 problem | Donor file | Notes |
+|---|---|---|
+| 2.A tool registry with before/after hooks + filter gates | `nanobot/pkg/tools/service.go`, `nanobot/pkg/tools/flows.go` | Apache 2.0; adapt with attribution |
+| 2.B chassis with explicit dependency layering (`Options.Merge` + `Complete`) | `nanobot/pkg/runtime/runtime.go` | Used as the chassis pattern reference |
+| 2.B inbound truncation / Telegram-safe error sanitization | `nanobot/pkg/agents/truncate.go` | Avoids raw HTML/secret leaks |
+| 2.D durable cron/job ledger + bounded queue | `engram/internal/mcp/write_queue.go` | Mutex-serialized, cancel-before-start |
+| 2.D cron audit append-only log | `engram/internal/mcp/activity.go` | Audit shape, redaction, append-only |
+| 2.E.0 deterministic subagent runtime + cancellable scopes | `nanobot/pkg/runtime/runtime.go`, `trpc-agent-go/agent/await_user_reply.go` | Pause/resume pattern |
+| 2.E.1 typed child tool-call audit + delegation policy | `nanobot/pkg/tools/flows.go`, `axe/internal/tool/` | Pre-call gate, declarative filter |
+| 2.F.5 mid-run steer / queue / interrupt callback dispatch | `trpc-agent-go/model/callbacks.go`, `trpc-agent-go/agent/callbacks.go` | Before/after split from core turn |
+| 2.G skills runtime — bounded token budget for prompt block | `axe/internal/budget/budget.go` | Per-turn counter + reset |
+| 2.G skills runtime — append-only usage log | `engram/internal/mcp/activity.go` | Same audit shape as 2.D cron audit |
+
+Provider-side gateway behavior (auth/streaming/quota/retry visible at the
+edge) routes through `gormes-provider-parity` and
+`references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` instead.
+
 For channel-by-channel donor analysis against the all-Go PicoClaw repo, see [Gateway Donor Map](../../gateway-donor-map/).

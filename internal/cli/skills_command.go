@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"text/tabwriter"
 
@@ -8,9 +9,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// SkillsURLInstallDeps wires the policy seams used by `gormes skills install
+// <https://.../SKILL.md>`. Tests inject fakes here so no live HTTP, scan, or
+// real filesystem mutation occurs.
+type SkillsURLInstallDeps struct {
+	Fetcher skills.URLFetcher
+	Scanner skills.QuarantineScanner
+	Store   skills.SkillStore
+	Console skills.InteractiveConsole
+}
+
 type SkillsCommandDeps struct {
 	ListInstalledSkills func(skills.ListOptions, map[string]struct{}) []skills.SkillRow
 	DisabledSkills      func(platform string) map[string]struct{}
+	URLInstall          SkillsURLInstallDeps
 }
 
 func NewSkillsCommand(deps SkillsCommandDeps) *cobra.Command {
@@ -19,7 +31,49 @@ func NewSkillsCommand(deps SkillsCommandDeps) *cobra.Command {
 		Short: "Manage skills",
 	}
 	root.AddCommand(NewSkillsListCommand(deps))
+	root.AddCommand(NewSkillsInstallCommand(deps))
 	return root
+}
+
+// NewSkillsInstallCommand binds the URL install policy from internal/skills
+// to a cobra subcommand. The `<identifier>` is currently scoped to direct
+// HTTPS SKILL.md URLs; other source adapters are out of scope for this row.
+func NewSkillsInstallCommand(deps SkillsCommandDeps) *cobra.Command {
+	var nameOverride, categoryOverride string
+
+	cmd := &cobra.Command{
+		Use:   "install <url>",
+		Short: "Install a skill from a direct SKILL.md URL",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			req := skills.URLInstallRequest{
+				URL:              args[0],
+				NameOverride:     nameOverride,
+				CategoryOverride: categoryOverride,
+				Interactive:      false,
+			}
+			policy := skills.URLInstallPolicy{
+				Fetcher: deps.URLInstall.Fetcher,
+				Scanner: deps.URLInstall.Scanner,
+				Store:   deps.URLInstall.Store,
+				Console: deps.URLInstall.Console,
+			}
+			ev := skills.PerformURLInstall(cmd.Context(), policy, req)
+			switch ev.Code {
+			case "url_skill_installed":
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "installed %s\n", ev.InstalledPath)
+				return nil
+			default:
+				if ev.Reason != "" {
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), ev.Reason)
+				}
+				return errors.New(ev.Code)
+			}
+		},
+	}
+	cmd.Flags().StringVar(&nameOverride, "name", "", "explicit skill name override (required for non-interactive URL installs without a safe resolved name)")
+	cmd.Flags().StringVar(&categoryOverride, "category", "", "optional category bucket under the active store")
+	return cmd
 }
 
 func NewSkillsListCommand(deps SkillsCommandDeps) *cobra.Command {

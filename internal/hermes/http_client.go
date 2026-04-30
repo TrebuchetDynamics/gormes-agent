@@ -26,8 +26,8 @@ type httpClient struct {
 	parameterRetry   ProviderUnsupportedParameterRetryStatus
 }
 
-// NewHTTPClient returns a Client that talks HTTP+SSE to a Hermes-compatible
-// api_server. baseURL example: "http://127.0.0.1:8642".
+// NewHTTPClient returns a Client that talks HTTP+SSE to a
+// Hermes/Gormes-compatible provider endpoint.
 // The returned client streams without a global timeout so long turns
 // (minutes, with tool use) are not truncated; see per-phase timeouts inside.
 func NewHTTPClient(baseURL, apiKey string) Client {
@@ -78,6 +78,10 @@ func (c *httpClient) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+	c.applyCodexCloudflareHeaders(req)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return err
@@ -92,7 +96,7 @@ func (c *httpClient) Health(ctx context.Context) error {
 
 type orMessage struct {
 	Role             string       `json:"role"`
-	Content          string       `json:"content"`
+	Content          any          `json:"content"`
 	ReasoningContent *string      `json:"reasoning_content,omitempty"`
 	ToolCalls        []orToolCall `json:"tool_calls,omitempty"`
 	ToolCallID       string       `json:"tool_call_id,omitempty"`
@@ -191,7 +195,13 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 }
 
 func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]byte, []ToolDescriptor, error) {
-	msgs := makeOpenAICompatibleMessages(req.Messages, c.provider, req.Model, c.baseURL)
+	policy := PromptCachePolicyFor(PromptCachePolicyInput{
+		Provider: c.provider,
+		BaseURL:  c.baseURL,
+		APIMode:  "chat_completions",
+		Model:    req.Model,
+	})
+	msgs := makeOpenAICompatibleMessages(ApplyPromptCacheControl(req.Messages, policy), c.provider, req.Model, c.baseURL)
 	reasoningEffort, err := validateReasoningEffort(req.ReasoningEffort)
 	if err != nil {
 		return nil, nil, err
@@ -232,7 +242,17 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 		return nil, err
 	}
 
-	resp, err := c.doProviderPost(ctx, req.SessionID, providerReq.Path, providerReq.Body, "application/json")
+	chatGPTCodexBackend := codexChatGPTBackendBaseURL(c.baseURL)
+	accept := "application/json"
+	if chatGPTCodexBackend {
+		providerReq.Body, err = codexResponsesStreamingBody(providerReq.Body)
+		if err != nil {
+			return nil, err
+		}
+		accept = "text/event-stream"
+	}
+
+	resp, err := c.doProviderPost(ctx, req.SessionID, providerReq.Path, providerReq.Body, accept)
 	if err != nil {
 		return nil, err
 	}
@@ -240,6 +260,9 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
+	}
+	if chatGPTCodexBackend {
+		return newCodexResponsesSSEStream(ctx, resp.Body, providerReq)
 	}
 	return transport.OpenFixtureStream(resp.Body, providerReq)
 }
@@ -286,7 +309,7 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 	// Header-phase budget enforced by Transport.ResponseHeaderTimeout (5s).
 	// The request ctx governs the full response lifetime including body reads —
 	// do NOT cancel it after Do returns or streaming breaks.
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.openAICompatibleURL(endpointPath), bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.providerPostURL(endpointPath), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -297,6 +320,7 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 	if c.apiKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
+	c.applyCodexCloudflareHeaders(httpReq)
 	if sessionID != "" {
 		httpReq.Header.Set("X-Hermes-Session-Id", sessionID)
 	}
@@ -306,6 +330,13 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (c *httpClient) providerPostURL(endpointPath string) string {
+	if c.usesCodexResponsesTransport() && codexChatGPTBackendBaseURL(c.baseURL) && endpointPath == defaultCodexResponsesPath {
+		return c.openAICompatibleURL("/responses")
+	}
+	return c.openAICompatibleURL(endpointPath)
 }
 
 func (c *httpClient) usesCodexResponsesTransport() bool {
@@ -437,10 +468,15 @@ func providerRetryReason(err *HTTPError) string {
 
 func makeOpenAICompatibleMessages(messages []Message, provider, model, baseURL string) []orMessage {
 	out := make([]orMessage, 0, len(messages))
-	for _, msg := range messages {
+	promptRole := string(ModelPromptRole(model))
+	for idx, msg := range messages {
+		role := msg.Role
+		if idx == 0 && role == "system" && promptRole == string(PromptRoleDeveloper) {
+			role = promptRole
+		}
 		wire := orMessage{
-			Role:       msg.Role,
-			Content:    msg.Content,
+			Role:       role,
+			Content:    openAICompatibleMessageContent(msg),
 			ToolCallID: msg.ToolCallID,
 			Name:       msg.Name,
 		}
@@ -467,6 +503,17 @@ func makeOpenAICompatibleMessages(messages []Message, provider, model, baseURL s
 		out = append(out, wire)
 	}
 	return out
+}
+
+func openAICompatibleMessageContent(msg Message) any {
+	if msg.CacheControl == nil {
+		return msg.Content
+	}
+	return []map[string]any{{
+		"type":          "text",
+		"text":          msg.Content,
+		"cache_control": msg.CacheControl,
+	}}
 }
 
 func openAICompatibleReasoningContent(msg Message, provider, model, baseURL string) *string {

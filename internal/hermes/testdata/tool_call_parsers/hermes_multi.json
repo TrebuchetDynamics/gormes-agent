@@ -1,0 +1,11 @@
+{
+  "parser": "hermes",
+  "label": "hermes_multi_call_then_unclosed_truncation",
+  "raw_output": "<tool_call>{\"name\": \"a\", \"arguments\": {\"x\": 1}}</tool_call><tool_call>{\"name\": \"b\", \"arguments\": {\"y\": 2}}</tool_call>",
+  "expected_content": "",
+  "expected_calls": [
+    {"name": "a", "arguments": "{\"x\":1}"},
+    {"name": "b", "arguments": "{\"y\":2}"}
+  ],
+  "degraded": false
+}

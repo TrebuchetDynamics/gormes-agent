@@ -1,0 +1,10 @@
+{
+  "parser": "deepseek_v3_1",
+  "label": "deepseek_v3_1_single_call",
+  "raw_output": "header <｜tool▁calls▁begin｜><｜tool▁call▁begin｜>get_weather<｜tool▁sep｜>{\"city\": \"Paris\"}<｜tool▁call▁end｜>",
+  "expected_content": "header",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\": \"Paris\"}"}
+  ],
+  "degraded": false
+}

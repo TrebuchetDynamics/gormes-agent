@@ -1,0 +1,9 @@
+[
+  {
+    "msg_type": "TIMFaceElem",
+    "msg_content": {
+      "index": 0,
+      "data": "{\"sticker_id\":\"278\",\"package_id\":\"1003\",\"width\":128,\"height\":128,\"formats\":\"png\",\"name\":\"六六六\"}"
+    }
+  }
+]

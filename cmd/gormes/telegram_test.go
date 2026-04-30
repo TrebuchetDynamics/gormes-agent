@@ -1,0 +1,187 @@
+package main
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+)
+
+func TestTelegramManagerConfig_LiveTurnMetadataProductionWiring(t *testing.T) {
+	mgrCfg := telegramManagerConfig(
+		config.Config{Hermes: config.HermesCfg{
+			Model:    "gpt-5.5",
+			Provider: "openai-codex",
+		}},
+		nil,
+	)
+	if mgrCfg.LiveTurnNow == nil {
+		t.Fatal("LiveTurnNow is nil; production telegram metadata block would omit timestamp")
+	}
+	if got := mgrCfg.LiveTurnActiveModel; got == nil || got() != "gpt-5.5" {
+		if got == nil {
+			t.Fatal("LiveTurnActiveModel is nil")
+		}
+		t.Fatalf("LiveTurnActiveModel() = %q, want configured model", got())
+	}
+	if got := mgrCfg.LiveTurnActiveProvider; got == nil || got() != "openai-codex" {
+		if got == nil {
+			t.Fatal("LiveTurnActiveProvider is nil")
+		}
+		t.Fatalf("LiveTurnActiveProvider() = %q, want configured provider", got())
+	}
+}
+
+func TestTelegramProductionProviderPayloadIncludesOperatorContext(t *testing.T) {
+	operatorRoot := t.TempDir()
+	writeTelegramFixtureFile(t, operatorRoot, "SOUL.md", "You are Gormes, not ChatGPT.")
+	writeTelegramFixtureFile(t, operatorRoot, "USER.md", "# User\nName: Juan")
+	writeTelegramFixtureFile(t, operatorRoot, "MEMORY.md", "# Memory\nGormes identity must persist.")
+	workdir := filepath.Join(operatorRoot, "gormes-agent")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("mkdir workdir: %v", err)
+	}
+	t.Setenv("TERMINAL_CWD", workdir)
+	t.Setenv("GORMES_HOME", filepath.Join(t.TempDir(), "empty-gormes-home"))
+	t.Setenv("HERMES_HOME", "")
+
+	provider := hermes.NewMockClient()
+	provider.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "I am Gormes."},
+		{Kind: hermes.EventDone, FinishReason: "stop"},
+	}, "sess-provider")
+	k := kernel.New(kernel.Config{
+		Model:     "gpt-5.5",
+		Endpoint:  "http://mock-provider",
+		Admission: kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+	}, provider, store.NewNoop(), telemetry.New(), slog.Default())
+
+	ch := newTelegramTestChannel()
+	smap := session.NewMemMap()
+	mgrCfg := telegramManagerConfig(config.Config{
+		Hermes: config.HermesCfg{
+			Model:    "gpt-5.5",
+			Provider: "openai-codex",
+		},
+		Telegram: config.TelegramCfg{AllowedChatID: 42},
+	}, smap)
+	// Stabilize the golden metadata while still exercising the production
+	// telegramManagerConfig path for model/provider and context discovery.
+	mgrCfg.LiveTurnNow = func() time.Time { return time.Date(2026, 4, 29, 16, 55, 0, 0, time.UTC) }
+
+	m := gateway.NewManager(mgrCfg, k, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go func() { _ = k.Run(ctx) }()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.push(gateway.InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "user-juan",
+		MsgID:    "tg-msg-1",
+		Kind:     gateway.EventSubmit,
+		Text:     "What's your name?",
+	})
+
+	waitForTelegramProviderRequest(t, time.Second, func() bool {
+		return len(provider.Requests()) == 1
+	})
+	req := provider.Requests()[0]
+	if req.Model != "gpt-5.5" {
+		t.Fatalf("provider request model = %q, want configured model", req.Model)
+	}
+	if len(req.Messages) < 2 || req.Messages[0].Role != "system" {
+		t.Fatalf("provider request messages = %#v, want leading system context before user", req.Messages)
+	}
+	system := req.Messages[0].Content
+	for _, want := range []string{
+		"You are Gormes, not ChatGPT.",
+		"# User\nName: Juan",
+		"# Memory\nGormes identity must persist.",
+		"Conversation started:",
+		"Model: gpt-5.5",
+		"Provider: openai-codex",
+		"## Current Session Context",
+		"**Source:** telegram chat `42`",
+		"**User ID:** `user-juan`",
+	} {
+		if !strings.Contains(system, want) {
+			t.Fatalf("provider system prompt missing %q in:\n%s", want, system)
+		}
+	}
+	last := req.Messages[len(req.Messages)-1]
+	if last.Role != "user" || last.Content != "What's your name?" {
+		t.Fatalf("provider final user message = %+v, want Telegram submit", last)
+	}
+	for _, msg := range req.Messages {
+		if msg.Role == "assistant" && strings.Contains(msg.Content, "Gormes") {
+			t.Fatalf("provider request unexpectedly contains assistant identity postprocessing: %#v", req.Messages)
+		}
+	}
+}
+
+func writeTelegramFixtureFile(t *testing.T, dir, name, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+}
+
+type telegramTestChannel struct {
+	in chan gateway.InboundEvent
+}
+
+func newTelegramTestChannel() *telegramTestChannel {
+	return &telegramTestChannel{in: make(chan gateway.InboundEvent, 1)}
+}
+
+func (c *telegramTestChannel) Name() string { return "telegram" }
+
+func (c *telegramTestChannel) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case ev := <-c.in:
+			select {
+			case inbox <- ev:
+			case <-ctx.Done():
+				return nil
+			}
+		}
+	}
+}
+
+func (c *telegramTestChannel) Send(ctx context.Context, chatID, text string) (string, error) {
+	return "telegram-test-msg", nil
+}
+
+func (c *telegramTestChannel) push(ev gateway.InboundEvent) { c.in <- ev }
+
+func waitForTelegramProviderRequest(t *testing.T, timeout time.Duration, ok func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if ok() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("condition not met within %s", timeout)
+}

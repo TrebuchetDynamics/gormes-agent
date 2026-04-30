@@ -70,6 +70,8 @@ func TestParseInboundText(t *testing.T) {
 		{name: "new", text: "/new", wantKind: EventReset, wantBody: ""},
 		{name: "stop", text: "/stop", wantKind: EventCancel, wantBody: ""},
 		{name: "steer", text: "/steer keep going", wantKind: EventSteer, wantBody: "/steer keep going"},
+		{name: "status", text: "/status", wantKind: EventStatus, wantBody: ""},
+		{name: "verbose", text: "/verbose", wantKind: EventVerbose, wantBody: ""},
 		{name: "unknown slash", text: "/wat", wantKind: EventUnknown, wantBody: ""},
 		{name: "submit", text: "hello there", wantKind: EventSubmit, wantBody: "hello there"},
 	}
@@ -113,6 +115,8 @@ func TestSlashCommandPolicyParityWithCLIRegistry(t *testing.T) {
 			want = cli.ActiveTurnPolicyBypass
 		case CommandActiveTurnPolicyReject:
 			want = cli.ActiveTurnPolicyBusyReject
+		case CommandActiveTurnPolicyUnavailable:
+			want = cli.ActiveTurnPolicyUnavailable
 		default:
 			t.Errorf("gateway command %q has unmapped policy %q", gw.Name, gw.ActiveTurnPolicy)
 			continue
@@ -120,6 +124,27 @@ func TestSlashCommandPolicyParityWithCLIRegistry(t *testing.T) {
 		if policy.ActiveTurnPolicy != want {
 			t.Errorf("gateway %q policy %q maps to CLI %q, want %q",
 				gw.Name, gw.ActiveTurnPolicy, policy.ActiveTurnPolicy, want)
+		}
+	}
+}
+
+func TestGatewayRegistryRecognizesSharedAndGatewayCLICommands(t *testing.T) {
+	for _, policy := range cli.CommandRegistry {
+		if policy.ActiveTurnPolicy == cli.ActiveTurnPolicyQueue {
+			continue
+		}
+		cmd, ok := ResolveCommand(policy.Name)
+		if !ok {
+			t.Errorf("gateway registry does not recognize CLI %s command %q", policy.Surface, policy.Name)
+			continue
+		}
+		if !policy.Ported && cmd.ActiveTurnPolicy != CommandActiveTurnPolicyUnavailable {
+			t.Errorf("unported CLI command %q gateway policy = %q, want unavailable", policy.Name, cmd.ActiveTurnPolicy)
+		}
+		for _, alias := range policy.Aliases {
+			if _, ok := ResolveCommand(alias); !ok {
+				t.Errorf("gateway registry does not recognize alias %q for %q", alias, policy.Name)
+			}
 		}
 	}
 }
@@ -153,6 +178,37 @@ func TestSlashCommandUnknownDoesNotEnterModelPrompt(t *testing.T) {
 	}
 	if body != "" {
 		t.Errorf("ParseInboundText(unknown slash) body = %q, want empty", body)
+	}
+}
+
+func TestTelegramBotCommandsExposeHermesGatewayMenu(t *testing.T) {
+	commands := TelegramBotCommands()
+	seen := make(map[string]string, len(commands))
+	for _, cmd := range commands {
+		seen[cmd.Name] = cmd.Description
+	}
+	for _, want := range []string{
+		"new",
+		"retry",
+		"undo",
+		"title",
+		"branch",
+		"compress",
+		"rollback",
+		"snapshot",
+		"stop",
+		"approve",
+		"deny",
+		"background",
+		"btw",
+		"agents",
+		"queue",
+		"steer",
+		"status",
+	} {
+		if _, ok := seen[want]; !ok {
+			t.Fatalf("TelegramBotCommands missing Hermes gateway command %q; got %#v", want, commands)
+		}
 	}
 }
 

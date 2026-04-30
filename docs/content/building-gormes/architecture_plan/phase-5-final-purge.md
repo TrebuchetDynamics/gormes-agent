@@ -38,7 +38,7 @@ Phase 5 is when Python disappears entirely from the runtime path. Each sub-phase
 | 5.L — File Ops + Patches | ⏳ planned | Split `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` into checkpoint shadow-repo GC, file-read dedup/cache guards, then write/patch/rollback primitives |
 | 5.M — Mixture of Agents | ⏳ planned | Port `tools/mixture_of_agents_tool.py` only after provider routing and subagent envelopes are stable |
 | 5.N — Misc Operator Tools | ⏳ planned | Port todo, clarify, session search, debug helpers, send_message, cronjob tools, and interrupt as small contracts; session search must reuse Phase 3 lineage/source evidence and exclude the current lineage root in recent mode; cron parity remains split into tool API/schedule parsing, `context_from` output chaining, prompt/script safety, and multi-target/media/live-adapter delivery follow-ups |
-| 5.O — Hermes CLI Parity | ⏳ planned | Port the 49-file `hermes_cli/` tree as dependency-aware command groups: deterministic helpers, PTY bridge adapter, registry/active-turn/busy policy, profile path/active-profile helpers before config/auth/setup UI, top-level `-z/--oneshot` with model/provider resolution, platform toolset persistence/MCP sentinel behavior, RestartSec-aware service restart polling, gateway management read-model closeout before mutating commands, local log snapshot diagnostics before backup/upload behavior, and later webhook/cron/platform/status command groups; replaces the upstream `hermes` binary |
+| 5.O — Hermes CLI Parity | ⏳ planned | Port the 49-file `hermes_cli/` tree as dependency-aware command groups: deterministic helpers, PTY bridge adapter, registry/active-turn/busy policy, profile path/active-profile helpers before config/auth/setup UI, top-level `-z/--oneshot` with model/provider resolution, current auth command-tree parity (`auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance), platform toolset persistence/MCP sentinel behavior, RestartSec-aware service restart polling, gateway management read-model closeout before mutating commands, local log snapshot diagnostics before backup/upload behavior, and later webhook/cron/platform/status command groups; replaces the upstream `hermes` binary |
 | 5.P — Docker / Packaging | ⏳ planned | Mirror upstream Docker/Homebrew/release layout with `gormes doctor --offline` smoke checks and no Python runtime dependency in the final image; port upstream `install.sh`/`install.cmd`/`install.ps1` as Unix + Windows installer parity surfaces served from `www.gormes.ai/internal/site/`, and freeze the root/FHS vs user-scoped Unix layout policy from Hermes `b35d692f` |
 | 5.Q — API Server + TUI Gateway Streaming Surface | ⏳ planned | Port `tui_gateway/` plus the upstream OpenAI-compatible `gateway/platforms/api_server.py` surface: Bubble Tea remote streaming, native TUI/no-Node bundle independence after Hermes `ee0728c6`, TUI startup model/provider override and static alias behavior from `283c8fd6`, native selection/copy parity-or-divergence after `edc78e25`, `/v1/chat/completions`, `/v1/responses`, `/v1/runs/{id}/events`, incomplete snapshot persistence on disconnect/cancel, gateway proxy mode, dashboard-facing API contracts, `/health/detailed`, and cron admin endpoints over the native Go runtime |
 | 5.R — Code Execution Mode Policy | ⏳ planned | Split upstream PR #11971 into four dependency-ordered TDD slices — mode resolver + config precedence, strict-mode CWD/interpreter parity, project-mode CWD + active venv detection, then default-mode selection + config cut-over — without widening the shipped 5.K filesystem/network blocking contract |
@@ -61,6 +61,15 @@ not combine it with Home Assistant handlers, cron execution, or unrelated
 default-off toolsets such as MOA/RL.
 
 Hermes `5006b220` adds two CLI/service deltas that Gormes should freeze as small rows before broad CLI ports: top-level one-shot mode (`hermes -z`) with explicit model/provider/env resolution, and update restart polling that waits through systemd `RestartSec` before declaring the gateway failed to relaunch. The parser half of one-shot mode is already validated; keep final-output capture, noninteractive safety policy, RestartSec parsing, and active-status polling as separate rows so workers do not mix output plumbing with service-manager state machines.
+
+Current upstream Hermes auth is not `auth login`: `hermes login` is a removed
+shim that points users to `hermes auth`, `hermes model`, or `hermes setup`.
+The non-deprecated provider command family is
+`auth add/list/remove/reset/status/logout/spotify`, with top-level `logout`
+kept as a narrow provider-auth shortcut. Gormes should land the command-tree
+manifest refresh before `cmd/gormes/auth.go`, then port the credential-pool
+commands before OAuth provider adapters and the Spotify service-provider
+subcommand.
 
 The OpenAI-compatible API server is not the Phase 1 bridge. Phase 1 consumes Python's `api_server`; Phase 5.Q replaces that donor surface in Go. The latest upstream API server adds stored Responses snapshots for disconnect/cancel paths and gateway proxy mode; keep those as separate slices after the base chat/Responses contracts so client-resilience work does not hide basic HTTP parity failures. Keep cron admin endpoints behind the 5.N cronjob parity slices so HTTP control, CLI control, and tool control all share one scheduler/store contract. Hermes `ee0728c6` fixed a first-launch TUI rebuild bug by treating a missing `packages/hermes-ink/dist/ink-bundle.js` as stale; Gormes should not port that Node/Ink machinery, but it should fixture-lock that native TUI startup, doctor/status output, docs, and landing-page install copy never require npm, `HERMES_TUI_DIR`, or Hermes bundle files. Hermes `283c8fd6` moved model/provider override state into TUI launch and resolved short aliases without startup network lookup; Gormes should adapt that into the native Cobra/Bubble Tea path instead of leaving overrides oneshot-only. Hermes `edc78e25`/`31d7f195` tightened custom Ink selection copy over SSH, indentation, rendered spaces, and bounds; Gormes' next slice should explicitly document and fixture-lock terminal-native Bubble Tea selection with no advertised custom copy hotkey. A later Go-native copy mode can be planned separately if the product decision changes. Hermes' local interactive terminal is not the old Node/Ink bundle: `cli.py` owns the prompt_toolkit chat surface with bottom-pinned input, skin-aware prompt symbols, response boxes, status bars, busy-input routing, slash autocomplete, modal approval/clarify/secret panels, paste/image handling, and tool-progress scrollback. Exact Gormes TUI parity therefore means replacing the current Bubble Tea dashboard chrome with that operator contract while preserving the Go-native kernel/event boundary.
 
@@ -107,3 +116,33 @@ Phase 5 is the highest-risk place to accidentally create giant porting tasks. Tr
 9. **5.O service restart polling is parser first, poller second.** Parse fake `RestartUSec` output and compute bounded restart delays before landing the fake active-status poller that waits `max(10s, RestartSec+10s)`. Neither row should touch real `systemctl`, Windows service control, installers, or gateway restart logic.
 10. **5.Q TUI bundle drift is a deliberate divergence.** Upstream Hermes still has to defend its Node/Ink TUI bundle, including the `ee0728c6` stale-bundle rebuild check. Gormes proves the opposite with `cmd/gormes/tui_bundle_independence_test.go`: native Bubble Tea startup and offline status do not shell out to npm/node, inspect `node_modules`, or require `packages/hermes-ink/dist/ink-bundle.js`.
 11. **5.Q TUI model/copy drift is native-first.** Port `283c8fd6` model/provider startup override semantics into Gormes' Cobra/Bubble Tea path with static alias fixtures and no provider catalog network calls. Treat `edc78e25`/`31d7f195` Ink selection-copy fixes as an explicit divergence row for now: docs and TUI status should say Gormes relies on terminal-native selection and should not advertise custom copy hotkeys until a Go-native copy mode exists.
+
+## Go donor pointers
+
+Before writing a new Phase 5 slice, route through the `gormes-references`
+skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+donor file that already shapes the seam.
+
+| Phase 5 problem | Donor file | Notes |
+|---|---|---|
+| 5.A tool registry + descriptor-driven schema/availability/trust | `nanobot/pkg/tools/service.go`, `nanobot/pkg/tools/flows.go` | Apache 2.0; descriptor pattern |
+| 5.A tool-output truncation while persisting full bytes (artifact pointer) | `nanobot/pkg/agents/truncate.go` | Already used in Phase 2 inbound |
+| 5.A image-token estimation per provider | `nanobot/pkg/agents/tokencount.go` | Conservative per-provider fallback |
+| 5.B sandbox environment interface + cancellable workers | `nanobot/pkg/runtime/runtime.go` | Explicit dependency layering |
+| 5.G MCP serialized write queue (deterministic, cancel-before-start) | `engram/internal/mcp/write_queue.go` | Already in production use in engram |
+| 5.G MCP activity/audit logging (redaction, append-only) | `engram/internal/mcp/activity.go` | Same audit shape Gormes uses in 2.D/3.E |
+| 5.J approval / dangerous-action filters with declarative pre-call gates | `nanobot/pkg/tools/flows.go`, `axe/internal/tool/` | Filter helpers + flow gates |
+| 5.J path-traversal/URL/website policy guards | `axe/internal/artifact/tracker.go` | Sanitized-path pattern, append-only registry |
+| 5.K code execution sandbox + bounded stdout/stderr caps | `nanobot/pkg/agents/truncate.go` | Output-cap policy already shipped uses this shape |
+| 5.L file-ops checkpoint + path-sanitization + dedup | `axe/internal/artifact/tracker.go` | Path-traversal guard for write-capable file tools |
+| 5.M mixture-of-agents — workflow agents (loop / sequential / parallel) | `adk-go/agent/workflowagents/...` | Workflow primitives without rewriting kernel |
+| 5.N session-search / debug helpers — bounded token budget | `axe/internal/budget/budget.go` | Per-turn counter + reset |
+| 5.O CLI parity — config/profile/dotenv layered loaders | `axe/internal/config/`, `axe/internal/xdg/` | XDG-respecting layered config |
+| 5.O CLI parity — credential/auth surface | `goclaw/internal/oauth/openai.go`, `goclaw/internal/oauth/token.go` | Code permitted with provenance for PKCE/state/token-source shape; Hermes `hermes_cli/auth.py` and `hermes_cli/auth_commands.py` remain the behavior contract |
+| 5.Q API server proxy mode + run-event SSE | `nanobot/pkg/runtime/runtime.go` | Cancellable session-scoped workers |
+| 5.R code-execution-mode resolver (strict vs project, CWD/interpreter) | `axe/internal/resolve/`, `axe/internal/envinterp/` | Per-mode resolver pattern |
+
+Provider-side surfaces (auth/streaming/quota/retry) inside any 5.x tool route
+through `gormes-provider-parity` and
+`references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` instead of
+re-deriving the OAuth/quota classifier.

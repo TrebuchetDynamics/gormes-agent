@@ -44,7 +44,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("config: %w", err)
 	}
 	if p, ok := config.LegacyHermesHome(); ok {
-		slog.Info("detected upstream Hermes home — Gormes uses XDG paths and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
+		slog.Info("detected upstream Hermes home — Gormes uses GormesHome and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
 	}
 
 	if cfg.Telegram.BotToken == "" {
@@ -114,7 +114,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	reg := buildDefaultRegistry(rootCtx, cfg.Delegation, cfg.SkillsRoot(), hc, cfg.Hermes.Model)
+	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	gonchoCfg := cfg.Goncho.RuntimeConfig()
 	gonchoCfg.SessionDirectory = smap
 	gonchotools.RegisterHonchoTools(reg, goncho.NewService(mstore.DB(), gonchoCfg, slog.Default()))
@@ -163,7 +163,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
-		MaxToolIterations: 10,
+		MaxToolIterations: kernel.DefaultMaxToolIterations,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		Recall:            recallProv,
@@ -195,6 +195,10 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	bot := telegram.New(telegram.Config{
 		AllowedChatID:     cfg.Telegram.AllowedChatID,
 		FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
+		RequireMention:    cfg.Telegram.RequireMention,
+		BotUsername:       cfg.Telegram.BotUsername,
+		AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
+		DynamicCommands:   gatewayTelegramDynamicCommands(rootCtx, cfg),
 	}, tc, slog.Default())
 	go ext.Run(rootCtx)
 
@@ -279,16 +283,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		"semantic_enabled", cfg.Telegram.SemanticEnabled,
 		"semantic_model", cfg.Telegram.SemanticModel)
 
-	mgr := gateway.NewManager(gateway.ManagerConfig{
-		AllowedChats: map[string]string{
-			"telegram": strconv.FormatInt(cfg.Telegram.AllowedChatID, 10),
-		},
-		AllowDiscovery: map[string]bool{
-			"telegram": cfg.Telegram.FirstRunDiscovery,
-		},
-		CoalesceMs: cfg.Telegram.CoalesceMs,
-		SessionMap: smap,
-	}, k, slog.Default())
+	mgr := gateway.NewManager(telegramManagerConfig(cfg, smap), k, slog.Default())
 	if err := mgr.Register(bot); err != nil {
 		return fmt.Errorf("register telegram: %w", err)
 	}
@@ -326,4 +321,14 @@ func newTelegramDeliverySink(bot telegramBotSender, chatID int64) cron.DeliveryS
 	return cron.FuncSink(func(ctx context.Context, text string) error {
 		return bot.SendToChat(ctx, chatID, text)
 	})
+}
+
+func telegramManagerConfig(cfg config.Config, smap session.Map) gateway.ManagerConfig {
+	allowedChats := map[string]string{
+		"telegram": strconv.FormatInt(cfg.Telegram.AllowedChatID, 10),
+	}
+	allowDiscovery := map[string]bool{
+		"telegram": cfg.Telegram.FirstRunDiscovery,
+	}
+	return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, nil, nil, nil, gateway.RestartConfig{})
 }

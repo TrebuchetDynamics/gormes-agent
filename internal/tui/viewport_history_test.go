@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -66,6 +67,36 @@ func TestConversationViewportTail_AlwaysIncludesDraftAndLastError(t *testing.T) 
 		if !strings.Contains(got, want) {
 			t.Fatalf("conversationViewportTail() missing %q in:\n%s", want, got)
 		}
+	}
+}
+
+func TestConversationViewportTail_RendersHermesToolProgress(t *testing.T) {
+	frame := kernel.RenderFrame{
+		History: []hermes.Message{
+			{Role: "user", Content: "run the parity check"},
+		},
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: `tool: skill_view: gormes-hermes-parity`},
+			{At: time.Now(), Text: `tool: todo: planning 4 task(s)`},
+			{At: time.Now(), Text: `tool: read_file: /tmp/one.go`},
+			{At: time.Now(), Text: `tool: read_file: /tmp/one.go`},
+			{At: time.Now(), Text: `tool done: execute_code`},
+		},
+	}
+
+	got := conversationViewportTail(frame, 90, 8)
+
+	for _, want := range []string{
+		`📚 skill_view: "gormes-hermes-parity"`,
+		`📋 todo: "planning 4 task(s)"`,
+		`📖 read_file: "/tmp/one.go" (×2)`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("conversationViewportTail() missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "tool done") || strings.Contains(got, `🔧 tool done`) {
+		t.Fatalf("conversationViewportTail() leaked legacy completion text:\n%s", got)
 	}
 }
 

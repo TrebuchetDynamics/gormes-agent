@@ -24,6 +24,26 @@ If the task might be planning, parity audit, interface design, or skill creation
 5. Read exact `source_refs`, upstream Hermes/Honcho/GBrain files, and current Gormes code before editing.
 6. Read `references/delivery-gates.md` before final verification.
 
+For Hermes UX parity rows, confirm the active upstream contract before
+writing tests. The current full-screen terminal UI comes from
+`../hermes-agent/ui-tui`; the older prompt-toolkit CLI in
+`../hermes-agent/cli.py` is still useful for classic command
+behavior but is not authoritative for the modern TUI chrome. Runtime,
+installer, `go run`, `bin/gormes`, installed-binary, PATH, and
+`sessions.db`-lock behavior belongs under `gormes-dev-runtime` before this
+skill implements a row.
+
+For persona/default-template rows, first check whether the existing
+`Gormes agent template reset command` row and `internal/agenttemplate` already
+cover the behavior. Extend that proven surface with focused tests instead of
+creating a second reset/default-template implementation.
+
+For tool-loop rows, first check the completed `Kernel tool loop` progress row,
+`internal/kernel/kernel.go`, and `internal/kernel/tools_test.go`. If those
+fixtures pass, a live report like raw `tool iteration limit exceeded (10)` is
+likely stale binary/runtime validation or channel rendering, not a new kernel
+loop implementation.
+
 ## Row Selection
 
 If the user names a row, use that row. Otherwise choose the highest-value row that is actually builder-ready:
@@ -59,6 +79,7 @@ Summarize the selected row in your own words:
 - target Go package and public interface;
 - exact write scope
 - upstream behavior being ported
+- active upstream implementation and why it is the right contract
 - expected tests
 - done signal
 
@@ -94,6 +115,15 @@ Use TDD unless the row is explicitly `no_test_required`.
 - For Goncho/Honcho work, include compatibility expectations for public `honcho_*` names when relevant.
 - For gateway/provider work, include degraded-mode and error classification tests.
 - For CLI/TUI/API work, include command/server behavior tests or e2e where practical.
+- For visible Hermes UX bugs, test the artifact the user actually sees:
+  stale "Hermes" labels, duplicate replies, hourglass/status messages,
+  hidden or leaked tool-call noise, debug chrome, old prompt boxes/rules, and
+  session-state fallback copy are all first-class assertions.
+- For installer/runtime rows, test the source/binary/install matrix when the
+  bug can differ by surface. Use isolated `GORMES_HOME` temp dirs for smoke
+  tests and assert Gormes output never tells users to start Hermes services.
+- For channel-visible tool-loop rows, include a fixture that proves the raw
+  budget error, leaked tool-call XML/text, and duplicate final send are absent.
 
 Run the focused test and capture the failure before implementing when feasible.
 
@@ -123,6 +153,10 @@ Use `references/delivery-gates.md` to decide when docs, web, Playwright, or orch
 If implementation changes a feature-map claim, update the row or send the work
 back through `gormes-planner` before reporting done.
 
+If a row's `source_refs` point at stale upstream files for the behavior being
+implemented, do not silently build against them. Patch the row or hand it to
+`gormes-planner` first, then implement against the corrected contract.
+
 ### 5. Update Surfaces
 
 If implementation changes public behavior, update the matching docs, generated data, or website content. If the row is fully proven, update only the relevant progress evidence/status fields according to repo patterns; do not reshape unrelated roadmap rows.
@@ -144,6 +178,8 @@ For complex rows, use `gormes-tdd-slice` for the red-green loop. For uncertain A
 If tests fail from your own changes, fix them before reporting done. If the selected row is unbuildable because the contract is wrong, update/refine the row or report the exact blocker.
 
 If the worktree is dirty before you start, preserve existing changes. Do not revert user or previous-agent work. Work with the current tree and mention any verification limits caused by unrelated changes.
+
+If `git push origin development` is rejected because another worker advanced the branch, fetch and inspect the upstream commit before rebasing. When upstream already updated the same `progress.json` row or generated progress/docs/site surfaces, treat upstream generated surfaces as the source of truth during conflict resolution: keep the current slice's code/tests, preserve any stronger upstream acceptance/write-scope evidence, rerun `go run ./cmd/progress write`, and commit only the remaining coherent code/test delta if generated files no longer differ. Do not reapply stale generated progress/site hunks from the pre-rebase commit just to match local notes.
 
 ## Final Report
 

@@ -1,0 +1,99 @@
+package tui
+
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+// HermesChromeInput is the pure input to RenderHermesChrome. The TUI renderer
+// pre-builds each section (conversation tail, optional activity/hint row,
+// status rule, prompt+input area, optional voice/image/completion rows) and
+// asks this helper to assemble the bottom-pinned ordering Hermes' Ink TUI
+// renders in ui-tui/src/components/appLayout.tsx.
+type HermesChromeInput struct {
+	// Width is retained as the caller's terminal column budget for future
+	// optional-row renderers. The chrome assembler does not synthesize
+	// standalone full-width rule rows.
+	Width int
+
+	// Conversation is the pre-rendered scrollback/output region (history
+	// tail + optional draft + optional last-error block).
+	Conversation string
+
+	// Spinner is the optional activity/hint line shown above the status bar
+	// while a turn is in flight or while a TUI hint is forced. Empty means
+	// the row is dropped.
+	Spinner string
+
+	// StatusBar is the single-line Hermes-compatible status rule rendered by
+	// RenderHermesStatusBar.
+	StatusBar string
+
+	// Prompt is the pre-rendered prompt symbol + input area block.
+	Prompt string
+
+	// VoiceStatus, ImageBar, and Completions are optional rows rendered
+	// below the prompt. Empty strings are dropped.
+	VoiceStatus string
+	ImageBar    string
+	Completions string
+}
+
+// RenderHermesChrome assembles the bottom-pinned chrome stack used by
+// Hermes' Ink frontend. Layout order matches ComposerPane in
+// ui-tui/src/components/appLayout.tsx:
+//
+//	conversation
+//	(optional) spinner/hint
+//	status bar
+//	prompt + input area
+//	(optional) voice status
+//	(optional) image bar
+//	(optional) completions menu
+//
+// All sections are caller-rendered strings; this helper only picks order,
+// and drops empty optional rows. Current Hermes Ink uses StatusRule as the
+// composer separator and does not inject standalone full-width input rules.
+func RenderHermesChrome(in HermesChromeInput) string {
+	parts := make([]string, 0, 7)
+	if in.Conversation != "" {
+		parts = append(parts, in.Conversation)
+	}
+	if in.Spinner != "" {
+		parts = append(parts, in.Spinner)
+	}
+	if in.StatusBar != "" {
+		parts = append(parts, in.StatusBar)
+	}
+	if in.Prompt != "" {
+		parts = append(parts, in.Prompt)
+	}
+	if in.VoiceStatus != "" {
+		parts = append(parts, in.VoiceStatus)
+	}
+	if in.ImageBar != "" {
+		parts = append(parts, in.ImageBar)
+	}
+	if in.Completions != "" {
+		parts = append(parts, in.Completions)
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+}
+
+// HermesChromeUseAltScreen reports whether the bottom-pinned Hermes chrome
+// should be rendered in the terminal alt-screen. Upstream Hermes' current Ink
+// TUI uses an alternate screen by default and only skips it for explicit inline
+// mode. Gormes' Bubble Tea surface is likewise a full-screen renderer; normal
+// scrollback leaves stale frame fragments visible after render ticks.
+func HermesChromeUseAltScreen() bool {
+	return true
+}
+
+// HermesChromeAssistantLabel returns the response-region label rendered above
+// assistant output. It keeps Hermes' response-box shape while using Gormes'
+// product label.
+func HermesChromeAssistantLabel() string {
+	return strings.TrimSpace(DefaultHermesSkin().ResponseLabel)
+}

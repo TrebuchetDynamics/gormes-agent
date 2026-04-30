@@ -129,6 +129,25 @@ The frozen contract is:
 
 This matters because the current memory substrate is already strong enough to make a bad identity decision expensive: once facts, conclusions, and tool-visible context start spanning multiple chats, any ambiguity around "who" a chat belongs to becomes a correctness and privacy problem rather than a mere schema nuisance.
 
+## Go donor pointers
+
+Before writing a new Phase 3 slice, route through the `gormes-references`
+skill (`docs/development-skills/gormes-references/SKILL.md`) to find the
+donor file that already shapes the seam.
+
+| Phase 3 problem | Donor file | Notes |
+|---|---|---|
+| 3.A SQLite + FTS5 store with DDL/indexes/migrations | `engram/internal/store/store.go` | MIT; adapt with attribution |
+| 3.B relation/conflict vocabulary (`related`, `conflicts_with`, `supersedes`, `compatible`, `scoped`, `not_conflict`) | `engram/internal/store/relations.go` | Provenance-rich edge schema |
+| 3.E.2 append-only tool/audit JSONL with redaction | `engram/internal/mcp/activity.go` | Already mirrors Gormes' audit shape |
+| 3.F Goncho serialized write queue (mutex-serialized, cancel-before-start) | `engram/internal/mcp/write_queue.go` | Foundation for Goncho conflict-detection writes |
+| 3.E recall budget tracker (bounded recall context) | `axe/internal/budget/budget.go` | Per-turn counter + overflow signal |
+| 3.E.3 transcript export — sanitized artifact paths | `axe/internal/artifact/tracker.go` | Path-traversal guard, append-only registry |
+
+Engram is MIT-licensed and is the densest donor for memory work. Always add
+`// Adapted from engram/...::Symbol` provenance comments and convert types so
+no `engram_*` symbol leaks into Gormes' public API.
+
 ## Pre-Phase 4 E2E Gate (Hermes still running)
 
 Before starting Phase 4 implementation work, run and freeze a hybrid end-to-end baseline while Hermes is still the upstream brain (`api_server`) and Gormes owns runtime/gateway/memory surfaces.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -16,14 +17,67 @@ import (
 // domain-specific tools (scientific simulators, business wrappers, etc.)
 // call reg.Register on the returned *Registry before passing it into the
 // kernel Config. Gormes itself ships no domain-specific tools.
-func buildDefaultRegistry(parentCtx context.Context, delegation config.DelegationCfg, skillsRoot string, childClient hermes.Client, childModel string) *tools.Registry {
+func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childClient hermes.Client, childModel string) *tools.Registry {
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
 	reg.MustRegister(tools.NewExecuteCodeTool())
-	if delegation.Enabled {
+	fileTools := tools.FileTaskToolConfig{}
+	reg.MustRegister(tools.NewReadFileTool(fileTools))
+	reg.MustRegister(tools.NewSearchFilesTool(fileTools))
+	reg.MustRegister(tools.NewWriteFileTool(fileTools))
+	reg.MustRegister(tools.NewPatchTool(fileTools))
+	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{}))
+	reg.MustRegister(tools.NewClarifyTool(nil))
+	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
+		Backend: tools.WebBackendConfig{
+			Backend:             cfg.Web.Backend,
+			UseGateway:          cfg.Web.UseGateway,
+			ManagedToolsEnabled: true,
+			AuthStorePath:       filepath.Join(config.GormesHome(), "auth.json"),
+		},
+		Policy: tools.WebWebsitePolicy{
+			Enabled:           cfg.Security.WebsiteBlocklist.Enabled,
+			Domains:           cfg.Security.WebsiteBlocklist.Domains,
+			SharedFiles:       cfg.Security.WebsiteBlocklist.SharedFiles,
+			SharedFileBaseDir: cfg.Security.WebsiteBlocklist.BaseDir,
+		},
+		Processing: tools.WebContentProcessingConfig{
+			Enabled: childClient != nil,
+		},
+		ContentProcessor: newHermesWebContentProcessor(childClient, childModel),
+	}) {
+		reg.MustRegister(tool)
+	}
+	ttsProviders := map[string]tools.TTSProvider{}
+	if edge := tools.NewEdgeTTSCommandProviderFromEnv(); edge != nil {
+		ttsProviders["edge"] = edge
+	}
+	reg.MustRegister(tools.NewTextToSpeechTool(tools.NewTTSRunner(tools.TTSConfig{
+		OutputDir: filepath.Join(config.GormesHome(), "cache", "audio"),
+	}, ttsProviders)))
+	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
+		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
+	}))
+	for _, tool := range tools.NewSkillsTools(tools.SkillsToolsConfig{
+		Root:        cfg.SkillsRoot(),
+		BundledRoot: skills.BundledRoot(),
+	}) {
+		reg.MustRegister(tool)
+	}
+	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
+		Budget: tools.ToolResultBudgetConfig{
+			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),
+			TextBudgetBytes: 8 * 1024,
+			PreviewBytes:    1024,
+		},
+	}) {
+		reg.MustRegister(tool)
+	}
+	if cfg.Delegation.Enabled {
 		var drafter subagent.CandidateDrafter
+		skillsRoot := cfg.SkillsRoot()
 		if skillsRoot != "" {
 			drafter = skillsCandidateDrafter{store: skills.NewStore(skillsRoot, 0)}
 		}
@@ -33,11 +87,11 @@ func buildDefaultRegistry(parentCtx context.Context, delegation config.Delegatio
 			Depth:                0,
 			Registry:             subagent.NewRegistry(),
 			ToolExecutor:         tools.NewInProcessToolExecutor(reg),
-			MaxDepth:             delegation.MaxDepth,
-			DefaultMaxIterations: delegation.DefaultMaxIterations,
-			DefaultMaxConcurrent: delegation.MaxConcurrentChildren,
-			DefaultTimeout:       delegation.DefaultTimeout,
-			RunLogPath:           delegation.ResolvedRunLogPath(),
+			MaxDepth:             cfg.Delegation.MaxDepth,
+			DefaultMaxIterations: cfg.Delegation.DefaultMaxIterations,
+			DefaultMaxConcurrent: cfg.Delegation.MaxConcurrentChildren,
+			DefaultTimeout:       cfg.Delegation.DefaultTimeout,
+			RunLogPath:           cfg.Delegation.ResolvedRunLogPath(),
 			ToolAudit:            audit.NewJSONLWriter(config.ToolAuditLogPath()),
 		}
 		if childClient != nil {

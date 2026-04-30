@@ -14,9 +14,9 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
 )
 
-func TestTUISaveExportHelper_WritesUnderXDGDataHome(t *testing.T) {
+func TestTUISaveExportHelper_WritesUnderGormesHome(t *testing.T) {
 	root := t.TempDir()
-	dataHome := filepath.Join(root, "xdg-data")
+	gormesHome := filepath.Join(root, "gormes-home")
 	hermesHome := filepath.Join(root, "hermes-home")
 	cwd := filepath.Join(root, "cwd")
 	if err := os.MkdirAll(cwd, 0o755); err != nil {
@@ -34,7 +34,8 @@ func TestTUISaveExportHelper_WritesUnderXDGDataHome(t *testing.T) {
 	if err := os.Chdir(cwd); err != nil {
 		t.Fatalf("Chdir(cwd): %v", err)
 	}
-	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg-data"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("HERMES_HOME", hermesHome)
 	seedTUISaveTranscriptDB(t, "sess-xdg", "discord:chan-7")
@@ -44,7 +45,7 @@ func TestTUISaveExportHelper_WritesUnderXDGDataHome(t *testing.T) {
 		t.Fatalf("SessionExportFunc: %v", err)
 	}
 
-	wantPath := filepath.Join(dataHome, "gormes", "sessions", "exports", "sess-xdg.md")
+	wantPath := filepath.Join(config.GormesHome(), "sessions", "exports", "sess-xdg.md")
 	if path != wantPath {
 		t.Fatalf("export path = %q, want %q", path, wantPath)
 	}
@@ -67,13 +68,14 @@ func TestTUISaveExportHelper_WritesUnderXDGDataHome(t *testing.T) {
 
 func TestTUISaveExportHelper_CollisionSafeName(t *testing.T) {
 	root := t.TempDir()
-	dataHome := filepath.Join(root, "xdg-data")
-	t.Setenv("XDG_DATA_HOME", dataHome)
+	gormesHome := filepath.Join(root, "gormes-home")
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg-data"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes-home"))
 	seedTUISaveTranscriptDB(t, "sess-collision", "telegram:42")
 
-	exportDir := filepath.Join(dataHome, "gormes", "sessions", "exports")
+	exportDir := filepath.Join(config.GormesHome(), "sessions", "exports")
 	if err := os.MkdirAll(exportDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(exportDir): %v", err)
 	}

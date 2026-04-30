@@ -14,6 +14,7 @@ type fakeChannel struct {
 	mu            sync.Mutex
 	sent          []fakeSent
 	edits         []fakeEdit
+	media         []fakeMedia
 	placeholders  []string
 	reactions     []fakeReaction
 	typingChats   []string
@@ -26,6 +27,12 @@ type fakeChannel struct {
 
 type fakeSent struct{ ChatID, Text, MsgID string }
 type fakeEdit struct{ ChatID, MsgID, Text string }
+type fakeMedia struct {
+	ChatID       string
+	ReplyToMsgID string
+	Media        OutboundMedia
+	MsgID        string
+}
 type fakeReaction struct{ ChatID, MsgID string }
 
 func newFakeChannel(name string) *fakeChannel {
@@ -123,6 +130,18 @@ func (f *fakeChannel) EditMessage(_ context.Context, chatID, msgID, text string)
 	return nil
 }
 
+func (f *fakeChannel) SendMedia(_ context.Context, chatID, replyToMsgID string, media OutboundMedia) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.sendErr != nil {
+		return "", f.sendErr
+	}
+	id := strconv.Itoa(f.nextMsgID)
+	f.nextMsgID++
+	f.media = append(f.media, fakeMedia{ChatID: chatID, ReplyToMsgID: replyToMsgID, Media: media, MsgID: id})
+	return id, nil
+}
+
 func (f *fakeChannel) SendPlaceholder(_ context.Context, chatID string) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -179,6 +198,14 @@ func (f *fakeChannel) editsSnapshot() []fakeEdit {
 	defer f.mu.Unlock()
 	out := make([]fakeEdit, len(f.edits))
 	copy(out, f.edits)
+	return out
+}
+
+func (f *fakeChannel) mediaSnapshot() []fakeMedia {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]fakeMedia, len(f.media))
+	copy(out, f.media)
 	return out
 }
 

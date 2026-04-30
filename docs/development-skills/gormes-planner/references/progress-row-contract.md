@@ -23,6 +23,25 @@ Use these fields when the schema allows them:
 - `done_signal`: final evidence the builder should report.
 - `provenance`: `upstream`, `gormes`, or `hybrid`; avoid fake upstream refs.
 
+## Inventory And Umbrella Parent Rows
+
+If you add `contract` or `contract_status` to a broad `slice_size: umbrella`
+row for source-backed inventory continuity, the progress validator treats it as
+a contract row. Include the same schema-completeness fields even though it is
+not builder-selectable:
+
+- `ready_when`: say the parent is inventory-only and child rows remain present.
+- `not_ready_when`: explicitly block assigning the umbrella as one combined
+  implementation slice.
+- `write_scope`: normally just `docs/content/building-gormes/architecture_plan/progress.json`
+  unless generated docs or site data are expected.
+- `no_test_required`: explain that executable child rows carry the tests.
+- `done_signal`: state that the parent remains non-selectable and source-backed
+  while child rows provide runnable implementation and tests.
+
+Do not add a contract to a parent row without these fields; `go run
+./cmd/progress write` will fail before generating docs.
+
 When a row comes from the Hermes/Honcho feature map, include the map section or
 anchor in `source_refs`, `fixture`, or `note`; `feature_map_anchor` is a useful
 planning term but is not a schema field unless the schema adds it.

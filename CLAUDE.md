@@ -36,11 +36,15 @@ Default routing:
 |---|---|
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
 | Mapping Hermes/Honcho/GBrain parity gaps | `gormes-parity-auditor` |
+| Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
+| Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
-| Auditing or periodically refreshing README/public repository messaging | `gormes-research` |
+| Stuck on a Go implementation shape; want a donor file from `references/go-agent-os/` before writing code | `gormes-references` |
+| Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
+| Improving `www.gormes.ai` landing page content or UI | `gormes-landing-web` |
 | Stress-testing a plan or decision tree with the user | `grill-me` |
 
 If none fits repeated Gormes work, use `gormes-skill-manager` with a skill

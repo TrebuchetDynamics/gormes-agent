@@ -10,8 +10,12 @@
 # Environment overrides:
 #   GORMES_BRANCH        target branch (default: main)
 #   GORMES_INSTALL_HOME  managed install home (default: $HOME/.gormes)
-#   GORMES_INSTALL_DIR   managed checkout directory (default: $GORMES_INSTALL_HOME/gormes-agent)
-#   GORMES_BIN_DIR       published command directory (default: $HOME/.local/bin)
+#   GORMES_INSTALL_DIR   managed checkout directory
+#                        default (non-root): $GORMES_INSTALL_HOME/gormes-agent
+#                        default (root Linux): /usr/local/lib/gormes-agent
+#   GORMES_BIN_DIR       published command directory
+#                        default (non-root): $HOME/.local/bin
+#                        default (root Linux): /usr/local/bin
 #   GORMES_PREFIX        compatibility prefix; publishes into $GORMES_PREFIX/bin
 #
 # Native Windows shells are not supported here. Use:
@@ -39,9 +43,18 @@ Usage:
 Options:
   --branch NAME  Git branch to install or update (default: main)
   --home DIR     Managed install home (default: $HOME/.gormes)
-  --dir DIR      Managed checkout directory (default: $HOME/.gormes/gormes-agent)
-  --bin-dir DIR  Published command directory (default: $HOME/.local/bin)
+  --dir DIR      Managed checkout directory
+                   default (non-root): $HOME/.gormes/gormes-agent
+                   default (root Linux): /usr/local/lib/gormes-agent
+  --bin-dir DIR  Published command directory
+                   default (non-root): $HOME/.local/bin
+                   default (root Linux): /usr/local/bin
   -h, --help     Show this help
+
+Root Linux installs use an FHS layout like Hermes Agent: code under
+/usr/local/lib/gormes-agent, command in /usr/local/bin/gormes, and data under
+$GORMES_INSTALL_HOME. Existing legacy root checkouts at
+$GORMES_INSTALL_HOME/gormes-agent are preserved in place.
 EOF
 }
 
@@ -68,6 +81,35 @@ is_termux() {
   esac
 }
 
+effective_uid() {
+  if [ -n "${GORMES_INSTALL_EFFECTIVE_UID:-}" ]; then
+    printf '%s\n' "$GORMES_INSTALL_EFFECTIVE_UID"
+    return
+  fi
+  if has id; then
+    id -u
+    return
+  fi
+  printf '1\n'
+}
+
+is_root_linux_install() {
+  case "$(platform_name)" in
+    Linux*) ;;
+    *) return 1 ;;
+  esac
+  is_termux && return 1
+  [ "$(effective_uid)" = "0" ]
+}
+
+legacy_checkout_dir() {
+  printf '%s/gormes-agent\n' "$(managed_home_dir)"
+}
+
+has_legacy_checkout() {
+  [ -d "$(legacy_checkout_dir)/.git" ]
+}
+
 managed_home_dir() {
   printf '%s\n' "${GORMES_INSTALL_HOME:-$HOME/.gormes}"
 }
@@ -75,6 +117,14 @@ managed_home_dir() {
 managed_checkout_dir() {
   if [ -n "${GORMES_INSTALL_DIR:-}" ]; then
     printf '%s\n' "$GORMES_INSTALL_DIR"
+    return
+  fi
+  if is_root_linux_install; then
+    if has_legacy_checkout; then
+      printf '%s\n' "$(legacy_checkout_dir)"
+      return
+    fi
+    printf '/usr/local/lib/gormes-agent\n'
     return
   fi
   printf '%s/gormes-agent\n' "$(managed_home_dir)"
@@ -97,6 +147,10 @@ pick_bin_dir() {
     printf '%s/bin\n' "$PREFIX"
     return
   fi
+  if is_root_linux_install && ! has_legacy_checkout; then
+    printf '/usr/local/bin\n'
+    return
+  fi
   printf '%s/.local/bin\n' "$HOME"
 }
 
@@ -111,6 +165,14 @@ path_contains_dir() {
   case ":${PATH:-}:" in
     *":$1:"*) return 0 ;;
     *) return 1 ;;
+  esac
+}
+
+active_command_path() {
+  found=$(command -v gormes 2>/dev/null || true)
+  case "$found" in
+    /*|*/*) printf '%s\n' "$found" ;;
+    *) printf '\n' ;;
   esac
 }
 
@@ -489,6 +551,16 @@ publish_command() {
   build_bin="$(managed_bin_dir)/gormes"
   published_bin="${bin_dir}/gormes"
 
+  publish_built_binary "$build_bin" "$published_bin"
+  update_active_command "$build_bin" "$published_bin"
+}
+
+publish_built_binary() {
+  build_bin="$1"
+  published_bin="$2"
+  bin_dir=$(parent_dir "$published_bin")
+
+  [ ! -d "$published_bin" ] || fail "cannot replace directory with gormes command: ${published_bin}"
   mkdir -p "$bin_dir"
   if [ ! -w "$bin_dir" ]; then
     fail "cannot write to ${bin_dir}; rerun with --bin-dir or GORMES_BIN_DIR"
@@ -510,11 +582,29 @@ publish_command() {
   mv -f "$tmp" "$published_bin" || fail "could not publish ${published_bin}"
 }
 
+update_active_command() {
+  build_bin="$1"
+  published_bin="$2"
+  active_bin=$(active_command_path)
+
+  [ -n "$active_bin" ] || return 0
+  [ "$active_bin" != "$published_bin" ] || return 0
+  [ "$active_bin" != "$build_bin" ] || return 0
+
+  log "updating active PATH command ${active_bin}"
+  publish_built_binary "$build_bin" "$active_bin"
+}
+
 verify_install() {
   published_bin="$(pick_bin_dir)/gormes"
 
   [ -x "$published_bin" ] || fail "published command is not executable: ${published_bin}"
   "$published_bin" version >/dev/null 2>&1 || fail "verification failed: ${published_bin} version"
+
+  active_bin=$(active_command_path)
+  if [ -n "$active_bin" ]; then
+    "$active_bin" version >/dev/null 2>&1 || fail "verification failed: active PATH command ${active_bin} version"
+  fi
 
   if "$published_bin" doctor --offline >/dev/null 2>&1; then
     log "offline doctor passed"
@@ -530,6 +620,10 @@ print_summary() {
   log "Core install: succeeded"
   log "Managed checkout: $(managed_checkout_dir)"
   log "Published command: ${published_bin}"
+  active_bin=$(active_command_path)
+  if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ]; then
+    log "Updated active PATH command: ${active_bin}"
+  fi
   log "Verification: succeeded"
 
   if path_contains_dir "$bin_dir"; then

@@ -21,11 +21,11 @@ func TestCoalescerFreshFinal_DisabledThresholdEditsInPlace(t *testing.T) {
 	c.flushImmediateFinal(context.Background(), "final", true)
 
 	if got := ch.sentSnapshot(); len(got) != 1 {
-		t.Fatalf("Send calls = %d, want only initial placeholder send; sent=%#v", len(got), got)
+		t.Fatalf("Send calls = %d, want only initial preview send; sent=%#v", len(got), got)
 	}
 	edits := ch.editsSnapshot()
 	if len(edits) != 2 {
-		t.Fatalf("EditMessageFinal calls = %d, want preview edit and final edit; edits=%#v", len(edits), edits)
+		t.Fatalf("EditMessageFinal calls = %d, want preview plus final edit; edits=%#v", len(edits), edits)
 	}
 	if edits[1].Text != "final" {
 		t.Fatalf("final edit text = %q, want %q", edits[1].Text, "final")
@@ -51,11 +51,11 @@ func TestCoalescerFreshFinal_YoungPreviewEditsInPlace(t *testing.T) {
 	c.flushImmediateFinal(context.Background(), "final", true)
 
 	if got := ch.sentSnapshot(); len(got) != 1 {
-		t.Fatalf("Send calls = %d, want only initial placeholder send; sent=%#v", len(got), got)
+		t.Fatalf("Send calls = %d, want only initial preview send; sent=%#v", len(got), got)
 	}
 	edits := ch.editsSnapshot()
 	if len(edits) != 2 {
-		t.Fatalf("EditMessageFinal calls = %d, want preview edit and final edit; edits=%#v", len(edits), edits)
+		t.Fatalf("EditMessageFinal calls = %d, want preview plus final edit; edits=%#v", len(edits), edits)
 	}
 	if edits[1].Text != "final" {
 		t.Fatalf("final edit text = %q, want %q", edits[1].Text, "final")
@@ -80,14 +80,17 @@ func TestCoalescerFreshFinal_OldPreviewSendsFreshAndDeletesOld(t *testing.T) {
 
 	sent := ch.sentSnapshot()
 	if len(sent) != 2 {
-		t.Fatalf("Send calls = %d, want placeholder plus fresh final; sent=%#v", len(sent), sent)
+		t.Fatalf("Send calls = %d, want preview plus fresh final; sent=%#v", len(sent), sent)
 	}
 	if sent[1].Text != "final" {
 		t.Fatalf("fresh final text = %q, want %q", sent[1].Text, "final")
 	}
 	edits := ch.editsSnapshot()
 	if len(edits) != 1 {
-		t.Fatalf("EditMessageFinal calls = %d, want only initial preview edit; edits=%#v", len(edits), edits)
+		t.Fatalf("EditMessageFinal calls = %d, want only preview edit before fresh final; edits=%#v", len(edits), edits)
+	}
+	if edits[0].Text != "preview" {
+		t.Fatalf("preview edit text = %q, want %q", edits[0].Text, "preview")
 	}
 	if got, want := c.currentMessageID(), sent[1].MsgID; got != want {
 		t.Fatalf("currentMessageID = %q, want fresh id %q", got, want)
@@ -111,7 +114,7 @@ func TestCoalescerFreshFinal_DeleteUnsupportedStillSucceeds(t *testing.T) {
 
 	sent := ch.sentSnapshot()
 	if len(sent) != 2 {
-		t.Fatalf("Send calls = %d, want placeholder plus fresh final; sent=%#v", len(sent), sent)
+		t.Fatalf("Send calls = %d, want preview plus fresh final; sent=%#v", len(sent), sent)
 	}
 	if sent[1].Text != "final" {
 		t.Fatalf("fresh final text = %q, want %q", sent[1].Text, "final")
@@ -136,11 +139,11 @@ func TestCoalescerFreshFinal_FreshSendFailureFallsBackToEdit(t *testing.T) {
 	c.flushImmediateFinal(context.Background(), "final", true)
 
 	if got := ch.sentSnapshot(); len(got) != 1 {
-		t.Fatalf("successful Send calls = %d, want only initial placeholder send; sent=%#v", len(got), got)
+		t.Fatalf("successful Send calls = %d, want only initial preview send; sent=%#v", len(got), got)
 	}
 	edits := ch.editsSnapshot()
 	if len(edits) != 2 {
-		t.Fatalf("EditMessageFinal calls = %d, want preview edit and fallback final edit; edits=%#v", len(edits), edits)
+		t.Fatalf("EditMessageFinal calls = %d, want preview plus fallback final edit; edits=%#v", len(edits), edits)
 	}
 	if edits[1].MsgID != oldID || edits[1].Text != "final" {
 		t.Fatalf("fallback edit = %#v, want msgID %q text %q", edits[1], oldID, "final")
@@ -171,6 +174,10 @@ func (f *freshFinalFakeChannel) DeleteMessage(_ context.Context, chatID, msgID s
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.deletes = append(f.deletes, fakeDelete{ChatID: chatID, MsgID: msgID})
+	return nil
+}
+
+func (f *freshFinalFakeChannel) SendChatAction(context.Context, string, string) error {
 	return nil
 }
 

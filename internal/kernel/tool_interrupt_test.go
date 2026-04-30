@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,6 +74,96 @@ func TestKernel_CancelDuringToolCallsCancelsSidecarAndDelegatedChild(t *testing.
 	}
 	if len(final.History) != 1 || final.History[0].Role != "user" {
 		t.Fatalf("history after cancelled tool batch = %#v, want only the original user turn", final.History)
+	}
+}
+
+func TestKernel_SteerDuringToolBatchAppendsGuidanceToNextProviderRequest(t *testing.T) {
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	reg := tools.NewRegistry()
+	reg.MustRegister(&steerBlockingTool{started: started, release: release})
+
+	mc := hermes.NewMockClient()
+	mc.Script([]hermes.Event{{
+		Kind:         hermes.EventDone,
+		FinishReason: "tool_calls",
+		ToolCalls: []hermes.ToolCall{{
+			ID:        "call_wait",
+			Name:      "steer_wait",
+			Arguments: json.RawMessage(`{}`),
+		}},
+	}}, "sess-steer")
+	mc.Script([]hermes.Event{{Kind: hermes.EventToken, Token: "done"}, {Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-steer")
+
+	k := New(Config{
+		Model:             "hermes-agent",
+		Endpoint:          "http://mock",
+		Admission:         Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Tools:             reg,
+		MaxToolIterations: 10,
+		MaxToolDuration:   5 * time.Second,
+	}, mc, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	initial := <-k.Render()
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "use a tool"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("tool did not start")
+	}
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSteer, Text: "inspect the failing test before editing"}); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	_, final := drainUntilIdle(t, k.Render(), initial.Seq, time.Second)
+	if final.Phase != PhaseIdle {
+		t.Fatalf("final phase = %v, want idle", final.Phase)
+	}
+	reqs := mc.Requests()
+	if len(reqs) != 2 {
+		t.Fatalf("OpenStream request count = %d, want 2", len(reqs))
+	}
+	messages := reqs[1].Messages
+	if len(messages) == 0 {
+		t.Fatal("second request has no messages")
+	}
+	last := messages[len(messages)-1]
+	if last.Role != "tool" {
+		t.Fatalf("last second-request message role = %q, want tool", last.Role)
+	}
+	for _, want := range []string{"Gormes operator /steer guidance", "inspect the failing test before editing"} {
+		if !strings.Contains(last.Content, want) {
+			t.Fatalf("steered tool result %q missing %q", last.Content, want)
+		}
+	}
+}
+
+type steerBlockingTool struct {
+	started chan<- struct{}
+	release <-chan struct{}
+}
+
+func (*steerBlockingTool) Name() string        { return "steer_wait" }
+func (*steerBlockingTool) Description() string { return "waits until released" }
+func (*steerBlockingTool) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{},"required":[]}`)
+}
+func (*steerBlockingTool) Timeout() time.Duration { return 0 }
+func (t *steerBlockingTool) Execute(ctx context.Context, _ json.RawMessage) (json.RawMessage, error) {
+	select {
+	case t.started <- struct{}{}:
+	default:
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-t.release:
+		return json.RawMessage(`{"status":"released"}`), nil
 	}
 }
 

@@ -1,0 +1,21 @@
+package ui
+
+templ ChatPage() {
+	@layout("Chat") {
+		<div class="card">
+			<h2>💬 Interactive Chat</h2>
+			<div class="terminal-box" id="chat-feed"
+				hx-ext="sse"
+				sse-connect="/dashboard/events"
+				sse-swap="frame"
+				hx-swap="beforeend"
+				style="max-height:600px">
+				<div class="line thinking">Starting chat session…</div>
+			</div>
+		</div>
+		<form hx-post="/agent/execute" hx-target="#chat-feed" hx-swap="beforeend" style="margin-top:12px">
+			<input type="text" name="prompt" placeholder="Type your message…" required style="flex:1"/>
+			<button type="submit">Send</button>
+		</form>
+	}
+}

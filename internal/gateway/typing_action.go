@@ -1,0 +1,80 @@
+package gateway
+
+import (
+	"context"
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+)
+
+const (
+	typingActionName           = "typing"
+	typingActionThrottleWindow = 4 * time.Second
+	typingActionFailedCode     = "typing_action_failed"
+)
+
+// TypingActionEvidence carries redacted non-fatal typing-action failure
+// evidence. It deliberately omits raw API errors, chat IDs, and credentials.
+type TypingActionEvidence struct {
+	Code    string
+	Message string
+}
+
+// TypingActionEvidenceSink receives redacted typing-action failure evidence.
+type TypingActionEvidenceSink func(TypingActionEvidence)
+
+func isTypingActionPhase(phase kernel.Phase) bool {
+	switch phase {
+	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
+		return true
+	default:
+		return false
+	}
+}
+
+func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase kernel.Phase, chatID string) {
+	if !isTypingActionPhase(phase) {
+		return
+	}
+	actor, ok := ch.(TypingActionCapable)
+	if !ok {
+		return
+	}
+
+	key := ch.Name() + "\x00" + chatID
+	now := m.now()
+	m.typingActionMu.Lock()
+	if m.typingActionLast == nil {
+		m.typingActionLast = map[string]time.Time{}
+	}
+	last := m.typingActionLast[key]
+	if !last.IsZero() && now.Sub(last) < typingActionThrottleWindow {
+		m.typingActionMu.Unlock()
+		return
+	}
+	m.typingActionLast[key] = now
+	m.typingActionMu.Unlock()
+
+	if err := actor.SendChatAction(ctx, chatID, typingActionName); err != nil {
+		m.recordTypingActionFailure(ch.Name())
+	}
+}
+
+func (m *Manager) recordTypingActionFailure(platform string) {
+	ev := TypingActionEvidence{
+		Code:    typingActionFailedCode,
+		Message: "typing action failed",
+	}
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		Platform:      platform,
+		PlatformState: PlatformStateRunning,
+		ErrorMessage:  ev.Code,
+	})
+	if m.cfg.TypingActionEvidenceSink == nil {
+		return
+	}
+	defer func() {
+		_ = recover()
+	}()
+	m.cfg.TypingActionEvidenceSink(ev)
+}

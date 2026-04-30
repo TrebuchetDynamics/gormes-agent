@@ -29,8 +29,10 @@ type Metadata struct {
 	Source                       string               `json:"source,omitempty"`
 	ChatID                       string               `json:"chat_id,omitempty"`
 	UserID                       string               `json:"user_id,omitempty"`
+	Title                        string               `json:"title,omitempty"`
 	ParentSessionID              string               `json:"parent_session_id,omitempty"`
 	LineageKind                  string               `json:"lineage_kind"`
+	CreatedAt                    int64                `json:"created_at,omitempty"`
 	UpdatedAt                    int64                `json:"updated_at"`
 	ResumePending                bool                 `json:"resume_pending,omitempty"`
 	ResumeReason                 string               `json:"resume_reason,omitempty"`
@@ -43,6 +45,17 @@ type Metadata struct {
 	ExpiryFinalizeLastError      string               `json:"expiry_finalize_last_error,omitempty"`
 	ExpiryFinalizeLastEvidenceAt int64                `json:"expiry_finalize_last_evidence_at,omitempty"`
 	MigratedMemoryFlushed        bool                 `json:"migrated_memory_flushed,omitempty"`
+	// TokensInTotal and TokensOutTotal persist provider usage totals observed by
+	// the gateway for this session so /status can report durable Hermes-style
+	// token accounting after the live render frame has gone idle or restarted.
+	TokensInTotal  int `json:"tokens_in_total,omitempty"`
+	TokensOutTotal int `json:"tokens_out_total,omitempty"`
+	// TitleManuallySet is true when the title was set by an operator via
+	// /title rather than generated automatically. mergeMetadata treats this
+	// field as sticky-true: once set it cannot be cleared by a plain
+	// PutMetadata call. Use MetadataTitleStore.SetTitle to clear it atomically
+	// (that path uses a read-modify-write that bypasses the sticky guard).
+	TitleManuallySet bool `json:"title_manually_set,omitempty"`
 }
 
 // ExpiryFinalizeStatus is persisted evidence for gateway session-expiry
@@ -61,6 +74,7 @@ func normalizeMetadata(meta Metadata) Metadata {
 	meta.Source = strings.TrimSpace(meta.Source)
 	meta.ChatID = strings.TrimSpace(meta.ChatID)
 	meta.UserID = strings.TrimSpace(meta.UserID)
+	meta.Title = strings.TrimSpace(meta.Title)
 	meta.ParentSessionID = strings.TrimSpace(meta.ParentSessionID)
 	meta.LineageKind = strings.ToLower(strings.TrimSpace(meta.LineageKind))
 	meta.ResumeReason = strings.ToLower(strings.TrimSpace(meta.ResumeReason))
@@ -69,6 +83,12 @@ func normalizeMetadata(meta Metadata) Metadata {
 	meta.ExpiryFinalizeLastError = strings.TrimSpace(meta.ExpiryFinalizeLastError)
 	if meta.ExpiryFinalizeAttempts < 0 {
 		meta.ExpiryFinalizeAttempts = 0
+	}
+	if meta.TokensInTotal < 0 {
+		meta.TokensInTotal = 0
+	}
+	if meta.TokensOutTotal < 0 {
+		meta.TokensOutTotal = 0
 	}
 	return meta
 }
@@ -85,6 +105,16 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	if incoming.UserID != "" {
 		out.UserID = incoming.UserID
 	}
+	if incoming.Title != "" {
+		out.Title = incoming.Title
+	}
+	// TitleManuallySet is sticky-true: incoming=true always sets the flag;
+	// incoming=false (the default zero value) never clears an existing true.
+	// Atomic clearing by auto-title is performed by MetadataTitleStore.SetTitle
+	// via a read-modify-write that directly overwrites the stored value.
+	if incoming.TitleManuallySet {
+		out.TitleManuallySet = true
+	}
 	if incoming.ParentSessionID != "" {
 		if out.ParentSessionID != "" && out.ParentSessionID != incoming.ParentSessionID {
 			return Metadata{}, fmt.Errorf("%w: %s parent_session_id already %s", ErrLineageConflict, incoming.SessionID, out.ParentSessionID)
@@ -96,6 +126,9 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 			return Metadata{}, fmt.Errorf("%w: %s lineage_kind already %s", ErrLineageConflict, incoming.SessionID, out.LineageKind)
 		}
 		out.LineageKind = incoming.LineageKind
+	}
+	if incoming.CreatedAt != 0 && out.CreatedAt == 0 {
+		out.CreatedAt = incoming.CreatedAt
 	}
 	if incoming.UpdatedAt != 0 {
 		out.UpdatedAt = incoming.UpdatedAt
@@ -129,6 +162,12 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	}
 	if incoming.MigratedMemoryFlushed {
 		out.MigratedMemoryFlushed = true
+	}
+	if incoming.TokensInTotal > out.TokensInTotal {
+		out.TokensInTotal = incoming.TokensInTotal
+	}
+	if incoming.TokensOutTotal > out.TokensOutTotal {
+		out.TokensOutTotal = incoming.TokensOutTotal
 	}
 	return finalizeMetadata(out), nil
 }
@@ -242,6 +281,9 @@ func (m *BoltMap) PutMetadata(ctx context.Context, meta Metadata) error {
 
 		if meta.UpdatedAt == 0 {
 			meta.UpdatedAt = time.Now().Unix()
+		}
+		if meta.CreatedAt == 0 {
+			meta.CreatedAt = meta.UpdatedAt
 		}
 		raw, err := json.Marshal(meta)
 		if err != nil {
@@ -509,6 +551,9 @@ func (m *MemMap) PutMetadata(ctx context.Context, meta Metadata) error {
 	}
 	if meta.UpdatedAt == 0 {
 		meta.UpdatedAt = time.Now().Unix()
+	}
+	if meta.CreatedAt == 0 {
+		meta.CreatedAt = meta.UpdatedAt
 	}
 	m.meta[meta.SessionID] = meta
 	return nil

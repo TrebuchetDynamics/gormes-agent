@@ -37,6 +37,29 @@ type Config struct {
 	OAuthProviders  []DashboardOAuthProvider
 	PluginInventory pluginmeta.Inventory
 	ChatTransport   ChatTransportStatus
+	// DetailedHealth produces the input for the unauthenticated detailed
+	// health endpoint. Callers fill it from already-available status reads;
+	// when nil the endpoint returns a degraded zero-value snapshot.
+	DetailedHealth func() DetailedHealthSnapshotInput
+	// CronJobs is the read facade for the native cron job store used by the
+	// authenticated read-only cron admin endpoints. *cron.Store satisfies
+	// this interface. When nil, the endpoints respond with the shared error
+	// envelope and code "cron_store_unavailable".
+	CronJobs CronJobReader
+	// CronRuns is the read facade for the cron run audit log used by the
+	// run-history endpoint. *cron.RunStore satisfies this interface. When
+	// nil, run-history responds with code "cron_runs_unavailable".
+	CronRuns CronRunReader
+	// CronJobMutator is the write facade for the authenticated cron admin
+	// mutating endpoints (create / update / delete / pause / resume). When
+	// nil, those endpoints respond with code "cron_store_unavailable".
+	CronJobMutator CronJobMutator
+	// CronTrigger is the trigger seam used by /v1/admin/cron/jobs/{id}/trigger.
+	// When nil, the endpoint records trigger_delivery_unavailable and 503.
+	CronTrigger CronTriggerHandler
+	// CronAdminAuditor receives a redacted audit event for each mutation. It
+	// is optional; when nil the endpoints continue to work but emit no audit.
+	CronAdminAuditor CronAdminAuditor
 }
 
 // ChatTransportStatus describes the dashboard's embedded chat transports
@@ -64,10 +87,18 @@ type Server struct {
 	oauthProviders         []DashboardOAuthProvider
 	pluginInventory        pluginmeta.Inventory
 	chatTransport          ChatTransportStatus
+	detailedHealth         func() DetailedHealthSnapshotInput
+	cronJobs               CronJobReader
+	cronRuns               CronRunReader
+	cronMutator            CronJobMutator
+	cronTrigger            CronTriggerHandler
+	cronAuditor            CronAdminAuditor
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
 	mux                    *http.ServeMux
+	sseMu      sync.Mutex
+	sseClients []chan string
 }
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.
@@ -168,6 +199,12 @@ func NewServer(cfg Config) *Server {
 		oauthProviders:  cloneDashboardOAuthProviders(cfg.OAuthProviders),
 		pluginInventory: clonePluginInventory(cfg.PluginInventory),
 		chatTransport:   cfg.ChatTransport,
+		detailedHealth:  cfg.DetailedHealth,
+		cronJobs:        cfg.CronJobs,
+		cronRuns:        cfg.CronRuns,
+		cronMutator:     cfg.CronJobMutator,
+		cronTrigger:     cfg.CronTrigger,
+		cronAuditor:     cfg.CronAdminAuditor,
 		now:             time.Now,
 		mux:             http.NewServeMux(),
 	}
@@ -183,6 +220,8 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) routes() {
 	s.mux.HandleFunc("/health", s.handleHealth)
 	s.mux.HandleFunc("/v1/health", s.handleHealth)
+	s.mux.HandleFunc("/health/detailed", s.handleDetailedHealth)
+	s.mux.HandleFunc("/v1/health/detailed", s.handleDetailedHealth)
 	s.mux.HandleFunc("/v1/models", s.handleModels)
 	s.mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 	s.mux.HandleFunc("/v1/responses", s.handleResponses)
@@ -196,6 +235,20 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/dashboard/plugins", s.handleDashboardPlugins)
 	s.mux.HandleFunc("/api/sessions", s.handleDashboardSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
+	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)
+	s.mux.HandleFunc("/v1/admin/cron/jobs/", s.handleCronAdminJobByID)
+
+	s.mux.HandleFunc("/{$}", s.handleTemplDashboard)
+	s.mux.HandleFunc("/chat", s.handleTemplChat)
+	s.mux.HandleFunc("/sessions", s.handleTemplSessions)
+	s.mux.HandleFunc("/config", s.handleTemplConfig)
+	s.mux.HandleFunc("/skills", s.handleTemplSkills)
+	s.mux.HandleFunc("/cron", s.handleTemplCron)
+	s.mux.HandleFunc("/dashboard/events", s.handleDashboardSSE)
+	s.mux.HandleFunc("/dashboard/status", s.handleDashboardStatusFragment)
+	s.mux.HandleFunc("/dashboard/memory", s.handleDashboardMemoryFragment)
+	s.mux.HandleFunc("/agent/execute", s.handleAgentExecute)
+	s.mux.Handle("/static/", staticHandler())
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -217,6 +270,18 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"responses": s.responseHealthStatus(),
 		"runs":      s.runHealthStatus(),
 	})
+}
+
+func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	var input DetailedHealthSnapshotInput
+	if s.detailedHealth != nil {
+		input = s.detailedHealth()
+	}
+	writeJSON(w, http.StatusOK, DetailedHealthSnapshot(input))
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 type fakeShutdownManager struct {
@@ -25,6 +27,31 @@ func (f *fakeShutdownManager) Shutdown(context.Context) error {
 	close(f.called)
 	<-f.release
 	return nil
+}
+
+func TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands(t *testing.T) {
+	root := t.TempDir()
+	skillDir := filepath.Join(root, "active", "media")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(`---
+name: jellyfin-jellystat-24h-summary
+description: Summarize media stats
+---
+
+Run the report.
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	commands := gatewayTelegramDynamicCommands(context.Background(), config.Config{Skills: config.SkillsCfg{Root: root}})
+	for _, cmd := range commands {
+		if cmd.Name == "jellyfin-jellystat-24h-summary" && cmd.Description == "Summarize media stats" {
+			return
+		}
+	}
+	t.Fatalf("gatewayTelegramDynamicCommands() = %#v, want active skill command", commands)
 }
 
 func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
@@ -88,12 +115,50 @@ func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 				gateway.RestartConfig{},
 			)
 			if mgrCfg.FreshFinalAfter != tc.want {
 				t.Fatalf("FreshFinalAfter = %s, want %s", mgrCfg.FreshFinalAfter, tc.want)
 			}
 		})
+	}
+}
+
+func TestGatewayManagerConfig_ToolProgressDisplayConfig(t *testing.T) {
+	mgrCfg := gatewayManagerConfig(
+		config.Config{
+			Display: config.DisplayCfg{
+				ToolProgress:        "new",
+				ToolProgressCommand: true,
+				Platforms: map[string]config.DisplayPlatformCfg{
+					"telegram": {ToolProgress: "off"},
+					"slack":    {ToolProgress: "verbose"},
+				},
+			},
+		},
+		map[string]string{},
+		map[string]bool{},
+		nil,
+		nil,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+	if mgrCfg.ToolProgressMode != "new" {
+		t.Fatalf("ToolProgressMode = %q, want global display.tool_progress", mgrCfg.ToolProgressMode)
+	}
+	if !mgrCfg.ToolProgressCommandEnabled {
+		t.Fatal("ToolProgressCommandEnabled = false, want display.tool_progress_command")
+	}
+	if mgrCfg.PersistToolProgressMode == nil {
+		t.Fatal("PersistToolProgressMode = nil, want production /verbose persistence hook")
+	}
+	if got := mgrCfg.ToolProgressModes["telegram"]; got != "off" {
+		t.Fatalf("ToolProgressModes[telegram] = %q, want per-platform override", got)
+	}
+	if got := mgrCfg.ToolProgressModes["slack"]; got != "verbose" {
+		t.Fatalf("ToolProgressModes[slack] = %q, want per-platform override", got)
 	}
 }
 
@@ -112,12 +177,15 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := newGatewayHermesClient(config.Config{Hermes: config.HermesCfg{
+	client, err := newGatewayHermesClient(config.Config{Hermes: config.HermesCfg{
 		Endpoint: server.URL,
 		APIKey:   "gateway-token",
 		Model:    "gpt-5.5",
 		Provider: "openai-codex",
 	}})
+	if err != nil {
+		t.Fatalf("newGatewayHermesClient error = %v", err)
+	}
 	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
 		Model:    "gpt-5.5",
 		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
@@ -148,6 +216,37 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	}
 }
 
+func TestGatewayManagerConfig_LiveTurnMetadataProductionWiring(t *testing.T) {
+	mgrCfg := gatewayManagerConfig(
+		config.Config{Hermes: config.HermesCfg{
+			Model:    "gpt-5.5",
+			Provider: "openai-codex",
+		}},
+		map[string]string{},
+		map[string]bool{},
+		nil,
+		nil,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+	if mgrCfg.LiveTurnNow == nil {
+		t.Fatal("LiveTurnNow is nil; production gateway metadata block would omit timestamp")
+	}
+	if got := mgrCfg.LiveTurnActiveModel; got == nil || got() != "gpt-5.5" {
+		if got == nil {
+			t.Fatal("LiveTurnActiveModel is nil")
+		}
+		t.Fatalf("LiveTurnActiveModel() = %q, want configured model", got())
+	}
+	if got := mgrCfg.LiveTurnActiveProvider; got == nil || got() != "openai-codex" {
+		if got == nil {
+			t.Fatal("LiveTurnActiveProvider is nil")
+		}
+		t.Fatalf("LiveTurnActiveProvider() = %q, want configured provider", got())
+	}
+}
+
 func TestGatewayManagerConfig_UsageProviderInfersProviderFromConfiguredModel(t *testing.T) {
 	var sawAuthorization bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -171,6 +270,7 @@ func TestGatewayManagerConfig_UsageProviderInfersProviderFromConfiguredModel(t *
 		}},
 		map[string]string{},
 		map[string]bool{},
+		nil,
 		nil,
 		nil,
 		nil,
@@ -242,5 +342,44 @@ func TestGatewaySignalLoopDrainsBeforeCancel(t *testing.T) {
 	case code := <-forceExit:
 		t.Fatalf("unexpected force exit: %d", code)
 	default:
+	}
+}
+
+// TestGatewayManagerConfig_TitleModelNonNilWithBoltMap is a production smoke
+// fixture. It constructs a ManagerConfig using a real *session.BoltMap and a
+// hermetic HTTP stub client, then asserts that TitleModel and TitleStore are
+// non-nil — proving the gateway seam is wired in production builds without
+// invoking any live LLM.
+func TestGatewayManagerConfig_TitleModelNonNilWithBoltMap(t *testing.T) {
+	dbPath := t.TempDir() + "/title_seam_smoke.db"
+	smap, err := session.OpenBolt(dbPath)
+	if err != nil {
+		t.Fatalf("OpenBolt: %v", err)
+	}
+	defer smap.Close()
+
+	// Stub provider — never called; we only assert the seam exists.
+	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer stub.Close()
+
+	hc := hermes.NewHTTPClientWithProvider(stub.URL, "stub-key", "openai")
+	mgrCfg := gatewayManagerConfig(
+		config.Config{Hermes: config.HermesCfg{Endpoint: stub.URL, Model: "stub-model"}},
+		map[string]string{},
+		map[string]bool{},
+		smap,
+		hc,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+
+	if mgrCfg.TitleModel == nil {
+		t.Error("TitleModel is nil; production gateway cannot auto-title sessions")
+	}
+	if mgrCfg.TitleStore == nil {
+		t.Error("TitleStore is nil; production gateway cannot persist auto-titles")
 	}
 }

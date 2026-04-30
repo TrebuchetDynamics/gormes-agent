@@ -14,7 +14,7 @@ Go-native `gormes-agent`.
 
 - Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/gbrain`
 - Upstream commit: `891c28b`
-- Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
+- Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent`
 - Date: 2026-04-27
 
 ## 2026-04-27 v0.22.4 Drift Check

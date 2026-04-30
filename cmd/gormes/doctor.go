@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,16 +16,16 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func init() {
-	doctorCmd.Flags().Bool("offline", false, "skip the api_server health check and only validate the local tool registry")
+	doctorCmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
 }
 
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
-	Short: "Verify Gormes runtime: api_server reachability + built-in tools",
+	Short: "Verify Gormes runtime: provider readiness + built-in tools",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfg, err := config.Load(nil)
 		if err != nil {
@@ -34,26 +35,37 @@ var doctorCmd = &cobra.Command{
 		offline, _ := cmd.Flags().GetBool("offline")
 
 		if !offline {
-			c := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
+			providerName := cfg.Hermes.Provider
+			c, err := newProviderHTTPClient(cfg, providerName)
+			if err != nil {
+				redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+				fmt.Fprintf(os.Stderr,
+					"[FAIL] provider setup: %s\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+					redactedErr)
+				os.Exit(1)
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			if err := c.Health(ctx); err != nil {
+				target := doctorProviderHealthTarget(cfg)
+				redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
 				fmt.Fprintf(os.Stderr,
-					"[FAIL] api_server: NOT reachable at %s: %v\n\nStart it with:\n  API_SERVER_ENABLED=true hermes gateway start\n\nOr pass --offline to validate only the local tool registry.\n",
-					cfg.Hermes.Endpoint, err)
+					"[FAIL] provider health: NOT reachable (%s): %v\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+					target, redactedErr)
 				os.Exit(1)
 			}
-			fmt.Printf("[PASS] api_server: reachable at %s\n", cfg.Hermes.Endpoint)
+			fmt.Printf("[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
 		} else {
-			fmt.Println("[SKIP] api_server: skipped (--offline)")
+			fmt.Println("[SKIP] provider health: skipped (--offline)")
 		}
 
 		fmt.Print(doctorTUIStatus().Format())
 
 		// Toolbox section — inspect the built-in registry. Runs in both modes.
-		reg := buildDefaultRegistry(context.Background(), cfg.Delegation, cfg.SkillsRoot(), nil, cfg.Hermes.Model)
+		reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
 		result := doctor.CheckTools(reg)
 		fmt.Print(result.Format())
+		fmt.Print(doctorWebToolsStatus(cfg).Format())
 		fmt.Print(doctorGonchoConfig(cfg).Format())
 
 		runtimeStatus := gateway.RuntimeStatus{}
@@ -92,6 +104,44 @@ var doctorCmd = &cobra.Command{
 		}
 		return nil
 	},
+}
+
+func doctorWebToolsStatus(cfg config.Config) doctor.CheckResult {
+	status := tools.ResolveWebBackendStatus(nil, tools.WebBackendConfig{
+		Backend:             cfg.Web.Backend,
+		UseGateway:          cfg.Web.UseGateway,
+		ManagedToolsEnabled: true,
+		AuthStorePath:       filepath.Join(config.GormesHome(), "auth.json"),
+	})
+	checkStatus := doctor.StatusWarn
+	if status.Available {
+		checkStatus = doctor.StatusPass
+	}
+	summary := fmt.Sprintf("backend=%s route=%s source=%s evidence=%s", status.Backend, status.Route, status.Source, status.Evidence)
+	items := []doctor.ItemInfo{
+		{Name: "backend", Status: checkStatus, Note: fmt.Sprintf("base_url=%s use_gateway=%t managed=%t", status.BaseURL, status.UseGateway, status.Managed)},
+		{Name: "toolset", Status: doctor.StatusPass, Note: strings.Join(status.ToolNames, ",")},
+		{Name: "requires_env", Status: doctor.StatusPass, Note: strings.Join(status.RequiresEnv, ",")},
+	}
+	if !status.Available {
+		items[0].Note = "provider unavailable; " + items[0].Note
+	}
+	return doctor.CheckResult{
+		Name:    "Web tools",
+		Status:  checkStatus,
+		Summary: summary,
+		Items:   items,
+	}
+}
+
+func doctorProviderHealthTarget(cfg config.Config) string {
+	if endpoint := strings.TrimSpace(cfg.Hermes.Endpoint); endpoint != "" {
+		return endpoint
+	}
+	if provider := strings.TrimSpace(cfg.Hermes.Provider); provider != "" {
+		return provider
+	}
+	return "configured provider"
 }
 
 func doctorSlackGatewayConfig(cfg config.Config, runtime gateway.RuntimeStatus) doctor.CheckResult {

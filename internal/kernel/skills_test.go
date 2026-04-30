@@ -71,17 +71,20 @@ func TestKernel_InjectsSkillBlockAndRecordsUsage(t *testing.T) {
 		t.Fatal("mock client received zero requests")
 	}
 	req := reqs[0]
-	if len(req.Messages) != 2 {
-		t.Fatalf("len(Messages) = %d, want 2 (system + user)", len(req.Messages))
+	if len(req.Messages) != 3 {
+		t.Fatalf("len(Messages) = %d, want 3 (skills guidance + skill block + user)", len(req.Messages))
 	}
-	if req.Messages[0].Role != "system" {
-		t.Fatalf("Messages[0].Role = %q, want system", req.Messages[0].Role)
+	if req.Messages[0].Role != "system" || !strings.Contains(req.Messages[0].Content, hermes.SkillsGuidance) {
+		t.Fatalf("Messages[0] = %+v, want skills guidance system message", req.Messages[0])
 	}
-	if !strings.Contains(req.Messages[0].Content, "careful-review") {
-		t.Fatalf("system message = %q, want skill block", req.Messages[0].Content)
+	if req.Messages[1].Role != "system" {
+		t.Fatalf("Messages[1].Role = %q, want system", req.Messages[1].Role)
 	}
-	if req.Messages[1].Role != "user" || req.Messages[1].Content != "please review this patch" {
-		t.Fatalf("Messages[1] = %+v, want user submit", req.Messages[1])
+	if !strings.Contains(req.Messages[1].Content, "careful-review") {
+		t.Fatalf("skill block system message = %q, want skill block", req.Messages[1].Content)
+	}
+	if req.Messages[2].Role != "user" || req.Messages[2].Content != "please review this patch" {
+		t.Fatalf("Messages[2] = %+v, want user submit", req.Messages[2])
 	}
 	if provider.calls != 1 {
 		t.Fatalf("provider calls = %d, want 1", provider.calls)

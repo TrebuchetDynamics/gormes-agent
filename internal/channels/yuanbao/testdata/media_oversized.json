@@ -1,0 +1,15 @@
+[
+  {
+    "msg_type": "TIMTextElem",
+    "msg_content": {"text": "Big file incoming."}
+  },
+  {
+    "msg_type": "TIMFileElem",
+    "msg_content": {
+      "uuid": "file-uuid-005",
+      "file_name": "huge.bin",
+      "file_size": 1073741824,
+      "url": "https://cos.example.com/files/huge.bin"
+    }
+  }
+]

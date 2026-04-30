@@ -34,6 +34,16 @@ var platformDefaultToolsets = map[string]string{
 	"wecom_callback": "hermes-wecom-callback",
 	"weixin":         "hermes-weixin",
 	"whatsapp":       "hermes-whatsapp",
+	"yuanbao":        "hermes-yuanbao",
+}
+
+// platformScopedToolsets supplements the upstream parity manifest for
+// adapter-specific runtime toolsets that have not yet been reflected upstream.
+// Each entry pins the toolset name to the only platforms allowed to advertise
+// it; CLI/cron/other-platform pickers must reject the toolset and the runtime
+// surface must keep it out of default toolsets.
+var platformScopedToolsets = map[string][]string{
+	"yuanbao": {"yuanbao"},
 }
 
 var defaultRuntimeToolsets = []string{
@@ -318,6 +328,14 @@ func shouldPersistSelection(manifest tools.UpstreamToolParityManifest, platform 
 }
 
 func toolsetAllowedForPlatform(manifest tools.UpstreamToolParityManifest, name string, platform string) bool {
+	if scoped, ok := platformScopedToolsets[name]; ok {
+		for _, allowed := range scoped {
+			if allowed == platform {
+				return true
+			}
+		}
+		return false
+	}
 	row, ok := manifest.Toolset(name)
 	if !ok || len(row.PlatformRestrictions.AllowedPlatforms) == 0 {
 		return true

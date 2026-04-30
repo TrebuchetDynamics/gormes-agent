@@ -2,29 +2,30 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
 )
 
 var (
-	border    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
-	header    = lipgloss.NewStyle().Bold(true)
 	muted     = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
 	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("69")).Bold(true)
 	botStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
 	errStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 )
 
-// View renders the Dashboard. Three size regimes:
-//
-//	width ≥ 100: full layout, sidebar width 28
-//	80 ≤ width < 100: full layout, sidebar width 24
-//	20 ≤ width < 80: sidebar collapses into a one-line status strip
-//	width < 20 OR height < 10: single-line fallback banner
+// View renders the bottom-pinned Hermes-compatible chrome. Layout matches
+// cli.py:_build_tui_layout_children: scrollback/conversation, optional
+// spinner/hint row, single-line status footer, bronze input rule, prompt +
+// input area, optional bottom rule (dropped on minimal widths), and reserved
+// voice/image/completion slots. The TUI runs in the alternate screen like
+// current Hermes Ink so repeated full-screen render ticks do not smear stale
+// frame fragments into normal scrollback.
 //
 // View never panics on any non-negative (width, height) input.
 func (m Model) View() string {
@@ -32,95 +33,136 @@ func (m Model) View() string {
 		return "terminal too narrow — resize to at least 20×10"
 	}
 
-	sidebarW := 0
-	switch {
-	case m.width >= 100:
-		sidebarW = 28
-	case m.width >= 80:
-		sidebarW = 24
-	}
-
-	// Account for border chars around the main pane and the sidebar plus a
-	// 2-cell gap. Clamp to a minimum so sub-width scenarios still render.
-	gap := 0
-	if sidebarW > 0 {
-		gap = 2
-	}
-	mainW := m.width - sidebarW - gap - 4 // 2 borders on each pane
-	if mainW < 10 {
-		mainW = 10
-	}
-	// Height budget: main pane (border adds 2) + editor pane (textarea +
-	// border = editor.Height()+2) + status line (1) = m.height total.
-	// So topH = m.height - (editor.Height() + 2) - 1 - 2 (outer borders).
-	editorHeight := m.editor.Height()
+	editor := m.editor
+	editorHeight := promptHeightForValue(editor.Value())
+	editor.SetHeight(editorHeight)
 	if editorHeight < 1 {
 		editorHeight = 1
 	}
-	topH := m.height - editorHeight - 5
-	if topH < 3 {
-		topH = 3
+	editorBlockH := editorHeight
+	chromeOverhead := 1                                   // status rule
+	convH := m.height - editorBlockH - chromeOverhead - 1 // -1 for spinner/hint reserve
+	if convH < 3 {
+		convH = 3
 	}
 
-	main := border.Width(mainW).Height(topH).Render(renderConv(m.frame, mainW))
-
-	var top string
-	if sidebarW > 0 {
-		sidebar := border.Width(sidebarW).Height(topH).Render(renderSidebar(m.frame, sidebarW))
-		top = lipgloss.JoinHorizontal(lipgloss.Top, main, "  ", sidebar)
-	} else {
-		// Collapsed: main pane full width + one-line status strip above the editor.
-		top = main
+	convW := m.width
+	if convW < 4 {
+		convW = 4
 	}
 
-	editorW := m.width - 2
+	conv := conversationViewportTail(m.frame, convW, convH)
+
+	editorW := m.width
 	if editorW < 10 {
 		editorW = 10
 	}
-	editor := border.Width(editorW).Render(m.editor.View())
+	editor.SetWidth(editorW)
+	prompt := editor.View()
 
-	var status string
-	if sidebarW > 0 {
-		status = muted.Render(fmt.Sprintf(
-			"phase: %s · model: %s · session: %s · %s%s",
-			m.frame.Phase, m.frame.Model, shortSessionID(m.frame.SessionID), m.mouseStatus(), statusSuffix(m.statusMessage),
-		))
-	} else {
-		// Collapsed mode includes the telemetry in the status line.
-		t := m.frame.Telemetry
-		status = muted.Render(fmt.Sprintf(
-			"phase: %s · model: %s · tok/s: %.1f · lat: %dms · in/out: %d/%d · %s%s",
-			m.frame.Phase, m.frame.Model, t.TokensPerSec, t.LatencyMsLast,
-			t.TokensInTotal, t.TokensOutTotal, m.mouseStatus(), statusSuffix(m.statusMessage),
-		))
-	}
+	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	return lipgloss.JoinVertical(lipgloss.Left, top, editor, status)
+	hint := renderHermesHint(m.frame, m.mouseStatus(), m.statusMessage)
+
+	return RenderHermesChrome(HermesChromeInput{
+		Width:        m.width,
+		Conversation: conv,
+		Spinner:      hint,
+		StatusBar:    statusBar,
+		Prompt:       prompt,
+	})
 }
 
-// renderConv renders the conversation pane: prior history turns, the
-// streaming draft (if any), and a final LastError line (if any).
-func renderConv(f kernel.RenderFrame, width int) string {
-	if width < 4 {
-		width = 4
+func renderHermesHint(f kernel.RenderFrame, mouseStatus, statusMessage string) string {
+	var parts []string
+	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
+		parts = append(parts, strings.ToLower(f.Phase.String()))
+		if f.SessionID != "" {
+			parts = append(parts, "session "+shortSessionID(f.SessionID))
+		}
 	}
-	wrap := lipgloss.NewStyle().Width(width - 4)
+	if mouseStatus == "mouse: disabled" {
+		parts = append(parts, mouseStatus)
+	}
+	if statusMessage != "" {
+		parts = append(parts, statusMessage)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return muted.Render(strings.Join(parts, " · "))
+}
 
-	var lines []string
-	for _, msg := range f.History {
-		tag := roleTag(msg.Role)
-		lines = append(lines, tag+" "+wrap.Render(msg.Content))
+func promptHeightForValue(value string) int {
+	if value == "" {
+		return 1
 	}
-	if f.DraftText != "" {
-		lines = append(lines, botStyle.Render("gormes:")+" "+wrap.Render(f.DraftText))
+	lines := strings.Count(value, "\n") + 1
+	if lines < 1 {
+		return 1
 	}
-	if f.LastError != "" {
-		lines = append(lines, errStyle.Render("err:")+" "+f.LastError)
+	if lines > 4 {
+		return 4
 	}
-	if len(lines) == 0 {
-		return muted.Render("(start typing below to begin)")
+	return lines
+}
+
+// hermesStatusModelFromFrame projects the kernel render frame onto the data
+// shape expected by RenderHermesStatusBar.
+func hermesStatusModelFromFrame(f kernel.RenderFrame) HermesStatusModel {
+	out := HermesStatusModel{
+		StatusLabel:     hermesStatusLabelFromPhase(f.Phase),
+		ModelName:       f.Model,
+		ReasoningEffort: string(f.ReasoningEffort.Requested),
+		CWDLabel:        hermesWorkingDirLabel(),
 	}
-	return strings.Join(lines, "\n\n")
+	if f.ContextStatus != nil {
+		out.ContextTokens = f.ContextStatus.LastTotalTokens
+		out.ContextLength = f.ContextStatus.ContextLength
+	}
+	return out
+}
+
+func hermesStatusLabelFromPhase(phase kernel.Phase) string {
+	switch phase {
+	case kernel.PhaseIdle:
+		return "ready"
+	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseFinalizing:
+		return "running…"
+	case kernel.PhaseCancelling:
+		return "cancelling…"
+	case kernel.PhaseReconnecting:
+		return "reconnecting…"
+	case kernel.PhaseFailed:
+		return "error"
+	default:
+		return strings.ToLower(phase.String())
+	}
+}
+
+func hermesWorkingDirLabel() string {
+	cwd, err := os.Getwd()
+	if err != nil || cwd == "" {
+		return ""
+	}
+	home, err := os.UserHomeDir()
+	if err == nil && home != "" && (cwd == home || strings.HasPrefix(cwd, home+"/")) {
+		cwd = "~" + strings.TrimPrefix(cwd, home)
+	}
+	const max = 40
+	if len([]rune(cwd)) <= max {
+		return cwd
+	}
+	r := []rune(cwd)
+	return "…" + string(r[len(r)-(max-1):])
+}
+
+// renderConv is the legacy entry point retained for tests that pre-date the
+// bottom-pinned chrome. It delegates to the same viewport tail helper View
+// uses and keeps the (width, height) call shape so existing fixtures stay
+// addressable.
+func renderConv(f kernel.RenderFrame, width, height int) string {
+	return conversationViewportTail(f, width, height)
 }
 
 func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
@@ -166,6 +208,9 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 
 func conversationForcedBlocks(f kernel.RenderFrame, wrap lipgloss.Style, compact bool) []string {
 	var blocks []string
+	if progress := conversationToolProgressBlock(f, compact); progress != "" {
+		blocks = append(blocks, progress)
+	}
 	if f.DraftText != "" {
 		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrap, compact))
 	}
@@ -173,6 +218,21 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrap lipgloss.Style, compact
 		blocks = append(blocks, conversationErrorBlock(f.LastError, compact))
 	}
 	return blocks
+}
+
+func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
+	texts := make([]string, 0, len(f.SoulEvents))
+	for _, event := range f.SoulEvents {
+		texts = append(texts, event.Text)
+	}
+	progress := tooltrace.FormatBlock(texts)
+	if progress == "" {
+		return ""
+	}
+	if compact {
+		return compactViewportText(progress)
+	}
+	return muted.Render(progress)
 }
 
 func conversationMessageBlock(msg hermes.Message, wrap lipgloss.Style, compact bool) string {
@@ -191,7 +251,7 @@ func conversationDraftBlock(draft string, wrap lipgloss.Style, compact bool) str
 	} else {
 		draft = wrap.Render(draft)
 	}
-	return botStyle.Render("gormes:") + " " + draft
+	return botStyle.Render(HermesChromeAssistantLabel()) + " " + draft
 }
 
 func conversationErrorBlock(lastError string, compact bool) string {
@@ -216,38 +276,12 @@ func renderedLineCount(s string) int {
 	return strings.Count(s, "\n") + 1
 }
 
-// renderSidebar renders the Telemetry + Soul Monitor pane.
-func renderSidebar(f kernel.RenderFrame, width int) string {
-	if width < 8 {
-		width = 8
-	}
-	sep := strings.Repeat("─", width-4)
-
-	var b strings.Builder
-	b.WriteString(header.Render("Telemetry") + "\n")
-	b.WriteString(fmt.Sprintf(" model: %s\n", truncateEllipsis(f.Telemetry.Model, width-8)))
-	b.WriteString(fmt.Sprintf(" tok/s: %.1f\n", f.Telemetry.TokensPerSec))
-	b.WriteString(fmt.Sprintf(" latency: %d ms\n", f.Telemetry.LatencyMsLast))
-	b.WriteString(fmt.Sprintf(" in/out: %d/%d\n", f.Telemetry.TokensInTotal, f.Telemetry.TokensOutTotal))
-	b.WriteString(sep + "\n")
-	b.WriteString(header.Render("Soul Monitor") + "\n")
-	if len(f.SoulEvents) == 0 {
-		b.WriteString(muted.Render(" (idle)") + "\n")
-	} else {
-		for _, s := range f.SoulEvents {
-			line := fmt.Sprintf(" [%s] %s", s.At.Format("15:04:05"), s.Text)
-			b.WriteString(truncateEllipsis(line, width-2) + "\n")
-		}
-	}
-	return b.String()
-}
-
 func roleTag(role string) string {
 	switch role {
 	case "user":
 		return userStyle.Render("you:")
 	case "assistant":
-		return botStyle.Render("gormes:")
+		return botStyle.Render(HermesChromeAssistantLabel())
 	case "system":
 		return muted.Render("sys:")
 	}

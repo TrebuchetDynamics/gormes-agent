@@ -1,7 +1,10 @@
 package telegram
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"net/http"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -36,9 +39,38 @@ func (r *realClient) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 	return r.api.Send(c)
 }
 
+func (r *realClient) Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error) {
+	return r.api.Request(c)
+}
+
 func (r *realClient) DeleteMessage(chatID int64, messageID int) error {
 	_, err := r.api.Request(tgbotapi.NewDeleteMessage(chatID, messageID))
 	return err
+}
+
+func (r *realClient) GetFile(config tgbotapi.FileConfig) (tgbotapi.File, error) {
+	return r.api.GetFile(config)
+}
+
+func (r *realClient) DownloadFile(ctx context.Context, filePath string) ([]byte, error) {
+	file := tgbotapi.File{FilePath: filePath}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, file.Link(r.api.Token), nil)
+	if err != nil {
+		return nil, fmt.Errorf("telegram: create download request: %w", err)
+	}
+	resp, err := r.api.Client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("telegram: download file: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("telegram: download file status %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("telegram: read file: %w", err)
+	}
+	return data, nil
 }
 
 func (r *realClient) StopReceivingUpdates() {

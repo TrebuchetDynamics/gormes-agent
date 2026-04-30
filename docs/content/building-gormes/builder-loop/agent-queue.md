@@ -21,144 +21,171 @@ the main skill entrypoint, plan, candidate source, generated docs, tests, and
 candidate policy. Keep those control-plane facts in `meta.builder_loop`, and
 keep row-specific execution facts in `progress.json`.
 
-<!-- PROGRESS:START kind=agent-queue -->
-## 1. Self-monitoring telemetry
+If the generated list is empty, do not switch to an ad hoc TODO list. Route
+through `gormes-planner`, repair one planned/draft row until it satisfies the
+handoff contract, validate `progress.json`, and then return to builder
+selection.
 
-- Phase: 4 / 4.E
-- Owner: `provider`
+<!-- PROGRESS:START kind=agent-queue -->
+## 1. Goncho honcho_reasoning LLM-backed synthesis
+
+- Phase: 5 / 5.V
+- Owner: `goncho`
+- Size: `large`
+- Status: `planned`
+- Priority: `P0`
+- Contract: HonchoReasoningTool must call a real LLM for synthesis (matching Python Honcho's .chat() multi-pass dialectic) instead of deterministic string assembly. Requires adding LLMCaller interface to goncho.Service and threading through kernel/config. Fall back to deterministic with degraded evidence when no LLM caller configured.
+- Trust class: operator, system
+- Ready when: LLMCaller interface exists in goncho package, Service accepts optional LLMCaller, HonchoReasoningTool uses LLM when available
+- Not ready when: The slice removes deterministic fallback entirely, The slice changes honcho_reasoning tool schema
+- Degraded mode: When no LLM caller is configured, returns deterministic answer with reasoning_llm_unavailable evidence in the answer field.
+- Fixture: `internal/gonchotools/honcho_tools_test.go`
+- Write scope: `internal/goncho/service.go`, `internal/gonchotools/honcho_tools.go`
+- Test commands: `go test ./internal/goncho -count=1`, `go test ./internal/gonchotools -count=1`
+- Done signal: honcho_reasoning uses real LLM synthesis when configured, deterministic fallback when not.
+- Acceptance: honcho_reasoning produces LLM-synthesized output when LLM caller is configured., honcho_reasoning produces deterministic output with degraded evidence when LLM caller is not configured.
+- Source refs: plugins/memory/honcho/__init__.py:HonchoProvider.chat, plugins/memory/honcho/__init__.py:honcho_reasoning schema
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Web dashboard server shell + degraded inventory
+
+- Phase: 5 / 5.V
+- Owner: `gateway`
 - Size: `medium`
 - Status: `planned`
 - Priority: `P0`
-- Contract: Gormes bridges Hermes turn/provider/tool telemetry and Honcho telemetry/reasoning traces into local redacted telemetry, audit, and insights evidence through SelfMonitoringBridge, TelemetryEventMatrix, ReasoningTraceRecord, TelemetrySink, AuditSink, and InsightsRecorder interfaces without changing the local usage.jsonl schema until compatibility tests pass.
+- Contract: Create the Go web dashboard server shell that matches Hermes' FastAPI dashboard startup, static SPA serving, localhost security guard, public API allowlist, and degraded inventory semantics before any React feature work lands.
 - Trust class: operator, system
-- Ready when: Trajectory compression, Goncho webhook delivery, and Phase 3 insights rows are validated; provider usage remains the final local usage/status vocabulary dependency., Goncho memory and queue rows expose deterministic event inputs that can be fixture-tested without live providers, Prometheus, Sentry, Redis, or hosted Honcho., The slice can keep external exporters as owned/excluded divergence while preserving the event names, trace IDs, queue/dream/reconciliation evidence, and redaction semantics needed by local Gormes diagnostics.
-- Not ready when: The slice changes the persisted usage.jsonl schema, starts Prometheus/Sentry/OpenTelemetry exporters, or sends telemetry over the network., The slice blocks kernel turns, provider calls, memory writes, or dream/reconciliation jobs when telemetry recording fails., The slice collapses Honcho reasoning traces into generic log lines without preserving event name, reasoning tree ID, level, parent/child relationship, and redaction evidence.
-- Degraded mode: Telemetry emission failures, unavailable metrics exporters, and unsupported hosted Honcho tracing fields produce nonfatal local evidence instead of blocking turns, memory writes, or queue processing.
-- Fixture: `internal/telemetry/self_monitoring_test.go; internal/goncho/telemetry_test.go`
-- Write scope: `internal/telemetry/self_monitoring.go`, `internal/telemetry/self_monitoring_test.go`, `internal/audit/self_monitoring.go`, `internal/audit/self_monitoring_test.go`, `internal/insights/self_monitoring.go`, `internal/insights/self_monitoring_test.go`, `internal/goncho/telemetry.go`, `internal/goncho/telemetry_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/telemetry ./internal/audit ./internal/insights ./internal/goncho -run 'TestSelfMonitoring\|TestGonchoTelemetry\|TestReasoningTrace' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Telemetry fixtures prove Hermes usage metrics and Honcho reasoning/event traces map into deterministic redacted local evidence with nonfatal failure behavior and explicit hosted-exporter divergence.
-- Acceptance: SelfMonitoringBridge accepts injected TelemetrySink, AuditSink, and InsightsRecorder implementations so telemetry, audit, and insights behavior can be tested without global state., A local event matrix maps Hermes turn/provider/tool usage and Honcho agent, dream, reconciliation, representation, and reasoning-trace events into Gormes telemetry/audit event names with owned/excluded exporter rationale., ReasoningTrace fixtures preserve trace ID, tree node ID, parent ID, level, event type, timing, and redacted payload summaries without raw prompts, secrets, or provider tokens., Provider/account usage and tool metrics bridge into the existing insights rollup as additive evidence without altering existing usage.jsonl field names., Telemetry failures return nonfatal degraded evidence and do not interrupt turns, memory writes, webhook delivery, queue processing, or dream scheduling., Tests classify hosted Prometheus/Sentry/exporter-only behavior as owned/excluded divergence and prove local event emission remains deterministic.
-- Source refs: ../hermes-agent/agent/trajectory.py, ../hermes-agent/agent/usage_pricing.py:CanonicalUsage,normalize_usage,estimate_usage_cost, ../hermes-agent/tests/agent/test_usage_pricing.py, ../honcho/src/telemetry/emitter.py, ../honcho/src/telemetry/reasoning_traces.py, ../honcho/src/telemetry/events/agent.py, ../honcho/src/telemetry/events/deletion.py, ../honcho/src/telemetry/events/dream.py, ../honcho/src/telemetry/events/reconciliation.py, ../honcho/src/telemetry/events/representation.py, ../honcho/src/telemetry/metrics_collector.py, ../honcho/src/telemetry/sentry.py, ../honcho/src/telemetry/prometheus/metrics.py, ../honcho/tests/telemetry/test_events.py, ../honcho/tests/telemetry/test_emitter.py, ../honcho/tests/integration/test_telemetry.py, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Telemetry and reasoning traces, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces
+- Ready when: A small internal/apiserver package can be tested without launching live uvicorn/React tooling, The public API allowlist is fixture-locked from Hermes web_server.py
+- Not ready when: The slice ports React pages or PTY chat before the server/security/degraded contract exists, The implementation allows non-loopback Host headers by default
+- Degraded mode: When the dashboard dist is absent or disabled, API status exposes dashboard_available=false with missing_dist evidence and the server does not claim React parity.
+- Fixture: `internal/apiserver/dashboard_server_test.go`
+- Write scope: `internal/apiserver/dashboard_server.go`, `internal/apiserver/dashboard_server_test.go`, `cmd/gormes`
+- Test commands: `go test ./internal/apiserver -run 'TestDashboard(Server\|API\|Unavailable)' -count=1`, `go run ./cmd/progress validate`
+- Done signal: internal/apiserver exposes a tested dashboard server shell with static SPA serving, Host/session-token guards, public endpoint allowlist, and unavailable inventory.
+- Acceptance: TestDashboardServerServesSPAAndDist proves a loopback-only server serves index.html and static assets from an embedded or configured dist without exposing arbitrary filesystem paths., TestDashboardAPIGuardsHostAndSessionToken proves localhost Host validation, CORS/session-token gating, and public endpoint allowlist behavior for status/defaults/model/theme/plugin discovery., TestDashboardUnavailableInventory proves missing React dist returns a deterministic JSON inventory with unavailable/degraded evidence instead of starting a broken server.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:64-110, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:194-240, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/index.html, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/vite.config.ts
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Environment interface + file sync contract
+## 3. Web dashboard React/Vite scaffold + 9-page route manifest
 
-- Phase: 5 / 5.B
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes ports Hermes sandbox environment and file-sync contracts into a Go Environment interface with path mapping, upload/download, timeout, cleanup, and parser-family inventory fixtures before backend-specific Docker/SSH/Modal/Daytona/Singularity execution lands.
-- Trust class: operator, child-agent, system
-- Ready when: Tool execution descriptor and command-runner seams are validated enough to define an interface without starting real backends., The first slice can use fake filesystem and fake parser fixtures; no Docker daemon, SSH server, Modal account, browser, or provider credential is required.
-- Not ready when: The slice implements a real Docker, SSH, Modal, Daytona, Singularity, or browser environment backend instead of the shared interface and file-sync contract., The slice executes model-generated commands or parses live LLM output instead of using hermetic parser fixtures., The slice treats broad `environments/**` coverage as complete without exact parser-family rows.
-- Degraded mode: Unavailable or unsupported environment backends return environment_backend_unavailable or parser_family_row_backed evidence without shelling out, starting containers, or dropping file-sync intent.
-- Fixture: `internal/tools/environment_contract_test.go; internal/hermes/tool_call_parser_manifest_test.go`
-- Write scope: `internal/tools/environment_contract.go`, `internal/tools/environment_contract_test.go`, `internal/hermes/tool_call_parser_manifest.go`, `internal/hermes/tool_call_parser_manifest_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools ./internal/hermes -run 'TestEnvironmentContract\|TestToolCallParserManifest' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Environment contract fixtures prove fake backend path/file-sync/timeout/cleanup behavior and parser-family manifest coverage without real sandbox backends.
-- Acceptance: Environment interface fixtures prove path mapping, upload/download intent, timeout propagation, cleanup ordering, and unsupported-backend evidence over fake backends., File-sync fixtures prove checksum/delete intent and host/container path normalization without touching real remote filesystems., Parser manifest fixtures classify hermes_parser.py, deepseek_v3_1_parser.py, and the remaining parser family as implemented, row-backed, or excluded before raw parser execution parity is claimed., No test starts Docker, SSH, Modal, Daytona, Singularity, browsers, or provider clients.
-- Source refs: ../hermes-agent/tools/environments/base.py:BaseEnvironment, ../hermes-agent/tools/environments/file_sync.py, ../hermes-agent/environments/hermes_base_env.py, ../hermes-agent/environments/agentic_opd_env.py, ../hermes-agent/environments/web_research_env.py, ../hermes-agent/environments/tool_call_parsers/hermes_parser.py, ../hermes-agent/environments/tool_call_parsers/deepseek_v3_1_parser.py, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Sandbox/environments, docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Per-model tool-call parsers
-- Unblocks: Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard
-- Why now: Unblocks Docker, Modal, Daytona, Singularity, Raw tool-call parser fixture matrix, Terminal snapshot source stdout suppression guard.
-
-## 3. ACP server side
-
-- Phase: 5 / 5.H
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Contract: Gormes maps Hermes ACP adapter entry/auth/session/tools/permissions/events into a Go-native manifest and stdio/server protocol fixture before editor integrations are advertised.
-- Trust class: operator, system
-- Ready when: MCP schema normalization and managed gateway bridge rows are validated enough to reuse tool/permission descriptors., This slice can remain a manifest/protocol fixture package without starting an editor or spawning subprocesses.
-- Not ready when: The slice starts a live ACP server, shells out to Hermes/Python, or registers editor integrations before auth/session/tool/permission event shapes are fixture-backed., The slice claims ACP parity from broad acp_adapter/** coverage without exact auth, entry, session, tool, permission, and event refs.
-- Degraded mode: Unsupported ACP provider detection, missing auth, and permission prompt paths return explicit acp_row_backed evidence instead of silently registering an incomplete editor bridge.
-- Fixture: `internal/acp/server_manifest_test.go`
-- Write scope: `internal/acp/server_manifest.go`, `internal/acp/server_manifest_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`, `docs/upstream_coverage_test.go`
-- Test commands: `go test ./internal/acp -run TestACPServerManifest -count=1`, `go test ./docs -run TestNestedUpstreamFeatureCoverage -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: ACP manifest fixtures prove exact upstream auth, entry, session, tool, permission, event, and registry surfaces are classified before live ACP server work starts.
-- Acceptance: ACP manifest fixtures classify auth provider detection, stdio entry startup, session lifecycle, tool rendering, permission prompts, and event streaming as implemented, row-backed, owned, or excluded., The Go target names future internal/acp package boundaries and adapter event structs without importing Python., Tests fail when upstream acp_adapter files or acp_registry/agent.json change without manifest classification., Editor integration docs remain row-backed until protocol fixtures exist.
-- Source refs: ../hermes-agent/acp_adapter/auth.py:detect_provider, ../hermes-agent/acp_adapter/entry.py:main, ../hermes-agent/acp_adapter/server.py, ../hermes-agent/acp_adapter/session.py, ../hermes-agent/acp_adapter/tools.py, ../hermes-agent/acp_adapter/permissions.py, ../hermes-agent/acp_adapter/events.py, ../hermes-agent/acp_registry/agent.json, ../hermes-agent/tests/acp/, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:ACP server/session/tools/permissions matrix
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Backup/update opt-in and exclusion policy
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: CLI backup/update policy defaults pre-update backups off unless explicitly requested, honors --no-backup over --backup, and excludes checkpoints plus SQLite WAL/SHM/journal sidecars from backup manifests
-- Trust class: operator, system
-- Ready when: Diagnostics, backup, logs, and status CLI remains an umbrella; this row is the first pure backup policy helper and does not require a real update command., Tests use synthetic flag values and temp path lists; no archive writer, git pull, network, package manager, or real Gormes home is required.
-- Not ready when: The slice implements update execution, writes archives, contacts git remotes, changes installer scripts, or scans the real operator home directory., The slice includes checkpoints/, *.db-wal, *.db-shm, or *.db-journal files in a default backup manifest., The slice changes log redaction or support-upload behavior.
-- Degraded mode: Update status reports backup_skipped_default, backup_forced, backup_disabled_by_flag, or backup_manifest_excluded_paths instead of silently archiving large or unsafe runtime files.
-- Fixture: `internal/cli/backup_policy_test.go::TestBackupPolicy_*`
-- Write scope: `internal/cli/backup_policy.go`, `internal/cli/backup_policy_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/cli -run '^TestBackupPolicy_\|^TestBackupManifestExclusions_' -count=1`, `go test ./internal/cli -count=1`, `go run ./cmd/progress validate`
-- Done signal: Backup policy fixtures prove pre-update backups are opt-in, --no-backup wins, and checkpoints plus SQLite WAL/SHM/journal sidecars are excluded from manifests without archive or network side effects.
-- Acceptance: TestBackupPolicy_DefaultSkipsPreUpdateBackup proves no backup is requested when neither --backup nor --no-backup is set., TestBackupPolicy_ExplicitBackupEnables proves --backup requests a backup and emits backup_forced evidence., TestBackupPolicy_NoBackupWins proves --no-backup suppresses backup even when --backup is also true., TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars proves checkpoints/, *.db-wal, *.db-shm, and *.db-journal are excluded while ordinary .db files remain eligible., Tests use synthetic paths/temp dirs only and do not create archives or invoke git.
-- Source refs: ../hermes-agent/hermes_cli/main.py@ea3c5a14:update backup flags, ../hermes-agent/hermes_cli/backup.py@a9033c92:exclude checkpoints, ../hermes-agent/hermes_cli/backup.py@817633bc:exclude SQLite sidecars, ../hermes-agent/tests/hermes_cli/test_backup.py@817633bc, internal/cli/log_snapshot.go, cmd/gormes/doctor.go
-- Unblocks: Backup manifest dry-run contract
-- Why now: Unblocks Backup manifest dry-run contract.
-
-## 5. OCI image
-
-- Phase: 5 / 5.P
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Contract: Gormes ships an OCI image contract that mirrors upstream Docker entrypoint/config volume operational behavior while proving the final image contains the Go binary and no required Python runtime path.
-- Trust class: operator, system
-- Ready when: The Go binary build and offline doctor command are stable., The slice can test Dockerfile/entrypoint text and optional local container smoke fixtures without publishing an image.
-- Not ready when: The slice requires live registry access, provider credentials, hosted Honcho Postgres/Redis, or Python package installation to prove Gormes runtime behavior., The slice changes installer policy or release artifact signing in the same pass.
-- Degraded mode: Container smoke tests run offline and report missing binary, missing config volume, or Python-runtime dependency evidence without contacting registries or providers.
-- Fixture: `docs/install/oci_image_test.go`
-- Write scope: `Dockerfile`, `docker/entrypoint.sh`, `docs/install/oci_image_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./docs -run TestOCIImageContract -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: OCI image fixtures prove Go-binary runtime layout, offline doctor command behavior, config volume handling, and explicit hosted Honcho deploy divergence.
-- Acceptance: Dockerfile fixtures prove the image builds or describes a Go-binary runtime path with no Hermes Python runtime dependency., Entrypoint fixtures preserve offline doctor/config-volume behavior and deterministic command forwarding., Honcho hosted compose/Prometheus/Grafana files are classified as owned/excluded divergence or docs-only operational examples, not required local Goncho runtime dependencies., A smoke command can run `gormes doctor --offline` with fake config volume inputs.
-- Source refs: ../hermes-agent/Dockerfile, ../hermes-agent/docker/entrypoint.sh, ../hermes-agent/docker-compose.yml, ../honcho/Dockerfile, ../honcho/docker-compose.yml.example, ../honcho/docker/entrypoint.sh, ../honcho/docker/prometheus.yml, ../honcho/docker/grafana-datasource.yml, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Packaging/release/install
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Homebrew
-
-- Phase: 5 / 5.P
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Contract: Gormes ports Hermes Homebrew/release artifact expectations into a Go-native formula fixture with version, checksum, binary install layout, and doctor smoke contract.
-- Trust class: operator, system
-- Ready when: Static binary artifact naming and version output are stable enough for formula fixtures., The first slice can validate formula text and fake artifact metadata without pushing a tap.
-- Not ready when: The slice publishes release artifacts, mutates a live Homebrew tap, or requires network downloads in tests., The slice mixes Homebrew with OCI, Nix, service units, or installer shell scripts.
-- Degraded mode: Formula validation reports missing artifact, checksum, binary layout, or doctor smoke evidence instead of publishing an untestable tap update.
-- Fixture: `docs/install/homebrew_formula_test.go`
-- Write scope: `packaging/homebrew/gormes-agent.rb`, `docs/install/homebrew_formula_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./docs -run TestHomebrewFormulaContract -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Homebrew formula fixtures prove version/checksum/artifact/install-layout behavior without live tap publication or network downloads.
-- Acceptance: Formula fixtures prove class name, version, URL, checksum, binary install path, and doctor smoke command are present., Release-script fixtures prove Gormes artifact names and checksums can feed the formula without Hermes Python packaging paths., Nix/flake references remain separate row-backed packaging work unless explicitly included in a later Nix row.
-- Source refs: ../hermes-agent/packaging/homebrew/hermes-agent.rb, ../hermes-agent/scripts/release.py, ../hermes-agent/flake.nix, docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Release packaging divergence matrix
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Yuanbao protocol envelope + markdown fixtures
-
-- Phase: 7 / 7.E
+- Phase: 5 / 5.V
 - Owner: `gateway`
-- Size: `small`
+- Size: `medium`
 - Status: `planned`
-- Priority: `P4`
-- Contract: Gormes parses Yuanbao websocket/protobuf-style envelopes and Markdown message fragments into gateway-neutral events using fixture data only
-- Trust class: gateway, system
-- Ready when: The Phase 2 shared gateway event shape and Regional + Device Adapter Backlog are available; this row does not need a live Yuanbao account., Workers can start with captured JSON/proto/markdown testdata under internal/channels/yuanbao/testdata copied or minimized from upstream fixtures., No send loop, login flow, tool registration, media download, or sticker parsing is required for this first slice.
-- Not ready when: The slice opens a websocket, performs login, calls Tencent/Yuanbao endpoints, downloads media, or registers user-visible tools., The slice stores credentials or changes shared gateway session policy., The slice combines protocol parsing with send/reply runtime behavior.
-- Degraded mode: Yuanbao adapter status reports protocol_unavailable or markdown_parse_failed evidence instead of starting a live session with unparsed payloads.
-- Fixture: `internal/channels/yuanbao/proto_test.go`
-- Write scope: `internal/channels/yuanbao/proto.go`, `internal/channels/yuanbao/proto_test.go`, `internal/channels/yuanbao/markdown.go`, `internal/channels/yuanbao/markdown_test.go`, `internal/channels/yuanbao/testdata/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels/yuanbao -run 'TestYuanbao(Proto\|Markdown)' -count=1`, `go test ./internal/channels/yuanbao -count=1`, `go run ./cmd/progress validate`
-- Done signal: Yuanbao protocol/markdown fixtures prove inbound text event normalization and degraded parse evidence with no live Yuanbao network call.
-- Acceptance: TestYuanbaoProto_DecodesInboundTextFixture loads a captured fixture and returns source, conversation id, message id, author role, and text content., TestYuanbaoMarkdown_RendersCodeAndLinks proves code blocks, links, mentions, and list fragments are normalized into plain prompt-safe text without losing URLs., Malformed/unknown envelope fixtures return typed degraded evidence and do not panic., No test imports a generated protobuf runtime unless a local generated fixture file is checked in under internal/channels/yuanbao.
-- Source refs: ../hermes-agent/gateway/platforms/yuanbao_proto.py@ab687963, ../hermes-agent/gateway/platforms/yuanbao.py@ab687963, ../hermes-agent/tests/test_yuanbao_proto.py@ab687963, ../hermes-agent/tests/test_yuanbao_markdown.py@ab687963, ../hermes-agent/website/docs/user-guide/messaging/yuanbao.md@ab687963
-- Unblocks: Yuanbao media/sticker attachment normalization, Yuanbao gateway runtime + toolset registration
-- Why now: Unblocks Yuanbao media/sticker attachment normalization, Yuanbao gateway runtime + toolset registration.
+- Priority: `P0`
+- Contract: Port the minimal Vite/React scaffold and route manifest for Hermes' 9-page dashboard without filling each page's detailed behavior yet.
+- Trust class: operator, system
+- Ready when: Dashboard server shell child row exists, Node tooling is isolated under web/ and Go tests do not require network access
+- Not ready when: The slice ports full page functionality instead of route/fallback scaffolding, The server shell row is not present as the embedding target
+- Degraded mode: Each route can render a typed unavailable panel with the API endpoint it needs; no blank page or unhandled promise rejection is acceptable.
+- Fixture: `web/src/App.test.tsx`
+- Write scope: `web/package.json`, `web/src/App.tsx`, `web/src/main.tsx`, `web/src/pages/`, `internal/apiserver/dashboard_assets.go`
+- Test commands: `npm --prefix web test -- --run DashboardFrontendScaffold`, `go test ./internal/apiserver -run TestDashboardDistManifest -count=1`, `go run ./cmd/progress validate`
+- Done signal: web/ exists with React/Vite scaffold, route manifest, and fallback-rendering tests for all Hermes dashboard pages.
+- Acceptance: TestDashboardFrontendScaffoldDefinesRoutes proves the SPA route manifest includes dashboard, chat, config, env, sessions, logs, cron, skills, docs, and analytics entries matching Hermes page files., TestDashboardFrontendBuildManifest proves the new web package has Vite/React build metadata and emits a deterministic dist manifest for the Go server shell., TestDashboardPageFallbacks prove pages render explicit unavailable panels when their backing API endpoints are not implemented yet.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/package.json, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/App.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/main.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/AnalyticsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ConfigPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/CronPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/DocsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/EnvPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/LogsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SessionsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SkillsPage.tsx
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 4. Skill registries
+
+- Phase: 5 / 5.F
+- Owner: `skills`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Native skills hub registry providers expose source-backed, read-only metadata for the current Hermes skills hub source adapters before any write-capable install flow: OptionalSkillSource, HermesIndexSource, SkillsShSource, WellKnownSkillSource, UrlSource, GitHubSource, ClawHubSource, ClaudeMarketplaceSource, and LobeHubSource are the active upstream contract at Hermes 69d4800d. This executable slice should add only the missing remote registry read-model providers over the existing HubRegistryProvider/Search seam, with source filtering, trust normalization, centralized-index preference, stale-cache fallback, and typed degraded evidence for unavailable, malformed, timeout, empty, and rate-limited upstreams. Url direct parsing and optional bundled-skill inventory stay in their existing rows; this slice must not install, activate, quarantine, guard-scan, or mutate skills.
+- Trust class: operator, system
+- Ready when: The existing internal/skills HubRegistryProvider/Search read model remains the public seam for registry metadata., Tests inject fake HTTP clients, response fixtures, or temp cache roots for Skills.sh/GitHub, WellKnown, HermesIndex, ClawHub, ClaudeMarketplace, and LobeHub; no live network, GitHub token, gh CLI, active skill store, or quarantine directory is required., UrlSource direct SKILL.md parsing is treated as already covered by the separate complete `Skills hub direct URL candidate parser` row rather than reimplemented here.
+- Not ready when: The slice downloads arbitrary bundle files, writes active/candidate skills, performs guard scans, runs install commands, or changes skill prompt injection., The slice omits current Hermes 69d4800d source adapters (HermesIndexSource, ClaudeMarketplaceSource, or LobeHubSource) from the read-model contract, or treats the centralized index preference in parallel_search_sources as out of scope without a source-backed split row., ClawHub, Skills.sh, WellKnown, or GitHub results are treated as builtin/trusted without the upstream trust rules, or malformed remote payloads panic instead of returning typed degraded evidence.
+- Degraded mode: Network failures, non-200 responses, malformed JSON, expired/missing cache, empty registries, and rate limits return typed evidence such as registry_unavailable, registry_rate_limited, registry_malformed, registry_cache_stale, or registry_empty without panics and without active-store mutation.
+- Fixture: `internal/skills/hub_registry_sources_test.go`
+- Write scope: `internal/skills/hub_registry_sources.go`, `internal/skills/hub_registry_sources_test.go`, `internal/skills/hub_search.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/skills -run 'TestClawHubProvider\|TestHermesIndexProvider\|TestClaudeMarketplaceProvider\|TestLobeHubProvider\|TestSkillsShProvider\|TestWellKnownRegistryProvider\|TestRegistryProvider' -count=1`, `go test ./internal/skills -count=1`, `go run ./cmd/progress validate`
+- Done signal: Native registry providers expose current Hermes HermesIndex, Skills.sh/GitHub, WellKnown, ClawHub, ClaudeMarketplace, and LobeHub metadata through HubRegistryProvider/Search with fixture-backed cache/degraded evidence tests, centralized-index source filtering, and no install/store mutation.
+- Acceptance: TestClawHubProviderCommunityTrustAndDegradedEvidence proves ClawHub search/inspect normalizes slug/name/tags, assigns community trust, reports registry_unavailable or registry_rate_limited for failures, and never mutates the active store., TestHermesIndexProviderPrefersCachedIndex proves centralized Hermes index fixtures return metadata with zero API calls and source-router search can skip duplicate remote API sources when the index is available and source_filter=all., TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace.json fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report typed malformed/unavailable evidence without store writes., TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence instead of panicking., TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh result identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh and deterministic source-filter behavior., TestWellKnownRegistryProviderReadsIndexMetadata proves .well-known/skills index fixtures produce community-trust metadata without network or filesystem writes beyond the temp cache., TestRegistryProviderCacheFallback proves malformed or unavailable network responses reuse a valid stale cache when present and return typed evidence when no cache exists., TestRegistryProvidersDoNotInstall proves the registry-source package has no dependency on active store mutators, quarantine install paths, gateway adapters, or provider/model clients.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,GitHubSource.fetch,GitHubSource.inspect, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,SkillsShSource.fetch,SkillsShSource.inspect,_discover_identifier, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:WellKnownSkillSource.search,WellKnownSkillSource.fetch,WellKnownSkillSource.inspect, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClawHubSource.search,ClawHubSource.fetch,ClawHubSource.inspect,_load_catalog_index, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestWellKnownSkillSource,TestUrlSource,TestSkillSourceRouter,TestUnifiedSearch, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub_clawhub.py:TestClawHubSource, internal/skills/hub_search.go, internal/skills/hub_search_test.go, internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider, internal/skills/hub_registry_sources_test.go:TestWellKnownRegistryProviderReadsIndexMetadata,TestClawHubProviderCommunityTrustAndDegradedEvidence,TestClawHubProviderDegradedEvidence, internal/skills/url_candidate.go
+- Unblocks: Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures
+- Why now: Unblocks Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures.
+
+## 5. Web dashboard core components + data-state fixtures
+
+- Phase: 5 / 5.V
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Port Hermes dashboard's reusable component set as typed React fixtures so later page slices compose parity components instead of re-inventing UI behavior per page.
+- Trust class: operator, system
+- Ready when: React/Vite scaffold row is present, Fixture data contracts are stable enough for page slices to reuse
+- Not ready when: The slice depends on real provider keys, gateway processes, or live cron/session databases, The slice changes API contracts instead of consuming typed fixtures
+- Degraded mode: Components render explicit empty/error states with redacted diagnostic text when data is absent or APIs are unavailable.
+- Fixture: `web/src/components/dashboard-components.test.tsx`
+- Write scope: `web/src/components/`, `web/src/components/ui/`, `web/src/hooks/`, `web/src/contexts/`
+- Test commands: `npm --prefix web test -- --run DashboardCoreComponents`, `go run ./cmd/progress validate`
+- Done signal: web/src/components and hooks cover Hermes dashboard core UI primitives with data-state fixtures.
+- Acceptance: TestDashboardCoreComponentsRenderDataStates proves core cards, markdown, model info, platform, slash popover, toast, and tool-call components render loading/empty/error/success states from typed fixtures., TestDashboardSidebarAndHeaderState proves sidebar status, page header, language/theme controls, and destructive-confirm dialogs preserve user-visible labels and keyboard affordances., Component fixtures avoid live gateway/provider calls and can run in CI without credentials.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ui/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/hooks/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/contexts/
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 6. Web dashboard PTY chat + event websocket fixtures
+
+- Phase: 5 / 5.V
+- Owner: `gateway`
+- Size: `large`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Port the dashboard embedded-chat/PTY websocket contract and React chat integration with fakes before binding to a live terminal or provider runtime.
+- Trust class: operator, system
+- Ready when: Dashboard server shell has session-token gating, React route scaffold includes ChatPage fallback
+- Not ready when: The slice launches a real shell/provider in tests, The slice exposes chat before session-token and enablement gates are proven
+- Degraded mode: When embedded chat is disabled, websocket attempts close with dashboard_chat_disabled evidence and ChatPage renders instructions rather than hanging.
+- Fixture: `internal/apiserver/dashboard_pty_test.go`
+- Write scope: `internal/apiserver/dashboard_pty.go`, `internal/apiserver/dashboard_pty_test.go`, `web/src/pages/ChatPage.tsx`, `web/src/lib/gatewayClient.ts`
+- Test commands: `go test ./internal/apiserver -run 'TestDashboard(PTY\|Event\|Chat)' -count=1`, `npm --prefix web test -- --run DashboardChatPage`, `go run ./cmd/progress validate`
+- Done signal: Go apiserver websocket tests and React ChatPage fixtures cover PTY/chat/event streaming without live credentials.
+- Acceptance: TestDashboardPTYWebsocketNegotiates proves /api/pty rejects disabled or unauthenticated sessions, accepts enabled fake sessions, and redacts command/environment details in close reasons., TestDashboardChatPageStreamsToolAndAssistantEvents proves ChatPage consumes PTY/event fixtures for user text, assistant deltas, tool-call panels, completion, and error states., TestDashboardEventWebsocketsFanout proves /api/ws, /api/pub, and /api/events compatibility shims either stream typed events or return a documented unavailable status.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:77-79, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2401-2588, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/lib/gatewayClient.ts
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 7. Web dashboard theme catalog + switcher parity
+
+- Phase: 5 / 5.V
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Port Hermes dashboard theme catalog and theme-selection API as a small independent slice, separate from TUI skin parity and page functionality.
+- Trust class: operator, system
+- Ready when: Dashboard server shell exposes public theme catalog endpoint, React scaffold can mount ThemeSwitcher fixtures
+- Not ready when: The slice conflates dashboard themes with terminal skins without a mapping fixture, Theme persistence writes secrets or unrelated config keys
+- Degraded mode: Unknown or unavailable themes fall back to the default dashboard theme with invalid_theme evidence; TUI skins are not used as a substitute unless explicitly mapped.
+- Fixture: `internal/apiserver/dashboard_theme_test.go`
+- Write scope: `internal/apiserver/dashboard_theme.go`, `internal/apiserver/dashboard_theme_test.go`, `web/src/themes/`, `web/src/components/ThemeSwitcher.tsx`
+- Test commands: `go test ./internal/apiserver -run TestDashboardTheme -count=1`, `npm --prefix web test -- --run DashboardTheme`, `go run ./cmd/progress validate`
+- Done signal: Dashboard theme API and React context/switcher are fixture-backed and list the same presets as Hermes web/src/themes.
+- Acceptance: TestDashboardThemeCatalogMatchesHermes proves all Hermes dashboard theme presets, color tokens, and display names are available through the Go API and React theme context., TestDashboardThemeSelectionPersists proves PUT /api/dashboard/theme stores a valid selected theme and rejects unknown values with redacted errors., TestDashboardThemeSwitcherFixture proves the React ThemeSwitcher applies theme variables without reloading or losing current route state.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2919-2962, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/themes/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ThemeSwitcher.tsx
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 8. Web dashboard OAuth provider flows + EN/ZH i18n
+
+- Phase: 5 / 5.V
+- Owner: `gateway`
+- Size: `large`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Port the dashboard OAuth-provider UI contract and EN/ZH i18n catalog as fixture-backed surfaces; do not implement real browser OAuth beyond fake-provider endpoint shapes in this slice.
+- Trust class: operator, system
+- Ready when: Dashboard server shell has session-token gating, React core components include OAuth modal/card fixtures
+- Not ready when: The slice performs live OAuth browser/device flows, The slice leaves English-only labels in newly ported dashboard UI
+- Degraded mode: OAuth endpoints return oauth_provider_unavailable or credentials_missing with redacted evidence when a provider is not configured; untranslated labels fail tests rather than falling back silently.
+- Fixture: `internal/apiserver/dashboard_oauth_test.go`
+- Write scope: `internal/apiserver/dashboard_oauth.go`, `internal/apiserver/dashboard_oauth_test.go`, `web/src/components/OAuthLoginModal.tsx`, `web/src/components/OAuthProvidersCard.tsx`, `web/src/i18n/`
+- Test commands: `go test ./internal/apiserver -run 'TestDashboard(OAuth\|I18n)' -count=1`, `npm --prefix web test -- --run 'Dashboard(OAuth\|I18n)'`, `go run ./cmd/progress validate`
+- Done signal: OAuth provider API fakes, React OAuth modal/card fixtures, and EN/ZH i18n catalogs are tested without real credentials.
+- Acceptance: TestDashboardOAuthProvidersUsesFakes proves provider listing, start, submit, poll, delete, and redacted error paths match Hermes endpoint shapes without requiring real OAuth credentials., TestDashboardI18nCatalog proves English and Chinese dashboard catalogs cover every route, component label, OAuth state, and unavailable/degraded message used by the scaffold., TestDashboardLanguageSwitcherFixture proves the language switcher updates rendered copy and preserves current route/theme state.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:1290-1325, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:1867-1933, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/OAuthLoginModal.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/OAuthProvidersCard.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/i18n/en.ts, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/i18n/zh.ts
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

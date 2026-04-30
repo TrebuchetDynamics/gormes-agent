@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
 )
 
 const maxDiscordText = 2000
@@ -13,11 +14,8 @@ func formatStream(f kernel.RenderFrame) string {
 	if text := strings.TrimSpace(f.DraftText); text != "" {
 		parts = append(parts, text)
 	}
-	if len(f.SoulEvents) > 0 {
-		last := f.SoulEvents[len(f.SoulEvents)-1]
-		if text := strings.TrimSpace(last.Text); text != "" && text != "idle" {
-			parts = append(parts, "🔧 "+text)
-		}
+	if text := formatToolTrace(f.SoulEvents); text != "" {
+		parts = append(parts, text)
 	}
 	if f.Phase == kernel.PhaseReconnecting {
 		parts = append(parts, "reconnecting...")
@@ -26,6 +24,14 @@ func formatStream(f kernel.RenderFrame) string {
 		return "⏳"
 	}
 	return truncateDiscord(strings.Join(parts, "\n\n"))
+}
+
+func formatToolTrace(events []kernel.SoulEntry) string {
+	texts := make([]string, 0, len(events))
+	for _, event := range events {
+		texts = append(texts, event.Text)
+	}
+	return tooltrace.FormatBlock(texts)
 }
 
 func formatFinal(f kernel.RenderFrame) string {

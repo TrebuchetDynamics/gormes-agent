@@ -18,11 +18,29 @@ Every porting pass must route through a repo-local skill:
 
 ## 1. Pick your target
 
-Open [Subsystem Inventory](../architecture_plan/subsystem-inventory/). Every row is a Hermes subsystem with a target Gormes sub-phase. Pick one that:
+Start from the current dispatch surfaces, not from memory or an old audit:
 
-- Carries a ⏳ planned status (not already shipped)
-- Has no hard dependency on a later phase (check the "Target phase" column)
-- You have context on (voice/vision are big lifts; a platform adapter is a reasonable first PR)
+1. Check [Agent Queue](../builder-loop/agent-queue/) and
+   [Next Slices](../builder-loop/next-slices/) for builder-ready rows.
+2. If those generated pages are empty, choose one planned row from
+   `progress.json`, [Contract Readiness](../contract-readiness/), or the
+   relevant phase page and run a `gormes-planner` pass to make it executable.
+3. Use [Subsystem Inventory](../architecture_plan/subsystem-inventory/) and
+   [Hermes And Honcho Feature Map](../architecture_plan/hermes-honcho-feature-map/)
+   to confirm the upstream subsystem and target phase.
+
+Pick work that:
+
+- Is not already `complete` in `progress.json`.
+- Has no unsatisfied `blocked_by` dependency.
+- Can be expressed as one contract-bearing row with source refs, write scope,
+  test commands, acceptance, degraded mode, and done signal.
+- Fits your context and risk tolerance: voice/vision/provider rows are large
+  lifts; a focused command, tool, or adapter fixture is a better first row.
+
+Historical audit tables are evidence, not dispatch state. If an audit says a
+surface is missing but `progress.json` now marks the row complete/validated,
+treat it as historical unless current code or tests prove a regression.
 
 ## 2. Do the source-study checklist
 
@@ -30,13 +48,16 @@ Before writing implementation tasks, answer these in the spec or plan:
 
 1. **Contract:** what upstream behavior is being ported? Name the source files
    and the external contract, not just the donor implementation.
-2. **Trust class:** who can call it: `operator`, `gateway`, `child-agent`, or
+2. **Go pattern:** if the implementation shape is unclear, which
+   `gormes-references` donor file was read end to end, and what exact pattern
+   is being adapted?
+3. **Trust class:** who can call it: `operator`, `gateway`, `child-agent`, or
    `system`? What is rejected before handler code runs?
-3. **Fixture:** what replayable fixture proves compatibility without live
+4. **Fixture:** what replayable fixture proves compatibility without live
    credentials, live platforms, or a real provider?
-4. **Degraded mode:** how does partial capability show up in status, doctor,
+5. **Degraded mode:** how does partial capability show up in status, doctor,
    audit, or logs?
-5. **Boundary:** what stays out of the kernel, gateway adapter, or trusted
+6. **Boundary:** what stays out of the kernel, gateway adapter, or trusted
    plugin surface?
 
 Useful donor study pages:
@@ -44,6 +65,36 @@ Useful donor study pages:
 - [Upstream Hermes Source Study](../../upstream-hermes/source-study/)
 - [Upstream GBrain Architecture](../../upstream-gbrain/architecture/)
 - [Upstream Lessons](../upstream-lessons/)
+- [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/)
+
+## 2.5. Find a Go donor before writing code
+
+Hermes Python defines the parity contract; Go donors under
+`references/go-agent-os/` supply working Go shapes. Skip this step and you will
+re-derive an HTTP client, retry loop, OAuth flow, SQLite schema, MCP queue, or
+truncation policy that already exists.
+
+Routing:
+
+- **Provider, auth, streaming, quota, retry, OAuth, error classification** →
+  use the `gormes-provider-parity` skill (`docs/development-skills/gormes-provider-parity/SKILL.md`)
+  plus the donor table in `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`.
+  GoClaw OAuth/quota and Plandex retry/drift live there as named files.
+- **Anything else (runtime, tools, memory, channels, utilities)** → use the
+  `gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`).
+  Its "Donor Maps By Subsystem" section names the file to read for each
+  problem class (engram store/relations/write_queue, nanobot
+  truncate/tokencount/runtime/tools, trpc-agent-go await_user_reply/callbacks,
+  axe budget/artifact, etc.).
+
+GoClaw code is permitted in Gormes with provenance (2026-04-29). Other donors
+stay patterns-only unless the per-donor permission map in
+`references/go-agent-os/README.md` authorizes them. Always add a
+`// Adapted from <donor>/...::Symbol` comment on the receiving Gormes file when
+porting code.
+
+If no donor fits, record `provenance.origin_type: gormes` on the row and write
+the contract from scratch.
 
 ## 3. Decide the row shape
 
@@ -61,6 +112,7 @@ Use this packet when adding or refining rows:
 | Packet field | Required answer |
 |---|---|
 | Upstream behavior | Exact files, symbols, docs, or commits. |
+| Go donor pattern | Exact donor file plus the pattern being adapted, or `none` with rationale. |
 | Gormes target | Package, command, tool, API, or doc surface. |
 | Public contract | What the operator, gateway, tool caller, or kernel observes. |
 | Degraded mode | How unavailable/partial behavior is reported. |

@@ -50,6 +50,12 @@ type CommandPolicy struct {
 	// in the registry so unknown-vs-unavailable can be distinguished, but they
 	// always render unavailable evidence regardless of busy state.
 	Ported bool
+	// Subcommands is the Hermes-canonical, order-preserving list of static
+	// sub-tokens a TUI completer should surface after the command name plus a
+	// space (e.g. /reasoning ⏎ none, minimal, low, …). Order matches upstream
+	// hermes_cli/commands.py CommandDef.subcommands. Dynamic per-runtime menus
+	// (/model, /skin, /personality) are intentionally not encoded here.
+	Subcommands []string
 }
 
 // CommandRegistry is the single source of truth for the active-turn behavior
@@ -98,6 +104,7 @@ var CommandRegistry = []CommandPolicy{
 		Surface:          CommandSurfaceShared,
 		ActiveTurnPolicy: ActiveTurnPolicyQueue,
 		Ported:           true,
+		Subcommands:      []string{"none", "minimal", "low", "medium", "high", "xhigh", "show", "hide", "on", "off"},
 	},
 
 	// Recognized-but-not-yet-ported commands. These mirror the upstream
@@ -140,16 +147,16 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "skills", Description: "Search, install, inspect, or manage skills", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "skin", Description: "Show or change the display skin/theme", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "snapshot", Description: "Create or restore state snapshots", Aliases: []string{"snap"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "status", Description: "Show session info", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "status", Description: "Show session info", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "statusbar", Description: "Toggle the context/model status bar", Aliases: []string{"sb"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "steer", Description: "Inject a message after the next tool call", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
-	{Name: "title", Description: "Set a title for the current session", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "title", Description: "Set a title for the current session", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "tools", Description: "Manage tools", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "toolsets", Description: "List available toolsets", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "undo", Description: "Remove the last user/assistant exchange", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "update", Description: "Update Gormes to the latest version", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "usage", Description: "Show token usage and rate limits", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
-	{Name: "verbose", Description: "Cycle tool progress display", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "verbose", Description: "Cycle tool progress display", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "voice", Description: "Toggle voice mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "yolo", Description: "Toggle YOLO mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 }

@@ -137,6 +137,7 @@ type ConcludeParams struct {
 }
 
 // ConcludeResult is the stable JSON shape for honcho_conclude.
+// ConcludeResult represents the outcome of a create/delete conclusion operation.
 type ConcludeResult struct {
 	WorkspaceID string `json:"workspace_id"`
 	Peer        string `json:"peer"`
@@ -310,4 +311,8 @@ type WorkspaceDeletionResult struct {
 	ConclusionsDeleted int64  `json:"conclusions_deleted"`
 	SummariesDeleted   int64  `json:"summaries_deleted"`
 	DreamsDeleted      int64  `json:"dreams_deleted"`
+}
+
+type DialecticCaller interface {
+	Chat(ctx context.Context, peer string, systemPrompt string, query string) (string, error)
 }

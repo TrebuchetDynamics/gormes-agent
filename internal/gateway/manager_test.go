@@ -122,6 +122,112 @@ func TestManager_Inbound_AllowedChat_Submit(t *testing.T) {
 	}
 }
 
+func TestManager_Inbound_VerboseDisabledSendsHermesGateGuidance(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m",
+		Kind: EventVerbose, Text: "/verbose",
+	})
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.sentSnapshot()) == 1
+	})
+	got := tg.sentSnapshot()[0].Text
+	for _, want := range []string{
+		"The `/verbose` command is not enabled for messaging platforms.",
+		"display:",
+		"tool_progress_command: true",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("/verbose disabled response missing %q in %q", want, got)
+		}
+	}
+	if strings.Contains(got, "unavailable in this build") {
+		t.Fatalf("/verbose disabled response = %q, want Hermes gated guidance instead of unavailable text", got)
+	}
+}
+
+func TestManager_Inbound_VerboseCyclesAndPersistsPerPlatform(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	var persistedPlatform, persistedMode string
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:               map[string]string{"telegram": "42"},
+		ToolProgressCommandEnabled: true,
+		ToolProgressMode:           "all",
+		ToolProgressModes:          map[string]string{"telegram": "off"},
+		PersistToolProgressMode: func(platform, mode string) error {
+			persistedPlatform = platform
+			persistedMode = mode
+			return nil
+		},
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m",
+		Kind: EventVerbose, Text: "/verbose",
+	})
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.sentSnapshot()) == 1
+	})
+	got := tg.sentSnapshot()[0].Text
+	for _, want := range []string{
+		"⚙️ Tool progress: **NEW**",
+		"saved for **telegram**",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("/verbose enabled response missing %q in %q", want, got)
+		}
+	}
+	if strings.Contains(got, "unavailable in this build") {
+		t.Fatalf("/verbose enabled response = %q, want cycle result", got)
+	}
+	if persistedPlatform != "telegram" || persistedMode != "new" {
+		t.Fatalf("persisted = (%q, %q), want (telegram, new)", persistedPlatform, persistedMode)
+	}
+	if got := m.toolProgressMode("telegram"); got != "new" {
+		t.Fatalf("toolProgressMode(telegram) = %q, want runtime override new", got)
+	}
+}
+
+func TestManager_ToolProgressModeUsesHermesPlatformDefaults(t *testing.T) {
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.Default())
+	for _, tc := range []struct {
+		platform string
+		want     string
+	}{
+		{platform: "telegram", want: "all"},
+		{platform: "discord", want: "all"},
+		{platform: "slack", want: "off"},
+		{platform: "mattermost", want: "new"},
+		{platform: "signal", want: "off"},
+		{platform: "email", want: "off"},
+		{platform: "unknown", want: "all"},
+	} {
+		if got := m.toolProgressMode(tc.platform); got != tc.want {
+			t.Fatalf("toolProgressMode(%q) = %q, want Hermes platform default %q", tc.platform, got, tc.want)
+		}
+	}
+}
+
 func TestManager_Inbound_AppendsAttachmentsToSubmittedText(t *testing.T) {
 	tg := newFakeChannel("dingtalk")
 	fk := &fakeKernel{}
@@ -317,38 +423,82 @@ func TestManager_Inbound_Start_RepliesHelp(t *testing.T) {
 	}
 }
 
-func TestManager_Inbound_SubmitUsesChatScopedSessionOverride(t *testing.T) {
+func TestManager_Inbound_SubmitCreatesAndRefreshesConversationalSessionMetadata(t *testing.T) {
+	ctx := context.Background()
 	tg := newFakeChannel("telegram")
 	fk := &fakeKernel{}
+	smap := session.NewMemMap()
+	now := time.Date(2026, 4, 30, 1, 0, 0, 0, time.UTC)
 
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats: map[string]string{"telegram": "42"},
-		SessionMap:   session.NewMemMap(),
+		SessionMap:   smap,
+		Now:          func() time.Time { return now },
 	}, fk, slog.Default())
 	if err := m.Register(tg); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = m.Run(ctx) }()
-
-	tg.pushInbound(InboundEvent{
-		Platform: "telegram", ChatID: "42", MsgID: "m",
+	if err := m.handleInbound(ctx, InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "user-juan", MsgID: "m1",
 		Kind: EventSubmit, Text: "hello",
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first := fk.submitsSnapshot()[0]
+	if first.SessionID == "" || first.SessionID == "telegram:42" || !strings.HasPrefix(first.SessionID, "20260430_010000_") {
+		t.Fatalf("first submit SessionID = %q, want generated Hermes-style session id", first.SessionID)
+	}
+	mapped, err := smap.Get(ctx, "telegram:42")
+	if err != nil {
+		t.Fatalf("Get session map: %v", err)
+	}
+	if mapped != first.SessionID {
+		t.Fatalf("session map = %q, want first submit session %q", mapped, first.SessionID)
+	}
+	meta, ok, err := smap.GetMetadata(ctx, first.SessionID)
+	if err != nil {
+		t.Fatalf("GetMetadata first: %v", err)
+	}
+	if !ok {
+		t.Fatal("normal submit did not create session metadata")
+	}
+	if meta.Source != "telegram" || meta.ChatID != "42" || meta.UserID != "user-juan" {
+		t.Fatalf("metadata source/chat/user = %q/%q/%q, want telegram/42/user-juan", meta.Source, meta.ChatID, meta.UserID)
+	}
+	if meta.CreatedAt != now.Unix() || meta.UpdatedAt != now.Unix() {
+		t.Fatalf("metadata times = created %d updated %d, want %d", meta.CreatedAt, meta.UpdatedAt, now.Unix())
+	}
 
-	waitFor(t, 200*time.Millisecond, func() bool {
-		return len(fk.submitsSnapshot()) == 1
-	})
-	got := fk.submitsSnapshot()[0]
-	if got.SessionID != "telegram:42" {
-		t.Errorf("SessionID override = %q, want %q", got.SessionID, "telegram:42")
+	m.clearTurn()
+	now = now.Add(5 * time.Minute)
+	if err := m.handleInbound(ctx, InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "user-juan", MsgID: "m2",
+		Kind: EventSubmit, Text: "again",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	second := fk.submitsSnapshot()[1]
+	if second.SessionID != first.SessionID {
+		t.Fatalf("second submit SessionID = %q, want stable %q", second.SessionID, first.SessionID)
+	}
+	meta, ok, err = smap.GetMetadata(ctx, first.SessionID)
+	if err != nil {
+		t.Fatalf("GetMetadata second: %v", err)
+	}
+	if !ok {
+		t.Fatal("metadata disappeared after refresh")
+	}
+	if meta.CreatedAt != time.Date(2026, 4, 30, 1, 0, 0, 0, time.UTC).Unix() {
+		t.Fatalf("CreatedAt changed to %d", meta.CreatedAt)
+	}
+	if meta.UpdatedAt != now.Unix() {
+		t.Fatalf("UpdatedAt = %d, want refreshed %d", meta.UpdatedAt, now.Unix())
 	}
 }
 
 func TestManager_Outbound_StreamsToPinnedChannel(t *testing.T) {
-	tg := newFakeChannel("telegram")
+	tg := newTypingActionFakeChannel("telegram")
 	frames := make(chan kernel.RenderFrame, 8)
 	fk := &fakeKernel{}
 
@@ -376,21 +526,135 @@ func TestManager_Outbound_StreamsToPinnedChannel(t *testing.T) {
 	}
 
 	waitFor(t, 500*time.Millisecond, func() bool {
-		return len(tg.sentSnapshot()) >= 1 && len(tg.editsSnapshot()) >= 1
+		sent := tg.sentSnapshot()
+		return len(sent) >= 1 && strings.Contains(sent[0].Text, "partial")
 	})
+}
+
+func TestManager_Outbound_ToolProgressPersistsAsSeparateMessage(t *testing.T) {
+	tg := newTypingActionFakeChannel("telegram")
+	frames := make(chan kernel.RenderFrame, 8)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		CoalesceMs:   10,
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	_ = m.Register(tg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", MsgID: "m1",
+		Kind: EventSubmit, Text: "summarize this reddit post",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseStreaming,
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
+			{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests url='https://example.test'"},
+		},
+	}
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseIdle,
+		History: []hermes.Message{
+			{Role: "user", Content: "summarize this reddit post"},
+			{Role: "assistant", Content: "I read the Reddit post via Reddit's embed endpoint."},
+		},
+	}
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		sent := tg.sentSnapshot()
+		return len(sent) >= 2 &&
+			strings.Contains(sent[0].Text, "browser") &&
+			strings.Contains(sent[1].Text, "I read the Reddit post")
+	})
+	sent := tg.sentSnapshot()
+	if strings.Contains(sent[1].Text, "browser_navigate") || strings.Contains(sent[1].Text, "terminal") {
+		t.Fatalf("final answer contains tool progress; sent=%#v", sent)
+	}
+}
+
+func TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage(t *testing.T) {
+	tg := newTypingActionFakeChannel("telegram")
+	frames := make(chan kernel.RenderFrame, 8)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:     map[string]string{"telegram": "42"},
+		CoalesceMs:       10,
+		ToolProgressMode: "off",
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	_ = m.Register(tg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", MsgID: "m1",
+		Kind: EventSubmit, Text: "summarize this reddit post",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseStreaming,
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
+			{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests url='https://example.test'"},
+		},
+	}
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseIdle,
+		History: []hermes.Message{
+			{Role: "user", Content: "summarize this reddit post"},
+			{Role: "assistant", Content: "I read the Reddit post via Reddit's embed endpoint."},
+		},
+	}
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		sent := tg.sentSnapshot()
+		return len(sent) >= 1 && strings.Contains(sent[len(sent)-1].Text, "I read the Reddit post")
+	})
+	for _, msg := range tg.sentSnapshot() {
+		if strings.Contains(msg.Text, "browser_navigate") || strings.Contains(msg.Text, "terminal") {
+			t.Fatalf("tool_progress=off sent tool progress message; sent=%#v", tg.sentSnapshot())
+		}
+	}
 }
 
 func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	tg := &freshFinalFakeChannel{fakeChannel: newFakeChannel("telegram")}
 	frames := make(chan kernel.RenderFrame, 8)
 	fk := &fakeKernel{}
+	var nowMu sync.Mutex
 	now := time.Date(2026, 4, 27, 1, 0, 0, 0, time.UTC)
+	readNow := func() time.Time {
+		nowMu.Lock()
+		defer nowMu.Unlock()
+		return now
+	}
+	advanceNow := func(d time.Duration) {
+		nowMu.Lock()
+		defer nowMu.Unlock()
+		now = now.Add(d)
+	}
 
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats:    map[string]string{"telegram": "42"},
 		CoalesceMs:      10,
 		FreshFinalAfter: time.Minute,
-		Now:             func() time.Time { return now },
+		Now:             readNow,
 	}, fk, slog.Default())
 	m.setRenderChan(frames)
 	_ = m.Register(tg)
@@ -409,11 +673,12 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "partial"}
 	waitFor(t, 500*time.Millisecond, func() bool {
-		return len(tg.sentSnapshot()) >= 1 && len(tg.editsSnapshot()) >= 1
+		sent := tg.sentSnapshot()
+		return len(sent) >= 1 && strings.Contains(sent[0].Text, "partial")
 	})
 	oldID := tg.sentSnapshot()[0].MsgID
 
-	now = now.Add(time.Minute)
+	advanceNow(time.Minute)
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
 		History: []hermes.Message{
@@ -430,11 +695,117 @@ func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 		t.Fatalf("fresh final text = %q, want %q; sent=%#v", sent[1].Text, "done", sent)
 	}
 	edits := tg.editsSnapshot()
-	if len(edits) != 1 {
-		t.Fatalf("EditMessageFinal calls = %d, want only initial preview edit; edits=%#v", len(edits), edits)
+	if len(edits) != 0 {
+		t.Fatalf("EditMessageFinal calls = %d, want none before fresh final send; edits=%#v", len(edits), edits)
 	}
 	if got, want := tg.deletesSnapshot(), []fakeDelete{{ChatID: "42", MsgID: oldID}}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DeleteMessage calls = %#v, want %#v", got, want)
+	}
+}
+
+type replyPlaceholderFakeChannel struct {
+	*fakeChannel
+
+	replyPlaceholders []fakeReplyPlaceholder
+	replies           []fakeReplySend
+}
+
+type fakeReplyPlaceholder struct{ ChatID, ReplyToMsgID string }
+type fakeReplySend struct{ ChatID, ReplyToMsgID, Text string }
+
+func (f *replyPlaceholderFakeChannel) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
+	f.replyPlaceholders = append(f.replyPlaceholders, fakeReplyPlaceholder{ChatID: chatID, ReplyToMsgID: replyToMsgID})
+	return f.fakeChannel.SendPlaceholder(ctx, chatID)
+}
+
+func (f *replyPlaceholderFakeChannel) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
+	f.replies = append(f.replies, fakeReplySend{ChatID: chatID, ReplyToMsgID: replyToMsgID, Text: text})
+	return f.fakeChannel.Send(ctx, chatID, text)
+}
+
+func (f *replyPlaceholderFakeChannel) SendChatAction(context.Context, string, string) error {
+	return nil
+}
+
+func TestManager_Outbound_FirstStreamingContentRepliesToInboundMessage(t *testing.T) {
+	tg := &replyPlaceholderFakeChannel{fakeChannel: newFakeChannel("telegram")}
+	frames := make(chan kernel.RenderFrame, 2)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "u",
+		MsgID:    "telegram-user-msg-1",
+		Kind:     EventSubmit,
+		Text:     "hello",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, SessionID: "sess-1", DraftText: "partial"}
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.replies) == 1
+	})
+
+	if got := tg.replies[0]; got.ChatID != "42" || got.ReplyToMsgID != "telegram-user-msg-1" || !strings.Contains(got.Text, "partial") {
+		t.Fatalf("reply send = %+v, want chat 42 replying to inbound message with stream content", got)
+	}
+	if len(tg.replyPlaceholders) != 0 {
+		t.Fatalf("reply placeholders = %#v, want none for Hermes-style first content send", tg.replyPlaceholders)
+	}
+}
+
+func TestManager_Outbound_ConnectingStartsTypingWithoutHourglassMessage(t *testing.T) {
+	tg := newTypingActionFakeChannel("telegram")
+	frames := make(chan kernel.RenderFrame, 2)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		CoalesceMs:   10,
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "u",
+		MsgID:    "telegram-user-msg-1",
+		Kind:     EventSubmit,
+		Text:     "hello",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseConnecting, SessionID: "sess-1", StatusText: "connecting"}
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(tg.actionSnapshot()) == 1
+	})
+
+	if sent := tg.sentSnapshot(); len(sent) != 0 {
+		t.Fatalf("connecting frame sent visible messages = %#v, want only Telegram typing indicator", sent)
 	}
 }
 
@@ -491,10 +862,13 @@ func TestManager_Outbound_NonEditableChannelUsesPlainSendForInterimAndFinal(t *t
 	})
 
 	got := ch.sentSnapshot()
-	wantTexts := []string{"I'll inspect the repo first.", "done"}
+	wantTexts := []string{"I'll inspect the repo first. ▉", "done"}
 	for i, want := range wantTexts {
 		if got[i].ChatID != "thread-42" {
 			t.Fatalf("sent[%d].ChatID = %q, want original chat target %q", i, got[i].ChatID, "thread-42")
+		}
+		if i == 0 && strings.Contains(got[i].Text, want) {
+			continue
 		}
 		if got[i].Text != want {
 			t.Fatalf("sent[%d].Text = %q, want %q; sends=%#v", i, got[i].Text, want, got)
@@ -908,4 +1282,76 @@ func (c *startupFailedChannel) disconnectCount() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.disconnects
+}
+
+func TestManager_FailedProviderFrameSanitizesAndClearsActiveTurn(t *testing.T) {
+	ch := newChannelOnlyFake("telegram")
+	m := NewManager(ManagerConfig{}, nil, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	m.pinTurn("telegram", "42", "msg-1")
+	var co *coalescer
+	var coCancel context.CancelFunc
+	m.dispatchFrame(context.Background(), kernel.RenderFrame{
+		Phase:     kernel.PhaseFailed,
+		LastError: "Forbidden: <html><body><svg>bad</svg> secret sk-test-123</body></html>",
+	}, &co, &coCancel)
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("failed provider frame should send exactly one error reply, got %d", len(sent))
+	}
+	got := sent[0].Text
+	for _, forbidden := range []string{"<html", "<svg", "sk-test-123", "secret"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("gateway leaked provider HTML/secret marker %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "provider returned HTML error body") {
+		t.Fatalf("gateway error reply = %q, want sanitized provider HTML evidence", got)
+	}
+	if m.hasActiveTurn() {
+		t.Fatalf("failed provider frame must clear active turn so admission does not wedge")
+	}
+}
+
+func TestManager_StartupIdleFrameDoesNotClearPinnedTurn(t *testing.T) {
+	ch := newChannelOnlyFake("telegram")
+	m := NewManager(ManagerConfig{}, nil, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	m.pinTurn("telegram", "42", "msg-1")
+	var co *coalescer
+	var coCancel context.CancelFunc
+	m.dispatchFrame(context.Background(), kernel.RenderFrame{
+		Phase:      kernel.PhaseIdle,
+		StatusText: "idle",
+	}, &co, &coCancel)
+
+	if sent := ch.sentSnapshot(); len(sent) != 0 {
+		t.Fatalf("startup idle frame should not send or finalize active turn: %#v", sent)
+	}
+	if !m.hasActiveTurn() {
+		t.Fatalf("startup idle frame cleared active turn before provider result arrived")
+	}
+
+	m.dispatchFrame(context.Background(), kernel.RenderFrame{
+		Phase:     kernel.PhaseFailed,
+		LastError: "Forbidden: <html><body>bad</body></html>",
+	}, &co, &coCancel)
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("failed provider frame should send exactly one error reply, got %d", len(sent))
+	}
+	if !strings.Contains(sent[0].Text, "provider returned HTML error body") {
+		t.Fatalf("gateway error reply = %q, want sanitized provider HTML evidence", sent[0].Text)
+	}
+	if m.hasActiveTurn() {
+		t.Fatalf("failed provider frame must still clear active turn after stale startup idle")
+	}
 }

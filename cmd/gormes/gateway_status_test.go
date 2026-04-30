@@ -151,6 +151,7 @@ func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) 
 func setupGatewayStatusTestEnv(t *testing.T) {
 	t.Helper()
 	root := t.TempDir()
+	t.Setenv("GORMES_HOME", filepath.Join(root, "gormes"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes"))

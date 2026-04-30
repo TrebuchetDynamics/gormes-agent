@@ -32,10 +32,13 @@ func TestManager_SubmitReportsMigratedExpiryFinalizedWithoutMemoryFlushTask(t *t
 	})
 
 	m := NewManagerWithSubmitter(ManagerConfig{
-		AllowedChats:  map[string]string{"telegram": "42"},
-		SessionMap:    smap,
-		RuntimeStatus: store,
-		Now:           func() time.Time { return now },
+		AllowedChats:          map[string]string{"telegram": "42"},
+		SessionMap:            smap,
+		RuntimeStatus:         store,
+		ContextFilesProfile:   t.TempDir(),
+		ContextFilesCWD:       t.TempDir(),
+		ContextFilesMemoryDir: t.TempDir(),
+		Now:                   func() time.Time { return now },
 	}, fk, slog.Default())
 	if err := m.Register(tg); err != nil {
 		t.Fatalf("Register: %v", err)

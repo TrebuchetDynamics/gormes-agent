@@ -40,4 +40,25 @@ Persistent, searchable state that outlives the process. Structured enough for gr
 
 Chat logs are append-only. Memory has schema. You query it, derive from it, inject it back into the context window. The SQLite + FTS5 combination gives you ACID durability *and* full-text search in a single ~100 KB binary dependency.
 
+## Donor pointers
+
+When implementing a new memory or Goncho slice, route through the
+`gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`)
+before re-deriving a shape. The most useful Go donors for memory/Goncho work
+live under `references/go-agent-os/engram/`:
+
+| Memory problem | Donor file |
+|---|---|
+| SQLite + FTS5 store with DDL, indexes, migrations | `engram/internal/store/store.go` |
+| Memory relation/conflict vocabulary (`related`, `conflicts_with`, `supersedes`, `compatible`, `scoped`, `not_conflict`) | `engram/internal/store/relations.go` |
+| Deterministic serialized MCP write queue (mutex-serialized, cancel-before-start) | `engram/internal/mcp/write_queue.go` |
+| MCP activity/audit logging (audit shape, redaction, append-only file) | `engram/internal/mcp/activity.go` |
+| Bounded token-budget tracker for recall context assembly | `axe/internal/budget/budget.go` |
+| Artifact tracker with sanitized paths (path-traversal guard, append-only registry) | `axe/internal/artifact/tracker.go` |
+
+Engram is MIT-licensed and permitted as patterns + adapted code with
+attribution. Always add a `// Adapted from engram/...::Symbol` comment on the
+receiving Gormes file when porting code, and convert types/imports to
+Gormes-native names so `engram_*` symbols never leak into Gormes' public API.
+
 See [Phase 3](../../architecture_plan/phase-3-memory/) for the full sub-status.

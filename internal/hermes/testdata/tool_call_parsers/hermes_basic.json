@@ -1,0 +1,10 @@
+{
+  "parser": "hermes",
+  "label": "hermes_basic_single_call",
+  "raw_output": "thinking out loud <tool_call>{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}</tool_call>",
+  "expected_content": "thinking out loud",
+  "expected_calls": [
+    {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}
+  ],
+  "degraded": false
+}
