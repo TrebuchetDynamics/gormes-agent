@@ -713,7 +713,7 @@ classification and row-backed implementation queue.
 - [x] Session search tool schema and argument validation
 - [x] Session search tool execution wrapper
 - [x] Session shutdown memory transcript handoff
-- [ ] Debug helpers
+- [x] Debug helpers
 - [ ] Debug share paste sweep scheduler contract
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
