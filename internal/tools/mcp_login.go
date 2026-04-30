@@ -37,6 +37,11 @@ const (
 	MCPLoginEvidenceFlowFailed             MCPLoginEvidence = "mcp_login_flow_failed"
 	MCPLoginEvidenceServerUnknown          MCPLoginEvidence = "mcp_server_unknown"
 	MCPLoginEvidenceAuthNotOAuth           MCPLoginEvidence = "mcp_auth_not_oauth"
+	MCPLoginEvidenceRedirectURIMismatch    MCPLoginEvidence = "mcp_login_redirect_uri_mismatch"
+	MCPLoginEvidencePortCollision          MCPLoginEvidence = "mcp_login_port_collision"
+	MCPLoginEvidenceCallbackTimeout        MCPLoginEvidence = "mcp_login_callback_timeout"
+	MCPLoginEvidenceTokenExchangeFailed    MCPLoginEvidence = "mcp_login_token_exchange_failed"
+	MCPLoginEvidenceBrowserUnavailable     MCPLoginEvidence = "mcp_login_browser_unavailable"
 )
 
 // MCPLoginResult is the safe, redacted output for the command and tests.

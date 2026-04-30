@@ -24229,7 +24229,7 @@
             },
             {
               "name": "Gormes mcp login browser callback flow",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -24238,7 +24238,7 @@
                 "system"
               ],
               "contract": "Implements `MCPLoginFlow.Login` over a localhost callback server (ephemeral `http.Server` bound to 127.0.0.1 with an OS-assigned port), a browser launch hook (default `os.exec` opens the system browser; tests inject a recording fake), and a code-for-token exchange transport (tests inject a fake `http.RoundTripper` so no live token endpoint is contacted). On success, the resulting MCP session is stored through row 15458's interface; on failure, the OAuth state store is left byte-identical. Donor pattern (pattern-only, not copied verbatim): `references/go-agent-os/goclaw/internal/oauth/openai.go` localhost-callback shape; donor pattern (Hermes-side): `hermes-agent/hermes_cli/auth.py:_make_spotify_callback_handler`.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "fixture": "internal/tools/mcp_login_browser_test.go",
               "degraded_mode": "Port collision returns `mcp_login_port_collision`; callback timeout returns `mcp_login_callback_timeout`; token exchange error returns `mcp_login_token_exchange_failed`; redirect-URI mismatch returns `mcp_login_redirect_uri_mismatch`. None of these failure modes panic, hang, or leak access tokens / refresh tokens / authorization codes into stdout/stderr.",
               "source_refs": [
@@ -24270,7 +24270,7 @@
                 "TestMCPLoginBrowserPortCollisionTypedEvidence proves a fixture forcing port collision returns `mcp_login_port_collision` without panic and without leaking ports.",
                 "TestMCPLoginBrowserCallbackTimeoutTypedEvidence proves an injected slow-callback fixture returns `mcp_login_callback_timeout` after the configured deadline without leaking goroutines or tokens."
               ],
-              "note": "Q3 decision split — captures the future browser-flow work without forcing it now; stays P3 until an operator demand surfaces. Donor patterns are pattern-only: `goclaw/internal/oauth/openai.go` is the closest in-repo Go donor for localhost-callback shape, and `_make_spotify_callback_handler` is the Hermes-side parity reference. Goclaw provenance comments may appear in the Go file per `gormes-references` skill rules; other donors stay patterns-only.",
+              "note": "Complete: BrowserMCPLoginFlow now implements a Go-native localhost callback OAuth seam for gormes mcp login follow-up wiring, with injectable browser-open, listener, HTTP client, timeout, and clock seams. Focused tests prove authorize URL/redirect_uri construction, fake browser callback lifecycle, token exchange session persistence through RunMCPLogin, redirect_uri mismatch evidence with byte-equivalent existing store preservation, port-collision evidence, and callback-timeout evidence without live browsers, live MCP servers, token endpoints, or Hermes runtime services.",
               "write_scope": [
                 "internal/tools/mcp_login_browser.go",
                 "internal/tools/mcp_login_browser_test.go"
