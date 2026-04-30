@@ -21459,8 +21459,24 @@
             {
               "name": "Cronjob tool API + schedule parser parity",
               "status": "planned",
+              "contract": "Inventory umbrella for Hermes cronjob tool parity: the single upstream cronjob(action=...) tool spans schedule parsing, prompt/script safety, create/list/update/pause/resume/remove/run actions, context_from chaining, and multi-target delivery. Gormes implements these as dependency-ordered native Go rows below; this umbrella is not a builder slice and remains planned only as a source-backed parent.",
+              "contract_status": "validated",
               "slice_size": "umbrella",
               "execution_owner": "tools",
+              "source_refs": [
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tools/cronjob_tools.py@69d4800d:cronjob",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tools/cronjob_tools.py@69d4800d:_scan_cron_prompt",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tools/cronjob_tools.py@69d4800d:_validate_cron_script_path",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tests/tools/test_cronjob_tools.py@69d4800d:TestUnifiedCronjobTool",
+                "internal/cron/schedule_parser.go",
+                "internal/cron/prompt_script_safety.go",
+                "internal/tools/cronjob_tool.go",
+                "internal/cron/context_from.go",
+                "internal/cron/delivery_plan.go"
+              ],
+              "ready_when": [
+                "This parent is used only for source-backed inventory continuity and the dependency-ordered child rows remain present below it."
+              ],
               "not_ready_when": [
                 "The row is assigned as one combined cronjob tool, schedule parser, safety, context chaining, and delivery-port slice instead of the dependency-ordered rows below."
               ],
@@ -21471,7 +21487,14 @@
                 "Cron context_from output chaining",
                 "Cron multi-target delivery + media/live-adapter fallback"
               ],
-              "note": "Umbrella only: keep for inventory continuity. Execute the dependency chain through `Cron schedule parser + repeat state fixtures`, `Cron prompt/script safety + pre-run script contract`, `Cronjob tool action envelope over native store`, then the context_from and delivery rows. Do not assign this umbrella directly."
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "no_test_required": "Inventory-only parent row; child rows carry the executable cron parser, safety, action-envelope, context_from, and delivery fixtures.",
+              "done_signal": [
+                "Parent row remains non-selectable and source-backed while the dependency-ordered child rows provide the runnable implementation and tests."
+              ],
+              "note": "Umbrella only: keep for inventory continuity. 2026-04-30 parity audit refreshed this parent with exact upstream Hermes refs at /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d and current Gormes native refs; execute only the dependency chain rows, not this parent. The child rows now carry the runnable TDD fixtures for parser/repeat, prompt/script safety, action envelope, context_from output chaining, and multi-target delivery. Do not assign this umbrella directly."
             },
             {
               "name": "Cron schedule parser + repeat state fixtures",
