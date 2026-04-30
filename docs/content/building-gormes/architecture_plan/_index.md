@@ -814,7 +814,7 @@ classification and row-backed implementation queue.
 - [x] OCI image
 - [x] Homebrew
 - [ ] Unix installer (install.sh) source-backed update flow
-- [ ] Unix installer root/FHS layout policy
+- [x] Unix installer root/FHS layout policy
 - [ ] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
 
