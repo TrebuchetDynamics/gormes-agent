@@ -133,6 +133,44 @@ func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log
 	}
 }
 
+func (k *Kernel) liveTurnGuidanceBlocks(model string) []string {
+	blocks := make([]string, 0, 5)
+	if k.toolRegistered("memory") {
+		blocks = append(blocks, hermes.MemoryGuidance)
+	}
+	if k.toolRegistered("session_search") {
+		blocks = append(blocks, hermes.SessionSearchGuidance)
+	}
+	modelLower := strings.ToLower(strings.TrimSpace(model))
+	if modelMatchesAny(modelLower, hermes.ToolUseEnforcementModels) {
+		blocks = append(blocks, hermes.ToolUseEnforcementGuidance)
+	}
+	if modelMatchesAny(modelLower, []string{"gpt", "codex", "o1", "o3", "o4"}) {
+		blocks = append(blocks, hermes.OpenAIModelExecutionGuidance)
+	} else if modelMatchesAny(modelLower, []string{"gemini", "gemma"}) {
+		blocks = append(blocks, hermes.GoogleModelOperationalGuidance)
+	}
+	return blocks
+}
+
+func (k *Kernel) toolRegistered(name string) bool {
+	if k.cfg.Tools == nil {
+		return false
+	}
+	_, ok := k.cfg.Tools.Get(name)
+	return ok
+}
+
+func modelMatchesAny(model string, needles []string) bool {
+	for _, needle := range needles {
+		needle = strings.ToLower(strings.TrimSpace(needle))
+		if needle != "" && strings.Contains(model, needle) {
+			return true
+		}
+	}
+	return false
+}
+
 // Render returns the receive side of the render mailbox. The channel is
 // closed when Run exits.
 func (k *Kernel) Render() <-chan RenderFrame { return k.render }
@@ -294,10 +332,13 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	// tool results appended to the message history. Capped at MaxToolIterations
 	// to prevent runaway agent loops.
 	msgs := []hermes.Message{{Role: "user", Content: text}}
-	systemMsgs := make([]hermes.Message, 0, 3)
+	systemMsgs := make([]hermes.Message, 0, 8)
 
 	if sessionContext != "" {
 		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: sessionContext})
+	}
+	for _, guidance := range k.liveTurnGuidanceBlocks(model) {
+		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: guidance})
 	}
 
 	if k.cfg.Recall != nil {
@@ -313,7 +354,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 		})
 		recallCancel()
 		if ctxStr != "" {
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: ctxStr})
+			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.MemoryGuidance + "\n\n" + ctxStr})
 		}
 	}
 	if k.cfg.Skills != nil {
@@ -321,6 +362,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 		if err != nil {
 			k.log.Warn("kernel: skill runtime failed; continuing without skills", "err", err)
 		} else if block != "" {
+			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.SkillsGuidance})
 			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: block})
 			if len(skillNames) > 0 && k.cfg.SkillUsage != nil {
 				if err := k.cfg.SkillUsage.RecordSkillUsage(ctx, skillNames); err != nil {

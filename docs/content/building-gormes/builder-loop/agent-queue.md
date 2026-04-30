@@ -143,27 +143,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:558-589, ../hermes-agent/gateway/platforms/telegram.py:822-837, internal/gateway/commands.go:TelegramBotCommandsWith, internal/channels/telegram/bot.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Live-turn model/tool guidance wiring
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Wire the ported Hermes guidance constants into live-turn prompt assembly so memory guidance, session-search guidance, skills guidance, tool-use enforcement, model-family guidance, and environment hints reach provider requests in the correct role/order when their conditions apply.
-- Trust class: gateway, system
-- Ready when: Hermes guidance constants and Gormes live-turn prompt/kernel seams are identified., Provider-payload fixtures can enable and disable tools/skills/model families hermetically.
-- Not ready when: -
-- Degraded mode: If tools or skills are unavailable, the guidance block omits only those gated sections and reports no false capability.
-- Fixture: `internal/gateway/live_turn_guidance_test.go + internal/kernel/kernel_test.go`
-- Write scope: `internal/gateway/`, `internal/kernel/`, `internal/hermes/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/hermes -run 'Guidance\|Tool\|Skill\|LiveTurn' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Live-turn guidance fixtures prove Hermes guidance constants reach provider payloads only under their gated conditions.
-- Acceptance: Provider payload fixtures include memory/session-search/skills guidance only when those capabilities are active., Tool-use enforcement guidance is gated by model family., Guidance ordering relative to SOUL, durable memory, AGENTS, metadata, and user messages is pinned., Disabled tool/skill paths do not advertise unavailable capabilities.
-- Source refs: ../hermes-agent/run_agent.py:3667-3712, ../hermes-agent/agent/prompt_builder.py, internal/hermes/guidance_constants.go, internal/kernel/kernel.go, internal/gateway/live_turn_prompt.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. Gateway active-turn policy manifest closeout
+## 7. Gateway active-turn policy manifest closeout
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -183,7 +163,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/hermes_cli/commands.py:267-290, ../hermes-agent/gateway/run.py:2950-3225, internal/gateway/commands.go, internal/gateway/manager.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Gateway conversational session metadata refresh
+## 8. Gateway conversational session metadata refresh
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -203,7 +183,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/session.py, ../hermes-agent/gateway/run.py:4646-4680, internal/gateway/status_command.go, internal/session/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Gateway session token accounting parity
+## 9. Gateway session token accounting parity
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -221,6 +201,26 @@ keep row-specific execution facts in `progress.json`.
 - Done signal: Session token accounting fixtures prove accumulated usage appears in `/status` with redacted evidence.
 - Acceptance: Two fake provider turns with usage values accumulate into one session total., `/status` renders the accumulated total., Missing usage does not erase existing totals., Usage evidence never includes raw provider payloads or credentials.
 - Source refs: ../hermes-agent/gateway/run.py:4674, internal/gateway/status_command.go, internal/gateway/usage_command.go, internal/hermes/provider_transport.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Goncho memory provider lifecycle adapter
+
+- Phase: 3 / 3.F
+- Owner: `memory`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Create a native Goncho memory-provider lifecycle adapter covering initialize, prefetch, sync turn, pre-compress contribution, memory-write mirror, delegation, and shutdown evidence so Gormes matches Hermes MemoryManager behavior without a hosted Honcho dependency.
+- Trust class: system
+- Ready when: Hermes MemoryManager lifecycle hooks and Gormes Goncho/kernel seams have been source-mapped., Fake provider and temp SQLite/local stores can exercise lifecycle behavior without hosted Honcho or provider network.
+- Not ready when: -
+- Degraded mode: Unavailable providers return memory_provider_unavailable evidence and leave ordinary turn execution intact.
+- Fixture: `internal/memory/provider_lifecycle_test.go + internal/goncho`
+- Write scope: `internal/memory/`, `internal/goncho/`, `internal/kernel/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/memory ./internal/goncho ./internal/kernel -run 'MemoryProviderLifecycle\|ShutdownMemory\|PreCompress\|Goncho' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Goncho memory-provider lifecycle fixtures prove initialize, prefetch, sync, pre-compress, mirror, delegation, and shutdown behavior.
+- Acceptance: Lifecycle tests prove initialize and prefetch run once per session/provider., Turn sync mirrors user/assistant exchanges into Goncho with redacted evidence., Pre-compress contributions are bounded and ordered before compression., Shutdown drains or reports pending memory work without blocking process exit., Tests use fake providers and SQLite temp stores only.
+- Source refs: ../hermes-agent/agent/memory_manager.py:97, ../hermes-agent/agent/memory_manager.py:178, ../hermes-agent/agent/memory_manager.py:210, ../hermes-agent/agent/memory_manager.py:296, ../hermes-agent/agent/memory_manager.py:315, ../hermes-agent/agent/memory_manager.py:331, internal/memory/, internal/goncho/, internal/kernel/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

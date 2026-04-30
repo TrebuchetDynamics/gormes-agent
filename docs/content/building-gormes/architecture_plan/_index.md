@@ -195,7 +195,7 @@ classification and row-backed implementation queue.
 - [ ] Telegram dynamic BotCommand menu wiring
 - [x] Active Hermes/Sidon profile context root resolver for live turns
 - [x] Durable context ordering and frozen snapshot decision fixture
-- [ ] Live-turn model/tool guidance wiring
+- [x] Live-turn model/tool guidance wiring
 - [ ] Gateway active-turn policy manifest closeout
 - [ ] Gateway conversational session metadata refresh
 - [ ] Gateway session token accounting parity

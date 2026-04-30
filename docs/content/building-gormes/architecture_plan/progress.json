@@ -2872,10 +2872,10 @@
             },
             {
               "name": "Live-turn model/tool guidance wiring",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Wire the ported Hermes guidance constants into live-turn prompt assembly so memory guidance, session-search guidance, skills guidance, tool-use enforcement, model-family guidance, and environment hints reach provider requests in the correct role/order when their conditions apply.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -2883,7 +2883,7 @@
                 "system"
               ],
               "degraded_mode": "If tools or skills are unavailable, the guidance block omits only those gated sections and reports no false capability.",
-              "fixture": "internal/gateway/live_turn_guidance_test.go + internal/kernel/kernel_test.go",
+              "fixture": "internal/kernel/guidance_test.go + internal/gateway/live_turn_prompt_test.go + internal/hermes/guidance_constants_test.go",
               "source_refs": [
                 "../hermes-agent/run_agent.py:3667-3712",
                 "../hermes-agent/agent/prompt_builder.py",
@@ -2914,7 +2914,20 @@
               "ready_when": [
                 "Hermes guidance constants and Gormes live-turn prompt/kernel seams are identified.",
                 "Provider-payload fixtures can enable and disable tools/skills/model families hermetically."
-              ]
+              ],
+              "note": "TDD landed 2026-04-30: kernel provider payload assembly now gates Hermes memory/session-search/model/tool guidance by active Recall/tool/model capabilities and injects skills guidance only when the skill block is actually built, preserving Gormes-owned live-turn context and raw user message order.",
+              "evidence": {
+                "implementation": [
+                  "internal/kernel/kernel.go:liveTurnGuidanceBlocks gates MemoryGuidance, SessionSearchGuidance, ToolUseEnforcementGuidance, OpenAIModelExecutionGuidance, and GoogleModelOperationalGuidance from active kernel capabilities/model family.",
+                  "internal/kernel/kernel.go appends SkillsGuidance only after BuildSkillBlock succeeds with a non-empty block, avoiding false skill capability claims on unavailable/error paths.",
+                  "internal/kernel/guidance_test.go captures hermetic provider requests proving guidance presence/absence and final raw user message order."
+                ],
+                "verification": [
+                  "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run 'TestKernel_LiveTurnGuidance' -count=1 failed before implementation because provider payload lacked MemoryGuidance.",
+                  "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/kernel -run 'TestKernel_LiveTurnGuidance' -count=1 passed.",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/kernel ./internal/hermes -run 'Guidance|Tool|Skill|LiveTurn' -count=1 passed."
+                ]
+              }
             },
             {
               "name": "Gateway active-turn policy manifest closeout",
