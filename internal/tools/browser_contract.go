@@ -2,6 +2,9 @@ package tools
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -129,13 +132,15 @@ func ValidateBrowserAction(action BrowserAction) BrowserActionDecision {
 // evidence suitable for prompt context, channel delivery, and audit logs.
 func BuildBrowserResultEnvelope(input BrowserResultInput) (BrowserResultEnvelope, error) {
 	text, evidence, err := FormatToolResult(input.Budget, input.Output, input.MediaType)
+	text = sanitizeBrowserArtifactText(text)
+	evidence.Preview = sanitizeBrowserArtifactText(evidence.Preview)
 	resultEvidence := BrowserEvidenceResultOK
 	if evidence.Code == ToolResultEvidenceTruncated || evidence.Code == ToolResultEvidencePersisted || evidence.Code == ToolResultEvidencePersistenceFailed {
 		resultEvidence = BrowserEvidenceResultTruncated
 	}
 	return BrowserResultEnvelope{
 		Action:   input.Action,
-		State:    input.State,
+		State:    sanitizeBrowserPageState(input.State),
 		Text:     text,
 		Tool:     evidence,
 		Evidence: resultEvidence,
@@ -197,4 +202,99 @@ func guardEvidenceOrAccepted(guard BrowserSSRFGuardDecision) string {
 		return guard.Evidence
 	}
 	return BrowserEvidenceActionAccepted
+}
+
+var browserSensitiveTokenPattern = regexp.MustCompile(`(?i)(plain-[a-z0-9_-]*(?:token|secret|cookie|key)|bearer\s+[^\s]+|token=[^\s&]+|cookie=[^\s;]+)`)
+
+func sanitizeBrowserPageState(state BrowserPageState) BrowserPageState {
+	state.URL = sanitizeBrowserURL(state.URL)
+	state.Title = sanitizeBrowserArtifactText(state.Title)
+	state.Text = sanitizeBrowserArtifactText(state.Text)
+	state.Console = sanitizeBrowserLines(state.Console)
+	state.Errors = sanitizeBrowserLines(state.Errors)
+	if strings.TrimSpace(state.ScreenshotPath) != "" {
+		state.ScreenshotPath = "[browser_artifact_path_redacted]"
+	}
+	return state
+}
+
+func sanitizeBrowserLines(lines []string) []string {
+	if len(lines) == 0 {
+		return nil
+	}
+	out := make([]string, len(lines))
+	for i, line := range lines {
+		out[i] = sanitizeBrowserArtifactText(line)
+	}
+	return out
+}
+
+func sanitizeBrowserArtifactText(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	text = redactBrowserURLs(text)
+	text = browserSensitiveTokenPattern.ReplaceAllString(text, "[redacted]")
+	return text
+}
+
+func redactBrowserURLs(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return text
+	}
+	out := make([]string, len(fields))
+	changed := false
+	for i, field := range fields {
+		trimmed := strings.Trim(field, `.,;()[]{}<>"'`)
+		if shouldRedactBrowserURL(trimmed) {
+			out[i] = strings.Replace(field, trimmed, "[browser_private_url_redacted]", 1)
+			changed = true
+			continue
+		}
+		out[i] = field
+	}
+	if !changed {
+		return text
+	}
+	return strings.Join(out, " ")
+}
+
+func sanitizeBrowserURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if shouldRedactBrowserURL(raw) {
+		return "[browser_private_url_redacted]"
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u == nil {
+		return sanitizeBrowserArtifactText(raw)
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
+}
+
+func shouldRedactBrowserURL(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u == nil {
+		return false
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if scheme == "ws" || scheme == "wss" || strings.Contains(strings.ToLower(u.Path), "/devtools/") {
+		return true
+	}
+	host := u.Hostname()
+	if host == "" {
+		return false
+	}
+	ip := net.ParseIP(host)
+	if ip != nil {
+		return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
+	}
+	host = strings.ToLower(host)
+	return host == "localhost" || strings.HasSuffix(host, ".local")
 }

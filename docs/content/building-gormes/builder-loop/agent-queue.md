@@ -121,27 +121,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/agent/prompt_caching.py:apply_anthropic_cache_control, ../hermes-agent/run_agent.py:_anthropic_prompt_cache_policy, ../hermes-agent/tests/agent/test_prompt_caching.py, ../hermes-agent/tests/run_agent/test_anthropic_prompt_cache_policy.py, references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md#quick-lookup-problem--donor-file, internal/hermes/status.go, internal/hermes/client.go, internal/hermes/anthropic_client.go, internal/hermes/provider_status_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Browser artifact and console render contract
-
-- Phase: 5 / 5.C
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Browser tool results expose bounded screenshot paths, DOM snapshots, console logs, page errors, and artifact metadata in a channel-neutral envelope; renderers show safe previews without raw bytes, base64 blobs, private URLs, CDP secrets, or unbounded provider output.
-- Trust class: system, gateway, operator
-- Ready when: Hermes browser tool artifact/result behavior and Gormes browser harness result envelopes are source-mapped., Pure internal/tools fixtures can prove artifact budgeting, console/error metadata, and redacted evidence without starting Chrome or cloud browser services.
-- Not ready when: -
-- Degraded mode: Oversized or missing artifacts render browser_artifact_unavailable or browser_artifact_truncated evidence and keep the turn readable.
-- Fixture: `internal/tools/browser_artifact_test.go + internal/gateway/render_test.go`
-- Write scope: `internal/tools/browser_contract.go`, `internal/tools/browser_harness_tools.go`, `internal/tools/result_budget.go`, `internal/tools/browser_artifact_test.go`, `internal/gateway/render.go`, `internal/gateway/render_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/gateway -run 'Browser.*Artifact\|Browser.*Console\|Render' -count=1`, `GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Browser artifact fixtures prove bounded screenshot/snapshot/console/error envelopes and channel-safe rendering.
-- Acceptance: Tool fixtures cover screenshot path, DOM snapshot excerpt, console logs, and page errors., Artifact budgets truncate large snapshots with evidence., Gateway renderer emits channel-safe artifact summaries without raw image bytes or base64., Secrets, cookies, CDP URLs, and private URLs are redacted.
-- Source refs: ../hermes-agent/tools/browser_camofox.py:300, ../hermes-agent/tools/browser_camofox.py:493, ../hermes-agent/tools/browser_camofox.py:583, ../hermes-agent/tools/browser_tool.py, internal/tools/browser_contract.go, internal/tools/result_budget.go, internal/gateway/render.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Telegram browser artifact rendering
+## 6. Telegram browser artifact rendering
 
 - Phase: 5 / 5.C
 - Owner: `gateway`
@@ -161,7 +141,7 @@ keep row-specific execution facts in `progress.json`.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py, ../hermes-agent/tools/browser_tool.py, internal/gateway/render.go, internal/channels/telegram/bot.go, internal/tools/browser_harness_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Clarify
+## 7. Clarify
 
 - Phase: 5 / 5.N
 - Owner: `tools`

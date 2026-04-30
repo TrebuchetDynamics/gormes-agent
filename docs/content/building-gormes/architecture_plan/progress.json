@@ -16804,10 +16804,10 @@
             },
             {
               "name": "Browser artifact and console render contract",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Browser tool results expose bounded screenshot paths, DOM snapshots, console logs, page errors, and artifact metadata in a channel-neutral envelope; renderers show safe previews without raw bytes, base64 blobs, private URLs, CDP secrets, or unbounded provider output.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -16847,7 +16847,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Browser artifact fixtures prove bounded screenshot/snapshot/console/error envelopes and channel-safe rendering."
+                "Browser artifact fixtures prove bounded screenshot/snapshot/console/error envelopes, artifact-pointer behavior, private URL/CDP/token redaction, and channel-safe Hermes-style tool rendering without live browser or provider calls."
               ],
               "provenance": {
                 "origin_type": "hybrid",
@@ -16857,6 +16857,19 @@
               "ready_when": [
                 "Hermes browser tool artifact/result behavior and Gormes browser harness result envelopes are source-mapped.",
                 "Pure internal/tools fixtures can prove artifact budgeting, console/error metadata, and redacted evidence without starting Chrome or cloud browser services."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-30T09:05:00Z",
+                "last_success": "2026-04-30T09:05:00Z",
+                "backends_tried": [
+                  "openai-codex"
+                ]
+              },
+              "evidence": [
+                "TestBrowserArtifactEnvelopeSanitizesPreviewAndState proves browser result envelopes redact private/local URLs, CDP websocket URLs, token-like console/error/output text, and local screenshot paths before channel or prompt rendering.",
+                "TestBrowserArtifactEnvelopePersistsOversizedSnapshotsWithConsoleMetadata proves oversized DOM snapshots persist through ToolResultBudget artifacts while preserving bounded title/console/error/interactive metadata.",
+                "Focused row gate passed: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/gateway -run 'Browser.*Artifact|Browser.*Console|Render' -count=1."
               ]
             },
             {
