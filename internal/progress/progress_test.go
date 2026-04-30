@@ -854,8 +854,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.4 channel directory refs=%v contract=%q note=%q, want shipped channel-directory evidence", directory.SourceRefs, directory.Contract, directory.Note)
 	}
 	rememberSource := operatorItems["Manager remember-source hook"]
-	if rememberSource.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 manager remember-source status = %q, want planned", rememberSource.Status)
+	if rememberSource.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 manager remember-source status = %q, want complete", rememberSource.Status)
+	}
+	if rememberSource.ContractStatus != ContractStatusValidated || len(rememberSource.WriteScope) == 0 || len(rememberSource.TestCommands) == 0 || !strings.Contains(rememberSource.Note, "remembered-source ledger") {
+		t.Fatalf("Phase 2.F.4 manager remember-source evidence = status %q scope=%d tests=%d note=%q, want validated remembered-source ledger row", rememberSource.ContractStatus, len(rememberSource.WriteScope), len(rememberSource.TestCommands), rememberSource.Note)
 	}
 }
 

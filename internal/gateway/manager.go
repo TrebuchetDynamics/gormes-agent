@@ -118,6 +118,10 @@ type ManagerConfig struct {
 	// discards evidence silently; production behavior is unchanged. The sink
 	// must not block or panic.
 	CoalescerEvidenceSink CoalescerEvidenceSink
+	// RememberedSourceStore records allowed inbound channel origins in a small
+	// channel-directory source ledger. Nil disables the hook. Failures are
+	// degraded and must not block user turns.
+	RememberedSourceStore RememberedSourceStore
 }
 
 type kernelSubmitter interface {
@@ -1724,12 +1728,27 @@ func (m *Manager) refreshConversationalSessionMetadata(ctx context.Context, ev I
 	return resolved
 }
 
+func (m *Manager) rememberAllowedInboundSource(ctx context.Context, source SessionSource) {
+	store := m.cfg.RememberedSourceStore
+	if store == nil {
+		return
+	}
+	entry := RememberedSourceEntryFromSessionSource(source)
+	if entry.Platform == "" || entry.ID == "" {
+		return
+	}
+	if err := store.RememberSource(ctx, entry); err != nil {
+		m.log.Warn("channel_directory_source_unavailable", "platform", entry.Platform, "code", "channel_directory_source_unavailable")
+	}
+}
+
 func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent) bool {
 	resolved, err := resolveSession(ctx, m.cfg.SessionMap, ev.ChatKey())
 	if err != nil {
 		m.log.Warn("load session mapping", "key", ev.ChatKey(), "err", err)
 	}
 	source := sessionSourceFromInbound(ev)
+	m.rememberAllowedInboundSource(ctx, source)
 	submitText := ev.SubmitText()
 	var clearPendingSessionID string
 	var clearBlockedMapping bool

@@ -6525,10 +6525,10 @@
             },
             {
               "name": "Manager remember-source hook",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gormes persists allowed inbound SessionSource records from the shared gateway.Manager into a channel-directory source ledger before directory refresh or delivery-target resolution depends on remembered sessions. The hook must derive entries from the same normalized InboundEvent source used for live-turn session context, skip unauthorized/discovery-rejected inbound events, preserve Telegram thread/topic and Discord parent/guild metadata when present, and expose a fakeable store seam so future channel-directory refresh can merge remembered sources without live platform SDK calls.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -6570,8 +6570,9 @@
                 "TestManagerRememberSourceHook_DegradesWithoutBlockingTurn proves injected store failures surface channel_directory_source_unavailable evidence/logging without blocking submitPinned or sending host paths to the channel.",
                 "Existing session-context, authorization, pairing, and channel-directory lookup tests stay green."
               ],
-              "note": "Planner refinement: split the previous inventory-only placeholder into a builder-ready Manager hook slice after validating that Channel directory atomic persistence + lookup is already complete. The implementation should persist a small remembered-source ledger only; merging that ledger into channel_directory.json remains in the separate refresh/stale-target row.",
+              "note": "Complete: Manager now records allowed inbound SessionSource data through a Go-native remembered-source ledger seam, production gateway wiring installs the ledger store under GORMES_HOME, and hermetic tests prove Telegram topic IDs, Discord parent/guild metadata, unauthorized/discovery rejection, and degraded store failures without blocking kernel submission or leaking host paths.",
               "write_scope": [
+                "cmd/gormes/gateway.go",
                 "internal/gateway/manager.go",
                 "internal/gateway/session_context.go",
                 "internal/gateway/channel_directory_source.go",
@@ -6581,6 +6582,7 @@
               ],
               "test_commands": [
                 "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'RememberSource|ChannelDirectorySource|Authorization|Pairing|SessionContext' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run 'GatewayManagerConfig|TelegramManagerConfig' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [

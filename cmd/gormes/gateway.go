@@ -255,17 +255,18 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, smap session.Map, hc hermes.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
 	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
-		AllowedChats:    allowedChats,
-		AllowDiscovery:  allowDiscovery,
-		CoalesceMs:      gatewayCoalesceMs(cfg),
-		FreshFinalAfter: gatewayFreshFinalAfter(cfg),
-		SessionMap:      smap,
-		TitleStore:      titleStore,
-		TitleModel:      titleModel,
-		Hooks:           hooks,
-		RuntimeStatus:   runtimeStatus,
-		Restart:         restart,
-		LiveTurnNow:     func() time.Time { return time.Now() },
+		AllowedChats:          allowedChats,
+		AllowDiscovery:        allowDiscovery,
+		CoalesceMs:            gatewayCoalesceMs(cfg),
+		FreshFinalAfter:       gatewayFreshFinalAfter(cfg),
+		SessionMap:            smap,
+		TitleStore:            titleStore,
+		TitleModel:            titleModel,
+		Hooks:                 hooks,
+		RuntimeStatus:         runtimeStatus,
+		Restart:               restart,
+		RememberedSourceStore: gateway.NewChannelDirectorySourceStore(config.GormesHome()),
+		LiveTurnNow:           func() time.Time { return time.Now() },
 		LiveTurnActiveModel: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
 			return firstUsageString(resolution.Model, cfg.Hermes.Model)

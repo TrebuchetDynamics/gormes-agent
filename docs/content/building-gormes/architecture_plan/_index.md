@@ -315,7 +315,7 @@ classification and row-backed implementation queue.
 - [ ] Notify-to delivery routing
 - [x] Channel directory atomic persistence + lookup
 - [ ] Channel directory refresh + stale-target invalidation
-- [ ] Manager remember-source hook
+- [x] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
