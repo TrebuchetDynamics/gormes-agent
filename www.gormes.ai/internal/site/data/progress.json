@@ -2520,48 +2520,147 @@
               ]
             },
             {
-              "name": "Telegram typing action + placeholder lifecycle parity",
+              "name": "Telegram sendChatAction typing API",
               "status": "planned",
               "priority": "P1",
-              "contract": "Telegram turn progress matches Hermes/Sidon lifecycle: typing action or placeholder appears while work runs, stale hourglass messages are deleted or finalized, duplicate ghost replies collapse, and final answers remain readable.",
-              "contract_status": "draft",
-              "slice_size": "medium",
+              "contract": "Add a hermetic Bot.SendChatAction(ctx, chatID, action) method backed by the existing telegramClient.Request seam (tgbotapi.NewChatAction) so the gateway can later fire \"typing\" indicators during streaming phases. Non-fatal failure path: errors are returned but never panic, and bot wrapping continues operation.",
+              "contract_status": "fixture_ready",
+              "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
                 "gateway",
                 "operator"
               ],
-              "degraded_mode": "If Telegram edit/delete fails, Gormes sends one bounded final message and logs redacted cleanup evidence instead of leaving stale placeholders.",
-              "fixture": "internal/channels/telegram/placeholder_lifecycle_test.go + internal/gateway/coalesce_test.go",
+              "degraded_mode": "If the Telegram Request call fails, SendChatAction returns the error so callers can record redacted evidence; no fallback retry, no goroutine, no panic.",
+              "fixture": "internal/channels/telegram/chat_action_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/base.py:1718-1724",
-                "../hermes-agent/gateway/platforms/base.py:1976-1986",
-                "../hermes-agent/gateway/platforms/telegram.py:1909-1935",
-                "internal/gateway/coalesce.go",
-                "internal/channels/telegram/bot.go"
+                "../hermes-agent/gateway/platforms/telegram.py:2076-2104 (send_typing)",
+                "internal/channels/telegram/bot.go:34-70 (Bot type + telegramClient seam)",
+                "internal/channels/telegram/client.go:16-42 (telegramClient interface — Request already exists)"
               ],
               "acceptance": [
-                "Fake Telegram tests prove sendChatAction or placeholder behavior for long turns.",
-                "Final answer cleanup deletes or edits the placeholder exactly once.",
-                "Failure paths do not produce duplicate final messages.",
-                "Fresh-final delete behavior remains covered."
+                "Bot has a SendChatAction(ctx context.Context, chatID, action string) error method.",
+                "TestBot_SendChatAction_RequestsTypingAction asserts the fake client received exactly one Request call carrying tgbotapi.NewChatAction(int64(chatID), action) with action=\"typing\".",
+                "TestBot_SendChatAction_NonFatalOnAPIError injects a Request error and asserts SendChatAction returns the error without panicking.",
+                "TestBot_SendChatAction_RejectsBlankChatID returns a typed error before issuing any Request when chatID is empty (parity with how other Bot methods validate inputs)."
               ],
               "write_scope": [
-                "internal/channels/telegram/",
-                "internal/gateway/",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/chat_action_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram ./internal/gateway -run 'Placeholder|Typing|Coalesce|Final' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'ChatAction' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1",
                 "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Telegram placeholder/typing lifecycle fixtures prove no stale hourglass or duplicate final replies."
+                "Bot.SendChatAction is implemented, three hermetic fixtures prove typing-request emission, non-fatal API-error handling, and blank-chatID guard."
               ],
               "ready_when": [
-                "Hermes placeholder/typing lifecycle source references have been mapped to Gormes channel/gateway render seams.",
-                "Fake Telegram lifecycle tests can simulate edit/delete failures and final-message cleanup without live Telegram."
+                "telegramClient.Request seam exists on dev (it does — internal/channels/telegram/client.go:26).",
+                "Fake telegramClient mock can capture Request calls (it does — used elsewhere in the package)."
+              ],
+              "not_ready_when": [
+                "The slice wires the gateway to call SendChatAction during streaming — that is a sibling row (Gateway typing-action wiring during stream).",
+                "The slice extends gateway.Channel with a typing capability — that is a sibling row.",
+                "The slice introduces background goroutines, retry loops, or thread-id metadata handling beyond the basic typing call."
+              ],
+              "evidence": [
+                "GAP: Bot has Send/EditMessage/DeleteMessage but no SendChatAction. Gateway streaming phase only sends an emoji-placeholder via coalescer.flushImmediate(\"⏳\") (internal/gateway/manager.go:934). Hermes shows a native Telegram typing indicator (telegram.py:2076-2104) which is strictly better UX.",
+                "GAP: telegramClient.Request already exists (internal/channels/telegram/client.go:26) — tgbotapi.NewChatAction returns a Chattable that satisfies it. Implementation is purely additive."
+              ]
+            },
+            {
+              "name": "Gateway typing-action wiring during stream",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "While a turn is in PhaseConnecting/PhaseStreaming/PhaseReconnecting/PhaseFinalizing, the gateway fires the channel's typing action at most every 4 seconds via a Channel-level capability check, so users see a live typing indicator instead of (or alongside) the static hourglass placeholder. Non-typing-capable channels are unaffected.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If the channel's typing call fails, the gateway records redacted evidence and continues delivering coalesced placeholder/final updates. No retry storm; one failed typing-action call does not retry within the same 4s window.",
+              "fixture": "internal/gateway/typing_action_test.go",
+              "source_refs": [
+                "internal/gateway/manager.go:864-938 (dispatchFrame phase switch)",
+                "internal/gateway/coalesce.go:9-12 (placeholderEditor interface — extension target)",
+                "internal/channels/telegram/bot.go (after SendChatAction lands)",
+                "../hermes-agent/gateway/platforms/telegram.py:2076-2104"
+              ],
+              "acceptance": [
+                "A new typingActor interface (or gateway.TypingActor) exposes a SendChatAction(ctx, chatID, action) method; channels that don't implement it never receive typing calls.",
+                "TestTypingAction_FiresOnFirstStreamingFrame proves a single typing call lands on the first PhaseStreaming/PhaseConnecting frame.",
+                "TestTypingAction_ThrottledTo4SecondWindow uses a fake clock + multiple streaming frames within 4s and asserts exactly one typing call.",
+                "TestTypingAction_StopsOnPhaseIdle proves no typing call after the final/idle frame.",
+                "TestTypingAction_NonTypingChannelNoCalls uses a fake channel that does NOT implement typingActor and asserts zero typing calls.",
+                "TestTypingAction_FailureRecordsEvidenceNoRetry injects a typing-call error and asserts evidence is recorded once + no retry within the same 4s window."
+              ],
+              "write_scope": [
+                "internal/gateway/typing_action.go",
+                "internal/gateway/typing_action_test.go",
+                "internal/gateway/manager.go",
+                "internal/channels/telegram/bot.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TypingAction' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway fires typing actions during streaming via a Channel capability seam, with throttle, phase-stop, no-retry-on-failure, and non-typing-channel guards proven by hermetic fixtures."
+              ],
+              "ready_when": [
+                "Telegram sendChatAction typing API row is shipped (the bot.SendChatAction method must exist before this row can wire it)."
+              ],
+              "blocked_by": [
+                "Telegram sendChatAction typing API"
+              ]
+            },
+            {
+              "name": "Placeholder edit-failure fallback hardening",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "When the coalescer's edit path fails (Telegram returns an error mid-stream or at finalize), the gateway falls back to a plain Send of the final text exactly once, records redacted edit_failed_fallback evidence, and never produces duplicate final messages even under concurrent flushImmediate / flushImmediateFinal races.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If both edit and Send fail, the gateway records send_final_failed evidence and the turn ends without a delivered final message rather than panicking or retrying in a hot loop.",
+              "fixture": "internal/gateway/coalesce_failure_test.go",
+              "source_refs": [
+                "internal/gateway/coalesce.go (flushImmediate, flushImmediateFinal, editCoalescedMessage)",
+                "internal/gateway/manager.go:864-938 (dispatchFrame finalize path)"
+              ],
+              "acceptance": [
+                "TestCoalescer_EditFailure_PlainSendFallback proves an edit error mid-stream causes one plain Send with the final text + edit_failed_fallback evidence.",
+                "TestCoalescer_FinalizeRace_NoDuplicateMessage uses concurrent flushImmediate + flushImmediateFinal calls and asserts at most one final message reaches the channel.",
+                "TestCoalescer_BothEditAndSendFail records send_final_failed evidence and does not panic.",
+                "TestCoalescer_FreshFinalAfter_StillRespected proves the fresh-final-delete behavior is unchanged by the new fallback paths."
+              ],
+              "write_scope": [
+                "internal/gateway/coalesce.go",
+                "internal/gateway/coalesce_failure_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'Coalescer|Coalesce' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Coalescer hardening fixtures prove edit-failure fallback to plain Send, finalize-race idempotency, both-failed evidence, and fresh-final-delete preservation."
+              ],
+              "ready_when": [
+                "Existing coalescer tests on dev cover the happy path so regression is detectable."
               ]
             },
             {
@@ -16332,6 +16431,91 @@
                   "browser-use/browser-harness:helpers.py"
                 ],
                 "note": "Hermes defines the public browser_* tool names and broad behavior; go-browser-harness is the default Go-native runtime target, with browser-harness retained as behavior reference and explicit legacy compatibility."
+              }
+            },
+            {
+              "name": "Go-native Hermes web_search/web_extract tool wrappers",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes registers Hermes-visible `web_search` and `web_extract` tools backed by a fakeable `WebHTTPClient`. `ResolveWebBackend` maps Firecrawl direct/self-hosted config and managed Firecrawl gateway tokens into a common resolution shape. `web_search` posts to `/v2/search` and normalizes Firecrawl-style results into `{success,data.web[]}`. `web_extract` posts `/v2/scrape` once per public URL, blocks private/internal URLs with `private_url_blocked` evidence before any HTTP call, and normalizes markdown/title/sourceURL into `{results[]}`. Missing web config keeps both tools registered and returns `web_provider_unavailable` JSON instead of removing descriptors from the default registry.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing Firecrawl config returns `web_provider_unavailable` while preserving descriptors. Provider HTTP failures return `web_provider_request_failed` without leaking bearer tokens. Invalid URLs return `web_invalid_arguments`. Private, loopback, LAN, or internal hosts are blocked with `private_url_blocked` before the injected HTTP client is called.",
+              "fixture": "internal/tools/web_tools_test.go + cmd/gormes/registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/web_tools.py:web_search_tool",
+                "../hermes-agent/tools/web_tools.py:web_extract_tool",
+                "../hermes-agent/tools/managed_tool_gateway.py",
+                "internal/tools/managed_tool_gateway.go",
+                "internal/tools/browser_hybrid_routing.go:IsPrivateBrowserHost",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "Managed tool gateway bridge is validated so future gateway wiring has a normalized call boundary.",
+                "Browser private-host helper exists and can be reused for URL safety without DNS or network calls.",
+                "Tests can inject a fake WebHTTPClient; no live Firecrawl, Exa, Parallel, Tavily, managed gateway, browser runtime, or provider credential is required."
+              ],
+              "not_ready_when": [
+                "The slice removes web_search or web_extract from the default registry when credentials are absent.",
+                "Unit tests contact live web providers or depend on real API keys.",
+                "The implementation bypasses WebHTTPClient or spreads provider-specific HTTP logic into cmd/gormes callers.",
+                "Private/local URLs reach the HTTP client before safety classification."
+              ],
+              "blocked_by": [
+                "Managed tool gateway bridge",
+                "Browser hybrid private-URL local sidecar routing"
+              ],
+              "unblocks": [
+                "Managed Firecrawl gateway wiring for web tools",
+                "Toolset parity for web and safe research toolsets",
+                "Operator e2e gate"
+              ],
+              "acceptance": [
+                "TestWebToolsExposeHermesNamesAndSchemas proves the package exposes valid Hermes-visible `web_search` and `web_extract` tool descriptors.",
+                "TestResolveWebBackendPrefersFirecrawlConfig proves Firecrawl API URL/key resolution and the missing-config degraded evidence.",
+                "TestWebSearchToolCallsFirecrawlThroughWebHTTPClient proves `web_search` uses the injected HTTP client, POSTs `/v2/search`, sends bearer auth, forwards query/limit, and normalizes result positions.",
+                "TestWebExtractToolCallsFirecrawlAndBlocksPrivateURLs proves `web_extract` blocks a loopback URL before HTTP, fetches only the public URL through `/v2/scrape`, and normalizes markdown/title/sourceURL.",
+                "TestBuildDefaultRegistryDelegationDisabled proves the default registry exposes `web_search` and `web_extract` alongside browser tools when delegation is disabled."
+              ],
+              "note": "Complete: TDD landed internal/tools/web_tools.go with WebHTTPClient-backed Firecrawl-compatible web_search/web_extract wrappers plus resolver and private-host guard reuse, and registered both tools in cmd/gormes/registry.go before delegate_task descriptors are captured. The slice intentionally leaves Exa/Parallel/Tavily SDK behavior and live managed-gateway routing as follow-up adapter work behind the same public tool contract.",
+              "write_scope": [
+                "internal/tools/web_tools.go",
+                "internal/tools/web_tools_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+                "go test ./internal/tools -count=1",
+                "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Native web tool fixtures prove descriptor exposure, resolver/degraded behavior, fake HTTP request mapping, private URL blocking, Firecrawl response normalization, and default registry wiring without live provider calls."
+              ],
+              "evidence": [
+                "TestWebToolsExposeHermesNamesAndSchemas proves both public web tool names expose non-empty descriptions and valid schemas.",
+                "TestResolveWebBackendPrefersFirecrawlConfig proves direct/self-hosted Firecrawl config normalization and web_provider_unavailable when unset.",
+                "TestWebSearchToolCallsFirecrawlThroughWebHTTPClient proves fake HTTP search dispatch and normalized data.web output.",
+                "TestWebExtractToolCallsFirecrawlAndBlocksPrivateURLs proves private URL blocking and fake HTTP scrape normalization.",
+                "TestBuildDefaultRegistryDelegationDisabled proves normal Gormes registries include web_search and web_extract."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:tools/web_tools.py",
+                  "hermes:tools/managed_tool_gateway.py"
+                ],
+                "note": "Hermes defines the public web_search/web_extract names and Firecrawl/gateway behavior; Gormes adapts the first native HTTP adapter behind a fakeable Go boundary so later managed-gateway/provider adapters keep the same tool contract."
               }
             },
             {

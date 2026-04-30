@@ -188,7 +188,9 @@ classification and row-backed implementation queue.
 - [x] Session metadata manual-title protection flag
 - [ ] Gateway auto-title generation wiring
 - [x] Telegram reply_to_mode and reply-context parity
-- [ ] Telegram typing action + placeholder lifecycle parity
+- [ ] Telegram sendChatAction typing API
+- [ ] Gateway typing-action wiring during stream
+- [ ] Placeholder edit-failure fallback hardening
 - [ ] Gateway stream/tool trace formatting fixture matrix
 - [ ] Telegram dynamic BotCommand menu wiring
 - [ ] Active Hermes/Sidon profile context root resolver for live turns
@@ -611,6 +613,7 @@ classification and row-backed implementation queue.
 - [x] Browser provider bridge + Firecrawl fallback
 - [x] Browser Use cloud + Go browser harness bridge
 - [x] Go browser-harness Hermes browser_* tool wrappers
+- [x] Go-native Hermes web_search/web_extract tool wrappers
 - [ ] Browser artifact and console render contract
 - [ ] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
