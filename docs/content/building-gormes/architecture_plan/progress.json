@@ -8285,7 +8285,7 @@
               "status": "planned",
               "priority": "P0",
               "contract": "Expose the Hermes-visible `memory` tool with add, replace, and remove actions over memory/user targets, backed by Goncho or local durable USER.md/MEMORY.md storage, while preserving safe write responses, redaction, locks, and prompt-insertion semantics.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
