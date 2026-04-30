@@ -18301,42 +18301,102 @@
             },
             {
               "acceptance": [
-                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh.",
-                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report malformed/unavailable evidence.",
-                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence.",
-                "TestRegistryProvidersDoNotInstall proves registry-source code has no active-store, quarantine, gateway, provider/model, or install-command dependency."
+                "TestGitHubRegistryProviderTrustedAndCommunityMetadata proves GitHub fixtures normalize repo/path/name/description/tags, trusted vs community trust evidence, and source=github without live GitHub auth.",
+                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh result identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh.",
+                "TestGitHubAndSkillsShProvidersDegradedEvidence proves rate limits, non-200 responses, malformed JSON, and empty search responses return typed evidence while preserving partial results from other providers.",
+                "TestRegistryProvidersDoNotInstall proves this slice has no active-store, quarantine, gateway, provider/model, or install-command dependency."
               ],
-              "contract": "internal/skills adds read-only GitHub/Skills.sh, Claude Marketplace, and LobeHub registry providers over the existing HubRegistryProvider/Search seam, normalizing source, install IDs, tags, and community/trusted trust evidence from Hermes source adapters while keeping install, quarantine, guard scanning, and active-store mutation out of scope.",
+              "contract": "internal/skills adds read-only GitHub and Skills.sh registry providers over the existing HubRegistryProvider/Search seam, normalizing source, install IDs, repo/path, tags, and community/trusted trust evidence from Hermes GitHubSource and SkillsShSource while keeping install, quarantine, guard scanning, and active-store mutation out of scope.",
               "contract_status": "draft",
-              "degraded_mode": "Network errors, rate limits, malformed JSON, timeout fixtures, and empty registry responses return typed evidence values while preserving partial results from other providers.",
+              "degraded_mode": "GitHub API failures, anonymous rate limits, Skills.sh failures, malformed JSON, and empty registry responses return typed evidence values while preserving partial results from other providers.",
               "done_signal": [
-                "GitHub/Skills.sh, Claude Marketplace, and LobeHub provider fixtures pass through HubRegistryProvider/Search with degraded evidence and no install/store mutation."
+                "GitHub and Skills.sh provider fixtures pass through HubRegistryProvider/Search with degraded evidence and no install/store mutation."
               ],
               "execution_owner": "skills",
-              "fixture": "internal/skills/hub_registry_sources_test.go::TestSkillsShProviderDelegatesThroughGitHubMetadata+TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence+TestLobeHubProviderAgentMetadataAndDegradedEvidence",
-              "name": "Marketplace/GitHub registry metadata providers",
+              "fixture": "internal/skills/hub_registry_sources_test.go::TestGitHubRegistryProviderTrustedAndCommunityMetadata+TestSkillsShProviderDelegatesThroughGitHubMetadata",
+              "name": "GitHub + Skills.sh registry metadata providers",
               "not_ready_when": [
-                "The slice fetches bundle contents for installation, writes active/candidate skills, performs guard scans, or changes skill prompt/tool exposure.",
-                "Provider trust rules are guessed instead of derived from Hermes source adapters and TRUSTED_REPOS evidence."
+                "The slice fetches bundle contents for installation, writes active/candidate skills, performs guard scans, shells out to gh, or changes skill prompt/tool exposure.",
+                "Provider trust rules are guessed instead of derived from Hermes GitHubSource/SkillsShSource and TRUSTED_REPOS evidence.",
+                "Claude Marketplace or LobeHub behavior is implemented here instead of the separate marketplace row."
               ],
-              "note": "Added by 2026-04-30 parity sweep after exact-source verification of GitHubSource, SkillsShSource, ClaudeMarketplaceSource, and LobeHubSource in Hermes @69d4800d and absence of matching Gormes provider code in internal/skills @5c8941beb.",
+              "note": "Split 2026-04-30 by parity cron after source verification showed the prior Marketplace/GitHub row remained a broad medium slice. Hermes /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d defines GitHubSource at tools/skills_hub.py:284 and SkillsShSource at tools/skills_hub.py:1108; Gormes @158ac90ca has no GitHubRegistryProvider or SkillsShRegistryProvider in internal/skills/hub_registry_sources.go, while WellKnown, ClawHub, and HermesIndex providers are already present. This row is now the next builder-ready Skills hub provider slice.",
               "priority": "P1",
               "ready_when": [
                 "Hermes index/cache source-router slice is landed or the worker explicitly limits this slice to provider-local fixtures without source-router preference.",
                 "Tests inject fake HTTP clients and response fixtures; no live GitHub token, gh CLI, registry network, active skill store, or quarantine directory is required."
               ],
-              "slice_size": "medium",
+              "slice_size": "small",
               "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,fetch,inspect",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,fetch,inspect,_discover_identifier",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:284:GitHubSource.search,fetch,inspect,trust_level_for",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:1108:SkillsShSource.search,fetch,inspect,_discover_identifier",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_guard.py:TRUSTED_REPOS",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestSkillSourceRouter,TestUnifiedSearch",
-                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider"
+                "internal/skills/hub_search.go:HubRegistryProvider,Search",
+                "internal/skills/hub_registry_sources.go:HermesIndexRegistryProvider,WellKnownRegistryProvider,ClawHubRegistryProvider"
               ],
               "status": "planned",
               "test_commands": [
-                "go test ./internal/skills -run 'TestSkillsShProvider|TestClaudeMarketplaceProvider|TestLobeHubProvider|TestRegistryProvidersDoNotInstall' -count=1",
+                "go test ./internal/skills -run 'TestGitHubRegistryProvider|TestSkillsShProvider|TestRegistryProvidersDoNotInstall' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "unblocks": [
+                "Skills hub install binding over registry metadata",
+                "Skills hub source filter CLI/RPC",
+                "Claude Marketplace + LobeHub registry metadata providers"
+              ],
+              "write_scope": [
+                "internal/skills/hub_registry_sources.go",
+                "internal/skills/hub_registry_sources_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ]
+            },
+            {
+              "acceptance": [
+                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report malformed/unavailable evidence.",
+                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence.",
+                "TestMarketplaceProvidersPreservePartialResults proves Claude Marketplace and LobeHub degraded paths do not discard successful provider results from the same Search call.",
+                "TestRegistryProvidersDoNotInstall proves this slice has no active-store, quarantine, gateway, provider/model, or install-command dependency."
+              ],
+              "blocked_by": [
+                "GitHub + Skills.sh registry metadata providers"
+              ],
+              "contract": "internal/skills adds read-only Claude Marketplace and LobeHub registry providers over the existing HubRegistryProvider/Search seam, normalizing source, install IDs, titles, tags, repo/source paths, and community/trusted trust evidence from Hermes ClaudeMarketplaceSource and LobeHubSource while keeping install, quarantine, guard scanning, and active-store mutation out of scope.",
+              "contract_status": "draft",
+              "degraded_mode": "Marketplace/LobeHub network errors, timeout fixtures, malformed JSON, missing source paths, and empty indexes return typed evidence values while preserving partial results from other providers.",
+              "done_signal": [
+                "Claude Marketplace and LobeHub provider fixtures pass through HubRegistryProvider/Search with degraded evidence and no install/store mutation."
+              ],
+              "execution_owner": "skills",
+              "fixture": "internal/skills/hub_registry_sources_test.go::TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence+TestLobeHubProviderAgentMetadataAndDegradedEvidence",
+              "name": "Claude Marketplace + LobeHub registry metadata providers",
+              "not_ready_when": [
+                "The slice fetches bundle contents for installation, writes active/candidate skills, performs guard scans, or changes skill prompt/tool exposure.",
+                "Provider trust rules are guessed instead of derived from Hermes ClaudeMarketplaceSource/LobeHubSource and TRUSTED_REPOS evidence.",
+                "GitHub/Skills.sh behavior is implemented here instead of the prerequisite row."
+              ],
+              "note": "Split 2026-04-30 by parity cron from the former Marketplace/GitHub medium row. Hermes /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d defines ClaudeMarketplaceSource at tools/skills_hub.py:2067 and LobeHubSource at tools/skills_hub.py:2165. Current Gormes @158ac90ca has no ClaudeMarketplaceRegistryProvider or LobeHubRegistryProvider in internal/skills/hub_registry_sources.go, so this stays a second small provider slice after GitHub/Skills.sh.",
+              "priority": "P1",
+              "ready_when": [
+                "GitHub + Skills.sh registry metadata providers is validated so shared remote-provider helpers, trust normalization, and degraded evidence are stable.",
+                "Tests inject fake HTTP clients and response fixtures; no live marketplace/LobeHub network, active skill store, or quarantine directory is required."
+              ],
+              "slice_size": "small",
+              "source_refs": [
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:2067:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:2165:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_guard.py:TRUSTED_REPOS",
+                "internal/skills/hub_search.go:HubRegistryProvider,Search",
+                "internal/skills/hub_registry_sources.go:HermesIndexRegistryProvider,WellKnownRegistryProvider,ClawHubRegistryProvider"
+              ],
+              "status": "planned",
+              "test_commands": [
+                "go test ./internal/skills -run 'TestClaudeMarketplaceProvider|TestLobeHubProvider|TestMarketplaceProvidersPreservePartialResults|TestRegistryProvidersDoNotInstall' -count=1",
                 "go test ./internal/skills -count=1",
                 "go run ./cmd/progress validate"
               ],
@@ -18351,7 +18411,6 @@
               "write_scope": [
                 "internal/skills/hub_registry_sources.go",
                 "internal/skills/hub_registry_sources_test.go",
-                "internal/skills/hub_search.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ]
             },

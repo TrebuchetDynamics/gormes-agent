@@ -651,7 +651,8 @@ classification and row-backed implementation queue.
 - [x] Skills hub search read-model function over registry providers
 - [ ] Skill registries
 - [x] Hermes index provider cache + source-router preference
-- [ ] Marketplace/GitHub registry metadata providers
+- [ ] GitHub + Skills.sh registry metadata providers
+- [ ] Claude Marketplace + LobeHub registry metadata providers
 - [x] Skills hub direct URL candidate parser
 - [x] Skills hub direct URL install name/category guard
 - [x] Skill preprocessing + dynamic slash commands
