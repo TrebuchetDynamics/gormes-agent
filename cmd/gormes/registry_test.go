@@ -24,8 +24,12 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	if _, ok := reg.Get("execute_code"); !ok {
 		t.Fatal("execute_code not registered")
 	}
-	if _, ok := reg.Get("text_to_speech"); !ok {
+	_, hasTTS := reg.Get("text_to_speech")
+	if audioToolsEnabled() && !hasTTS {
 		t.Fatal("text_to_speech not registered")
+	}
+	if !audioToolsEnabled() && hasTTS {
+		t.Fatal("text_to_speech registered in gormes_lite build")
 	}
 	if _, ok := reg.Get("memory"); !ok {
 		t.Fatal("memory not registered")

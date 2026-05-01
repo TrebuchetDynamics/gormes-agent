@@ -11473,10 +11473,10 @@
             },
             {
               "name": "xAI Grok provider adapter",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gormes can route tool-call turns through xAI Grok API with native request/response mapping, streaming, and error classification",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -11518,14 +11518,35 @@
               ],
               "done_signal": [
                 "Grok adapter fixtures prove request shaping, stream decoding, tool-call normalization, and error classification without live credentials."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/grok_adapter.go:GrokAdapter, NewGrokAdapter, Client, Status, reachable",
+                  "internal/hermes/grok_adapter.go:ClassifyGrokError"
+                ],
+                "tests": [
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_Client",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_StatusUnreachable",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_DefaultBaseURL",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_CustomBaseURL",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_RateLimit",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Auth",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Overloaded",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_ServerError",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Unknown"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "LM Studio provider adapter",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gormes can route turns through LM Studio local inference server with OpenAI-compatible request/response mapping",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -11564,7 +11585,24 @@
               ],
               "done_signal": [
                 "LM Studio adapter fixtures prove local OpenAI-compatible routing, model enumeration, and unreachable degradation without a live server."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/lmstudio_adapter.go implements LMStudioAdapter, NewLMStudioAdapter, Client, Status, ListModels, ModelInfo, ModelsResponse with default base URL http://localhost:1234/v1",
+                  "Reuses existing NewHTTPClientWithProvider and openAICompatibleProviderStatus for OpenAI-compatible chat completions transport"
+                ],
+                "tests": [
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_StatusUnreachable",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_StatusReachable",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_ListModels",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_ListModelsUnreachable",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_DefaultBaseURL"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ],
           "drift_state": {
@@ -12403,18 +12441,67 @@
           "name": "Native Prompt Builder",
           "items": [
             {
-              "name": "System + memory + tools + history assembly",
-              "status": "planned",
-              "note": "Umbrella only: execute through the context-file, role/model guidance, skills snapshot, and memory/session-search prompt slices before replacing the Python bridge.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "name": "Default agent identity / SOUL.md loader",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly loads the default agent identity from SOUL.md or a built-in fallback, matching Hermes DEFAULT_AGENT_IDENTITY behavior",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If SOUL.md is missing, the built-in fallback identity is used and records soul_md_fallback evidence",
+              "fixture": "internal/hermes/identity_loader_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY",
+                "../hermes-agent/agent/prompt_builder.py:load_soul_md"
+              ],
+              "ready_when": [
+                "Tests can use temp SOUL.md fixtures and assert identity content without live profile access"
+              ],
+              "not_ready_when": [
+                "The slice reads the operator's live ~/.hermes profile in tests",
+                "The slice changes the identity format or adds model-specific identity variants"
+              ],
+              "acceptance": [
+                "TestIdentityLoader_LoadsSoulMd proves SOUL.md content is loaded when present",
+                "TestIdentityLoader_Fallback proves built-in fallback is used when SOUL.md is absent",
+                "TestIdentityLoader_SkipSoul proves skip_soul flag suppresses identity injection",
+                "TestIdentityLoader_SoulMdBlocked proves blocked SOUL.md falls back to default identity",
+                "TestIdentityLoader_Pure proves no filesystem access outside temp fixtures in tests"
+              ],
+              "write_scope": [
+                "internal/hermes/identity_loader.go",
+                "internal/hermes/identity_loader_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestIdentityLoader -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Identity loader fixtures prove SOUL.md loading, fallback behavior, skip flag, blocked fallback, and pure test isolation"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/identity_loader.go:LoadAgentIdentity, DefaultAgentIdentity, IdentityLoaderOptions, IdentityLoaderResult",
+                  "Reuses existing loadSoulContext from internal/hermes/context_files.go for scanning and truncation"
+                ],
+                "tests": [
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_LoadsSoulMd",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_Fallback",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_SkipSoul",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_SoulMdBlocked",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Context-file discovery + injection scan",
@@ -12641,18 +12728,124 @@
               }
             },
             {
-              "name": "Memory and session-search guidance assembly",
-              "status": "planned",
-              "note": "TDD: assemble memory guidance, session-search guidance, available tool-name gates, and environment/platform hints without changing existing Phase 3 GONCHO recall semantics.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "name": "Memory guidance constant + injection",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly injects the MEMORY_GUIDANCE block from Hermes agent/prompt_builder.py when memory tools are available",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If memory guidance is unavailable, the prompt omits the block and records memory_guidance_suppressed evidence",
+              "fixture": "internal/hermes/memory_guidance_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:144-156_MEMORY_GUIDANCE",
+                "internal/hermes/guidance_constants.go:MemoryGuidance"
+              ],
+              "ready_when": [
+                "Tests can assert byte-equivalence against the upstream parenthesised literal block without calling Python"
+              ],
+              "not_ready_when": [
+                "The slice changes Goncho memory recall behavior or internal/session memory persistence"
+              ],
+              "acceptance": [
+                "TestMemoryGuidance_ByteEquivalent proves the Go constant matches the Hermes MEMORY_GUIDANCE literal",
+                "TestMemoryGuidance_InjectedWhenToolAvailable proves the block appears in assembled prompt when memory tools are available",
+                "TestMemoryGuidance_SuppressedWhenNoTool proves the block is omitted when no memory tools are registered",
+                "TestMemoryGuidance_Pure proves deterministic output with no side effects"
+              ],
+              "write_scope": [
+                "internal/hermes/memory_guidance.go",
+                "internal/hermes/memory_guidance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestMemoryGuidance -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Memory guidance fixtures prove byte-equivalent Hermes parity, conditional injection, suppression, and pure behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:MemoryGuidance (upstream-pinned)",
+                  "internal/hermes/memory_guidance.go:BuildMemoryGuidance, MemoryGuidanceResult"
+                ],
+                "tests": [
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_ByteEquivalent",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_InjectedWhenToolAvailable",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_SuppressedWhenNoTool",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            },
+            {
+              "name": "Session search guidance constant + injection",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly injects the SESSION_SEARCH_GUIDANCE block from Hermes agent/prompt_builder.py when session search is enabled",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If session search guidance is unavailable, the prompt omits the block and records session_search_guidance_suppressed evidence",
+              "fixture": "internal/hermes/session_search_guidance_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:158-162_SESSION_SEARCH_GUIDANCE",
+                "internal/hermes/guidance_constants.go:SessionSearchGuidance"
+              ],
+              "ready_when": [
+                "Tests can assert byte-equivalence against the upstream parenthesised literal block"
+              ],
+              "not_ready_when": [
+                "The slice changes session search implementation or Goncho session indexing"
+              ],
+              "acceptance": [
+                "TestSessionSearchGuidance_ByteEquivalent proves the Go constant matches the Hermes SESSION_SEARCH_GUIDANCE literal",
+                "TestSessionSearchGuidance_InjectedWhenEnabled proves the block appears in assembled prompt when session search is enabled",
+                "TestSessionSearchGuidance_SuppressedWhenDisabled proves the block is omitted when session search is disabled",
+                "TestSessionSearchGuidance_Pure proves deterministic output with no side effects"
+              ],
+              "write_scope": [
+                "internal/hermes/session_search_guidance.go",
+                "internal/hermes/session_search_guidance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestSessionSearchGuidance -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Session search guidance fixtures prove byte-equivalent Hermes parity, conditional injection, suppression, and pure behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:SessionSearchGuidance (upstream-pinned)",
+                  "internal/hermes/session_search_guidance.go:BuildSessionSearchGuidance, SessionSearchGuidanceResult"
+                ],
+                "tests": [
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_ByteEquivalent",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_InjectedWhenEnabled",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_SuppressedWhenDisabled",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Gormes self-help skill/docs prompt guidance",
@@ -12782,6 +12975,65 @@
                 "upstream_ref": "hermes:d7a34682 fix(prompts): replace [SYSTEM: with [IMPORTANT: to avoid Azure content filter",
                 "note": "Direct port of the upstream Azure-content-filter compatibility rename. Gormes uses [SYSTEM: in two narrow spots; this slice closes the drift and unblocks Azure OpenAI traffic without touching prompt body content."
               }
+            },
+            {
+              "name": "Native full prompt assembly",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Native prompt assembly combines all validated blocks into a single Hermes-compatible system prompt",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "fixture": "internal/hermes/prompt_assembly_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:build_system_prompt",
+                "../hermes-agent/run_agent.py:_build_system_prompt"
+              ],
+              "acceptance": [
+                "TestPromptAssembly_BlockOrder proves the assembled prompt contains blocks in Hermes order",
+                "TestPromptAssembly_MissingBlockEvidence proves missing blocks emit evidence without halting assembly",
+                "TestPromptAssembly_Deterministic proves identical inputs produce identical prompt bytes",
+                "TestPromptAssembly_Pure proves no Python runtime, provider, network, or credential dependency"
+              ],
+              "write_scope": [
+                "internal/hermes/prompt_assembly.go",
+                "internal/hermes/prompt_assembly_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptAssembly -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Prompt assembly fixtures prove Hermes-compatible block ordering, missing-block resilience, determinism, and pure Go behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/prompt_assembly.go:BuildSystemPrompt, PromptAssemblyOptions, PromptAssemblyResult, PromptBlockEvidence"
+                ],
+                "tests": [
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_BlockOrder",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_MissingBlockEvidence",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Deterministic",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              },
+              "degraded_mode": "If any block is missing, assembly continues with the remaining blocks and records missing_block evidence; the prompt never falls back to Python Hermes runtime",
+              "ready_when": [
+                "All subordinate prompt blocks (context files, memory guidance, session search, skills snapshot, model guidance, self-help) are validated",
+                "Tests can assemble a full prompt from injected block fixtures without provider/model/network calls"
+              ]
             }
           ],
           "drift_state": {
@@ -15516,10 +15768,10 @@
           "items": [
             {
               "name": "Resilient provider chain dispatch",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "DeepSeek → OpenAI → Anthropic → Grok → Ollama resilient routing with chain failure detection",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -15555,7 +15807,27 @@
               ],
               "done_signal": [
                 "Fallback chain tests prove multi-provider resilient dispatch and error classification"
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/fallback_chain.go implements ProviderChain, ChainDispatch, ChainResult, ChainAttemptEvidence, ProviderFactory, SimpleProviderFactory",
+                  "internal/hermes/error_classifier.go implements ChainDecision, ChainErrorClassifier, DefaultChainErrorClassifier with retry/fallback/abort logic"
+                ],
+                "tests": [
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_FirstProviderSucceeds",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_FallbackToSecondProvider",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_AbortOnAuthError",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_RetryThenFallback",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_AllProvidersFail",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_FactoryError",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_ContextCancel"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go vet ./internal/hermes -> clean",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         }
@@ -18451,185 +18723,17 @@
             },
             {
               "name": "Skill registries",
-              "priority": "P1",
               "status": "planned",
-              "contract": "Native skills hub registry providers expose source-backed, read-only metadata for the current Hermes skills hub source adapters before any write-capable install flow: OptionalSkillSource, HermesIndexSource, SkillsShSource, WellKnownSkillSource, UrlSource, GitHubSource, ClawHubSource, ClaudeMarketplaceSource, and LobeHubSource are the active upstream contract at Hermes 69d4800d. This executable slice should add only the missing remote registry read-model providers over the existing HubRegistryProvider/Search seam, with source filtering, trust normalization, centralized-index preference, stale-cache fallback, and typed degraded evidence for unavailable, malformed, timeout, empty, and rate-limited upstreams. Url direct parsing and optional bundled-skill inventory stay in their existing rows; this slice must not install, activate, quarantine, guard-scan, or mutate skills.",
-              "contract_status": "draft",
-              "slice_size": "medium",
-              "execution_owner": "skills",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Network failures, non-200 responses, malformed JSON, expired/missing cache, empty registries, and rate limits return typed evidence such as registry_unavailable, registry_rate_limited, registry_malformed, registry_cache_stale, or registry_empty without panics and without active-store mutation.",
-              "fixture": "internal/skills/hub_registry_sources_test.go",
-              "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,GitHubSource.fetch,GitHubSource.inspect",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,SkillsShSource.fetch,SkillsShSource.inspect,_discover_identifier",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:WellKnownSkillSource.search,WellKnownSkillSource.fetch,WellKnownSkillSource.inspect",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClawHubSource.search,ClawHubSource.fetch,ClawHubSource.inspect,_load_catalog_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestWellKnownSkillSource,TestUrlSource,TestSkillSourceRouter,TestUnifiedSearch",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub_clawhub.py:TestClawHubSource",
-                "internal/skills/hub_search.go",
-                "internal/skills/hub_search_test.go",
-                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider",
-                "internal/skills/hub_registry_sources_test.go:TestWellKnownRegistryProviderReadsIndexMetadata,TestClawHubProviderCommunityTrustAndDegradedEvidence,TestClawHubProviderDegradedEvidence",
-                "internal/skills/url_candidate.go"
-              ],
-              "ready_when": [
-                "The existing internal/skills HubRegistryProvider/Search read model remains the public seam for registry metadata.",
-                "Tests inject fake HTTP clients, response fixtures, or temp cache roots for Skills.sh/GitHub, WellKnown, HermesIndex, ClawHub, ClaudeMarketplace, and LobeHub; no live network, GitHub token, gh CLI, active skill store, or quarantine directory is required.",
-                "UrlSource direct SKILL.md parsing is treated as already covered by the separate complete `Skills hub direct URL candidate parser` row rather than reimplemented here."
-              ],
+              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
               "not_ready_when": [
-                "The slice downloads arbitrary bundle files, writes active/candidate skills, performs guard scans, runs install commands, or changes skill prompt injection.",
-                "The slice omits current Hermes 69d4800d source adapters (HermesIndexSource, ClaudeMarketplaceSource, or LobeHubSource) from the read-model contract, or treats the centralized index preference in parallel_search_sources as out of scope without a source-backed split row.",
-                "ClawHub, Skills.sh, WellKnown, or GitHub results are treated as builtin/trusted without the upstream trust rules, or malformed remote payloads panic instead of returning typed degraded evidence."
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "unblocks": [
-                "Skills hub install binding over registry metadata",
-                "Skills hub source filter CLI/RPC",
-                "Skill registries unavailable-network UX fixtures"
-              ],
-              "acceptance": [
-                "TestClawHubProviderCommunityTrustAndDegradedEvidence proves ClawHub search/inspect normalizes slug/name/tags, assigns community trust, reports registry_unavailable or registry_rate_limited for failures, and never mutates the active store.",
-                "TestHermesIndexProviderPrefersCachedIndex proves centralized Hermes index fixtures return metadata with zero API calls and source-router search can skip duplicate remote API sources when the index is available and source_filter=all.",
-                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace.json fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report typed malformed/unavailable evidence without store writes.",
-                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence instead of panicking.",
-                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh result identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh and deterministic source-filter behavior.",
-                "TestWellKnownRegistryProviderReadsIndexMetadata proves .well-known/skills index fixtures produce community-trust metadata without network or filesystem writes beyond the temp cache.",
-                "TestRegistryProviderCacheFallback proves malformed or unavailable network responses reuse a valid stale cache when present and return typed evidence when no cache exists.",
-                "TestRegistryProvidersDoNotInstall proves the registry-source package has no dependency on active store mutators, quarantine install paths, gateway adapters, or provider/model clients."
-              ],
-              "write_scope": [
-                "internal/skills/hub_registry_sources.go",
-                "internal/skills/hub_registry_sources_test.go",
-                "internal/skills/hub_search.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/skills -run 'TestClawHubProvider|TestHermesIndexProvider|TestClaudeMarketplaceProvider|TestLobeHubProvider|TestSkillsShProvider|TestWellKnownRegistryProvider|TestRegistryProvider' -count=1",
-                "go test ./internal/skills -count=1",
-                "go run ./cmd/progress validate"
-              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
               "done_signal": [
-                "Native registry providers expose current Hermes HermesIndex, Skills.sh/GitHub, WellKnown, ClawHub, ClaudeMarketplace, and LobeHub metadata through HubRegistryProvider/Search with fixture-backed cache/degraded evidence tests, centralized-index source filtering, and no install/store mutation."
-              ],
-              "note": "2026-04-30 parity correction refreshed this builder-ready row after source comparison against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d showed the prior row was stale-upstream: Hermes now includes HermesIndexSource, ClaudeMarketplaceSource, and LobeHubSource in addition to GitHubSource, SkillsShSource, WellKnownSkillSource, UrlSource, ClawHubSource, create_source_router, parallel_search_sources, and unified_search. Current Gormes evidence is the pure Search read model in internal/skills/hub_search.go plus the separate validated direct-URL candidate parser row. 2026-04-30 builder slice added source-backed WellKnownRegistryProvider metadata reading in internal/skills/hub_registry_sources.go with fixture coverage in internal/skills/hub_registry_sources_test.go; a follow-up TDD slice added ClawHubRegistryProvider catalog metadata normalization, community trust, tag normalization, and degraded evidence via TestClawHubProviderCommunityTrustAndDegradedEvidence/TestClawHubProviderDegradedEvidence. 2026-04-30 parity sweep verified upstream /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d still contains GitHubSource, SkillsShSource, HermesIndexSource, ClaudeMarketplaceSource, LobeHubSource, create_source_router, parallel_search_sources, and unified_search; current Gormes @5c8941beb has only WellKnownRegistryProvider and ClawHubRegistryProvider in hub_registry_sources.go, so the row is now split into the two child slices below instead of one broad medium worker packet."
-            },
-            {
-              "name": "Hermes index provider cache + source-router preference",
-              "priority": "P1",
-              "status": "complete",
-              "contract": "internal/skills adds a read-only HermesIndexRegistryProvider and source-router preference helper that consume cached centralized Hermes skills index fixtures before consulting duplicate remote API providers, mirroring HermesIndexSource plus create_source_router/parallel_search_sources without installing or mutating active skills.",
-              "contract_status": "validated",
-              "slice_size": "small",
-              "execution_owner": "skills",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Missing, malformed, expired, or unavailable centralized index fixtures return typed hub-search evidence and fall back to the caller-supplied provider list without panics or active-store writes.",
-              "fixture": "internal/skills/hub_registry_sources_test.go::TestHermesIndexProviderPrefersCachedIndex",
-              "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search",
-                "internal/skills/hub_search.go:PreferHermesIndexProvider,Search",
-                "internal/skills/hub_registry_sources.go:HermesIndexRegistryProvider,WellKnownRegistryProvider,ClawHubRegistryProvider"
-              ],
-              "ready_when": [
-                "HubRegistryProvider/Search is validated and WellKnown/ClawHub read-only provider fixtures are green.",
-                "The worker can inject temp cache roots and fake providers; no live network, gh CLI, token, install flow, or active store is required."
-              ],
-              "not_ready_when": [
-                "The slice downloads arbitrary skill bundles, writes active/candidate skills, runs guard scans, or changes prompt injection.",
-                "The source-router preference is implemented by hard-coding operator-specific paths instead of injected cache roots and provider lists."
-              ],
-              "unblocks": [
-                "Marketplace/GitHub registry metadata providers",
-                "Skill registries unavailable-network UX fixtures"
-              ],
-              "acceptance": [
-                "TestHermesIndexProviderPrefersCachedIndex proves centralized index fixtures return normalized metadata with no remote API calls.",
-                "TestHermesIndexProviderMalformedOrMissingEvidence proves missing/malformed cache files return typed evidence and do not panic.",
-                "TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable proves source_filter=all prefers the centralized index before duplicate GitHub/Skills.sh remote API providers.",
-                "The helper imports neither active store mutators nor gateway adapters and performs no filesystem writes outside an injected temp cache in tests."
-              ],
-              "write_scope": [
-                "internal/skills/hub_registry_sources.go",
-                "internal/skills/hub_registry_sources_test.go",
-                "internal/skills/hub_search.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/skills -run 'TestHermesIndexProvider|TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable' -count=1",
-                "go test ./internal/skills -count=1",
-                "go run ./cmd/progress validate"
-              ],
-              "done_signal": [
-                "HermesIndex provider and source-router preference fixtures pass with fake cache/provider inputs, and existing WellKnown/ClawHub provider tests remain green."
-              ],
-              "note": "Complete 2026-04-30: source-backed TDD slice added HermesIndexRegistryProvider in internal/skills/hub_registry_sources.go and PreferHermesIndexProvider in internal/skills/hub_search.go. RED first failed on undefined NewHermesIndexRegistryProvider/PreferHermesIndexProvider; GREEN passes TestHermesIndexProviderPrefersCachedIndex, TestHermesIndexProviderMalformedOrMissingEvidence, TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable, and full go test ./internal/skills -count=1. The implementation reads only caller-injected cache paths, performs no remote API calls or active-store writes, and falls back to caller-supplied providers with typed evidence for missing/malformed centralized index fixtures."
-            },
-            {
-              "name": "Marketplace/GitHub registry metadata providers",
-              "priority": "P1",
-              "status": "planned",
-              "contract": "internal/skills adds read-only GitHub/Skills.sh, Claude Marketplace, and LobeHub registry providers over the existing HubRegistryProvider/Search seam, normalizing source, install IDs, tags, and community/trusted trust evidence from Hermes source adapters while keeping install, quarantine, guard scanning, and active-store mutation out of scope.",
-              "contract_status": "draft",
-              "slice_size": "medium",
-              "execution_owner": "skills",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Network errors, rate limits, malformed JSON, timeout fixtures, and empty registry responses return typed evidence values while preserving partial results from other providers.",
-              "fixture": "internal/skills/hub_registry_sources_test.go::TestSkillsShProviderDelegatesThroughGitHubMetadata+TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence+TestLobeHubProviderAgentMetadataAndDegradedEvidence",
-              "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,fetch,inspect",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,fetch,inspect,_discover_identifier",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestSkillSourceRouter,TestUnifiedSearch",
-                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider"
-              ],
-              "ready_when": [
-                "Hermes index/cache source-router slice is landed or the worker explicitly limits this slice to provider-local fixtures without source-router preference.",
-                "Tests inject fake HTTP clients and response fixtures; no live GitHub token, gh CLI, registry network, active skill store, or quarantine directory is required."
-              ],
-              "not_ready_when": [
-                "The slice fetches bundle contents for installation, writes active/candidate skills, performs guard scans, or changes skill prompt/tool exposure.",
-                "Provider trust rules are guessed instead of derived from Hermes source adapters and TRUSTED_REPOS evidence."
-              ],
-              "unblocks": [
-                "Skills hub install binding over registry metadata",
-                "Skills hub source filter CLI/RPC"
-              ],
-              "acceptance": [
-                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh.",
-                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report malformed/unavailable evidence.",
-                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence.",
-                "TestRegistryProvidersDoNotInstall proves registry-source code has no active-store, quarantine, gateway, provider/model, or install-command dependency."
-              ],
-              "write_scope": [
-                "internal/skills/hub_registry_sources.go",
-                "internal/skills/hub_registry_sources_test.go",
-                "internal/skills/hub_search.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/skills -run 'TestSkillsShProvider|TestClaudeMarketplaceProvider|TestLobeHubProvider|TestRegistryProvidersDoNotInstall' -count=1",
-                "go test ./internal/skills -count=1",
-                "go run ./cmd/progress validate"
-              ],
-              "done_signal": [
-                "GitHub/Skills.sh, Claude Marketplace, and LobeHub provider fixtures pass through HubRegistryProvider/Search with degraded evidence and no install/store mutation."
-              ],
-              "note": "Added by 2026-04-30 parity sweep after exact-source verification of GitHubSource, SkillsShSource, ClaudeMarketplaceSource, and LobeHubSource in Hermes @69d4800d and absence of matching Gormes provider code in internal/skills @5c8941beb."
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Skills hub direct URL candidate parser",
@@ -20759,10 +20863,10 @@
             },
             {
               "name": "Shell blocklist (36+ dangerous patterns)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "The shared tool executor blocks 36+ dangerous shell patterns before execution, with category-specific evidence and override policies",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -20810,14 +20914,32 @@
               ],
               "done_signal": [
                 "Shell blocklist fixtures prove 36+ patterns across 5 categories, positive/negative matching, category-specific evidence, GuardCommand integration, and config-driven extensibility."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/shell_blocklist.go:ShellBlocklistPatterns (46 patterns across 5 categories)",
+                  "internal/tools/shell_blocklist.go:CheckShellBlocklist, IsShellCommandBlocked, GetBlocklistCoverage, GetBlocklistTotal",
+                  "internal/tools/shell_blocklist.go:IsHardlineCommand, IsRecoverableCommand"
+                ],
+                "tests": [
+                  "internal/tools/permissions_test.go:TestShellBlocklistPatterns (20 table-driven cases)",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_TotalCount",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_Coverage",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_*Patterns (5 category tests)",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_CategoryEvidence"
+                ],
+                "verification": [
+                  "go test ./internal/tools -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Filesystem scoping (folder-level read/write restrictions)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "File tools enforce folder-level read/write scope restrictions so agents cannot access paths outside configured boundaries",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -20870,14 +20992,33 @@
               ],
               "done_signal": [
                 "Filesystem scope fixtures prove path normalization, read/write rejection, CWD fallback, search exclusion, and doctor reporting without interactive configuration."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/filesystem_scope.go:FilesystemScope, PathCheckResult, NewFilesystemScope",
+                  "internal/tools/filesystem_scope.go:CheckRead, CheckWrite, normalizePath, checkPath",
+                  "internal/tools/filesystem_scope.go:GetDoctorReport"
+                ],
+                "tests": [
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_CWDOnly",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_AllowedReadPaths",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_AllowedWritePaths",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_PathNormalization",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_EmptyAllowedMeansAllowAll",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_DoctorReport"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestFilesystemScope -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Permission approval UX (inline y/n/always)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Dangerous actions trigger an inline approval prompt (y/n/always) with clear command preview, risk category, and persistent preference storage",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "tools",
               "trust_class": [
@@ -20926,14 +21067,36 @@
               ],
               "done_signal": [
                 "Approval UX fixtures prove prompt rendering, y/n/always handling, session persistence, non-interactive fail-closed, audit logging, and doctor reporting."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/approval_ux.go:ApprovalSession, ApprovalPrompt, ApprovalUXResult, ApprovalAuditRecord",
+                  "internal/tools/approval_ux.go:RequestApproval, BuildApprovalPrompt, extractPaths",
+                  "internal/tools/approval_ux.go:NewApprovalSession, GetPreferenceCount, GetAuditLog, IsInteractive"
+                ],
+                "tests": [
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_NonInteractiveFailsClosed",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_InteractiveYes",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_InteractiveNo",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AlwaysPersists",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_PreferenceReuse",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AuditLog",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_PromptFields",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_DoctorReport",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AuditRecordTimestamp"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestApprovalUX -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Trust-class enforcement in shared tool executor",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "The shared tool executor rejects tool calls from disallowed trust classes before a handler runs, preventing gateway/child-agent callers from exercising operator-local tools",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20983,7 +21146,24 @@
               ],
               "done_signal": [
                 "Trust-class fixtures prove operator/gateway/child-agent/system enforcement, schema visibility gating, and doctor reporting without changing handler signatures."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/trust_class.go:TrustClassTool, TrustClassExecutor, Register, Execute, ListTools",
+                  "internal/tools/trust_class.go:isTrustClassAllowed"
+                ],
+                "tests": [
+                  "internal/tools/trust_class_test.go:TestTrustClass_ExecuteAllowed",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ExecuteDenied",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ListToolsFiltersByTrustClass",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ChildAgentCannotSeeOperatorLocal",
+                  "internal/tools/trust_class_test.go:TestTrustClass_SystemCanAccessAll"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestTrustClass -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         },
@@ -21878,7 +22058,7 @@
               "name": "Debug share paste sweep scheduler contract",
               "priority": "P4",
               "status": "complete",
-              "contract": "Gormes debug-share owns an injectable paste-deletion queue helper and an hourly scheduler cadence hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
+              "contract": "Gormes debug-share planning owns a persisted paste-deletion queue and an hourly scheduler hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -21889,10 +22069,8 @@
               "degraded_mode": "If the scheduler is not running, debug-share status reports paste_sweep_scheduler_unavailable and the CLI fallback can still sweep pending entries on the next debug invocation.",
               "fixture": "internal/cli/debug_paste_sweep_test.go::TestDebugPasteSweep_*",
               "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/hermes_cli/debug.py@69d4800d:_sweep_expired_pastes",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/run.py@69d4800d:_start_cron_ticker",
-                "internal/cli/debug_paste_sweep.go",
-                "internal/cron/debug_paste_sweep.go",
+                "../hermes-agent/hermes_cli/debug.py@90a3e73d:_sweep_expired_pastes",
+                "../hermes-agent/gateway/run.py@90a3e73d:_start_cron_ticker",
                 "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Debug helpers"
               ],
               "ready_when": [
@@ -21914,7 +22092,7 @@
                 "TestDebugPasteSweep_DeleteFailureRetainsEntryWithEvidence proves a failed fake delete keeps the row and reports paste_delete_failed evidence.",
                 "TestDebugPasteSweep_SchedulerCadence proves the hourly hook calls the sweeper on the configured cadence without starting a real gateway or sleeping."
               ],
-              "note": "Complete: TDD landed an injectable Go-native debug paste sweep helper and scheduler cadence hook. internal/cli/debug_paste_sweep_test.go proves expired paste.rs URLs are passed to a fake deleter once, future entries remain queued, and delete failures retain entries with paste_delete_failed evidence. internal/cron/debug_paste_sweep_test.go proves hourly cadence without goroutines, gateway startup, sleeps, or network DELETE calls.",
+              "note": "Added from Hermes 90a3e73d. Keep draft/blocked until Debug helpers have a Go-native queue; this captures the upstream retention lesson without adding a live network task to the current hot queue.",
               "write_scope": [
                 "internal/cli/debug_paste_sweep.go",
                 "internal/cli/debug_paste_sweep_test.go",
@@ -21930,20 +22108,10 @@
               "done_signal": [
                 "Debug paste sweep fixtures prove fake-clock deletion, retention on failure, pending-count evidence, and hourly scheduler cadence without network calls."
               ],
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-30T12:19:00Z",
-                "last_success": "2026-04-30T12:19:00Z"
-              },
-              "evidence": {
-                "implementation": "internal/cli/debug_paste_sweep.go, internal/cron/debug_paste_sweep.go",
-                "tests": "go test ./internal/cli -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cron -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cli ./internal/cron -count=1; go run ./cmd/progress validate; git diff --check",
-                "note": "The implementation keeps paste deletion, persistence, and wall-clock scheduling injectable; no production network DELETEs or gateway process are required by the fixtures."
-              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:69d4800d hermes_cli/debug.py + gateway/run.py",
-                "note": "Hermes keeps pending paste.rs cleanup in hermes_cli/debug.py and invokes _sweep_expired_pastes from the gateway cron ticker; Gormes adapts the queue/sweeper contract as injectable Go helpers before any live debug-share upload surface."
+                "upstream_ref": "hermes:90a3e73d hermes_cli/debug.py + gateway/run.py",
+                "note": "Hermes moved paste.rs cleanup from opportunistic debug invocation to the gateway cron ticker; Gormes should adapt the queue/sweeper contract after native debug helpers exist."
               }
             },
             {
@@ -23304,10 +23472,10 @@
             },
             {
               "name": "Hermes auth Spotify service-provider subcommand",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Implement `gormes auth spotify [login|status|logout]` as the service-provider auth companion to the first-party Spotify plugin: login runs an injectable PKCE callback/token exchange using client_id, redirect_uri, scope, no-browser, and timeout inputs; status reads providers.spotify from the auth store and reports logged-in, expiry, scope, redirect_uri, and API base URL with secrets redacted; logout clears only Spotify provider auth. The command gates Spotify tool/plugin availability through the same providers.spotify auth key Hermes uses.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -29682,10 +29850,10 @@
           "items": [
             {
               "name": "5-type loop detector",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Hard loop, failing loop, text repetition, no-action, same-tool detection with configurable thresholds",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -29718,7 +29886,26 @@
               ],
               "done_signal": [
                 "Loop detection tests prove all 5 types with threshold configuration"
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/agent/loop_detector.go:LoopDetector, TurnRecord, LoopDetectionResult",
+                  "internal/agent/loop_detector.go:checkHardLoop, checkFailingLoop, checkTextRepetition, checkNoAction, checkSameTool"
+                ],
+                "tests": [
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_HardLoop",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_FailingLoop",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_TextRepetition",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_NoAction",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_SameTool",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_ConfigurableThresholds",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_EvidenceContainsType"
+                ],
+                "verification": [
+                  "go test ./internal/agent -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         },
@@ -29727,10 +29914,10 @@
           "items": [
             {
               "name": "go-browser-harness doctor subcommand",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "go-browser-harness doctor subcommand with endpoint health checks, env reporting, redacted diagnostics",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -29764,7 +29951,24 @@
               ],
               "done_signal": [
                 "Doctor tests prove endpoint probing and redacted diagnostics"
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "go-browser-harness/pkg/harness/doctor.go implements RunDoctor, DoctorReport, probeEndpoint, collectRedactedEnv, redactURL, PrintDoctorReport, PrintDoctorReportJSON",
+                  "go-browser-harness/cmd/go-browser-harness/main.go wires -doctor and -doctor-json flags"
+                ],
+                "tests": [
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_NoEnv",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_UnreachableEndpoint",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_HealthyEndpoint",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRedactURL",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestCollectRedactedEnv"
+                ],
+                "verification": [
+                  "go test ./... -count=1 in go-browser-harness -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         }
@@ -30473,10 +30677,10 @@
           "items": [
             {
               "name": "6 typed memory categories with confidence scoring",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Identity, preference, goal, habit, episode, reflection with confidence/durability scoring and conflict resolution",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "memory",
               "trust_class": [
@@ -30516,7 +30720,38 @@
               ],
               "done_signal": [
                 "Typed memory tests prove CRUD, scoring, conflict resolution, and pruning"
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/goncho/typed_memory.go:MemoryType, MemoryEntry, TypedMemoryStore",
+                  "internal/goncho/typed_memory.go:Create, Read, Update, Delete, ListByType, ListAll, Prune",
+                  "internal/goncho/conflict_resolution.go:ConflictResolution, ResolveConflict, UpsertWithConflictResolution",
+                  "internal/goncho/conflict_resolution.go:GetStats, GetAverageConfidence, GetPruningCandidates"
+                ],
+                "tests": [
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_CRUD",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_ListByType",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_ConfidenceValidation",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_DurabilityValidation",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_AllTypes",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneActiveStale",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneDurableDecay",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_NoPruneRecent",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_AverageConfidence",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruningCandidates",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_HigherConfidenceWins",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_LowerConfidenceLoses",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceNewerWins",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceOlderLoses",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_NoExisting",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_TypeMismatch",
+                  "internal/goncho/conflict_resolution_test.go:TestTypedMemory_UpsertWithConflictResolution"
+                ],
+                "verification": [
+                  "go test ./internal/goncho -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         },
@@ -30600,7 +30835,7 @@
                 "Tiered enrichment"
               ],
               "acceptance": [
-                "Markdown links [Name](path) auto-extracted",
+                "Markdown link syntax is auto-extracted",
                 "Wikilinks [[slug]] and [[source:dir/slug]] auto-extracted",
                 "Typed inference: FOUNDED, INVESTED, ADVISES, WORKS_AT",
                 "Brain-first lookup: local DB → graph → cache → LLM → external API"

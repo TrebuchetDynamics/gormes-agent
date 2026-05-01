@@ -511,7 +511,13 @@ func (m *Manager) Run(ctx context.Context) error {
 	}
 	m.mu.Unlock()
 
-	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateStarting})
+	restartRequested := false
+	zeroActiveAgents := 0
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		GatewayState:     GatewayStateStarting,
+		RestartRequested: &restartRequested,
+		ActiveAgents:     &zeroActiveAgents,
+	})
 
 	inbox := make(chan InboundEvent, len(channels)*4)
 	runCtx, cancel := context.WithCancel(ctx)
@@ -559,7 +565,11 @@ func (m *Manager) Run(ctx context.Context) error {
 		m.runOutbound(runCtx)
 	}()
 
-	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateRunning})
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		GatewayState:     GatewayStateRunning,
+		RestartRequested: &restartRequested,
+		ActiveAgents:     &zeroActiveAgents,
+	})
 	if err := m.ConsumeRestartTakeoverMarker(runCtx); err != nil {
 		m.log.Debug("consume restart takeover marker", "err", err)
 	}
@@ -753,6 +763,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventGateway:
 		m.handlePlatformsCommand(ctx, ch, ev)
 		return nil
+	case EventReasoning:
+		m.handleReasoningCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
 			return nil
@@ -807,7 +820,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -880,12 +893,55 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 	case EventGateway:
 		m.handlePlatformsCommand(ctx, ch, ev)
 		return true
+	case EventReasoning:
+		m.handleReasoningCommand(ctx, ch, ev)
+		return true
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return true
 	default:
 		return false
 	}
+}
+
+func (m *Manager) handleReasoningCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	reply, err := m.DispatchReasoning(ev.ChatKey(), commandArgs(ev.Text))
+	if err != nil {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Reasoning command error: "+err.Error()+"\n\nUsage: /reasoning [low|medium|high|reset|show] [--global]")
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, formatReasoningReply(reply))
+}
+
+func commandArgs(body string) []string {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return nil
+	}
+	fields := strings.Fields(body)
+	if len(fields) <= 1 {
+		return nil
+	}
+	return fields[1:]
+}
+
+func formatReasoningReply(reply ReasoningReply) string {
+	scope := strings.TrimSpace(reply.Scope)
+	if scope == "" || scope == ReasoningSourceUnset {
+		if reply.PersistFailed {
+			return "Reasoning effort: default\n\nGlobal persistence failed; no session override is active."
+		}
+		return "Reasoning effort: default"
+	}
+	effort := strings.TrimSpace(string(reply.Effort))
+	if effort == "" {
+		effort = "default"
+	}
+	text := "Reasoning effort: " + effort + " (" + scope + ")"
+	if reply.PersistFailed {
+		text += "\n\nGlobal persistence failed; using a session-only override."
+	}
+	return text
 }
 
 func (m *Manager) handleVerboseCommand(ctx context.Context, ch Channel, ev InboundEvent) {

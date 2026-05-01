@@ -9,10 +9,10 @@ weight: 12
 > **Purpose:** This is the single planning entry point for building gormes-agent. It tells you where we are, what is blocked, what comes next, and which document to read for the details. If you are a planner, builder, or reviewer, start here before touching `progress.json` or writing code.
 > 
 > **Relationship to other docs:**
-> - [`progress.json`](./architecture_plan/progress.json) = the canonical execution queue (machine-readable)
-> - [Completion Plan](./architecture_plan/completion-plan/) = the finish line definition
-> - [Lane Roadmap](./architecture_plan/lane-roadmap/) = lane ownership and exit gates
-> - [Must-Have Features](./must-have-features/) = feature catalogue from 12+ upstream projects
+> - `architecture_plan/progress.json` = the canonical execution queue (machine-readable)
+> - [Completion Plan](../architecture_plan/completion-plan/) = the finish line definition
+> - [Lane Roadmap](../architecture_plan/lane-roadmap/) = lane ownership and exit gates
+> - [Must-Have Features](../must-have-features/) = feature catalogue from 12+ upstream projects
 > - **This document** = the human-readable plan that ties them all together
 
 ---
@@ -34,6 +34,21 @@ weight: 12
 **Overall:** 47/78 subphases shipped · 26 in progress · 5 planned · 75 open rows
 
 **First closure target:** Python-free normal agent turn with local Goncho memory and tested tool-call continuation. This is a dogfood gate, not a reduced finish line.
+
+---
+
+## Product Hardening Borrow List
+
+These are Gormes-owned follow-up slices from the current PicoClaw comparison. They are not Hermes parity blockers, but they matter for distribution quality and constrained-machine adoption.
+
+| Slice | Target |
+|-------|--------|
+| Pre-compiled binaries | Tag-driven GitHub Release workflow emits static Linux/macOS/Windows amd64+arm64 archives with SHA-256 checksums; signing and package-manager manifests remain follow-up release-hardening work. |
+| Onboarding wizard | Promote `gormes onboard` from the current `setup` alias into a full interactive first-run flow covering model/provider, auth, gateway, browser/CDP, skills, and dashboard launch. |
+| Hardware matrix | Maintain `using-gormes/hardware` as the tested-device matrix for x86_64, ARM64, Raspberry Pi-class boards, low-memory Linux hosts, and Android/Termux-style environments, with binary size and steady-state RSS recorded per release. |
+| Lite build profiles | Keep the default parity build feature-complete, and keep `-tags gormes_lite` / `-tags slim` green as documented constrained-target builds that can exclude audio, dashboard extras, and optional channel adapters. |
+| Browser launcher | Keep `gormes dashboard` as the local launcher path and extend it with first-run CDP checks, Chrome install guidance, and an explicit headless/no-open mode for servers. |
+| Skill marketplace | Design a ClawHub-like community skill source for Gormes that keeps bundled system skills separate from third-party taps, trust metadata, credential prerequisites, and review state. |
 
 ---
 
@@ -104,47 +119,47 @@ implementation-roadmap.md (this file) ──► decision tree + state + horizons
 
 ### Q1: Are you a planner or a builder?
 
-**Planner** → Go to [Agent Queue](./builder-loop/agent-queue/). If empty, go to [Next Slices](./builder-loop/next-slices/). If also empty, sharpen a planned row using `gormes-planner` skill.
+**Planner** → Go to [Agent Queue](../builder-loop/agent-queue/). If empty, go to [Next Slices](../builder-loop/next-slices/). If also empty, sharpen a planned row using `gormes-planner` skill.
 
 **Builder** → Pick one row from Agent Queue. Read its contract, write_scope, test_commands, acceptance, and done_signal. Use `gormes-builder` + `gormes-tdd-slice` skills. Do not invent work outside the row.
 
 ### Q2: Is the row blocked?
 
-Check [Blocked Slices](./builder-loop/blocked-slices/). If your row is listed, read the unblock condition. If you can satisfy it, do so. If not, pick a different row.
+Check [Blocked Slices](../builder-loop/blocked-slices/). If your row is listed, read the unblock condition. If you can satisfy it, do so. If not, pick a different row.
 
 ### Q3: Is the row an umbrella?
 
-Check [Umbrella Cleanup](./builder-loop/umbrella-cleanup/). Umbrella rows are inventory only. Split them into small/medium/large rows before building. Use `gormes-planner` for splitting.
+Check [Umbrella Cleanup](../builder-loop/umbrella-cleanup/). Umbrella rows are inventory only. Split them into small/medium/large rows before building. Use `gormes-planner` for splitting.
 
 ### Q4: Do you know which lane the row belongs to?
 
-Use the [Lane Roadmap](./architecture_plan/lane-roadmap/) lane crosswalk. Each lane has an exit gate. Know the gate before you start.
+Use the [Lane Roadmap](../architecture_plan/lane-roadmap/) lane crosswalk. Each lane has an exit gate. Know the gate before you start.
 
 ### Q5: Do you know the upstream contract?
 
-Read [Upstream Lessons](./upstream-lessons/) for durable contracts. Read [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/) for the upstream → Go package mapping. Read [Porting a Subsystem](./porting-a-subsystem/) for the contribution path.
+Read [Upstream Lessons](../upstream-lessons/) for durable contracts. Read [Hermes And Honcho Feature Map](../architecture_plan/hermes-honcho-feature-map/) for the upstream → Go package mapping. Read [Porting a Subsystem](../porting-a-subsystem/) for the contribution path.
 
 ### Q6: Is the Go shape unclear?
 
-Use `gormes-interface-designer` skill. Read [Go Donor Reference Map](./architecture_plan/go-donor-reference-map/) for donor file patterns.
+Use `gormes-interface-designer` skill. Read [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/) for donor file patterns.
 
 ### Q7: Are you doing memory work?
 
-Read [Core Systems: Memory](./core-systems/memory/) first. Then read [Goncho Honcho Memory](./goncho_honcho_memory/) for the deep-dive.
+Read [Core Systems: Memory](../core-systems/memory/) first. Then read [Goncho Honcho Memory](../goncho_honcho_memory/) for the deep-dive.
 
 ### Q8: Are you doing gateway/channel work?
 
-Read [Core Systems: Gateway](./core-systems/gateway/) first. Then read the relevant [Gateway Donor Map](./gateway-donor-map/) dossier.
+Read [Core Systems: Gateway](../core-systems/gateway/) first. Then read the relevant [Gateway Donor Map](../gateway-donor-map/) dossier.
 
 ### Q9: Are you doing tool/security work?
 
-Read [Core Systems: Tool Execution](./core-systems/tool-execution/) first. Then read [Must-Have Features §8](./must-have-features/#8-security--safety--the-trust-boundary).
+Read [Core Systems: Tool Execution](../core-systems/tool-execution/) first. Then read [Must-Have Features §8](../must-have-features/#8-security--safety--the-trust-boundary).
 
 ---
 
 ## Execution Horizons
 
-These horizons are derived from the [Must-Have Features](./must-have-features/) gap analysis and mapped to `progress.json` phases/subphases.
+These horizons are derived from the [Must-Have Features](../must-have-features/) gap analysis and mapped to `progress.json` phases/subphases.
 
 ### Horizon 1: Safety + Provider Completion (Next 30 Days)
 
@@ -230,13 +245,13 @@ Features or dependencies that could derail the plan:
 
 ## Weekly Cadence (Recommended)
 
-**Monday:** Review [Agent Queue](./builder-loop/agent-queue/) and [Blocked Slices](./builder-loop/blocked-slices/). Pick 1-2 rows.
+**Monday:** Review [Agent Queue](../builder-loop/agent-queue/) and [Blocked Slices](../builder-loop/blocked-slices/). Pick 1-2 rows.
 
 **Tuesday-Thursday:** Build rows using `gormes-builder` + `gormes-tdd-slice`. Run `go test ./... -count=1` and `go run ./cmd/progress validate` before claiming done.
 
 **Friday:** Review done signals. Update `progress.json` evidence. If queue is empty, run `gormes-planner` pass to sharpen planned rows.
 
-**End of Month:** Run `gormes-parity-auditor` pass against one Hermes/Honcho subsystem. Update [Cross-Project Feature Map](./cross-project-feature-map/) if gaps changed.
+**End of Month:** Run `gormes-parity-auditor` pass against one Hermes/Honcho subsystem. Update [Cross-Project Feature Map](../cross-project-feature-map/) if gaps changed.
 
 ---
 
@@ -256,18 +271,18 @@ Features or dependencies that could derail the plan:
 
 | Skill | Primary Document | Secondary Documents |
 |-------|-----------------|---------------------|
-| `gormes-skill-manager` | [Skill Builder Handoff](./builder-loop/builder-loop-handoff/) | [Contract Readiness](./contract-readiness/) |
-| `gormes-planner` | [Completion Plan](./architecture_plan/completion-plan/) | [Lane Roadmap](./architecture_plan/lane-roadmap/), [Must-Have Features](./must-have-features/) |
-| `gormes-builder` | [Agent Queue](./builder-loop/agent-queue/) | [Next Slices](./builder-loop/next-slices/), [Contract Readiness](./contract-readiness/) |
-| `gormes-tdd-slice` | [Testing](./testing/) | [Porting a Subsystem](./porting-a-subsystem/) |
-| `gormes-parity-auditor` | [Cross-Project Feature Map](./cross-project-feature-map/) | [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/) |
-| `gormes-interface-designer` | [Go Donor Reference Map](./architecture_plan/go-donor-reference-map/) | [Core Systems](./core-systems/) |
-| `gormes-provider-parity` | [GO-HERMES-PORTS-FORKS.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/GO-HERMES-PORTS-FORKS.md) | [Upstream Hermes Study](../upstream-hermes/) |
-| `gormes-browser-harness` | [Gateway Donor Map](./gateway-donor-map/) | [Core Systems: Gateway](./core-systems/gateway/) |
-| `gormes-dev-runtime` | [Using Gormes](../../using-gormes/) | [Why Gormes](../why-gormes/) |
-| `gormes-references` | [Go Donor Reference Map](./architecture_plan/go-donor-reference-map/) | `references/go-agent-os/` |
-| `gormes-readme` | [README.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md) | [Why Gormes](../why-gormes/) |
-| `gormes-landing-web` | `www.gormes.ai/` | [Why Gormes](../why-gormes/) |
+| `gormes-skill-manager` | [Skill Builder Handoff](../builder-loop/builder-loop-handoff/) | [Contract Readiness](../contract-readiness/) |
+| `gormes-planner` | [Completion Plan](../architecture_plan/completion-plan/) | [Lane Roadmap](../architecture_plan/lane-roadmap/), [Must-Have Features](../must-have-features/) |
+| `gormes-builder` | [Agent Queue](../builder-loop/agent-queue/) | [Next Slices](../builder-loop/next-slices/), [Contract Readiness](../contract-readiness/) |
+| `gormes-tdd-slice` | [Testing](../testing/) | [Porting a Subsystem](../porting-a-subsystem/) |
+| `gormes-parity-auditor` | [Cross-Project Feature Map](../cross-project-feature-map/) | [Hermes And Honcho Feature Map](../architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](../architecture_plan/upstream-coverage-ledger/) |
+| `gormes-interface-designer` | [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/) | [Core Systems](../core-systems/) |
+| `gormes-provider-parity` | [GO-HERMES-PORTS-FORKS.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/GO-HERMES-PORTS-FORKS.md) | [Upstream Lessons](../upstream-lessons/) |
+| `gormes-browser-harness` | [Gateway Donor Map](../gateway-donor-map/) | [Core Systems: Gateway](../core-systems/gateway/) |
+| `gormes-dev-runtime` | [Using Gormes](../../using-gormes/) | [Why Gormes](../../why-gormes/) |
+| `gormes-references` | [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/) | `references/go-agent-os/` |
+| `gormes-readme` | [README.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md) | [Why Gormes](../../why-gormes/) |
+| `gormes-landing-web` | `www.gormes.ai/` | [Why Gormes](../../why-gormes/) |
 
 ---
 

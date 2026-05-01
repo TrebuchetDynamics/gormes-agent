@@ -27,84 +27,65 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Web dashboard core components + data-state fixtures
+## 1. Tool descriptor layer (OperationSpec)
 
-- Phase: 5 / 5.V
-- Owner: `gateway`
+- Phase: 5 / 5.A
+- Owner: `tools`
 - Size: `medium`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Port Hermes dashboard's reusable component set as typed React fixtures so later page slices compose parity components instead of re-inventing UI behavior per page.
-- Trust class: operator, system
-- Ready when: React/Vite scaffold row is present, Fixture data contracts are stable enough for page slices to reuse
-- Not ready when: The slice depends on real provider keys, gateway processes, or live cron/session databases, The slice changes API contracts instead of consuming typed fixtures
-- Degraded mode: Components render explicit empty/error states with redacted diagnostic text when data is absent or APIs are unavailable.
-- Fixture: `web/src/components/dashboard-components.test.tsx`
-- Write scope: `web/src/components/`, `web/src/components/ui/`, `web/src/hooks/`, `web/src/contexts/`
-- Test commands: `npm --prefix web test -- --run DashboardCoreComponents`, `go run ./cmd/progress validate`
-- Done signal: web/src/components and hooks cover Hermes dashboard core UI primitives with data-state fixtures.
-- Acceptance: TestDashboardCoreComponentsRenderDataStates proves core cards, markdown, model info, platform, slash popover, toast, and tool-call components render loading/empty/error/success states from typed fixtures., TestDashboardSidebarAndHeaderState proves sidebar status, page header, language/theme controls, and destructive-confirm dialogs preserve user-visible labels and keyboard affordances., Component fixtures avoid live gateway/provider calls and can run in CI without credentials.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ui/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/hooks/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/contexts/
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+- Priority: `P0`
+- Contract: Every tool in the registry carries a declarative descriptor (OperationSpec) that generates model schemas, CLI commands, gateway slash commands, doctor checks, and audit taxonomy from one source
+- Trust class: operator, gateway, child-agent, system
+- Ready when: Tool registry inventory + schema parity harness is complete., Hardline command pattern table + DetectHardline function is validated on main.
+- Not ready when: The slice ports handler logic instead of adding descriptors around existing handlers., The slice changes the existing Tool interface contract., The slice wires descriptors into live prompt assembly or gateway dispatch before the descriptor schema is fixture-backed.
+- Degraded mode: If descriptors are missing, doctor reports tool_descriptor_incomplete and the tool is hidden from gateway/child-agent callers until the descriptor is present.
+- Fixture: `internal/tools/operation_spec_test.go`
+- Write scope: `internal/tools/operation_spec.go`, `internal/tools/operation_spec_test.go`, `internal/tools/registry.go`, `internal/tools/registry_test.go`, `internal/tools/executor.go`, `internal/tools/executor_test.go`, `internal/doctor/tool_descriptors.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tools -run 'TestOperationSpec\|TestTrustClass\|TestExecutor' -count=1`, `go test ./internal/tools -count=1`, `go test ./internal/doctor -run 'TestToolDescriptor' -count=1`, `go run ./cmd/progress validate`
+- Done signal: OperationSpec fixtures prove descriptor validation, trust-class rejection, and doctor checks. Core tools carry descriptors. Executor rejects disallowed callers before handler entry.
+- Acceptance: OperationSpec struct declares name, description, schema, mutating, idempotent, prompt_safe, allowed trust classes, timeout, and audit kind., Tool registry accepts tools with or without descriptors; tools without descriptors report descriptor_missing in doctor., Shared tool executor rejects disallowed trust classes before a handler runs, with explicit trust_class_denied evidence., Doctor validates every registered tool descriptor for required fields and schema validity., Default toolset assigns descriptors to all core tools (read_file, search_files, write_file, patch, terminal, todo, session_search)., Descriptor schema generation produces valid JSON Schema for model consumption without handler changes.
+- Source refs: gbrain:src/core/operations.ts (contract-first operation catalog), mercury-agent:permission manifest (trust-class enforcement), docs/content/building-gormes/must-have-features.md, docs/content/building-gormes/architecture_plan/phase-5-final-purge.md, docs/content/building-gormes/upstream-lessons.md
+- Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Web dashboard PTY chat + event websocket fixtures
+## 2. Regex-based auto-link extraction + brain-first lookup
 
-- Phase: 5 / 5.V
-- Owner: `gateway`
+- Phase: 6 / 6.I
+- Owner: `memory`
 - Size: `large`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Port the dashboard embedded-chat/PTY websocket contract and React chat integration with fakes before binding to a live terminal or provider runtime.
+- Priority: `P2`
+- Contract: Markdown links, wikilinks, qualified wikilinks auto-extracted; typed inference; brain-first 5-step lookup
 - Trust class: operator, system
-- Ready when: Dashboard server shell has session-token gating, React route scaffold includes ChatPage fallback
-- Not ready when: The slice launches a real shell/provider in tests, The slice exposes chat before session-token and enablement gates are proven
-- Degraded mode: When embedded chat is disabled, websocket attempts close with dashboard_chat_disabled evidence and ChatPage renders instructions rather than hanging.
-- Fixture: `internal/apiserver/dashboard_pty_test.go`
-- Write scope: `internal/apiserver/dashboard_pty.go`, `internal/apiserver/dashboard_pty_test.go`, `web/src/pages/ChatPage.tsx`, `web/src/lib/gatewayClient.ts`
-- Test commands: `go test ./internal/apiserver -run 'TestDashboard(PTY\|Event\|Chat)' -count=1`, `npm --prefix web test -- --run DashboardChatPage`, `go run ./cmd/progress validate`
-- Done signal: Go apiserver websocket tests and React ChatPage fixtures cover PTY/chat/event streaming without live credentials.
-- Acceptance: TestDashboardPTYWebsocketNegotiates proves /api/pty rejects disabled or unauthenticated sessions, accepts enabled fake sessions, and redacts command/environment details in close reasons., TestDashboardChatPageStreamsToolAndAssistantEvents proves ChatPage consumes PTY/event fixtures for user text, assistant deltas, tool-call panels, completion, and error states., TestDashboardEventWebsocketsFanout proves /api/ws, /api/pub, and /api/events compatibility shims either stream typed events or return a documented unavailable status.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:77-79, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2401-2588, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/lib/gatewayClient.ts
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+- Ready when: Goncho page storage exists
+- Not ready when: No local page/slug storage in Goncho
+- Degraded mode: Links not auto-extracted; lookup skips local DB/graph and goes directly to LLM/external API
+- Fixture: `internal/goncho/auto_link_test.go`
+- Write scope: `internal/goncho/auto_link.go`, `internal/goncho/brain_first.go`
+- Test commands: `go test ./internal/goncho -run TestAutoLink -count=1`
+- Done signal: Auto-link tests prove markdown/wikilink/typed extraction; brain-first tests prove 5-step lookup
+- Acceptance: Markdown link syntax is auto-extracted, Wikilinks [[slug]] and [[source:dir/slug]] auto-extracted, Typed inference: FOUNDED, INVESTED, ADVISES, WORKS_AT, Brain-first lookup: local DB → graph → cache → LLM → external API
+- Source refs: gbrain/src/core/link-extraction.ts, gbrain/src/core/search/hybrid.ts, hermes-agent/agent/context_references.py
+- Unblocks: Compiled truth pattern, Tiered enrichment
+- Why now: Unblocks Compiled truth pattern, Tiered enrichment.
 
-## 3. Web dashboard theme catalog + switcher parity
+## 3. SKILL.md metadata.when/loaded/placement schema
 
-- Phase: 5 / 5.V
-- Owner: `gateway`
-- Size: `medium`
+- Phase: 6 / 6.H
+- Owner: `skills`
+- Size: `small`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Port Hermes dashboard theme catalog and theme-selection API as a small independent slice, separate from TUI skin parity and page functionality.
+- Priority: `P2`
+- Contract: YAML frontmatter supports metadata.when (conditional activation), metadata.loaded (auto-load), metadata.placement (system/onscreen/admin); hierarchical routing
 - Trust class: operator, system
-- Ready when: Dashboard server shell exposes public theme catalog endpoint, React scaffold can mount ThemeSwitcher fixtures
-- Not ready when: The slice conflates dashboard themes with terminal skins without a mapping fixture, Theme persistence writes secrets or unrelated config keys
-- Degraded mode: Unknown or unavailable themes fall back to the default dashboard theme with invalid_theme evidence; TUI skins are not used as a substitute unless explicitly mapped.
-- Fixture: `internal/apiserver/dashboard_theme_test.go`
-- Write scope: `internal/apiserver/dashboard_theme.go`, `internal/apiserver/dashboard_theme_test.go`, `web/src/themes/`, `web/src/components/ThemeSwitcher.tsx`
-- Test commands: `go test ./internal/apiserver -run TestDashboardTheme -count=1`, `npm --prefix web test -- --run DashboardTheme`, `go run ./cmd/progress validate`
-- Done signal: Dashboard theme API and React context/switcher are fixture-backed and list the same presets as Hermes web/src/themes.
-- Acceptance: TestDashboardThemeCatalogMatchesHermes proves all Hermes dashboard theme presets, color tokens, and display names are available through the Go API and React theme context., TestDashboardThemeSelectionPersists proves PUT /api/dashboard/theme stores a valid selected theme and rejects unknown values with redacted errors., TestDashboardThemeSwitcherFixture proves the React ThemeSwitcher applies theme variables without reloading or losing current route state.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2919-2962, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/themes/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ThemeSwitcher.tsx
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Web dashboard OAuth provider flows + EN/ZH i18n
-
-- Phase: 5 / 5.V
-- Owner: `gateway`
-- Size: `large`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Port the dashboard OAuth-provider UI contract and EN/ZH i18n catalog as fixture-backed surfaces; do not implement real browser OAuth beyond fake-provider endpoint shapes in this slice.
-- Trust class: operator, system
-- Ready when: Dashboard server shell has session-token gating, React core components include OAuth modal/card fixtures
-- Not ready when: The slice performs live OAuth browser/device flows, The slice leaves English-only labels in newly ported dashboard UI
-- Degraded mode: OAuth endpoints return oauth_provider_unavailable or credentials_missing with redacted evidence when a provider is not configured; untranslated labels fail tests rather than falling back silently.
-- Fixture: `internal/apiserver/dashboard_oauth_test.go`
-- Write scope: `internal/apiserver/dashboard_oauth.go`, `internal/apiserver/dashboard_oauth_test.go`, `web/src/components/OAuthLoginModal.tsx`, `web/src/components/OAuthProvidersCard.tsx`, `web/src/i18n/`
-- Test commands: `go test ./internal/apiserver -run 'TestDashboard(OAuth\|I18n)' -count=1`, `npm --prefix web test -- --run 'Dashboard(OAuth\|I18n)'`, `go run ./cmd/progress validate`
-- Done signal: OAuth provider API fakes, React OAuth modal/card fixtures, and EN/ZH i18n catalogs are tested without real credentials.
-- Acceptance: TestDashboardOAuthProvidersUsesFakes proves provider listing, start, submit, poll, delete, and redacted error paths match Hermes endpoint shapes without requiring real OAuth credentials., TestDashboardI18nCatalog proves English and Chinese dashboard catalogs cover every route, component label, OAuth state, and unavailable/degraded message used by the scaffold., TestDashboardLanguageSwitcherFixture proves the language switcher updates rendered copy and preserves current route/theme state.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:1290-1325, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:1867-1933, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/OAuthLoginModal.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/OAuthProvidersCard.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/i18n/en.ts, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/i18n/zh.ts
+- Ready when: SKILL.md parser exists
+- Not ready when: SKILL.md format is still undefined
+- Degraded mode: Skills load without metadata placement; all skills treated as system scope
+- Fixture: `internal/skills/metadata_test.go`
+- Write scope: `internal/skills/metadata.go`, `internal/skills/routing.go`
+- Test commands: `go test ./internal/skills -run TestMetadata -count=1`
+- Done signal: Metadata tests prove conditional activation, auto-load, placement, and routing
+- Acceptance: metadata.when supports conditional activation, metadata.loaded supports auto-load flag, metadata.placement supports system/onscreen/admin, Hierarchical routing skill routes to sub-skills
+- Source refs: space-agent/src/skills/schema.js, hermes-agent/agent/skill_utils.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

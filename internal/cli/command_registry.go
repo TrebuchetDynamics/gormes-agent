@@ -115,7 +115,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "approve", Description: "Approve a pending dangerous command", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "background", Description: "Run a prompt in the background", Aliases: []string{"bg", "btw"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "branch", Description: "Branch the current session", Aliases: []string{"fork"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "browser", Description: "Connect browser tools to your live Chrome via CDP", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "browser", Description: "Connect browser tools to your live Chrome via CDP", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"status", "connect"}},
 	{Name: "busy", Description: "Control what Enter does while Gormes is working", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "clear", Description: "Clear screen and start a new session", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "commands", Description: "Browse all commands and skills", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

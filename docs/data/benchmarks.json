@@ -1,17 +1,24 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "da89227e",
+    "commit": "5172cbf33",
     "go_version": "1.25+",
-    "last_measured": "2026-04-26",
+    "last_measured": "2026-05-01",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 18530466,
-    "size_mb": "17.7",
+    "size_bytes": 35524883,
+    "size_mb": "33.9",
     "stripped": true
   },
   "history": [
+    {
+      "commit": "5172cbf33",
+      "date": "2026-05-01",
+      "phase": "Phase 2 — The Gateway",
+      "size_bytes": 36062957,
+      "size_mb": 34.4
+    },
     {
       "commit": "da89227e",
       "date": "2026-04-26",

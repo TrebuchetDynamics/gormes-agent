@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -26,17 +27,19 @@ const (
 
 // Config wires the native API server HTTP surface.
 type Config struct {
-	APIKey          string
-	ModelName       string
-	ProviderName    string
-	MaxBodyBytes    int64
-	Loop            TurnLoop
-	ResponseStore   *ResponseStore
-	RunTTL          time.Duration
-	ModelProviders  []DashboardModelProvider
-	OAuthProviders  []DashboardOAuthProvider
-	PluginInventory pluginmeta.Inventory
-	ChatTransport   ChatTransportStatus
+	APIKey                string
+	DashboardSessionToken string
+	DashboardBoundHost    string
+	ModelName             string
+	ProviderName          string
+	MaxBodyBytes          int64
+	Loop                  TurnLoop
+	ResponseStore         *ResponseStore
+	RunTTL                time.Duration
+	ModelProviders        []DashboardModelProvider
+	OAuthProviders        []DashboardOAuthProvider
+	PluginInventory       pluginmeta.Inventory
+	ChatTransport         ChatTransportStatus
 	// DetailedHealth produces the input for the unauthenticated detailed
 	// health endpoint. Callers fill it from already-available status reads;
 	// when nil the endpoint returns a degraded zero-value snapshot.
@@ -77,6 +80,8 @@ type ChatTransportStatus struct {
 // gateway binary.
 type Server struct {
 	apiKey                 string
+	dashboardSessionToken  string
+	dashboardBoundHost     string
 	modelName              string
 	providerName           string
 	maxBodyBytes           int64
@@ -187,26 +192,28 @@ func NewServer(cfg Config) *Server {
 		runTTL = defaultRunStreamTTL
 	}
 	s := &Server{
-		apiKey:          cfg.APIKey,
-		modelName:       model,
-		providerName:    provider,
-		maxBodyBytes:    maxBody,
-		loop:            cfg.Loop,
-		responseStore:   responseStore,
-		runs:            newRunRegistry(runTTL, time.Now),
-		modelProviders:  cloneDashboardModelProviders(cfg.ModelProviders),
-		oauthProviders:  cloneDashboardOAuthProviders(cfg.OAuthProviders),
-		pluginInventory: clonePluginInventory(cfg.PluginInventory),
-		chatTransport:   cfg.ChatTransport,
-		detailedHealth:  cfg.DetailedHealth,
-		cronJobs:        cfg.CronJobs,
-		cronRuns:        cfg.CronRuns,
-		cronMutator:     cfg.CronJobMutator,
-		cronTrigger:     cfg.CronTrigger,
-		cronAuditor:     cfg.CronAdminAuditor,
-		now:             time.Now,
-		mux:             http.NewServeMux(),
-		logStore:        NewLogStore(200),
+		apiKey:                cfg.APIKey,
+		dashboardSessionToken: strings.TrimSpace(cfg.DashboardSessionToken),
+		dashboardBoundHost:    strings.TrimSpace(cfg.DashboardBoundHost),
+		modelName:             model,
+		providerName:          provider,
+		maxBodyBytes:          maxBody,
+		loop:                  cfg.Loop,
+		responseStore:         responseStore,
+		runs:                  newRunRegistry(runTTL, time.Now),
+		modelProviders:        cloneDashboardModelProviders(cfg.ModelProviders),
+		oauthProviders:        cloneDashboardOAuthProviders(cfg.OAuthProviders),
+		pluginInventory:       clonePluginInventory(cfg.PluginInventory),
+		chatTransport:         cfg.ChatTransport,
+		detailedHealth:        cfg.DetailedHealth,
+		cronJobs:              cfg.CronJobs,
+		cronRuns:              cfg.CronRuns,
+		cronMutator:           cfg.CronJobMutator,
+		cronTrigger:           cfg.CronTrigger,
+		cronAuditor:           cfg.CronAdminAuditor,
+		now:                   time.Now,
+		mux:                   http.NewServeMux(),
+		logStore:              NewLogStore(200),
 	}
 	s.routes()
 	return s
@@ -214,7 +221,52 @@ func NewServer(cfg Config) *Server {
 
 // Handler returns an http.Handler suitable for httptest or http.Server.
 func (s *Server) Handler() http.Handler {
-	return securityHeaders(s.mux)
+	return securityHeaders(s.hostGuard(s.mux))
+}
+
+func (s *Server) hostGuard(next http.Handler) http.Handler {
+	boundHost := strings.TrimSpace(s.dashboardBoundHost)
+	if boundHost == "" || boundHost == "0.0.0.0" || boundHost == "::" || boundHost == "[::]" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.hostAllowed(r.Host) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		writeOpenAIError(w, http.StatusBadRequest, "Invalid Host header", "invalid_request_error", "", "invalid_host_header")
+	})
+}
+
+func (s *Server) hostAllowed(hostHeader string) bool {
+	bound := hostNameOnly(s.dashboardBoundHost)
+	host := hostNameOnly(hostHeader)
+	if bound == "" || host == "" {
+		return true
+	}
+	if isLoopbackHost(bound) {
+		return isLoopbackHost(host)
+	}
+	return strings.EqualFold(host, bound)
+}
+
+func hostNameOnly(raw string) string {
+	host := strings.TrimSpace(raw)
+	if host == "" {
+		return ""
+	}
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return strings.Trim(strings.ToLower(host), "[]")
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func (s *Server) routes() {
@@ -447,6 +499,23 @@ func (s *Server) authorized(r *http.Request) bool {
 		return hmac.Equal([]byte(key), []byte(s.apiKey))
 	}
 	return false
+}
+
+func (s *Server) dashboardAuthorized(r *http.Request) bool {
+	token := strings.TrimSpace(s.dashboardSessionToken)
+	if token == "" {
+		return s.authorized(r)
+	}
+	if got := strings.TrimSpace(r.Header.Get("X-Hermes-Session-Token")); got != "" && hmac.Equal([]byte(got), []byte(token)) {
+		return true
+	}
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(auth, "Bearer ") {
+		got := strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+		if hmac.Equal([]byte(got), []byte(token)) {
+			return true
+		}
+	}
+	return s.apiKey != "" && s.authorized(r)
 }
 
 type chatCompletionRequest struct {

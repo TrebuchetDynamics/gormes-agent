@@ -11473,10 +11473,10 @@
             },
             {
               "name": "xAI Grok provider adapter",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gormes can route tool-call turns through xAI Grok API with native request/response mapping, streaming, and error classification",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -11518,7 +11518,28 @@
               ],
               "done_signal": [
                 "Grok adapter fixtures prove request shaping, stream decoding, tool-call normalization, and error classification without live credentials."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/grok_adapter.go:GrokAdapter, NewGrokAdapter, Client, Status, reachable",
+                  "internal/hermes/grok_adapter.go:ClassifyGrokError"
+                ],
+                "tests": [
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_Client",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_StatusUnreachable",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_DefaultBaseURL",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_CustomBaseURL",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_RateLimit",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Auth",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Overloaded",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_ServerError",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Unknown"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "LM Studio provider adapter",
@@ -12420,18 +12441,67 @@
           "name": "Native Prompt Builder",
           "items": [
             {
-              "name": "System + memory + tools + history assembly",
-              "status": "planned",
-              "note": "Umbrella only: execute through the context-file, role/model guidance, skills snapshot, and memory/session-search prompt slices before replacing the Python bridge.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "name": "Default agent identity / SOUL.md loader",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly loads the default agent identity from SOUL.md or a built-in fallback, matching Hermes DEFAULT_AGENT_IDENTITY behavior",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If SOUL.md is missing, the built-in fallback identity is used and records soul_md_fallback evidence",
+              "fixture": "internal/hermes/identity_loader_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY",
+                "../hermes-agent/agent/prompt_builder.py:load_soul_md"
+              ],
+              "ready_when": [
+                "Tests can use temp SOUL.md fixtures and assert identity content without live profile access"
+              ],
+              "not_ready_when": [
+                "The slice reads the operator's live ~/.hermes profile in tests",
+                "The slice changes the identity format or adds model-specific identity variants"
+              ],
+              "acceptance": [
+                "TestIdentityLoader_LoadsSoulMd proves SOUL.md content is loaded when present",
+                "TestIdentityLoader_Fallback proves built-in fallback is used when SOUL.md is absent",
+                "TestIdentityLoader_SkipSoul proves skip_soul flag suppresses identity injection",
+                "TestIdentityLoader_SoulMdBlocked proves blocked SOUL.md falls back to default identity",
+                "TestIdentityLoader_Pure proves no filesystem access outside temp fixtures in tests"
+              ],
+              "write_scope": [
+                "internal/hermes/identity_loader.go",
+                "internal/hermes/identity_loader_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestIdentityLoader -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Identity loader fixtures prove SOUL.md loading, fallback behavior, skip flag, blocked fallback, and pure test isolation"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/identity_loader.go:LoadAgentIdentity, DefaultAgentIdentity, IdentityLoaderOptions, IdentityLoaderResult",
+                  "Reuses existing loadSoulContext from internal/hermes/context_files.go for scanning and truncation"
+                ],
+                "tests": [
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_LoadsSoulMd",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_Fallback",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_SkipSoul",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_SoulMdBlocked",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Context-file discovery + injection scan",
@@ -12658,18 +12728,124 @@
               }
             },
             {
-              "name": "Memory and session-search guidance assembly",
-              "status": "planned",
-              "note": "TDD: assemble memory guidance, session-search guidance, available tool-name gates, and environment/platform hints without changing existing Phase 3 GONCHO recall semantics.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "name": "Memory guidance constant + injection",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly injects the MEMORY_GUIDANCE block from Hermes agent/prompt_builder.py when memory tools are available",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If memory guidance is unavailable, the prompt omits the block and records memory_guidance_suppressed evidence",
+              "fixture": "internal/hermes/memory_guidance_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:144-156_MEMORY_GUIDANCE",
+                "internal/hermes/guidance_constants.go:MemoryGuidance"
+              ],
+              "ready_when": [
+                "Tests can assert byte-equivalence against the upstream parenthesised literal block without calling Python"
+              ],
+              "not_ready_when": [
+                "The slice changes Goncho memory recall behavior or internal/session memory persistence"
+              ],
+              "acceptance": [
+                "TestMemoryGuidance_ByteEquivalent proves the Go constant matches the Hermes MEMORY_GUIDANCE literal",
+                "TestMemoryGuidance_InjectedWhenToolAvailable proves the block appears in assembled prompt when memory tools are available",
+                "TestMemoryGuidance_SuppressedWhenNoTool proves the block is omitted when no memory tools are registered",
+                "TestMemoryGuidance_Pure proves deterministic output with no side effects"
+              ],
+              "write_scope": [
+                "internal/hermes/memory_guidance.go",
+                "internal/hermes/memory_guidance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestMemoryGuidance -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Memory guidance fixtures prove byte-equivalent Hermes parity, conditional injection, suppression, and pure behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:MemoryGuidance (upstream-pinned)",
+                  "internal/hermes/memory_guidance.go:BuildMemoryGuidance, MemoryGuidanceResult"
+                ],
+                "tests": [
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_ByteEquivalent",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_InjectedWhenToolAvailable",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_SuppressedWhenNoTool",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            },
+            {
+              "name": "Session search guidance constant + injection",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly injects the SESSION_SEARCH_GUIDANCE block from Hermes agent/prompt_builder.py when session search is enabled",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If session search guidance is unavailable, the prompt omits the block and records session_search_guidance_suppressed evidence",
+              "fixture": "internal/hermes/session_search_guidance_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:158-162_SESSION_SEARCH_GUIDANCE",
+                "internal/hermes/guidance_constants.go:SessionSearchGuidance"
+              ],
+              "ready_when": [
+                "Tests can assert byte-equivalence against the upstream parenthesised literal block"
+              ],
+              "not_ready_when": [
+                "The slice changes session search implementation or Goncho session indexing"
+              ],
+              "acceptance": [
+                "TestSessionSearchGuidance_ByteEquivalent proves the Go constant matches the Hermes SESSION_SEARCH_GUIDANCE literal",
+                "TestSessionSearchGuidance_InjectedWhenEnabled proves the block appears in assembled prompt when session search is enabled",
+                "TestSessionSearchGuidance_SuppressedWhenDisabled proves the block is omitted when session search is disabled",
+                "TestSessionSearchGuidance_Pure proves deterministic output with no side effects"
+              ],
+              "write_scope": [
+                "internal/hermes/session_search_guidance.go",
+                "internal/hermes/session_search_guidance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestSessionSearchGuidance -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Session search guidance fixtures prove byte-equivalent Hermes parity, conditional injection, suppression, and pure behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:SessionSearchGuidance (upstream-pinned)",
+                  "internal/hermes/session_search_guidance.go:BuildSessionSearchGuidance, SessionSearchGuidanceResult"
+                ],
+                "tests": [
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_ByteEquivalent",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_InjectedWhenEnabled",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_SuppressedWhenDisabled",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Gormes self-help skill/docs prompt guidance",
@@ -12799,6 +12975,65 @@
                 "upstream_ref": "hermes:d7a34682 fix(prompts): replace [SYSTEM: with [IMPORTANT: to avoid Azure content filter",
                 "note": "Direct port of the upstream Azure-content-filter compatibility rename. Gormes uses [SYSTEM: in two narrow spots; this slice closes the drift and unblocks Azure OpenAI traffic without touching prompt body content."
               }
+            },
+            {
+              "name": "Native full prompt assembly",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Native prompt assembly combines all validated blocks into a single Hermes-compatible system prompt",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "fixture": "internal/hermes/prompt_assembly_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:build_system_prompt",
+                "../hermes-agent/run_agent.py:_build_system_prompt"
+              ],
+              "acceptance": [
+                "TestPromptAssembly_BlockOrder proves the assembled prompt contains blocks in Hermes order",
+                "TestPromptAssembly_MissingBlockEvidence proves missing blocks emit evidence without halting assembly",
+                "TestPromptAssembly_Deterministic proves identical inputs produce identical prompt bytes",
+                "TestPromptAssembly_Pure proves no Python runtime, provider, network, or credential dependency"
+              ],
+              "write_scope": [
+                "internal/hermes/prompt_assembly.go",
+                "internal/hermes/prompt_assembly_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptAssembly -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Prompt assembly fixtures prove Hermes-compatible block ordering, missing-block resilience, determinism, and pure Go behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/prompt_assembly.go:BuildSystemPrompt, PromptAssemblyOptions, PromptAssemblyResult, PromptBlockEvidence"
+                ],
+                "tests": [
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_BlockOrder",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_MissingBlockEvidence",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Deterministic",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              },
+              "degraded_mode": "If any block is missing, assembly continues with the remaining blocks and records missing_block evidence; the prompt never falls back to Python Hermes runtime",
+              "ready_when": [
+                "All subordinate prompt blocks (context files, memory guidance, session search, skills snapshot, model guidance, self-help) are validated",
+                "Tests can assemble a full prompt from injected block fixtures without provider/model/network calls"
+              ]
             }
           ],
           "drift_state": {
@@ -20628,10 +20863,10 @@
             },
             {
               "name": "Shell blocklist (36+ dangerous patterns)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "The shared tool executor blocks 36+ dangerous shell patterns before execution, with category-specific evidence and override policies",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -20679,14 +20914,32 @@
               ],
               "done_signal": [
                 "Shell blocklist fixtures prove 36+ patterns across 5 categories, positive/negative matching, category-specific evidence, GuardCommand integration, and config-driven extensibility."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/shell_blocklist.go:ShellBlocklistPatterns (46 patterns across 5 categories)",
+                  "internal/tools/shell_blocklist.go:CheckShellBlocklist, IsShellCommandBlocked, GetBlocklistCoverage, GetBlocklistTotal",
+                  "internal/tools/shell_blocklist.go:IsHardlineCommand, IsRecoverableCommand"
+                ],
+                "tests": [
+                  "internal/tools/permissions_test.go:TestShellBlocklistPatterns (20 table-driven cases)",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_TotalCount",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_Coverage",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_*Patterns (5 category tests)",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_CategoryEvidence"
+                ],
+                "verification": [
+                  "go test ./internal/tools -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Filesystem scoping (folder-level read/write restrictions)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "File tools enforce folder-level read/write scope restrictions so agents cannot access paths outside configured boundaries",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -20739,14 +20992,33 @@
               ],
               "done_signal": [
                 "Filesystem scope fixtures prove path normalization, read/write rejection, CWD fallback, search exclusion, and doctor reporting without interactive configuration."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/filesystem_scope.go:FilesystemScope, PathCheckResult, NewFilesystemScope",
+                  "internal/tools/filesystem_scope.go:CheckRead, CheckWrite, normalizePath, checkPath",
+                  "internal/tools/filesystem_scope.go:GetDoctorReport"
+                ],
+                "tests": [
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_CWDOnly",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_AllowedReadPaths",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_AllowedWritePaths",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_PathNormalization",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_EmptyAllowedMeansAllowAll",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_DoctorReport"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestFilesystemScope -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Permission approval UX (inline y/n/always)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Dangerous actions trigger an inline approval prompt (y/n/always) with clear command preview, risk category, and persistent preference storage",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "tools",
               "trust_class": [
@@ -20795,14 +21067,36 @@
               ],
               "done_signal": [
                 "Approval UX fixtures prove prompt rendering, y/n/always handling, session persistence, non-interactive fail-closed, audit logging, and doctor reporting."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/approval_ux.go:ApprovalSession, ApprovalPrompt, ApprovalUXResult, ApprovalAuditRecord",
+                  "internal/tools/approval_ux.go:RequestApproval, BuildApprovalPrompt, extractPaths",
+                  "internal/tools/approval_ux.go:NewApprovalSession, GetPreferenceCount, GetAuditLog, IsInteractive"
+                ],
+                "tests": [
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_NonInteractiveFailsClosed",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_InteractiveYes",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_InteractiveNo",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AlwaysPersists",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_PreferenceReuse",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AuditLog",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_PromptFields",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_DoctorReport",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AuditRecordTimestamp"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestApprovalUX -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Trust-class enforcement in shared tool executor",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "The shared tool executor rejects tool calls from disallowed trust classes before a handler runs, preventing gateway/child-agent callers from exercising operator-local tools",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20852,7 +21146,24 @@
               ],
               "done_signal": [
                 "Trust-class fixtures prove operator/gateway/child-agent/system enforcement, schema visibility gating, and doctor reporting without changing handler signatures."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/trust_class.go:TrustClassTool, TrustClassExecutor, Register, Execute, ListTools",
+                  "internal/tools/trust_class.go:isTrustClassAllowed"
+                ],
+                "tests": [
+                  "internal/tools/trust_class_test.go:TestTrustClass_ExecuteAllowed",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ExecuteDenied",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ListToolsFiltersByTrustClass",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ChildAgentCannotSeeOperatorLocal",
+                  "internal/tools/trust_class_test.go:TestTrustClass_SystemCanAccessAll"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestTrustClass -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         },
@@ -29539,10 +29850,10 @@
           "items": [
             {
               "name": "5-type loop detector",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Hard loop, failing loop, text repetition, no-action, same-tool detection with configurable thresholds",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -29575,7 +29886,26 @@
               ],
               "done_signal": [
                 "Loop detection tests prove all 5 types with threshold configuration"
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/agent/loop_detector.go:LoopDetector, TurnRecord, LoopDetectionResult",
+                  "internal/agent/loop_detector.go:checkHardLoop, checkFailingLoop, checkTextRepetition, checkNoAction, checkSameTool"
+                ],
+                "tests": [
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_HardLoop",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_FailingLoop",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_TextRepetition",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_NoAction",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_SameTool",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_ConfigurableThresholds",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_EvidenceContainsType"
+                ],
+                "verification": [
+                  "go test ./internal/agent -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         },
@@ -30347,10 +30677,10 @@
           "items": [
             {
               "name": "6 typed memory categories with confidence scoring",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Identity, preference, goal, habit, episode, reflection with confidence/durability scoring and conflict resolution",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "memory",
               "trust_class": [
@@ -30390,7 +30720,38 @@
               ],
               "done_signal": [
                 "Typed memory tests prove CRUD, scoring, conflict resolution, and pruning"
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/goncho/typed_memory.go:MemoryType, MemoryEntry, TypedMemoryStore",
+                  "internal/goncho/typed_memory.go:Create, Read, Update, Delete, ListByType, ListAll, Prune",
+                  "internal/goncho/conflict_resolution.go:ConflictResolution, ResolveConflict, UpsertWithConflictResolution",
+                  "internal/goncho/conflict_resolution.go:GetStats, GetAverageConfidence, GetPruningCandidates"
+                ],
+                "tests": [
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_CRUD",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_ListByType",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_ConfidenceValidation",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_DurabilityValidation",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_AllTypes",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneActiveStale",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneDurableDecay",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_NoPruneRecent",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_AverageConfidence",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruningCandidates",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_HigherConfidenceWins",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_LowerConfidenceLoses",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceNewerWins",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceOlderLoses",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_NoExisting",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_TypeMismatch",
+                  "internal/goncho/conflict_resolution_test.go:TestTypedMemory_UpsertWithConflictResolution"
+                ],
+                "verification": [
+                  "go test ./internal/goncho -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         },
@@ -30474,7 +30835,7 @@
                 "Tiered enrichment"
               ],
               "acceptance": [
-                "Markdown links [Name](path) auto-extracted",
+                "Markdown link syntax is auto-extracted",
                 "Wikilinks [[slug]] and [[source:dir/slug]] auto-extracted",
                 "Typed inference: FOUNDED, INVESTED, ADVISES, WORKS_AT",
                 "Brain-first lookup: local DB → graph → cache → LLM → external API"

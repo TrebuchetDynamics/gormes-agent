@@ -25,23 +25,24 @@ type Config struct {
 	// ConfigVersion is the schema version of the loaded TOML file. Read
 	// before any struct fields so migrations can run against the raw
 	// document. Absent in TOML = treated as 1.
-	ConfigVersion int `toml:"_config_version"`
+	ConfigVersion int `toml:"_config_version" yaml:"_config_version"`
 
-	Hermes     HermesCfg     `toml:"hermes"`
-	Gateway    GatewayCfg    `toml:"gateway"`
-	Display    DisplayCfg    `toml:"display"`
-	TUI        TUICfg        `toml:"tui"`
-	Input      InputCfg      `toml:"input"`
-	Telegram   TelegramCfg   `toml:"telegram"`
-	Discord    DiscordCfg    `toml:"discord"`
-	Slack      SlackCfg      `toml:"slack"`
-	Yuanbao    YuanbaoCfg    `toml:"yuanbao"`
-	Web        WebCfg        `toml:"web"`
-	Security   SecurityCfg   `toml:"security"`
-	Cron       CronCfg       `toml:"cron"`
-	Skills     SkillsCfg     `toml:"skills"`
-	Delegation DelegationCfg `toml:"delegation"`
-	Goncho     GonchoCfg     `toml:"goncho"`
+	Hermes     HermesCfg     `toml:"hermes" yaml:"hermes"`
+	Gateway    GatewayCfg    `toml:"gateway" yaml:"gateway"`
+	Display    DisplayCfg    `toml:"display" yaml:"display"`
+	TUI        TUICfg        `toml:"tui" yaml:"tui"`
+	Input      InputCfg      `toml:"input" yaml:"input"`
+	Telegram   TelegramCfg   `toml:"telegram" yaml:"telegram"`
+	Discord    DiscordCfg    `toml:"discord" yaml:"discord"`
+	Slack      SlackCfg      `toml:"slack" yaml:"slack"`
+	Yuanbao    YuanbaoCfg    `toml:"yuanbao" yaml:"yuanbao"`
+	Web        WebCfg        `toml:"web" yaml:"web"`
+	Browser    BrowserCfg    `toml:"browser" yaml:"browser"`
+	Security   SecurityCfg   `toml:"security" yaml:"security"`
+	Cron       CronCfg       `toml:"cron" yaml:"cron"`
+	Skills     SkillsCfg     `toml:"skills" yaml:"skills"`
+	Delegation DelegationCfg `toml:"delegation" yaml:"delegation"`
+	Goncho     GonchoCfg     `toml:"goncho" yaml:"goncho"`
 	// Resume is set only via the --resume CLI flag; intentionally not
 	// a TOML field. Empty means "use whatever internal/session had
 	// persisted for this binary's default key."
@@ -49,54 +50,54 @@ type Config struct {
 }
 
 type TelegramCfg struct {
-	BotToken               string  `toml:"bot_token"`
-	AllowedChatID          int64   `toml:"allowed_chat_id"`
-	RequireMention         bool    `toml:"require_mention"`
-	BotUsername            string  `toml:"bot_username"`
-	CoalesceMs             int     `toml:"coalesce_ms"`
-	FreshFinalAfterSeconds float64 `toml:"fresh_final_after_seconds"`
-	FirstRunDiscovery      bool    `toml:"first_run_discovery"`
+	BotToken               string  `toml:"bot_token" yaml:"bot_token"`
+	AllowedChatID          int64   `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	RequireMention         bool    `toml:"require_mention" yaml:"require_mention"`
+	BotUsername            string  `toml:"bot_username" yaml:"bot_username"`
+	CoalesceMs             int     `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FreshFinalAfterSeconds float64 `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
+	FirstRunDiscovery      bool    `toml:"first_run_discovery" yaml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
-	MemoryQueueCap int `toml:"memory_queue_cap"`
+	MemoryQueueCap int `toml:"memory_queue_cap" yaml:"memory_queue_cap"`
 	// ExtractorBatchSize / ExtractorPollInterval (Phase 3.B).
-	ExtractorBatchSize    int           `toml:"extractor_batch_size"`
-	ExtractorPollInterval time.Duration `toml:"extractor_poll_interval"`
+	ExtractorBatchSize    int           `toml:"extractor_batch_size" yaml:"extractor_batch_size"`
+	ExtractorPollInterval time.Duration `toml:"extractor_poll_interval" yaml:"extractor_poll_interval"`
 	// RecallEnabled / RecallWeightThreshold / RecallMaxFacts / RecallDepth
 	// (Phase 3.C).
-	RecallEnabled         bool    `toml:"recall_enabled"`
-	RecallWeightThreshold float64 `toml:"recall_weight_threshold"`
-	RecallMaxFacts        int     `toml:"recall_max_facts"`
-	RecallDepth           int     `toml:"recall_depth"`
+	RecallEnabled         bool    `toml:"recall_enabled" yaml:"recall_enabled"`
+	RecallWeightThreshold float64 `toml:"recall_weight_threshold" yaml:"recall_weight_threshold"`
+	RecallMaxFacts        int     `toml:"recall_max_facts" yaml:"recall_max_facts"`
+	RecallDepth           int     `toml:"recall_depth" yaml:"recall_depth"`
 	// RecallDecayHorizonDays (Phase 3.E.6) — maps to
 	// RecallConfig.DecayHorizonDays. An edge's effective weight
 	// decays linearly from raw at age=0 to 0 at this many days old.
 	// 0 = unset (withDefaults promotes to 180). <0 = disabled.
-	RecallDecayHorizonDays int `toml:"recall_decay_horizon_days"`
+	RecallDecayHorizonDays int `toml:"recall_decay_horizon_days" yaml:"recall_decay_horizon_days"`
 	// MirrorEnabled / MirrorPath / MirrorInterval (Phase 3.D.5).
 	// The Memory Mirror exports SQLite entities/relationships to USER.md.
-	MirrorEnabled  bool          `toml:"mirror_enabled"`
-	MirrorPath     string        `toml:"mirror_path"`
-	MirrorInterval time.Duration `toml:"mirror_interval"`
+	MirrorEnabled  bool          `toml:"mirror_enabled" yaml:"mirror_enabled"`
+	MirrorPath     string        `toml:"mirror_path" yaml:"mirror_path"`
+	MirrorInterval time.Duration `toml:"mirror_interval" yaml:"mirror_interval"`
 	// Phase 3.D semantic fusion — all opt-in via SemanticEnabled.
-	SemanticEnabled       bool          `toml:"semantic_enabled"`
-	SemanticEndpoint      string        `toml:"semantic_endpoint"`
-	SemanticModel         string        `toml:"semantic_model"`
-	SemanticTopK          int           `toml:"semantic_top_k"`
-	SemanticMinSimilarity float64       `toml:"semantic_min_similarity"`
-	EmbedderPollInterval  time.Duration `toml:"embedder_poll_interval"`
-	EmbedderBatchSize     int           `toml:"embedder_batch_size"`
-	EmbedderCallTimeout   time.Duration `toml:"embedder_call_timeout"`
-	QueryEmbedTimeout     time.Duration `toml:"query_embed_timeout"`
+	SemanticEnabled       bool          `toml:"semantic_enabled" yaml:"semantic_enabled"`
+	SemanticEndpoint      string        `toml:"semantic_endpoint" yaml:"semantic_endpoint"`
+	SemanticModel         string        `toml:"semantic_model" yaml:"semantic_model"`
+	SemanticTopK          int           `toml:"semantic_top_k" yaml:"semantic_top_k"`
+	SemanticMinSimilarity float64       `toml:"semantic_min_similarity" yaml:"semantic_min_similarity"`
+	EmbedderPollInterval  time.Duration `toml:"embedder_poll_interval" yaml:"embedder_poll_interval"`
+	EmbedderBatchSize     int           `toml:"embedder_batch_size" yaml:"embedder_batch_size"`
+	EmbedderCallTimeout   time.Duration `toml:"embedder_call_timeout" yaml:"embedder_call_timeout"`
+	QueryEmbedTimeout     time.Duration `toml:"query_embed_timeout" yaml:"query_embed_timeout"`
 }
 
 // DiscordCfg drives the Discord channel adapter.
 type DiscordCfg struct {
-	Token             string   `toml:"token"`
-	AllowedChannelID  string   `toml:"allowed_channel_id"`
-	ServerActions     []string `toml:"server_actions"`
-	CoalesceMs        int      `toml:"coalesce_ms"`
-	FirstRunDiscovery bool     `toml:"first_run_discovery"`
+	Token             string   `toml:"token" yaml:"token"`
+	AllowedChannelID  string   `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	ServerActions     []string `toml:"server_actions" yaml:"server_actions"`
+	CoalesceMs        int      `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery bool     `toml:"first_run_discovery" yaml:"first_run_discovery"`
 }
 
 func (c DiscordCfg) Enabled() bool {
@@ -108,76 +109,82 @@ func (c DiscordCfg) Enabled() bool {
 
 // SlackCfg drives the Slack Socket Mode channel adapter.
 type SlackCfg struct {
-	Enabled           bool   `toml:"enabled"`
-	BotToken          string `toml:"bot_token"`
-	AppToken          string `toml:"app_token"`
-	AllowedChannelID  string `toml:"allowed_channel_id"`
-	CoalesceMs        int    `toml:"coalesce_ms"`
-	FirstRunDiscovery bool   `toml:"first_run_discovery"`
+	Enabled           bool   `toml:"enabled" yaml:"enabled"`
+	BotToken          string `toml:"bot_token" yaml:"bot_token"`
+	AppToken          string `toml:"app_token" yaml:"app_token"`
+	AllowedChannelID  string `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	CoalesceMs        int    `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery bool   `toml:"first_run_discovery" yaml:"first_run_discovery"`
 }
 
 type CronCfg struct {
-	Enabled        bool          `toml:"enabled"`
-	CallTimeout    time.Duration `toml:"call_timeout"`
-	MirrorInterval time.Duration `toml:"mirror_interval"`
-	MirrorPath     string        `toml:"mirror_path"`
+	Enabled        bool          `toml:"enabled" yaml:"enabled"`
+	CallTimeout    time.Duration `toml:"call_timeout" yaml:"call_timeout"`
+	MirrorInterval time.Duration `toml:"mirror_interval" yaml:"mirror_interval"`
+	MirrorPath     string        `toml:"mirror_path" yaml:"mirror_path"`
 }
 
 // WebCfg mirrors Hermes config.yaml's web.backend and web.use_gateway fields.
 type WebCfg struct {
-	Backend    string `toml:"backend"`
-	UseGateway bool   `toml:"use_gateway"`
+	Backend    string `toml:"backend" yaml:"backend"`
+	UseGateway bool   `toml:"use_gateway" yaml:"use_gateway"`
+}
+
+// BrowserCfg mirrors Hermes browser/CDP connection settings used by browser
+// tools and CDP-backed web_extract fallback.
+type BrowserCfg struct {
+	CDPURL string `toml:"cdp_url" yaml:"cdp_url"`
 }
 
 // SecurityCfg mirrors Hermes config.yaml security controls that affect native
 // Go tools.
 type SecurityCfg struct {
-	WebsiteBlocklist WebsiteBlocklistCfg `toml:"website_blocklist"`
+	WebsiteBlocklist WebsiteBlocklistCfg `toml:"website_blocklist" yaml:"website_blocklist"`
 }
 
 type WebsiteBlocklistCfg struct {
-	Enabled     bool     `toml:"enabled"`
-	Domains     []string `toml:"domains"`
-	SharedFiles []string `toml:"shared_files"`
+	Enabled     bool     `toml:"enabled" yaml:"enabled"`
+	Domains     []string `toml:"domains" yaml:"domains"`
+	SharedFiles []string `toml:"shared_files" yaml:"shared_files"`
 	BaseDir     string   `toml:"-"`
 }
 
 // SkillsCfg configures the Phase 2.G0 static skills runtime.
 type SkillsCfg struct {
-	Root             string `toml:"root"`
-	SelectionCap     int    `toml:"selection_cap"`
-	MaxDocumentBytes int    `toml:"max_document_bytes"`
-	UsageLogPath     string `toml:"usage_log_path"`
+	Root             string `toml:"root" yaml:"root"`
+	SelectionCap     int    `toml:"selection_cap" yaml:"selection_cap"`
+	MaxDocumentBytes int    `toml:"max_document_bytes" yaml:"max_document_bytes"`
+	UsageLogPath     string `toml:"usage_log_path" yaml:"usage_log_path"`
 }
 
 // DelegationCfg configures Phase 2.E subagent execution.
 type DelegationCfg struct {
-	Enabled               bool          `toml:"enabled"`
-	MaxDepth              int           `toml:"max_depth"`
-	MaxConcurrentChildren int           `toml:"max_concurrent_children"`
-	DefaultMaxIterations  int           `toml:"default_max_iterations"`
-	DefaultTimeout        time.Duration `toml:"default_timeout"`
-	RunLogPath            string        `toml:"run_log_path"`
-	MaxWaiting            int           `toml:"max_waiting"`
+	Enabled               bool          `toml:"enabled" yaml:"enabled"`
+	MaxDepth              int           `toml:"max_depth" yaml:"max_depth"`
+	MaxConcurrentChildren int           `toml:"max_concurrent_children" yaml:"max_concurrent_children"`
+	DefaultMaxIterations  int           `toml:"default_max_iterations" yaml:"default_max_iterations"`
+	DefaultTimeout        time.Duration `toml:"default_timeout" yaml:"default_timeout"`
+	RunLogPath            string        `toml:"run_log_path" yaml:"run_log_path"`
+	MaxWaiting            int           `toml:"max_waiting" yaml:"max_waiting"`
 }
 
 // GonchoCfg configures the in-process Honcho-compatible memory facade.
 type GonchoCfg struct {
-	Enabled                      bool   `toml:"enabled"`
-	Workspace                    string `toml:"workspace"`
-	ObserverPeer                 string `toml:"observer_peer"`
-	RecentMessages               int    `toml:"recent_messages"`
-	MaxMessageSize               int    `toml:"max_message_size"`
-	MaxFileSize                  int    `toml:"max_file_size"`
-	GetContextMaxTokens          int    `toml:"get_context_max_tokens"`
-	ReasoningEnabled             bool   `toml:"reasoning_enabled"`
-	PeerCardEnabled              bool   `toml:"peer_card_enabled"`
-	SummaryEnabled               bool   `toml:"summary_enabled"`
-	DreamEnabled                 bool   `toml:"dream_enabled"`
-	DreamIdleTimeoutMinutes      int    `toml:"dream_idle_timeout_minutes"`
-	DeriverWorkers               int    `toml:"deriver_workers"`
-	RepresentationBatchMaxTokens int    `toml:"representation_batch_max_tokens"`
-	DialecticDefaultLevel        string `toml:"dialectic_default_level"`
+	Enabled                      bool   `toml:"enabled" yaml:"enabled"`
+	Workspace                    string `toml:"workspace" yaml:"workspace"`
+	ObserverPeer                 string `toml:"observer_peer" yaml:"observer_peer"`
+	RecentMessages               int    `toml:"recent_messages" yaml:"recent_messages"`
+	MaxMessageSize               int    `toml:"max_message_size" yaml:"max_message_size"`
+	MaxFileSize                  int    `toml:"max_file_size" yaml:"max_file_size"`
+	GetContextMaxTokens          int    `toml:"get_context_max_tokens" yaml:"get_context_max_tokens"`
+	ReasoningEnabled             bool   `toml:"reasoning_enabled" yaml:"reasoning_enabled"`
+	PeerCardEnabled              bool   `toml:"peer_card_enabled" yaml:"peer_card_enabled"`
+	SummaryEnabled               bool   `toml:"summary_enabled" yaml:"summary_enabled"`
+	DreamEnabled                 bool   `toml:"dream_enabled" yaml:"dream_enabled"`
+	DreamIdleTimeoutMinutes      int    `toml:"dream_idle_timeout_minutes" yaml:"dream_idle_timeout_minutes"`
+	DeriverWorkers               int    `toml:"deriver_workers" yaml:"deriver_workers"`
+	RepresentationBatchMaxTokens int    `toml:"representation_batch_max_tokens" yaml:"representation_batch_max_tokens"`
+	DialecticDefaultLevel        string `toml:"dialectic_default_level" yaml:"dialectic_default_level"`
 }
 
 func (g GonchoCfg) RuntimeConfig() goncho.Config {
@@ -202,13 +209,13 @@ func (g GonchoCfg) RuntimeConfig() goncho.Config {
 
 func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
 	type rawDelegationCfg struct {
-		Enabled               bool   `toml:"enabled"`
-		MaxDepth              int    `toml:"max_depth"`
-		MaxConcurrentChildren int    `toml:"max_concurrent_children"`
-		DefaultMaxIterations  int    `toml:"default_max_iterations"`
-		DefaultTimeout        string `toml:"default_timeout"`
-		RunLogPath            string `toml:"run_log_path"`
-		MaxWaiting            int    `toml:"max_waiting"`
+		Enabled               bool   `toml:"enabled" yaml:"enabled"`
+		MaxDepth              int    `toml:"max_depth" yaml:"max_depth"`
+		MaxConcurrentChildren int    `toml:"max_concurrent_children" yaml:"max_concurrent_children"`
+		DefaultMaxIterations  int    `toml:"default_max_iterations" yaml:"default_max_iterations"`
+		DefaultTimeout        string `toml:"default_timeout" yaml:"default_timeout"`
+		RunLogPath            string `toml:"run_log_path" yaml:"run_log_path"`
+		MaxWaiting            int    `toml:"max_waiting" yaml:"max_waiting"`
 	}
 
 	var raw rawDelegationCfg
@@ -237,35 +244,35 @@ func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
 }
 
 type HermesCfg struct {
-	Endpoint string `toml:"endpoint"`
-	APIKey   string `toml:"api_key"`
-	Model    string `toml:"model"`
-	Provider string `toml:"provider"`
+	Endpoint string `toml:"endpoint" yaml:"endpoint"`
+	APIKey   string `toml:"api_key" yaml:"api_key"`
+	Model    string `toml:"model" yaml:"model"`
+	Provider string `toml:"provider" yaml:"provider"`
 }
 
 type GatewayCfg struct {
-	ProxyURL string `toml:"proxy_url"`
-	ProxyKey string `toml:"proxy_key"`
+	ProxyURL string `toml:"proxy_url" yaml:"proxy_url"`
+	ProxyKey string `toml:"proxy_key" yaml:"proxy_key"`
 }
 
 type DisplayCfg struct {
-	ToolProgress        string                        `toml:"tool_progress"`
-	ToolProgressCommand bool                          `toml:"tool_progress_command"`
-	Platforms           map[string]DisplayPlatformCfg `toml:"platforms"`
+	ToolProgress        string                        `toml:"tool_progress" yaml:"tool_progress"`
+	ToolProgressCommand bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
+	Platforms           map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
 }
 
 type DisplayPlatformCfg struct {
-	ToolProgress string `toml:"tool_progress"`
+	ToolProgress string `toml:"tool_progress" yaml:"tool_progress"`
 }
 
 type TUICfg struct {
-	Theme         string `toml:"theme"`
-	MouseTracking bool   `toml:"mouse_tracking"`
+	Theme         string `toml:"theme" yaml:"theme"`
+	MouseTracking bool   `toml:"mouse_tracking" yaml:"mouse_tracking"`
 }
 
 type InputCfg struct {
-	MaxBytes int `toml:"max_bytes"`
-	MaxLines int `toml:"max_lines"`
+	MaxBytes int `toml:"max_bytes" yaml:"max_bytes"`
+	MaxLines int `toml:"max_lines" yaml:"max_lines"`
 }
 
 type InferenceValueSource string
@@ -498,7 +505,22 @@ func loadFile(cfg *Config) error {
 	path := ConfigPath()
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return nil
+		// Try YAML fallback for Hermes migrants
+		yamlPath := YAMLConfigPath()
+		yamlData, yamlErr := os.ReadFile(yamlPath)
+		if os.IsNotExist(yamlErr) {
+			return nil // no config at all
+		}
+		if yamlErr != nil {
+			return fmt.Errorf("read %s: %w", yamlPath, yamlErr)
+		}
+		if err := yaml.NewDecoder(bytes.NewReader(yamlData)).Decode(cfg); err != nil {
+			return fmt.Errorf("decode %s: %w", yamlPath, err)
+		}
+		if cfg.ConfigVersion == 0 {
+			cfg.ConfigVersion = 1
+		}
+		return migrateConfig(cfg)
 	}
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
@@ -506,9 +528,6 @@ func loadFile(cfg *Config) error {
 	if err := toml.NewDecoder(bytes.NewReader(data)).EnableUnmarshalerInterface().Decode(cfg); err != nil {
 		return err
 	}
-	// Absent _config_version in TOML = treat as v1 (pre-versioning files).
-	// Defaults() set it to CurrentConfigVersion, but unmarshal overwrites
-	// with 0 when the key isn't present.
 	if cfg.ConfigVersion == 0 {
 		cfg.ConfigVersion = 1
 	}
@@ -518,6 +537,7 @@ func loadFile(cfg *Config) error {
 type hermesConfigYAML struct {
 	Model     hermesModelConfigYAML               `yaml:"model"`
 	Web       hermesWebConfigYAML                 `yaml:"web"`
+	Browser   hermesBrowserConfigYAML             `yaml:"browser"`
 	Display   hermesDisplayConfigYAML             `yaml:"display"`
 	Security  hermesSecurityConfigYAML            `yaml:"security"`
 	Platforms map[string]hermesPlatformConfigYAML `yaml:"platforms"`
@@ -532,6 +552,10 @@ type hermesModelConfigYAML struct {
 type hermesWebConfigYAML struct {
 	Backend    string `yaml:"backend"`
 	UseGateway bool   `yaml:"use_gateway"`
+}
+
+type hermesBrowserConfigYAML struct {
+	CDPURL string `yaml:"cdp_url"`
 }
 
 type hermesDisplayConfigYAML struct {
@@ -586,6 +610,7 @@ func loadHermesConfigYAML(cfg *Config) error {
 	}
 	applyHermesModelConfig(cfg, hc.Model)
 	applyHermesWebConfig(cfg, hc.Web)
+	applyHermesBrowserConfig(cfg, hc.Browser)
 	applyHermesDisplayConfig(cfg, hc.Display)
 	applyHermesSecurityConfig(cfg, hc.Security)
 	applyHermesTelegramConfig(cfg, hc.Platforms["telegram"], hc.Streaming)
@@ -609,6 +634,12 @@ func applyHermesWebConfig(cfg *Config, web hermesWebConfigYAML) {
 	}
 	if web.UseGateway {
 		cfg.Web.UseGateway = true
+	}
+}
+
+func applyHermesBrowserConfig(cfg *Config, browser hermesBrowserConfigYAML) {
+	if cdpURL := strings.TrimSpace(browser.CDPURL); cdpURL != "" {
+		cfg.Browser.CDPURL = cdpURL
 	}
 }
 
@@ -875,6 +906,9 @@ func loadEnv(cfg *Config) error {
 			return err
 		}
 		cfg.Web.UseGateway = parsed
+	}
+	if v := strings.TrimSpace(firstNonEmpty(os.Getenv("GORMES_BROWSER_CDP_URL"), os.Getenv("BROWSER_CDP_URL"), os.Getenv("CHROME_REMOTE_DEBUGGING_URL"))); v != "" {
+		cfg.Browser.CDPURL = v
 	}
 	if v := os.Getenv("GORMES_TUI_MOUSE_TRACKING"); v != "" {
 		parsed, err := parseEnvBool("GORMES_TUI_MOUSE_TRACKING", v)
@@ -1167,6 +1201,13 @@ func GormesHome() string {
 // ConfigPath returns the Gormes TOML config file path.
 func ConfigPath() string {
 	return filepath.Join(GormesHome(), "config.toml")
+}
+
+// YAMLConfigPath returns the YAML variant of the Gormes config file path.
+// This is used as a fallback when config.toml doesn't exist, allowing Hermes
+// users to copy their config.yaml directly without converting to TOML.
+func YAMLConfigPath() string {
+	return filepath.Join(GormesHome(), "config.yaml")
 }
 
 // LogPath returns the default path for the Gormes log file.

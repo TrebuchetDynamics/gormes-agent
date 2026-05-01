@@ -137,7 +137,7 @@ Honcho and the rest of the external memory-provider parity surface are **not** P
 
 Do not widen the Phase 2 OS-AI spine to absorb Honcho-specific compatibility work early.
 
-> **Note on binary size:** The static CGO-free binary currently builds at **~17 MB** (measured: `bin/gormes` from `make build` with `-trimpath -ldflags="-s -w"` at commit `8aa9a6e6`, post-2.D). Phase 2.D added `robfig/cron/v3` (~20 KB) and ~1500 lines of Go across `internal/cron/`. The 3.D semantic-fusion additions (Embedder, `entity_embeddings` table, cosine scan) were absorbed within the same 17 MB envelope. Remains well within the 25 MB hard moat with ~8 MB headroom.
+> **Note on binary size:** The static CGO-free binary currently builds at **~34 MB** (measured: `bin/gormes` from `make build` with `-trimpath -ldflags="-s -w"`, post-Phase 4). Phase 2.D added `robfig/cron/v3` (~20 KB) and ~1500 lines of Go across `internal/cron/`. The 3.D semantic-fusion additions and all Phase 4 provider adapters, tools, and web subsystems have grown the binary from its initial 17 MB baseline. Remains well within the 50 MB hard moat with ~16 MB headroom.
 
 ## Go donor pointers
 

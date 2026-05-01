@@ -4,6 +4,10 @@ description: "Control a running TouchDesigner instance via twozero MCP — creat
 version: 1.1.0
 author: kshitijk4poor
 license: MIT
+review_state: reviewed
+prerequisites:
+  credential_groups:
+    - any_of: [TOUCHDESIGNER_MCP_URL, TWOZERO_MCP_URL]
 metadata:
   hermes:
     tags: [TouchDesigner, MCP, twozero, creative-coding, real-time-visuals, generative-art, audio-reactive, VJ, installation, GLSL]

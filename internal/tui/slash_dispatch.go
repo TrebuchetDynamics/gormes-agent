@@ -38,8 +38,8 @@ type SlashRegistry struct {
 // only metadata is BusyAvailable, consumed by Model.RunningPlaceholder when
 // the running-agent placeholder enumerates discoverable busy-time actions.
 type slashEntry struct {
-	handler        SlashHandler
-	busyAvailable  bool
+	handler       SlashHandler
+	busyAvailable bool
 }
 
 // RegisterOpt mutates a slashEntry at registration time. Used as variadic
@@ -126,6 +126,7 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("scroll", mouseSlashHandler)
 	r.Register("save", saveSlashHandler)
 	r.Register("branch", branchSlashHandler)
+	r.Register("browser", browserSlashHandler, WithBusyAvailable())
 	return r
 }
 
@@ -155,4 +156,3 @@ func mouseSlashHandler(input string, model *Model) SlashResult {
 	}
 	return SlashResult{Handled: true, StatusMessage: statusMessage, Cmd: cmd}
 }
-

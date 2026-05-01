@@ -48,6 +48,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	var reconfigure bool
 	cmd := &cobra.Command{
 		Use:          "setup [section]",
+		Aliases:      []string{"onboard"},
 		Short:        "Configure Gormes runtime sections",
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,

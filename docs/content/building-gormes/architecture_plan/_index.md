@@ -87,16 +87,16 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 48/79 subphases shipped · 26 in progress · 5 planned
+**Overall:** 52/85 subphases shipped · 26 in progress · 7 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 3/9 subphases |
-| Phase 5 — The Final Purge | 🔨 | 4/19 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 5/11 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/20 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 1/9 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -320,7 +320,7 @@ classification and row-backed implementation queue.
 - [x] Home channel ownership resolver fixtures
 - [ ] Notify-to delivery routing
 - [x] Channel directory atomic persistence + lookup
-- [x] Channel directory refresh + stale-target invalidation
+- [ ] Channel directory refresh + stale-target invalidation
 - [x] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
 
@@ -495,6 +495,8 @@ classification and row-backed implementation queue.
 - [x] Cross-provider reasoning-tag sanitization
 - [x] Tool-call argument repair + schema sanitizer
 - [x] OpenAI-compatible developer-role API-boundary swap
+- [x] xAI Grok provider adapter
+- [x] LM Studio provider adapter
 
 ### 4.B — Context Engine + Compression 🔨
 
@@ -515,13 +517,15 @@ classification and row-backed implementation queue.
 
 ### 4.C — Native Prompt Builder 🔨
 
-- [ ] System + memory + tools + history assembly
+- [x] Default agent identity / SOUL.md loader
 - [x] Context-file discovery + injection scan
 - [x] Model-specific role and tool-use guidance
-- [x] Toolset-aware skills prompt snapshot
-- [ ] Memory and session-search guidance assembly
+- [ ] Toolset-aware skills prompt snapshot
+- [x] Memory guidance constant + injection
+- [x] Session search guidance constant + injection
 - [x] Gormes self-help skill/docs prompt guidance
 - [x] [SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility
+- [x] Native full prompt assembly
 
 ### 4.D — Smart Model Routing 🔨
 
@@ -583,6 +587,14 @@ classification and row-backed implementation queue.
 - [x] Native runtime provider gateway binding
 - [ ] Hermes compatibility namespace retirement boundary
 
+### 4.J — Permission-Hardened Tool Execution ✅
+
+- [x] Shell blocklist + filesystem scoping + permission approval
+
+### 4.K — Provider Fallback Chain ✅
+
+- [x] Resilient provider chain dispatch
+
 ## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
@@ -599,6 +611,7 @@ classification and row-backed implementation queue.
 - [x] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
 - [x] Tool output budget persisted artifact pointer
+- [ ] Tool descriptor layer (OperationSpec)
 
 ### 5.B — Sandboxing Backends 🔨
 
@@ -645,14 +658,11 @@ classification and row-backed implementation queue.
 - [x] TTS tool contract + media delivery seam
 - [ ] TTS synthesis + voice-mode state
 
-### 5.F — Skills System (Remaining) ✅
+### 5.F — Skills System (Remaining) 🔨
 
 - [x] Skills hub search result types + in-memory registry provider
 - [x] Skills hub search read-model function over registry providers
-- [x] Skill registries
-- [x] Hermes index provider cache + source-router preference
-- [x] GitHub + Skills.sh registry metadata providers
-- [x] Claude Marketplace + LobeHub registry metadata providers
+- [ ] Skill registries
 - [x] Skills hub direct URL candidate parser
 - [x] Skills hub direct URL install name/category guard
 - [x] Skill preprocessing + dynamic slash commands
@@ -701,6 +711,10 @@ classification and row-backed implementation queue.
 - [x] Background review toolset restriction
 - [ ] Cron dangerous-command approval mode
 - [ ] Tirith, path, URL, and website policy integration
+- [x] Shell blocklist (36+ dangerous patterns)
+- [x] Filesystem scoping (folder-level read/write restrictions)
+- [x] Permission approval UX (inline y/n/always)
+- [x] Trust-class enforcement in shared tool executor
 
 ### 5.K — Code Execution ✅
 
@@ -750,7 +764,7 @@ classification and row-backed implementation queue.
 - [x] Hermes auth command-tree manifest refresh
 - [x] Hermes auth credential-pool command surface
 - [x] Hermes auth OAuth provider adapters
-- [ ] Hermes auth Spotify service-provider subcommand
+- [x] Hermes auth Spotify service-provider subcommand
 - [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
 - [x] CLI deterministic tip selector
@@ -867,20 +881,13 @@ classification and row-backed implementation queue.
 - [ ] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over
 
-### 5.V — Visual Fidelity + Content Parity (Plan v3.0 Wave 0) 🔨
+### 5.S — Loop Detection ✅
 
-- [x] Multi-skin TUI support — 8 built-in skins with full color palettes
-- [x] Per-tool emoji parity with Hermes display.py
-- [x] Banner ASCII art — Hermes logo + caduceus
-- [x] SKILL.md output parity — missing JSON fields
-- [x] Goncho honcho_reasoning LLM-backed synthesis
-- [x] Web dashboard — React SPA parity
-- [x] Web dashboard server shell + degraded inventory
-- [x] Web dashboard React/Vite scaffold + 9-page route manifest
-- [ ] Web dashboard core components + data-state fixtures
-- [ ] Web dashboard PTY chat + event websocket fixtures
-- [ ] Web dashboard theme catalog + switcher parity
-- [ ] Web dashboard OAuth provider flows + EN/ZH i18n
+- [x] 5-type loop detector
+
+### 5.T — Browser Harness Doctor ✅
+
+- [x] go-browser-harness doctor subcommand
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
@@ -915,6 +922,18 @@ classification and row-backed implementation queue.
 
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface
+
+### 6.G — Structured Memory Types ✅
+
+- [x] 6 typed memory categories with confidence scoring
+
+### 6.H — Skill Metadata Placement ⏳
+
+- [ ] SKILL.md metadata.when/loaded/placement schema
+
+### 6.I — Zero-LLM Knowledge Graph ⏳
+
+- [ ] Regex-based auto-link extraction + brain-first lookup
 
 ## Phase 7 — Paused Channel Backlog 🔨
 

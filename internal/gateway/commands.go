@@ -74,6 +74,7 @@ var CommandRegistry = []CommandDef{
 		Kind:             EventUsage,
 		ActiveTurnPolicy: CommandActiveTurnPolicyImmediate,
 	},
+	{Name: "reasoning", Description: "Manage reasoning effort and display", Kind: EventReasoning, ActiveTurnPolicy: CommandActiveTurnPolicyDrain},
 	{Name: "browser", Description: "Connect browser tools to your live Chrome via CDP", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "busy", Description: "Control what Enter does while Gormes is working", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "clear", Description: "Clear screen and start a new session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -122,6 +123,25 @@ var CommandRegistry = []CommandDef{
 	{Name: "agents", Description: "Show active agents and running tasks", Kind: EventUnknown, Aliases: []string{"tasks"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "queue", Description: "Queue a prompt for the next turn (doesn't interrupt)", Kind: EventUnknown, Aliases: []string{"q"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "status", Description: "Show session info", Kind: EventStatus, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
+	{Name: "footer", Description: "Toggle the gateway footer", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "gquota", Description: "Show Google Gemini Code Assist quota usage", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "indicator", Description: "Pick TUI busy-indicator style", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "curator", Description: "Background skill maintenance", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "redraw", Description: "Redraw the terminal screen", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+}
+
+var telegramMenuUnavailableCommands = map[string]struct{}{
+	"agents":     {},
+	"approve":    {},
+	"background": {},
+	"branch":     {},
+	"btw":        {},
+	"compress":   {},
+	"deny":       {},
+	"queue":      {},
+	"rollback":   {},
+	"snapshot":   {},
+	"undo":       {},
 }
 
 var commandLookup = buildCommandLookup()
@@ -189,7 +209,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""
@@ -225,7 +245,7 @@ func gatewayHelpText() string {
 func TelegramBotCommands() []PlatformCommand {
 	out := make([]PlatformCommand, 0, len(CommandRegistry))
 	for _, cmd := range CommandRegistry {
-		if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
+		if !telegramMenuCommandVisible(cmd) {
 			continue
 		}
 		out = append(out, PlatformCommand{
@@ -234,6 +254,14 @@ func TelegramBotCommands() []PlatformCommand {
 		})
 	}
 	return out
+}
+
+func telegramMenuCommandVisible(cmd CommandDef) bool {
+	if cmd.ActiveTurnPolicy != CommandActiveTurnPolicyUnavailable {
+		return true
+	}
+	_, ok := telegramMenuUnavailableCommands[cmd.Name]
+	return ok
 }
 
 // TelegramBotCommandsWith returns the canonical Telegram menu plus dynamic

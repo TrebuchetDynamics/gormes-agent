@@ -86,24 +86,35 @@ func TestHermesSlashCompletion_SubcommandPrefix(t *testing.T) {
 // ActiveTurnPolicyUnavailable with explicit evidence — never letting the slash
 // text leak to the kernel.
 func TestHermesSlashCompletion_UnavailableCommandsStillComplete(t *testing.T) {
-	completions := HermesSlashCommandCompletions("/bro")
+	completions := HermesSlashCommandCompletions("/bus")
 	names := completionNames(completions)
-	if !containsString(names, "browser") {
-		t.Fatalf("HermesSlashCommandCompletions(\"/bro\") = %v, want to include unavailable command \"browser\"", names)
+	if !containsString(names, "busy") {
+		t.Fatalf("HermesSlashCommandCompletions(\"/bus\") = %v, want to include unavailable command \"busy\"", names)
 	}
 
-	verdict := cli.EvaluateActiveTurnVerdict("/browser", false)
+	verdict := cli.EvaluateActiveTurnVerdict("/busy", false)
 	if !verdict.Known {
-		t.Errorf("EvaluateActiveTurnVerdict(/browser) Known = false, want true (registry recognizes /browser)")
+		t.Errorf("EvaluateActiveTurnVerdict(/busy) Known = false, want true (registry recognizes /busy)")
 	}
 	if verdict.Allowed {
-		t.Errorf("EvaluateActiveTurnVerdict(/browser) Allowed = true, want false for unavailable command")
+		t.Errorf("EvaluateActiveTurnVerdict(/busy) Allowed = true, want false for unavailable command")
 	}
 	if verdict.Policy != cli.ActiveTurnPolicyUnavailable {
-		t.Errorf("EvaluateActiveTurnVerdict(/browser) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
+		t.Errorf("EvaluateActiveTurnVerdict(/busy) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
 	}
 	if !strings.Contains(strings.ToLower(verdict.Evidence), "unavailable") {
-		t.Errorf("EvaluateActiveTurnVerdict(/browser) Evidence = %q, want to mention unavailable", verdict.Evidence)
+		t.Errorf("EvaluateActiveTurnVerdict(/busy) Evidence = %q, want to mention unavailable", verdict.Evidence)
+	}
+}
+
+func TestHermesSlashCompletion_BrowserSubcommands(t *testing.T) {
+	got := HermesSlashSubcommandCompletions("/browser ")
+	if !reflect.DeepEqual(completionNames(got), []string{"status", "connect"}) {
+		t.Fatalf("HermesSlashSubcommandCompletions(/browser) = %v, want status/connect", completionNames(got))
+	}
+	verdict := cli.EvaluateActiveTurnVerdict("/browser status", false)
+	if !verdict.Known || !verdict.Allowed || verdict.Policy != cli.ActiveTurnPolicyBypass {
+		t.Fatalf("EvaluateActiveTurnVerdict(/browser status) = %+v, want local ported bypass command", verdict)
 	}
 }
 

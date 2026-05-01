@@ -74,12 +74,19 @@ func TestResolveWebBackendPrefersFirecrawlConfig(t *testing.T) {
 		t.Fatalf("APIKey = %q, want fire-key", resolved.APIKey)
 	}
 
-	missing := ResolveWebBackend(map[string]string{})
-	if missing.Available {
-		t.Fatalf("empty env resolved as available: %+v", missing)
+	fallback := ResolveWebBackend(map[string]string{})
+	if !fallback.Available || fallback.Backend != WebBackendDuckDuckGo || fallback.Source != "free" {
+		t.Fatalf("empty env resolved as %+v, want automatic DuckDuckGo fallback", fallback)
 	}
-	if missing.Evidence != WebEvidenceProviderUnavailable {
-		t.Fatalf("missing Evidence = %q, want %q", missing.Evidence, WebEvidenceProviderUnavailable)
+	if fallback.BaseURL != webDefaultDuckDuckGoBaseURL {
+		t.Fatalf("fallback BaseURL = %q, want %q", fallback.BaseURL, webDefaultDuckDuckGoBaseURL)
+	}
+	status := ResolveWebBackendStatus(map[string]string{}, WebBackendConfig{})
+	if !status.Available || status.Backend != WebBackendDuckDuckGo || status.Route != "direct" {
+		t.Fatalf("status = %+v, want automatic DuckDuckGo direct route", status)
+	}
+	if strings.Join(status.ToolNames, ",") != strings.Join([]string{WebToolSearch, WebToolExtract}, ",") {
+		t.Fatalf("ToolNames = %v, want DuckDuckGo search plus Instant Answer extract", status.ToolNames)
 	}
 }
 
@@ -123,6 +130,114 @@ func TestResolveWebBackendHonorsHermesBackendConfig(t *testing.T) {
 	}, WebBackendConfig{})
 	if fallback.Backend != WebBackendParallel || fallback.APIKey != "parallel-key" || !fallback.Available {
 		t.Fatalf("fallback = %+v, want parallel after blank Firecrawl key is ignored", fallback)
+	}
+}
+
+func TestResolveWebBackendSupportsCDPExtractFallback(t *testing.T) {
+	env := map[string]string{
+		"CHROME_REMOTE_DEBUGGING_URL": " http://127.0.0.1:9222 ",
+	}
+	resolved := ResolveWebBackendWithConfig(env, WebBackendConfig{Backend: " browser "})
+	if !resolved.Available {
+		t.Fatalf("resolved.Available = false, want local CDP backend: %+v", resolved)
+	}
+	if resolved.Backend != WebBackendCDP {
+		t.Fatalf("Backend = %q, want %q", resolved.Backend, WebBackendCDP)
+	}
+	if resolved.BaseURL != "http://127.0.0.1:9222" || resolved.Source != "env" {
+		t.Fatalf("resolved = %+v, want trimmed CHROME_REMOTE_DEBUGGING_URL env source", resolved)
+	}
+
+	auto := ResolveWebBackendWithConfig(env, WebBackendConfig{})
+	if auto.Backend != WebBackendDuckDuckGo || !auto.Available {
+		t.Fatalf("auto fallback = %+v, want DuckDuckGo search route with CDP reserved for extract fallback", auto)
+	}
+
+	status := ResolveWebBackendStatus(env, WebBackendConfig{})
+	if !status.Available || status.Route != "direct" || status.Backend != WebBackendDuckDuckGo {
+		t.Fatalf("status = %+v, want available DuckDuckGo direct route", status)
+	}
+	if strings.Join(status.ToolNames, ",") != strings.Join([]string{WebToolSearch, WebToolExtract}, ",") {
+		t.Fatalf("ToolNames = %v, want search plus extract with CDP fallback metadata", status.ToolNames)
+	}
+	if !stringSliceContains(status.RequiresEnv, "CHROME_REMOTE_DEBUGGING_URL") {
+		t.Fatalf("RequiresEnv = %v, want CDP env metadata", status.RequiresEnv)
+	}
+	if !stringSliceContains(status.RequiresEnv, "BROWSER_CDP_URL") {
+		t.Fatalf("RequiresEnv = %v, want Hermes BROWSER_CDP_URL metadata", status.RequiresEnv)
+	}
+
+	browserAlias := ResolveWebBackendWithConfig(map[string]string{
+		"BROWSER_CDP_URL": " http://127.0.0.1:9223 ",
+	}, WebBackendConfig{Backend: "cdp"})
+	if !browserAlias.Available || browserAlias.Backend != WebBackendCDP || browserAlias.BaseURL != "http://127.0.0.1:9223" {
+		t.Fatalf("browserAlias = %+v, want explicit CDP backend from BROWSER_CDP_URL", browserAlias)
+	}
+}
+
+func TestResolveWebBackendSupportsAdditionalSearchBackends(t *testing.T) {
+	brave := ResolveWebBackendWithConfig(map[string]string{
+		"BRAVE_API_KEY": "brave-secret",
+	}, WebBackendConfig{Backend: "brave_search"})
+	if !brave.Available || brave.Backend != WebBackendBrave || brave.APIKey != "brave-secret" || brave.BaseURL != webDefaultBraveBaseURL {
+		t.Fatalf("brave = %+v, want configured Brave Search backend", brave)
+	}
+
+	searxng := ResolveWebBackendWithConfig(map[string]string{
+		"SEARXNG_BASE_URL": " https://search.example.test/ ",
+	}, WebBackendConfig{Backend: "searx"})
+	if !searxng.Available || searxng.Backend != WebBackendSearXNG || searxng.BaseURL != "https://search.example.test" {
+		t.Fatalf("searxng = %+v, want configured SearXNG backend", searxng)
+	}
+
+	duck := ResolveWebBackendWithConfig(map[string]string{}, WebBackendConfig{Backend: "ddg"})
+	if !duck.Available || duck.Backend != WebBackendDuckDuckGo || duck.BaseURL != webDefaultDuckDuckGoBaseURL {
+		t.Fatalf("duck = %+v, want explicit DuckDuckGo backend", duck)
+	}
+
+	perplexity := ResolveWebBackendWithConfig(map[string]string{
+		"PERPLEXITY_API_KEY": "perplexity-secret",
+	}, WebBackendConfig{Backend: "perplexity"})
+	if !perplexity.Available || perplexity.Backend != WebBackendPerplexity || perplexity.APIKey != "perplexity-secret" || perplexity.BaseURL != webDefaultPerplexityBaseURL {
+		t.Fatalf("perplexity = %+v, want configured Perplexity backend", perplexity)
+	}
+
+	auto := ResolveWebBackendWithConfig(map[string]string{
+		"BRAVE_API_KEY":               "brave-secret",
+		"SEARXNG_BASE_URL":            "https://search.example.test",
+		"PERPLEXITY_API_KEY":          "perplexity-secret",
+		"DUCKDUCKGO_ENABLED":          "1",
+		"TAVILY_API_KEY":              "tavily-secret",
+		"FIRECRAWL_API_KEY":           " ",
+		"PARALLEL_API_KEY":            " ",
+		"CHROME_REMOTE_DEBUGGING_URL": "http://127.0.0.1:9222",
+	}, WebBackendConfig{})
+	if auto.Backend != WebBackendTavily {
+		t.Fatalf("auto = %+v, want existing Hermes backend order to beat new search-only backends", auto)
+	}
+
+	autoBrave := ResolveWebBackendWithConfig(map[string]string{
+		"BRAVE_API_KEY":    "brave-secret",
+		"SEARXNG_BASE_URL": "https://search.example.test",
+	}, WebBackendConfig{})
+	if autoBrave.Backend != WebBackendBrave || !autoBrave.Available {
+		t.Fatalf("autoBrave = %+v, want Brave before SearXNG when hosted Hermes providers are absent", autoBrave)
+	}
+
+	autoPerplexity := ResolveWebBackendWithConfig(map[string]string{
+		"PERPLEXITY_API_KEY": "perplexity-secret",
+		"DUCKDUCKGO_ENABLED": "1",
+	}, WebBackendConfig{})
+	if autoPerplexity.Backend != WebBackendPerplexity || !autoPerplexity.Available {
+		t.Fatalf("autoPerplexity = %+v, want Perplexity before DuckDuckGo when configured", autoPerplexity)
+	}
+
+	status := ResolveWebBackendStatus(map[string]string{"BRAVE_API_KEY": "brave-secret"}, WebBackendConfig{})
+	if len(status.ToolNames) != 1 || status.ToolNames[0] != WebToolSearch {
+		t.Fatalf("ToolNames = %v, want search-only backend to advertise web_search", status.ToolNames)
+	}
+	if stringSliceContains(status.RequiresEnv, "DUCKDUCKGO_ENABLED") {
+		t.Fatalf("RequiresEnv = %v, must not require obsolete DuckDuckGo toggle", status.RequiresEnv)
 	}
 }
 
@@ -580,6 +695,252 @@ func TestWebSearchToolCallsParallelBackend(t *testing.T) {
 	}
 	if got := payload.Data.Web[0].Description; got != "parallel one parallel two" {
 		t.Fatalf("description = %q, want joined excerpts", got)
+	}
+}
+
+func TestWebSearchToolCallsBraveBackend(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"web":{"results":[{"title":"Brave Result","url":"https://example.test/brave","description":"Brave snippet"}]}}`,
+	}}}
+	tool := NewWebSearchTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendBrave,
+			BaseURL:   "https://api.search.brave.test",
+			APIKey:    "brave-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"gormes brave","limit":40}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one Brave search call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.Path != "/res/v1/web/search" {
+		t.Fatalf("request = %s %s, want GET /res/v1/web/search", req.Method, req.URL.Path)
+	}
+	if req.URL.Query().Get("q") != "gormes brave" || req.URL.Query().Get("count") != "20" {
+		t.Fatalf("query = %s, want q + capped count", req.URL.RawQuery)
+	}
+	if got := req.Header.Get("X-Subscription-Token"); got != "brave-secret" {
+		t.Fatalf("X-Subscription-Token = %q, want Brave API key", got)
+	}
+
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if !payload.Success || len(payload.Data.Web) != 1 || payload.Data.Web[0].Description != "Brave snippet" {
+		t.Fatalf("output = %+v, want normalized Brave result", payload)
+	}
+}
+
+func TestWebSearchToolCallsSearXNGBackend(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"results":[{"title":"SearXNG Result","url":"https://example.test/searx","content":"SearXNG snippet"}]}`,
+	}}}
+	tool := NewWebSearchTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendSearXNG,
+			BaseURL:   "https://search.example.test",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"gormes searx","limit":4}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one SearXNG search call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.Path != "/search" {
+		t.Fatalf("request = %s %s, want GET /search", req.Method, req.URL.Path)
+	}
+	if req.URL.Query().Get("q") != "gormes searx" || req.URL.Query().Get("format") != "json" || req.URL.Query().Get("categories") != "general" {
+		t.Fatalf("query = %s, want SearXNG JSON params", req.URL.RawQuery)
+	}
+
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if !payload.Success || len(payload.Data.Web) != 1 || payload.Data.Web[0].Description != "SearXNG snippet" {
+		t.Fatalf("output = %+v, want normalized SearXNG result", payload)
+	}
+}
+
+func TestWebSearchToolCallsDuckDuckGoBackend(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body: `<html><body>
+<a rel="nofollow" class="result__a" href="/l/?kh=-1&uddg=https%3A%2F%2Fexample.test%2Fddg">Duck &amp; Go</a>
+<a class="result__snippet" href="/l/?kh=-1&uddg=https%3A%2F%2Fexample.test%2Fddg">DDG snippet &amp; details</a>
+</body></html>`,
+	}}}
+	tool := NewWebSearchTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"gormes ddg","limit":2}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one DuckDuckGo search call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.Path != "/html" || req.URL.Query().Get("q") != "gormes ddg" {
+		t.Fatalf("request = %s %s?%s, want GET /html?q=", req.Method, req.URL.Path, req.URL.RawQuery)
+	}
+	if got := req.Header.Get("User-Agent"); !strings.Contains(got, "Mozilla/5.0") {
+		t.Fatalf("User-Agent = %q, want browser-ish user agent", got)
+	}
+
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if !payload.Success || len(payload.Data.Web) != 1 {
+		t.Fatalf("output = %+v, want one normalized DuckDuckGo result", payload)
+	}
+	if got := payload.Data.Web[0]; got.Title != "Duck & Go" || got.URL != "https://example.test/ddg" || got.Description != "DDG snippet & details" {
+		t.Fatalf("result = %+v, want decoded DDG title/url/snippet", got)
+	}
+}
+
+func TestWebSearchToolFallsBackToDuckDuckGoLite(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{
+		{status: http.StatusOK, body: `<html><body>No class-based results</body></html>`},
+		{status: http.StatusOK, body: `<html><body>
+<a rel="nofollow" href="/l/?kh=-1&uddg=https%3A%2F%2Fexample.test%2Flite" class="result-link">Lite Result</a>
+<td class="result-snippet">Lite snippet</td>
+</body></html>`},
+	}}
+	tool := NewWebSearchTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"gormes lite","limit":2}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 2 {
+		t.Fatalf("requests = %d, want html then lite fallback", len(client.requests))
+	}
+	if client.requests[1].URL.Host != "lite.duckduckgo.com" {
+		t.Fatalf("fallback host = %q, want lite.duckduckgo.com", client.requests[1].URL.Host)
+	}
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if !payload.Success || len(payload.Data.Web) != 1 {
+		t.Fatalf("output = %+v, want one Lite result", payload)
+	}
+	if got := payload.Data.Web[0]; got.Title != "Lite Result" || got.URL != "https://example.test/lite" || got.Description != "Lite snippet" {
+		t.Fatalf("result = %+v, want decoded Lite title/url/snippet", got)
+	}
+}
+
+func TestWebExtractToolUsesDuckDuckGoInstantAnswer(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"Heading":"Planet IX","AbstractText":"Planet IX is a Web3 strategy game.","AbstractSource":"DuckDuckGo","AbstractURL":"https://planetix.com/"}`,
+	}}}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["https://planetix.com/"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one DuckDuckGo Instant Answer call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.Host != "api.duckduckgo.com" || req.URL.Query().Get("format") != "json" {
+		t.Fatalf("request = %s %s?%s, want DuckDuckGo Instant Answer API", req.Method, req.URL.Host+req.URL.Path, req.URL.RawQuery)
+	}
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Title != "Planet IX" || payload.Results[0].Content != "Planet IX is a Web3 strategy game." || payload.Results[0].URL != "https://planetix.com/" {
+		t.Fatalf("output = %+v, want Instant Answer extraction", payload)
+	}
+}
+
+func TestWebSearchToolCallsPerplexityBackend(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		body:   `{"choices":[{"message":{"content":"Perplexity answer"}}],"citations":["https://example.test/one","https://example.test/two"]}`,
+	}}}
+	tool := NewWebSearchTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendPerplexity,
+			BaseURL:   "https://api.perplexity.test",
+			APIKey:    "perplexity-secret",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"gormes perplexity","limit":2}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one Perplexity search call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodPost || req.URL.Path != "/chat/completions" {
+		t.Fatalf("request = %s %s, want POST /chat/completions", req.Method, req.URL.Path)
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer perplexity-secret" {
+		t.Fatalf("Authorization = %q, want Perplexity bearer token", got)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal(client.bodies[0], &sent); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if sent["model"] != "sonar" || sent["max_tokens"] != float64(1000) {
+		t.Fatalf("perplexity body = %#v, want sonar request defaults", sent)
+	}
+
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if !payload.Success || len(payload.Data.Web) != 2 {
+		t.Fatalf("output = %+v, want citation-backed Perplexity results", payload)
+	}
+	if payload.Data.Web[0].URL != "https://example.test/one" || payload.Data.Web[0].Description != "Perplexity answer" {
+		t.Fatalf("first result = %+v, want answer attached to citation", payload.Data.Web[0])
 	}
 }
 
@@ -1328,6 +1689,270 @@ func TestWebExtractToolCallsParallelBackend(t *testing.T) {
 	}
 }
 
+func TestWebExtractToolFallsBackToCDPWhenFirecrawlFails(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusBadGateway,
+		body:   `{"error":"scraper blocked"}`,
+	}}}
+	runner := &recordingHarnessRunner{
+		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/fallback","title":"Fallback Page","text":"CDP rendered content"}`)},
+	}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendFirecrawl,
+			BaseURL:   "https://firecrawl.test",
+			APIKey:    "fire-secret",
+			Available: true,
+		},
+		Browser: BrowserHarnessToolsConfig{
+			Runner: runner,
+			Env:    map[string]string{"CHROME_REMOTE_DEBUGGING_URL": "http://127.0.0.1:9222"},
+			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["https://example.test/fallback"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want Firecrawl attempted once before fallback", len(client.requests))
+	}
+	if len(runner.argv) < 3 {
+		t.Fatalf("argv = %v, want go-browser-harness fallback call", runner.argv)
+	}
+	if got, wantPrefix := strings.Join(runner.argv[:2], "\x00"), "go-browser-harness\x00--action-json"; got != wantPrefix {
+		t.Fatalf("argv prefix = %q, want %q", got, wantPrefix)
+	}
+	action := decodeHarnessAction(t, runner.argv[2])
+	if action.Kind != BrowserActionNavigate || action.URL != "https://example.test/fallback" || !action.NewTab {
+		t.Fatalf("fallback action = %#v, want new-tab navigate to requested URL", action)
+	}
+
+	var payload struct {
+		Results []struct {
+			URL      string      `json:"url"`
+			Title    string      `json:"title"`
+			Content  string      `json:"content"`
+			Error    string      `json:"error"`
+			Evidence WebEvidence `json:"evidence"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].URL != "https://example.test/fallback" || payload.Results[0].Title != "Fallback Page" || payload.Results[0].Content != "CDP rendered content" {
+		t.Fatalf("output = %+v, want CDP-rendered fallback page", payload)
+	}
+	if payload.Results[0].Error != "" || payload.Results[0].Evidence != "" {
+		t.Fatalf("fallback should replace provider error, got %+v", payload.Results[0])
+	}
+}
+
+func TestWebExtractToolFallsBackToCDPWhenBatchProviderFails(t *testing.T) {
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusServiceUnavailable,
+		body:   `{"error":"provider unavailable"}`,
+	}}}
+	runner := &recordingHarnessRunner{
+		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/exa-fallback","title":"Exa Fallback","text":"CDP batch fallback"}`)},
+	}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendExa,
+			BaseURL:   "https://exa.test",
+			APIKey:    "exa-secret",
+			Available: true,
+		},
+		Browser: BrowserHarnessToolsConfig{
+			Runner: runner,
+			Env:    map[string]string{"CHROME_REMOTE_DEBUGGING_URL": "http://127.0.0.1:9222"},
+			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["https://example.test/exa-fallback"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want Exa attempted once before fallback", len(client.requests))
+	}
+	if len(runner.argv) < 3 {
+		t.Fatalf("argv = %v, want go-browser-harness fallback call", runner.argv)
+	}
+	action := decodeHarnessAction(t, runner.argv[2])
+	if action.Kind != BrowserActionNavigate || action.URL != "https://example.test/exa-fallback" || !action.NewTab {
+		t.Fatalf("fallback action = %#v, want new-tab navigate to requested URL", action)
+	}
+
+	var payload struct {
+		Results []struct {
+			Title   string `json:"title"`
+			Content string `json:"content"`
+			Error   string `json:"error"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Title != "Exa Fallback" || payload.Results[0].Content != "CDP batch fallback" || payload.Results[0].Error != "" {
+		t.Fatalf("output = %+v, want CDP-rendered batch fallback page", payload)
+	}
+}
+
+func TestWebExtractToolUsesCDPForDuckDuckGoURLExtractWhenConfigured(t *testing.T) {
+	client := &recordingWebHTTPClient{}
+	runner := &recordingHarnessRunner{
+		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/ddg-cdp","title":"Rendered DDG Fallback","text":"browser rendered page"}`)},
+	}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+		Browser: BrowserHarnessToolsConfig{
+			Runner: runner,
+			Env:    map[string]string{"BROWSER_CDP_URL": "http://127.0.0.1:9223"},
+			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["https://example.test/ddg-cdp"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("requests = %d, want DuckDuckGo Instant Answer skipped when CDP extract fallback is configured", len(client.requests))
+	}
+	if runner.env["CHROME_REMOTE_DEBUGGING_URL"] != "http://127.0.0.1:9223" || runner.env["BROWSER_CDP_URL"] != "http://127.0.0.1:9223" {
+		t.Fatalf("runner env = %+v, want both CDP env aliases populated", runner.env)
+	}
+
+	var payload struct {
+		Results []struct {
+			Title   string `json:"title"`
+			Content string `json:"content"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Title != "Rendered DDG Fallback" || payload.Results[0].Content != "browser rendered page" {
+		t.Fatalf("payload = %+v, want browser-rendered extract", payload)
+	}
+}
+
+func TestWebExtractToolCallsCDPBackendThroughBrowserHarness(t *testing.T) {
+	runner := &recordingHarnessRunner{
+		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/page","title":"Example Page","text":"Rendered content"}`)},
+	}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendCDP,
+			BaseURL:   "http://127.0.0.1:9222",
+			Available: true,
+		},
+		Browser: BrowserHarnessToolsConfig{
+			Runner: runner,
+			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["https://example.test/page"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if got, wantPrefix := strings.Join(runner.argv[:2], "\x00"), "go-browser-harness\x00--action-json"; got != wantPrefix {
+		t.Fatalf("argv prefix = %q, want %q", got, wantPrefix)
+	}
+	action := decodeHarnessAction(t, runner.argv[2])
+	if action.SchemaVersion != browserHarnessActionSchemaVersion || action.Kind != BrowserActionNavigate || action.URL != "https://example.test/page" {
+		t.Fatalf("CDP extract action = %#v", action)
+	}
+	if !action.NewTab {
+		t.Fatalf("CDP extract must navigate in a new tab: %#v", action)
+	}
+	if runner.env["CHROME_REMOTE_DEBUGGING_URL"] != "http://127.0.0.1:9222" {
+		t.Fatalf("CHROME_REMOTE_DEBUGGING_URL = %q, want resolution base URL", runner.env["CHROME_REMOTE_DEBUGGING_URL"])
+	}
+	if runner.env["BROWSER_CDP_URL"] != "http://127.0.0.1:9222" {
+		t.Fatalf("BROWSER_CDP_URL = %q, want resolution base URL", runner.env["BROWSER_CDP_URL"])
+	}
+
+	var payload struct {
+		Results []struct {
+			URL     string `json:"url"`
+			Title   string `json:"title"`
+			Content string `json:"content"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].URL != "https://example.test/page" || payload.Results[0].Title != "Example Page" || payload.Results[0].Content != "Rendered content" {
+		t.Fatalf("output = %+v, want normalized CDP page", payload)
+	}
+}
+
+func TestWebExtractToolBlocksPrivateURLBeforeCDPBackend(t *testing.T) {
+	runner := &recordingHarnessRunner{}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendCDP,
+			BaseURL:   "http://127.0.0.1:9222",
+			Available: true,
+		},
+		Browser: BrowserHarnessToolsConfig{Runner: runner},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["http://127.0.0.1/admin"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(runner.argv) != 0 {
+		t.Fatalf("argv = %v, want no browser harness call for private URL", runner.argv)
+	}
+	var payload struct {
+		Results []struct {
+			Error    string      `json:"error"`
+			Evidence WebEvidence `json:"evidence"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Evidence != WebEvidencePrivateURLBlocked {
+		t.Fatalf("payload = %+v, want private URL block evidence", payload)
+	}
+}
+
+func TestWebSearchToolRejectsCDPBackend(t *testing.T) {
+	tool := NewWebSearchTool(WebToolsConfig{
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendCDP,
+			BaseURL:   "http://127.0.0.1:9222",
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"query":"gormes"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var payload webSearchResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if payload.Success || payload.Evidence != WebEvidenceBackendUnsupported || !strings.Contains(payload.Error, "only supports web_extract") {
+		t.Fatalf("payload = %+v, want CDP unsupported for web_search", payload)
+	}
+}
+
 type recordingWebHTTPClient struct {
 	responses []recordedWebResponse
 	requests  []*http.Request
@@ -1350,9 +1975,13 @@ type recordedWebResponse struct {
 }
 
 func (c *recordingWebHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
+	var body []byte
+	if req.Body != nil {
+		var err error
+		body, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
 	}
 	c.requests = append(c.requests, req.Clone(req.Context()))
 	c.bodies = append(c.bodies, body)

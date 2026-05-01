@@ -46,6 +46,8 @@ const (
 	EventProfile
 	// EventSkills handles /skills subcommands (list, inspect).
 	EventSkills
+	// EventReasoning handles /reasoning subcommands (show, set, reset).
+	EventReasoning
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -83,6 +85,8 @@ func (k EventKind) String() string {
 		return "profile"
 	case EventSkills:
 		return "skills"
+	case EventReasoning:
+		return "reasoning"
 	default:
 		return "unknown"
 	}

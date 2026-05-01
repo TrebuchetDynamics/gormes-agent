@@ -66,6 +66,7 @@ var doctorCmd = &cobra.Command{
 		result := doctor.CheckTools(reg)
 		fmt.Print(result.Format())
 		fmt.Print(doctorWebToolsStatus(cfg).Format())
+		fmt.Print(doctorBrowserRuntimeStatus().Format())
 		fmt.Print(doctorGonchoConfig(cfg).Format())
 
 		runtimeStatus := gateway.RuntimeStatus{}

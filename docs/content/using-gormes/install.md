@@ -5,7 +5,7 @@ weight: 20
 
 # Install
 
-Gormes is a single static Go binary (~17 MB). Zero CGO, no Python runtime on the host.
+Gormes is a single static Go binary (~34 MB). Zero CGO, no Python runtime on the host.
 
 ## Recommended: source build
 
@@ -50,6 +50,14 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest
 ```
 
+## Pre-compiled release artifacts
+
+Tagged releases build `gormes-${version}-${os}-${arch}.tar.gz` archives for
+Linux, macOS, and Windows on amd64 and arm64, each with a `.sha256` checksum.
+These artifacts are the path toward PicoClaw-style one-click installs, but the
+early-stage trust path is still source inspection plus local build until
+signing and package-manager manifests are complete.
+
 ## Platform matrix
 
 | Platform | Status |
@@ -61,6 +69,9 @@ go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest
 | Windows (native) | 🟡 source-backed PowerShell installer, unsigned binary |
 | Windows WSL2 | ✅ tested |
 | Termux (Android) | ✅ tested |
+
+See the [hardware matrix](../hardware/) for release-by-release binary size,
+RSS, build profile, and device evidence.
 
 ## Verify
 

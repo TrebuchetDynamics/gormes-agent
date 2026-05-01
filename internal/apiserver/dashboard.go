@@ -197,8 +197,8 @@ func (s *Server) handleDashboardModelOptions(w http.ResponseWriter, r *http.Requ
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
 	}
-	if !s.authorized(r) {
-		writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -213,8 +213,8 @@ func (s *Server) handleDashboardOAuthProviders(w http.ResponseWriter, r *http.Re
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
 	}
-	if !s.authorized(r) {
-		writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"providers": cloneDashboardOAuthProviders(s.oauthProviders)})
@@ -233,8 +233,8 @@ func (s *Server) handleDashboardSessions(w http.ResponseWriter, r *http.Request)
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
 	}
-	if !s.authorized(r) {
-		writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
 		return
 	}
 	limit := parseDashboardInt(r.URL.Query().Get("limit"), dashboardDefaultSessionLimit, 1, dashboardMaxSessionLimit)
@@ -253,8 +253,8 @@ func (s *Server) handleDashboardSessions(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleDashboardSessionByID(w http.ResponseWriter, r *http.Request) {
-	if !s.authorized(r) {
-		writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
 		return
 	}
 	sessionID := strings.TrimPrefix(r.URL.Path, "/api/sessions/")
@@ -281,6 +281,10 @@ func (s *Server) handleDashboardSessionByID(w http.ResponseWriter, r *http.Reque
 	default:
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 	}
+}
+
+func writeDashboardUnauthorized(w http.ResponseWriter) {
+	writeOpenAIError(w, http.StatusUnauthorized, "Unauthorized", "invalid_request_error", "", "unauthorized")
 }
 
 func (s *Server) dashboardModelProviders() []DashboardModelProvider {
