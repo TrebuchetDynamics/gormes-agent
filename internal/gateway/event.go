@@ -48,6 +48,10 @@ const (
 	EventSkills
 	// EventReasoning handles /reasoning subcommands (show, set, reset).
 	EventReasoning
+	// EventBusy handles /busy subcommands (queue, steer, interrupt, status).
+	EventBusy
+	// EventTTS handles /tts subcommands (on, off, speed, voice, engine, language).
+	EventTTS
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -87,6 +91,10 @@ func (k EventKind) String() string {
 		return "skills"
 	case EventReasoning:
 		return "reasoning"
+	case EventBusy:
+		return "busy"
+	case EventTTS:
+		return "tts"
 	default:
 		return "unknown"
 	}

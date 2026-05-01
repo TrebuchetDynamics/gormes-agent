@@ -86,24 +86,24 @@ func TestHermesSlashCompletion_SubcommandPrefix(t *testing.T) {
 // ActiveTurnPolicyUnavailable with explicit evidence — never letting the slash
 // text leak to the kernel.
 func TestHermesSlashCompletion_UnavailableCommandsStillComplete(t *testing.T) {
-	completions := HermesSlashCommandCompletions("/bus")
+	completions := HermesSlashCommandCompletions("/bra")
 	names := completionNames(completions)
-	if !containsString(names, "busy") {
-		t.Fatalf("HermesSlashCommandCompletions(\"/bus\") = %v, want to include unavailable command \"busy\"", names)
+	if !containsString(names, "branch") {
+		t.Fatalf("HermesSlashCommandCompletions(\"/bra\") = %v, want to include unavailable command \"branch\"", names)
 	}
 
-	verdict := cli.EvaluateActiveTurnVerdict("/busy", false)
+	verdict := cli.EvaluateActiveTurnVerdict("/branch", false)
 	if !verdict.Known {
-		t.Errorf("EvaluateActiveTurnVerdict(/busy) Known = false, want true (registry recognizes /busy)")
+		t.Errorf("EvaluateActiveTurnVerdict(/branch) Known = false, want true (registry recognizes /branch)")
 	}
 	if verdict.Allowed {
-		t.Errorf("EvaluateActiveTurnVerdict(/busy) Allowed = true, want false for unavailable command")
+		t.Errorf("EvaluateActiveTurnVerdict(/branch) Allowed = true, want false for unavailable command")
 	}
 	if verdict.Policy != cli.ActiveTurnPolicyUnavailable {
-		t.Errorf("EvaluateActiveTurnVerdict(/busy) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
+		t.Errorf("EvaluateActiveTurnVerdict(/branch) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
 	}
 	if !strings.Contains(strings.ToLower(verdict.Evidence), "unavailable") {
-		t.Errorf("EvaluateActiveTurnVerdict(/busy) Evidence = %q, want to mention unavailable", verdict.Evidence)
+		t.Errorf("EvaluateActiveTurnVerdict(/branch) Evidence = %q, want to mention unavailable", verdict.Evidence)
 	}
 }
 

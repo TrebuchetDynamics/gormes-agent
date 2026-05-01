@@ -65,6 +65,7 @@ type ManagerConfig struct {
 	// ToolProgressCommandEnabled gates Hermes' /verbose command on messaging
 	// platforms. Hermes defaults this gate off.
 	ToolProgressCommandEnabled bool
+	BusyInputMode              string // interrupt, queue, or steer
 	// PersistToolProgressMode saves /verbose mode changes. Production writes
 	// display.platforms.<platform>.tool_progress into config.yaml.
 	PersistToolProgressMode func(platform, mode string) error
@@ -171,6 +172,7 @@ type Manager struct {
 
 	reasoningMu    sync.Mutex
 	reasoningState map[string]SessionReasoningState
+	ttsConfigs     map[string]TTSConfig
 
 	inboundDedup *MessageDeduplicator
 
@@ -358,6 +360,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 	if cfg.AllowedChats == nil {
 		cfg.AllowedChats = map[string]string{}
+	}
+	if cfg.BusyInputMode == "" {
+		cfg.BusyInputMode = "interrupt"
 	}
 	if cfg.AllowDiscovery == nil {
 		cfg.AllowDiscovery = map[string]bool{}
@@ -766,6 +771,12 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventReasoning:
 		m.handleReasoningCommand(ctx, ch, ev)
 		return nil
+	case EventBusy:
+		m.handleBusyCommand(ctx, ch, ev)
+		return nil
+	case EventTTS:
+		m.handleTTSCommand(ctx, ch, ev)
+		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
 			return nil
@@ -899,6 +910,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return true
+	case EventTTS:
+		m.handleTTSCommand(ctx, ch, ev)
+		return true
 	default:
 		return false
 	}
@@ -911,6 +925,35 @@ func (m *Manager) handleReasoningCommand(ctx context.Context, ch Channel, ev Inb
 		return
 	}
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, formatReasoningReply(reply))
+}
+
+func (m *Manager) handleBusyCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	args := strings.Fields(ev.Text)
+	mode := m.cfg.BusyInputMode
+	if mode == "" {
+		mode = "interrupt"
+	}
+
+	if len(args) >= 2 {
+		switch strings.ToLower(args[1]) {
+		case "queue", "q":
+			mode = "queue"
+		case "steer", "s":
+			mode = "steer"
+		case "interrupt", "i":
+			mode = "interrupt"
+		case "", "status", "show":
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("⚙ Busy input mode: **%s**\n\n• interrupt — stop current task and respond to new message\n• queue — silently hold message for next turn\n• steer — inject guidance mid-turn", mode))
+			return
+		default:
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "⚠ Usage: /busy [queue|steer|interrupt|status]")
+			return
+		}
+		m.cfg.BusyInputMode = mode
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("✅ Busy input mode set to **%s**", mode))
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("⚙ Busy input mode: **%s**\nUsage: /busy [queue|steer|interrupt|status]", mode))
 }
 
 func commandArgs(body string) []string {
