@@ -303,6 +303,13 @@ update the parity matrix/detail sections and coordinator next-slice ordering to
 remove stale blocker language, run the progress/docs gates, and commit only the
 docs/progress surfaces.
 
+When a broad parent row remains `planned`/`draft` after all source-backed child
+slices have landed, do not hand the parent back to a builder. Re-verify the
+active upstream symbols and the current Gormes symbols/tests, then close the
+parent as a docs/progress reconciliation: mark it `complete`/`validated`, update
+source_refs to the implemented symbols, regenerate progress docs, remove it from
+agent-queue/next-slices, and keep install/runtime follow-ups in separate rows.
+
 When a progress command fails on an unrelated row while recording evidence,
 fix only schema-level metadata that blocks validation and is objectively wrong
 (for example invalid `trust_class` values). Do not silently rewrite unrelated
