@@ -29478,20 +29478,20 @@
             },
             {
               "acceptance": [
-                "TestDashboardServerServesSPAAndDist proves a loopback-only server serves index.html and static assets from an embedded or configured dist without exposing arbitrary filesystem paths.",
-                "TestDashboardAPIGuardsHostAndSessionToken proves localhost Host validation, CORS/session-token gating, and public endpoint allowlist behavior for status/defaults/model/theme/plugin discovery.",
-                "TestDashboardUnavailableInventory proves missing React dist returns a deterministic JSON inventory with unavailable/degraded evidence instead of starting a broken server."
+                "TestDashboardContract_CoversNativeDashboardEndpoints proves the native API/dashboard shell serves the core chat/responses/runs/session/model/provider/plugin endpoints without React runtime dependencies.",
+                "TestDashboardStatus_DegradesMissingNativeAndOptionalPanels proves absent optional dashboard panels report deterministic disabled/degraded evidence instead of claiming full React parity.",
+                "A follow-up builder pass must still fixture-lock Hermes' localhost Host validation plus X-Hermes-Session-Token-style dashboard API guard before this row can be marked complete."
               ],
-              "contract": "Create the Go web dashboard server shell that matches Hermes' FastAPI dashboard startup, static SPA serving, localhost security guard, public API allowlist, and degraded inventory semantics before any React feature work lands.",
+              "contract": "Reconcile the Go web dashboard server shell against Hermes' FastAPI dashboard startup, localhost security guard, public API allowlist, and degraded inventory semantics before any React feature work is treated as complete.",
               "contract_status": "draft",
-              "degraded_mode": "When the dashboard dist is absent or disabled, API status exposes dashboard_available=false with missing_dist evidence and the server does not claim React parity.",
+              "degraded_mode": "When dashboard-only runtime pieces are absent or disabled, API status exposes typed disabled/degraded panel evidence and the server does not claim React/Vite parity.",
               "done_signal": [
-                "internal/apiserver exposes a tested dashboard server shell with static SPA serving, Host/session-token guards, public endpoint allowlist, and unavailable inventory."
+                "internal/apiserver exposes a tested dashboard server shell with dashboard status/degraded inventory, static/templated dashboard routes, and a source-backed Host/session-token guard fixture."
               ],
               "execution_owner": "gateway",
-              "fixture": "internal/apiserver/dashboard_server_test.go",
+              "fixture": "internal/apiserver/dashboard_contract_test.go",
               "name": "Web dashboard server shell + degraded inventory",
-              "note": "Source-backed split from the former React SPA umbrella. Gormes has no web/ or internal/apiserver package as of a0dd98d54.",
+              "note": "2026-04-30 parity correction: the prior focused test selector was stale and passed with [no tests to run]. Current Gormes already has internal/apiserver dashboard shell/status/degraded fixtures, but this row remains planned until the Hermes localhost Host validation and X-Hermes-Session-Token dashboard API guard from web_server.py are fixture-locked or explicitly classified as an owned API-key divergence.",
               "not_ready_when": [
                 "The slice ports React pages or PTY chat before the server/security/degraded contract exists",
                 "The implementation allows non-loopback Host headers by default"
@@ -29510,7 +29510,7 @@
               ],
               "status": "planned",
               "test_commands": [
-                "go test ./internal/apiserver -run 'TestDashboard(Server|API|Unavailable)' -count=1",
+                "go test ./internal/apiserver -run 'TestDashboardContract_CoversNativeDashboardEndpoints|TestDashboardStatus_DegradesMissingNativeAndOptionalPanels|TestDashboardContract_DoesNotAddNodeOrReactRuntimeAssets' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "trust_class": [
@@ -29518,8 +29518,10 @@
                 "system"
               ],
               "write_scope": [
-                "internal/apiserver/dashboard_server.go",
-                "internal/apiserver/dashboard_server_test.go",
+                "internal/apiserver/server.go",
+                "internal/apiserver/dashboard.go",
+                "internal/apiserver/dashboard_web.go",
+                "internal/apiserver/dashboard_contract_test.go",
                 "cmd/gormes"
               ]
             },

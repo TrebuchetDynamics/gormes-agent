@@ -34,16 +34,16 @@ selection.
 - Size: `medium`
 - Status: `planned`
 - Priority: `P0`
-- Contract: Create the Go web dashboard server shell that matches Hermes' FastAPI dashboard startup, static SPA serving, localhost security guard, public API allowlist, and degraded inventory semantics before any React feature work lands.
+- Contract: Reconcile the Go web dashboard server shell against Hermes' FastAPI dashboard startup, localhost security guard, public API allowlist, and degraded inventory semantics before any React feature work is treated as complete.
 - Trust class: operator, system
 - Ready when: A small internal/apiserver package can be tested without launching live uvicorn/React tooling, The public API allowlist is fixture-locked from Hermes web_server.py
 - Not ready when: The slice ports React pages or PTY chat before the server/security/degraded contract exists, The implementation allows non-loopback Host headers by default
-- Degraded mode: When the dashboard dist is absent or disabled, API status exposes dashboard_available=false with missing_dist evidence and the server does not claim React parity.
-- Fixture: `internal/apiserver/dashboard_server_test.go`
-- Write scope: `internal/apiserver/dashboard_server.go`, `internal/apiserver/dashboard_server_test.go`, `cmd/gormes`
-- Test commands: `go test ./internal/apiserver -run 'TestDashboard(Server\|API\|Unavailable)' -count=1`, `go run ./cmd/progress validate`
-- Done signal: internal/apiserver exposes a tested dashboard server shell with static SPA serving, Host/session-token guards, public endpoint allowlist, and unavailable inventory.
-- Acceptance: TestDashboardServerServesSPAAndDist proves a loopback-only server serves index.html and static assets from an embedded or configured dist without exposing arbitrary filesystem paths., TestDashboardAPIGuardsHostAndSessionToken proves localhost Host validation, CORS/session-token gating, and public endpoint allowlist behavior for status/defaults/model/theme/plugin discovery., TestDashboardUnavailableInventory proves missing React dist returns a deterministic JSON inventory with unavailable/degraded evidence instead of starting a broken server.
+- Degraded mode: When dashboard-only runtime pieces are absent or disabled, API status exposes typed disabled/degraded panel evidence and the server does not claim React/Vite parity.
+- Fixture: `internal/apiserver/dashboard_contract_test.go`
+- Write scope: `internal/apiserver/server.go`, `internal/apiserver/dashboard.go`, `internal/apiserver/dashboard_web.go`, `internal/apiserver/dashboard_contract_test.go`, `cmd/gormes`
+- Test commands: `go test ./internal/apiserver -run 'TestDashboardContract_CoversNativeDashboardEndpoints\|TestDashboardStatus_DegradesMissingNativeAndOptionalPanels\|TestDashboardContract_DoesNotAddNodeOrReactRuntimeAssets' -count=1`, `go run ./cmd/progress validate`
+- Done signal: internal/apiserver exposes a tested dashboard server shell with dashboard status/degraded inventory, static/templated dashboard routes, and a source-backed Host/session-token guard fixture.
+- Acceptance: TestDashboardContract_CoversNativeDashboardEndpoints proves the native API/dashboard shell serves the core chat/responses/runs/session/model/provider/plugin endpoints without React runtime dependencies., TestDashboardStatus_DegradesMissingNativeAndOptionalPanels proves absent optional dashboard panels report deterministic disabled/degraded evidence instead of claiming full React parity., A follow-up builder pass must still fixture-lock Hermes' localhost Host validation plus X-Hermes-Session-Token-style dashboard API guard before this row can be marked complete.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:64-110, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:194-240, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/index.html, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/vite.config.ts
 - Why now: P0 handoff; needs contract proof before closeout.
 
