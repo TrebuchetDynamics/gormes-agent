@@ -175,6 +175,28 @@ func (d ChannelDirectory) Resolve(platform, query string) (DeliveryTarget, Chann
 	}
 }
 
+// ValidateDeliveryTarget returns channel_target_stale when an explicit target
+// no longer appears in a refreshed platform directory. Platform-only, local,
+// origin, and unknown-directory targets are left to existing home-channel and
+// missing-directory resolution paths.
+func (d ChannelDirectory) ValidateDeliveryTarget(target DeliveryTarget) (DeliveryTarget, ChannelDirectoryEvidence) {
+	platform := strings.ToLower(strings.TrimSpace(target.Platform))
+	if target.IsOrigin || !target.IsExplicit || platform == "" || strings.EqualFold(platform, "local") || strings.TrimSpace(target.ChatID) == "" {
+		return target, ChannelDirectoryEvidence{}
+	}
+	entries, ok := d.Platforms[platform]
+	if !ok || len(entries) == 0 {
+		return target, ChannelDirectoryEvidence{}
+	}
+	for _, entry := range entries {
+		candidate := entry.deliveryTarget(platform)
+		if candidate.ChatID == strings.TrimSpace(target.ChatID) && candidate.ThreadID == strings.TrimSpace(target.ThreadID) {
+			return target, ChannelDirectoryEvidence{}
+		}
+	}
+	return DeliveryTarget{}, ChannelDirectoryEvidence{Code: "channel_target_stale", Platform: platform, Query: target.String()}
+}
+
 // LookupType returns the cached channel type for a platform target ID.
 func (d ChannelDirectory) LookupType(platform, id string) string {
 	platform = strings.ToLower(strings.TrimSpace(platform))

@@ -6582,12 +6582,9 @@
                 "TestChannelDirectoryRefreshSerializesWrites proves concurrent refresh requests run through one writer and do not interleave JSON output.",
                 "Existing delivery target parsing and atomic lookup tests stay green."
               ],
-              "blocked_by": [
-                "Channel directory atomic persistence + lookup",
-                "Manager remember-source hook"
-              ],
+              "blocked_by": [],
               "contract": "Gormes adds deterministic refresh and stale-target invalidation around the channel directory: Manager-owned source records and adapter inventory snapshots update the directory through one serialized writer, stale entries are marked or removed after adapter refresh failures according to fixture policy, and delivery lookup returns explicit stale-target evidence instead of silently dispatching to cached IDs.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "Refresh failures preserve the last known-good directory with channel_directory_refresh_failed evidence; stale delivery targets return channel_target_stale rather than invoking an adapter with obsolete routing.",
               "done_signal": [
                 "Channel directory refresh fixtures prove deterministic merge, last-known-good preservation, stale-target evidence, serialized writes, and unchanged delivery parsing without live adapters."
@@ -6600,7 +6597,7 @@
                 "A failed refresh deletes the last known-good directory.",
                 "Stale targets are silently accepted because the ID still exists in an adapter cache."
               ],
-              "note": "Builder-ready second channel-directory slice. It deliberately excludes background scheduling and live adapter calls; builders should prove refresh semantics with injected snapshots and reuse Engram-style serialized writer patterns.",
+              "note": "Complete: native Go refresh merges injected Slack/Discord-style adapter snapshots with Manager remembered-source ledger entries through a mutex-serialized channel_directory.json writer, preserves the last-known-good directory with channel_directory_refresh_failed evidence on refresh failures, and returns channel_target_stale for explicit targets absent from a refreshed directory. The slice stays fixture-only and does not call live adapters or start background schedulers.",
               "provenance": {
                 "note": "Hermes defines refresh/directory behavior; Engram/trpc-agent-go provide pattern references for serialized mutation and callback isolation.",
                 "origin_type": "hybrid",
@@ -6618,19 +6615,20 @@
               ],
               "slice_size": "medium",
               "source_refs": [
-                "../hermes-agent/gateway/channel_directory.py:refresh_channel_directory",
-                "../hermes-agent/gateway/channel_directory.py:_build_discord",
-                "../hermes-agent/gateway/channel_directory.py:_build_slack",
-                "../hermes-agent/gateway/channel_directory.py:_build_from_sessions",
-                "../hermes-agent/tests/gateway/test_channel_directory.py:test_build_slack",
-                "../hermes-agent/tests/gateway/test_channel_directory.py:test_topic_name_resolves_to_composite_id",
-                "internal/gateway/manager.go",
-                "internal/gateway/delivery.go",
-                "internal/gateway/channel_directory.go",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/channel_directory.py@69d4800d:build_channel_directory",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/channel_directory.py@69d4800d:_build_discord",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/channel_directory.py@69d4800d:_build_slack",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/channel_directory.py@69d4800d:_build_from_sessions",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tests/gateway/test_channel_directory.py@69d4800d:test_build_slack",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/tests/gateway/test_channel_directory.py@69d4800d:test_topic_name_resolves_to_composite_id",
+                "internal/gateway/channel_directory.go:ChannelDirectory.ValidateDeliveryTarget",
+                "internal/gateway/channel_directory_refresh.go:ChannelDirectoryRefresher.Refresh",
+                "internal/gateway/channel_directory_source.go:ChannelDirectorySourceStore.Load",
+                "internal/gateway/channel_directory_refresh_test.go",
                 "references/go-agent-os/engram/internal/mcp/write_queue.go",
                 "references/go-agent-os/trpc-agent-go/agent/callbacks.go"
               ],
-              "status": "planned",
+              "status": "complete",
               "test_commands": [
                 "go test ./internal/gateway -run 'TestChannelDirectory(Refresh|Stale|Atomic)' -count=1",
                 "go run ./cmd/progress validate"
@@ -6648,6 +6646,7 @@
                 "internal/gateway/channel_directory.go",
                 "internal/gateway/channel_directory_refresh.go",
                 "internal/gateway/channel_directory_refresh_test.go",
+                "internal/gateway/channel_directory_source.go",
                 "internal/gateway/delivery.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ]

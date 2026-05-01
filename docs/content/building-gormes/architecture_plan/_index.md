@@ -320,7 +320,7 @@ classification and row-backed implementation queue.
 - [x] Home channel ownership resolver fixtures
 - [ ] Notify-to delivery routing
 - [x] Channel directory atomic persistence + lookup
-- [ ] Channel directory refresh + stale-target invalidation
+- [x] Channel directory refresh + stale-target invalidation
 - [x] Manager remember-source hook
 - [ ] Mirror + sticker cache surfaces
 
