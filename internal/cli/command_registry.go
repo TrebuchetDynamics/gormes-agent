@@ -160,6 +160,11 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "verbose", Description: "Cycle tool progress display", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "voice", Description: "Toggle voice mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "yolo", Description: "Toggle YOLO mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "footer", Description: "Toggle the gateway footer", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "gquota", Description: "Show Google Gemini Code Assist quota usage", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "indicator", Description: "Pick TUI busy-indicator style", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "curator", Description: "Background skill maintenance", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "redraw", Description: "Redraw the terminal screen", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 }
 
 var commandPolicyLookup = buildCommandPolicyLookup()

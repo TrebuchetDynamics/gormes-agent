@@ -51,13 +51,25 @@ func newHTTPError(status int, body string, header http.Header) *HTTPError {
 type ProviderErrorKind string
 
 const (
-	ProviderErrorUnknown        ProviderErrorKind = "unknown"
-	ProviderErrorRateLimit      ProviderErrorKind = "rate_limit"
-	ProviderErrorAuth           ProviderErrorKind = "auth"
-	ProviderErrorContext        ProviderErrorKind = "context"
-	ProviderErrorImageTooLarge  ProviderErrorKind = "image_too_large"
-	ProviderErrorRetryable      ProviderErrorKind = "retryable"
-	ProviderErrorNonRetryable   ProviderErrorKind = "non_retryable"
+	ProviderErrorUnknown            ProviderErrorKind = "unknown"
+	ProviderErrorRateLimit          ProviderErrorKind = "rate_limit"
+	ProviderErrorAuth               ProviderErrorKind = "auth"
+	ProviderErrorAuthPermanent      ProviderErrorKind = "auth_permanent"
+	ProviderErrorBilling            ProviderErrorKind = "billing"
+	ProviderErrorContext            ProviderErrorKind = "context"
+	ProviderErrorContextOverflow    ProviderErrorKind = "context_overflow"
+	ProviderErrorImageTooLarge      ProviderErrorKind = "image_too_large"
+	ProviderErrorRetryable          ProviderErrorKind = "retryable"
+	ProviderErrorNonRetryable       ProviderErrorKind = "non_retryable"
+	ProviderErrorOverloaded         ProviderErrorKind = "overloaded"
+	ProviderErrorServerError        ProviderErrorKind = "server_error"
+	ProviderErrorTimeout            ProviderErrorKind = "timeout"
+	ProviderErrorPayloadTooLarge    ProviderErrorKind = "payload_too_large"
+	ProviderErrorModelNotFound      ProviderErrorKind = "model_not_found"
+	ProviderErrorPolicyBlocked      ProviderErrorKind = "provider_policy_blocked"
+	ProviderErrorFormatError        ProviderErrorKind = "format_error"
+	ProviderErrorThinkingSignature  ProviderErrorKind = "thinking_signature"
+	ProviderErrorLongContextTier    ProviderErrorKind = "long_context_tier"
 )
 
 func (k ProviderErrorKind) String() string {

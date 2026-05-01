@@ -195,9 +195,9 @@ const (
 // KernelSecretState is the secret-panel data the kernel sends to the TUI.
 // The TUI's hermes_panels.go converts this to SecretPanelState for rendering.
 type KernelSecretState struct {
-	Mode       SecretPanelMode
 	PromptText string
-	Countdown  time.Duration
 	SecretLen  int
 	Hint       string
+	Countdown  time.Duration
+	Mode       int
 }

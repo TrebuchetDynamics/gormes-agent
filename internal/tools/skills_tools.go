@@ -74,25 +74,51 @@ type skillsListToolSkill struct {
 }
 
 type skillViewToolResult struct {
-	Success       bool                `json:"success"`
-	Name          string              `json:"name,omitempty"`
-	Description   string              `json:"description,omitempty"`
-	Tags          []string            `json:"tags,omitempty"`
-	RelatedSkills []string            `json:"related_skills,omitempty"`
-	Content       string              `json:"content,omitempty"`
-	Path          string              `json:"path,omitempty"`
-	SkillDir      string              `json:"skill_dir,omitempty"`
-	LinkedFiles   map[string][]string `json:"linked_files,omitempty"`
-	UsageHint     string              `json:"usage_hint,omitempty"`
-	File          string              `json:"file,omitempty"`
-	FileType      string              `json:"file_type,omitempty"`
-	IsBinary      bool                `json:"is_binary,omitempty"`
+	Success       bool                 `json:"success"`
+	Name          string               `json:"name,omitempty"`
+	Description   string               `json:"description,omitempty"`
+	Tags          []string             `json:"tags,omitempty"`
+	RelatedSkills []string             `json:"related_skills,omitempty"`
+	Content       string               `json:"content,omitempty"`
+	Path          string               `json:"path,omitempty"`
+	SkillDir      string               `json:"skill_dir,omitempty"`
+	LinkedFiles   *map[string][]string `json:"linked_files"`
+	UsageHint     string               `json:"usage_hint,omitempty"`
+	File          string               `json:"file,omitempty"`
+	FileType      string               `json:"file_type,omitempty"`
+	IsBinary      bool                 `json:"is_binary,omitempty"`
 
-	ReadinessStatus string              `json:"readiness_status,omitempty"`
-	AvailableSkills []string            `json:"available_skills,omitempty"`
-	AvailableFiles  map[string][]string `json:"available_files,omitempty"`
-	Hint            string              `json:"hint,omitempty"`
-	Error           string              `json:"error,omitempty"`
+	ReadinessStatus    string              `json:"readiness_status,omitempty"`
+	AvailableSkills    []string            `json:"available_skills,omitempty"`
+	AvailableFiles     map[string][]string `json:"available_files,omitempty"`
+	Hint               string              `json:"hint,omitempty"`
+	Error              string              `json:"error,omitempty"`
+
+	RequiredEnvVars        []envVarInfo `json:"required_environment_variables,omitempty"`
+	RequiredCommands       []string     `json:"required_commands,omitempty"`
+	MissingEnvVars         []string     `json:"missing_required_environment_variables,omitempty"`
+	MissingCredentialFiles []string     `json:"missing_credential_files,omitempty"`
+	MissingCommands        []string     `json:"missing_required_commands,omitempty"`
+	SetupNeeded            bool         `json:"setup_needed"`
+	SetupSkipped           bool         `json:"setup_skipped"`
+	SetupHelp              string       `json:"setup_help,omitempty"`
+	GatewaySetupHint       string       `json:"gateway_setup_hint,omitempty"`
+	SetupNote              string       `json:"setup_note,omitempty"`
+	Compatibility          string       `json:"compatibility,omitempty"`
+	Metadata               any          `json:"metadata,omitempty"`
+
+	Version    string   `json:"version,omitempty"`
+	Author     string   `json:"author,omitempty"`
+	License    string   `json:"license,omitempty"`
+	Exclusions []string `json:"exclusions,omitempty"`
+}
+
+type envVarInfo struct {
+	Name     string `json:"name"`
+	Prompt   string `json:"prompt,omitempty"`
+	Help     string `json:"help,omitempty"`
+	Password bool   `json:"password,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
 }
 
 type skillToolDoc struct {
@@ -256,11 +282,30 @@ func (t *SkillViewTool) readSkill(ctx context.Context, doc skillToolDoc) skillVi
 		Content:         content,
 		Path:            doc.Skill.Path,
 		SkillDir:        skillDir,
-		LinkedFiles:     linked,
 		ReadinessStatus: "available",
+		Version:         doc.Skill.Version,
+		Author:          doc.Skill.Author,
+		License:         doc.Skill.License,
+		Exclusions:      append([]string(nil), doc.Skill.Exclusions...),
 	}
 	if len(linked) > 0 {
+		result.LinkedFiles = &linked
 		result.UsageHint = "To view linked files, call skill_view(name, file_path) where file_path is e.g. 'references/api.md' or 'assets/config.yaml'"
+	}
+	envVars, missing := detectSkillEnvVars(doc.Skill)
+	result.RequiredEnvVars = envVars
+	result.MissingEnvVars = missing
+	if len(missing) > 0 {
+		result.SetupNeeded = true
+		result.ReadinessStatus = "setup_needed"
+		result.SetupHelp = "Set the required environment variables listed in missing_required_environment_variables."
+	}
+	if doc.Skill.ReviewState != "" {
+		ri := readinessInfo(doc.Skill.ReviewState, result.SetupNeeded)
+		result.ReadinessStatus = ri.status
+		if ri.setupNeeded {
+			result.SetupNeeded = true
+		}
 	}
 	return result
 }
@@ -554,4 +599,45 @@ func pathWithinDir(dir, target string) bool {
 
 func skillViewError(message string) skillViewToolResult {
 	return skillViewToolResult{Success: false, Error: message}
+}
+
+func detectSkillEnvVars(sk skills.Skill) ([]envVarInfo, []string) {
+	if len(sk.RequiredEnvVars) == 0 {
+		return nil, nil
+	}
+	var infos []envVarInfo
+	var missing []string
+	for _, name := range sk.RequiredEnvVars {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		infos = append(infos, envVarInfo{Name: name})
+		if os.Getenv(name) == "" {
+			missing = append(missing, name)
+		}
+	}
+	return infos, missing
+}
+
+type readinessInfoResult struct {
+	status      string
+	setupNeeded bool
+}
+
+func readinessInfo(reviewState string, hasMissing bool) readinessInfoResult {
+	switch strings.ToLower(strings.TrimSpace(reviewState)) {
+	case "draft", "review":
+		if hasMissing {
+			return readinessInfoResult{status: "setup_needed", setupNeeded: true}
+		}
+		return readinessInfoResult{status: "draft"}
+	case "deprecated":
+		return readinessInfoResult{status: "unsupported"}
+	default:
+		if hasMissing {
+			return readinessInfoResult{status: "setup_needed", setupNeeded: true}
+		}
+		return readinessInfoResult{status: "available"}
+	}
 }

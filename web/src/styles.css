@@ -1,0 +1,8 @@
+.dashboard-shell { min-height: 100vh; background: #050505; color: #f4f1e8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dashboard-shell nav { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; border-bottom: 1px solid #333; }
+.dashboard-shell a { color: #b7f7d1; text-decoration: none; }
+.dashboard-shell a[aria-current='page'] { color: #fff; border-bottom: 1px solid currentColor; }
+.dashboard-page { padding: 2rem; }
+.unavailable-panel { max-width: 48rem; border: 1px solid #444; border-radius: 0.75rem; padding: 1.5rem; background: #111; }
+.eyebrow { color: #9ad; text-transform: uppercase; letter-spacing: 0.12em; }
+code { color: #f7c873; }

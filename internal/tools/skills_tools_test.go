@@ -73,14 +73,18 @@ func TestSkillViewToolReturnsSkillContentAndLinkedFiles(t *testing.T) {
 	if !strings.Contains(result.Content, "Use careful-review.") {
 		t.Fatalf("content = %q, want skill body", result.Content)
 	}
-	if strings.Join(result.LinkedFiles["references"], ",") != "references/checklist.md" {
-		t.Fatalf("references = %#v, want checklist", result.LinkedFiles)
+	if result.LinkedFiles == nil {
+		t.Fatal("linked_files is nil, want linked files map")
 	}
-	if strings.Join(result.LinkedFiles["templates"], ",") != "templates/report.yaml" {
-		t.Fatalf("templates = %#v, want report", result.LinkedFiles)
+	lf := *result.LinkedFiles
+	if strings.Join(lf["references"], ",") != "references/checklist.md" {
+		t.Fatalf("references = %#v, want checklist", lf)
 	}
-	if strings.Join(result.LinkedFiles["scripts"], ",") != "scripts/run.sh" {
-		t.Fatalf("scripts = %#v, want run.sh", result.LinkedFiles)
+	if strings.Join(lf["templates"], ",") != "templates/report.yaml" {
+		t.Fatalf("templates = %#v, want report", lf)
+	}
+	if strings.Join(lf["scripts"], ",") != "scripts/run.sh" {
+		t.Fatalf("scripts = %#v, want run.sh", lf)
 	}
 	if result.ReadinessStatus != "available" {
 		t.Fatalf("readiness_status = %q, want available", result.ReadinessStatus)

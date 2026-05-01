@@ -78,6 +78,15 @@ default plus toolless summary fallback. Channel bugs belong in gateway/channel
 tests and should prove raw budget errors, tool-call XML, or provider repair
 diagnostics do not become final user messages.
 
+For dashboard/API security parity, encode both sides of the boundary in the RED
+test: public read-only allowlist routes (for example `/api/status`) must remain
+reachable, while sensitive dashboard `/api/` routes must reject missing session
+tokens and accept the active Hermes header such as `X-Hermes-Session-Token`
+plus any legacy Bearer compatibility the upstream source still supports. When a
+new guard changes existing contract tests, update those fixtures to pass the
+same token instead of weakening the guard or treating the old unauthenticated
+expectation as product behavior.
+
 For runtime-lock or installer-adjacent tests, isolate state with
 `GORMES_HOME` temp dirs unless the behavior under test is the real persisted
 home. Never make a test pass by depending on the developer's live
@@ -90,6 +99,18 @@ Write the smallest implementation that passes this test. Stay inside write scope
 ### 4. Repeat Vertically
 
 Add the next behavior only after the prior test is green. Do not write a batch of imagined tests first.
+
+For broad builder rows that enumerate several equivalent adapters or providers, a
+cron-sized TDD pass may ship one source-backed adapter/provider as the vertical
+slice when the row contract is otherwise too large for one safe run. In that
+case:
+
+- keep the progress row planned unless every acceptance bullet is now satisfied;
+- update the row note with the exact partial evidence and remaining adapters;
+- add a search/aggregation-level regression when the slice introduces a new
+  typed degraded condition, not only a provider-local test;
+- do not mark umbrella or multi-provider rows complete from one provider's green
+  tests.
 
 ### 5. Refactor While Green
 

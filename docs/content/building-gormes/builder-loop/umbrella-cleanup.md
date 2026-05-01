@@ -36,7 +36,6 @@ and acceptance checks before assigning them to an implementation agent.
 | 5 / 5.D | Multimodal in/out | `provider` | The row is assigned directly instead of the smaller image-routing, image-shrink, and image-generation contracts below. | Image input mode router + native content parts, Image-too-large shrink retry helper, Image generation result contract |
 | 5 / 5.E | Voice mode port | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.E | TTS synthesis + voice-mode state | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
-| 5 / 5.F | Skill registries | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.G | MCP client | `tools` | The row is assigned as one all-MCP migration instead of the config, discovery, OAuth, and managed-gateway slices below. | MCP server config/env resolver, MCP stdio transport + tool/list discovery, MCP HTTP transport + tool/list discovery, MCP schema normalization + structured-content adapter, MCP OAuth state store + noninteractive auth errors, Managed tool gateway bridge |
 | 5 / 5.I | Third-party extensions | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.J | Dangerous action gating | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
@@ -59,6 +58,7 @@ and acceptance checks before assigning them to an implementation agent.
 | 5 / 5.R | Strict-mode CWD + interpreter parity | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.R | Project-mode CWD + active venv detection | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 5 / 5.R | Default mode selection + config cut-over | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
+| 5 / 5.V | Web dashboard — React SPA parity | `gateway` | A future builder works on this umbrella directly instead of one child slice | - |
 | 6 / 6.A | Heuristic or LLM-scored signal | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 6 / 6.E | Skill effectiveness scoring | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 6 / 6.F | TUI + Telegram browsing | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |

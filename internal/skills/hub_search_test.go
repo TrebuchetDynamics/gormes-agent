@@ -124,3 +124,21 @@ func TestHubSearchNoResults(t *testing.T) {
 		t.Errorf("Results = %v, want empty", resp.Results)
 	}
 }
+
+func TestHubSearchRegistryMalformed(t *testing.T) {
+	failed := NewInMemoryRegistryProvider(nil, ErrRegistryMalformed)
+	healthy := NewInMemoryRegistryProvider([]HubSearchResult{
+		{Name: "alpha", Description: "alpha skill", Source: "ok", InstallID: "ok/alpha", Score: 0.50},
+	}, nil)
+
+	resp, err := Search(context.Background(), "alpha", []HubRegistryProvider{failed, healthy}, HubSearchOptions{})
+	if err != nil {
+		t.Fatalf("Search returned unexpected error: %v", err)
+	}
+	if resp.Evidence != HubSearchEvidenceRegistryMalformed {
+		t.Errorf("Evidence = %q, want %q", resp.Evidence, HubSearchEvidenceRegistryMalformed)
+	}
+	if len(resp.Results) != 1 || resp.Results[0].InstallID != "ok/alpha" {
+		t.Fatalf("Results = %v, want ok/alpha from healthy provider", resp.Results)
+	}
+}

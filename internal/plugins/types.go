@@ -43,12 +43,32 @@ const (
 type CapabilityKind string
 
 const (
-	CapabilityTool         CapabilityKind = "tool"
-	CapabilityHook         CapabilityKind = "hook"
-	CapabilityDashboard    CapabilityKind = "dashboard"
-	CapabilityBackendRoute CapabilityKind = "backend_route"
-	CapabilityRealtime     CapabilityKind = "realtime"
-	CapabilityRemoteNode   CapabilityKind = "remote_node"
+	CapabilityTool           CapabilityKind = "tool"
+	CapabilityHook           CapabilityKind = "hook"
+	CapabilityDashboard      CapabilityKind = "dashboard"
+	CapabilityBackendRoute   CapabilityKind = "backend_route"
+	CapabilityRealtime       CapabilityKind = "realtime"
+	CapabilityRemoteNode     CapabilityKind = "remote_node"
+	CapabilityMemoryProvider CapabilityKind = "memory_provider"
+	CapabilityContextEngine  CapabilityKind = "context_engine"
+	CapabilityImageGen       CapabilityKind = "image_gen"
+	CapabilityTTSEngine      CapabilityKind = "tts_engine"
+)
+
+type HookKind string
+
+const (
+	HookPreToolCall     HookKind = "pre_tool_call"
+	HookPostToolCall    HookKind = "post_tool_call"
+	HookPreLLMCall      HookKind = "pre_llm_call"
+	HookPostLLMCall     HookKind = "post_llm_call"
+	HookSessionStart    HookKind = "on_session_start"
+	HookSessionEnd      HookKind = "on_session_end"
+	HookSessionFinalize HookKind = "on_session_finalize"
+	HookSessionReset    HookKind = "on_session_reset"
+	HookApprovalRequest HookKind = "pre_approval_request"
+	HookGatewayDispatch HookKind = "pre_gateway_dispatch"
+	HookSubagentStop    HookKind = "subagent_stop"
 )
 
 // Evidence explains why a plugin or capability is unavailable.

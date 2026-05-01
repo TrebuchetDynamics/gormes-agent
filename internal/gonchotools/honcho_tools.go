@@ -23,7 +23,9 @@ func RegisterHonchoTools(reg *tools.Registry, svc *goncho.Service) {
 	reg.MustRegister(&HonchoProfileTool{Service: svc})
 	reg.MustRegister(&HonchoSearchTool{Service: svc})
 	reg.MustRegister(&HonchoContextTool{Service: svc})
-	reg.MustRegister(&HonchoChatTool{Service: svc})
+	// HonchoChatTool is intentionally not registered — Python hermes-agent
+	// does not expose honcho_chat as a tool. The Service.Chat() method
+	// remains available for SillyTavern and dialectic caller use.
 	reg.MustRegister(&HonchoReasoningTool{Service: svc})
 	reg.MustRegister(&HonchoConcludeTool{Service: svc})
 }
@@ -193,19 +195,59 @@ func (t *HonchoReasoningTool) Execute(ctx context.Context, args json.RawMessage)
 	if err != nil {
 		return nil, err
 	}
-	answer := deterministicReasoningAnswer(in.Query, contextResult)
+
+	var answer string
+	evidence := ""
+	caller := t.Service.DialecticCaller()
+	if caller != nil {
+		systemPrompt := buildDialecticSystemPrompt(contextResult)
+		llmAnswer, llmErr := caller.Chat(ctx, in.Peer, systemPrompt, in.Query)
+		if llmErr == nil {
+			answer = llmAnswer
+		} else {
+			answer = deterministicReasoningAnswer(in.Query, contextResult)
+			evidence = "reasoning_llm_failed"
+		}
+	} else {
+		answer = deterministicReasoningAnswer(in.Query, contextResult)
+		evidence = "reasoning_llm_unavailable"
+	}
+
 	out := struct {
 		WorkspaceID    string `json:"workspace_id"`
 		Peer           string `json:"peer"`
 		ReasoningLevel string `json:"reasoning_level"`
 		Answer         string `json:"answer"`
+		Evidence       string `json:"evidence,omitempty"`
 	}{
 		WorkspaceID:    contextResult.WorkspaceID,
 		Peer:           contextResult.Peer,
 		ReasoningLevel: in.ReasoningLevel,
 		Answer:         answer,
+		Evidence:       evidence,
 	}
 	return json.Marshal(out)
+}
+
+func buildDialecticSystemPrompt(cr goncho.ContextResult) string {
+	var b strings.Builder
+	b.WriteString("You are a memory reasoning assistant. Answer the query using only the context provided below.\n\n")
+	if cr.Representation != "" {
+		b.WriteString("## Peer Representation\n")
+		b.WriteString(cr.Representation)
+		b.WriteString("\n\n")
+	}
+	if cr.Summary != nil && cr.Summary.Content != "" {
+		b.WriteString("## Session Summary\n")
+		b.WriteString(cr.Summary.Content)
+		b.WriteString("\n\n")
+	}
+	for _, c := range cr.PeerCard {
+		b.WriteString("- ")
+		b.WriteString(c)
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 type HonchoConcludeTool struct {

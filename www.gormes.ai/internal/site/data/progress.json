@@ -18451,17 +18451,185 @@
             },
             {
               "name": "Skill registries",
+              "priority": "P1",
               "status": "planned",
-              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Native skills hub registry providers expose source-backed, read-only metadata for the current Hermes skills hub source adapters before any write-capable install flow: OptionalSkillSource, HermesIndexSource, SkillsShSource, WellKnownSkillSource, UrlSource, GitHubSource, ClawHubSource, ClaudeMarketplaceSource, and LobeHubSource are the active upstream contract at Hermes 69d4800d. This executable slice should add only the missing remote registry read-model providers over the existing HubRegistryProvider/Search seam, with source filtering, trust normalization, centralized-index preference, stale-cache fallback, and typed degraded evidence for unavailable, malformed, timeout, empty, and rate-limited upstreams. Url direct parsing and optional bundled-skill inventory stay in their existing rows; this slice must not install, activate, quarantine, guard-scan, or mutate skills.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Network failures, non-200 responses, malformed JSON, expired/missing cache, empty registries, and rate limits return typed evidence such as registry_unavailable, registry_rate_limited, registry_malformed, registry_cache_stale, or registry_empty without panics and without active-store mutation.",
+              "fixture": "internal/skills/hub_registry_sources_test.go",
+              "source_refs": [
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,GitHubSource.fetch,GitHubSource.inspect",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,SkillsShSource.fetch,SkillsShSource.inspect,_discover_identifier",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:WellKnownSkillSource.search,WellKnownSkillSource.fetch,WellKnownSkillSource.inspect",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClawHubSource.search,ClawHubSource.fetch,ClawHubSource.inspect,_load_catalog_index",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestWellKnownSkillSource,TestUrlSource,TestSkillSourceRouter,TestUnifiedSearch",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub_clawhub.py:TestClawHubSource",
+                "internal/skills/hub_search.go",
+                "internal/skills/hub_search_test.go",
+                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider",
+                "internal/skills/hub_registry_sources_test.go:TestWellKnownRegistryProviderReadsIndexMetadata,TestClawHubProviderCommunityTrustAndDegradedEvidence,TestClawHubProviderDegradedEvidence",
+                "internal/skills/url_candidate.go"
+              ],
+              "ready_when": [
+                "The existing internal/skills HubRegistryProvider/Search read model remains the public seam for registry metadata.",
+                "Tests inject fake HTTP clients, response fixtures, or temp cache roots for Skills.sh/GitHub, WellKnown, HermesIndex, ClawHub, ClaudeMarketplace, and LobeHub; no live network, GitHub token, gh CLI, active skill store, or quarantine directory is required.",
+                "UrlSource direct SKILL.md parsing is treated as already covered by the separate complete `Skills hub direct URL candidate parser` row rather than reimplemented here."
+              ],
+              "not_ready_when": [
+                "The slice downloads arbitrary bundle files, writes active/candidate skills, performs guard scans, runs install commands, or changes skill prompt injection.",
+                "The slice omits current Hermes 69d4800d source adapters (HermesIndexSource, ClaudeMarketplaceSource, or LobeHubSource) from the read-model contract, or treats the centralized index preference in parallel_search_sources as out of scope without a source-backed split row.",
+                "ClawHub, Skills.sh, WellKnown, or GitHub results are treated as builtin/trusted without the upstream trust rules, or malformed remote payloads panic instead of returning typed degraded evidence."
+              ],
+              "unblocks": [
+                "Skills hub install binding over registry metadata",
+                "Skills hub source filter CLI/RPC",
+                "Skill registries unavailable-network UX fixtures"
+              ],
+              "acceptance": [
+                "TestClawHubProviderCommunityTrustAndDegradedEvidence proves ClawHub search/inspect normalizes slug/name/tags, assigns community trust, reports registry_unavailable or registry_rate_limited for failures, and never mutates the active store.",
+                "TestHermesIndexProviderPrefersCachedIndex proves centralized Hermes index fixtures return metadata with zero API calls and source-router search can skip duplicate remote API sources when the index is available and source_filter=all.",
+                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace.json fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report typed malformed/unavailable evidence without store writes.",
+                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence instead of panicking.",
+                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh result identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh and deterministic source-filter behavior.",
+                "TestWellKnownRegistryProviderReadsIndexMetadata proves .well-known/skills index fixtures produce community-trust metadata without network or filesystem writes beyond the temp cache.",
+                "TestRegistryProviderCacheFallback proves malformed or unavailable network responses reuse a valid stale cache when present and return typed evidence when no cache exists.",
+                "TestRegistryProvidersDoNotInstall proves the registry-source package has no dependency on active store mutators, quarantine install paths, gateway adapters, or provider/model clients."
+              ],
+              "write_scope": [
+                "internal/skills/hub_registry_sources.go",
+                "internal/skills/hub_registry_sources_test.go",
+                "internal/skills/hub_search.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestClawHubProvider|TestHermesIndexProvider|TestClaudeMarketplaceProvider|TestLobeHubProvider|TestSkillsShProvider|TestWellKnownRegistryProvider|TestRegistryProvider' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Native registry providers expose current Hermes HermesIndex, Skills.sh/GitHub, WellKnown, ClawHub, ClaudeMarketplace, and LobeHub metadata through HubRegistryProvider/Search with fixture-backed cache/degraded evidence tests, centralized-index source filtering, and no install/store mutation."
+              ],
+              "note": "2026-04-30 parity correction refreshed this builder-ready row after source comparison against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d showed the prior row was stale-upstream: Hermes now includes HermesIndexSource, ClaudeMarketplaceSource, and LobeHubSource in addition to GitHubSource, SkillsShSource, WellKnownSkillSource, UrlSource, ClawHubSource, create_source_router, parallel_search_sources, and unified_search. Current Gormes evidence is the pure Search read model in internal/skills/hub_search.go plus the separate validated direct-URL candidate parser row. 2026-04-30 builder slice added source-backed WellKnownRegistryProvider metadata reading in internal/skills/hub_registry_sources.go with fixture coverage in internal/skills/hub_registry_sources_test.go; a follow-up TDD slice added ClawHubRegistryProvider catalog metadata normalization, community trust, tag normalization, and degraded evidence via TestClawHubProviderCommunityTrustAndDegradedEvidence/TestClawHubProviderDegradedEvidence. 2026-04-30 parity sweep verified upstream /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d still contains GitHubSource, SkillsShSource, HermesIndexSource, ClaudeMarketplaceSource, LobeHubSource, create_source_router, parallel_search_sources, and unified_search; current Gormes @5c8941beb has only WellKnownRegistryProvider and ClawHubRegistryProvider in hub_registry_sources.go, so the row is now split into the two child slices below instead of one broad medium worker packet."
+            },
+            {
+              "name": "Hermes index provider cache + source-router preference",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "internal/skills adds a read-only HermesIndexRegistryProvider and source-router preference helper that consume cached centralized Hermes skills index fixtures before consulting duplicate remote API providers, mirroring HermesIndexSource plus create_source_router/parallel_search_sources without installing or mutating active skills.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing, malformed, expired, or unavailable centralized index fixtures return typed hub-search evidence and fall back to the caller-supplied provider list without panics or active-store writes.",
+              "fixture": "internal/skills/hub_registry_sources_test.go::TestHermesIndexProviderPrefersCachedIndex",
+              "source_refs": [
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search",
+                "internal/skills/hub_search.go:PreferHermesIndexProvider,Search",
+                "internal/skills/hub_registry_sources.go:HermesIndexRegistryProvider,WellKnownRegistryProvider,ClawHubRegistryProvider"
+              ],
+              "ready_when": [
+                "HubRegistryProvider/Search is validated and WellKnown/ClawHub read-only provider fixtures are green.",
+                "The worker can inject temp cache roots and fake providers; no live network, gh CLI, token, install flow, or active store is required."
+              ],
+              "not_ready_when": [
+                "The slice downloads arbitrary skill bundles, writes active/candidate skills, runs guard scans, or changes prompt injection.",
+                "The source-router preference is implemented by hard-coding operator-specific paths instead of injected cache roots and provider lists."
+              ],
+              "unblocks": [
+                "Marketplace/GitHub registry metadata providers",
+                "Skill registries unavailable-network UX fixtures"
+              ],
+              "acceptance": [
+                "TestHermesIndexProviderPrefersCachedIndex proves centralized index fixtures return normalized metadata with no remote API calls.",
+                "TestHermesIndexProviderMalformedOrMissingEvidence proves missing/malformed cache files return typed evidence and do not panic.",
+                "TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable proves source_filter=all prefers the centralized index before duplicate GitHub/Skills.sh remote API providers.",
+                "The helper imports neither active store mutators nor gateway adapters and performs no filesystem writes outside an injected temp cache in tests."
+              ],
+              "write_scope": [
+                "internal/skills/hub_registry_sources.go",
+                "internal/skills/hub_registry_sources_test.go",
+                "internal/skills/hub_search.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestHermesIndexProvider|TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "HermesIndex provider and source-router preference fixtures pass with fake cache/provider inputs, and existing WellKnown/ClawHub provider tests remain green."
+              ],
+              "note": "Complete 2026-04-30: source-backed TDD slice added HermesIndexRegistryProvider in internal/skills/hub_registry_sources.go and PreferHermesIndexProvider in internal/skills/hub_search.go. RED first failed on undefined NewHermesIndexRegistryProvider/PreferHermesIndexProvider; GREEN passes TestHermesIndexProviderPrefersCachedIndex, TestHermesIndexProviderMalformedOrMissingEvidence, TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable, and full go test ./internal/skills -count=1. The implementation reads only caller-injected cache paths, performs no remote API calls or active-store writes, and falls back to caller-supplied providers with typed evidence for missing/malformed centralized index fixtures."
+            },
+            {
+              "name": "Marketplace/GitHub registry metadata providers",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "internal/skills adds read-only GitHub/Skills.sh, Claude Marketplace, and LobeHub registry providers over the existing HubRegistryProvider/Search seam, normalizing source, install IDs, tags, and community/trusted trust evidence from Hermes source adapters while keeping install, quarantine, guard scanning, and active-store mutation out of scope.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Network errors, rate limits, malformed JSON, timeout fixtures, and empty registry responses return typed evidence values while preserving partial results from other providers.",
+              "fixture": "internal/skills/hub_registry_sources_test.go::TestSkillsShProviderDelegatesThroughGitHubMetadata+TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence+TestLobeHubProviderAgentMetadataAndDegradedEvidence",
+              "source_refs": [
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,fetch,inspect",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,fetch,inspect,_discover_identifier",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestSkillSourceRouter,TestUnifiedSearch",
+                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider"
+              ],
+              "ready_when": [
+                "Hermes index/cache source-router slice is landed or the worker explicitly limits this slice to provider-local fixtures without source-router preference.",
+                "Tests inject fake HTTP clients and response fixtures; no live GitHub token, gh CLI, registry network, active skill store, or quarantine directory is required."
+              ],
+              "not_ready_when": [
+                "The slice fetches bundle contents for installation, writes active/candidate skills, performs guard scans, or changes skill prompt/tool exposure.",
+                "Provider trust rules are guessed instead of derived from Hermes source adapters and TRUSTED_REPOS evidence."
+              ],
+              "unblocks": [
+                "Skills hub install binding over registry metadata",
+                "Skills hub source filter CLI/RPC"
+              ],
+              "acceptance": [
+                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh.",
+                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report malformed/unavailable evidence.",
+                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence.",
+                "TestRegistryProvidersDoNotInstall proves registry-source code has no active-store, quarantine, gateway, provider/model, or install-command dependency."
+              ],
+              "write_scope": [
+                "internal/skills/hub_registry_sources.go",
+                "internal/skills/hub_registry_sources_test.go",
+                "internal/skills/hub_search.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestSkillsShProvider|TestClaudeMarketplaceProvider|TestLobeHubProvider|TestRegistryProvidersDoNotInstall' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "GitHub/Skills.sh, Claude Marketplace, and LobeHub provider fixtures pass through HubRegistryProvider/Search with degraded evidence and no install/store mutation."
+              ],
+              "note": "Added by 2026-04-30 parity sweep after exact-source verification of GitHubSource, SkillsShSource, ClaudeMarketplaceSource, and LobeHubSource in Hermes @69d4800d and absence of matching Gormes provider code in internal/skills @5c8941beb."
             },
             {
               "name": "Skills hub direct URL candidate parser",
@@ -21709,9 +21877,9 @@
             {
               "name": "Debug share paste sweep scheduler contract",
               "priority": "P4",
-              "status": "planned",
-              "contract": "Gormes debug-share planning owns a persisted paste-deletion queue and an hourly scheduler hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
-              "contract_status": "draft",
+              "status": "complete",
+              "contract": "Gormes debug-share owns an injectable paste-deletion queue helper and an hourly scheduler cadence hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -21721,8 +21889,10 @@
               "degraded_mode": "If the scheduler is not running, debug-share status reports paste_sweep_scheduler_unavailable and the CLI fallback can still sweep pending entries on the next debug invocation.",
               "fixture": "internal/cli/debug_paste_sweep_test.go::TestDebugPasteSweep_*",
               "source_refs": [
-                "../hermes-agent/hermes_cli/debug.py@90a3e73d:_sweep_expired_pastes",
-                "../hermes-agent/gateway/run.py@90a3e73d:_start_cron_ticker",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/hermes_cli/debug.py@69d4800d:_sweep_expired_pastes",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/run.py@69d4800d:_start_cron_ticker",
+                "internal/cli/debug_paste_sweep.go",
+                "internal/cron/debug_paste_sweep.go",
                 "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Debug helpers"
               ],
               "ready_when": [
@@ -21744,7 +21914,7 @@
                 "TestDebugPasteSweep_DeleteFailureRetainsEntryWithEvidence proves a failed fake delete keeps the row and reports paste_delete_failed evidence.",
                 "TestDebugPasteSweep_SchedulerCadence proves the hourly hook calls the sweeper on the configured cadence without starting a real gateway or sleeping."
               ],
-              "note": "Added from Hermes 90a3e73d. Keep draft/blocked until Debug helpers have a Go-native queue; this captures the upstream retention lesson without adding a live network task to the current hot queue.",
+              "note": "Complete: TDD landed an injectable Go-native debug paste sweep helper and scheduler cadence hook. internal/cli/debug_paste_sweep_test.go proves expired paste.rs URLs are passed to a fake deleter once, future entries remain queued, and delete failures retain entries with paste_delete_failed evidence. internal/cron/debug_paste_sweep_test.go proves hourly cadence without goroutines, gateway startup, sleeps, or network DELETE calls.",
               "write_scope": [
                 "internal/cli/debug_paste_sweep.go",
                 "internal/cli/debug_paste_sweep_test.go",
@@ -21760,10 +21930,20 @@
               "done_signal": [
                 "Debug paste sweep fixtures prove fake-clock deletion, retention on failure, pending-count evidence, and hourly scheduler cadence without network calls."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-04-30T12:19:00Z",
+                "last_success": "2026-04-30T12:19:00Z"
+              },
+              "evidence": {
+                "implementation": "internal/cli/debug_paste_sweep.go, internal/cron/debug_paste_sweep.go",
+                "tests": "go test ./internal/cli -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cron -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cli ./internal/cron -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "The implementation keeps paste deletion, persistence, and wall-clock scheduling injectable; no production network DELETEs or gateway process are required by the fixtures."
+              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:90a3e73d hermes_cli/debug.py + gateway/run.py",
-                "note": "Hermes moved paste.rs cleanup from opportunistic debug invocation to the gateway cron ticker; Gormes should adapt the queue/sweeper contract after native debug helpers exist."
+                "upstream_ref": "hermes:69d4800d hermes_cli/debug.py + gateway/run.py",
+                "note": "Hermes keeps pending paste.rs cleanup in hermes_cli/debug.py and invokes _sweep_expired_pastes from the gateway cron ticker; Gormes adapts the queue/sweeper contract as injectable Go helpers before any live debug-share upload surface."
               }
             },
             {

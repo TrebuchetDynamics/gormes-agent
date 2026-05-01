@@ -12,11 +12,13 @@ import (
 // boundary so that downstream slices (Search, gateway dispatch) can rely on a
 // wire-compatible shape.
 type HubSearchResult struct {
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Source      string  `json:"source"`
-	InstallID   string  `json:"install_id"`
-	Score       float64 `json:"score"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Source      string   `json:"source"`
+	InstallID   string   `json:"install_id"`
+	Score       float64  `json:"score"`
+	TrustLevel  string   `json:"trust_level,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 // HubRegistryProvider yields a deterministic read-only snapshot of search
@@ -33,6 +35,7 @@ type HubRegistryProvider interface {
 var (
 	ErrRegistryUnavailable = errors.New("registry_unavailable")
 	ErrRegistryRateLimited = errors.New("registry_rate_limited")
+	ErrRegistryMalformed   = errors.New("registry_malformed")
 )
 
 // InMemoryRegistryProvider is a deterministic test double that returns a
@@ -81,6 +84,7 @@ const (
 	HubSearchEvidenceEmptyQuery          HubSearchEvidence = "empty_query"
 	HubSearchEvidenceRegistryUnavailable HubSearchEvidence = "registry_unavailable"
 	HubSearchEvidenceRateLimited         HubSearchEvidence = "registry_rate_limited"
+	HubSearchEvidenceRegistryMalformed   HubSearchEvidence = "registry_malformed"
 	HubSearchEvidenceNoResults           HubSearchEvidence = "no_results"
 )
 
@@ -100,6 +104,40 @@ type HubSearchResponse struct {
 	Evidence HubSearchEvidence `json:"evidence,omitempty"`
 }
 
+// PreferHermesIndexProvider mirrors Hermes' source-router preference for the
+// centralized skills index. When the injected index provider has cached entries,
+// callers should consult it first and skip duplicate remote API providers for
+// this search pass. If the index is unavailable, malformed, or empty, the
+// caller-supplied fallback provider list is returned unchanged with typed
+// evidence when available.
+func PreferHermesIndexProvider(ctx context.Context, index HubRegistryProvider, fallbacks []HubRegistryProvider) ([]HubRegistryProvider, HubSearchEvidence) {
+	if index == nil {
+		return append([]HubRegistryProvider(nil), fallbacks...), ""
+	}
+	snap, err := index.Snapshot(ctx)
+	if err != nil {
+		evidence := registryErrorEvidence(err)
+		return append([]HubRegistryProvider(nil), fallbacks...), evidence
+	}
+	if len(snap) == 0 {
+		return append([]HubRegistryProvider(nil), fallbacks...), HubSearchEvidenceNoResults
+	}
+	return []HubRegistryProvider{index}, ""
+}
+
+func registryErrorEvidence(err error) HubSearchEvidence {
+	switch {
+	case errors.Is(err, ErrRegistryUnavailable):
+		return HubSearchEvidenceRegistryUnavailable
+	case errors.Is(err, ErrRegistryRateLimited):
+		return HubSearchEvidenceRateLimited
+	case errors.Is(err, ErrRegistryMalformed):
+		return HubSearchEvidenceRegistryMalformed
+	default:
+		return ""
+	}
+}
+
 // Search merges the read-only snapshots from each provider, filters them by
 // substring match on Name+Description, dedupes by InstallID, and sorts by
 // Score descending then Name ascending. It never touches the active or
@@ -114,9 +152,10 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 	needle := strings.ToLower(trimmed)
 
 	var (
-		merged       []HubSearchResult
-		unavailable  bool
-		rateLimited  bool
+		merged      []HubSearchResult
+		unavailable bool
+		rateLimited bool
+		malformed   bool
 	)
 
 	for _, p := range providers {
@@ -130,6 +169,8 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 				unavailable = true
 			case errors.Is(err, ErrRegistryRateLimited):
 				rateLimited = true
+			case errors.Is(err, ErrRegistryMalformed):
+				malformed = true
 			default:
 				return HubSearchResponse{}, err
 			}
@@ -177,6 +218,8 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 		evidence = HubSearchEvidenceRegistryUnavailable
 	case rateLimited:
 		evidence = HubSearchEvidenceRateLimited
+	case malformed:
+		evidence = HubSearchEvidenceRegistryMalformed
 	case len(deduped) == 0:
 		evidence = HubSearchEvidenceNoResults
 	}
