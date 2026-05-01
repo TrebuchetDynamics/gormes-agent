@@ -29480,7 +29480,8 @@
               "acceptance": [
                 "TestDashboardContract_CoversNativeDashboardEndpoints proves the native API/dashboard shell serves the core chat/responses/runs/session/model/provider/plugin endpoints without React runtime dependencies.",
                 "TestDashboardStatus_DegradesMissingNativeAndOptionalPanels proves absent optional dashboard panels report deterministic disabled/degraded evidence instead of claiming full React parity.",
-                "A follow-up builder pass must still fixture-lock Hermes' localhost Host validation plus X-Hermes-Session-Token-style dashboard API guard before this row can be marked complete."
+                "TestDashboardContract_RejectsNonLoopbackHostHeaders and TestDashboardContract_AllowsExplicitAllInterfacesHostMode prove the Hermes DNS-rebinding Host guard for loopback binds while preserving explicit all-interfaces mode.",
+                "A follow-up builder pass must still fixture-lock the X-Hermes-Session-Token-style dashboard API guard, or classify Gormes' API-key guard as an owned divergence, before this row can be marked complete."
               ],
               "contract": "Reconcile the Go web dashboard server shell against Hermes' FastAPI dashboard startup, localhost security guard, public API allowlist, and degraded inventory semantics before any React feature work is treated as complete.",
               "contract_status": "draft",
@@ -29491,7 +29492,7 @@
               "execution_owner": "gateway",
               "fixture": "internal/apiserver/dashboard_contract_test.go",
               "name": "Web dashboard server shell + degraded inventory",
-              "note": "2026-04-30 parity correction: the prior focused test selector was stale and passed with [no tests to run]. Current Gormes already has internal/apiserver dashboard shell/status/degraded fixtures, but this row remains planned until the Hermes localhost Host validation and X-Hermes-Session-Token dashboard API guard from web_server.py are fixture-locked or explicitly classified as an owned API-key divergence.",
+              "note": "2026-04-30 parity correction: the prior focused test selector was stale and passed with [no tests to run]. Current Gormes already has internal/apiserver dashboard shell/status/degraded fixtures. 2026-04-30 builder slice added the source-backed Hermes loopback Host-header guard in internal/apiserver/server.go and dashboard_contract_test.go. This row remains planned until the X-Hermes-Session-Token dashboard API guard from web_server.py is fixture-locked or explicitly classified as an owned API-key divergence.",
               "not_ready_when": [
                 "The slice ports React pages or PTY chat before the server/security/degraded contract exists",
                 "The implementation allows non-loopback Host headers by default"
@@ -29506,11 +29507,13 @@
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:64-110",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:194-240",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/index.html",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/vite.config.ts"
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/vite.config.ts",
+                "internal/apiserver/server.go:Config.DashboardBoundHost",
+                "internal/apiserver/dashboard_contract_test.go:TestDashboardContract_RejectsNonLoopbackHostHeaders"
               ],
               "status": "planned",
               "test_commands": [
-                "go test ./internal/apiserver -run 'TestDashboardContract_CoversNativeDashboardEndpoints|TestDashboardStatus_DegradesMissingNativeAndOptionalPanels|TestDashboardContract_DoesNotAddNodeOrReactRuntimeAssets' -count=1",
+                "go test ./internal/apiserver -run 'TestDashboardContract_CoversNativeDashboardEndpoints|TestDashboardStatus_DegradesMissingNativeAndOptionalPanels|TestDashboardContract_DoesNotAddNodeOrReactRuntimeAssets|TestDashboardContract_RejectsNonLoopbackHostHeaders|TestDashboardContract_AllowsExplicitAllInterfacesHostMode' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "trust_class": [

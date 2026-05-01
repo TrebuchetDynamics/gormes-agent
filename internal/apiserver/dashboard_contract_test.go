@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -240,6 +242,32 @@ func TestDashboardStatus_DegradesMissingNativeAndOptionalPanels(t *testing.T) {
 	}
 }
 
+func TestDashboardContract_RejectsNonLoopbackHostHeaders(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", DashboardBoundHost: "127.0.0.1"})
+	h := srv.Handler()
+
+	allowed := getJSONWithHost(t, h, "/api/status", "localhost:9119", nil)
+	if allowed.Code != http.StatusOK {
+		t.Fatalf("loopback host status = %d, want 200; body=%s", allowed.Code, allowed.Body.String())
+	}
+
+	rejected := getJSONWithHost(t, h, "/api/status", "evil.example:9119", nil)
+	if rejected.Code != http.StatusBadRequest {
+		t.Fatalf("non-loopback host status = %d, want 400; body=%s", rejected.Code, rejected.Body.String())
+	}
+	if !strings.Contains(rejected.Body.String(), "Invalid Host header") {
+		t.Fatalf("rejection body = %s, want invalid-host explanation", rejected.Body.String())
+	}
+}
+
+func TestDashboardContract_AllowsExplicitAllInterfacesHostMode(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", DashboardBoundHost: "0.0.0.0"})
+	got := getJSONWithHost(t, srv.Handler(), "/api/status", "operator.example:9119", nil)
+	if got.Code != http.StatusOK {
+		t.Fatalf("all-interfaces host status = %d, want 200; body=%s", got.Code, got.Body.String())
+	}
+}
+
 func TestDashboardContract_DoesNotAddNodeOrReactRuntimeAssets(t *testing.T) {
 	for _, path := range []string{"package.json", "vite.config.ts", "node_modules"} {
 		if _, err := os.Stat(path); err == nil {
@@ -255,6 +283,19 @@ func TestDashboardContract_DoesNotAddNodeOrReactRuntimeAssets(t *testing.T) {
 	if len(tsFiles) != 0 {
 		t.Fatalf("internal/apiserver TypeScript files = %v, want none", tsFiles)
 	}
+}
+
+func getJSONWithHost(t *testing.T, h http.Handler, path string, host string, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.Host = host
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	h.ServeHTTP(rec, req)
+	_, _ = io.Copy(io.Discard, rec.Result().Body)
+	return rec
 }
 
 type dashboardContractLoop struct {

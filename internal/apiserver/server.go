@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -37,6 +38,11 @@ type Config struct {
 	OAuthProviders  []DashboardOAuthProvider
 	PluginInventory pluginmeta.Inventory
 	ChatTransport   ChatTransportStatus
+	// DashboardBoundHost is the network host the dashboard was bound to. When set
+	// to a loopback address, Handler rejects non-loopback Host headers to match
+	// Hermes' DNS-rebinding guard. The all-interfaces binds 0.0.0.0 and :: are
+	// treated as explicit operator opt-in and allow any Host value.
+	DashboardBoundHost string
 	// DetailedHealth produces the input for the unauthenticated detailed
 	// health endpoint. Callers fill it from already-available status reads;
 	// when nil the endpoint returns a degraded zero-value snapshot.
@@ -87,6 +93,7 @@ type Server struct {
 	oauthProviders         []DashboardOAuthProvider
 	pluginInventory        pluginmeta.Inventory
 	chatTransport          ChatTransportStatus
+	dashboardBoundHost     string
 	detailedHealth         func() DetailedHealthSnapshotInput
 	cronJobs               CronJobReader
 	cronRuns               CronRunReader
@@ -97,8 +104,8 @@ type Server struct {
 	previousResponseMisses int
 	now                    func() time.Time
 	mux                    *http.ServeMux
-	sseMu      sync.Mutex
-	sseClients []chan string
+	sseMu                  sync.Mutex
+	sseClients             []chan string
 }
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.
@@ -188,25 +195,26 @@ func NewServer(cfg Config) *Server {
 		runTTL = defaultRunStreamTTL
 	}
 	s := &Server{
-		apiKey:          cfg.APIKey,
-		modelName:       model,
-		providerName:    provider,
-		maxBodyBytes:    maxBody,
-		loop:            cfg.Loop,
-		responseStore:   responseStore,
-		runs:            newRunRegistry(runTTL, time.Now),
-		modelProviders:  cloneDashboardModelProviders(cfg.ModelProviders),
-		oauthProviders:  cloneDashboardOAuthProviders(cfg.OAuthProviders),
-		pluginInventory: clonePluginInventory(cfg.PluginInventory),
-		chatTransport:   cfg.ChatTransport,
-		detailedHealth:  cfg.DetailedHealth,
-		cronJobs:        cfg.CronJobs,
-		cronRuns:        cfg.CronRuns,
-		cronMutator:     cfg.CronJobMutator,
-		cronTrigger:     cfg.CronTrigger,
-		cronAuditor:     cfg.CronAdminAuditor,
-		now:             time.Now,
-		mux:             http.NewServeMux(),
+		apiKey:             cfg.APIKey,
+		modelName:          model,
+		providerName:       provider,
+		maxBodyBytes:       maxBody,
+		loop:               cfg.Loop,
+		responseStore:      responseStore,
+		runs:               newRunRegistry(runTTL, time.Now),
+		modelProviders:     cloneDashboardModelProviders(cfg.ModelProviders),
+		oauthProviders:     cloneDashboardOAuthProviders(cfg.OAuthProviders),
+		pluginInventory:    clonePluginInventory(cfg.PluginInventory),
+		chatTransport:      cfg.ChatTransport,
+		dashboardBoundHost: strings.TrimSpace(cfg.DashboardBoundHost),
+		detailedHealth:     cfg.DetailedHealth,
+		cronJobs:           cfg.CronJobs,
+		cronRuns:           cfg.CronRuns,
+		cronMutator:        cfg.CronJobMutator,
+		cronTrigger:        cfg.CronTrigger,
+		cronAuditor:        cfg.CronAdminAuditor,
+		now:                time.Now,
+		mux:                http.NewServeMux(),
 	}
 	s.routes()
 	return s
@@ -214,7 +222,57 @@ func NewServer(cfg Config) *Server {
 
 // Handler returns an http.Handler suitable for httptest or http.Server.
 func (s *Server) Handler() http.Handler {
-	return securityHeaders(s.mux)
+	return s.hostHeaderGuard(securityHeaders(s.mux))
+}
+
+func (s *Server) hostHeaderGuard(next http.Handler) http.Handler {
+	boundHost := strings.TrimSpace(s.dashboardBoundHost)
+	if boundHost == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !dashboardHostAllowed(r.Host, boundHost) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"detail": "Invalid Host header. Dashboard requests must use the hostname the server was bound to."})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func dashboardHostAllowed(hostHeader, boundHost string) bool {
+	hostHeader = strings.TrimSpace(hostHeader)
+	if hostHeader == "" {
+		return false
+	}
+	bound := strings.ToLower(strings.Trim(strings.TrimSpace(boundHost), "[]"))
+	if bound == "0.0.0.0" || bound == "::" {
+		return true
+	}
+	hostOnly := strings.ToLower(hostHeader)
+	if h, _, err := net.SplitHostPort(hostHeader); err == nil {
+		hostOnly = h
+	} else if strings.HasPrefix(hostHeader, "[") {
+		if close := strings.Index(hostHeader, "]"); close >= 0 {
+			hostOnly = hostHeader[1:close]
+		}
+	} else if strings.Count(hostHeader, ":") == 1 {
+		hostOnly = strings.Split(hostHeader, ":")[0]
+	}
+	hostOnly = strings.ToLower(strings.Trim(hostOnly, "[]"))
+
+	if isDashboardLoopbackHost(bound) {
+		return isDashboardLoopbackHost(hostOnly)
+	}
+	return hostOnly == bound
+}
+
+func isDashboardLoopbackHost(host string) bool {
+	switch strings.ToLower(strings.Trim(host, "[]")) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) routes() {
