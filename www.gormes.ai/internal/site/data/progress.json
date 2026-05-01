@@ -6488,17 +6488,78 @@
             },
             {
               "name": "Notify-to delivery routing",
-              "status": "planned",
-              "note": "TDD: prove delivery-target expansion from notify-to and home-channel settings before adapter dispatch starts consulting directory state.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Persisted scheduled jobs and cronjob tool calls carry Hermes-compatible delivery routing into the Go cron executor: deliver values may be origin, local, platform, platform:chat_id, platform:chat_id:thread_id, or comma/list fanout; origin metadata is preserved when a job is created from a channel; PlanCronDeliveryForJob expands stored fields through home-channel/directory lookup before dispatch.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing origin metadata falls back to local for origin targets, invalid delivery tokens produce target_parse_failed evidence, and missing home-channel/directory entries produce channel_directory_missing without invoking live adapters.",
+              "fixture": "internal/cron/delivery_plan_test.go and internal/tools/cronjob_tool_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/delivery.py:DeliveryTarget.parse",
+                "../hermes-agent/gateway/delivery.py:DeliveryRouter.deliver",
+                "../hermes-agent/gateway/session.py:SessionSource",
+                "../hermes-agent/gateway/platforms/api_server.py:_UPDATE_ALLOWED_FIELDS",
+                "internal/cron/delivery_plan.go:PlanCronDeliveryForJob",
+                "internal/cron/job.go:Job",
+                "internal/tools/cronjob_tool.go:Tool"
+              ],
+              "ready_when": [
+                "Home channel ownership resolver fixtures are complete.",
+                "Channel directory atomic persistence and refresh/stale-target evidence rows are complete.",
+                "The cron delivery planner exposes a fakeable directory seam and tests do not require live channel adapters."
+              ],
+              "not_ready_when": [
+                "The slice changes adapter dispatch or starts live Telegram/Discord/Slack clients.",
+                "Delivery targets are stored only in tool-local JSON and not on the persisted cron.Job model.",
+                "Origin routing is guessed without persisted origin metadata."
+              ],
+              "blocked_by": [
+                "Home channel ownership resolver fixtures",
+                "Channel directory refresh + stale-target invalidation",
+                "Manager remember-source hook"
+              ],
+              "unblocks": [
+                "Cron delivery target planner",
+                "Mirror + sticker cache surfaces"
+              ],
+              "acceptance": [
+                "TestCronDeliveryPlanForJob_UsesStoredDeliverAndOrigin proves cron.Job Deliver and Origin fields expand into origin plus home-channel delivery targets.",
+                "TestCronjobTool_CreateListAndRedact proves the cronjob tool accepts deliver as a string/list, normalizes it into comma-separated storage, persists it to cron.Job, and returns it in list summaries without exposing secrets.",
+                "Existing delivery planner tests keep local/default, explicit platform, fanout, invalid-token, directory-missing, media, and live-adapter fallback behavior green.",
+                "No live platform adapter is required for notify-to delivery target expansion."
+              ],
+              "note": "Complete: TDD landed persisted cron.Job Deliver/Origin fields, cronjob tool deliver string/list schema support, normalized deliver persistence/list summaries, and PlanCronDeliveryForJob fixtures proving stored notify-to targets expand through origin and home-channel directory routing before dispatch. Degraded evidence remains target_parse_failed or channel_directory_missing, and no live adapters are invoked by the planner tests.",
+              "write_scope": [
+                "internal/cron/job.go",
+                "internal/cron/delivery_plan.go",
+                "internal/cron/delivery_plan_test.go",
+                "internal/tools/cronjob_tool.go",
+                "internal/tools/cronjob_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run 'TestCronDeliveryPlanForJob_UsesStoredDeliverAndOrigin|TestCronDeliveryPlan_ParseTargets' -count=1",
+                "go test ./internal/tools -run TestCronjobTool_CreateListAndRedact -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Cron delivery routing fixtures prove stored deliver/origin fields flow from cronjob tool creation into PlanCronDeliveryForJob without live adapters."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/delivery.py",
+                  "hermes:gateway/session.py",
+                  "hermes:gateway/platforms/api_server.py"
+                ],
+                "note": "Hermes defines origin/local/platform delivery target parsing and cron/api deliver persistence; Gormes now carries the same target contract on the Go cron.Job and cronjob tool path."
+              }
             },
             {
               "name": "Channel directory atomic persistence + lookup",
@@ -6578,9 +6639,9 @@
             },
             {
               "name": "Channel directory refresh + stale-target invalidation",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes adds deterministic refresh and stale-target invalidation around the channel directory: Manager-owned source records and adapter inventory snapshots update the directory through one serialized writer, stale entries are marked or removed after adapter refresh failures according to fixture policy, and delivery lookup returns explicit stale-target evidence instead of silently dispatching to cached IDs.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -6628,7 +6689,7 @@
                 "TestChannelDirectoryRefreshSerializesWrites proves concurrent refresh requests run through one writer and do not interleave JSON output.",
                 "Existing delivery target parsing and atomic lookup tests stay green."
               ],
-              "note": "Builder-ready second channel-directory slice. It deliberately excludes background scheduling and live adapter calls; builders should prove refresh semantics with injected snapshots and reuse Engram-style serialized writer patterns.",
+              "note": "Complete: TDD landed internal/gateway/channel_directory_refresh.go and channel_directory_refresh_test.go. Fixtures prove injected Slack/Discord adapter inventory and Manager-remembered sources merge into a deterministic sorted channel_directory.json through one serialized writer, refresh failures preserve the last known-good directory with channel_directory_refresh_failed evidence, stale explicit delivery targets return channel_target_stale instead of dispatching, and concurrent refreshes leave no partial temp files. No live adapter calls, background scheduling, or delivery execution mutation are in scope.",
               "write_scope": [
                 "internal/gateway/channel_directory.go",
                 "internal/gateway/channel_directory_refresh.go",
@@ -6732,17 +6793,77 @@
             },
             {
               "name": "Mirror + sticker cache surfaces",
-              "status": "planned",
-              "note": "TDD: prove cache key and mirror-write contracts before adapter-specific caches land.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Gormes ports the Hermes delivery-mirror and sticker-cache helper contracts behind fixture-only gateway surfaces: cross-platform deliveries can select the correct target session without guessing between group participants, append a mirror assistant record with mirror metadata through the store seam, and cache Telegram sticker descriptions by stable file_unique_id with Hermes-compatible injection text.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing sessions, ambiguous group participants, nil stores, missing cache files, or corrupt sticker cache JSON return structured miss/evidence and never block delivery or adapter processing.",
+              "fixture": "internal/gateway/delivery_mirror_test.go and internal/gateway/sticker_cache_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/mirror.py:mirror_to_session",
+                "../hermes-agent/gateway/mirror.py:_find_session_id",
+                "../hermes-agent/gateway/sticker_cache.py:get_cached_description",
+                "../hermes-agent/gateway/sticker_cache.py:cache_sticker_description",
+                "../hermes-agent/gateway/sticker_cache.py:build_sticker_injection",
+                "../hermes-agent/tests/gateway/test_sticker_cache.py",
+                "internal/session/metadata.go",
+                "internal/store/store.go"
+              ],
+              "ready_when": [
+                "Session metadata exposes platform/chat/user/thread identity in fixtures.",
+                "The store seam can append assistant messages without requiring the live gateway manager.",
+                "Sticker cache tests use temp files and never inspect the operator home directory."
+              ],
+              "not_ready_when": [
+                "The slice binds live Telegram sticker downloads or vision calls instead of helper/cache contracts.",
+                "A delivery mirror can contaminate another group participant's session when user_id is absent or mismatched.",
+                "Corrupt sticker cache JSON propagates an error into channel-visible handling."
+              ],
+              "blocked_by": [
+                "Notify-to delivery routing",
+                "Manager remember-source hook"
+              ],
+              "unblocks": [
+                "Adapter-specific sticker download/vision integration",
+                "Cron cross-platform mirror write integration"
+              ],
+              "acceptance": [
+                "TestSelectDeliveryMirrorSession_PrefersExactUserAndThread proves session selection respects platform, chat, thread, and exact user identity.",
+                "TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser proves same-chat sessions with distinct users are not guessed.",
+                "TestMirrorDeliveryToSession_WritesAssistantMirrorPayload proves mirror writes append an assistant payload with mirror and mirror_source metadata through the store seam.",
+                "TestStickerCache_MissingAndCorruptReturnMiss and TestStickerCache_StoreLookupAndOverwrite prove file_unique_id cache miss/hit/overwrite behavior with temp files.",
+                "TestBuildStickerInjection proves Hermes-compatible sticker and animated-sticker injection strings."
+              ],
+              "note": "Complete: added gateway delivery mirror helpers plus sticker cache helpers. Fixtures prove exact user/thread session selection, ambiguous group no-guess behavior, store-backed assistant mirror payloads with mirror metadata, missing/corrupt sticker cache misses, cache overwrite by file_unique_id, and Hermes-compatible sticker injection text. Live adapter binding, Telegram download, and vision description generation remain future integration rows.",
+              "write_scope": [
+                "internal/gateway/delivery_mirror.go",
+                "internal/gateway/delivery_mirror_test.go",
+                "internal/gateway/sticker_cache.go",
+                "internal/gateway/sticker_cache_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestSelectDeliveryMirrorSession|TestMirrorDeliveryToSession|TestStickerCache|TestBuildStickerInjection' -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Gateway helper fixtures prove delivery mirror session selection/write metadata and sticker cache/injection parity without live adapters."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:gateway/mirror.py",
+                  "hermes:gateway/sticker_cache.py",
+                  "hermes:tests/gateway/test_sticker_cache.py"
+                ],
+                "note": "Hermes defines delivery-mirror metadata and sticker-cache/injection text; Gormes ports the helper contracts first and leaves live adapter/vision wiring to later rows."
+              }
             }
           ]
         },
@@ -11470,6 +11591,139 @@
                 "Hermetic HTTP serialization fixtures can prove role mapping without live provider calls or credential reads."
               ],
               "note": "Complete: TDD added OpenAI-compatible request serialization fixtures proving GPT-5/Codex model families map the leading internal system message to provider-boundary developer role without mutating ChatRequest messages. Non-developer models keep system role, user/assistant/tool roles remain unchanged, late system messages are not rewritten, and Codex Responses continues to carry system guidance through instructions rather than a developer input role. Verified with focused internal/hermes DeveloperRole/OpenAICompatible/ModelPromptRole tests."
+            },
+            {
+              "name": "xAI Grok provider adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes can route tool-call turns through xAI Grok API with native request/response mapping, streaming, and error classification",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Provider status reports grok_unavailable until the adapter has request fixtures, stream decoding, and tool-call normalization.",
+              "fixture": "internal/hermes/grok_adapter_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/transports/xai_http.py",
+                "../hermes-agent/agent/transports/xai_schema.py",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+              ],
+              "ready_when": [
+                "Provider interface + stream fixture harness is validated on main.",
+                "Hermes xAI transport sources are available for contract comparison."
+              ],
+              "not_ready_when": [
+                "The slice changes provider-neutral event contracts or kernel routing.",
+                "The slice requires live xAI credentials to prove behavior."
+              ],
+              "acceptance": [
+                "Grok adapter converts shared hermes.Message requests into xAI-compatible JSON payloads.",
+                "Grok stream events decode into provider-neutral stream events (text, reasoning, tool_calls, finish_reason, usage).",
+                "Grok tool-call normalization produces hermes-compatible assistant messages and tool continuations.",
+                "Grok error classification maps rate-limit, auth, and capacity errors into the shared provider-error taxonomy.",
+                "All tests run without live xAI credentials using replay fixtures."
+              ],
+              "write_scope": [
+                "internal/hermes/grok_adapter.go",
+                "internal/hermes/grok_adapter_test.go",
+                "internal/hermes/testdata/grok_transcripts/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestGrok' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Grok adapter fixtures prove request shaping, stream decoding, tool-call normalization, and error classification without live credentials."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/grok_adapter.go:GrokAdapter, NewGrokAdapter, Client, Status, reachable",
+                  "internal/hermes/grok_adapter.go:ClassifyGrokError"
+                ],
+                "tests": [
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_Client",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_StatusUnreachable",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_DefaultBaseURL",
+                  "internal/hermes/grok_adapter_test.go:TestGrokAdapter_CustomBaseURL",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_RateLimit",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Auth",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Overloaded",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_ServerError",
+                  "internal/hermes/grok_adapter_test.go:TestClassifyGrokError_Unknown"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            },
+            {
+              "name": "LM Studio provider adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes can route turns through LM Studio local inference server with OpenAI-compatible request/response mapping",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Provider status reports lmstudio_unavailable until the adapter has request fixtures and local-server discovery.",
+              "fixture": "internal/hermes/lmstudio_adapter_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/transports/lmstudio_reasoning.py",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
+              ],
+              "ready_when": [
+                "Provider interface + stream fixture harness is validated on main.",
+                "OpenAI-compatible chat completions adapter is complete (reuses existing seam)."
+              ],
+              "not_ready_when": [
+                "The slice invents a new protocol instead of using OpenAI-compatible /v1/chat/completions.",
+                "The slice requires a live LM Studio server to prove behavior."
+              ],
+              "acceptance": [
+                "LM Studio adapter sends OpenAI-compatible requests to configurable local base URL (default http://localhost:1234/v1).",
+                "LM Studio adapter parses streaming SSE responses through existing OpenAI-compatible decoder.",
+                "LM Studio adapter exposes local model enumeration via /v1/models with fixture evidence.",
+                "LM Studio adapter reports lmstudio_unreachable when the local server is not responding."
+              ],
+              "write_scope": [
+                "internal/hermes/lmstudio_adapter.go",
+                "internal/hermes/lmstudio_adapter_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestLMStudio' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "LM Studio adapter fixtures prove local OpenAI-compatible routing, model enumeration, and unreachable degradation without a live server."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/lmstudio_adapter.go implements LMStudioAdapter, NewLMStudioAdapter, Client, Status, ListModels, ModelInfo, ModelsResponse with default base URL http://localhost:1234/v1",
+                  "Reuses existing NewHTTPClientWithProvider and openAICompatibleProviderStatus for OpenAI-compatible chat completions transport"
+                ],
+                "tests": [
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_StatusUnreachable",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_StatusReachable",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_ListModels",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_ListModelsUnreachable",
+                  "internal/hermes/lmstudio_adapter_test.go:TestLMStudioAdapter_DefaultBaseURL"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ],
           "drift_state": {
@@ -12308,18 +12562,67 @@
           "name": "Native Prompt Builder",
           "items": [
             {
-              "name": "System + memory + tools + history assembly",
-              "status": "planned",
-              "note": "Umbrella only: execute through the context-file, role/model guidance, skills snapshot, and memory/session-search prompt slices before replacing the Python bridge.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "name": "Default agent identity / SOUL.md loader",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly loads the default agent identity from SOUL.md or a built-in fallback, matching Hermes DEFAULT_AGENT_IDENTITY behavior",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If SOUL.md is missing, the built-in fallback identity is used and records soul_md_fallback evidence",
+              "fixture": "internal/hermes/identity_loader_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY",
+                "../hermes-agent/agent/prompt_builder.py:load_soul_md"
+              ],
+              "ready_when": [
+                "Tests can use temp SOUL.md fixtures and assert identity content without live profile access"
+              ],
+              "not_ready_when": [
+                "The slice reads the operator's live ~/.hermes profile in tests",
+                "The slice changes the identity format or adds model-specific identity variants"
+              ],
+              "acceptance": [
+                "TestIdentityLoader_LoadsSoulMd proves SOUL.md content is loaded when present",
+                "TestIdentityLoader_Fallback proves built-in fallback is used when SOUL.md is absent",
+                "TestIdentityLoader_SkipSoul proves skip_soul flag suppresses identity injection",
+                "TestIdentityLoader_SoulMdBlocked proves blocked SOUL.md falls back to default identity",
+                "TestIdentityLoader_Pure proves no filesystem access outside temp fixtures in tests"
+              ],
+              "write_scope": [
+                "internal/hermes/identity_loader.go",
+                "internal/hermes/identity_loader_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestIdentityLoader -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Identity loader fixtures prove SOUL.md loading, fallback behavior, skip flag, blocked fallback, and pure test isolation"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/identity_loader.go:LoadAgentIdentity, DefaultAgentIdentity, IdentityLoaderOptions, IdentityLoaderResult",
+                  "Reuses existing loadSoulContext from internal/hermes/context_files.go for scanning and truncation"
+                ],
+                "tests": [
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_LoadsSoulMd",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_Fallback",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_SkipSoul",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_SoulMdBlocked",
+                  "internal/hermes/identity_loader_test.go:TestIdentityLoader_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Context-file discovery + injection scan",
@@ -12546,18 +12849,124 @@
               }
             },
             {
-              "name": "Memory and session-search guidance assembly",
-              "status": "planned",
-              "note": "TDD: assemble memory guidance, session-search guidance, available tool-name gates, and environment/platform hints without changing existing Phase 3 GONCHO recall semantics.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "name": "Memory guidance constant + injection",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly injects the MEMORY_GUIDANCE block from Hermes agent/prompt_builder.py when memory tools are available",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If memory guidance is unavailable, the prompt omits the block and records memory_guidance_suppressed evidence",
+              "fixture": "internal/hermes/memory_guidance_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:144-156_MEMORY_GUIDANCE",
+                "internal/hermes/guidance_constants.go:MemoryGuidance"
+              ],
+              "ready_when": [
+                "Tests can assert byte-equivalence against the upstream parenthesised literal block without calling Python"
+              ],
+              "not_ready_when": [
+                "The slice changes Goncho memory recall behavior or internal/session memory persistence"
+              ],
+              "acceptance": [
+                "TestMemoryGuidance_ByteEquivalent proves the Go constant matches the Hermes MEMORY_GUIDANCE literal",
+                "TestMemoryGuidance_InjectedWhenToolAvailable proves the block appears in assembled prompt when memory tools are available",
+                "TestMemoryGuidance_SuppressedWhenNoTool proves the block is omitted when no memory tools are registered",
+                "TestMemoryGuidance_Pure proves deterministic output with no side effects"
+              ],
+              "write_scope": [
+                "internal/hermes/memory_guidance.go",
+                "internal/hermes/memory_guidance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestMemoryGuidance -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Memory guidance fixtures prove byte-equivalent Hermes parity, conditional injection, suppression, and pure behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:MemoryGuidance (upstream-pinned)",
+                  "internal/hermes/memory_guidance.go:BuildMemoryGuidance, MemoryGuidanceResult"
+                ],
+                "tests": [
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_ByteEquivalent",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_InjectedWhenToolAvailable",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_SuppressedWhenNoTool",
+                  "internal/hermes/memory_guidance_test.go:TestMemoryGuidance_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            },
+            {
+              "name": "Session search guidance constant + injection",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Native prompt assembly injects the SESSION_SEARCH_GUIDANCE block from Hermes agent/prompt_builder.py when session search is enabled",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If session search guidance is unavailable, the prompt omits the block and records session_search_guidance_suppressed evidence",
+              "fixture": "internal/hermes/session_search_guidance_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:158-162_SESSION_SEARCH_GUIDANCE",
+                "internal/hermes/guidance_constants.go:SessionSearchGuidance"
+              ],
+              "ready_when": [
+                "Tests can assert byte-equivalence against the upstream parenthesised literal block"
+              ],
+              "not_ready_when": [
+                "The slice changes session search implementation or Goncho session indexing"
+              ],
+              "acceptance": [
+                "TestSessionSearchGuidance_ByteEquivalent proves the Go constant matches the Hermes SESSION_SEARCH_GUIDANCE literal",
+                "TestSessionSearchGuidance_InjectedWhenEnabled proves the block appears in assembled prompt when session search is enabled",
+                "TestSessionSearchGuidance_SuppressedWhenDisabled proves the block is omitted when session search is disabled",
+                "TestSessionSearchGuidance_Pure proves deterministic output with no side effects"
+              ],
+              "write_scope": [
+                "internal/hermes/session_search_guidance.go",
+                "internal/hermes/session_search_guidance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestSessionSearchGuidance -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Session search guidance fixtures prove byte-equivalent Hermes parity, conditional injection, suppression, and pure behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:SessionSearchGuidance (upstream-pinned)",
+                  "internal/hermes/session_search_guidance.go:BuildSessionSearchGuidance, SessionSearchGuidanceResult"
+                ],
+                "tests": [
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_ByteEquivalent",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_InjectedWhenEnabled",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_SuppressedWhenDisabled",
+                  "internal/hermes/session_search_guidance_test.go:TestSessionSearchGuidance_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             },
             {
               "name": "Gormes self-help skill/docs prompt guidance",
@@ -12687,6 +13096,65 @@
                 "upstream_ref": "hermes:d7a34682 fix(prompts): replace [SYSTEM: with [IMPORTANT: to avoid Azure content filter",
                 "note": "Direct port of the upstream Azure-content-filter compatibility rename. Gormes uses [SYSTEM: in two narrow spots; this slice closes the drift and unblocks Azure OpenAI traffic without touching prompt body content."
               }
+            },
+            {
+              "name": "Native full prompt assembly",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Native prompt assembly combines all validated blocks into a single Hermes-compatible system prompt",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "fixture": "internal/hermes/prompt_assembly_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/prompt_builder.py:build_system_prompt",
+                "../hermes-agent/run_agent.py:_build_system_prompt"
+              ],
+              "acceptance": [
+                "TestPromptAssembly_BlockOrder proves the assembled prompt contains blocks in Hermes order",
+                "TestPromptAssembly_MissingBlockEvidence proves missing blocks emit evidence without halting assembly",
+                "TestPromptAssembly_Deterministic proves identical inputs produce identical prompt bytes",
+                "TestPromptAssembly_Pure proves no Python runtime, provider, network, or credential dependency"
+              ],
+              "write_scope": [
+                "internal/hermes/prompt_assembly.go",
+                "internal/hermes/prompt_assembly_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptAssembly -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Prompt assembly fixtures prove Hermes-compatible block ordering, missing-block resilience, determinism, and pure Go behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/prompt_assembly.go:BuildSystemPrompt, PromptAssemblyOptions, PromptAssemblyResult, PromptBlockEvidence"
+                ],
+                "tests": [
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_BlockOrder",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_MissingBlockEvidence",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Deterministic",
+                  "internal/hermes/prompt_assembly_test.go:TestPromptAssembly_Pure"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              },
+              "degraded_mode": "If any block is missing, assembly continues with the remaining blocks and records missing_block evidence; the prompt never falls back to Python Hermes runtime",
+              "ready_when": [
+                "All subordinate prompt blocks (context files, memory guidance, session search, skills snapshot, model guidance, self-help) are validated",
+                "Tests can assemble a full prompt from injected block fixtures without provider/model/network calls"
+              ]
             }
           ],
           "drift_state": {
@@ -15338,6 +15806,151 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Phase 4 needed an explicit closure subphase for the full Go-native agent turn. Provider, context, retry, and prompt rows remain useful, but Gormes is not Hermes in Go until the e2e turn proves provider, tool, Goncho memory, final response, and audit/status evidence together."
           }
+        },
+        "4.J": {
+          "name": "Permission-Hardened Tool Execution",
+          "items": [
+            {
+              "name": "Shell blocklist + filesystem scoping + permission approval",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Shell blocklist (36+ patterns), filesystem scoping (folder-level read/write), permission approval UX (inline y/n/always)",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent"
+              ],
+              "degraded_mode": "Commands matching blocklist patterns are rejected before execution; filesystem operations outside scoped directories are rejected; unapproved operations prompt inline y/n/always",
+              "fixture": "internal/tools/permissions_test.go",
+              "source_refs": [
+                "mercury-agent/src/core/permissions.ts",
+                "hermes-agent/tools/path_security.py",
+                "hermes-agent/tools/terminal_tool.py"
+              ],
+              "ready_when": [
+                "Terminal tool execution exists and can be wrapped with permission guards"
+              ],
+              "not_ready_when": [
+                "No terminal tool exists to wrap, or blocklist would break legitimate workflows without approval path"
+              ],
+              "unblocks": [
+                "Safe code execution",
+                "Safe file operations"
+              ],
+              "acceptance": [
+                "36+ shell blocklist patterns covering rm -rf, fork bombs, etc.",
+                "Folder-level read/write scopes enforced",
+                "Inline y/n/always approval with YAML manifest persistence",
+                "cwdOnly restriction prevents path traversal"
+              ],
+              "note": "Cross-project adoption from mercury-agent: permission-hardened shell is foundational safety Gormes currently lacks.",
+              "write_scope": [
+                "internal/tools/permissions.go",
+                "internal/tools/shell_blocklist.go",
+                "internal/tools/terminal_tool.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestPermission -count=1",
+                "go test ./internal/tools -run TestShellBlocklist -count=1"
+              ],
+              "done_signal": [
+                "Permission tests prove blocklist, scoping, approval, and cwdOnly behavior"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/permissions.go implements PermissionManifest, DirectoryScope, ApprovalRecord with YAML persistence",
+                  "internal/tools/shell_blocklist.go exposes ShellBlocklistPatterns and IsShellCommandBlocked wrapper",
+                  "internal/tools/dangerous_command.go has 36+ dangerous patterns with hardline and recoverable guards",
+                  "internal/tools/approval_callback.go provides context-based approval with y/n/always semantics"
+                ],
+                "tests": [
+                  "internal/tools/permissions_test.go:TestShellBlocklistPatterns",
+                  "internal/tools/permissions_test.go:TestPermissionManifestLoadSave",
+                  "internal/tools/permissions_test.go:TestDirectoryScopeEnforcement",
+                  "internal/tools/permissions_test.go:TestCwdOnlyRestriction",
+                  "internal/tools/permissions_test.go:TestApprovalRecordMatch",
+                  "internal/tools/dangerous_command_test.go:TestDetectDangerous",
+                  "internal/tools/dangerous_command_test.go:TestGuardCommandHardlineWins",
+                  "internal/tools/dangerous_command_test.go:TestGuardCommandRecoverable",
+                  "internal/tools/terminal_tool_test.go:TestTerminalToolBlocksDangerousCommandWithoutApproval"
+                ],
+                "verification": [
+                  "go test ./internal/tools -count=1 -> ok"
+                ]
+              }
+            }
+          ]
+        },
+        "4.K": {
+          "name": "Provider Fallback Chain",
+          "items": [
+            {
+              "name": "Resilient provider chain dispatch",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "DeepSeek → OpenAI → Anthropic → Grok → Ollama resilient routing with chain failure detection",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Single provider failure is surfaced but the chain continues; complete chain failure reports all attempted providers",
+              "fixture": "internal/hermes/fallback_chain_test.go",
+              "source_refs": [
+                "mercury-agent/src/core/providers.ts",
+                "picoclaw/pkg/providers/",
+                "hermes-agent/agent/error_classifier.py"
+              ],
+              "ready_when": [
+                "At least two provider adapters exist to form a chain"
+              ],
+              "not_ready_when": [
+                "Only one provider adapter exists"
+              ],
+              "acceptance": [
+                "Chain dispatch tries each provider in order",
+                "Failure classification determines retry vs fallback",
+                "Degraded mode reports which providers failed"
+              ],
+              "note": "Cross-project adoption from mercury-agent and picoclaw: provider fallback chain for resilient routing.",
+              "write_scope": [
+                "internal/hermes/fallback_chain.go",
+                "internal/hermes/error_classifier.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestFallback -count=1",
+                "go test ./internal/hermes -run TestErrorClassifier -count=1"
+              ],
+              "done_signal": [
+                "Fallback chain tests prove multi-provider resilient dispatch and error classification"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/fallback_chain.go implements ProviderChain, ChainDispatch, ChainResult, ChainAttemptEvidence, ProviderFactory, SimpleProviderFactory",
+                  "internal/hermes/error_classifier.go implements ChainDecision, ChainErrorClassifier, DefaultChainErrorClassifier with retry/fallback/abort logic"
+                ],
+                "tests": [
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_FirstProviderSucceeds",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_FallbackToSecondProvider",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_AbortOnAuthError",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_RetryThenFallback",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_AllProvidersFail",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_FactoryError",
+                  "internal/hermes/fallback_chain_test.go:TestProviderChain_ContextCancel"
+                ],
+                "verification": [
+                  "go test ./internal/hermes -count=1 -> ok",
+                  "go vet ./internal/hermes -> clean",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            }
+          ]
         }
       }
     },
@@ -15930,6 +16543,66 @@
               ],
               "done_signal": [
                 "Tool-result budget tests prove oversized outputs become safe artifact pointers with sanitized paths and no channel/provider flooding."
+              ]
+            },
+            {
+              "name": "Tool descriptor layer (OperationSpec)",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Every tool in the registry carries a declarative descriptor (OperationSpec) that generates model schemas, CLI commands, gateway slash commands, doctor checks, and audit taxonomy from one source",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If descriptors are missing, doctor reports tool_descriptor_incomplete and the tool is hidden from gateway/child-agent callers until the descriptor is present.",
+              "fixture": "internal/tools/operation_spec_test.go",
+              "source_refs": [
+                "gbrain:src/core/operations.ts (contract-first operation catalog)",
+                "mercury-agent:permission manifest (trust-class enforcement)",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
+                "docs/content/building-gormes/upstream-lessons.md"
+              ],
+              "ready_when": [
+                "Tool registry inventory + schema parity harness is complete.",
+                "Hardline command pattern table + DetectHardline function is validated on main."
+              ],
+              "not_ready_when": [
+                "The slice ports handler logic instead of adding descriptors around existing handlers.",
+                "The slice changes the existing Tool interface contract.",
+                "The slice wires descriptors into live prompt assembly or gateway dispatch before the descriptor schema is fixture-backed."
+              ],
+              "acceptance": [
+                "OperationSpec struct declares name, description, schema, mutating, idempotent, prompt_safe, allowed trust classes, timeout, and audit kind.",
+                "Tool registry accepts tools with or without descriptors; tools without descriptors report descriptor_missing in doctor.",
+                "Shared tool executor rejects disallowed trust classes before a handler runs, with explicit trust_class_denied evidence.",
+                "Doctor validates every registered tool descriptor for required fields and schema validity.",
+                "Default toolset assigns descriptors to all core tools (read_file, search_files, write_file, patch, terminal, todo, session_search).",
+                "Descriptor schema generation produces valid JSON Schema for model consumption without handler changes."
+              ],
+              "write_scope": [
+                "internal/tools/operation_spec.go",
+                "internal/tools/operation_spec_test.go",
+                "internal/tools/registry.go",
+                "internal/tools/registry_test.go",
+                "internal/tools/executor.go",
+                "internal/tools/executor_test.go",
+                "internal/doctor/tool_descriptors.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestOperationSpec|TestTrustClass|TestExecutor' -count=1",
+                "go test ./internal/tools -count=1",
+                "go test ./internal/doctor -run 'TestToolDescriptor' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "OperationSpec fixtures prove descriptor validation, trust-class rejection, and doctor checks. Core tools carry descriptors. Executor rejects disallowed callers before handler entry."
               ]
             }
           ],
@@ -18171,185 +18844,17 @@
             },
             {
               "name": "Skill registries",
-              "priority": "P1",
               "status": "planned",
-              "contract": "Native skills hub registry providers expose source-backed, read-only metadata for the current Hermes skills hub source adapters before any write-capable install flow: OptionalSkillSource, HermesIndexSource, SkillsShSource, WellKnownSkillSource, UrlSource, GitHubSource, ClawHubSource, ClaudeMarketplaceSource, and LobeHubSource are the active upstream contract at Hermes 69d4800d. This executable slice should add only the missing remote registry read-model providers over the existing HubRegistryProvider/Search seam, with source filtering, trust normalization, centralized-index preference, stale-cache fallback, and typed degraded evidence for unavailable, malformed, timeout, empty, and rate-limited upstreams. Url direct parsing and optional bundled-skill inventory stay in their existing rows; this slice must not install, activate, quarantine, guard-scan, or mutate skills.",
-              "contract_status": "draft",
-              "slice_size": "medium",
-              "execution_owner": "skills",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Network failures, non-200 responses, malformed JSON, expired/missing cache, empty registries, and rate limits return typed evidence such as registry_unavailable, registry_rate_limited, registry_malformed, registry_cache_stale, or registry_empty without panics and without active-store mutation.",
-              "fixture": "internal/skills/hub_registry_sources_test.go",
-              "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,GitHubSource.fetch,GitHubSource.inspect",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,SkillsShSource.fetch,SkillsShSource.inspect,_discover_identifier",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:WellKnownSkillSource.search,WellKnownSkillSource.fetch,WellKnownSkillSource.inspect",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClawHubSource.search,ClawHubSource.fetch,ClawHubSource.inspect,_load_catalog_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestWellKnownSkillSource,TestUrlSource,TestSkillSourceRouter,TestUnifiedSearch",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub_clawhub.py:TestClawHubSource",
-                "internal/skills/hub_search.go",
-                "internal/skills/hub_search_test.go",
-                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider",
-                "internal/skills/hub_registry_sources_test.go:TestWellKnownRegistryProviderReadsIndexMetadata,TestClawHubProviderCommunityTrustAndDegradedEvidence,TestClawHubProviderDegradedEvidence",
-                "internal/skills/url_candidate.go"
-              ],
-              "ready_when": [
-                "The existing internal/skills HubRegistryProvider/Search read model remains the public seam for registry metadata.",
-                "Tests inject fake HTTP clients, response fixtures, or temp cache roots for Skills.sh/GitHub, WellKnown, HermesIndex, ClawHub, ClaudeMarketplace, and LobeHub; no live network, GitHub token, gh CLI, active skill store, or quarantine directory is required.",
-                "UrlSource direct SKILL.md parsing is treated as already covered by the separate complete `Skills hub direct URL candidate parser` row rather than reimplemented here."
-              ],
+              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows.",
+              "slice_size": "umbrella",
+              "execution_owner": "docs",
               "not_ready_when": [
-                "The slice downloads arbitrary bundle files, writes active/candidate skills, performs guard scans, runs install commands, or changes skill prompt injection.",
-                "The slice omits current Hermes 69d4800d source adapters (HermesIndexSource, ClaudeMarketplaceSource, or LobeHubSource) from the read-model contract, or treats the centralized index preference in parallel_search_sources as out of scope without a source-backed split row.",
-                "ClawHub, Skills.sh, WellKnown, or GitHub results are treated as builtin/trusted without the upstream trust rules, or malformed remote payloads panic instead of returning typed degraded evidence."
+                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "unblocks": [
-                "Skills hub install binding over registry metadata",
-                "Skills hub source filter CLI/RPC",
-                "Skill registries unavailable-network UX fixtures"
-              ],
-              "acceptance": [
-                "TestClawHubProviderCommunityTrustAndDegradedEvidence proves ClawHub search/inspect normalizes slug/name/tags, assigns community trust, reports registry_unavailable or registry_rate_limited for failures, and never mutates the active store.",
-                "TestHermesIndexProviderPrefersCachedIndex proves centralized Hermes index fixtures return metadata with zero API calls and source-router search can skip duplicate remote API sources when the index is available and source_filter=all.",
-                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace.json fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report typed malformed/unavailable evidence without store writes.",
-                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence instead of panicking.",
-                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh result identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh and deterministic source-filter behavior.",
-                "TestWellKnownRegistryProviderReadsIndexMetadata proves .well-known/skills index fixtures produce community-trust metadata without network or filesystem writes beyond the temp cache.",
-                "TestRegistryProviderCacheFallback proves malformed or unavailable network responses reuse a valid stale cache when present and return typed evidence when no cache exists.",
-                "TestRegistryProvidersDoNotInstall proves the registry-source package has no dependency on active store mutators, quarantine install paths, gateway adapters, or provider/model clients."
-              ],
-              "write_scope": [
-                "internal/skills/hub_registry_sources.go",
-                "internal/skills/hub_registry_sources_test.go",
-                "internal/skills/hub_search.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/skills -run 'TestClawHubProvider|TestHermesIndexProvider|TestClaudeMarketplaceProvider|TestLobeHubProvider|TestSkillsShProvider|TestWellKnownRegistryProvider|TestRegistryProvider' -count=1",
-                "go test ./internal/skills -count=1",
-                "go run ./cmd/progress validate"
-              ],
+              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
               "done_signal": [
-                "Native registry providers expose current Hermes HermesIndex, Skills.sh/GitHub, WellKnown, ClawHub, ClaudeMarketplace, and LobeHub metadata through HubRegistryProvider/Search with fixture-backed cache/degraded evidence tests, centralized-index source filtering, and no install/store mutation."
-              ],
-              "note": "2026-04-30 parity correction refreshed this builder-ready row after source comparison against /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d showed the prior row was stale-upstream: Hermes now includes HermesIndexSource, ClaudeMarketplaceSource, and LobeHubSource in addition to GitHubSource, SkillsShSource, WellKnownSkillSource, UrlSource, ClawHubSource, create_source_router, parallel_search_sources, and unified_search. Current Gormes evidence is the pure Search read model in internal/skills/hub_search.go plus the separate validated direct-URL candidate parser row. 2026-04-30 builder slice added source-backed WellKnownRegistryProvider metadata reading in internal/skills/hub_registry_sources.go with fixture coverage in internal/skills/hub_registry_sources_test.go; a follow-up TDD slice added ClawHubRegistryProvider catalog metadata normalization, community trust, tag normalization, and degraded evidence via TestClawHubProviderCommunityTrustAndDegradedEvidence/TestClawHubProviderDegradedEvidence. 2026-04-30 parity sweep verified upstream /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d still contains GitHubSource, SkillsShSource, HermesIndexSource, ClaudeMarketplaceSource, LobeHubSource, create_source_router, parallel_search_sources, and unified_search; current Gormes @5c8941beb has only WellKnownRegistryProvider and ClawHubRegistryProvider in hub_registry_sources.go, so the row is now split into the two child slices below instead of one broad medium worker packet."
-            },
-            {
-              "name": "Hermes index provider cache + source-router preference",
-              "priority": "P1",
-              "status": "complete",
-              "contract": "internal/skills adds a read-only HermesIndexRegistryProvider and source-router preference helper that consume cached centralized Hermes skills index fixtures before consulting duplicate remote API providers, mirroring HermesIndexSource plus create_source_router/parallel_search_sources without installing or mutating active skills.",
-              "contract_status": "validated",
-              "slice_size": "small",
-              "execution_owner": "skills",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Missing, malformed, expired, or unavailable centralized index fixtures return typed hub-search evidence and fall back to the caller-supplied provider list without panics or active-store writes.",
-              "fixture": "internal/skills/hub_registry_sources_test.go::TestHermesIndexProviderPrefersCachedIndex",
-              "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:HermesIndexSource.search,fetch,inspect,is_available,_load_hermes_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:create_source_router,parallel_search_sources,unified_search",
-                "internal/skills/hub_search.go:PreferHermesIndexProvider,Search",
-                "internal/skills/hub_registry_sources.go:HermesIndexRegistryProvider,WellKnownRegistryProvider,ClawHubRegistryProvider"
-              ],
-              "ready_when": [
-                "HubRegistryProvider/Search is validated and WellKnown/ClawHub read-only provider fixtures are green.",
-                "The worker can inject temp cache roots and fake providers; no live network, gh CLI, token, install flow, or active store is required."
-              ],
-              "not_ready_when": [
-                "The slice downloads arbitrary skill bundles, writes active/candidate skills, runs guard scans, or changes prompt injection.",
-                "The source-router preference is implemented by hard-coding operator-specific paths instead of injected cache roots and provider lists."
-              ],
-              "unblocks": [
-                "Marketplace/GitHub registry metadata providers",
-                "Skill registries unavailable-network UX fixtures"
-              ],
-              "acceptance": [
-                "TestHermesIndexProviderPrefersCachedIndex proves centralized index fixtures return normalized metadata with no remote API calls.",
-                "TestHermesIndexProviderMalformedOrMissingEvidence proves missing/malformed cache files return typed evidence and do not panic.",
-                "TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable proves source_filter=all prefers the centralized index before duplicate GitHub/Skills.sh remote API providers.",
-                "The helper imports neither active store mutators nor gateway adapters and performs no filesystem writes outside an injected temp cache in tests."
-              ],
-              "write_scope": [
-                "internal/skills/hub_registry_sources.go",
-                "internal/skills/hub_registry_sources_test.go",
-                "internal/skills/hub_search.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/skills -run 'TestHermesIndexProvider|TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable' -count=1",
-                "go test ./internal/skills -count=1",
-                "go run ./cmd/progress validate"
-              ],
-              "done_signal": [
-                "HermesIndex provider and source-router preference fixtures pass with fake cache/provider inputs, and existing WellKnown/ClawHub provider tests remain green."
-              ],
-              "note": "Complete 2026-04-30: source-backed TDD slice added HermesIndexRegistryProvider in internal/skills/hub_registry_sources.go and PreferHermesIndexProvider in internal/skills/hub_search.go. RED first failed on undefined NewHermesIndexRegistryProvider/PreferHermesIndexProvider; GREEN passes TestHermesIndexProviderPrefersCachedIndex, TestHermesIndexProviderMalformedOrMissingEvidence, TestSourceRouterSkipsDuplicateRemoteAPISourcesWhenIndexAvailable, and full go test ./internal/skills -count=1. The implementation reads only caller-injected cache paths, performs no remote API calls or active-store writes, and falls back to caller-supplied providers with typed evidence for missing/malformed centralized index fixtures."
-            },
-            {
-              "name": "Marketplace/GitHub registry metadata providers",
-              "priority": "P1",
-              "status": "planned",
-              "contract": "internal/skills adds read-only GitHub/Skills.sh, Claude Marketplace, and LobeHub registry providers over the existing HubRegistryProvider/Search seam, normalizing source, install IDs, tags, and community/trusted trust evidence from Hermes source adapters while keeping install, quarantine, guard scanning, and active-store mutation out of scope.",
-              "contract_status": "draft",
-              "slice_size": "medium",
-              "execution_owner": "skills",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Network errors, rate limits, malformed JSON, timeout fixtures, and empty registry responses return typed evidence values while preserving partial results from other providers.",
-              "fixture": "internal/skills/hub_registry_sources_test.go::TestSkillsShProviderDelegatesThroughGitHubMetadata+TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence+TestLobeHubProviderAgentMetadataAndDegradedEvidence",
-              "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:GitHubSource.search,fetch,inspect",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:SkillsShSource.search,fetch,inspect,_discover_identifier",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:ClaudeMarketplaceSource.search,fetch,inspect,_fetch_marketplace_index",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tools/skills_hub.py:LobeHubSource.search,fetch,inspect,_fetch_index,_fetch_agent",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/tests/tools/test_skills_hub.py:TestSkillsShSource,TestSkillSourceRouter,TestUnifiedSearch",
-                "internal/skills/hub_registry_sources.go:WellKnownRegistryProvider,ClawHubRegistryProvider"
-              ],
-              "ready_when": [
-                "Hermes index/cache source-router slice is landed or the worker explicitly limits this slice to provider-local fixtures without source-router preference.",
-                "Tests inject fake HTTP clients and response fixtures; no live GitHub token, gh CLI, registry network, active skill store, or quarantine directory is required."
-              ],
-              "not_ready_when": [
-                "The slice fetches bundle contents for installation, writes active/candidate skills, performs guard scans, or changes skill prompt/tool exposure.",
-                "Provider trust rules are guessed instead of derived from Hermes source adapters and TRUSTED_REPOS evidence."
-              ],
-              "unblocks": [
-                "Skills hub install binding over registry metadata",
-                "Skills hub source filter CLI/RPC"
-              ],
-              "acceptance": [
-                "TestSkillsShProviderDelegatesThroughGitHubMetadata proves Skills.sh identifiers resolve to GitHub metadata/fetch IDs while preserving source=skills-sh.",
-                "TestClaudeMarketplaceProviderCommunityTrustAndCacheEvidence proves marketplace fixtures resolve source paths, normalize trust through TRUSTED_REPOS, and report malformed/unavailable evidence.",
-                "TestLobeHubProviderAgentMetadataAndDegradedEvidence proves LobeHub agent index fixtures convert title/identifier/tags into community-trust metadata and return typed timeout/malformed evidence.",
-                "TestRegistryProvidersDoNotInstall proves registry-source code has no active-store, quarantine, gateway, provider/model, or install-command dependency."
-              ],
-              "write_scope": [
-                "internal/skills/hub_registry_sources.go",
-                "internal/skills/hub_registry_sources_test.go",
-                "internal/skills/hub_search.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/skills -run 'TestSkillsShProvider|TestClaudeMarketplaceProvider|TestLobeHubProvider|TestRegistryProvidersDoNotInstall' -count=1",
-                "go test ./internal/skills -count=1",
-                "go run ./cmd/progress validate"
-              ],
-              "done_signal": [
-                "GitHub/Skills.sh, Claude Marketplace, and LobeHub provider fixtures pass through HubRegistryProvider/Search with degraded evidence and no install/store mutation."
-              ],
-              "note": "Added by 2026-04-30 parity sweep after exact-source verification of GitHubSource, SkillsShSource, ClaudeMarketplaceSource, and LobeHubSource in Hermes @69d4800d and absence of matching Gormes provider code in internal/skills @5c8941beb."
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+              ]
             },
             {
               "name": "Skills hub direct URL candidate parser",
@@ -20476,6 +20981,310 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
+            },
+            {
+              "name": "Shell blocklist (36+ dangerous patterns)",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "The shared tool executor blocks 36+ dangerous shell patterns before execution, with category-specific evidence and override policies",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If the blocklist is incomplete, doctor reports shell_blocklist_partial with missing pattern count; blocked commands still fail closed.",
+              "fixture": "internal/tools/shell_blocklist_test.go",
+              "source_refs": [
+                "mercury-agent:src/tools/shellBlocklist.ts (36+ patterns)",
+                "hermes-agent:tools/terminal_tool.py (dangerous command guards)",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+              ],
+              "ready_when": [
+                "Hardline command pattern table + DetectHardline function is validated on main.",
+                "Recoverable dangerous patterns + blocked-result schema is complete."
+              ],
+              "not_ready_when": [
+                "The slice ports patterns without categorization (destructive, network, privilege, crypto-mining, data-exfil).",
+                "The slice allows bypass through off/yolo/manual/smart mode without explicit evidence.",
+                "The slice changes the existing GuardCommand or approval-mode infrastructure."
+              ],
+              "acceptance": [
+                "ShellBlocklist covers 36+ patterns across 5 categories: destructive (rm -rf, mkfs, dd), network (curl/wget with suspicious flags), privilege (sudo/chown/system-wide), crypto-mining (xmrig, miner), data-exfil (scp/rsync with external targets).",
+                "Each blocked pattern returns category-specific evidence (shell_blocklist_destructive, shell_blocklist_network, etc.).",
+                "Blocklist integrates with GuardCommand so hardline commands remain non-bypassable and recoverable commands respect approval mode.",
+                "Blocklist patterns are table-tested with positive and negative cases (e.g., 'rm file.txt' is allowed, 'rm -rf /' is blocked).",
+                "New patterns can be added via config without code changes.",
+                "Doctor reports shell_blocklist_coverage with pattern count and category breakdown."
+              ],
+              "write_scope": [
+                "internal/tools/shell_blocklist.go",
+                "internal/tools/shell_blocklist_test.go",
+                "internal/tools/dangerous_command.go",
+                "internal/config/shell_blocklist.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestShellBlocklist' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Shell blocklist fixtures prove 36+ patterns across 5 categories, positive/negative matching, category-specific evidence, GuardCommand integration, and config-driven extensibility."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/shell_blocklist.go:ShellBlocklistPatterns (46 patterns across 5 categories)",
+                  "internal/tools/shell_blocklist.go:CheckShellBlocklist, IsShellCommandBlocked, GetBlocklistCoverage, GetBlocklistTotal",
+                  "internal/tools/shell_blocklist.go:IsHardlineCommand, IsRecoverableCommand"
+                ],
+                "tests": [
+                  "internal/tools/permissions_test.go:TestShellBlocklistPatterns (20 table-driven cases)",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_TotalCount",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_Coverage",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_*Patterns (5 category tests)",
+                  "internal/tools/shell_blocklist_test.go:TestShellBlocklist_CategoryEvidence"
+                ],
+                "verification": [
+                  "go test ./internal/tools -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            },
+            {
+              "name": "Filesystem scoping (folder-level read/write restrictions)",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "File tools enforce folder-level read/write scope restrictions so agents cannot access paths outside configured boundaries",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent"
+              ],
+              "degraded_mode": "If scoping is unconfigured, doctor reports filesystem_scope_unconfigured and file tools run with cwd-only restriction as fallback.",
+              "fixture": "internal/tools/filesystem_scope_test.go",
+              "source_refs": [
+                "mercury-agent:src/tools/filesystemScope.ts (folder-level restrictions)",
+                "hermes-agent:tools/path_security.py",
+                "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+              ],
+              "ready_when": [
+                "Native file task tool surface (read_file, search_files, write_file, patch) is validated on main.",
+                "Path security helpers exist for traversal prevention."
+              ],
+              "not_ready_when": [
+                "The slice changes file tool signatures or breaks existing read_file/search_files/write_file/patch behavior.",
+                "The slice requires interactive prompts for scope configuration.",
+                "The slice implements path security without centralized normalization."
+              ],
+              "acceptance": [
+                "FilesystemScope config declares allowed_read_paths and allowed_write_paths as ordered lists with CWD fallback.",
+                "Path normalization resolves symlinks, cleans '..', rejects absolute paths outside scope, and records path_normalized evidence.",
+                "read_file rejects paths outside allowed_read_paths with filesystem_read_scope_violation evidence.",
+                "write_file and patch reject paths outside allowed_write_paths with filesystem_write_scope_violation evidence.",
+                "search_files respects read scope and excludes paths outside allowed_read_paths.",
+                "CWD-only mode (default when unconfigured) restricts all file ops to the current working directory.",
+                "Doctor reports filesystem_scope_config with active read/write paths and fallback mode."
+              ],
+              "write_scope": [
+                "internal/tools/filesystem_scope.go",
+                "internal/tools/filesystem_scope_test.go",
+                "internal/tools/read_file.go",
+                "internal/tools/write_file.go",
+                "internal/tools/patch.go",
+                "internal/tools/search_files.go",
+                "internal/config/filesystem_scope.go",
+                "internal/doctor/filesystem_scope.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestFilesystemScope' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Filesystem scope fixtures prove path normalization, read/write rejection, CWD fallback, search exclusion, and doctor reporting without interactive configuration."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/filesystem_scope.go:FilesystemScope, PathCheckResult, NewFilesystemScope",
+                  "internal/tools/filesystem_scope.go:CheckRead, CheckWrite, normalizePath, checkPath",
+                  "internal/tools/filesystem_scope.go:GetDoctorReport"
+                ],
+                "tests": [
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_CWDOnly",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_AllowedReadPaths",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_AllowedWritePaths",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_PathNormalization",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_EmptyAllowedMeansAllowAll",
+                  "internal/tools/filesystem_scope_test.go:TestFilesystemScope_DoctorReport"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestFilesystemScope -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            },
+            {
+              "name": "Permission approval UX (inline y/n/always)",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Dangerous actions trigger an inline approval prompt (y/n/always) with clear command preview, risk category, and persistent preference storage",
+              "contract_status": "validated",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "If approval UX is unavailable (non-interactive mode), dangerous commands fail closed with approval_ui_unavailable evidence instead of defaulting to allow.",
+              "fixture": "internal/tools/approval_ux_test.go",
+              "source_refs": [
+                "mercury-agent:src/tools/approval.ts (inline y/n/always)",
+                "hermes-agent:tools/approval.py",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+              ],
+              "ready_when": [
+                "Approval mode config normalization is validated on main.",
+                "Hardline command pattern table + DetectHardline function is validated on main.",
+                "Recoverable dangerous patterns + blocked-result schema is complete.",
+                "Shell blocklist (36+ dangerous patterns) is complete."
+              ],
+              "not_ready_when": [
+                "The slice implements approval without the GuardCommand and blocked-result infrastructure.",
+                "The slice changes approval mode semantics (off/manual/smart) without preserving existing behavior.",
+                "The slice requires gateway/TUI/slash command wiring in the same change."
+              ],
+              "acceptance": [
+                "Approval prompt displays command preview, risk category (destructive/network/privilege), and affected paths.",
+                "User can respond 'y' (once), 'n' (deny), or 'always' (persist for this session/category).",
+                "'always' preference is stored per-session with category scope (e.g., always allow git commands, always deny rm -rf).",
+                "Non-interactive contexts (cron, subagent, API) fail closed with approval_ui_unavailable instead of prompting.",
+                "Approval decisions are logged to audit with command, category, decision, and timestamp.",
+                "Doctor reports approval_ux_status with interactive/non-interactive mode and persisted preference count."
+              ],
+              "write_scope": [
+                "internal/tools/approval_ux.go",
+                "internal/tools/approval_ux_test.go",
+                "internal/tools/approval_prompt.go",
+                "internal/tools/approval_session.go",
+                "internal/audit/approval.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestApprovalUX' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Approval UX fixtures prove prompt rendering, y/n/always handling, session persistence, non-interactive fail-closed, audit logging, and doctor reporting."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/approval_ux.go:ApprovalSession, ApprovalPrompt, ApprovalUXResult, ApprovalAuditRecord",
+                  "internal/tools/approval_ux.go:RequestApproval, BuildApprovalPrompt, extractPaths",
+                  "internal/tools/approval_ux.go:NewApprovalSession, GetPreferenceCount, GetAuditLog, IsInteractive"
+                ],
+                "tests": [
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_NonInteractiveFailsClosed",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_InteractiveYes",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_InteractiveNo",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AlwaysPersists",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_PreferenceReuse",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AuditLog",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_PromptFields",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_DoctorReport",
+                  "internal/tools/approval_ux_test.go:TestApprovalUX_AuditRecordTimestamp"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestApprovalUX -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            },
+            {
+              "name": "Trust-class enforcement in shared tool executor",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "The shared tool executor rejects tool calls from disallowed trust classes before a handler runs, preventing gateway/child-agent callers from exercising operator-local tools",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If trust-class enforcement is bypassed or misconfigured, doctor reports trust_class_enforcement_gap and the tool is hidden from disallowed callers.",
+              "fixture": "internal/tools/trust_class_test.go",
+              "source_refs": [
+                "gbrain:src/core/operations.ts (OperationContext.remote trust boundaries)",
+                "mercury-agent:permission manifest (trust-class based tool visibility)",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/upstream-lessons.md",
+                "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md"
+              ],
+              "ready_when": [
+                "Tool descriptor layer (OperationSpec) is complete.",
+                "Existing tool registry and executor interfaces are stable."
+              ],
+              "not_ready_when": [
+                "The slice changes tool handler signatures or breaks existing tool execution paths.",
+                "The slice implements trust classes without the OperationSpec descriptor layer.",
+                "The slice wires trust enforcement into gateway or kernel before the executor-level enforcement is fixture-backed."
+              ],
+              "acceptance": [
+                "TrustClass type defines operator, gateway, child-agent, and system constants.",
+                "Tool executor checks the caller's trust class against the tool descriptor's allowed trust classes before invoking the handler.",
+                "Disallowed trust classes return trust_class_denied with the tool name, requested class, and allowed classes.",
+                "Operator-local tools (config edit, auth, setup) are invisible to gateway and child-agent callers even in tool schemas.",
+                "Gateway-safe tools are visible to gateway callers but not child-agent callers when so configured.",
+                "Doctor reports trust_class_enforcement_status with tool count per trust class and any enforcement gaps."
+              ],
+              "write_scope": [
+                "internal/tools/trust_class.go",
+                "internal/tools/trust_class_test.go",
+                "internal/tools/executor.go",
+                "internal/tools/executor_test.go",
+                "internal/doctor/trust_class.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestTrustClass' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Trust-class fixtures prove operator/gateway/child-agent/system enforcement, schema visibility gating, and doctor reporting without changing handler signatures."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/trust_class.go:TrustClassTool, TrustClassExecutor, Register, Execute, ListTools",
+                  "internal/tools/trust_class.go:isTrustClassAllowed"
+                ],
+                "tests": [
+                  "internal/tools/trust_class_test.go:TestTrustClass_ExecuteAllowed",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ExecuteDenied",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ListToolsFiltersByTrustClass",
+                  "internal/tools/trust_class_test.go:TestTrustClass_ChildAgentCannotSeeOperatorLocal",
+                  "internal/tools/trust_class_test.go:TestTrustClass_SystemCanAccessAll"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestTrustClass -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
             }
           ]
         },
@@ -21370,7 +22179,7 @@
               "name": "Debug share paste sweep scheduler contract",
               "priority": "P4",
               "status": "complete",
-              "contract": "Gormes debug-share owns an injectable paste-deletion queue helper and an hourly scheduler cadence hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
+              "contract": "Gormes debug-share planning owns a persisted paste-deletion queue and an hourly scheduler hook that sweeps expired paste.rs entries with bounded evidence while retaining opportunistic CLI-only cleanup as a fallback",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -21381,10 +22190,8 @@
               "degraded_mode": "If the scheduler is not running, debug-share status reports paste_sweep_scheduler_unavailable and the CLI fallback can still sweep pending entries on the next debug invocation.",
               "fixture": "internal/cli/debug_paste_sweep_test.go::TestDebugPasteSweep_*",
               "source_refs": [
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/hermes_cli/debug.py@69d4800d:_sweep_expired_pastes",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/run.py@69d4800d:_start_cron_ticker",
-                "internal/cli/debug_paste_sweep.go",
-                "internal/cron/debug_paste_sweep.go",
+                "../hermes-agent/hermes_cli/debug.py@90a3e73d:_sweep_expired_pastes",
+                "../hermes-agent/gateway/run.py@90a3e73d:_start_cron_ticker",
                 "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Debug helpers"
               ],
               "ready_when": [
@@ -21406,7 +22213,7 @@
                 "TestDebugPasteSweep_DeleteFailureRetainsEntryWithEvidence proves a failed fake delete keeps the row and reports paste_delete_failed evidence.",
                 "TestDebugPasteSweep_SchedulerCadence proves the hourly hook calls the sweeper on the configured cadence without starting a real gateway or sleeping."
               ],
-              "note": "Complete: TDD landed an injectable Go-native debug paste sweep helper and scheduler cadence hook. internal/cli/debug_paste_sweep_test.go proves expired paste.rs URLs are passed to a fake deleter once, future entries remain queued, and delete failures retain entries with paste_delete_failed evidence. internal/cron/debug_paste_sweep_test.go proves hourly cadence without goroutines, gateway startup, sleeps, or network DELETE calls.",
+              "note": "Added from Hermes 90a3e73d. Keep draft/blocked until Debug helpers have a Go-native queue; this captures the upstream retention lesson without adding a live network task to the current hot queue.",
               "write_scope": [
                 "internal/cli/debug_paste_sweep.go",
                 "internal/cli/debug_paste_sweep_test.go",
@@ -21422,20 +22229,10 @@
               "done_signal": [
                 "Debug paste sweep fixtures prove fake-clock deletion, retention on failure, pending-count evidence, and hourly scheduler cadence without network calls."
               ],
-              "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-30T12:19:00Z",
-                "last_success": "2026-04-30T12:19:00Z"
-              },
-              "evidence": {
-                "implementation": "internal/cli/debug_paste_sweep.go, internal/cron/debug_paste_sweep.go",
-                "tests": "go test ./internal/cli -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cron -run '^TestDebugPasteSweep_' -count=1; go test ./internal/cli ./internal/cron -count=1; go run ./cmd/progress validate; git diff --check",
-                "note": "The implementation keeps paste deletion, persistence, and wall-clock scheduling injectable; no production network DELETEs or gateway process are required by the fixtures."
-              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:69d4800d hermes_cli/debug.py + gateway/run.py",
-                "note": "Hermes keeps pending paste.rs cleanup in hermes_cli/debug.py and invokes _sweep_expired_pastes from the gateway cron ticker; Gormes adapts the queue/sweeper contract as injectable Go helpers before any live debug-share upload surface."
+                "upstream_ref": "hermes:90a3e73d hermes_cli/debug.py + gateway/run.py",
+                "note": "Hermes moved paste.rs cleanup from opportunistic debug invocation to the gateway cron ticker; Gormes should adapt the queue/sweeper contract after native debug helpers exist."
               }
             },
             {
@@ -22796,10 +23593,10 @@
             },
             {
               "name": "Hermes auth Spotify service-provider subcommand",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Implement `gormes auth spotify [login|status|logout]` as the service-provider auth companion to the first-party Spotify plugin: login runs an injectable PKCE callback/token exchange using client_id, redirect_uri, scope, no-browser, and timeout inputs; status reads providers.spotify from the auth store and reports logged-in, expiry, scope, redirect_uri, and API base URL with secrets redacted; logout clears only Spotify provider auth. The command gates Spotify tool/plugin availability through the same providers.spotify auth key Hermes uses.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -29168,6 +29965,133 @@
               ]
             }
           ]
+        },
+        "5.S": {
+          "name": "Loop Detection",
+          "items": [
+            {
+              "name": "5-type loop detector",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Hard loop, failing loop, text repetition, no-action, same-tool detection with configurable thresholds",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Loop events are emitted with type and evidence; agent can break loops or escalate to operator",
+              "fixture": "internal/agent/loop_detector_test.go",
+              "source_refs": [
+                "mercury-agent/src/core/loop_detection.ts",
+                "hermes-agent/agent/auxiliary_client.py"
+              ],
+              "ready_when": [
+                "Agent turn loop exists to instrument"
+              ],
+              "not_ready_when": [
+                "Agent turn loop is still in design"
+              ],
+              "acceptance": [
+                "Detects each of 5 loop types",
+                "Configurable thresholds per loop type",
+                "Emits loop_detected event with type and evidence"
+              ],
+              "note": "Cross-project adoption from mercury-agent: runaway loop prevention is a real production problem.",
+              "write_scope": [
+                "internal/agent/loop_detector.go"
+              ],
+              "test_commands": [
+                "go test ./internal/agent -run TestLoopDetection -count=1"
+              ],
+              "done_signal": [
+                "Loop detection tests prove all 5 types with threshold configuration"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/agent/loop_detector.go:LoopDetector, TurnRecord, LoopDetectionResult",
+                  "internal/agent/loop_detector.go:checkHardLoop, checkFailingLoop, checkTextRepetition, checkNoAction, checkSameTool"
+                ],
+                "tests": [
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_HardLoop",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_FailingLoop",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_TextRepetition",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_NoAction",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_SameTool",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_ConfigurableThresholds",
+                  "internal/agent/loop_detector_test.go:TestLoopDetector_EvidenceContainsType"
+                ],
+                "verification": [
+                  "go test ./internal/agent -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            }
+          ]
+        },
+        "5.T": {
+          "name": "Browser Harness Doctor",
+          "items": [
+            {
+              "name": "go-browser-harness doctor subcommand",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "go-browser-harness doctor subcommand with endpoint health checks, env reporting, redacted diagnostics",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Doctor prints what it can without CDP; missing endpoint is reported clearly",
+              "fixture": "go-browser-harness/pkg/harness/doctor_test.go",
+              "source_refs": [
+                "go-browser-harness/docs/parity-matrix.md",
+                "browser-harness/src/browser_harness/admin.py"
+              ],
+              "ready_when": [
+                "go-browser-harness CLI scaffold exists"
+              ],
+              "not_ready_when": [
+                "No go-browser-harness binary exists"
+              ],
+              "acceptance": [
+                "Probes CHROME_REMOTE_DEBUGGING_URL",
+                "Prints redacted env + endpoint health",
+                "No CDP required"
+              ],
+              "note": "Cross-project adoption from browser-harness/go-browser-harness: doctor is the suggested first slice for browser parity.",
+              "write_scope": [
+                "cmd/go-browser-harness/doctor.go",
+                "go-browser-harness/pkg/harness/doctor.go"
+              ],
+              "test_commands": [
+                "go test ./go-browser-harness -run TestDoctor -count=1"
+              ],
+              "done_signal": [
+                "Doctor tests prove endpoint probing and redacted diagnostics"
+              ],
+              "evidence": {
+                "implementation": [
+                  "go-browser-harness/pkg/harness/doctor.go implements RunDoctor, DoctorReport, probeEndpoint, collectRedactedEnv, redactURL, PrintDoctorReport, PrintDoctorReportJSON",
+                  "go-browser-harness/cmd/go-browser-harness/main.go wires -doctor and -doctor-json flags"
+                ],
+                "tests": [
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_NoEnv",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_UnreachableEndpoint",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_HealthyEndpoint",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestRedactURL",
+                  "go-browser-harness/pkg/harness/doctor_test.go:TestCollectRedactedEnv"
+                ],
+                "verification": [
+                  "go test ./... -count=1 in go-browser-harness -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            }
+          ]
         }
       }
     },
@@ -29602,13 +30526,13 @@
                 "note": "GBrain defines source-swamp resistance; Gormes adapts it as explainable source-tier scoring for skills and memory."
               }
             },
-      {
-        "name": "Delta-bounded skill and memory maintenance passes",
-        "status": "complete",
-        "contract": "Learning-loop maintenance accepts changed source IDs, per-source sync-anchor evidence, and stale semantic-refresh hints so skill/memory extraction, scoring, and embedding refresh can no-op or process only changed records instead of rescanning the whole local corpus",
-        "contract_status": "validated",
-        "slice_size": "small",
-        "execution_owner": "skills",
+            {
+              "name": "Delta-bounded skill and memory maintenance passes",
+              "status": "complete",
+              "contract": "Learning-loop maintenance accepts changed source IDs, per-source sync-anchor evidence, and stale semantic-refresh hints so skill/memory extraction, scoring, and embedding refresh can no-op or process only changed records instead of rescanning the whole local corpus",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "skills",
               "trust_class": [
                 "operator",
                 "system"
@@ -29629,18 +30553,18 @@
                 "internal/skills/selector.go",
                 "internal/memory/semantic_sql.go"
               ],
-        "ready_when": [
-          "The row is an evidence-only maintenance planner: it can run before retrieval scoring because it does not change skill selection, prompt injection, or memory recall.",
-          "The worker can use fake skill/memory rows plus injected source-anchor and stale-count callbacks; no live embeddings, Ollama, Postgres/PGLite, git cat-file, or tree-sitter runtime is required."
+              "ready_when": [
+                "The row is an evidence-only maintenance planner: it can run before retrieval scoring because it does not change skill selection, prompt injection, or memory recall.",
+                "The worker can use fake skill/memory rows plus injected source-anchor and stale-count callbacks; no live embeddings, Ollama, Postgres/PGLite, git cat-file, or tree-sitter runtime is required."
               ],
               "not_ready_when": [
                 "The slice ports GBrain's sync/import command, TypeScript extractors, SQL ranking builders, or a repository-wide code indexer.",
                 "The slice requires live embedding calls or reads the whole checkout/memory corpus in unit tests.",
                 "The slice changes prompt injection or skill selection behavior before the maintenance evidence shape is fixture-locked."
               ],
-        "unblocks": [
-          "Skill effectiveness scoring"
-        ],
+              "unblocks": [
+                "Skill effectiveness scoring"
+              ],
               "acceptance": [
                 "TestDeltaMaintenance_NoChangedSourcesReturnsNoop passes an empty changed-source list and asserts no extractor/scorer/embedding callback is invoked and status evidence is delta_noop.",
                 "TestDeltaMaintenance_ProcessesOnlyChangedSources passes two changed skill or memory source IDs and asserts only those IDs reach the fake extractor/scorer.",
@@ -29650,42 +30574,42 @@
                 "TestDeltaMaintenance_FullScanFallbackIsExplicit omits changed-source evidence and asserts the returned plan marks full_scan_fallback instead of hiding a whole-corpus scan.",
                 "Score/status explanations carry source IDs, stale counts, and fallback reason strings without importing GBrain's database runtime."
               ],
-        "note": "Complete 2026-04-30: TDD added a pure internal/skills delta-maintenance planner that accepts changed skill/memory source IDs, records per-source/global/missing anchor evidence, invokes extractor/scorer callbacks only for changed sources, skips stale loaders/embedders when staleCount=0, and returns explicit full_scan_fallback evidence when changed-source evidence is absent. GBrain e2961c0 fixed production loops that re-read 54K markdown files and pulled unnecessary embedding data on every autopilot cycle. GBrain e734937/v0.22.5 added the follow-on sourceId cycle-sync fix so a per-source last_commit anchor prevents garbage-collected global anchors from forcing a full reimport. Gormes preserves those lessons as operator-visible maintenance evidence without importing GBrain's runtime.",
-        "write_scope": [
-          "internal/skills/delta_maintenance.go",
-          "internal/skills/delta_maintenance_test.go",
-          "docs/content/building-gormes/architecture_plan/progress.json"
-        ],
+              "note": "Complete 2026-04-30: TDD added a pure internal/skills delta-maintenance planner that accepts changed skill/memory source IDs, records per-source/global/missing anchor evidence, invokes extractor/scorer callbacks only for changed sources, skips stale loaders/embedders when staleCount=0, and returns explicit full_scan_fallback evidence when changed-source evidence is absent. GBrain e2961c0 fixed production loops that re-read 54K markdown files and pulled unnecessary embedding data on every autopilot cycle. GBrain e734937/v0.22.5 added the follow-on sourceId cycle-sync fix so a per-source last_commit anchor prevents garbage-collected global anchors from forcing a full reimport. Gormes preserves those lessons as operator-visible maintenance evidence without importing GBrain's runtime.",
+              "write_scope": [
+                "internal/skills/delta_maintenance.go",
+                "internal/skills/delta_maintenance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
               "test_commands": [
                 "go test ./internal/skills ./internal/memory -run 'TestDeltaMaintenance_' -count=1",
                 "go test ./internal/skills ./internal/memory -count=1",
                 "go run ./cmd/progress validate"
               ],
-        "done_signal": [
-          "Delta maintenance fixtures prove no-op, changed-source-only, source-anchor evidence, stale-count-zero, and explicit full-scan fallback behavior with operator-visible evidence and no live embedding/runtime imports."
-        ],
-        "evidence": {
-          "implementation": [
-            "internal/skills/delta_maintenance.go:RunDeltaMaintenance plans learning-loop maintenance from changed skill/memory source IDs and injected callbacks.",
-            "internal/skills/delta_maintenance.go records source_anchor_per_source, source_anchor_global_fallback, source_anchor_missing, stale_refresh_empty, delta_noop, delta_sources_missing, and full_scan_fallback evidence without scanning the corpus."
-          ],
-          "tests": [
-            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_NoChangedSourcesReturnsNoop",
-            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_ProcessesOnlyChangedSources",
-            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_SourceAnchorEvidence",
-            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_GlobalAnchorFallbackIsExplicit",
-            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_StaleRefreshSkipsWhenCountZero",
-            "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_FullScanFallbackIsExplicit"
-          ],
-          "verification": [
-            "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills -run TestDeltaMaintenance_ -count=1 -> ok",
-            "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills ./internal/memory -run 'TestDeltaMaintenance_' -count=1 -> ok",
-            "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills ./internal/memory -count=1 -> ok",
-            "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate -> ok",
-            "git diff --check -> ok"
-          ]
-        },
-        "provenance": {
+              "done_signal": [
+                "Delta maintenance fixtures prove no-op, changed-source-only, source-anchor evidence, stale-count-zero, and explicit full-scan fallback behavior with operator-visible evidence and no live embedding/runtime imports."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/skills/delta_maintenance.go:RunDeltaMaintenance plans learning-loop maintenance from changed skill/memory source IDs and injected callbacks.",
+                  "internal/skills/delta_maintenance.go records source_anchor_per_source, source_anchor_global_fallback, source_anchor_missing, stale_refresh_empty, delta_noop, delta_sources_missing, and full_scan_fallback evidence without scanning the corpus."
+                ],
+                "tests": [
+                  "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_NoChangedSourcesReturnsNoop",
+                  "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_ProcessesOnlyChangedSources",
+                  "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_SourceAnchorEvidence",
+                  "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_GlobalAnchorFallbackIsExplicit",
+                  "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_StaleRefreshSkipsWhenCountZero",
+                  "internal/skills/delta_maintenance_test.go:TestDeltaMaintenance_FullScanFallbackIsExplicit"
+                ],
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills -run TestDeltaMaintenance_ -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills ./internal/memory -run 'TestDeltaMaintenance_' -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/skills ./internal/memory -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              },
+              "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:e734937 src/core/cycle.ts",
                 "note": "GBrain provides the delta/stale/source-anchor maintenance lessons; Gormes adapts them to local skills and memory maintenance evidence without importing GBrain's database runtime."
@@ -29866,6 +30790,188 @@
                   "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./cmd/gormes -run 'TestSkills(List|View)|TestSkillsTools|TestListInstalledSkills|TestBuildDefaultRegistryDelegationDisabled' -count=1 -> ok"
                 ]
               }
+            }
+          ]
+        },
+        "6.G": {
+          "name": "Structured Memory Types",
+          "items": [
+            {
+              "name": "6 typed memory categories with confidence scoring",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Identity, preference, goal, habit, episode, reflection with confidence/durability scoring and conflict resolution",
+              "contract_status": "validated",
+              "slice_size": "large",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Memory falls back to session-based storage; typed memory unavailable but session history preserved",
+              "fixture": "internal/goncho/typed_memory_test.go",
+              "source_refs": [
+                "mercury-agent/src/core/memory.ts",
+                "honcho/src/models.py",
+                "engram/internal/store/store.go"
+              ],
+              "ready_when": [
+                "Goncho SQLite schema exists for extension"
+              ],
+              "not_ready_when": [
+                "Goncho schema is still in flux"
+              ],
+              "unblocks": [
+                "Memory auto-extraction",
+                "Memory consolidation"
+              ],
+              "acceptance": [
+                "CRUD for 6 memory types",
+                "Confidence 0-1 and durability scoring",
+                "Conflict resolution: higher confidence wins, equal → newer",
+                "Auto-pruning: 21-day active stale, 120-day durable decay"
+              ],
+              "note": "Cross-project adoption from mercury-agent + honcho: structured memory with typed categories is a major UX improvement over session-based storage.",
+              "write_scope": [
+                "internal/goncho/typed_memory.go",
+                "internal/goncho/conflict_resolution.go"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run TestTypedMemory -count=1"
+              ],
+              "done_signal": [
+                "Typed memory tests prove CRUD, scoring, conflict resolution, and pruning"
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/goncho/typed_memory.go:MemoryType, MemoryEntry, TypedMemoryStore",
+                  "internal/goncho/typed_memory.go:Create, Read, Update, Delete, ListByType, ListAll, Prune",
+                  "internal/goncho/conflict_resolution.go:ConflictResolution, ResolveConflict, UpsertWithConflictResolution",
+                  "internal/goncho/conflict_resolution.go:GetStats, GetAverageConfidence, GetPruningCandidates"
+                ],
+                "tests": [
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_CRUD",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_ListByType",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_ConfidenceValidation",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_DurabilityValidation",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_AllTypes",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneActiveStale",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneDurableDecay",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_NoPruneRecent",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_AverageConfidence",
+                  "internal/goncho/typed_memory_test.go:TestTypedMemory_PruningCandidates",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_HigherConfidenceWins",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_LowerConfidenceLoses",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceNewerWins",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceOlderLoses",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_NoExisting",
+                  "internal/goncho/conflict_resolution_test.go:TestConflictResolution_TypeMismatch",
+                  "internal/goncho/conflict_resolution_test.go:TestTypedMemory_UpsertWithConflictResolution"
+                ],
+                "verification": [
+                  "go test ./internal/goncho -count=1 -> ok",
+                  "go run ./cmd/progress validate -> 7 phases validated"
+                ]
+              }
+            }
+          ]
+        },
+        "6.H": {
+          "name": "Skill Metadata Placement",
+          "items": [
+            {
+              "name": "SKILL.md metadata.when/loaded/placement schema",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "YAML frontmatter supports metadata.when (conditional activation), metadata.loaded (auto-load), metadata.placement (system/onscreen/admin); hierarchical routing",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Skills load without metadata placement; all skills treated as system scope",
+              "fixture": "internal/skills/metadata_test.go",
+              "source_refs": [
+                "space-agent/src/skills/schema.js",
+                "hermes-agent/agent/skill_utils.py"
+              ],
+              "ready_when": [
+                "SKILL.md parser exists"
+              ],
+              "not_ready_when": [
+                "SKILL.md format is still undefined"
+              ],
+              "acceptance": [
+                "metadata.when supports conditional activation",
+                "metadata.loaded supports auto-load flag",
+                "metadata.placement supports system/onscreen/admin",
+                "Hierarchical routing skill routes to sub-skills"
+              ],
+              "note": "Cross-project adoption from space-agent: metadata-driven skill placement for granular activation control.",
+              "write_scope": [
+                "internal/skills/metadata.go",
+                "internal/skills/routing.go"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run TestMetadata -count=1"
+              ],
+              "done_signal": [
+                "Metadata tests prove conditional activation, auto-load, placement, and routing"
+              ]
+            }
+          ]
+        },
+        "6.I": {
+          "name": "Zero-LLM Knowledge Graph",
+          "items": [
+            {
+              "name": "Regex-based auto-link extraction + brain-first lookup",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Markdown links, wikilinks, qualified wikilinks auto-extracted; typed inference; brain-first 5-step lookup",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Links not auto-extracted; lookup skips local DB/graph and goes directly to LLM/external API",
+              "fixture": "internal/goncho/auto_link_test.go",
+              "source_refs": [
+                "gbrain/src/core/link-extraction.ts",
+                "gbrain/src/core/search/hybrid.ts",
+                "hermes-agent/agent/context_references.py"
+              ],
+              "ready_when": [
+                "Goncho page storage exists"
+              ],
+              "not_ready_when": [
+                "No local page/slug storage in Goncho"
+              ],
+              "unblocks": [
+                "Compiled truth pattern",
+                "Tiered enrichment"
+              ],
+              "acceptance": [
+                "Markdown link syntax is auto-extracted",
+                "Wikilinks [[slug]] and [[source:dir/slug]] auto-extracted",
+                "Typed inference: FOUNDED, INVESTED, ADVISES, WORKS_AT",
+                "Brain-first lookup: local DB → graph → cache → LLM → external API"
+              ],
+              "note": "Cross-project adoption from gbrain: zero-LLM knowledge graph wiring significantly reduces LLM calls for entity resolution.",
+              "write_scope": [
+                "internal/goncho/auto_link.go",
+                "internal/goncho/brain_first.go"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run TestAutoLink -count=1"
+              ],
+              "done_signal": [
+                "Auto-link tests prove markdown/wikilink/typed extraction; brain-first tests prove 5-step lookup"
+              ]
             }
           ]
         }

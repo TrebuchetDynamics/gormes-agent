@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,6 +21,7 @@ import (
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -123,6 +125,24 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
+	// Initialize Goncho for cross-session memory persistence.
+	// When available, every user + assistant turn is persisted and recent
+	// context is injected into the system prompt on each turn.
+	var gonchoStore kernel.GonchoStore
+	if cfg.Goncho.Enabled {
+		gonchoDB, err := sqlOpenGoncho(config.MemoryDBPath())
+		if err != nil {
+			slog.Warn("goncho db open failed; memory disabled", "err", err)
+		} else {
+			gc := goncho.NewService(gonchoDB, goncho.Config{
+				PeerCardEnabled: cfg.Goncho.PeerCardEnabled,
+				DreamEnabled:    cfg.Goncho.DreamEnabled,
+			}, slog.Default())
+			gonchoStore = newGonchoAdapter(gc)
+			slog.Info("goncho initialized", "db", config.MemoryDBPath())
+		}
+	}
+
 	k := kernel.New(kernel.Config{
 		Model:             cfg.Hermes.Model,
 		Endpoint:          cfg.Hermes.Endpoint,
@@ -131,6 +151,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		MaxToolIterations: kernel.DefaultMaxToolIterations,
 		MaxToolDuration:   30 * time.Second,
 		ToolAudit:         toolAudit,
+		Goncho:            gonchoStore,
 	}, hc, mstore, telemetry.New(), slog.Default())
 
 	allowedChats := map[string]string{}
@@ -467,4 +488,55 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 	}
 
 	cancel()
+}
+
+func sqlOpenGoncho(path string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", path+"?mode=rwc&_journal_mode=WAL&_busy_timeout=5000")
+	if err != nil {
+		return nil, err
+	}
+	return db, db.Ping()
+}
+
+func newGonchoAdapter(svc *goncho.Service) kernel.GonchoStore {
+	return &gonchoAdapter{svc: svc}
+}
+
+type gonchoAdapter struct{ svc *goncho.Service }
+
+func (a *gonchoAdapter) AppendTurn(ctx context.Context, peer, sessionKey, role, content string) error {
+	if a.svc == nil || sessionKey == "" || content == "" {
+		return nil
+	}
+	_, err := a.svc.CreateMessages(ctx, goncho.CreateMessagesParams{
+		SessionKey: sessionKey,
+		Messages:   []goncho.CreateMessage{{Peer: peer, Role: role, Content: content}},
+	})
+	return err
+}
+
+func (a *gonchoAdapter) GetContext(ctx context.Context, sessionKey string, maxTokens int) (string, error) {
+	if a.svc == nil || sessionKey == "" {
+		return "", nil
+	}
+	result, err := a.svc.Context(ctx, goncho.ContextParams{
+		Peer:       "gormes",
+		SessionKey: sessionKey,
+		MaxTokens:  maxTokens,
+	})
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for _, m := range result.RecentMessages {
+		role := "User"
+		if m.Role == "assistant" {
+			role = "Gormes"
+		}
+		b.WriteString(role)
+		b.WriteString(": ")
+		b.WriteString(m.Content)
+		b.WriteByte('\n')
+	}
+	return b.String(), nil
 }

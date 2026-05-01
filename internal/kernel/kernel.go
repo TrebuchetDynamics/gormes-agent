@@ -68,10 +68,8 @@ type Config struct {
 	// ToolSafety can deterministically deny interactive or approval-gated tool
 	// calls before registry lookup/execution.
 	ToolSafety ToolSafetyPolicy
-	// ContextEngine owns context-window status, context-engine tools, and the
-	// explicit compression boundary. The kernel may update usage and dispatch
-	// engine tools, but it must not call Compress as an implicit side effect.
 	ContextEngine hermes.ContextEngine
+	Goncho        GonchoStore
 }
 
 type SkillProvider interface {
@@ -312,12 +310,15 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	})
 	_, err := k.store.Exec(storeCtx, store.Command{Kind: store.AppendUserTurn, Payload: userPayload})
 	storeCancel()
-	if err != nil {
+			if err != nil {
 		k.phase = PhaseFailed
 		k.lastError = fmt.Sprintf("store ack timeout: %v", err)
 		k.emitFrame(k.lastError)
 		return
 	}
+
+	// Persist user message to Goncho for cross-session memory.
+	k.writeGonchoUserTurn(ctx, text)
 
 	// 3. Update state for the new turn. These mutations are safe because we
 	// are on the Run goroutine.
@@ -337,6 +338,10 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	// to prevent runaway agent loops.
 	msgs := []hermes.Message{{Role: "user", Content: text}}
 	systemMsgs := make([]hermes.Message, 0, 8)
+
+	if gonchoCtx := k.gonchoContext(ctx); gonchoCtx != "" {
+		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: gonchoCtx})
+	}
 
 	if sessionContext != "" {
 		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: sessionContext})
@@ -635,6 +640,11 @@ toolLoop:
 		finalCtx, finalCancel := context.WithTimeout(ctx, StoreAckDeadline)
 		_, _ = k.store.Exec(finalCtx, store.Command{Kind: store.FinalizeAssistantTurn, Payload: finalPayload})
 		finalCancel()
+	}
+
+	// Persist assistant response to Goncho for cross-session memory.
+	if k.draft != "" {
+		k.writeGonchoAssistantTurn(ctx, k.draft)
 	}
 
 	prov.LogDone(k.log)

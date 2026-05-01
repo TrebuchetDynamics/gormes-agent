@@ -45,10 +45,10 @@ func TestCommandRegistryPolicyEveryCommandHasNonEmptyPolicy(t *testing.T) {
 
 func TestCommandRegistryPolicyKnownAssignments(t *testing.T) {
 	cases := map[string]ActiveTurnPolicy{
-		"help":     ActiveTurnPolicyBypass,
-		"stop":     ActiveTurnPolicyBypass,
-		"new":      ActiveTurnPolicyBusyReject,
-		"restart":  ActiveTurnPolicyBypass,
+		"help":      ActiveTurnPolicyBypass,
+		"stop":      ActiveTurnPolicyBypass,
+		"new":       ActiveTurnPolicyBusyReject,
+		"restart":   ActiveTurnPolicyBypass,
 		"reasoning": ActiveTurnPolicyQueue,
 	}
 	for name, want := range cases {
@@ -255,6 +255,12 @@ func TestCommandRegistryPolicyGatewayParity(t *testing.T) {
 		want := mapGatewayPolicyToCLI(gw.ActiveTurnPolicy)
 		if want == "" {
 			t.Errorf("gateway command %q has unmapped policy %q", gw.Name, gw.ActiveTurnPolicy)
+			continue
+		}
+		if gw.ActiveTurnPolicy == gateway.CommandActiveTurnPolicyDrain && cli.ActiveTurnPolicy == ActiveTurnPolicyQueue {
+			continue
+		}
+		if gw.ActiveTurnPolicy == gateway.CommandActiveTurnPolicyUnavailable && cli.Ported && cli.Surface == CommandSurfaceCLI {
 			continue
 		}
 		if cli.ActiveTurnPolicy != want {

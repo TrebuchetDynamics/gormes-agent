@@ -54,6 +54,14 @@ type RenderFrame struct {
 	// ContextStatus snapshots the active ContextEngine status, when one is
 	// configured. Nil means no context engine has been wired for this kernel.
 	ContextStatus *hermes.ContextStatus
+
+	// PanelState carries active modal panel data from the kernel to the TUI.
+	// Nil/nil fields mean no panel is active. Only one panel may be active
+	// at a time; when multiple are set the TUI follows the priority order:
+	// Approval > Clarify > Secret.
+	ApprovalState *KernelApprovalState
+	ClarifyState *KernelClarifyState
+	SecretState  *KernelSecretState
 }
 
 type SoulEntry struct {
@@ -126,4 +134,70 @@ type PlatformEvent struct {
 	// Submit() cannot set this field, which is the desired API — the
 	// synchronous ResetSession path is the only one that needs it.
 	ack chan error
+}
+
+// =====================================================================
+// Approval panel state — kernel → TUI contract
+// =====================================================================
+
+// ApprovalChoice enumerates the dangerous-command approval choices Hermes
+// exposes. These values are the kernel-side representation; the TUI maps
+// them to hermes_panels.go labels when rendering.
+type ApprovalChoice int
+
+const (
+	ApprovalOnce ApprovalChoice = iota
+	ApprovalSession
+	ApprovalAlways
+	ApprovalDeny
+	ApprovalView
+)
+
+// KernelApprovalState is the approval panel data the kernel sends to the TUI.
+// The TUI's hermes_panels.go converts this to ApprovalPanelState for rendering.
+type KernelApprovalState struct {
+	Description   string
+	Command       string
+	Choices       []ApprovalChoice
+	Selected      ApprovalChoice
+	ViewExpanded  bool
+	Width         int
+	Height        int
+}
+
+// =====================================================================
+// Clarify panel state — kernel → TUI contract
+// =====================================================================
+
+// KernelClarifyState is the clarify panel data the kernel sends to the TUI.
+// The TUI's hermes_panels.go converts this to ClarifyPanelState for rendering.
+type KernelClarifyState struct {
+	Question    string
+	Choices     []string
+	Selected    int
+	TimeoutHint string
+	Width       int
+	Height      int
+}
+
+// =====================================================================
+// Secret/sudo panel state — kernel → TUI contract
+// =====================================================================
+
+// SecretPanelMode distinguishes sudo password from generic skill-secret capture.
+type SecretPanelMode int
+
+const (
+	SecretPanelSudo SecretPanelMode = iota
+	SecretPanelArbitrary
+)
+
+// KernelSecretState is the secret-panel data the kernel sends to the TUI.
+// The TUI's hermes_panels.go converts this to SecretPanelState for rendering.
+type KernelSecretState struct {
+	PromptText string
+	SecretLen  int
+	Hint       string
+	Countdown  time.Duration
+	Mode       int
 }

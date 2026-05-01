@@ -102,6 +102,13 @@ type Model struct {
 	sessionExport SessionExportFunc
 
 	slashRegistry *SlashRegistry
+
+	// PanelState holds the active modal panel derived from the latest
+	// RenderFrame. These fields are updated by Update() when a frameMsg
+	// arrives so that View() can render the appropriate panel chrome.
+	ApprovalState *kernel.KernelApprovalState
+	ClarifyState *kernel.KernelClarifyState
+	SecretState  *kernel.KernelSecretState
 }
 
 // NewModel constructs the Bubble Tea model. frames is the kernel's Render()

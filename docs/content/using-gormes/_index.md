@@ -11,6 +11,7 @@ Operator-facing documentation. Run the binary, connect a Hermes backend, get wor
 
 - [Quickstart](./quickstart/) — 60-second install + first run
 - [Install](./install/) — full install matrix (Linux, macOS, WSL2, Termux, Go install)
+- [Hardware matrix](./hardware/) — tested devices, build profiles, binary size, and RSS evidence
 - [TUI mode](./tui-mode/) — interactive terminal shell
 - [Telegram adapter](./telegram-adapter/) — run Gormes as a Telegram bot
 - [Configuration](./configuration/) — config files, env vars, state directories

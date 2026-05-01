@@ -57,6 +57,55 @@ func TestManager_RunWritesChannelLifecycleToRuntimeStatus(t *testing.T) {
 	}
 }
 
+func TestManager_RunClearsStaleRestartAndActiveAgentStatus(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	store := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	restartRequested := true
+	activeAgents := 3
+	if err := store.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		GatewayState:     GatewayStateRunning,
+		RestartRequested: &restartRequested,
+		ActiveAgents:     &activeAgents,
+	}); err != nil {
+		t.Fatalf("seed stale runtime status: %v", err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		RuntimeStatus: store,
+	}, &fakeKernel{}, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- m.Run(ctx)
+	}()
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		status, err := store.ReadRuntimeStatus(context.Background())
+		if err != nil {
+			return false
+		}
+		return status.GatewayState == GatewayStateRunning &&
+			!status.RestartRequested &&
+			status.ActiveAgents == 0 &&
+			status.Platforms["telegram"].State == PlatformStateRunning
+	})
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run after cancel: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Run did not return after cancel")
+	}
+}
+
 func TestManager_RunWritesStartupFailureToRuntimeStatus(t *testing.T) {
 	startupErr := errors.New("discord: open session: denied")
 	ch := &startupFailedChannel{name: "discord", runErr: startupErr}

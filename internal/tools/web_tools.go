@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -20,30 +21,39 @@ const (
 	WebToolSearch  = "web_search"
 	WebToolCrawl   = "web_crawl"
 
-	webDefaultFirecrawlBaseURL = "https://api.firecrawl.dev"
-	webDefaultExaBaseURL       = "https://api.exa.ai"
-	webDefaultParallelBaseURL  = "https://api.parallel.ai"
-	webDefaultTavilyBaseURL    = "https://api.tavily.com"
-	defaultWebTimeout          = 60 * time.Second
-	defaultWebSearchLimit      = 5
-	defaultWebMaxSearch        = 100
-	defaultWebMaxExtract       = 5
-	defaultWebCrawlLimit       = 20
-	defaultWebProcessMinLength = 5000
-	defaultWebProcessMaxInput  = 2_000_000
-	defaultWebProcessMaxOutput = 5000
-	maxWebResponseBytes        = 2 * 1024 * 1024
-	webAuthRefreshSkew         = 120 * time.Second
-	webAuthRefreshTimeout      = 15 * time.Second
+	webDefaultFirecrawlBaseURL  = "https://api.firecrawl.dev"
+	webDefaultExaBaseURL        = "https://api.exa.ai"
+	webDefaultParallelBaseURL   = "https://api.parallel.ai"
+	webDefaultTavilyBaseURL     = "https://api.tavily.com"
+	webDefaultBraveBaseURL      = "https://api.search.brave.com"
+	webDefaultPerplexityBaseURL = "https://api.perplexity.ai"
+	webDefaultDuckDuckGoBaseURL = "https://html.duckduckgo.com"
+	webDefaultUserAgent         = "Mozilla/5.0 (compatible; GormesAgent/1.0)"
+	defaultWebTimeout           = 60 * time.Second
+	defaultWebSearchLimit       = 5
+	defaultWebMaxSearch         = 100
+	defaultWebMaxExtract        = 5
+	defaultWebCrawlLimit        = 20
+	defaultWebProcessMinLength  = 5000
+	defaultWebProcessMaxInput   = 2_000_000
+	defaultWebProcessMaxOutput  = 5000
+	maxWebResponseBytes         = 2 * 1024 * 1024
+	webAuthRefreshSkew          = 120 * time.Second
+	webAuthRefreshTimeout       = 15 * time.Second
 )
 
 type WebBackend string
 
 const (
-	WebBackendFirecrawl WebBackend = "firecrawl"
-	WebBackendParallel  WebBackend = "parallel"
-	WebBackendTavily    WebBackend = "tavily"
-	WebBackendExa       WebBackend = "exa"
+	WebBackendFirecrawl  WebBackend = "firecrawl"
+	WebBackendParallel   WebBackend = "parallel"
+	WebBackendTavily     WebBackend = "tavily"
+	WebBackendExa        WebBackend = "exa"
+	WebBackendCDP        WebBackend = "cdp"
+	WebBackendBrave      WebBackend = "brave"
+	WebBackendSearXNG    WebBackend = "searxng"
+	WebBackendPerplexity WebBackend = "perplexity"
+	WebBackendDuckDuckGo WebBackend = "duckduckgo"
 )
 
 type WebEvidence string
@@ -53,6 +63,7 @@ const (
 	WebEvidenceProviderUnavailable WebEvidence = "web_provider_unavailable"
 	WebEvidenceInvalidArguments    WebEvidence = "web_invalid_arguments"
 	WebEvidenceRequestFailed       WebEvidence = "web_provider_request_failed"
+	WebEvidenceBackendUnsupported  WebEvidence = "web_backend_unsupported"
 	WebEvidencePrivateURLBlocked   WebEvidence = "private_url_blocked"
 	WebEvidenceWebsitePolicy       WebEvidence = "website_policy_blocked"
 	WebEvidenceSecretURLBlocked    WebEvidence = "secret_url_blocked"
@@ -75,6 +86,7 @@ type WebBackendResolution struct {
 	Evidence  WebEvidence
 	Managed   bool
 	Source    string
+	Note      string
 }
 
 // WebBackendStatus is the redacted operator/toolset read model for native web
@@ -109,6 +121,7 @@ type WebBackendConfig struct {
 // zero in production to resolve from environment; tests provide explicit values.
 type WebToolsConfig struct {
 	Client           WebHTTPClient
+	Browser          BrowserHarnessToolsConfig
 	Backend          WebBackendConfig
 	Policy           WebWebsitePolicy
 	Processing       WebContentProcessingConfig
@@ -198,7 +211,8 @@ func ResolveWebBackend(env map[string]string) WebBackendResolution {
 
 // ResolveWebBackendWithConfig resolves Hermes-compatible web.backend selection
 // from explicit config first, then the same key-based fallback order as
-// upstream Hermes: Firecrawl, Parallel, Tavily, Exa.
+// upstream Hermes: Firecrawl, Parallel, Tavily, Exa. CDP is a Gormes local
+// extraction fallback for known URLs and is tried only after indexed providers.
 func ResolveWebBackendWithConfig(env map[string]string, cfg WebBackendConfig) WebBackendResolution {
 	read := func(key string) string {
 		if env != nil {
@@ -208,21 +222,16 @@ func ResolveWebBackendWithConfig(env map[string]string, cfg WebBackendConfig) We
 	}
 
 	if configured := normalizeWebBackend(cfg.Backend); configured != "" {
-		return resolveConfiguredWebBackend(configured, cfg, read)
+		return resolveConfiguredWebBackend(configured, cfg, read, true)
 	}
 
-	for _, backend := range []WebBackend{WebBackendFirecrawl, WebBackendParallel, WebBackendTavily, WebBackendExa} {
-		if resolved := resolveConfiguredWebBackend(backend, cfg, read); resolved.Available {
+	for _, backend := range []WebBackend{WebBackendFirecrawl, WebBackendParallel, WebBackendTavily, WebBackendExa, WebBackendBrave, WebBackendSearXNG, WebBackendPerplexity, WebBackendDuckDuckGo} {
+		if resolved := resolveConfiguredWebBackend(backend, cfg, read, false); resolved.Available {
 			return resolved
 		}
 	}
 
-	return WebBackendResolution{
-		Backend:   WebBackendFirecrawl,
-		BaseURL:   webDefaultFirecrawlBaseURL,
-		Available: false,
-		Evidence:  WebEvidenceProviderUnavailable,
-	}
+	return duckDuckGoBackendResolution(read)
 }
 
 func ResolveWebBackendStatus(env map[string]string, cfg WebBackendConfig) WebBackendStatus {
@@ -231,6 +240,8 @@ func ResolveWebBackendStatus(env map[string]string, cfg WebBackendConfig) WebBac
 	if resolved.Available {
 		if resolved.Managed {
 			route = "managed"
+		} else if resolved.Backend == WebBackendCDP {
+			route = "local"
 		} else {
 			route = "direct"
 		}
@@ -248,13 +259,13 @@ func ResolveWebBackendStatus(env map[string]string, cfg WebBackendConfig) WebBac
 		Evidence:    resolved.Evidence,
 		UseGateway:  cfg.UseGateway,
 		Managed:     resolved.Managed,
-		ToolNames:   []string{WebToolSearch, WebToolExtract, WebToolCrawl},
+		ToolNames:   webBackendToolNames(resolved.Backend),
 		RequiresEnv: webRequiresEnv(cfg.ManagedToolsEnabled),
 		Description: description,
 	}
 }
 
-func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read func(string) string) WebBackendResolution {
+func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read func(string) string, explicit bool) WebBackendResolution {
 	switch backend {
 	case WebBackendFirecrawl:
 		return resolveFirecrawlBackend(cfg, read)
@@ -294,8 +305,73 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 			}
 		}
 		return unavailableWebBackend(WebBackendExa, webDefaultExaBaseURL)
+	case WebBackendBrave:
+		if apiKey := read("BRAVE_API_KEY"); apiKey != "" {
+			return WebBackendResolution{
+				Backend:   WebBackendBrave,
+				BaseURL:   normalizeWebBaseURL(firstNonEmpty(read("BRAVE_API_URL"), webDefaultBraveBaseURL)),
+				APIKey:    apiKey,
+				Available: true,
+				Evidence:  WebEvidenceOK,
+				Source:    "env",
+			}
+		}
+		return unavailableWebBackend(WebBackendBrave, webDefaultBraveBaseURL)
+	case WebBackendSearXNG:
+		if baseURL := firstNonEmpty(read("SEARXNG_BASE_URL"), read("SEARXNG_URL")); baseURL != "" {
+			return WebBackendResolution{
+				Backend:   WebBackendSearXNG,
+				BaseURL:   normalizeWebBaseURL(baseURL),
+				Available: true,
+				Evidence:  WebEvidenceOK,
+				Source:    "env",
+			}
+		}
+		return unavailableWebBackend(WebBackendSearXNG, "")
+	case WebBackendPerplexity:
+		if apiKey := read("PERPLEXITY_API_KEY"); apiKey != "" {
+			return WebBackendResolution{
+				Backend:   WebBackendPerplexity,
+				BaseURL:   normalizeWebBaseURL(firstNonEmpty(read("PERPLEXITY_API_URL"), webDefaultPerplexityBaseURL)),
+				APIKey:    apiKey,
+				Available: true,
+				Evidence:  WebEvidenceOK,
+				Source:    "env",
+			}
+		}
+		return unavailableWebBackend(WebBackendPerplexity, webDefaultPerplexityBaseURL)
+	case WebBackendCDP:
+		return resolveCDPBackend(read)
+	case WebBackendDuckDuckGo:
+		return duckDuckGoBackendResolution(read)
 	default:
 		return unavailableWebBackend(WebBackendFirecrawl, webDefaultFirecrawlBaseURL)
+	}
+}
+
+func duckDuckGoBackendResolution(read func(string) string) WebBackendResolution {
+	return WebBackendResolution{
+		Backend:   WebBackendDuckDuckGo,
+		BaseURL:   normalizeWebBaseURL(firstNonEmpty(read("DUCKDUCKGO_BASE_URL"), read("DUCKDUCKGO_API_URL"), webDefaultDuckDuckGoBaseURL)),
+		Available: true,
+		Evidence:  WebEvidenceOK,
+		Source:    "free",
+		Note:      "free web_search via DuckDuckGo HTML/Lite parsing; web_extract uses Instant Answer only; no crawl or full-page scrape support",
+	}
+}
+
+func resolveCDPBackend(read func(string) string) WebBackendResolution {
+	endpoint := strings.TrimSpace(firstNonEmpty(read("CHROME_REMOTE_DEBUGGING_URL"), read("BROWSER_CDP_URL")))
+	if endpoint == "" {
+		return unavailableWebBackend(WebBackendCDP, "")
+	}
+	return WebBackendResolution{
+		Backend:   WebBackendCDP,
+		BaseURL:   endpoint,
+		Available: true,
+		Evidence:  WebEvidenceOK,
+		Source:    "env",
+		Note:      "extract only — no search or crawl; pair with DuckDuckGo or SearXNG for search",
 	}
 }
 
@@ -381,6 +457,16 @@ func normalizeWebBackend(raw string) WebBackend {
 		return WebBackendTavily
 	case string(WebBackendExa):
 		return WebBackendExa
+	case string(WebBackendCDP), "browser", "browser_cdp", "chrome":
+		return WebBackendCDP
+	case string(WebBackendBrave), "brave_search":
+		return WebBackendBrave
+	case string(WebBackendSearXNG), "searx":
+		return WebBackendSearXNG
+	case string(WebBackendPerplexity), "pplx", "perplexity_search":
+		return WebBackendPerplexity
+	case string(WebBackendDuckDuckGo), "ddg", "duckduckgo_search":
+		return WebBackendDuckDuckGo
 	default:
 		return ""
 	}
@@ -459,7 +545,10 @@ func (t *webTool) executeSearch(ctx context.Context, args json.RawMessage) (json
 		return nil, fmt.Errorf("%s: query is required", t.name)
 	}
 	if !t.cfg.Resolution.Available {
-		return webSearchFailure("Web tools are not configured. Set FIRECRAWL_API_KEY or FIRECRAWL_API_URL.", WebEvidenceProviderUnavailable)
+		return webSearchFailure(webProviderUnavailableMessage(), WebEvidenceProviderUnavailable)
+	}
+	if t.cfg.Resolution.Backend == WebBackendCDP {
+		return webSearchFailure("web_search requires an indexed search backend; CDP/browser backend only supports web_extract for known URLs.", WebEvidenceBackendUnsupported)
 	}
 
 	limit := in.Limit
@@ -506,12 +595,108 @@ func (t *webTool) executeSearchBackend(ctx context.Context, query string, limit 
 		}, map[string]string{
 			"x-api-key": t.cfg.Resolution.APIKey,
 		})
+	case WebBackendBrave:
+		return t.executeBraveSearch(ctx, query, limit)
+	case WebBackendSearXNG:
+		return t.executeSearXNGSearch(ctx, query)
+	case WebBackendPerplexity:
+		return t.executePerplexitySearch(ctx, query, limit)
+	case WebBackendDuckDuckGo:
+		return t.executeDuckDuckGoSearch(ctx, query, limit)
 	default:
 		return t.postFirecrawlJSON(ctx, "search", map[string]any{
 			"query": query,
 			"limit": limit,
 		})
 	}
+}
+
+func (t *webTool) executeBraveSearch(ctx context.Context, query string, limit int) (map[string]any, error) {
+	endpoint, err := webProviderEndpoint(t.cfg.Resolution.BaseURL, "res/v1/web/search")
+	if err != nil {
+		return nil, err
+	}
+	endpoint, err = webURLWithQuery(endpoint, url.Values{
+		"q":     []string{query},
+		"count": []string{fmt.Sprintf("%d", minInt(limit, 20))},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return t.getJSON(ctx, endpoint, map[string]string{
+		"Accept":               "application/json",
+		"X-Subscription-Token": t.cfg.Resolution.APIKey,
+	})
+}
+
+func (t *webTool) executeSearXNGSearch(ctx context.Context, query string) (map[string]any, error) {
+	endpoint, err := webProviderEndpoint(t.cfg.Resolution.BaseURL, "search")
+	if err != nil {
+		return nil, err
+	}
+	endpoint, err = webURLWithQuery(endpoint, url.Values{
+		"q":          []string{query},
+		"format":     []string{"json"},
+		"categories": []string{"general"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return t.getJSON(ctx, endpoint, map[string]string{"Accept": "application/json"})
+}
+
+func (t *webTool) executePerplexitySearch(ctx context.Context, query string, limit int) (map[string]any, error) {
+	raw, err := t.postProviderJSON(ctx, "chat/completions", map[string]any{
+		"model": "sonar",
+		"messages": []map[string]string{
+			{
+				"role":    "system",
+				"content": "You are a search assistant. Provide concise search results with source-backed facts. Do not add unsupported claims.",
+			},
+			{
+				"role":    "user",
+				"content": fmt.Sprintf("Search for: %s. Return up to %d relevant results.", query, minInt(limit, 20)),
+			},
+		},
+		"max_tokens": 1000,
+	}, map[string]string{
+		"Authorization": "Bearer " + t.cfg.Resolution.APIKey,
+		"User-Agent":    webDefaultUserAgent,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return normalizePerplexitySearch(raw), nil
+}
+
+func (t *webTool) executeDuckDuckGoSearch(ctx context.Context, query string, limit int) (map[string]any, error) {
+	endpoint, err := webProviderEndpoint(t.cfg.Resolution.BaseURL, "html")
+	if err != nil {
+		return nil, err
+	}
+	endpoint, err = webURLWithQuery(endpoint, url.Values{"q": []string{query}})
+	if err != nil {
+		return nil, err
+	}
+	body, err := t.getRaw(ctx, endpoint, map[string]string{
+		"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"User-Agent": webDefaultUserAgent,
+	})
+	if err != nil {
+		return nil, err
+	}
+	results := duckDuckGoSearchResults(body, limit)
+	if len(results) == 0 {
+		liteEndpoint := strings.Replace(endpoint, "html.duckduckgo.com", "lite.duckduckgo.com", 1)
+		liteBody, liteErr := t.getRaw(ctx, liteEndpoint, map[string]string{
+			"Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+			"User-Agent": webDefaultUserAgent,
+		})
+		if liteErr == nil {
+			results = duckDuckGoLiteSearchResults(liteBody, limit)
+		}
+	}
+	return map[string]any{"results": results}, nil
 }
 
 func (t *webTool) executeExtract(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
@@ -536,9 +721,15 @@ func (t *webTool) executeExtract(ctx context.Context, args json.RawMessage) (jso
 	}
 	if !t.cfg.Resolution.Available {
 		return json.Marshal(webExtractResponse{Results: []webExtractResult{{
-			Error:    "Web tools are not configured. Set FIRECRAWL_API_KEY or FIRECRAWL_API_URL.",
+			Error:    webProviderUnavailableMessage(),
 			Evidence: WebEvidenceProviderUnavailable,
 		}}})
+	}
+	if t.cfg.Resolution.Backend == WebBackendCDP {
+		return t.executeCDPExtract(ctx, in.URLs, in.Format)
+	}
+	if t.cfg.Resolution.Backend == WebBackendDuckDuckGo && t.cdpFallbackAvailable() {
+		return t.executeCDPExtract(ctx, in.URLs, in.Format)
 	}
 	if t.cfg.Resolution.Backend != WebBackendFirecrawl {
 		return t.executeProviderExtract(ctx, in.URLs, in.Format)
@@ -557,16 +748,159 @@ func (t *webTool) executeExtract(ctx context.Context, args json.RawMessage) (jso
 			"formats": formats,
 		})
 		if err != nil {
-			results = append(results, webExtractResult{
-				URL:      trimmed,
-				Error:    "Error extracting web page: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
-				Evidence: WebEvidenceRequestFailed,
-			})
+			results = append(results, t.webExtractFailureOrCDPFallback(ctx, trimmed, "Error extracting web page: ", err))
 			continue
 		}
 		results = append(results, t.processWebExtractResult(ctx, t.applyWebExtractPostPolicy(normalizeWebExtract(trimmed, in.Format, raw))))
 	}
 	return marshalWebExtractResponse(webExtractResponse{Results: results})
+}
+
+func (t *webTool) executeCDPExtract(ctx context.Context, urls []string, _ string) (json.RawMessage, error) {
+	results := make([]webExtractResult, 0, len(urls))
+	for _, rawURL := range urls {
+		trimmed := strings.TrimSpace(rawURL)
+		if errResult, blocked := t.blockedWebExtractRequestResult(trimmed); blocked {
+			results = append(results, errResult)
+			continue
+		}
+		result, err := t.runCDPExtractURL(ctx, trimmed)
+		if err != nil {
+			results = append(results, webExtractResult{
+				URL:      trimmed,
+				Error:    "Error extracting web page with CDP: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+				Evidence: WebEvidenceRequestFailed,
+			})
+			continue
+		}
+		results = append(results, t.processWebExtractResult(ctx, t.applyWebExtractPostPolicy(result)))
+	}
+	return marshalWebExtractResponse(webExtractResponse{Results: results})
+}
+
+func (t *webTool) runCDPExtractURL(ctx context.Context, rawURL string) (webExtractResult, error) {
+	actionReq := BrowserHarnessActionRequest{
+		SchemaVersion: browserHarnessActionSchemaVersion,
+		Kind:          BrowserActionNavigate,
+		TaskID:        WebToolExtract,
+		URL:           rawURL,
+		NewTab:        true,
+	}
+	actionJSON, err := json.Marshal(actionReq)
+	if err != nil {
+		return webExtractResult{}, fmt.Errorf("web: marshal CDP action: %w", err)
+	}
+
+	cfg := t.cdpBrowserConfig()
+	bridge := BrowserHarnessBridge{
+		Command:  cfg.Command,
+		Protocol: cfg.Protocol,
+		Runner:   cfg.Runner,
+	}
+	commandResult, err := bridge.Run(ctx, BrowserHarnessCommandRequest{
+		Command:    cfg.Command,
+		Protocol:   cfg.Protocol,
+		ActionJSON: actionJSON,
+		TaskID:     WebToolExtract,
+		Action: BrowserAction{
+			Kind:   BrowserActionNavigate,
+			TaskID: WebToolExtract,
+			URL:    rawURL,
+		},
+		Env:       cfg.Env,
+		Timeout:   cfg.Timeout,
+		MediaType: firstNonEmpty(cfg.MediaType, "text/plain"),
+		Budget:    cfg.Budget,
+	})
+	if err != nil {
+		return webExtractResult{}, err
+	}
+	if commandResult.Evidence != BrowserHarnessEvidenceCommandOK {
+		return webExtractResult{}, fmt.Errorf("browser harness evidence: %s", commandResult.Evidence)
+	}
+
+	var payload struct {
+		URL      string `json:"url"`
+		Title    string `json:"title"`
+		Text     string `json:"text"`
+		Message  string `json:"message"`
+		Evidence string `json:"evidence"`
+	}
+	if err := json.Unmarshal([]byte(commandResult.Envelope.Text), &payload); err != nil {
+		return webExtractResult{}, fmt.Errorf("decode browser harness result: %w", err)
+	}
+	if payload.Message != "" && payload.Text == "" && payload.Title == "" {
+		return webExtractResult{}, fmt.Errorf("%s", payload.Message)
+	}
+	return webExtractResult{
+		URL:     firstNonEmpty(payload.URL, rawURL),
+		Title:   payload.Title,
+		Content: payload.Text,
+	}, nil
+}
+
+func (t *webTool) cdpBrowserConfig() BrowserHarnessToolsConfig {
+	cfg := cloneBrowserHarnessToolsConfig(t.cfg.Browser)
+	if cfg.Env == nil {
+		cfg.Env = map[string]string{}
+	}
+	if endpoint := t.cdpEndpoint(); endpoint != "" {
+		if strings.TrimSpace(cfg.Env["CHROME_REMOTE_DEBUGGING_URL"]) == "" {
+			cfg.Env["CHROME_REMOTE_DEBUGGING_URL"] = endpoint
+		}
+		if strings.TrimSpace(cfg.Env["BROWSER_CDP_URL"]) == "" {
+			cfg.Env["BROWSER_CDP_URL"] = endpoint
+		}
+	}
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = t.cfg.timeout()
+	}
+	if cfg.MediaType == "" {
+		cfg.MediaType = "text/plain"
+	}
+	if cfg.Budget.TextBudgetBytes <= 0 {
+		cfg.Budget.TextBudgetBytes = maxWebResponseBytes
+	}
+	if cfg.Budget.PreviewBytes <= 0 {
+		cfg.Budget.PreviewBytes = maxWebResponseBytes
+	}
+	return cfg
+}
+
+func (t *webTool) cdpEndpoint() string {
+	if t.cfg.Browser.Env != nil {
+		if endpoint := strings.TrimSpace(t.cfg.Browser.Env["CHROME_REMOTE_DEBUGGING_URL"]); endpoint != "" {
+			return endpoint
+		}
+		if endpoint := strings.TrimSpace(t.cfg.Browser.Env["BROWSER_CDP_URL"]); endpoint != "" {
+			return endpoint
+		}
+	}
+	if t.cfg.Resolution.Backend == WebBackendCDP {
+		if endpoint := strings.TrimSpace(t.cfg.Resolution.BaseURL); endpoint != "" {
+			return endpoint
+		}
+	}
+	return strings.TrimSpace(firstNonEmpty(os.Getenv("CHROME_REMOTE_DEBUGGING_URL"), os.Getenv("BROWSER_CDP_URL")))
+}
+
+func (t *webTool) cdpFallbackAvailable() bool {
+	return t.cfg.Resolution.Backend != WebBackendCDP && t.cdpEndpoint() != ""
+}
+
+func (t *webTool) webExtractFailureOrCDPFallback(ctx context.Context, rawURL string, prefix string, err error) webExtractResult {
+	if t.cdpFallbackAvailable() {
+		result, cdpErr := t.runCDPExtractURL(ctx, rawURL)
+		if cdpErr == nil {
+			return t.processWebExtractResult(ctx, t.applyWebExtractPostPolicy(result))
+		}
+		err = fmt.Errorf("%w; CDP fallback failed: %v", err, cdpErr)
+	}
+	return webExtractResult{
+		URL:      rawURL,
+		Error:    prefix + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+		Evidence: WebEvidenceRequestFailed,
+	}
 }
 
 func (t *webTool) executeProviderExtract(ctx context.Context, urls []string, format string) (json.RawMessage, error) {
@@ -590,11 +924,7 @@ func (t *webTool) executeProviderExtract(ctx context.Context, urls []string, for
 	raw, err := t.executeExtractBackend(ctx, safeURLs)
 	if err != nil {
 		for _, url := range safeURLs {
-			results = append(results, webExtractResult{
-				URL:      url,
-				Error:    "Error extracting web page: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
-				Evidence: WebEvidenceRequestFailed,
-			})
+			results = append(results, t.webExtractFailureOrCDPFallback(ctx, url, "Error extracting web page: ", err))
 		}
 		return marshalWebExtractResponse(webExtractResponse{Results: results})
 	}
@@ -627,6 +957,8 @@ func (t *webTool) executeExtractBackend(ctx context.Context, urls []string) (map
 		}, map[string]string{
 			"x-api-key": t.cfg.Resolution.APIKey,
 		})
+	case WebBackendDuckDuckGo:
+		return t.duckDuckGoExtract(ctx, urls)
 	default:
 		return nil, fmt.Errorf("web: unsupported extract backend %q", t.cfg.Resolution.Backend)
 	}
@@ -732,6 +1064,52 @@ func (t *webTool) postProviderJSON(ctx context.Context, endpoint string, payload
 		return nil, err
 	}
 	return t.postJSON(ctx, u, payload, headers)
+}
+
+func (t *webTool) getJSON(ctx context.Context, endpointURL string, headers map[string]string) (map[string]any, error) {
+	data, err := t.getRaw(ctx, endpointURL, headers)
+	if err != nil {
+		return nil, err
+	}
+	var out map[string]any
+	if len(data) == 0 {
+		return map[string]any{}, nil
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil, fmt.Errorf("web: decode response: %w", err)
+	}
+	return out, nil
+}
+
+func (t *webTool) getRaw(ctx context.Context, endpointURL string, headers map[string]string) ([]byte, error) {
+	reqCtx, cancel := context.WithTimeout(ctx, t.cfg.timeout())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, endpointURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("web: build request: %w", err)
+	}
+	req.Header.Set("Accept", "*/*")
+	for k, v := range headers {
+		if strings.TrimSpace(k) != "" && strings.TrimSpace(v) != "" {
+			req.Header.Set(k, v)
+		}
+	}
+
+	resp, err := t.cfg.client().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("web: do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxWebResponseBytes))
+	if err != nil {
+		return nil, fmt.Errorf("web: read response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("web: unexpected status %d: %s", resp.StatusCode, safeWebSnippet(data))
+	}
+	return data, nil
 }
 
 func (t *webTool) postJSON(ctx context.Context, endpointURL string, payload any, headers map[string]string) (map[string]any, error) {
@@ -894,6 +1272,47 @@ func normalizeWebSearch(raw map[string]any) webSearchResponse {
 	return out
 }
 
+func normalizePerplexitySearch(raw map[string]any) map[string]any {
+	answer := ""
+	for _, choice := range mapList(raw["choices"]) {
+		if message, _ := choice["message"].(map[string]any); message != nil {
+			answer = webStringValue(message["content"])
+			if answer != "" {
+				break
+			}
+		}
+	}
+	citations := webStringList(raw["citations"])
+	capacity := len(citations)
+	if capacity == 0 {
+		capacity = 1
+	}
+	results := make([]any, 0, capacity)
+	if len(citations) == 0 {
+		if answer != "" {
+			results = append(results, map[string]any{
+				"title":       "Perplexity answer",
+				"description": answer,
+				"position":    1,
+			})
+		}
+		return map[string]any{"results": results}
+	}
+	for i, citation := range citations {
+		citation = strings.TrimSpace(citation)
+		if citation == "" {
+			continue
+		}
+		results = append(results, map[string]any{
+			"title":       fmt.Sprintf("Perplexity citation %d", i+1),
+			"url":         citation,
+			"description": answer,
+			"position":    len(results) + 1,
+		})
+	}
+	return map[string]any{"results": results}
+}
+
 func normalizeWebExtract(requestedURL, format string, raw map[string]any) webExtractResult {
 	payload := raw
 	if data, ok := raw["data"].(map[string]any); ok {
@@ -986,6 +1405,17 @@ func normalizeWebCrawlDocuments(requestedURL string, raw map[string]any) []webEx
 }
 
 func webSearchCandidates(raw map[string]any) []any {
+	if results, ok := raw["results"].([]any); ok {
+		return results
+	}
+	if web, ok := raw["web"].([]any); ok {
+		return web
+	}
+	if web, ok := raw["web"].(map[string]any); ok {
+		if results, ok := web["results"].([]any); ok {
+			return results
+		}
+	}
 	if data, ok := raw["data"].([]any); ok {
 		return data
 	}
@@ -997,16 +1427,149 @@ func webSearchCandidates(raw map[string]any) []any {
 			return results
 		}
 	}
-	if web, ok := raw["web"].([]any); ok {
-		return web
-	}
-	if results, ok := raw["results"].([]any); ok {
-		return results
-	}
 	return nil
 }
 
+// duckDuckGoExtract queries the DDG Instant Answer API for facts about URLs.
+// This provides basic extraction capability when no API backends are configured.
+func (t *webTool) duckDuckGoExtract(ctx context.Context, urls []string) (map[string]any, error) {
+	raw, err := t.getRaw(ctx, fmt.Sprintf("https://api.duckduckgo.com/?q=%s&format=json&no_html=1&skip_disambig=1", url.QueryEscape(strings.Join(urls, " "))), map[string]string{
+		"Accept":     "application/json",
+		"User-Agent": webDefaultUserAgent,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var ddg struct {
+		AbstractText   string `json:"AbstractText"`
+		AbstractSource string `json:"AbstractSource"`
+		AbstractURL    string `json:"AbstractURL"`
+		Heading        string `json:"Heading"`
+		Answer         string `json:"Answer"`
+	}
+	if err := json.Unmarshal(raw, &ddg); err != nil {
+		return nil, fmt.Errorf("web: invalid ddg response: %w", err)
+	}
+	if ddg.AbstractText == "" && ddg.Answer == "" {
+		return map[string]any{"results": []map[string]any{{
+			"title":   "DuckDuckGo Instant Answer",
+			"content": "No instant answer available for this query.",
+			"url":     strings.Join(urls, " "),
+		}}}, nil
+	}
+	return map[string]any{"results": []map[string]any{{
+		"title":   firstNonEmpty(ddg.Heading, ddg.AbstractSource, "DuckDuckGo Instant Answer"),
+		"content": firstNonEmpty(ddg.Answer, ddg.AbstractText),
+		"url":     firstNonEmpty(ddg.AbstractURL, strings.Join(urls, " ")),
+	}}}, nil
+}
+
+var (
+	webDuckDuckGoLinkPattern    = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*\bresult__a\b[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>`)
+	webDuckDuckGoSnippetPattern = regexp.MustCompile(`(?is)<a[^>]*class="[^"]*\bresult__snippet\b[^"]*"[^>]*>(.*?)</a>`)
+	webHTMLTagPattern           = regexp.MustCompile(`(?is)<[^>]+>`)
+)
+
+func duckDuckGoSearchResults(body []byte, limit int) []any {
+	if limit <= 0 {
+		limit = defaultWebSearchLimit
+	}
+	htmlText := string(body)
+	links := webDuckDuckGoLinkPattern.FindAllStringSubmatch(htmlText, limit+5)
+	snippets := webDuckDuckGoSnippetPattern.FindAllStringSubmatch(htmlText, limit+5)
+	results := make([]any, 0, minInt(len(links), limit))
+	for i, match := range links {
+		if len(results) >= limit || len(match) < 3 {
+			break
+		}
+		title := cleanDuckDuckGoHTMLText(match[2])
+		resultURL := decodeDuckDuckGoURL(html.UnescapeString(match[1]))
+		if title == "" || resultURL == "" {
+			continue
+		}
+		row := map[string]any{
+			"title":    title,
+			"url":      resultURL,
+			"position": len(results) + 1,
+		}
+		if i < len(snippets) && len(snippets[i]) >= 2 {
+			if snippet := cleanDuckDuckGoHTMLText(snippets[i][1]); snippet != "" {
+				row["snippet"] = snippet
+			}
+		}
+		results = append(results, row)
+	}
+	return results
+}
+
+// duckDuckGoLiteSearchResults parses the simpler HTML from lite.duckduckgo.com.
+// Lite uses a table layout with plain <a> links, which is more stable than the
+// CSS class-based parsing on the main HTML endpoint.
+func duckDuckGoLiteSearchResults(body []byte, limit int) []any {
+	if limit <= 0 {
+		limit = defaultWebSearchLimit
+	}
+	htmlText := string(body)
+	linkPattern := regexp.MustCompile(`(?is)<a[^>]*href="\/\/?([^"]+)"[^>]*class="[^"]*result-link[^"]*"[^>]*>(.*?)</a>`)
+	snippetPattern := regexp.MustCompile(`(?is)<td[^>]*class="[^"]*result-snippet[^"]*"[^>]*>(.*?)</td>`)
+	links := linkPattern.FindAllStringSubmatch(htmlText, limit+5)
+	snippets := snippetPattern.FindAllStringSubmatch(htmlText, limit+5)
+	results := make([]any, 0, minInt(len(links), limit))
+	for i, match := range links {
+		if len(results) >= limit || len(match) < 3 {
+			break
+		}
+		title := cleanDuckDuckGoHTMLText(match[2])
+		resultURL := decodeDuckDuckGoURL("https://" + match[1])
+		if title == "" || resultURL == "" {
+			continue
+		}
+		row := map[string]any{
+			"title":    title,
+			"url":      resultURL,
+			"position": len(results) + 1,
+		}
+		if i < len(snippets) && len(snippets[i]) >= 2 {
+			if snippet := cleanDuckDuckGoHTMLText(snippets[i][1]); snippet != "" {
+				row["snippet"] = snippet
+			}
+		}
+		results = append(results, row)
+	}
+	return results
+}
+
+func decodeDuckDuckGoURL(raw string) string {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return ""
+	}
+	if parsed, err := url.Parse(value); err == nil {
+		if redirected := parsed.Query().Get("uddg"); redirected != "" {
+			return strings.TrimSpace(redirected)
+		}
+	}
+	if decoded, err := url.QueryUnescape(value); err == nil && decoded != value {
+		if parsed, err := url.Parse(decoded); err == nil {
+			if redirected := parsed.Query().Get("uddg"); redirected != "" {
+				return strings.TrimSpace(redirected)
+			}
+		}
+		value = decoded
+	}
+	return strings.TrimSpace(value)
+}
+
+func cleanDuckDuckGoHTMLText(raw string) string {
+	text := webHTMLTagPattern.ReplaceAllString(raw, "")
+	text = html.UnescapeString(text)
+	return strings.Join(strings.Fields(text), " ")
+}
+
 func mapList(v any) []map[string]any {
+	if rows, ok := v.([]map[string]any); ok {
+		return rows
+	}
 	items, ok := v.([]any)
 	if !ok {
 		return nil
@@ -1290,6 +1853,11 @@ func webRequiresEnv(includeManaged bool) []string {
 		"TAVILY_API_KEY",
 		"FIRECRAWL_API_KEY",
 		"FIRECRAWL_API_URL",
+		"BRAVE_API_KEY",
+		"SEARXNG_BASE_URL",
+		"PERPLEXITY_API_KEY",
+		"CHROME_REMOTE_DEBUGGING_URL",
+		"BROWSER_CDP_URL",
 	}
 	if includeManaged {
 		requires = append(requires,
@@ -1300,6 +1868,32 @@ func webRequiresEnv(includeManaged bool) []string {
 		)
 	}
 	return requires
+}
+
+func webBackendToolNames(backend WebBackend) []string {
+	if backend == WebBackendCDP {
+		return []string{WebToolExtract}
+	}
+	if backend == WebBackendDuckDuckGo {
+		return []string{WebToolSearch, WebToolExtract}
+	}
+	if webBackendSearchOnly(backend) {
+		return []string{WebToolSearch}
+	}
+	return []string{WebToolSearch, WebToolExtract, WebToolCrawl}
+}
+
+func webBackendSearchOnly(backend WebBackend) bool {
+	switch backend {
+	case WebBackendBrave, WebBackendSearXNG, WebBackendPerplexity:
+		return true
+	default:
+		return false
+	}
+}
+
+func webProviderUnavailableMessage() string {
+	return "Web tools are not configured. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, PARALLEL_API_KEY, TAVILY_API_KEY, EXA_API_KEY, BRAVE_API_KEY, SEARXNG_BASE_URL, PERPLEXITY_API_KEY, or CHROME_REMOTE_DEBUGGING_URL for local web_extract. DuckDuckGo search fallback is automatic when no API keys are configured."
 }
 
 func webExtractFormats(format string) []string {
@@ -1321,7 +1915,9 @@ func marshalWebExtractResponse(resp webExtractResponse) (json.RawMessage, error)
 	return json.RawMessage(cleanWebBase64Images(string(raw))), nil
 }
 
-var webBase64ImagePattern = regexp.MustCompile(`\(?data:image/[^;()\s]+;base64,[A-Za-z0-9+/=]+\)?`)
+var (
+	webBase64ImagePattern = regexp.MustCompile(`\(?data:image/[^;()\s]+;base64,[A-Za-z0-9+/=]+\)?`)
+)
 
 func cleanWebBase64Images(text string) string {
 	return webBase64ImagePattern.ReplaceAllStringFunc(text, func(match string) string {
@@ -1389,6 +1985,22 @@ func webEndpoint(baseURL string, elements ...string) (string, error) {
 	}
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
+	return parsed.String(), nil
+}
+
+func webURLWithQuery(endpointURL string, values url.Values) (string, error) {
+	parsed, err := url.Parse(endpointURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("web: invalid endpoint url %q", endpointURL)
+	}
+	q := parsed.Query()
+	for key, vals := range values {
+		q.Del(key)
+		for _, value := range vals {
+			q.Add(key, value)
+		}
+	}
+	parsed.RawQuery = q.Encode()
 	return parsed.String(), nil
 }
 

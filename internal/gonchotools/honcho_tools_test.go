@@ -3,6 +3,7 @@ package gonchotools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -20,7 +21,6 @@ func TestHonchoTools_RegisterExpectedNames(t *testing.T) {
 		"honcho_profile",
 		"honcho_search",
 		"honcho_context",
-		"honcho_chat",
 		"honcho_reasoning",
 		"honcho_conclude",
 	} {
@@ -73,6 +73,7 @@ func TestHonchoContextTool_SchemaExposesOptionalSummaryContextOptions(t *testing
 }
 
 func TestHonchoChatTool_SchemaMatchesHostDialecticContract(t *testing.T) {
+	t.Skip("honcho_chat not registered as tool — Python parity")
 	tool := &HonchoChatTool{}
 	if got := tool.Name(); got != "honcho_chat" {
 		t.Fatalf("Name() = %q, want honcho_chat", got)
@@ -134,6 +135,7 @@ func TestHonchoChatTool_SchemaMatchesHostDialecticContract(t *testing.T) {
 }
 
 func TestHonchoChatTool_ReturnsContentOnlyAndLeavesReasoningAliasAvailable(t *testing.T) {
+	t.Skip("honcho_chat not registered as tool — Python parity")
 	reg, svc, cleanup := newTestHonchoRegistry(t)
 	defer cleanup()
 
@@ -170,6 +172,7 @@ func TestHonchoChatTool_ReturnsContentOnlyAndLeavesReasoningAliasAvailable(t *te
 }
 
 func TestHonchoChatTool_ReturnsStreamingDegradationEvidence(t *testing.T) {
+	t.Skip("honcho_chat not registered as tool — Python parity")
 	reg, _, cleanup := newTestHonchoRegistry(t)
 	defer cleanup()
 
@@ -279,6 +282,69 @@ func TestHonchoProfileTool_TargetStoresDirectionalCard(t *testing.T) {
 	}`))
 	if !strings.Contains(string(readTargetOutput), "Alice saw Bob order tea") {
 		t.Fatalf("target profile read missing directional card: %s", readTargetOutput)
+	}
+}
+
+func TestHonchoReasoningTool_UsesDialecticCaller(t *testing.T) {
+	reg, svc, cleanup := newTestHonchoRegistry(t)
+	defer cleanup()
+	caller := &recordingDialecticCaller{answer: "LLM-backed answer"}
+	svc.SetDialecticCaller(caller)
+
+	ctx := context.Background()
+	if _, err := svc.Conclude(ctx, goncho.ConcludeParams{
+		Peer:       "telegram:6586915095",
+		Conclusion: "The user prefers exact evidence-first reports.",
+		SessionKey: "telegram:6586915095",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	output := executeHonchoTool(t, reg, "honcho_reasoning", json.RawMessage(`{
+		"peer":"telegram:6586915095",
+		"query":"How should I answer?",
+		"reasoning_level":"low",
+		"session_key":"telegram:6586915095"
+	}`))
+	if !strings.Contains(string(output), `"answer":"LLM-backed answer"`) {
+		t.Fatalf("reasoning output = %s, want caller answer", output)
+	}
+	if strings.Contains(string(output), "reasoning_llm_unavailable") || strings.Contains(string(output), "reasoning_llm_failed") {
+		t.Fatalf("caller success should not emit degraded evidence: %s", output)
+	}
+	if caller.peer != "telegram:6586915095" || caller.query != "How should I answer?" {
+		t.Fatalf("caller got peer=%q query=%q", caller.peer, caller.query)
+	}
+	if !strings.Contains(caller.systemPrompt, "exact evidence-first reports") {
+		t.Fatalf("caller system prompt missing context: %q", caller.systemPrompt)
+	}
+}
+
+func TestHonchoReasoningTool_DialecticCallerFailureFallsBack(t *testing.T) {
+	reg, svc, cleanup := newTestHonchoRegistry(t)
+	defer cleanup()
+	svc.SetDialecticCaller(&recordingDialecticCaller{err: errDialecticTestFailure})
+
+	ctx := context.Background()
+	if _, err := svc.Conclude(ctx, goncho.ConcludeParams{
+		Peer:       "telegram:6586915095",
+		Conclusion: "The user prefers exact evidence-first reports.",
+		SessionKey: "telegram:6586915095",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	output := executeHonchoTool(t, reg, "honcho_reasoning", json.RawMessage(`{
+		"peer":"telegram:6586915095",
+		"query":"How should I answer?",
+		"reasoning_level":"low",
+		"session_key":"telegram:6586915095"
+	}`))
+	if !strings.Contains(string(output), `exact evidence-first reports`) {
+		t.Fatalf("fallback output missing deterministic context: %s", output)
+	}
+	if !strings.Contains(string(output), `"evidence":"reasoning_llm_failed"`) {
+		t.Fatalf("fallback output missing caller failure evidence: %s", output)
 	}
 }
 
@@ -442,6 +508,26 @@ func seedScopedConclusions(t *testing.T, ctx context.Context, svc *goncho.Servic
 			t.Fatalf("seed conclusion %q: %v", item.conclusion, err)
 		}
 	}
+}
+
+var errDialecticTestFailure = errors.New("dialectic test failure")
+
+type recordingDialecticCaller struct {
+	answer       string
+	err          error
+	peer         string
+	systemPrompt string
+	query        string
+}
+
+func (c *recordingDialecticCaller) Chat(_ context.Context, peer string, systemPrompt string, query string) (string, error) {
+	c.peer = peer
+	c.systemPrompt = systemPrompt
+	c.query = query
+	if c.err != nil {
+		return "", c.err
+	}
+	return c.answer, nil
 }
 
 func executeHonchoTool(t *testing.T, reg *tools.Registry, toolName string, input json.RawMessage) json.RawMessage {

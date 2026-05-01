@@ -33,6 +33,7 @@ func TestCronjobTool_CreateListAndRedact(t *testing.T) {
 		"name":             "launch metrics",
 		"schedule":         "every 30m",
 		"prompt":           prompt,
+		"deliver":          []string{"telegram", "discord:ops"},
 		"repeat":           3,
 		"model":            map[string]any{"provider": "anthropic", "model": "claude-sonnet-4"},
 		"enabled_toolsets": []string{"web", "terminal"},
@@ -56,6 +57,9 @@ func TestCronjobTool_CreateListAndRedact(t *testing.T) {
 	if stored.Schedule != "every 30m" || stored.Prompt != prompt || stored.Repeat != 3 {
 		t.Fatalf("stored job = %+v, want schedule/prompt/repeat persisted", stored)
 	}
+	if stored.Deliver != "telegram,discord:ops" {
+		t.Fatalf("stored deliver = %q, want normalized comma-separated targets", stored.Deliver)
+	}
 	if stored.Provider != "anthropic" || stored.Model != "claude-sonnet-4" {
 		t.Fatalf("stored model/provider = %q/%q, want anthropic/claude-sonnet-4", stored.Provider, stored.Model)
 	}
@@ -76,6 +80,9 @@ func TestCronjobTool_CreateListAndRedact(t *testing.T) {
 	summary := listed.Jobs[0]
 	if summary.JobID != created.JobID || summary.Name != "launch metrics" || summary.Schedule != "every 30m" {
 		t.Fatalf("list summary = %+v, want created job identity and schedule", summary)
+	}
+	if summary.Deliver != "telegram,discord:ops" {
+		t.Fatalf("list deliver = %q, want normalized comma-separated targets", summary.Deliver)
 	}
 	if summary.Repeat != "3 times" {
 		t.Fatalf("list repeat = %q, want repeat evidence", summary.Repeat)
@@ -339,6 +346,7 @@ type cronjobJobSummary struct {
 	JobID    string `json:"job_id"`
 	Name     string `json:"name"`
 	Schedule string `json:"schedule"`
+	Deliver  string `json:"deliver"`
 	Repeat   string `json:"repeat"`
 	Enabled  bool   `json:"enabled"`
 }

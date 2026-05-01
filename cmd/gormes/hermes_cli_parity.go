@@ -46,7 +46,7 @@ type hermesCLIParityEntry struct {
 func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries := []hermesCLIParityEntry{
 		hermesImplementedCommand("chat", "hermes_cli/main.py:chat", "cmd/gormes root TUI/oneshot"),
-		hermesRowCommand("model", "hermes_cli/main.py:model_command", "Gormes model interactive provider/model picker", "interactive model picker and account-aware provider switching remain row-backed"),
+		hermesImplementedCommand("model", "hermes_cli/main.py:model_command", "internal/gateway model handler"),
 		hermesCommandSet("gateway", "hermes_cli/main.py:gateway", "gateway lifecycle subcommands are partly implemented; missing mutating/service commands remain row-backed", "Gateway, platform, webhook, and cron management CLI"),
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
 		hermesRowCommand("whatsapp", "hermes_cli/main.py:whatsapp", "Gateway, platform, webhook, and cron management CLI", "WhatsApp platform management remains row-backed"),
@@ -74,10 +74,12 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("insights", "hermes_cli/main.py:insights", "Self-monitoring telemetry", "insights rollup command remains row-backed"),
 		hermesCommandSet("claw", "hermes_cli/claw.py", "OpenClaw migration commands remain row-backed", "OpenClaw migration dry-run manifest"),
 		hermesImplementedCommand("version", "hermes_cli/main.py:version", "cmd/gormes version"),
+		hermesImplementedCommand("retry", "gateway/run.py:_handle_retry_command", "internal/gateway retry"),
+		hermesImplementedCommand("platforms", "gateway/run.py:_handle_status_command", "internal/gateway platforms alias"),
 		hermesRowCommand("update", "gateway/run.py:_handle_update_command", "Backup/update opt-in and exclusion policy", "self-update command remains row-backed"),
 		hermesRowCommand("uninstall", "hermes_cli/main.py:uninstall", "Backup/update opt-in and exclusion policy", "uninstaller remains row-backed and destructive"),
 		hermesRowCommand("acp", "hermes_cli/main.py:acp", "ACP server side", "ACP server/client command remains row-backed"),
-		hermesRowCommand("profile", "hermes_cli/main.py:profile", "Gormes profile command binding", "profile command binding remains row-backed pending Cobra wiring over the validator/root/store helpers and the selector seam"),
+		hermesImplementedCommand("profile", "hermes_cli/main.py:profile", "internal/gateway profile command handler"),
 		hermesRowCommand("completion", "hermes_cli/main.py:completion", "Hermes CLI command-tree parity manifest", "shell completion command remains manifest-classified only"),
 		hermesRowCommand("dashboard", "hermes_cli/main.py:dashboard", "Dashboard theme/plugin extension status contract", "dashboard launch/status command remains row-backed"),
 		hermesRowCommand("logs", "hermes_cli/main.py:logs", "Diagnostics, backup, logs, and status CLI", "log snapshot command remains row-backed"),

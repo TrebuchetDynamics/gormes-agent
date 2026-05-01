@@ -32,7 +32,8 @@ copying Python mega-files or TypeScript database gravity.
 
 | Need | Start with | Then use |
 |---|---|---|
-| Understand the finish line | [Gormes Completion Plan](./architecture_plan/completion-plan/) | [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Agent Operating Model](./architecture_plan/agent-operating-model/) |
+| **Start here — plan and prioritize** | **[Implementation Roadmap](./implementation-roadmap/)** | [Must-Have Features](./must-have-features/), [Gormes Completion Plan](./architecture_plan/completion-plan/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/) |
+| Understand the finish line | [Gormes Completion Plan](./architecture_plan/completion-plan/) | [Must-Have Features](./must-have-features/), [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Agent Operating Model](./architecture_plan/agent-operating-model/) |
 | Understand the runtime shape | [Core Systems](./core-systems/) | [Architecture Plan](./architecture_plan/), [Why Go](./architecture_plan/why-go/) |
 | Choose implementation work | [Agent Queue](./builder-loop/agent-queue/) | [Next Slices](./builder-loop/next-slices/), [Blocked Slices](./builder-loop/blocked-slices/), [Umbrella Cleanup](./builder-loop/umbrella-cleanup/) |
 | Prepare a skill-builder handoff | [Contract Readiness](./contract-readiness/) | [Progress Schema](./builder-loop/progress-schema/), [Skill Builder Handoff](./builder-loop/builder-loop-handoff/) |
@@ -94,28 +95,31 @@ dispatch queue.
 
 Use the planning docs in this order:
 
-1. Read [Upstream Lessons](./upstream-lessons/) to understand which contracts
+1. Read **[Implementation Roadmap](./implementation-roadmap/)** for current state, decision trees, and execution horizons.
+2. Read [Upstream Lessons](./upstream-lessons/) to understand which contracts
    Gormes absorbs from Hermes and GBrain.
-2. Check [Skill Builder Handoff](./builder-loop/builder-loop-handoff/) for the
+3. Check [Skill Builder Handoff](./builder-loop/builder-loop-handoff/) for the
    skill entrypoint, candidate source, generated docs, tests, and candidate
    policy.
-3. Pick work from [Agent Queue](./builder-loop/agent-queue/) for a
+4. Pick work from [Agent Queue](./builder-loop/agent-queue/) for a
    builder-ready handoff, then use [Next Slices](./builder-loop/next-slices/)
    for the shorter ranking.
-4. Use `docs/development-skills/gormes-builder/SKILL.md` and
+5. Use `docs/development-skills/gormes-builder/SKILL.md` and
    `docs/development-skills/gormes-tdd-slice/SKILL.md` to implement one row;
    `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink
    loader views.
-5. Check [Contract Readiness](./contract-readiness/) before implementation; an
+6. Check [Contract Readiness](./contract-readiness/) before implementation; an
    active or P0 row must name its contract, trust class, degraded mode, fixture,
    source references, and acceptance checks.
-6. Check [Blocked Slices](./builder-loop/blocked-slices/) and
+7. Check [Blocked Slices](./builder-loop/blocked-slices/) and
    [Umbrella Cleanup](./builder-loop/umbrella-cleanup/) before assigning a row.
-7. Use [Progress Schema](./builder-loop/progress-schema/) when editing canonical progress.
-8. Write the spec/plan from [Porting a Subsystem](./porting-a-subsystem/),
+8. Use [Progress Schema](./builder-loop/progress-schema/) when editing canonical progress.
+9. Write the spec/plan from [Porting a Subsystem](./porting-a-subsystem/),
    then implement with the fixture classes in [Testing](./testing/).
 
 ## Reference groups
+
+**Planning:** [Implementation Roadmap](./implementation-roadmap/), [Must-Have Features](./must-have-features/), [Cross-Project Feature Map](./cross-project-feature-map/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Gormes Completion Plan](./architecture_plan/completion-plan/).
 
 **Architecture:** [Architecture Plan](./architecture_plan/), [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Core Systems](./core-systems/), [What Hermes Gets Wrong](./what-hermes-gets-wrong/), [Upstream Lessons](./upstream-lessons/).
 

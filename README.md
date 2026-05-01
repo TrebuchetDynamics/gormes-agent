@@ -206,7 +206,7 @@ Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-sys
 Gormes is designed for high-trust environments. Auditability comes from source-first builds, zero-CGO static binaries, local-first SQLite memory, and built-in diagnostic tooling.
 
 - Source build is the recommended install path. Convenience installers remain inspect-first from GitHub raw URLs rather than `curl | sh` or `irm | iex`.
-- The current build is ~17.7 MB, stripped, static, zero-CGO, and has no hidden shared library dependency.
+- The current build is ~33.9 MB, stripped, static, zero-CGO, and has no hidden shared library dependency.
 - `./bin/gormes doctor --offline` reports local TUI, built-in tools, Goncho, gateway, Slack, and provider-endpoint readiness without contacting a model provider.
 - Network calls go to configured provider or gateway endpoints; offline diagnostics do not contact a model provider.
 - The runtime is a local binary and does not act as a self-updating dropper.
@@ -261,11 +261,11 @@ Full progress: [docs.gormes.ai/building-gormes/architecture_plan](https://docs.g
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
+| Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 3/9 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/19 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 5/11 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/20 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 1/9 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 <!-- PROGRESS:END -->
 

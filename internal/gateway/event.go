@@ -35,8 +35,19 @@ const (
 	EventTitle
 	// EventVerbose cycles gateway tool-progress display for the calling platform.
 	EventVerbose
+	EventModel
+	// EventGateway renders gateway status.
+	EventGateway
 	// EventThreadLifecycle carries normalized thread open/close/archive state.
 	EventThreadLifecycle
+	// EventSessions handles /sessions subcommands (list, show).
+	EventSessions
+	// EventProfile handles /profile subcommands (show, list).
+	EventProfile
+	// EventSkills handles /skills subcommands (list, inspect).
+	EventSkills
+	// EventReasoning handles /reasoning subcommands (show, set, reset).
+	EventReasoning
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -62,8 +73,20 @@ func (k EventKind) String() string {
 		return "title"
 	case EventVerbose:
 		return "verbose"
+	case EventModel:
+		return "model"
+	case EventGateway:
+		return "gateway"
 	case EventThreadLifecycle:
 		return "thread_lifecycle"
+	case EventSessions:
+		return "sessions"
+	case EventProfile:
+		return "profile"
+	case EventSkills:
+		return "skills"
+	case EventReasoning:
+		return "reasoning"
 	default:
 		return "unknown"
 	}

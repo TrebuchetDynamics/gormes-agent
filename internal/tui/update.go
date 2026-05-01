@@ -393,6 +393,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.frame.Phase == kernel.PhaseIdle || m.frame.Phase == kernel.PhaseFailed {
 			m.inFlight = false
 		}
+		// Extract and store active panel state so View() can render it.
+		m.ExtractPanelStateFromFrame(m.frame)
 		// Refresh the placeholder AFTER the inFlight transition so the editor
 		// hint reflects the post-frame state (idle prompt vs. busy-time
 		// affordances).

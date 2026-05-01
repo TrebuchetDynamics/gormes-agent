@@ -389,11 +389,128 @@ func TestGitHubAndSkillsShProvidersDegradedEvidence(t *testing.T) {
 	})
 }
 
+func TestClaudeMarketplaceProviderReadsPluginMetadata(t *testing.T) {
+	requests := []string{}
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.URL.String())
+		switch req.URL.String() {
+		case "https://api.github.com/repos/anthropics/skills/contents/.claude-plugin/marketplace.json":
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{
+				"plugins": [
+					{"name":"planner","description":"Plan work","source":"./skills/planner"},
+					{"name":"writer","description":"Draft prose","source":"community/writer"}
+				]
+			}`))}, nil
+		case "https://api.github.com/repos/aiskillstore/marketplace/contents/.claude-plugin/marketplace.json":
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"plugins": []}`))}, nil
+		default:
+			t.Fatalf("unexpected request URL: %s", req.URL.String())
+			return nil, nil
+		}
+	})}
+
+	provider := NewClaudeMarketplaceRegistryProvider("plan", 10, client)
+	results, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("Snapshot returned unexpected error: %v", err)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("requests = %v, want both known marketplace indexes", requests)
+	}
+	if len(results) != 1 {
+		t.Fatalf("results count = %d (%v), want 1", len(results), results)
+	}
+	got := results[0]
+	if got.Name != "planner" {
+		t.Errorf("Name = %q, want planner", got.Name)
+	}
+	if got.Description != "Plan work" {
+		t.Errorf("Description = %q, want Plan work", got.Description)
+	}
+	if got.Source != "claude-marketplace" {
+		t.Errorf("Source = %q, want claude-marketplace", got.Source)
+	}
+	if got.InstallID != "anthropics/skills/skills/planner" {
+		t.Errorf("InstallID = %q, want anthropics/skills/skills/planner", got.InstallID)
+	}
+	if got.TrustLevel != "trusted" {
+		t.Errorf("TrustLevel = %q, want trusted", got.TrustLevel)
+	}
+}
+
+func TestLobeHubProviderReadsAgentIndexMetadata(t *testing.T) {
+	requests := 0
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.URL.String() != "https://chat-agents.lobehub.com/index.json" {
+			t.Fatalf("unexpected request URL: %s", req.URL.String())
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{
+			"agents": [
+				{"identifier":"code-reviewer","meta":{"title":"Code Reviewer","description":"Reviews code for bugs and security issues","tags":["code","review"]}},
+				{"identifier":"writer","meta":{"title":"Writer","description":"Drafts prose","tags":["writing"]}}
+			]
+		}`))}, nil
+	})}
+
+	provider := NewLobeHubRegistryProvider("code", 10, client)
+	results, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("Snapshot returned unexpected error: %v", err)
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want 1", requests)
+	}
+	if len(results) != 1 {
+		t.Fatalf("results count = %d (%v), want 1", len(results), results)
+	}
+	got := results[0]
+	if got.Name != "code-reviewer" {
+		t.Errorf("Name = %q, want code-reviewer", got.Name)
+	}
+	if got.Description != "Reviews code for bugs and security issues" {
+		t.Errorf("Description = %q, want LobeHub description", got.Description)
+	}
+	if got.Source != "lobehub" {
+		t.Errorf("Source = %q, want lobehub", got.Source)
+	}
+	if got.InstallID != "lobehub/code-reviewer" {
+		t.Errorf("InstallID = %q, want lobehub/code-reviewer", got.InstallID)
+	}
+	if got.TrustLevel != "community" {
+		t.Errorf("TrustLevel = %q, want community", got.TrustLevel)
+	}
+	if strings.Join(got.Tags, ",") != "code,review" {
+		t.Errorf("Tags = %v, want [code review]", got.Tags)
+	}
+}
+
+func TestMarketplaceProvidersPreservePartialResults(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if strings.Contains(req.URL.String(), "anthropics/skills") {
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{
+				"plugins": [{"name":"planner","description":"Plan work","source":"./skills/planner"}]
+			}`))}, nil
+		}
+		return &http.Response{StatusCode: http.StatusBadGateway, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+	})}
+
+	results, err := NewClaudeMarketplaceRegistryProvider("plan", 10, client).Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("Snapshot returned unexpected error with partial marketplace data: %v", err)
+	}
+	if len(results) != 1 || results[0].Name != "planner" {
+		t.Fatalf("results = %#v, want preserved planner result", results)
+	}
+}
+
 func TestRegistryProvidersDoNotInstall(t *testing.T) {
 	// Compile-time guard for the metadata-only slice: hub registry sources only
 	// expose Snapshot and cannot mutate active skill stores or quarantine paths.
 	var _ HubRegistryProvider = NewGitHubRegistryProvider(nil, nil)
 	var _ HubRegistryProvider = NewSkillsShRegistryProvider("", 0, nil)
+	var _ HubRegistryProvider = NewClaudeMarketplaceRegistryProvider("", 0, nil)
+	var _ HubRegistryProvider = NewLobeHubRegistryProvider("", 0, nil)
 }
 
 func TestWellKnownRegistryProviderDegradedEvidence(t *testing.T) {

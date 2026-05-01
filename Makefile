@@ -1,8 +1,9 @@
-.PHONY: build run test test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
+.PHONY: build build-slim run test test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
 
 VERSION ?= 0.2.0-scout
 BUILD_FLAGS := -trimpath -ldflags="-s -w -X main.Version=$(VERSION)"
 BINARY_PATH := bin/gormes
+SLIM_BINARY_PATH := bin/gormes-slim
 
 build: validate-progress $(BINARY_PATH)
 	@$(call record-benchmark)
@@ -11,6 +12,12 @@ build: validate-progress $(BINARY_PATH)
 
 $(BINARY_PATH):
 	CGO_ENABLED=0 go build $(BUILD_FLAGS) -o $(BINARY_PATH) ./cmd/gormes
+
+build-slim: $(SLIM_BINARY_PATH)
+	@echo "Built slim binary (excludes TTS, transcription, voice mode, image generation)"
+
+$(SLIM_BINARY_PATH):
+	CGO_ENABLED=0 go build $(BUILD_FLAGS) -tags slim -o $(SLIM_BINARY_PATH) ./cmd/gormes
 
 validate-progress:
 	@echo "Validating progress.json..."

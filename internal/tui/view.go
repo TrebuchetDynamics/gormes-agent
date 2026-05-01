@@ -64,10 +64,14 @@ func (m Model) View() string {
 
 	hint := renderHermesHint(m.frame, m.mouseStatus(), m.statusMessage)
 
+	// Render the active modal panel if one is present.
+	panel := m.RenderActivePanel(m.width, m.height)
+
 	return RenderHermesChrome(HermesChromeInput{
 		Width:        m.width,
 		Conversation: conv,
 		Spinner:      hint,
+		Panel:        panel,
 		StatusBar:    statusBar,
 		Prompt:       prompt,
 	})

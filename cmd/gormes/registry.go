@@ -31,6 +31,14 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{}))
 	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
+		Browser: tools.BrowserHarnessToolsConfig{
+			Env: browserCDPEnv(cfg),
+			Budget: tools.ToolResultBudgetConfig{
+				OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),
+				TextBudgetBytes: 8 * 1024,
+				PreviewBytes:    1024,
+			},
+		},
 		Backend: tools.WebBackendConfig{
 			Backend:             cfg.Web.Backend,
 			UseGateway:          cfg.Web.UseGateway,
@@ -50,13 +58,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	}) {
 		reg.MustRegister(tool)
 	}
-	ttsProviders := map[string]tools.TTSProvider{}
-	if edge := tools.NewEdgeTTSCommandProviderFromEnv(); edge != nil {
-		ttsProviders["edge"] = edge
-	}
-	reg.MustRegister(tools.NewTextToSpeechTool(tools.NewTTSRunner(tools.TTSConfig{
-		OutputDir: filepath.Join(config.GormesHome(), "cache", "audio"),
-	}, ttsProviders)))
+	registerAudioTools(reg)
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
 	}))
@@ -66,7 +68,11 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	}) {
 		reg.MustRegister(tool)
 	}
+	reg.MustRegister(tools.NewSkillManagerTool(tools.SkillManagerToolConfig{
+		Root: cfg.SkillsRoot(),
+	}))
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
+		Env: browserCDPEnv(cfg),
 		Budget: tools.ToolResultBudgetConfig{
 			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),
 			TextBudgetBytes: 8 * 1024,
@@ -104,6 +110,17 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		reg.MustRegister(subagent.NewDelegateTool(subagent.NewManager(opts), drafter))
 	}
 	return reg
+}
+
+func browserCDPEnv(cfg config.Config) map[string]string {
+	endpoint := cfg.Browser.CDPURL
+	if endpoint == "" {
+		return nil
+	}
+	return map[string]string{
+		"CHROME_REMOTE_DEBUGGING_URL": endpoint,
+		"BROWSER_CDP_URL":             endpoint,
+	}
 }
 
 func registryDescriptors(reg *tools.Registry) []hermes.ToolDescriptor {

@@ -214,8 +214,8 @@ func TestGatewayRestartCommand_ServiceManagerUnavailableReportsDegradedWithoutEx
 	if len(status.ServiceManagerUnavailable) != 1 {
 		t.Fatalf("ServiceManagerUnavailable = %+v, want one evidence row", status.ServiceManagerUnavailable)
 	}
-	if sent := ch.sentSnapshot(); len(sent) != 1 || !strings.Contains(sent[0].Text, "service_manager_unavailable") {
-		t.Fatalf("service-manager unavailable reply = %#v, want service_manager_unavailable evidence", sent)
+	if sent := ch.sentSnapshot(); len(sent) != 1 || !strings.Contains(sent[0].Text, "no service manager") {
+		t.Fatalf("service-manager unavailable reply = %#v, want 'no service manager' evidence", sent)
 	}
 }
 

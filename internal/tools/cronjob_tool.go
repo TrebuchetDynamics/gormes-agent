@@ -60,7 +60,7 @@ func (*CronjobTool) Description() string {
 }
 
 func (*CronjobTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","description":"One of: create, list, update, pause, resume, remove, run"},"job_id":{"type":"string","description":"Required for update/pause/resume/remove/run"},"prompt":{"type":"string"},"schedule":{"type":"string","description":"For create/update: '30m', 'every 2h', '0 9 * * *', or ISO timestamp"},"name":{"type":"string"},"repeat":{"type":"integer"},"skills":{"type":"array","items":{"type":"string"}},"model":{"type":"object","properties":{"provider":{"type":"string"},"model":{"type":"string"}}},"script":{"type":"string"},"context_from":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}]},"enabled_toolsets":{"type":"array","items":{"type":"string"}},"workdir":{"type":"string"}},"required":["action"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","description":"One of: create, list, update, pause, resume, remove, run"},"job_id":{"type":"string","description":"Required for update/pause/resume/remove/run"},"prompt":{"type":"string"},"schedule":{"type":"string","description":"For create/update: '30m', 'every 2h', '0 9 * * *', or ISO timestamp"},"name":{"type":"string"},"deliver":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}],"description":"Delivery target: origin, local, platform, platform:chat_id, or comma/list form for multiple targets"},"repeat":{"type":"integer"},"skills":{"type":"array","items":{"type":"string"}},"model":{"type":"object","properties":{"provider":{"type":"string"},"model":{"type":"string"}}},"script":{"type":"string"},"context_from":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}]},"enabled_toolsets":{"type":"array","items":{"type":"string"}},"workdir":{"type":"string"}},"required":["action"]}`)
 }
 
 func (*CronjobTool) Timeout() time.Duration { return 0 }
@@ -117,6 +117,7 @@ type cronjobArgs struct {
 	Name            *string               `json:"name"`
 	Prompt          *string               `json:"prompt"`
 	Schedule        *string               `json:"schedule"`
+	Deliver         *cronjobStringListArg `json:"deliver"`
 	Repeat          *int                  `json:"repeat"`
 	Model           *cronjobModelArg      `json:"model"`
 	Skills          *[]string             `json:"skills"`
@@ -158,6 +159,7 @@ type cronjobRecord struct {
 	Name            string
 	Schedule        string
 	Prompt          string
+	Deliver         string
 	Paused          bool
 	CreatedAt       int64
 	LastRunUnix     int64
@@ -222,6 +224,7 @@ func (t *CronjobTool) create(store *reflectedCronStore, in cronjobArgs) json.Raw
 		Name:            name,
 		Schedule:        parsed.Display,
 		Prompt:          prompt,
+		Deliver:         cronjobDeliverValue(in.Deliver),
 		CreatedAt:       t.cfg.Now().Unix(),
 		Repeat:          repeat,
 		Model:           strings.TrimSpace(modelValue(in.Model)),
@@ -315,6 +318,12 @@ func (t *CronjobTool) update(store *reflectedCronStore, in cronjobArgs) json.Raw
 		repeat := normalizeCronjobRepeat(*in.Repeat)
 		setIntField(entry.value, "Repeat", repeat)
 		entry.record.Repeat = repeat
+		changed = true
+	}
+	if in.Deliver != nil {
+		deliver := cronjobDeliverValue(in.Deliver)
+		setStringField(entry.value, "Deliver", deliver)
+		entry.record.Deliver = deliver
 		changed = true
 	}
 	if in.Model != nil {
@@ -525,6 +534,9 @@ func summarizeCronjob(rec cronjobRecord) map[string]any {
 	if rec.Model != "" {
 		out["model"] = rec.Model
 	}
+	if rec.Deliver != "" {
+		out["deliver"] = rec.Deliver
+	}
 	if rec.Provider != "" {
 		out["provider"] = rec.Provider
 	}
@@ -611,6 +623,13 @@ func stringSliceValue(value *[]string) []string {
 		return nil
 	}
 	return normalizeCronjobStrings(*value)
+}
+
+func cronjobDeliverValue(value *cronjobStringListArg) string {
+	if value == nil {
+		return ""
+	}
+	return strings.Join(normalizeCronjobStrings(value.Values), ",")
 }
 
 func modelValue(value *cronjobModelArg) string {
@@ -836,6 +855,7 @@ func applyCronjobRecord(value reflect.Value, rec cronjobRecord) {
 	setStringField(value, "Name", rec.Name)
 	setStringField(value, "Schedule", rec.Schedule)
 	setStringField(value, "Prompt", rec.Prompt)
+	setStringField(value, "Deliver", rec.Deliver)
 	setBoolField(value, "Paused", rec.Paused)
 	setInt64Field(value, "CreatedAt", rec.CreatedAt)
 	setInt64Field(value, "LastRunUnix", rec.LastRunUnix)
@@ -857,6 +877,7 @@ func cronjobRecordFromValue(value reflect.Value) cronjobRecord {
 		Name:            stringField(value, "Name"),
 		Schedule:        stringField(value, "Schedule"),
 		Prompt:          stringField(value, "Prompt"),
+		Deliver:         stringField(value, "Deliver"),
 		Paused:          boolField(value, "Paused"),
 		CreatedAt:       int64Field(value, "CreatedAt"),
 		LastRunUnix:     int64Field(value, "LastRunUnix"),

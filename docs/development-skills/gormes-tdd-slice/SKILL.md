@@ -78,6 +78,15 @@ default plus toolless summary fallback. Channel bugs belong in gateway/channel
 tests and should prove raw budget errors, tool-call XML, or provider repair
 diagnostics do not become final user messages.
 
+For dashboard/API security parity, encode both sides of the boundary in the RED
+test: public read-only allowlist routes (for example `/api/status`) must remain
+reachable, while sensitive dashboard `/api/` routes must reject missing session
+tokens and accept the active Hermes header such as `X-Hermes-Session-Token`
+plus any legacy Bearer compatibility the upstream source still supports. When a
+new guard changes existing contract tests, update those fixtures to pass the
+same token instead of weakening the guard or treating the old unauthenticated
+expectation as product behavior.
+
 For runtime-lock or installer-adjacent tests, isolate state with
 `GORMES_HOME` temp dirs unless the behavior under test is the real persisted
 home. Never make a test pass by depending on the developer's live

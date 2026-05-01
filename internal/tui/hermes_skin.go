@@ -196,9 +196,10 @@ func BuiltinSkins() map[string]HermesSkin {
 		"mono":     monoSkin(),
 		"slate":    slateSkin(),
 		"daylight": daylightSkin(),
-		"poseidon": poseidonSkin(),
-		"sisyphus": sisyphusSkin(),
+		"poseidon":  poseidonSkin(),
+		"sisyphus":  sisyphusSkin(),
 		"charizard": charizardSkin(),
+		"warm-lightmode": warmLightmodeSkin(),
 	}
 }
 
@@ -338,6 +339,26 @@ func charizardSkin() HermesSkin {
 			StatusBarBackground: "#2B160E", StatusBarText: "#FFF0D4", StatusBarStrong: "#FFD39A",
 			StatusBarDim: "#6C4724", StatusBarGood: "#6BCB77", StatusBarWarn: "#F29C38",
 			StatusBarBad: "#E2832B", StatusBarCritical: "#EF5350",
+		},
+	}
+}
+
+func warmLightmodeSkin() HermesSkin {
+	return HermesSkin{
+		Name:          "warm-lightmode",
+		ResponseLabel: " ⚕ Gormes ",
+		PromptSymbol:  "❯ ",
+		HelpHeader:    "(^_^)? Available Commands",
+		ToolPrefix:    "│",
+		Colors: HermesSkinColors{
+			BannerBorder: "#8B6914", BannerTitle: "#5C3D11", BannerAccent: "#8B4513",
+			BannerDim: "#8B7355", BannerText: "#2C1810",
+			UIAcent: "#8B4513", UILabel: "#5C3D11", UIOk: "#2E7D32", UIError: "#C62828", UIWarn: "#E65100",
+			Prompt: "#2C1810", Placeholder: "#8B7355", InputRule: "#8B6914", ResponseBorder: "#8B6914",
+			SessionLabel: "#5C3D11", SessionBorder: "#A0845C",
+			StatusBarBackground: "#F5F0E8", StatusBarText: "#2C1810", StatusBarStrong: "#5C3D11",
+			StatusBarDim: "#A0845C", StatusBarGood: "#2E7D32", StatusBarWarn: "#E65100",
+			StatusBarBad: "#C62828", StatusBarCritical: "#B71C1C",
 		},
 	}
 }

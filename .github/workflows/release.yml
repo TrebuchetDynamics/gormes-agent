@@ -1,0 +1,203 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without leading v, for example 0.2.0-scout'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Run Go tests
+        run: go test ./... -count=1
+
+      - name: Validate progress
+        run: go run ./cmd/progress validate
+
+      - name: Check whitespace
+        run: git diff --check
+
+      - name: Verify version matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          code_version=$(grep 'var Version =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$tag_version" != "$code_version" ]; then
+            echo "Version mismatch: tag=$tag_version, code=$code_version"
+            exit 1
+          fi
+
+  build:
+    name: build ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            os: ubuntu-latest
+          - goos: linux
+            goarch: arm64
+            os: ubuntu-latest
+          - goos: darwin
+            goarch: amd64
+            os: macos-latest
+          - goos: darwin
+            goarch: arm64
+            os: macos-latest
+          - goos: windows
+            goarch: amd64
+            os: ubuntu-latest
+          - goos: windows
+            goarch: arm64
+            os: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build static binary archive
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          target="gormes-${VERSION}-${GOOS}-${GOARCH}"
+          exe="gormes"
+          if [ "$GOOS" = "windows" ]; then
+            exe="gormes.exe"
+          fi
+          mkdir -p "dist/${target}"
+          CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
+            go build -trimpath -ldflags="-s -w -X main.Version=${VERSION}" \
+              -o "dist/${target}/${exe}" ./cmd/gormes
+          tar -C dist -czf "dist/${target}.tar.gz" "${target}"
+          sha256sum "dist/${target}.tar.gz" > "dist/${target}.tar.gz.sha256"
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          output-file: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.sbom.json
+          format: spdx-json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+            dist/*.sbom.json
+          if-no-files-found: error
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            dist/*.tar.gz
+
+  publish:
+    name: publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Build release notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          {
+            echo "## Install"
+            echo '```bash'
+            echo "# Linux amd64"
+            echo "curl -LO https://github.com/TrebuchetDynamics/gormes-agent/releases/download/${GITHUB_REF_NAME}/gormes-${version}-linux-amd64.tar.gz"
+            echo '```'
+            echo ""
+            echo "## Artifacts"
+            echo "| Platform | Archive | SHA-256 |"
+            echo "|----------|---------|---------|"
+            for f in dist/*.tar.gz; do
+              name=$(basename "$f")
+              sha=$(cat "${f}.sha256" | awk '{print $1}')
+              echo "| ${name%.tar.gz} | [$name]($name) | \`${sha}\` |"
+            done
+            echo ""
+            echo "## SBOM"
+            echo "Software Bill of Materials (SPDX JSON) is included for each platform artifact."
+            echo ""
+            echo "## Verification"
+            echo "Build provenance attestations are published to the GitHub Attestations store."
+            echo ""
+            echo "## Changes"
+            echo "See [CHANGELOG.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/CHANGELOG.md) for full details."
+          } > release-notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+            dist/*.sbom.json
+          body_path: release-notes.md

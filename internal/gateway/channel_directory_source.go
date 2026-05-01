@@ -60,6 +60,26 @@ func (s ChannelDirectorySourceStore) path() string {
 	return filepath.Join(s.root, channelDirectorySourcesFileName)
 }
 
+// Load reads the remembered-source ledger. Missing ledgers are not failures;
+// they simply contribute no session-discovered entries during refresh.
+func (s ChannelDirectorySourceStore) Load() (RememberedSourceLedger, ChannelDirectoryEvidence) {
+	body, err := os.ReadFile(s.path())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}, ChannelDirectoryEvidence{}
+		}
+		return RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}, ChannelDirectoryEvidence{Code: "channel_directory_sources_invalid"}
+	}
+	ledger := RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}
+	if err := json.Unmarshal(body, &ledger); err != nil {
+		return RememberedSourceLedger{Platforms: map[string][]RememberedSourceEntry{}}, ChannelDirectoryEvidence{Code: "channel_directory_sources_invalid"}
+	}
+	if ledger.Platforms == nil {
+		ledger.Platforms = map[string][]RememberedSourceEntry{}
+	}
+	return ledger, ChannelDirectoryEvidence{}
+}
+
 func (s ChannelDirectorySourceStore) RememberSource(_ context.Context, entry RememberedSourceEntry) error {
 	if strings.TrimSpace(s.root) == "" {
 		return fmt.Errorf("channel directory source root is empty")

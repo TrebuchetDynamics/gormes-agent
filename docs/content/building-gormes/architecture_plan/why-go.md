@@ -11,7 +11,7 @@ Go isn't a better Python. It's a different **shape of thing to live with.** The 
 
 These matter most on low-end hardware; on a fast PC they're table stakes.
 
-- **Single static binary.** ~17 MB (CGO-free, `make build` post-Phase 2.D). `scp` and run. No `uv`, `pip`, venv, system Python, brew Python, pyenv, or platform-wheel roulette.
+- **Single static binary.** ~34 MB (CGO-free, `make build` post-Phase 4). `scp` and run. No `uv`, `pip`, venv, system Python, brew Python, pyenv, or platform-wheel roulette.
 - **Cold start in milliseconds.** Go is ready instantly; Python agents with tokenizer/transformers-adjacent imports take seconds every session. Felt every TUI open, every cron fire, every shell one-shot.
 - **Idle footprint.** Measured ~10 MB RSS vs. ≈ 80+ MB for Python Hermes. Matters on VPS, Pi, always-on homelab.
 - **Cross-compile.** One build → `linux/amd64`, `linux/arm64`, `darwin/arm64`, `windows/amd64`. User doesn't audit their platform.
@@ -38,7 +38,7 @@ Go goes places Python won't.
 
 7. **Phone, air-gapped, corp laptop.** A single binary runs under Termux on Android, on a machine with no internet, inside a locked-down corporate laptop without admin rights, in a rootless container that's 20 MB not 800 MB. A user who wants the agent on a second device just copies the file.
 
-8. **Local model becomes a sibling file.** When the wrapper is 17 MB, bundling a 2 GB local model next to it is plausible — `gormes` + `gemma.bin` → works on a plane. With Python + torch, the wrapper is already 2 GB, so "add a local model" is a different product.
+8. **Local model becomes a sibling file.** When the wrapper is 34 MB, bundling a 2 GB local model next to it is plausible — `gormes` + `gemma.bin` → works on a plane. With Python + torch, the wrapper is already 2 GB, so "add a local model" is a different product.
 
 9. **Upgrade is `cp`.** Not "dependency resolution error, please file issue." One failed pip upgrade and a user's trust is gone for the year.
 
