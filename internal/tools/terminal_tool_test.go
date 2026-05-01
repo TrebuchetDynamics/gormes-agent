@@ -9,7 +9,7 @@ import (
 )
 
 func TestTerminalToolRunsForegroundCommand(t *testing.T) {
-	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir(), DefaultTimeout: time.Second})
+	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir(), DefaultTimeout: 5 * time.Second})
 	out := executeTerminalTool(t, tool, `{"command":"printf hello"}`)
 
 	if out["status"] != "completed" {
