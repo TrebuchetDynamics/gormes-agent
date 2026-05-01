@@ -38,6 +38,10 @@ type HermesChromeInput struct {
 	VoiceStatus string
 	ImageBar    string
 	Completions string
+
+	// Panel is the optional modal panel (approval/clarify/secret) rendered
+	// above the status bar when active. Empty means no panel is active.
+	Panel string
 }
 
 // RenderHermesChrome assembles the bottom-pinned chrome stack used by
@@ -62,6 +66,9 @@ func RenderHermesChrome(in HermesChromeInput) string {
 	}
 	if in.Spinner != "" {
 		parts = append(parts, in.Spinner)
+	}
+	if in.Panel != "" {
+		parts = append(parts, in.Panel)
 	}
 	if in.StatusBar != "" {
 		parts = append(parts, in.StatusBar)
