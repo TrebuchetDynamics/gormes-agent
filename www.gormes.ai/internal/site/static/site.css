@@ -310,6 +310,24 @@ a:focus-visible,
   flex-wrap: wrap;
 }
 
+/* Proof strip: credibility signals that land immediately after
+   the hero CTAs. Horizontal on desktop, wraps on mobile. */
+.proof-strip {
+  margin: 28px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+}
+.proof-item {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -488,6 +506,30 @@ a:focus-visible,
   overflow-wrap: break-word;
 }
 
+/* Demo section: terminal block showing the tool in action.
+   Sits between install and why as a "see it work" moment. */
+.demo {
+  border-bottom: 1px solid var(--border);
+}
+.demo-inner {
+  padding: 72px var(--pad);
+}
+.demo-intro {
+  margin: -8px 0 18px;
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.demo-terminal {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  margin: 0 0 18px;
+}
+.demo-terminal .cmd {
+  background: transparent;
+}
+
 .why {
   border-bottom: 1px solid var(--border);
 }
@@ -593,6 +635,36 @@ a:focus-visible,
   color: var(--muted);
   line-height: 1.5;
   overflow-wrap: break-word;
+}
+
+/* BuiltFor section: operator-focused capabilities.
+   Simple list with strong typography, no cards. */
+.built-for {
+  border-bottom: 1px solid var(--border);
+}
+.built-for-inner {
+  padding: 72px var(--pad);
+}
+.built-for-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.built-for-list li {
+  font-size: 15px;
+  color: var(--muted-strong);
+  line-height: 1.5;
+  padding-left: 24px;
+  position: relative;
+}
+.built-for-list li::before {
+  content: '→';
+  color: var(--accent);
+  position: absolute;
+  left: 0;
+  font-weight: 700;
 }
 
 .roadmap {
@@ -802,6 +874,60 @@ a:focus-visible,
   margin: 0;
   font-size: 13px;
   color: var(--muted);
+}
+
+/* Explore section: links to docs, quickstart, architecture, GitHub.
+   Card grid with accent hover state. */
+.explore {
+  border-bottom: 1px solid var(--border);
+}
+.explore-inner {
+  padding: 72px var(--pad);
+}
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.explore-card {
+  display: block;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted-strong);
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.15s, color 0.15s;
+}
+.explore-card:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Final CTA: last-chance conversion before footer.
+   Centered, high contrast, with primary + secondary actions. */
+.final-cta {
+  border-bottom: 1px solid var(--border);
+}
+.final-cta-inner {
+  padding: 72px var(--pad);
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto;
+}
+.final-cta-body {
+  margin: -8px 0 24px;
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.final-cta-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .footer {
