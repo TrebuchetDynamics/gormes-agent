@@ -87,16 +87,16 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 47/78 subphases shipped · 26 in progress · 5 planned
+**Overall:** 48/85 subphases shipped · 26 in progress · 11 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 3/9 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/18 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 0/6 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 4/11 subphases |
+| Phase 5 — The Final Purge | 🔨 | 3/20 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 0/9 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -495,6 +495,8 @@ classification and row-backed implementation queue.
 - [x] Cross-provider reasoning-tag sanitization
 - [x] Tool-call argument repair + schema sanitizer
 - [x] OpenAI-compatible developer-role API-boundary swap
+- [ ] xAI Grok provider adapter
+- [ ] LM Studio provider adapter
 
 ### 4.B — Context Engine + Compression 🔨
 
@@ -583,6 +585,14 @@ classification and row-backed implementation queue.
 - [x] Native runtime provider gateway binding
 - [ ] Hermes compatibility namespace retirement boundary
 
+### 4.J — Permission-Hardened Tool Execution ✅
+
+- [x] Shell blocklist + filesystem scoping + permission approval
+
+### 4.K — Provider Fallback Chain ⏳
+
+- [ ] Resilient provider chain dispatch
+
 ## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
@@ -599,6 +609,7 @@ classification and row-backed implementation queue.
 - [x] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
 - [x] Tool output budget persisted artifact pointer
+- [ ] Tool descriptor layer (OperationSpec)
 
 ### 5.B — Sandboxing Backends 🔨
 
@@ -698,6 +709,10 @@ classification and row-backed implementation queue.
 - [x] Background review toolset restriction
 - [ ] Cron dangerous-command approval mode
 - [ ] Tirith, path, URL, and website policy integration
+- [ ] Shell blocklist (36+ dangerous patterns)
+- [ ] Filesystem scoping (folder-level read/write restrictions)
+- [ ] Permission approval UX (inline y/n/always)
+- [ ] Trust-class enforcement in shared tool executor
 
 ### 5.K — Code Execution ✅
 
@@ -864,6 +879,14 @@ classification and row-backed implementation queue.
 - [ ] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over
 
+### 5.S — Loop Detection ⏳
+
+- [ ] 5-type loop detector
+
+### 5.T — Browser Harness Doctor ⏳
+
+- [ ] go-browser-harness doctor subcommand
+
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
 *Native skill extraction. Compounding intelligence. The feature Hermes doesn't have.*
@@ -897,6 +920,18 @@ classification and row-backed implementation queue.
 
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface
+
+### 6.G — Structured Memory Types ⏳
+
+- [ ] 6 typed memory categories with confidence scoring
+
+### 6.H — Skill Metadata Placement ⏳
+
+- [ ] SKILL.md metadata.when/loaded/placement schema
+
+### 6.I — Zero-LLM Knowledge Graph ⏳
+
+- [ ] Regex-based auto-link extraction + brain-first lookup
 
 ## Phase 7 — Paused Channel Backlog 🔨
 

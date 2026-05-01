@@ -23,6 +23,8 @@ This docs surface explains the public engineering case for Gormes. The operator-
 |---|---|
 | **[Why Gormes](why-gormes)** | Public technical manifesto: operational moat, wire doctor, resilience, and surgical binaries |
 | **[Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md)** | Build, validate, and run the current Go binary |
+| **[Implementation Roadmap](building-gormes/implementation-roadmap)** | Current state, decision trees, execution horizons, and document map |
+| **[Must-Have Features](building-gormes/must-have-features)** | Feature catalogue from 12+ upstream open-source projects |
 | **[Roadmap](building-gormes/architecture_plan)** | The five-phase path from tactical bridge to pure Go runtime |
 | **[Tool Registry Spec](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)** | Phase 2.A proof doc for Go-native tools |
 | **[Telegram Scout Spec](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)** | Phase 2.B proof doc for split-binary messaging architecture |
