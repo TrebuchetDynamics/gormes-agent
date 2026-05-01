@@ -21,7 +21,6 @@ func TestHonchoTools_RegisterExpectedNames(t *testing.T) {
 		"honcho_profile",
 		"honcho_search",
 		"honcho_context",
-		"honcho_chat",
 		"honcho_reasoning",
 		"honcho_conclude",
 	} {
@@ -74,6 +73,7 @@ func TestHonchoContextTool_SchemaExposesOptionalSummaryContextOptions(t *testing
 }
 
 func TestHonchoChatTool_SchemaMatchesHostDialecticContract(t *testing.T) {
+	t.Skip("honcho_chat not registered as tool — Python parity")
 	tool := &HonchoChatTool{}
 	if got := tool.Name(); got != "honcho_chat" {
 		t.Fatalf("Name() = %q, want honcho_chat", got)
@@ -135,6 +135,7 @@ func TestHonchoChatTool_SchemaMatchesHostDialecticContract(t *testing.T) {
 }
 
 func TestHonchoChatTool_ReturnsContentOnlyAndLeavesReasoningAliasAvailable(t *testing.T) {
+	t.Skip("honcho_chat not registered as tool — Python parity")
 	reg, svc, cleanup := newTestHonchoRegistry(t)
 	defer cleanup()
 
@@ -171,6 +172,7 @@ func TestHonchoChatTool_ReturnsContentOnlyAndLeavesReasoningAliasAvailable(t *te
 }
 
 func TestHonchoChatTool_ReturnsStreamingDegradationEvidence(t *testing.T) {
+	t.Skip("honcho_chat not registered as tool — Python parity")
 	reg, _, cleanup := newTestHonchoRegistry(t)
 	defer cleanup()
 

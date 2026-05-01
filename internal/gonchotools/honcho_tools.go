@@ -23,7 +23,9 @@ func RegisterHonchoTools(reg *tools.Registry, svc *goncho.Service) {
 	reg.MustRegister(&HonchoProfileTool{Service: svc})
 	reg.MustRegister(&HonchoSearchTool{Service: svc})
 	reg.MustRegister(&HonchoContextTool{Service: svc})
-	reg.MustRegister(&HonchoChatTool{Service: svc})
+	// HonchoChatTool is intentionally not registered — Python hermes-agent
+	// does not expose honcho_chat as a tool. The Service.Chat() method
+	// remains available for SillyTavern and dialectic caller use.
 	reg.MustRegister(&HonchoReasoningTool{Service: svc})
 	reg.MustRegister(&HonchoConcludeTool{Service: svc})
 }
