@@ -29379,45 +29379,54 @@
             },
             {
               "acceptance": [
-                "honcho_reasoning produces LLM-synthesized output when LLM caller is configured.",
-                "honcho_reasoning produces deterministic output with degraded evidence when LLM caller is not configured."
+                "TestHonchoReasoningTool_UsesDialecticCaller proves honcho_reasoning sends peer, query, and a context-backed system prompt to goncho.DialecticCaller and returns the LLM answer without reasoning_llm_unavailable evidence.",
+                "TestHonchoReasoningTool_DialecticCallerFailureFallsBack proves caller errors keep the deterministic answer and emit reasoning_llm_failed evidence.",
+                "A production wiring fixture proves the normal kernel/config Goncho service installs a DialecticCaller; no Python hermes-agent runtime process is required."
               ],
-              "contract": "HonchoReasoningTool must call a real LLM for synthesis (matching Python Honcho's .chat() multi-pass dialectic) instead of deterministic string assembly. Requires adding LLMCaller interface to goncho.Service and threading through kernel/config. Fall back to deterministic with degraded evidence when no LLM caller configured.",
+              "contract": "HonchoReasoningTool must use Gormes' native goncho.DialecticCaller seam for LLM-backed synthesis, matching Hermes HonchoMemoryProvider's honcho_reasoning tool path through manager.dialectic_query. Existing Gormes code already has Service.SetDialecticCaller/DialecticCaller and a tool-level caller branch, but this row remains open until the caller path is fixture-locked and the production Goncho service wiring installs a native Go provider-backed caller. Keep deterministic fallback with degraded evidence when no caller is configured or the caller fails.",
               "contract_status": "draft",
-              "degraded_mode": "When no LLM caller is configured, returns deterministic answer with reasoning_llm_unavailable evidence in the answer field.",
+              "degraded_mode": "When no DialecticCaller is configured, returns deterministic answer with reasoning_llm_unavailable evidence; when the caller errors, returns deterministic answer with reasoning_llm_failed evidence.",
               "done_signal": [
-                "honcho_reasoning uses real LLM synthesis when configured, deterministic fallback when not."
+                "honcho_reasoning is covered by caller-success, caller-failure, and no-caller fallback tests, and production Goncho construction wires a native provider-backed DialecticCaller."
               ],
               "execution_owner": "goncho",
               "fixture": "internal/gonchotools/honcho_tools_test.go",
               "name": "Goncho honcho_reasoning LLM-backed synthesis",
+              "note": "Planner refresh 2026-04-30: upstream symbols verified in /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/plugins/memory/honcho/__init__.py:91-128 and :1248-1261. Gormes already exposes DialecticCaller in internal/goncho/types.go:316-318 and the honcho_reasoning tool reads Service.DialecticCaller in internal/gonchotools/honcho_tools.go:197-212, but only deterministic fallback is tested today and no SetDialecticCaller production wiring exists outside internal/goncho/service.go.",
               "not_ready_when": [
                 "The slice removes deterministic fallback entirely",
-                "The slice changes honcho_reasoning tool schema"
+                "The slice changes honcho_reasoning tool schema",
+                "The slice depends on launching Python hermes-agent or Honcho services instead of a native Go caller seam"
               ],
               "priority": "P0",
               "ready_when": [
-                "LLMCaller interface exists in goncho package",
-                "Service accepts optional LLMCaller",
-                "HonchoReasoningTool uses LLM when available"
+                "Write RED tests for caller success and caller failure in internal/gonchotools before modifying production code",
+                "Add the smallest production wiring fixture for native provider-backed DialecticCaller installation",
+                "Keep existing deterministic no-caller fallback behavior and evidence stable"
               ],
-              "slice_size": "large",
+              "slice_size": "medium",
               "source_refs": [
-                "plugins/memory/honcho/__init__.py:HonchoProvider.chat",
-                "plugins/memory/honcho/__init__.py:honcho_reasoning schema"
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:91-128",
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:1248-1261",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/goncho/types.go:316-318",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/gonchotools/honcho_tools.go:197-212"
               ],
               "status": "planned",
               "test_commands": [
-                "go test ./internal/goncho -count=1",
-                "go test ./internal/gonchotools -count=1"
+                "go test ./internal/gonchotools -run 'TestHonchoReasoningTool_(UsesDialecticCaller|DialecticCallerFailureFallsBack|ReturnsDeterministicAnswer)' -count=1",
+                "go test ./internal/goncho ./internal/gonchotools -count=1",
+                "go run ./cmd/progress validate"
               ],
               "trust_class": [
                 "operator",
                 "system"
               ],
               "write_scope": [
+                "internal/goncho/types.go",
                 "internal/goncho/service.go",
-                "internal/gonchotools/honcho_tools.go"
+                "internal/gonchotools/honcho_tools.go",
+                "internal/gonchotools/honcho_tools_test.go",
+                "production Goncho service construction site that owns provider/client wiring"
               ]
             },
             {

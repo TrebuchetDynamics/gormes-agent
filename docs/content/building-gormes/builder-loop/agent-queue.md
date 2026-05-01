@@ -31,20 +31,20 @@ selection.
 
 - Phase: 5 / 5.V
 - Owner: `goncho`
-- Size: `large`
+- Size: `medium`
 - Status: `planned`
 - Priority: `P0`
-- Contract: HonchoReasoningTool must call a real LLM for synthesis (matching Python Honcho's .chat() multi-pass dialectic) instead of deterministic string assembly. Requires adding LLMCaller interface to goncho.Service and threading through kernel/config. Fall back to deterministic with degraded evidence when no LLM caller configured.
+- Contract: HonchoReasoningTool must use Gormes' native goncho.DialecticCaller seam for LLM-backed synthesis, matching Hermes HonchoMemoryProvider's honcho_reasoning tool path through manager.dialectic_query. Existing Gormes code already has Service.SetDialecticCaller/DialecticCaller and a tool-level caller branch, but this row remains open until the caller path is fixture-locked and the production Goncho service wiring installs a native Go provider-backed caller. Keep deterministic fallback with degraded evidence when no caller is configured or the caller fails.
 - Trust class: operator, system
-- Ready when: LLMCaller interface exists in goncho package, Service accepts optional LLMCaller, HonchoReasoningTool uses LLM when available
-- Not ready when: The slice removes deterministic fallback entirely, The slice changes honcho_reasoning tool schema
-- Degraded mode: When no LLM caller is configured, returns deterministic answer with reasoning_llm_unavailable evidence in the answer field.
+- Ready when: Write RED tests for caller success and caller failure in internal/gonchotools before modifying production code, Add the smallest production wiring fixture for native provider-backed DialecticCaller installation, Keep existing deterministic no-caller fallback behavior and evidence stable
+- Not ready when: The slice removes deterministic fallback entirely, The slice changes honcho_reasoning tool schema, The slice depends on launching Python hermes-agent or Honcho services instead of a native Go caller seam
+- Degraded mode: When no DialecticCaller is configured, returns deterministic answer with reasoning_llm_unavailable evidence; when the caller errors, returns deterministic answer with reasoning_llm_failed evidence.
 - Fixture: `internal/gonchotools/honcho_tools_test.go`
-- Write scope: `internal/goncho/service.go`, `internal/gonchotools/honcho_tools.go`
-- Test commands: `go test ./internal/goncho -count=1`, `go test ./internal/gonchotools -count=1`
-- Done signal: honcho_reasoning uses real LLM synthesis when configured, deterministic fallback when not.
-- Acceptance: honcho_reasoning produces LLM-synthesized output when LLM caller is configured., honcho_reasoning produces deterministic output with degraded evidence when LLM caller is not configured.
-- Source refs: plugins/memory/honcho/__init__.py:HonchoProvider.chat, plugins/memory/honcho/__init__.py:honcho_reasoning schema
+- Write scope: `internal/goncho/types.go`, `internal/goncho/service.go`, `internal/gonchotools/honcho_tools.go`, `internal/gonchotools/honcho_tools_test.go`, `production Goncho service construction site that owns provider/client wiring`
+- Test commands: `go test ./internal/gonchotools -run 'TestHonchoReasoningTool_(UsesDialecticCaller\|DialecticCallerFailureFallsBack\|ReturnsDeterministicAnswer)' -count=1`, `go test ./internal/goncho ./internal/gonchotools -count=1`, `go run ./cmd/progress validate`
+- Done signal: honcho_reasoning is covered by caller-success, caller-failure, and no-caller fallback tests, and production Goncho construction wires a native provider-backed DialecticCaller.
+- Acceptance: TestHonchoReasoningTool_UsesDialecticCaller proves honcho_reasoning sends peer, query, and a context-backed system prompt to goncho.DialecticCaller and returns the LLM answer without reasoning_llm_unavailable evidence., TestHonchoReasoningTool_DialecticCallerFailureFallsBack proves caller errors keep the deterministic answer and emit reasoning_llm_failed evidence., A production wiring fixture proves the normal kernel/config Goncho service installs a DialecticCaller; no Python hermes-agent runtime process is required.
+- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:91-128, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:1248-1261, /home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/goncho/types.go:316-318, /home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/gonchotools/honcho_tools.go:197-212
 - Why now: P0 handoff; needs contract proof before closeout.
 
 ## 2. Web dashboard server shell + degraded inventory
