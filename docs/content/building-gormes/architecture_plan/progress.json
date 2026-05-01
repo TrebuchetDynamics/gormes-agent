@@ -30123,9 +30123,9 @@
           "items": [
             {
               "name": "LLM-assisted pattern distillation",
-              "status": "planned",
+              "status": "complete",
               "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, and preserve a clear no-op escape path before any generated draft can be promoted",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -30176,7 +30176,8 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:76042f58 run_agent.py",
                 "note": "Hermes defines the class-first review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
-              }
+              },
+              "wired": true
             }
           ]
         },
@@ -30320,9 +30321,9 @@
             },
             {
               "name": "Portable SKILL.md format",
-              "status": "planned",
+              "status": "complete",
               "contract": "Reviewed skill-as-code storage format",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "skills",
               "trust_class": [
@@ -30383,7 +30384,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:891c28b skills/frontmatter-guard/SKILL.md",
                 "note": "GBrain supplies skill/frontmatter quality gates; Gormes owns the Go-native SKILL.md storage and review-state contract."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {

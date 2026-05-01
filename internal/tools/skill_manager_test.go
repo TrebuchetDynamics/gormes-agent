@@ -43,8 +43,9 @@ This skill does something useful.
 	if err != nil {
 		t.Fatalf("failed to read SKILL.md: %v", err)
 	}
-	if string(data) != content {
-		t.Fatalf("SKILL.md content mismatch.\ngot: %q\nwant: %q", string(data), content)
+	want := ensurePortableFrontmatter(content, "my-test-skill")
+	if string(data) != want {
+		t.Fatalf("SKILL.md content mismatch.\ngot: %q\nwant: %q", string(data), want)
 	}
 }
 
@@ -151,7 +152,7 @@ description: A skill to patch.
 	// Patch to add a new section
 	patchResult := executeSkillManage(t, tool, map[string]any{
 		"action":     "patch",
-		"name":      "patch-test",
+		"name":       "patch-test",
 		"old_string": "## Steps\n\n1. Step one",
 		"new_string": "## Steps\n\n1. Step one\n2. Step two",
 	})
