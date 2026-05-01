@@ -10787,7 +10787,7 @@
                 "The implementation invents a separate tool-call type instead of adapting to internal/hermes shared descriptors.",
                 "Safety, quota, 404, and Retry-After details are collapsed into unknown provider errors."
               ],
-              "note": "This is the pure mapper slice for Gemini-on-Code-Assist. OAuth, project onboarding, and quota lookup are kept in the separate Google Code Assist row so builders can land fixture-backed provider parity without live Google dependencies.",
+              "note": "Planner refresh 2026-04-30: sibling ../hermes-agent is absent in workspace-gormes, so source refs are pinned to /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d after verifying the active symbols. The old focused selector passed with Go [no tests to run] because internal/hermes/gemini_cloudcode_test.go is absent; builders must create the named RED fixture first and must not count an empty selector as validation. This remains the pure mapper slice for Gemini-on-Code-Assist. OAuth, project onboarding, and quota lookup are kept in the separate Google Code Assist row so builders can land fixture-backed provider parity without live Google dependencies.",
               "provenance": {
                 "note": "Hermes defines Code Assist Gemini behavior; GoClaw/Plandex are provider error and quota transport pattern references.",
                 "origin_type": "hybrid",
@@ -10805,12 +10805,12 @@
               ],
               "slice_size": "medium",
               "source_refs": [
-                "../hermes-agent/agent/gemini_cloudcode_adapter.py:build_gemini_request",
-                "../hermes-agent/agent/gemini_cloudcode_adapter.py:wrap_code_assist_request",
-                "../hermes-agent/agent/gemini_cloudcode_adapter.py:_translate_gemini_response",
-                "../hermes-agent/agent/gemini_cloudcode_adapter.py:_translate_stream_event",
-                "../hermes-agent/agent/gemini_cloudcode_adapter.py:_gemini_http_error",
-                "../hermes-agent/agent/google_code_assist.py:CodeAssistError",
+                "hermes@69d4800d:/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/gemini_cloudcode_adapter.py:255:build_gemini_request",
+                "hermes@69d4800d:/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/gemini_cloudcode_adapter.py:300:wrap_code_assist_request",
+                "hermes@69d4800d:/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/gemini_cloudcode_adapter.py:320:_translate_gemini_response",
+                "hermes@69d4800d:/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/gemini_cloudcode_adapter.py:503:_translate_stream_event",
+                "hermes@69d4800d:/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/gemini_cloudcode_adapter.py:756:_gemini_http_error",
+                "hermes@69d4800d:/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/google_code_assist.py:69:CodeAssistError",
                 "references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md",
                 "references/go-agent-os/goclaw/internal/oauth/openai_quota_transport.go",
                 "references/go-agent-os/plandex/app/server/model/model_error.go",
@@ -10818,7 +10818,7 @@
               ],
               "status": "planned",
               "test_commands": [
-                "go test ./internal/hermes -run TestGeminiCloudCode -count=1",
+                "test -f internal/hermes/gemini_cloudcode_test.go && go test ./internal/hermes -run 'TestGeminiCloudCode(BuildRequestMapsMessagesAndSystem|WrapsCodeAssistEnvelope|StreamEventNormalization|HTTPErrorClassification)' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "trust_class": [
