@@ -43,15 +43,17 @@ func parsePatchFiles(patch string) []patchFileInfo {
 	lines := strings.Split(patch, "\n")
 	var cur *patchFileInfo
 	for _, line := range lines {
-		if strings.HasPrefix(line, "diff --git") || strings.HasPrefix(line, "--- ") {
+		if strings.HasPrefix(line, "diff --git") {
 			if cur != nil {
 				files = append(files, *cur)
 			}
+			cur = &patchFileInfo{}
+		} else if strings.HasPrefix(line, "--- ") && cur != nil && cur.File == "" {
 			name := strings.TrimPrefix(line, "--- ")
 			if strings.HasPrefix(name, "a/") {
 				name = name[2:]
 			}
-			cur = &patchFileInfo{File: name}
+			cur.File = name
 		} else if cur != nil {
 			if strings.HasPrefix(line, "@@") {
 				cur.Hunks++
