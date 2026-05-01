@@ -81,6 +81,12 @@ func (s *Server) handleDashboardMemoryFragment(w http.ResponseWriter, _ *http.Re
 <div style="color:var(--dim);font-size:11px">Click a memory node to inspect</div>`)
 }
 
+func (s *Server) handleDashboardSessionsFragment(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	io.WriteString(w, `<table><tr><th>ID</th><th>Model</th><th>Messages</th><th>Last Active</th></tr>
+<tr><td colspan="4" style="color:var(--dim)">Sessions available via /api/sessions (authenticated)</td></tr></table>`)
+}
+
 func (s *Server) handleAgentExecute(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

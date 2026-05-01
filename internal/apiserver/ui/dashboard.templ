@@ -20,6 +20,12 @@ templ Dashboard() {
 						<div class="line thinking">Waiting for agent activity…</div>
 					</div>
 				</div>
+				<div class="card">
+					<h2>📋 Recent Sessions</h2>
+					<div id="session-list" hx-get="/dashboard/sessions-fragment" hx-trigger="load, every 30s" hx-swap="innerHTML">
+						<div style="color:var(--dim)">Loading sessions…</div>
+					</div>
+				</div>
 			</div>
 			<div class="col">
 				<div class="card">

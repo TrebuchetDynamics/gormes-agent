@@ -247,6 +247,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/dashboard/events", s.handleDashboardSSE)
 	s.mux.HandleFunc("/dashboard/status", s.handleDashboardStatusFragment)
 	s.mux.HandleFunc("/dashboard/memory", s.handleDashboardMemoryFragment)
+	s.mux.HandleFunc("/dashboard/sessions-fragment", s.handleDashboardSessionsFragment)
 	s.mux.HandleFunc("/agent/execute", s.handleAgentExecute)
 	s.mux.Handle("/static/", staticHandler())
 }
