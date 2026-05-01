@@ -97,6 +97,7 @@ type Server struct {
 	previousResponseMisses int
 	now                    func() time.Time
 	mux                    *http.ServeMux
+	logStore               *LogStore
 }
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.
@@ -205,6 +206,7 @@ func NewServer(cfg Config) *Server {
 		cronAuditor:     cfg.CronAdminAuditor,
 		now:             time.Now,
 		mux:             http.NewServeMux(),
+		logStore:        NewLogStore(200),
 	}
 	s.routes()
 	return s
@@ -233,6 +235,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/dashboard/plugins", s.handleDashboardPlugins)
 	s.mux.HandleFunc("/api/sessions", s.handleDashboardSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
+	s.mux.HandleFunc("/api/logs", s.handleDashboardLogs)
+	s.mux.HandleFunc("/dashboard", s.handleWebDashboard)
+	s.mux.HandleFunc("/dashboard/", s.handleWebDashboard)
 	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)
 	s.mux.HandleFunc("/v1/admin/cron/jobs/", s.handleCronAdminJobByID)
 }
