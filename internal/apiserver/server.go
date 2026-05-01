@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"crypto/hmac"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -19,10 +20,11 @@ import (
 )
 
 const (
-	defaultModelName              = "gormes-agent"
-	defaultMaxRequestBytes  int64 = 1_000_000
-	maxNormalizedTextLength       = 65_536
-	maxContentListSize            = 1_000
+	defaultModelName                 = "gormes-agent"
+	defaultMaxRequestBytes     int64 = 1_000_000
+	maxNormalizedTextLength          = 65_536
+	maxContentListSize               = 1_000
+	dashboardSessionHeaderName       = "X-Hermes-Session-Token"
 )
 
 // Config wires the native API server HTTP surface.
@@ -38,6 +40,10 @@ type Config struct {
 	OAuthProviders  []DashboardOAuthProvider
 	PluginInventory pluginmeta.Inventory
 	ChatTransport   ChatTransportStatus
+	// DashboardSessionToken protects sensitive /api/ dashboard routes with
+	// Hermes' X-Hermes-Session-Token header contract. When empty, NewServer
+	// generates an ephemeral token for this process.
+	DashboardSessionToken string
 	// DashboardBoundHost is the network host the dashboard was bound to. When set
 	// to a loopback address, Handler rejects non-loopback Host headers to match
 	// Hermes' DNS-rebinding guard. The all-interfaces binds 0.0.0.0 and :: are
@@ -93,6 +99,7 @@ type Server struct {
 	oauthProviders         []DashboardOAuthProvider
 	pluginInventory        pluginmeta.Inventory
 	chatTransport          ChatTransportStatus
+	dashboardSessionToken  string
 	dashboardBoundHost     string
 	detailedHealth         func() DetailedHealthSnapshotInput
 	cronJobs               CronJobReader
@@ -194,27 +201,32 @@ func NewServer(cfg Config) *Server {
 	if runTTL <= 0 {
 		runTTL = defaultRunStreamTTL
 	}
+	dashboardSessionToken := strings.TrimSpace(cfg.DashboardSessionToken)
+	if dashboardSessionToken == "" {
+		dashboardSessionToken = randomDashboardSessionToken()
+	}
 	s := &Server{
-		apiKey:             cfg.APIKey,
-		modelName:          model,
-		providerName:       provider,
-		maxBodyBytes:       maxBody,
-		loop:               cfg.Loop,
-		responseStore:      responseStore,
-		runs:               newRunRegistry(runTTL, time.Now),
-		modelProviders:     cloneDashboardModelProviders(cfg.ModelProviders),
-		oauthProviders:     cloneDashboardOAuthProviders(cfg.OAuthProviders),
-		pluginInventory:    clonePluginInventory(cfg.PluginInventory),
-		chatTransport:      cfg.ChatTransport,
-		dashboardBoundHost: strings.TrimSpace(cfg.DashboardBoundHost),
-		detailedHealth:     cfg.DetailedHealth,
-		cronJobs:           cfg.CronJobs,
-		cronRuns:           cfg.CronRuns,
-		cronMutator:        cfg.CronJobMutator,
-		cronTrigger:        cfg.CronTrigger,
-		cronAuditor:        cfg.CronAdminAuditor,
-		now:                time.Now,
-		mux:                http.NewServeMux(),
+		apiKey:                cfg.APIKey,
+		modelName:             model,
+		providerName:          provider,
+		maxBodyBytes:          maxBody,
+		loop:                  cfg.Loop,
+		responseStore:         responseStore,
+		runs:                  newRunRegistry(runTTL, time.Now),
+		modelProviders:        cloneDashboardModelProviders(cfg.ModelProviders),
+		oauthProviders:        cloneDashboardOAuthProviders(cfg.OAuthProviders),
+		pluginInventory:       clonePluginInventory(cfg.PluginInventory),
+		chatTransport:         cfg.ChatTransport,
+		dashboardSessionToken: dashboardSessionToken,
+		dashboardBoundHost:    strings.TrimSpace(cfg.DashboardBoundHost),
+		detailedHealth:        cfg.DetailedHealth,
+		cronJobs:              cfg.CronJobs,
+		cronRuns:              cfg.CronRuns,
+		cronMutator:           cfg.CronJobMutator,
+		cronTrigger:           cfg.CronTrigger,
+		cronAuditor:           cfg.CronAdminAuditor,
+		now:                   time.Now,
+		mux:                   http.NewServeMux(),
 	}
 	s.routes()
 	return s
@@ -222,7 +234,7 @@ func NewServer(cfg Config) *Server {
 
 // Handler returns an http.Handler suitable for httptest or http.Server.
 func (s *Server) Handler() http.Handler {
-	return s.hostHeaderGuard(securityHeaders(s.mux))
+	return s.hostHeaderGuard(s.dashboardSessionGuard(securityHeaders(s.mux)))
 }
 
 func (s *Server) hostHeaderGuard(next http.Handler) http.Handler {
@@ -237,6 +249,53 @@ func (s *Server) hostHeaderGuard(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) dashboardSessionGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasPrefix(path, "/api/") && !dashboardPublicAPIPath(path) && !strings.HasPrefix(path, "/api/plugins/") {
+			if !s.hasValidDashboardSessionToken(r) {
+				writeJSON(w, http.StatusUnauthorized, map[string]any{"detail": "Unauthorized"})
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func dashboardPublicAPIPath(path string) bool {
+	switch path {
+	case "/api/status", "/api/config/defaults", "/api/config/schema", "/api/model/info", "/api/dashboard/themes", "/api/dashboard/plugins", "/api/dashboard/plugins/rescan":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Server) hasValidDashboardSessionToken(r *http.Request) bool {
+	token := strings.TrimSpace(s.dashboardSessionToken)
+	if token == "" {
+		return false
+	}
+	if sessionHeader := strings.TrimSpace(r.Header.Get(dashboardSessionHeaderName)); sessionHeader != "" {
+		if hmac.Equal([]byte(sessionHeader), []byte(token)) {
+			return true
+		}
+	}
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(auth, "Bearer ") {
+		bearer := strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+		return hmac.Equal([]byte(bearer), []byte(token))
+	}
+	return false
+}
+
+func randomDashboardSessionToken() string {
+	var buf [32]byte
+	if _, err := cryptorand.Read(buf[:]); err == nil {
+		return hex.EncodeToString(buf[:])
+	}
+	return randomHexFromTime(time.Now()) + randomHexFromTime(time.Now().Add(time.Nanosecond))
 }
 
 func dashboardHostAllowed(hostHeader, boundHost string) bool {

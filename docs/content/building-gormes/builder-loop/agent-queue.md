@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Web dashboard server shell + degraded inventory
-
-- Phase: 5 / 5.V
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Reconcile the Go web dashboard server shell against Hermes' FastAPI dashboard startup, localhost security guard, public API allowlist, and degraded inventory semantics before any React feature work is treated as complete.
-- Trust class: operator, system
-- Ready when: A small internal/apiserver package can be tested without launching live uvicorn/React tooling, The public API allowlist is fixture-locked from Hermes web_server.py
-- Not ready when: The slice ports React pages or PTY chat before the server/security/degraded contract exists, The implementation allows non-loopback Host headers by default
-- Degraded mode: When dashboard-only runtime pieces are absent or disabled, API status exposes typed disabled/degraded panel evidence and the server does not claim React/Vite parity.
-- Fixture: `internal/apiserver/dashboard_contract_test.go`
-- Write scope: `internal/apiserver/server.go`, `internal/apiserver/dashboard.go`, `internal/apiserver/dashboard_web.go`, `internal/apiserver/dashboard_contract_test.go`, `cmd/gormes`
-- Test commands: `go test ./internal/apiserver -run 'TestDashboardContract_CoversNativeDashboardEndpoints\|TestDashboardStatus_DegradesMissingNativeAndOptionalPanels\|TestDashboardContract_DoesNotAddNodeOrReactRuntimeAssets\|TestDashboardContract_RejectsNonLoopbackHostHeaders\|TestDashboardContract_AllowsExplicitAllInterfacesHostMode' -count=1`, `go run ./cmd/progress validate`
-- Done signal: internal/apiserver exposes a tested dashboard server shell with dashboard status/degraded inventory, static/templated dashboard routes, and a source-backed Host/session-token guard fixture.
-- Acceptance: TestDashboardContract_CoversNativeDashboardEndpoints proves the native API/dashboard shell serves the core chat/responses/runs/session/model/provider/plugin endpoints without React runtime dependencies., TestDashboardStatus_DegradesMissingNativeAndOptionalPanels proves absent optional dashboard panels report deterministic disabled/degraded evidence instead of claiming full React parity., TestDashboardContract_RejectsNonLoopbackHostHeaders and TestDashboardContract_AllowsExplicitAllInterfacesHostMode prove the Hermes DNS-rebinding Host guard for loopback binds while preserving explicit all-interfaces mode., A follow-up builder pass must still fixture-lock the X-Hermes-Session-Token-style dashboard API guard, or classify Gormes' API-key guard as an owned divergence, before this row can be marked complete.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:64-110, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:194-240, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/index.html, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/vite.config.ts, internal/apiserver/server.go:Config.DashboardBoundHost, internal/apiserver/dashboard_contract_test.go:TestDashboardContract_RejectsNonLoopbackHostHeaders
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Web dashboard React/Vite scaffold + 9-page route manifest
+## 1. Web dashboard React/Vite scaffold + 9-page route manifest
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -67,7 +47,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/package.json, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/App.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/main.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/AnalyticsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ConfigPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/CronPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/DocsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/EnvPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/LogsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SessionsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SkillsPage.tsx
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Skill registries
+## 2. Skill registries
 
 - Phase: 5 / 5.F
 - Owner: `skills`
@@ -88,7 +68,7 @@ selection.
 - Unblocks: Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures
 - Why now: Unblocks Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures.
 
-## 4. Web dashboard core components + data-state fixtures
+## 3. Web dashboard core components + data-state fixtures
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -108,7 +88,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ui/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/hooks/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/contexts/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Web dashboard PTY chat + event websocket fixtures
+## 4. Web dashboard PTY chat + event websocket fixtures
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -128,7 +108,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:77-79, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2401-2588, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/lib/gatewayClient.ts
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Web dashboard theme catalog + switcher parity
+## 5. Web dashboard theme catalog + switcher parity
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -148,7 +128,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2919-2962, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/themes/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ThemeSwitcher.tsx
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Web dashboard OAuth provider flows + EN/ZH i18n
+## 6. Web dashboard OAuth provider flows + EN/ZH i18n
 
 - Phase: 5 / 5.V
 - Owner: `gateway`

@@ -30,10 +30,11 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 		}},
 	}
 	srv := NewServer(Config{
-		ModelName:     "gormes-agent",
-		ProviderName:  "native",
-		Loop:          loop,
-		ResponseStore: NewResponseStore(10),
+		ModelName:             "gormes-agent",
+		DashboardSessionToken: "fixture-token",
+		ProviderName:          "native",
+		Loop:                  loop,
+		ResponseStore:         NewResponseStore(10),
 		ModelProviders: []DashboardModelProvider{{
 			Name:        "Native Gormes",
 			Slug:        "native",
@@ -54,6 +55,7 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 		}},
 	})
 	h := srv.Handler()
+	dashboardAuth := map[string]string{"X-Hermes-Session-Token": "fixture-token"}
 
 	chat := postJSON(t, h, "/v1/chat/completions", map[string]any{
 		"model":    "gormes-agent",
@@ -98,7 +100,7 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 		t.Fatal("response ID is empty")
 	}
 
-	sessions := getJSON(t, h, "/api/sessions?limit=10&offset=0", nil)
+	sessions := getJSON(t, h, "/api/sessions?limit=10&offset=0", dashboardAuth)
 	if sessions.Code != http.StatusOK {
 		t.Fatalf("sessions status = %d, want 200; body=%s", sessions.Code, sessions.Body.String())
 	}
@@ -126,7 +128,7 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 		t.Fatalf("session summary missing message count or preview: %+v", sessionList.Sessions[0])
 	}
 
-	modelOptions := getJSON(t, h, "/api/model/options", nil)
+	modelOptions := getJSON(t, h, "/api/model/options", dashboardAuth)
 	if modelOptions.Code != http.StatusOK {
 		t.Fatalf("model options status = %d, want 200; body=%s", modelOptions.Code, modelOptions.Body.String())
 	}
@@ -147,7 +149,7 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 		t.Fatalf("model options = %+v, want current native provider", options)
 	}
 
-	oauth := getJSON(t, h, "/api/providers/oauth", nil)
+	oauth := getJSON(t, h, "/api/providers/oauth", dashboardAuth)
 	if oauth.Code != http.StatusOK {
 		t.Fatalf("oauth status = %d, want 200; body=%s", oauth.Code, oauth.Body.String())
 	}
@@ -191,7 +193,7 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 		}
 	}
 
-	deleted := deleteJSON(t, h, "/api/sessions/sess-dashboard", nil)
+	deleted := deleteJSON(t, h, "/api/sessions/sess-dashboard", dashboardAuth)
 	if deleted.Code != http.StatusOK {
 		t.Fatalf("delete session status = %d, want 200; body=%s", deleted.Code, deleted.Body.String())
 	}
@@ -265,6 +267,34 @@ func TestDashboardContract_AllowsExplicitAllInterfacesHostMode(t *testing.T) {
 	got := getJSONWithHost(t, srv.Handler(), "/api/status", "operator.example:9119", nil)
 	if got.Code != http.StatusOK {
 		t.Fatalf("all-interfaces host status = %d, want 200; body=%s", got.Code, got.Body.String())
+	}
+}
+
+func TestDashboardContract_RequiresSessionTokenForSensitiveDashboardAPI(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", DashboardSessionToken: "fixture-token"})
+	h := srv.Handler()
+
+	public := getJSON(t, h, "/api/status", nil)
+	if public.Code != http.StatusOK {
+		t.Fatalf("public status code = %d, want 200; body=%s", public.Code, public.Body.String())
+	}
+
+	unauthorized := getJSON(t, h, "/api/model/options", nil)
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("missing session token status = %d, want 401; body=%s", unauthorized.Code, unauthorized.Body.String())
+	}
+	if !strings.Contains(unauthorized.Body.String(), "Unauthorized") {
+		t.Fatalf("missing session token body = %s, want Unauthorized", unauthorized.Body.String())
+	}
+
+	headerAuthorized := getJSON(t, h, "/api/model/options", map[string]string{"X-Hermes-Session-Token": "fixture-token"})
+	if headerAuthorized.Code != http.StatusOK {
+		t.Fatalf("session-header status = %d, want 200; body=%s", headerAuthorized.Code, headerAuthorized.Body.String())
+	}
+
+	bearerAuthorized := getJSON(t, h, "/api/providers/oauth", map[string]string{"Authorization": "Bearer fixture-token"})
+	if bearerAuthorized.Code != http.StatusOK {
+		t.Fatalf("bearer-token status = %d, want 200; body=%s", bearerAuthorized.Code, bearerAuthorized.Body.String())
 	}
 }
 

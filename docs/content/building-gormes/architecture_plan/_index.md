@@ -875,7 +875,7 @@ classification and row-backed implementation queue.
 - [x] SKILL.md output parity — missing JSON fields
 - [x] Goncho honcho_reasoning LLM-backed synthesis
 - [x] Web dashboard — React SPA parity
-- [ ] Web dashboard server shell + degraded inventory
+- [x] Web dashboard server shell + degraded inventory
 - [ ] Web dashboard React/Vite scaffold + 9-page route manifest
 - [ ] Web dashboard core components + data-state fixtures
 - [ ] Web dashboard PTY chat + event websocket fixtures
