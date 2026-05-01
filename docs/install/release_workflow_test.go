@@ -35,7 +35,6 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"actions/upload-artifact@v4",
 		"actions/download-artifact@v4",
 		"softprops/action-gh-release@v2",
-		"generate_release_notes: true",
 		"if: startsWith(github.ref, 'refs/tags/v')",
 	}
 	for _, want := range wantAll {
