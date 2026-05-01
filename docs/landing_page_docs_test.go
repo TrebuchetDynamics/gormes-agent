@@ -110,9 +110,9 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 	wants := []string{
 		`title: "Gormes Documentation"`,
 		"# Gormes",
-		"[Why Gormes](why-gormes)",
-		"Route-B reconnect",
-		"Quick Start on GitHub",
+		"[Getting Started](getting-started/)",
+		"Go-native Hermes-compatible agent runtime",
+		"Roadmap & Parity",
 	}
 	for _, want := range wants {
 		if !strings.Contains(raw, want) {

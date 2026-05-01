@@ -49,23 +49,23 @@ for (const vp of VIEWPORTS) {
 
 test('collapsible sidebar group: current auto-opens, others closed, click toggles', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/using-gormes/quickstart/');
+  await page.goto('/getting-started/first-run/');
 
-  // Using Gormes contains Quickstart → that group is open.
-  const usingGroup = page.locator('details.docs-nav-group[data-section="using-gormes"]');
-  await expect(usingGroup).toHaveAttribute('open', '');
+  // Getting Started contains First Run, so that group is open.
+  const startGroup = page.locator('details.docs-nav-group[data-section="getting-started"]');
+  await expect(startGroup).toHaveAttribute('open', '');
 
-  // Building is closed by default (not current).
-  const buildingGroup = page.locator('details.docs-nav-group[data-section="building-gormes"]');
-  const openAttr = await buildingGroup.getAttribute('open');
+  // Operate is closed by default (not current).
+  const operateGroup = page.locator('details.docs-nav-group[data-section="guides"]');
+  const openAttr = await operateGroup.getAttribute('open');
   expect(openAttr).toBeNull();
 
-  // Clicking the building summary expands it.
-  await buildingGroup.locator('summary').click();
+  // Clicking the operate summary expands it.
+  await operateGroup.locator('summary').click();
   await page.waitForTimeout(100);
-  await expect(buildingGroup).toHaveAttribute('open', '');
+  await expect(operateGroup).toHaveAttribute('open', '');
 
   // Reload — persisted via localStorage.
   await page.reload();
-  await expect(page.locator('details.docs-nav-group[data-section="building-gormes"]')).toHaveAttribute('open', '');
+  await expect(page.locator('details.docs-nav-group[data-section="guides"]')).toHaveAttribute('open', '');
 });

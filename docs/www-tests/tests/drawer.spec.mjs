@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('mobile hamburger is an accessible button', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 760 });
-  await page.goto('/using-gormes/quickstart/');
+  await page.goto('/getting-started/first-run/');
 
   const btn = page.locator('[data-testid="drawer-open"]');
   await expect(btn).toBeVisible();
@@ -15,7 +15,7 @@ test('mobile hamburger is an accessible button', async ({ page }) => {
 
 test('mobile drawer opens via hamburger and closes via backdrop', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 760 });
-  await page.goto('/using-gormes/quickstart/');
+  await page.goto('/getting-started/first-run/');
 
   const sidebar = page.locator('.docs-sidebar');
   let leftBefore = await sidebar.evaluate(el => el.getBoundingClientRect().left);
@@ -42,7 +42,7 @@ test('desktop >=768px does not show the hamburger', async ({ page }) => {
 
 test('mobile drawer has a close button inside and Esc closes it', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 760 });
-  await page.goto('/using-gormes/quickstart/');
+  await page.goto('/getting-started/first-run/');
 
   await page.locator('[data-testid="drawer-open"]').click();
   await page.waitForTimeout(250);
@@ -67,13 +67,13 @@ test('mobile drawer has a close button inside and Esc closes it', async ({ page 
 
 test('mobile drawer auto-closes on link tap', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 760 });
-  await page.goto('/using-gormes/');
+  await page.goto('/getting-started/');
 
   await page.locator('[data-testid="drawer-open"]').click();
   await page.waitForTimeout(250);
 
   // Click any nav link inside the sidebar
-  const link = page.locator('.docs-sidebar a[href]').first();
+  const link = page.locator('.docs-sidebar a[href]').filter({ hasText: 'First Run' }).first();
   await link.click();
   await page.waitForTimeout(400); // navigation + transition
 

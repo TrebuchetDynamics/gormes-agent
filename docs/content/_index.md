@@ -1,30 +1,30 @@
 ---
 title: "Gormes Documentation"
-description: "Go-native documentation for Gormes: operational moat, wire doctor, resilience, and surgical binaries."
+description: "Install, configure, operate, and extend the Go-native Hermes-compatible Gormes runtime."
 weight: 0
 slug: "/"
 ---
 
 # Gormes
 
-Gormes is the Go-native operational moat for Hermes: a current **~16.2 MB** static binary, a tool-aware doctor, and a resilience model built around Route-B reconnect plus a 16 ms coalescing mailbox.
+Gormes is a Go-native Hermes-compatible agent runtime for local TUI work, provider-backed turns, tools, memory, and persistent chat gateways.
 
-- [Why Gormes](why-gormes)
-- [Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md)
-- [Roadmap](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/ARCH_PLAN.md)
+- [Getting Started](getting-started/)
+- [Operate Gormes](guides/)
+- [Reference](reference/)
+- [Architecture](architecture/)
 
 ## What lives here?
 
-This docs surface explains the public engineering case for Gormes. The operator-facing install and run flow stays in the repository README; the roadmap and phase specs stay in the repository docs where contributors can inspect the proof directly.
+This docs surface is the operator and developer manual for Gormes. It starts with install, first run, configuration, gateway operation, and troubleshooting. Architecture and parity pages explain how Gormes stays compatible with Hermes without making roadmap work look like shipped runtime behavior.
 
 ## Quick Links
 
 | | |
 |---|---|
-| **[Why Gormes](why-gormes)** | Public technical manifesto: operational moat, wire doctor, resilience, and surgical binaries |
-| **[Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md)** | Build, validate, and run the current Go binary |
-| **[Implementation Roadmap](building-gormes/implementation-roadmap)** | Current state, decision trees, execution horizons, and document map |
-| **[Must-Have Features](building-gormes/must-have-features)** | Feature catalogue from 12+ upstream open-source projects |
-| **[Roadmap](building-gormes/architecture_plan)** | The five-phase path from tactical bridge to pure Go runtime |
-| **[Tool Registry Spec](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/superpowers/specs/2026-04-19-gormes-phase2-tools-design.md)** | Phase 2.A proof doc for Go-native tools |
-| **[Telegram Scout Spec](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/superpowers/specs/2026-04-19-gormes-phase2b-telegram.md)** | Phase 2.B proof doc for split-binary messaging architecture |
+| **[Quickstart](getting-started/)** | Build or install Gormes, run doctor, and complete a local smoke test |
+| **[Configuration](getting-started/configuration/)** | Native `GORMES_HOME`, `config.toml`, `.env`, and runtime paths |
+| **[Gateway Operations](guides/gateway-operations/)** | Run and inspect persistent messaging channels |
+| **[CLI Reference](reference/cli/)** | Current top-level commands and operator subcommands |
+| **[Architecture](architecture/)** | Runtime model, gateway pipeline, tool execution, and memory boundaries |
+| **[Roadmap & Parity](parity/)** | Current status, known gaps, and Hermes/Honcho compatibility tracking |
