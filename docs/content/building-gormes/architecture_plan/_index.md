@@ -876,7 +876,7 @@ classification and row-backed implementation queue.
 - [x] Goncho honcho_reasoning LLM-backed synthesis
 - [x] Web dashboard — React SPA parity
 - [x] Web dashboard server shell + degraded inventory
-- [ ] Web dashboard React/Vite scaffold + 9-page route manifest
+- [x] Web dashboard React/Vite scaffold + 9-page route manifest
 - [ ] Web dashboard core components + data-state fixtures
 - [ ] Web dashboard PTY chat + event websocket fixtures
 - [ ] Web dashboard theme catalog + switcher parity

@@ -29,7 +29,6 @@ roadmap is complete.
 <!-- PROGRESS:START kind=next-slices -->
 | Phase | Slice | Contract | Trust class | Fixture | Why now |
 |---|---|---|---|---|---|
-| 5 / 5.V | Web dashboard React/Vite scaffold + 9-page route manifest | Port the minimal Vite/React scaffold and route manifest for Hermes' 9-page dashboard without filling each page's detailed behavior yet. | operator, system | `web/src/App.test.tsx` | P0 handoff; needs contract proof before closeout. |
 | 5 / 5.V | Web dashboard core components + data-state fixtures | Port Hermes dashboard's reusable component set as typed React fixtures so later page slices compose parity components instead of re-inventing UI behavior per page. | operator, system | `web/src/components/dashboard-components.test.tsx` | Contract metadata is present; ready for a focused spec or fixture slice. |
 | 5 / 5.V | Web dashboard PTY chat + event websocket fixtures | Port the dashboard embedded-chat/PTY websocket contract and React chat integration with fakes before binding to a live terminal or provider runtime. | operator, system | `internal/apiserver/dashboard_pty_test.go` | Contract metadata is present; ready for a focused spec or fixture slice. |
 | 5 / 5.V | Web dashboard theme catalog + switcher parity | Port Hermes dashboard theme catalog and theme-selection API as a small independent slice, separate from TUI skin parity and page functionality. | operator, system | `internal/apiserver/dashboard_theme_test.go` | Contract metadata is present; ready for a focused spec or fixture slice. |

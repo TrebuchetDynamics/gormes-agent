@@ -29536,7 +29536,7 @@
                 "TestDashboardPageFallbacks prove pages render explicit unavailable panels when their backing API endpoints are not implemented yet."
               ],
               "contract": "Port the minimal Vite/React scaffold and route manifest for Hermes' 9-page dashboard without filling each page's detailed behavior yet.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "Each route can render a typed unavailable panel with the API endpoint it needs; no blank page or unhandled promise rejection is acceptable.",
               "done_signal": [
                 "web/ exists with React/Vite scaffold, route manifest, and fallback-rendering tests for all Hermes dashboard pages."
@@ -29544,6 +29544,7 @@
               "execution_owner": "gateway",
               "fixture": "web/src/App.test.tsx",
               "name": "Web dashboard React/Vite scaffold + 9-page route manifest",
+              "note": "Completed 2026-05-01: source-backed against Hermes web package at /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d. Gormes now has an isolated web/ React/Vite scaffold, deterministic route manifest for dashboard/chat/config/env/sessions/logs/cron/skills/docs/analytics, explicit unavailable panels naming required native endpoints, and a Go dashboard dist manifest for the existing apiserver shell. Tests are hermetic and do not require npm install or live gateway/provider state.",
               "not_ready_when": [
                 "The slice ports full page functionality instead of route/fallback scaffolding",
                 "The server shell row is not present as the embedding target"
@@ -29566,9 +29567,14 @@
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/EnvPage.tsx",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/LogsPage.tsx",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SessionsPage.tsx",
-                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SkillsPage.tsx"
+                "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SkillsPage.tsx",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:web/package.json",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:web/src/App.tsx",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:web/src/main.tsx",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:web/tests/run-tests.mjs",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:internal/apiserver/dashboard_assets.go"
               ],
-              "status": "planned",
+              "status": "complete",
               "test_commands": [
                 "npm --prefix web test -- --run DashboardFrontendScaffold",
                 "go test ./internal/apiserver -run TestDashboardDistManifest -count=1",
@@ -29580,10 +29586,16 @@
               ],
               "write_scope": [
                 "web/package.json",
+                "web/vite.config.ts",
+                "web/index.html",
+                "web/tests/run-tests.mjs",
+                "web/src/App.test.tsx",
                 "web/src/App.tsx",
                 "web/src/main.tsx",
+                "web/src/styles.css",
                 "web/src/pages/",
-                "internal/apiserver/dashboard_assets.go"
+                "internal/apiserver/dashboard_assets.go",
+                "internal/apiserver/dashboard_assets_test.go"
               ]
             },
             {
