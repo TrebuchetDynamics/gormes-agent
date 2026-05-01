@@ -68,6 +68,32 @@ func TestCronDeliveryPlan_ParseTargets(t *testing.T) {
 	}
 }
 
+func TestCronDeliveryPlanForJob_UsesStoredDeliverAndOrigin(t *testing.T) {
+	job := Job{
+		ID:      "job-1",
+		Name:    "briefing",
+		Deliver: "origin, discord",
+		Origin: &DeliveryOrigin{
+			Platform: "Telegram",
+			ChatID:   "-100777",
+			ThreadID: "99",
+		},
+	}
+	directory := staticDeliveryDirectory{
+		targets: map[string]DeliveryTarget{
+			"discord": {Platform: "discord", ChatID: "home-channel", ThreadID: "thread-7"},
+		},
+	}
+
+	plan := PlanCronDeliveryForJob(job, directory)
+	if got, want := normalizedDeliveryTargets(plan.Targets), []string{"telegram:-100777:99", "discord:home-channel:thread-7"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("targets = %#v, want %#v; evidence=%#v", got, want, plan.Evidence)
+	}
+	if len(plan.Evidence) != 0 {
+		t.Fatalf("evidence = %#v, want none", plan.Evidence)
+	}
+}
+
 func TestCronDeliveryPlan_InvalidTargetsReturnEvidence(t *testing.T) {
 	for _, raw := range []string{"telegram:", ":42", "telegram::42", "telegram:chat:", "telegram:chat:thread:extra"} {
 		t.Run(raw, func(t *testing.T) {

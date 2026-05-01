@@ -103,6 +103,8 @@ type Server struct {
 	now                    func() time.Time
 	mux                    *http.ServeMux
 	logStore               *LogStore
+	sseMu                  sync.Mutex
+	sseClients             []chan string
 }
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.

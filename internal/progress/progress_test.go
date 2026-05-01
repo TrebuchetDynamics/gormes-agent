@@ -62,9 +62,10 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["1"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 1 = %q, want complete", got)
 	}
-	// Phase 2 has 2.A, 2.B.1, 2.C complete and more planned -> in_progress.
-	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
-		t.Errorf("Phase 2 = %q, want in_progress", got)
+	// Phase 2 is complete once the gateway, scheduler, runtime, and operator
+	// surface rows are all validated.
+	if got := p.Phases["2"].DerivedStatus(); got != StatusComplete {
+		t.Errorf("Phase 2 = %q, want complete", got)
 	}
 	// Phase 3 is complete once the Goncho/local durable-memory parity rows,
 	// compatibility rows, webhook rows, and lifecycle adapter are validated.
@@ -831,8 +832,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 lifecycle writers note = %q, want runtime status store evidence", lifecycleWriters.Note)
 	}
 
-	if got := operator.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.F.4 = %q, want in_progress while notify-to and directory rows remain planned", got)
+	if got := operator.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.F.4 = %q, want complete", got)
 	}
 	operatorItems := itemsByName(operator.Items)
 	homeRules := operatorItems["Home channel ownership resolver fixtures"]
@@ -843,8 +844,14 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.4 home channel resolver evidence = status %q scope=%d tests=%d note=%q, want validated builder row", homeRules.ContractStatus, len(homeRules.WriteScope), len(homeRules.TestCommands), homeRules.Note)
 	}
 	notifyRoute := operatorItems["Notify-to delivery routing"]
-	if notifyRoute.Status != StatusPlanned {
-		t.Fatalf("Phase 2.F.4 notify-to routing status = %q, want planned", notifyRoute.Status)
+	if notifyRoute.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 notify-to routing status = %q, want complete", notifyRoute.Status)
+	}
+	if notifyRoute.ContractStatus != ContractStatusValidated || len(notifyRoute.WriteScope) == 0 || len(notifyRoute.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 notify-to routing readiness = contract_status %q scope=%d tests=%d, want validated builder row", notifyRoute.ContractStatus, len(notifyRoute.WriteScope), len(notifyRoute.TestCommands))
+	}
+	if !strings.Contains(notifyRoute.Note, "cron.Job Deliver/Origin") || !strings.Contains(notifyRoute.Note, "PlanCronDeliveryForJob") {
+		t.Fatalf("Phase 2.F.4 notify-to routing note = %q, want cron.Job deliver/origin planner evidence", notifyRoute.Note)
 	}
 	directory := operatorItems["Channel directory atomic persistence + lookup"]
 	if directory.Status != StatusComplete {
@@ -856,12 +863,32 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if !containsString(directory.SourceRefs, "../hermes-agent/gateway/channel_directory.py:DIRECTORY_PATH") || !strings.Contains(directory.Contract, "channel_directory.json") || !strings.Contains(directory.Note, "atomic temp-file persistence") {
 		t.Fatalf("Phase 2.F.4 channel directory refs=%v contract=%q note=%q, want shipped channel-directory evidence", directory.SourceRefs, directory.Contract, directory.Note)
 	}
+	refresh := operatorItems["Channel directory refresh + stale-target invalidation"]
+	if refresh.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 channel directory refresh status = %q, want complete", refresh.Status)
+	}
+	if refresh.ContractStatus != ContractStatusValidated || len(refresh.WriteScope) == 0 || len(refresh.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 channel directory refresh readiness = contract_status %q scope=%d tests=%d, want validated builder row", refresh.ContractStatus, len(refresh.WriteScope), len(refresh.TestCommands))
+	}
+	if !strings.Contains(refresh.Note, "deterministic sorted channel_directory.json") || !strings.Contains(refresh.Note, "channel_target_stale") {
+		t.Fatalf("Phase 2.F.4 channel directory refresh note = %q, want refresh/stale-target evidence", refresh.Note)
+	}
 	rememberSource := operatorItems["Manager remember-source hook"]
 	if rememberSource.Status != StatusComplete {
 		t.Fatalf("Phase 2.F.4 manager remember-source status = %q, want complete", rememberSource.Status)
 	}
 	if rememberSource.ContractStatus != ContractStatusValidated || len(rememberSource.WriteScope) == 0 || len(rememberSource.TestCommands) == 0 || !strings.Contains(rememberSource.Note, "remembered-source ledger") {
 		t.Fatalf("Phase 2.F.4 manager remember-source evidence = status %q scope=%d tests=%d note=%q, want validated remembered-source ledger row", rememberSource.ContractStatus, len(rememberSource.WriteScope), len(rememberSource.TestCommands), rememberSource.Note)
+	}
+	mirrorCache := operatorItems["Mirror + sticker cache surfaces"]
+	if mirrorCache.Status != StatusComplete {
+		t.Fatalf("Phase 2.F.4 mirror + sticker cache status = %q, want complete", mirrorCache.Status)
+	}
+	if mirrorCache.ContractStatus != ContractStatusValidated || len(mirrorCache.WriteScope) == 0 || len(mirrorCache.TestCommands) == 0 {
+		t.Fatalf("Phase 2.F.4 mirror + sticker cache readiness = contract_status %q scope=%d tests=%d, want validated builder row", mirrorCache.ContractStatus, len(mirrorCache.WriteScope), len(mirrorCache.TestCommands))
+	}
+	if !strings.Contains(mirrorCache.Note, "delivery mirror") || !strings.Contains(mirrorCache.Note, "sticker cache") {
+		t.Fatalf("Phase 2.F.4 mirror + sticker cache note = %q, want mirror/cache evidence", mirrorCache.Note)
 	}
 }
 

@@ -87,12 +87,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 52/85 subphases shipped · 26 in progress · 7 planned
+**Overall:** 53/85 subphases shipped · 25 in progress · 7 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
+| Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 5/11 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/20 subphases |
@@ -135,7 +135,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -315,14 +315,14 @@ classification and row-backed implementation queue.
 - [x] Session expiry hook cleanup retry evidence
 - [x] Channel lifecycle writers into status model
 
-### 2.F.4 — Home Channel + Operator Surfaces 🔨
+### 2.F.4 — Home Channel + Operator Surfaces ✅
 
 - [x] Home channel ownership resolver fixtures
-- [ ] Notify-to delivery routing
+- [x] Notify-to delivery routing
 - [x] Channel directory atomic persistence + lookup
-- [ ] Channel directory refresh + stale-target invalidation
+- [x] Channel directory refresh + stale-target invalidation
 - [x] Manager remember-source hook
-- [ ] Mirror + sticker cache surfaces
+- [x] Mirror + sticker cache surfaces
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
 
