@@ -29383,8 +29383,8 @@
                 "TestHonchoReasoningTool_DialecticCallerFailureFallsBack proves caller errors keep the deterministic answer and emit reasoning_llm_failed evidence.",
                 "A production wiring fixture proves the normal kernel/config Goncho service installs a DialecticCaller; no Python hermes-agent runtime process is required."
               ],
-              "contract": "HonchoReasoningTool must use Gormes' native goncho.DialecticCaller seam for LLM-backed synthesis, matching Hermes HonchoMemoryProvider's honcho_reasoning tool path through manager.dialectic_query. Existing Gormes code already has Service.SetDialecticCaller/DialecticCaller and a tool-level caller branch, but this row remains open until the caller path is fixture-locked and the production Goncho service wiring installs a native Go provider-backed caller. Keep deterministic fallback with degraded evidence when no caller is configured or the caller fails.",
-              "contract_status": "draft",
+              "contract": "HonchoReasoningTool uses Gormes' native goncho.DialecticCaller seam for LLM-backed synthesis, matching Hermes HonchoMemoryProvider's honcho_reasoning tool path through manager.dialectic_query. Gormes exposes Service.SetDialecticCaller/DialecticCaller, the honcho_reasoning tool calls the configured native caller, and Telegram runtime Goncho service construction installs a provider-backed caller without launching Python hermes-agent or external Honcho services. Deterministic fallback remains available with degraded evidence when no caller is configured or the caller fails.",
+              "contract_status": "validated",
               "degraded_mode": "When no DialecticCaller is configured, returns deterministic answer with reasoning_llm_unavailable evidence; when the caller errors, returns deterministic answer with reasoning_llm_failed evidence.",
               "done_signal": [
                 "honcho_reasoning is covered by caller-success, caller-failure, and no-caller fallback tests, and production Goncho construction wires a native provider-backed DialecticCaller."
@@ -29392,7 +29392,7 @@
               "execution_owner": "goncho",
               "fixture": "internal/gonchotools/honcho_tools_test.go",
               "name": "Goncho honcho_reasoning LLM-backed synthesis",
-              "note": "Planner refresh 2026-04-30: upstream symbols verified in /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/plugins/memory/honcho/__init__.py:91-128 and :1248-1261. Gormes already exposes DialecticCaller in internal/goncho/types.go:316-318 and the honcho_reasoning tool reads Service.DialecticCaller in internal/gonchotools/honcho_tools.go:197-212, but only deterministic fallback is tested today and no SetDialecticCaller production wiring exists outside internal/goncho/service.go.",
+              "note": "Completed 2026-04-30: upstream symbols verified in /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d/plugins/memory/honcho/__init__.py:91-128 and :1248-1261. Gormes now fixture-locks caller success/failure/no-caller fallback in internal/gonchotools/honcho_tools_test.go, implements native provider-backed goncho.NewHermesDialecticCaller in internal/goncho/dialectic_caller.go, and wires Telegram runtime Goncho service construction through cmd/gormes/newGonchoRuntimeService.",
               "not_ready_when": [
                 "The slice removes deterministic fallback entirely",
                 "The slice changes honcho_reasoning tool schema",
@@ -29408,12 +29408,17 @@
               "source_refs": [
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:91-128",
                 "/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:1248-1261",
-                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/goncho/types.go:316-318",
-                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/gonchotools/honcho_tools.go:197-212"
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:internal/goncho/types.go:316-318",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:internal/goncho/dialectic_caller.go:1-70",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:internal/gonchotools/honcho_tools.go:197-212",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:cmd/gormes/goncho_service.go:1-16",
+                "/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent:cmd/gormes/telegram.go:117-120"
               ],
-              "status": "planned",
+              "status": "complete",
               "test_commands": [
                 "go test ./internal/gonchotools -run 'TestHonchoReasoningTool_(UsesDialecticCaller|DialecticCallerFailureFallsBack|ReturnsDeterministicAnswer)' -count=1",
+                "go test ./internal/goncho -run TestHermesDialecticCaller -count=1",
+                "go test ./cmd/gormes -run TestNewGonchoRuntimeService -count=1",
                 "go test ./internal/goncho ./internal/gonchotools -count=1",
                 "go run ./cmd/progress validate"
               ],
@@ -29424,9 +29429,13 @@
               "write_scope": [
                 "internal/goncho/types.go",
                 "internal/goncho/service.go",
+                "internal/goncho/dialectic_caller.go",
+                "internal/goncho/dialectic_caller_test.go",
                 "internal/gonchotools/honcho_tools.go",
                 "internal/gonchotools/honcho_tools_test.go",
-                "production Goncho service construction site that owns provider/client wiring"
+                "cmd/gormes/goncho_service.go",
+                "cmd/gormes/goncho_service_test.go",
+                "cmd/gormes/telegram.go"
               ]
             },
             {

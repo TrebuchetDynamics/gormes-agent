@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Goncho honcho_reasoning LLM-backed synthesis
-
-- Phase: 5 / 5.V
-- Owner: `goncho`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: HonchoReasoningTool must use Gormes' native goncho.DialecticCaller seam for LLM-backed synthesis, matching Hermes HonchoMemoryProvider's honcho_reasoning tool path through manager.dialectic_query. Existing Gormes code already has Service.SetDialecticCaller/DialecticCaller and a tool-level caller branch, but this row remains open until the caller path is fixture-locked and the production Goncho service wiring installs a native Go provider-backed caller. Keep deterministic fallback with degraded evidence when no caller is configured or the caller fails.
-- Trust class: operator, system
-- Ready when: Write RED tests for caller success and caller failure in internal/gonchotools before modifying production code, Add the smallest production wiring fixture for native provider-backed DialecticCaller installation, Keep existing deterministic no-caller fallback behavior and evidence stable
-- Not ready when: The slice removes deterministic fallback entirely, The slice changes honcho_reasoning tool schema, The slice depends on launching Python hermes-agent or Honcho services instead of a native Go caller seam
-- Degraded mode: When no DialecticCaller is configured, returns deterministic answer with reasoning_llm_unavailable evidence; when the caller errors, returns deterministic answer with reasoning_llm_failed evidence.
-- Fixture: `internal/gonchotools/honcho_tools_test.go`
-- Write scope: `internal/goncho/types.go`, `internal/goncho/service.go`, `internal/gonchotools/honcho_tools.go`, `internal/gonchotools/honcho_tools_test.go`, `production Goncho service construction site that owns provider/client wiring`
-- Test commands: `go test ./internal/gonchotools -run 'TestHonchoReasoningTool_(UsesDialecticCaller\|DialecticCallerFailureFallsBack\|ReturnsDeterministicAnswer)' -count=1`, `go test ./internal/goncho ./internal/gonchotools -count=1`, `go run ./cmd/progress validate`
-- Done signal: honcho_reasoning is covered by caller-success, caller-failure, and no-caller fallback tests, and production Goncho construction wires a native provider-backed DialecticCaller.
-- Acceptance: TestHonchoReasoningTool_UsesDialecticCaller proves honcho_reasoning sends peer, query, and a context-backed system prompt to goncho.DialecticCaller and returns the LLM answer without reasoning_llm_unavailable evidence., TestHonchoReasoningTool_DialecticCallerFailureFallsBack proves caller errors keep the deterministic answer and emit reasoning_llm_failed evidence., A production wiring fixture proves the normal kernel/config Goncho service installs a DialecticCaller; no Python hermes-agent runtime process is required.
-- Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:91-128, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:plugins/memory/honcho/__init__.py:1248-1261, /home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/goncho/types.go:316-318, /home/xel/git/sages-openclaw/workspace-gormes/gormes-agent@81d89846e:internal/gonchotools/honcho_tools.go:197-212
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Web dashboard server shell + degraded inventory
+## 1. Web dashboard server shell + degraded inventory
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -67,7 +47,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:64-110, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:194-240, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/index.html, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/vite.config.ts
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Web dashboard React/Vite scaffold + 9-page route manifest
+## 2. Web dashboard React/Vite scaffold + 9-page route manifest
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -87,7 +67,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/package.json, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/App.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/main.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/AnalyticsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ConfigPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/CronPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/DocsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/EnvPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/LogsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SessionsPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/SkillsPage.tsx
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 4. Skill registries
+## 3. Skill registries
 
 - Phase: 5 / 5.F
 - Owner: `skills`
@@ -108,7 +88,7 @@ selection.
 - Unblocks: Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures
 - Why now: Unblocks Skills hub install binding over registry metadata, Skills hub source filter CLI/RPC, Skill registries unavailable-network UX fixtures.
 
-## 5. Web dashboard core components + data-state fixtures
+## 4. Web dashboard core components + data-state fixtures
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -128,7 +108,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ui/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/hooks/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/contexts/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Web dashboard PTY chat + event websocket fixtures
+## 5. Web dashboard PTY chat + event websocket fixtures
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -148,7 +128,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:77-79, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2401-2588, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/pages/ChatPage.tsx, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/lib/gatewayClient.ts
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Web dashboard theme catalog + switcher parity
+## 6. Web dashboard theme catalog + switcher parity
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -168,7 +148,7 @@ selection.
 - Source refs: /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:hermes_cli/web_server.py:2919-2962, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/themes/, /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent@69d4800d:web/src/components/ThemeSwitcher.tsx
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Web dashboard OAuth provider flows + EN/ZH i18n
+## 7. Web dashboard OAuth provider flows + EN/ZH i18n
 
 - Phase: 5 / 5.V
 - Owner: `gateway`

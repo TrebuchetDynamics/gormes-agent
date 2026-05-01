@@ -873,7 +873,7 @@ classification and row-backed implementation queue.
 - [x] Per-tool emoji parity with Hermes display.py
 - [x] Banner ASCII art — Hermes logo + caduceus
 - [x] SKILL.md output parity — missing JSON fields
-- [ ] Goncho honcho_reasoning LLM-backed synthesis
+- [x] Goncho honcho_reasoning LLM-backed synthesis
 - [x] Web dashboard — React SPA parity
 - [ ] Web dashboard server shell + degraded inventory
 - [ ] Web dashboard React/Vite scaffold + 9-page route manifest
