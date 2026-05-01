@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
@@ -188,6 +189,9 @@ type Manager struct {
 	toolProgressText   string
 	toolProgressChatID string
 	toolProgressPlat   string
+
+	verboseHintMu   sync.Mutex
+	verboseHintSent map[string]bool
 }
 
 type channelRunFailure struct {
@@ -731,8 +735,23 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTitle:
 		m.handleTitleCommand(ctx, ch, ev)
 		return nil
+	case EventSkills:
+		m.handleSkillsCommand(ctx, ch, ev)
+		return nil
 	case EventVerbose:
 		m.handleVerboseCommand(ctx, ch, ev)
+		return nil
+	case EventModel:
+		m.handleModelCommand(ctx, ch, ev)
+		return nil
+	case EventSessions:
+		m.handleSessionsCommand(ctx, ch, ev)
+		return nil
+	case EventProfile:
+		m.handleProfileCommand(ctx, ch, ev)
+		return nil
+	case EventGateway:
+		m.handlePlatformsCommand(ctx, ch, ev)
 		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
@@ -843,8 +862,23 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 	case EventTitle:
 		m.handleTitleCommand(ctx, ch, ev)
 		return true
+	case EventSkills:
+		m.handleSkillsCommand(ctx, ch, ev)
+		return true
 	case EventVerbose:
 		m.handleVerboseCommand(ctx, ch, ev)
+		return true
+	case EventModel:
+		m.handleModelCommand(ctx, ch, ev)
+		return true
+	case EventSessions:
+		m.handleSessionsCommand(ctx, ch, ev)
+		return true
+	case EventProfile:
+		m.handleProfileCommand(ctx, ch, ev)
+		return true
+	case EventGateway:
+		m.handlePlatformsCommand(ctx, ch, ev)
 		return true
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
@@ -882,6 +916,56 @@ func (m *Manager) handleVerboseCommand(ctx context.Context, ch Channel, ev Inbou
 	}
 	text += "\n_(saved for **" + platform + "** — takes effect on next message)_"
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, text)
+}
+
+func (m *Manager) handleSessionsCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	if m.cfg.SessionMap == nil {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Sessions are not available in this build.")
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "📋 Use `/status` for details on the current session. Use `/new` to start fresh.")
+}
+
+func (m *Manager) handleModelCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	model := "unknown"
+	provider := "unknown"
+	if m.cfg.LiveTurnActiveModel != nil {
+		model = m.cfg.LiveTurnActiveModel()
+	}
+	if m.cfg.LiveTurnActiveProvider != nil {
+		provider = m.cfg.LiveTurnActiveProvider()
+	}
+	if model == "" {
+		model = "unknown"
+	}
+	if provider == "" {
+		provider = "unknown"
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("🤖 **Model:** `%s`\n📡 **Provider:** `%s`", model, provider))
+}
+
+func (m *Manager) handleProfileCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	home := config.GormesHome()
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("👤 **Profile:** `(default)`\n📂 **Home:** `%s`", home))
+}
+
+func (m *Manager) handlePlatformsCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	platforms := m.formatConnectedPlatforms()
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("📡 **Connected Platforms:** %s\nUse `/status` for full session details.", platforms))
+}
+
+func (m *Manager) formatConnectedPlatforms() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	names := make([]string, 0, len(m.channels))
+	for name := range m.channels {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ", ")
 }
 
 func nextToolProgressMode(current string) string {
@@ -1029,6 +1113,8 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		}
 		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
 		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
+		m.maybeSendVerboseHint(ctx, ch, platform, chatID, f)
+		m.clearToolProgress()
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		text := m.formatError(platform, f)
@@ -1040,6 +1126,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		} else {
 			_, _ = m.sendWithHooks(ctx, ch, chatID, text)
 		}
+		m.clearToolProgress()
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
 		text := m.formatStream(platform, f)
@@ -1234,7 +1321,7 @@ func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev Inbou
 			At:       now.Format(time.RFC3339Nano),
 		}
 		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{ServiceManagerUnavailableEvidence: &evidence})
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "service_manager_unavailable: restart request recorded but no service manager restart path is available.")
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Restart requested but no service manager is available — the gateway will restart on its own if it exits. Send `/stop` first if a turn is active.")
 		return nil
 	}
 
@@ -1248,7 +1335,7 @@ func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev Inbou
 			At:       now.Format(time.RFC3339Nano),
 		}
 		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{ServiceManagerUnavailableEvidence: &evidence})
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "service_manager_unavailable: restart takeover marker could not be written.")
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Restart marker could not be written — the gateway will restart on its own if it exits.")
 		return nil
 	}
 	takeoverEvidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusWritten, now)
@@ -1533,6 +1620,50 @@ func (m *Manager) formatToolProgress(platform string, f kernel.RenderFrame) stri
 		return FormatToolProgressTelegramMode(f, mode)
 	}
 	return FormatToolProgressPlainMode(f, mode)
+}
+
+func (m *Manager) clearToolProgress() {
+	m.toolProgressMu.Lock()
+	m.toolProgressMsgID = ""
+	m.toolProgressText = ""
+	m.toolProgressChatID = ""
+	m.toolProgressPlat = ""
+	m.toolProgressMu.Unlock()
+}
+
+func (m *Manager) maybeSendVerboseHint(ctx context.Context, ch Channel, platform, chatID string, f kernel.RenderFrame) {
+	mode := m.toolProgressMode(platform)
+	if mode != "all" {
+		return
+	}
+	key := platform + ":" + chatID
+	m.verboseHintMu.Lock()
+	if m.verboseHintSent == nil {
+		m.verboseHintSent = map[string]bool{}
+	}
+	if m.verboseHintSent[key] {
+		m.verboseHintMu.Unlock()
+		return
+	}
+	m.verboseHintSent[key] = true
+	m.verboseHintMu.Unlock()
+
+	if toolMaxDuration(f.SoulEvents) < 30*time.Second {
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, chatID, "💡 **Tip:** use `/verbose` to see detailed tool output in this chat.")
+}
+
+func toolMaxDuration(events []kernel.SoulEntry) time.Duration {
+	if len(events) < 2 {
+		return 0
+	}
+	first := events[0].At
+	last := events[len(events)-1].At
+	if first.After(last) {
+		return 0
+	}
+	return last.Sub(first)
 }
 
 func (m *Manager) toolProgressMode(platform string) string {

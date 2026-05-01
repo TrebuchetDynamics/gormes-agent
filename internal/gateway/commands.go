@@ -86,19 +86,20 @@ var CommandRegistry = []CommandDef{
 	{Name: "history", Description: "Show conversation history", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "image", Description: "Attach a local image file for your next prompt", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "insights", Description: "Show usage insights and analytics", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "model", Description: "Switch model for this session", Kind: EventUnknown, Aliases: []string{"provider"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "model", Description: "Show current model and provider", Kind: EventModel, Aliases: []string{"provider"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "paste", Description: "Attach clipboard image", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "personality", Description: "Set a predefined personality", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "platforms", Description: "Show gateway/messaging platform status", Kind: EventUnknown, Aliases: []string{"gateway"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "platforms", Description: "Show gateway/messaging platform status", Kind: EventGateway, Aliases: []string{"gateway"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "plugins", Description: "List installed plugins", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "profile", Description: "Show active profile name and home directory", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "profile", Description: "Show active profile name and home directory", Kind: EventProfile, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "quit", Description: "Exit the CLI", Kind: EventUnknown, Aliases: []string{"exit"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "reload", Description: "Reload .env variables into the running session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "reload-mcp", Description: "Reload MCP servers from config", Kind: EventUnknown, Aliases: []string{"reload_mcp"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "resume", Description: "Resume a previously-named session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "save", Description: "Save the current conversation", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "sessions", Description: "List or show sessions", Kind: EventSessions, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate, Aliases: []string{"session"}},
 	{Name: "sethome", Description: "Set this chat as the home channel", Kind: EventUnknown, Aliases: []string{"set-home"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "skills", Description: "Search, install, inspect, or manage skills", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "skills", Description: "List or inspect installed skills", Kind: EventSkills, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "skin", Description: "Show or change the display skin/theme", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "statusbar", Description: "Toggle the context/model status bar", Kind: EventUnknown, Aliases: []string{"sb"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "tools", Description: "Manage tools", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -107,13 +108,13 @@ var CommandRegistry = []CommandDef{
 	{Name: "verbose", Description: "Cycle tool progress display", Kind: EventVerbose, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "voice", Description: "Toggle voice mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "yolo", Description: "Toggle YOLO mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "undo", Description: "Remove the last user/assistant exchange", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "title", Description: "Set a title for the current session", Kind: EventTitle, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "branch", Description: "Branch the current session (explore a different path)", Kind: EventUnknown, Aliases: []string{"fork"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "compress", Description: "Manually compress conversation context", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "rollback", Description: "List or restore filesystem checkpoints", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "snapshot", Description: "Create or restore state snapshots of Hermes config/state", Kind: EventUnknown, Aliases: []string{"snap"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "snapshot", Description: "Create or restore state snapshots of Gormes config/state", Kind: EventUnknown, Aliases: []string{"snap"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "approve", Description: "Approve a pending dangerous command", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "deny", Description: "Deny a pending dangerous command", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "background", Description: "Run a prompt in the background", Kind: EventUnknown, Aliases: []string{"bg"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -185,16 +186,23 @@ func ParseInboundText(text string) (EventKind, string) {
 	if !ok {
 		return EventUnknown, ""
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle {
+	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
+		return EventSubmit, body
+	}
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""
 }
 
-// GatewayHelpLines renders registry-driven help output in canonical order.
+// GatewayHelpLines renders registry-driven help output in canonical order,
+// excluding commands marked unavailable (CLI-only or not yet built for gateway).
 func GatewayHelpLines() []string {
 	lines := make([]string, 0, len(CommandRegistry))
 	for _, cmd := range CommandRegistry {
+		if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
+			continue
+		}
 		aliasNote := ""
 		if len(cmd.Aliases) > 0 {
 			aliases := make([]string, len(cmd.Aliases))
@@ -217,6 +225,9 @@ func gatewayHelpText() string {
 func TelegramBotCommands() []PlatformCommand {
 	out := make([]PlatformCommand, 0, len(CommandRegistry))
 	for _, cmd := range CommandRegistry {
+		if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
+			continue
+		}
 		out = append(out, PlatformCommand{
 			Name:        strings.ReplaceAll(cmd.Name, "-", "_"),
 			Description: cmd.Description,

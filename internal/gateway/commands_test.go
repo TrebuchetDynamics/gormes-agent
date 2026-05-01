@@ -190,21 +190,16 @@ func TestTelegramBotCommandsExposeHermesGatewayMenu(t *testing.T) {
 	for _, want := range []string{
 		"new",
 		"retry",
-		"undo",
 		"title",
-		"branch",
-		"compress",
-		"rollback",
-		"snapshot",
 		"stop",
-		"approve",
-		"deny",
-		"background",
-		"btw",
-		"agents",
-		"queue",
 		"steer",
 		"status",
+		"usage",
+		"platforms",
+		"profile",
+		"sessions",
+		"skills",
+		"verbose",
 	} {
 		if _, ok := seen[want]; !ok {
 			t.Fatalf("TelegramBotCommands missing Hermes gateway command %q; got %#v", want, commands)
