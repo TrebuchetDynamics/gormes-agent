@@ -483,9 +483,9 @@ classification and row-backed implementation queue.
 - [x] Bedrock stream event decoding (SSE fixtures)
 - [x] Bedrock SigV4 + credential seam
 - [x] Bedrock stale-client eviction + retry classification
-- [ ] Gemini Cloud Code request/stream mapper
+- [x] Gemini Cloud Code request/stream mapper
 - [ ] OpenRouter compatible-provider routing
-- [ ] Google Code Assist project/quota resolver
+- [x] Google Code Assist project/quota resolver
 - [ ] Codex
 - [x] Codex Responses pure conversion harness
 - [x] Codex Responses assistant content role types

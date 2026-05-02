@@ -7,6 +7,10 @@ This document describes how maintainers ship a new Gormes-Agent release.
 - **Source-first**: The recommended install path is building from source.
 - **Signed artifacts**: Every release includes SHA-256 checksums and build provenance attestations.
 - **Automated**: Tagging triggers the release pipeline; manual steps are minimal and documented.
+- **Green-main only**: Release tags are created from `main` only, after the
+  `development -> main` pull request is merged and required CI is green on the
+  exact `main` commit that will be tagged. If CI is red, pending, skipped, or
+  unknown, do not tag and do not publish a release.
 
 ## Versioning
 
@@ -34,16 +38,20 @@ Examples:
    - Regenerate progress docs
    - Open a pull request to `main`
 
-6. Review and merge the PR.
-7. After merge, create and push the tag:
+6. Review the PR. Do not merge until required CI is green.
+7. Merge the PR into `main`.
+8. Confirm `main` is on the merged commit and required CI is green for that
+   exact commit.
+9. After the green-main check, create and push the tag:
    ```bash
    git checkout main
-   git pull
+   git pull --ff-only origin main
+   gh run list --branch main --commit "$(git rev-parse HEAD)" --limit 5
    git tag -a v0.X.Y-scout -m "Release 0.X.Y-scout"
    git push origin v0.X.Y-scout
    ```
 
-8. The **Release Binaries** workflow triggers automatically and publishes:
+10. The **Release Binaries** workflow triggers automatically and publishes:
    - Six platform archives (linux/darwin/windows × amd64/arm64)
    - SHA-256 checksums
    - SPDX JSON SBOMs
@@ -93,3 +101,5 @@ gh attestation verify gormes-0.1.0-linux-amd64.tar.gz \
 - [ ] `CHANGELOG.md` is updated
 - [ ] `cmd/gormes/version.go` matches the intended tag
 - [ ] README progress rollup is regenerated
+- [ ] `development -> main` PR is merged
+- [ ] Required CI is green on the exact `main` commit to tag

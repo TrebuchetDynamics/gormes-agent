@@ -653,3 +653,13 @@ func (m *MemMap) ResolveLineageTip(ctx context.Context, sessionID string) (Linea
 	}
 	return resolveLineageTipFromMetadata(strings.TrimSpace(sessionID), items), nil
 }
+
+// ListAllMetadata returns all session metadata entries, sorted by most recent first.
+func (m *BoltMap) ListAllMetadata(ctx context.Context) ([]Metadata, error) {
+	return m.listAllMetadata(ctx)
+}
+
+// ListAllMetadata returns all session metadata entries, sorted by most recent first.
+func (m *MemMap) ListAllMetadata(ctx context.Context) ([]Metadata, error) {
+	return m.listAllMetadata(ctx)
+}

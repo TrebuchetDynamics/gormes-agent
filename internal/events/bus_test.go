@@ -151,3 +151,39 @@ func TestConcurrentPublish(t *testing.T) {
 		t.Fatal("no events received from concurrent publishers")
 	}
 }
+
+func TestEventBusIntegration_MultipleProducersSubscribers(t *testing.T) {
+	bus := NewInProcessEventBus()
+	defer bus.Close()
+
+	var count1, count2 atomic.Int32
+	bus.Subscribe("gateway.msg", func(e Event) { count1.Add(1) })
+	bus.Subscribe("agent.turn", func(e Event) { count2.Add(1) })
+
+	bus.Publish("gateway.msg", NewEvent("msg", "telegram", nil, "t1"))
+	bus.Publish("agent.turn", NewEvent("turn", "agent", nil, "t1"))
+	time.Sleep(30 * time.Millisecond)
+
+	if count1.Load() != 1 || count2.Load() != 1 {
+		t.Fatalf("count1=%d count2=%d, want both=1", count1.Load(), count2.Load())
+	}
+}
+
+func TestEventBusIntegration_MessageLifecycle(t *testing.T) {
+	bus := NewInProcessEventBus()
+	defer bus.Close()
+
+	var received, sent, completed atomic.Int32
+	bus.Subscribe("gateway.message.received", func(e Event) { received.Add(1) })
+	bus.Subscribe("gateway.message.sent", func(e Event) { sent.Add(1) })
+	bus.Subscribe("agent.turn.complete", func(e Event) { completed.Add(1) })
+
+	bus.Publish("gateway.message.received", NewEvent("msg", "telegram", nil, "t1"))
+	bus.Publish("agent.turn.complete", NewEvent("turn", "agent", nil, "t1"))
+	bus.Publish("gateway.message.sent", NewEvent("msg", "telegram", nil, "t1"))
+	time.Sleep(30 * time.Millisecond)
+
+	if received.Load() != 1 || sent.Load() != 1 || completed.Load() != 1 {
+		t.Fatalf("received=%d sent=%d completed=%d, want all=1", received.Load(), sent.Load(), completed.Load())
+	}
+}
