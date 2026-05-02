@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -115,5 +116,68 @@ func TestJSONLWriterAppendsStableSchemaInOrder(t *testing.T) {
 	}
 	if gotSecond.Error != "synthetic failure" {
 		t.Fatalf("second error = %q, want %q", gotSecond.Error, "synthetic failure")
+	}
+}
+
+func TestJSONLWriterSanitizesOversizedAndSensitiveArgs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tools", "audit.jsonl")
+	writer := NewJSONLWriter(path)
+	longURL := "https://r.jina.ai/http://" + strings.Repeat("r.jina.ai/http://", 500) + "https://www.reddit.com/r/openclaw/s/2AXfTcVSes"
+	args, err := json.Marshal(map[string]any{
+		"url":     longURL,
+		"api_key": "sk-secret-123",
+		"nested": map[string]any{
+			"Authorization": "Bearer secret-token",
+		},
+		"command": strings.Repeat("curl ", 1000),
+	})
+	if err != nil {
+		t.Fatalf("Marshal args: %v", err)
+	}
+
+	if err := writer.Record(Record{
+		Timestamp: time.Date(2026, 5, 1, 23, 10, 0, 0, time.UTC),
+		Source:    "kernel",
+		SessionID: "sess_reddit",
+		Tool:      "web_extract",
+		Args:      args,
+		Status:    "failed",
+		Error:     "provider returned secret-token in a very long error: " + strings.Repeat("detail ", 500),
+	}); err != nil {
+		t.Fatalf("Record: %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", path, err)
+	}
+	if len(raw) > 12_000 {
+		t.Fatalf("audit line len = %d, want bounded line <= 12000", len(raw))
+	}
+	rendered := string(raw)
+	for _, leaked := range []string{
+		"sk-secret-123",
+		"Bearer secret-token",
+		strings.Repeat("r.jina.ai/http://", 20),
+	} {
+		if strings.Contains(rendered, leaked) {
+			t.Fatalf("audit log leaked %q in:\n%s", leaked, rendered)
+		}
+	}
+	for _, want := range []string{"[redacted]", "[truncated", "openclaw/s/2AXfTcVSes"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("audit log missing %q in:\n%s", want, rendered)
+		}
+	}
+
+	var got Record
+	if err := json.Unmarshal(bytes.TrimSpace(raw), &got); err != nil {
+		t.Fatalf("Unmarshal sanitized audit line: %v\n%s", err, raw)
+	}
+	if !json.Valid(got.Args) {
+		t.Fatalf("sanitized args are invalid JSON: %s", got.Args)
+	}
+	if strings.Contains(got.Error, "secret-token") || len(got.Error) > 600 {
+		t.Fatalf("sanitized error = %q, want redacted bounded error", got.Error)
 	}
 }
