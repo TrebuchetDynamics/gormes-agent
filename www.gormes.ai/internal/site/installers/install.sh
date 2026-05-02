@@ -20,6 +20,7 @@
 #   GORMES_PREFIX        compatibility prefix; publishes into $GORMES_PREFIX/bin
 #   GORMES_RESTART_GATEWAY restart policy: auto, always, never (default: auto)
 #   GORMES_GO_SHA256      optional expected SHA-256 for managed Go download
+#   GORMES_INSTALL_VERBOSE set to 1/true/yes/on for verbose installer diagnostics
 #
 # Native Windows shells are not supported here. Use:
 #   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
@@ -33,6 +34,7 @@ REPO_URL_HTTPS="${GORMES_REPO_URL_HTTPS:-https://github.com/TrebuchetDynamics/go
 BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.25.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
+VERBOSE="${GORMES_INSTALL_VERBOSE:-0}"
 DRY_RUN=0
 UNINSTALL=0
 UNINSTALL_ARGS=""
@@ -46,6 +48,10 @@ TMP_DIRS=""
 
 log() { printf '[gormes] %s\n' "$*" >&2; }
 fail() { printf '[gormes] error: %s\n' "$*" >&2; exit 1; }
+verbose() {
+  [ "$VERBOSE" -eq 1 ] || return 0
+  log "$@"
+}
 
 usage() {
   cat <<'EOF'
@@ -70,6 +76,7 @@ Options:
                  managed source checkout
   --dry-run      Print the resolved plan without cloning, building, publishing,
                  or restarting the gateway
+  -v, --verbose  Print resolved paths, platform details, and step diagnostics
   --uninstall    Delegate to an existing "gormes uninstall" command and exit.
                  Flags after --uninstall are passed through, for example:
                  install.sh --uninstall --dry-run
@@ -369,6 +376,11 @@ go_version_supported() {
 }
 
 parse_args() {
+  case "$VERBOSE" in
+    1|true|TRUE|yes|YES|on|ON) VERBOSE=1 ;;
+    *) VERBOSE=0 ;;
+  esac
+
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --branch)
@@ -400,6 +412,10 @@ parse_args() {
         ;;
       --dry-run)
         DRY_RUN=1
+        shift
+        ;;
+      -v|--verbose)
+        VERBOSE=1
         shift
         ;;
       --uninstall)
@@ -435,6 +451,7 @@ parse_args() {
 }
 
 ensure_prerequisites() {
+  verbose "checking prerequisites"
   need uname
   need mkdir
   need rm
@@ -536,6 +553,7 @@ ensure_termux_core_packages() {
 
 ensure_git() {
   if has git; then
+    verbose "git found: $(command -v git)"
     return
   fi
 
@@ -548,6 +566,7 @@ ensure_go() {
   if has go; then
     goversion=$(current_go_version)
     if go_version_supported "$goversion"; then
+      verbose "go found: $(command -v go) (${goversion})"
       return
     fi
     log "found ${goversion}; installing managed Go ${GO_VERSION}"
@@ -669,6 +688,9 @@ clone_checkout() {
   mkdir -p "$(parent_dir "$checkout_dir")"
 
   log "cloning Gormes into ${checkout_dir}"
+  verbose "clone branch: ${BRANCH}"
+  verbose "clone ssh url: ${REPO_URL_SSH}"
+  verbose "clone https fallback: ${REPO_URL_HTTPS}"
   if GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=5" \
     git clone --branch "$BRANCH" "$REPO_URL_SSH" "$checkout_dir"; then
     return
@@ -688,6 +710,7 @@ update_checkout() {
   fi
 
   log "updating managed checkout ${checkout_dir}"
+  verbose "update branch: ${BRANCH}"
   (
     cd "$checkout_dir" || exit 1
 
@@ -760,6 +783,9 @@ build_gormes() {
   build_root=$(build_root_dir)
   cache_tag=$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || echo "unknown")
   BUILD_TAG="$cache_tag"
+  verbose "build root: ${build_root}"
+  verbose "build output: ${build_bin}"
+  verbose "source commit: ${cache_tag}"
 
   if [ -x "$build_bin" ]; then
     cached_tag=""
@@ -792,6 +818,8 @@ publish_command() {
   build_bin="$(managed_bin_dir)/gormes"
   published_bin="${bin_dir}/gormes"
 
+  verbose "publish source: ${build_bin}"
+  verbose "publish target: ${published_bin}"
   publish_built_binary "$build_bin" "$published_bin"
   update_active_command "$build_bin" "$published_bin"
 }
@@ -887,11 +915,13 @@ $active_bin
 verify_install() {
   published_bin="$(pick_bin_dir)/gormes"
 
+  verbose "verifying published command: ${published_bin}"
   [ -x "$published_bin" ] || fail "published command is not executable: ${published_bin}"
   "$published_bin" version >/dev/null 2>&1 || fail "verification failed: ${published_bin} version"
 
   active_bin=$(active_command_path)
   if [ -n "$active_bin" ]; then
+    verbose "verifying active PATH command: ${active_bin}"
     "$active_bin" version >/dev/null 2>&1 || fail "verification failed: active PATH command ${active_bin} version"
   fi
 
@@ -1237,6 +1267,38 @@ print_dry_run() {
   log "  restart_gateway: ${RESTART_GATEWAY}"
 }
 
+yes_no() {
+  if "$@" >/dev/null 2>&1; then
+    printf 'yes\n'
+  else
+    printf 'no\n'
+  fi
+}
+
+print_verbose_plan() {
+  active_bin=$(active_command_path)
+  [ -n "$active_bin" ] || active_bin="<none>"
+  log "resolved install plan"
+  log "  verbose: true"
+  log "  platform: $(platform_name)"
+  log "  termux: $(yes_no is_termux)"
+  log "  root_linux_install: $(yes_no is_root_linux_install)"
+  log "  effective_uid: $(effective_uid)"
+  log "  branch: ${BRANCH}"
+  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+    log "  source_mode: local"
+    log "  source: ${LOCAL_SOURCE_DIR}"
+  else
+    log "  source_mode: managed"
+    log "  managed_checkout: $(managed_checkout_dir)"
+  fi
+  log "  install_home: $(managed_home_dir)"
+  log "  managed_binary: $(managed_bin_dir)/gormes"
+  log "  published_binary: $(pick_bin_dir)/gormes"
+  log "  active_command: ${active_bin}"
+  log "  restart_gateway: ${RESTART_GATEWAY}"
+}
+
 acquire_install_lock() {
   home=$(managed_home_dir)
   lock="${home}/install.lock"
@@ -1267,6 +1329,9 @@ release_install_lock() {
 
 main() {
   parse_args "$@"
+  if [ "$VERBOSE" -eq 1 ]; then
+    print_verbose_plan
+  fi
   if [ "$UNINSTALL" -eq 1 ]; then
     # shellcheck disable=SC2086
     run_uninstall $UNINSTALL_ARGS

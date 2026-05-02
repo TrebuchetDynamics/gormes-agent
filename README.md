@@ -4,200 +4,95 @@
 
 # GORMES-AGENT
 
-Your agents should not crash because of a broken Python environment.
-
-Gormes runs AI agents as a single static binary from a Go build.
-
-No Python runtime. No virtualenv repair. No backend service just to open the UI.
-
-It gives you a local terminal UI, offline diagnostics, provider-backed turns,
-Goncho memory, a dashboard, and configured messaging gateways from one
-Go-native runtime.
-
-![Gormes native TUI running offline](docs/assets/gormes-tui-demo.gif)
-
-The offline TUI starts instantly: no API key, no network calls, no Python, and
-no backend services.
-
 <p align="center">
-  <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
-  <a href="https://github.com/TrebuchetDynamics/gormes-agent/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/TrebuchetDynamics/gormes-agent/ci.yml?branch=development&style=for-the-badge" alt="CI status"></a>
-  <a href="https://github.com/TrebuchetDynamics/gormes-agent"><img src="https://img.shields.io/badge/GitHub-TrebuchetDynamics%2Fgormes--agent-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
+  <strong>AI agents that do not break because Python broke.</strong><br>
+  One single static binary from a Go-native runtime. No virtualenv repair. No backend service just to open the UI.
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> |
-  <a href="#what-you-can-do-today">What Works</a> |
-  <a href="#why-gormes">Why</a> |
-  <a href="#example-run-a-provider-turn">Example</a> |
-  <a href="#operator-commands">Commands</a> |
-  <a href="#current-state">Current State</a> |
-  <a href="#install-paths">Install</a> |
-  <a href="#documentation">Docs</a>
+  <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/docs-gormes.ai-FFD700?style=flat-square" alt="Docs"></a>
+  <a href="https://github.com/TrebuchetDynamics/gormes-agent/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/TrebuchetDynamics/gormes-agent/ci.yml?branch=development&style=flat-square" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License"></a>
 </p>
 
 ---
 
+![Gormes native TUI running offline](docs/assets/gormes-tui-demo.gif)
+
+The offline TUI starts locally with no API key, no network call, no Python,
+no Node, no Docker, and no Hermes process.
+
 ## Quick Start
 
-Build from source and start the offline TUI:
+Build the source tree you inspected:
 
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
 make build
 ./bin/gormes --offline
-```
-
-Expected result: a native terminal UI opens locally. No API key, model call,
-Python runtime, Node runtime, Docker daemon, or Hermes process is required.
-
-Then check the local runtime:
-
-```bash
 ./bin/gormes doctor --offline
 ```
 
-Expected result: Gormes prints local readiness checks for the TUI, tools,
-Goncho, gateway configuration, Slack, and provider endpoint setup. Provider
-health is skipped in offline mode. Blocking failures exit non-zero.
+Expected result: a native terminal UI opens, then `doctor --offline` reports
+local readiness checks without contacting a model provider.
 
-Prerequisites for source builds: Git, Go 1.25+, and Make.
+## What You Get
 
-## What You Can Do Today
+```bash
+./bin/gormes                         # interactive TUI
+./bin/gormes --oneshot "hello"       # one provider-backed turn
+./bin/gormes doctor --offline        # local diagnostics before token spend
+./bin/gormes dashboard               # local htmx web dashboard
+./bin/gormes gateway                 # configured Telegram/Discord/Slack paths
+./bin/gormes goncho doctor --json    # local SQLite memory diagnostics
+```
 
-- Run a local agent UI with zero runtime dependencies on the offline path.
-- Send one-shot prompts to a provider-compatible endpoint.
-- Validate your environment before spending tokens.
-- Operate configured Telegram, Discord, or Slack agents from one binary.
-- Inspect and debug agent memory locally with Goncho.
-- Browse sessions, config, skills, and logs in the local dashboard.
+## First Provider Turn
 
-## Why Gormes
-
-Python-stack agents are powerful. Operating them is the fragile part.
-
-Gormes removes the boring failure class: broken virtualenvs, host Python drift,
-Node bootstraps, sidecar memory stores, and missing backend processes.
-
-| Surface | Python-stack agents | Gormes |
-|---|---|---|
-| Startup | Runtime and service setup first | `./bin/gormes --offline` |
-| Deployment | Virtualenvs, Docker, Nix, sidecars | One Go artifact from `make build` |
-| Diagnostics | Spread across layers | Built-in `gormes doctor` |
-| Memory | Redis/vector DB/service sidecars | Local Goncho SQLite |
-
-The operator story is boring on purpose: copy the binary, keep state in Gormes
-paths, inspect diagnostics locally, and avoid repairing a language runtime
-before the agent can answer.
-
-## Example: Run A Provider Turn
-
-After the offline path works, configure a provider with the wizard:
+After the offline proof works:
 
 ```bash
 ./bin/gormes setup provider
 ./bin/gormes setup model
-```
-
-Then run one prompt:
-
-```bash
 ./bin/gormes --oneshot "Summarize this repo in one sentence"
 ```
 
-Example output:
+API keys live in Gormes-owned state such as `~/.gormes/.env`, not in upstream
+Hermes state.
 
-```text
-Gormes runs AI agents from one Go runtime with no Python backend.
-```
+## Why People Switch
 
-Use `--provider <name>` and `--model <model>` when the route needs to be
-explicit. Full provider setup lives in the
-[configuration docs](https://docs.gormes.ai/getting-started/configuration/).
-
-## Operator Commands
-
-Once built, `./bin/gormes` owns the current operator surface.
-
-<details>
-<summary>Show common commands</summary>
-
-| Goal | Command | Notes |
+| | Python-stack agents | Gormes |
 |---|---|---|
-| Open the local TUI | `./bin/gormes` | Uses configured provider settings. |
-| Prove local startup | `./bin/gormes --offline` | No credentials or network submit. |
-| Run one turn | `./bin/gormes --oneshot "hi"` | Writes final assistant output and exits. |
-| Diagnose local stack | `./bin/gormes doctor --offline` | Skips provider network health. |
-| Run configured gateways | `./bin/gormes gateway` | Telegram, Discord, Slack when configured. |
-| Inspect gateway state | `./bin/gormes gateway status` | Reads configured/runtime channel state. |
-| Inspect Goncho memory | `./bin/gormes goncho doctor --json` | Local SQLite diagnostics. |
-| Start web dashboard | `./bin/gormes dashboard --no-open` | htmx dashboard at a local HTTP port. |
-| Show logs | `./bin/gormes logs` | Gateway API first, local log fallback. |
-| Remove artifacts safely | `./bin/gormes uninstall --dry-run` | Dry-run is the default inspection path. |
+| **Startup** | Runtime setup first | `./bin/gormes --offline` |
+| **Deploy** | Virtualenvs, Docker, sidecars | One static Go artifact |
+| **Memory** | Redis/vector DB/service stores | Goncho SQLite in the binary |
+| **Diagnostics** | Spread across layers | Built-in `gormes doctor` |
+| **Channels** | Separate runtime surfaces | Configured Telegram/Discord; Slack with complete credentials |
 
-Run `./bin/gormes --help` or see [cmd/README.md](cmd/README.md) for the full
-command tree.
-
-</details>
-
-## Gateway And Multi-Agent Routing
-
-The configured gateway path runs Telegram and Discord channels, plus Slack when
-complete Socket Mode credentials are present, through the same kernel and tool
-loop as the TUI.
-
-```bash
-./bin/gormes gateway
-./bin/gormes gateway status
-```
-
-Multi-agent routing can bind channels or senders to different configured
-agents:
-
-```toml
-[[agents.list]]
-id = "coder"
-name = "Coder"
-workspace = "/home/xel/projects"
-model = "claude-sonnet-4-20250514"
-
-[[bindings]]
-agent_id = "coder"
-[bindings.match]
-channel = "telegram"
-account_id = "my-coding-bot"
-```
-
-Without bindings, channels route to the default agent.
+Gormes is built for agents that need to stay running across restarts,
+machines, and flaky networks. Start offline. Prove the machine works. Add
+provider and gateway credentials later.
 
 ## Current State
 
-**Status: early-stage 0.x release.** Useful today, not production-stable yet.
+Status: early-stage 0.x. Useful today, not production-stable.
 
-What works:
+Shipping now:
 
 - Native CLI and Bubble Tea TUI, including the offline smoke path.
-- `doctor --offline` for local TUI, tools, Goncho, gateways, Slack, and
-  provider-endpoint readiness.
 - Provider-compatible one-shots and TUI startup paths.
-- Configured Telegram and Discord gateways; Slack when Socket Mode credentials
-  are complete.
-- Goncho memory on local SQLite, plus session search and diagnostic commands.
-- htmx dashboard for sessions, config, skills, and logs.
-- Web/browser/search tools with typed unavailable evidence when backends are
-  missing.
+- `doctor --offline` for local tools, Goncho, gateways, Slack, and provider setup.
+- Configured Telegram and Discord gateways; Slack when Socket Mode credentials are complete.
+- Goncho memory on local SQLite, session diagnostics, and an htmx dashboard.
+- Web/browser/search tool surfaces with visible unavailable evidence when backends are missing.
 
-What is still in progress:
+Still in progress:
 
 - Full Hermes parity and production hardening.
-- Gateway coverage is partial beyond Telegram, Discord, and Slack.
-- Voice/TTS/transcription, MCP/plugin parity, and broad channel parity are not
-  complete.
-- Prebuilt release artifacts are not the primary trust path yet.
-- Some docs and package names still preserve Hermes/Honcho wording for
-  compatibility and lineage.
+- Broad channel parity beyond Telegram, Discord, and Slack.
+- Voice/TTS/transcription, MCP/plugin parity, and signed/package-manager releases.
 
 <!-- PROGRESS:START kind=readme-rollup -->
 | Phase | Status | Shipped |
@@ -211,26 +106,9 @@ What is still in progress:
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 <!-- PROGRESS:END -->
 
-## Install Paths
+## Install
 
-### From Source
-
-The recommended path is to build the exact source tree you inspected:
-
-```bash
-git clone https://github.com/TrebuchetDynamics/gormes-agent.git
-cd gormes-agent
-make build
-./bin/gormes --offline
-./bin/gormes doctor --offline
-```
-
-### Source-Backed Installer
-
-The installer manages a source checkout, builds `gormes`, and links the command
-into your PATH. Inspect the script first, then run it.
-
-Unix, Linux, macOS, WSL, and Termux:
+Source-backed convenience installer:
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh
@@ -250,82 +128,28 @@ gormes --offline
 gormes doctor --offline
 ```
 
-Installers, managed Go toolchain behavior, update controls, uninstall, and
-rollback details live in the [install docs](https://docs.gormes.ai/getting-started/installation/).
-Convenience aliases exist at `https://gormes.ai/install.sh` and
-`https://gormes.ai/install.ps1`, but inspect-first source URLs remain the README
-path.
+Prebuilt release archives exist, but source builds remain the primary trust
+path until signed stable artifacts and package-manager distribution are hardened.
 
-### Prebuilt Release Artifacts
+## Docs
 
-Static release archives, SHA-256 files, SBOMs, and GitHub build-provenance
-attestations exist in the release workflow. Signed stable releases and
-package-manager distribution are still hardening work, so source builds remain
-the primary trust path.
-
-## Auditability & Security
-
-- Source builds are the primary trust path.
-- `gormes doctor --offline` never contacts a model provider.
-- API keys live in `~/.gormes/.env`, never in `config.toml`.
-- `make build` uses `CGO_ENABLED=0`, `-trimpath`, and stripped linker flags;
-  the current recorded release-path benchmark is ~22.0 MB in `benchmarks.json`.
-- No self-updating or fetch-and-execute behavior.
-- [SECURITY.md](SECURITY.md) for vulnerability reporting.
-
-## Coming From Python Hermes
-
-Gormes is a standalone Go-native rewrite of the Hermes Agent architecture. It
-does not require a running Hermes process, and it does not read `~/.hermes`
-state on startup.
-
-- Use Gormes' own `config.toml` with `[hermes]` provider settings for endpoint,
-  API key, provider, and model.
-- Hermes config migration is tracked as a parity surface. Dry-run migration
-  work exists, but automatic state import is not a production README path yet.
-- SOUL.md, context-file, plugin, MCP, ACP, and full Honcho compatibility remain
-  deeper roadmap surfaces until operator docs say otherwise.
-
-## Developer Workflow
-
-```bash
-git clone https://github.com/TrebuchetDynamics/gormes-agent.git
-cd gormes-agent
-make build
-make test
-go run ./cmd/progress validate
-```
-
-Useful: `make validate-progress`, `make generate-progress`,
-`go run ./cmd/repoctl readme update`.
-
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`,
-`git diff --check` on PRs to `main` and pushes to `development`.
-
-## Documentation
-
-| | |
-|---|---|
-| **[Setup guide](https://docs.gormes.ai/getting-started/first-run/)** | First-time provider and gateway setup |
-| **[CLI reference](https://docs.gormes.ai/reference/cli/)** | Complete command reference |
-| **[Configuration](https://docs.gormes.ai/reference/config/)** | All config sections and examples |
-| **[Gateway](https://docs.gormes.ai/building-gormes/core-systems/gateway/)** | Multi-channel architecture |
-| **[Architecture](https://docs.gormes.ai/building-gormes/core-systems/)** | Runtime model and subsystems |
-| **[Roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/)** | Full progress tracking |
-| **[Research](docs/content/papers/)** | Academic survey on agentic OS |
+[Setup guide](https://docs.gormes.ai/getting-started/first-run/) |
+[CLI reference](https://docs.gormes.ai/reference/cli/) |
+[Configuration](https://docs.gormes.ai/reference/config/) |
+[Gateway](https://docs.gormes.ai/building-gormes/core-systems/gateway/) |
+[Roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/) |
+[Security](SECURITY.md)
 
 ## Contributing
 
 ```bash
-make build && make test && go run ./cmd/progress validate
+make build
+make test
+go run ./cmd/progress validate
+git diff --check
 ```
 
-Contributor roadmap: [Building Gormes](https://docs.gormes.ai/building-gormes/).
-Use skills under `docs/development-skills/` for planner, builder, TDD, and
-parity work.
-
----
-
 Built by [Trebuchet Dynamics](https://trebuchetdynamics.com/).
-Original lineage: Hermes-Agent, with upstream Git history preserved for attribution, by [Nous Research](https://nousresearch.com).
+Original lineage: Hermes-Agent, with upstream Git history preserved for attribution,
+by [Nous Research](https://nousresearch.com).
 License: MIT.

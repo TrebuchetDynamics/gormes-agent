@@ -693,6 +693,41 @@ func TestInstallSH_DryRunDoesNotBuildPublishOrRestart(t *testing.T) {
 	}
 }
 
+func TestInstallSH_VerboseDryRunShowsResolvedPlan(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	binDir := filepath.Join(root, "bin")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--dry-run", "--verbose", "--branch", "development", "--home", home, "--bin-dir", binDir, "--restart-gateway", "never"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("verbose dry-run failed: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"resolved install plan",
+		"verbose: true",
+		"platform:",
+		"install_home: " + home,
+		"managed_checkout: " + filepath.Join(home, "gormes-agent"),
+		"managed_binary: " + filepath.Join(home, "bin", "gormes"),
+		"published_binary: " + filepath.Join(binDir, "gormes"),
+		"restart_gateway: never",
+		"dry run",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("verbose dry-run output missing %q\n%s", want, out)
+		}
+	}
+	if got := readTextFile(t, logPath); got != "" {
+		t.Fatalf("verbose dry-run invoked toolchain:\n%s", got)
+	}
+}
+
 func TestInstallSH_UninstallDelegatesToPublishedGormesWithoutBuild(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
