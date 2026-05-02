@@ -170,6 +170,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	restartCfg := gateway.RestartConfig{
 		MarkerStore:             restartMarkerStore,
 		ServiceManagerAvailable: gateway.EnvironmentServiceManagerAvailable,
+		SelfRestart:             gateway.SelfRestartViaExec,
 		DrainTimeout:            kernel.ShutdownBudget,
 	}
 	mgrCfg := gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg)

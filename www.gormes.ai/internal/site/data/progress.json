@@ -6221,7 +6221,7 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Gateway command/status reports restart_requested, takeover_marker_seen, duplicate_restart_suppressed, service_manager_unavailable only when neither marker store nor service manager is configured, and restart_timeout evidence.",
+              "degraded_mode": "Gateway command/status reports restart_requested, takeover_marker_seen, duplicate_restart_suppressed, service_manager_unavailable only when marker store, self-restart hook, and service manager are all unavailable, and restart_timeout evidence.",
               "fixture": "internal/gateway/restart_command_test.go",
               "source_refs": [
                 "../hermes-agent/gateway/run.py@d635e2df",
@@ -6247,7 +6247,7 @@
                 "Redelivered platform events with the same marker are suppressed once and report duplicate_restart_suppressed instead of starting a loop.",
                 "--replace/takeover startup consumes the marker, sends at most one restart notification, and clears or expires the marker under fake-clock tests."
               ],
-              "note": "TDD landed: restart-command fixtures lock /restart registry policy, takeover marker write/read/expiry, once-only duplicate redelivery suppression, restart_timeout resume_pending recovery, service-manager unavailable evidence, and EX_TEMPFAIL service-manager exit semantics without live service control. 2026-05-02 follow-up: no-service-manager environments now use the marker exit path when restart marker state is configured, so /restart no longer sends a no-op future-restart claim to Telegram.",
+              "note": "TDD landed: restart-command fixtures lock /restart registry policy, takeover marker write/read/expiry, once-only duplicate redelivery suppression, restart_timeout resume_pending recovery, service-manager unavailable evidence, and EX_TEMPFAIL service-manager exit semantics without live service control. 2026-05-02 follow-up: no-service-manager environments now use a Go self-restart hook when configured, with marker-backed exit semantics remaining as the fallback, so /restart no longer sends a no-op future-restart claim to Telegram.",
               "write_scope": [
                 "internal/gateway/",
                 "cmd/gormes/",
@@ -6259,7 +6259,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Restart-command fixtures prove registry policy, takeover marker write/read/expiry, duplicate suppression, no-service-manager marker exit path, and service-manager exit semantics without live service control."
+                "Restart-command fixtures prove registry policy, takeover marker write/read/expiry, duplicate suppression, no-service-manager self-restart and marker exit paths, and service-manager exit semantics without live service control."
               ],
               "planner_verdict": {
                 "reshape_count": 1,

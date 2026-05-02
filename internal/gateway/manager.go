@@ -1475,7 +1475,8 @@ func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev Inbou
 	})
 
 	serviceManagerAvailable := m.restartServiceManagerAvailable()
-	if !serviceManagerAvailable && !m.restartMarkerStoreAvailable() {
+	selfRestartAvailable := m.cfg.Restart.SelfRestart != nil
+	if !serviceManagerAvailable && !m.restartMarkerStoreAvailable() && !selfRestartAvailable {
 		evidence := RuntimeServiceManagerUnavailableEvidence{
 			Source:   ev.Platform,
 			ChatID:   ev.ChatID,
@@ -1520,6 +1521,17 @@ func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev Inbou
 		!errors.Is(err, context.DeadlineExceeded) &&
 		!errors.Is(err, context.Canceled) {
 		m.log.Warn("gateway restart drain", "err", err)
+	}
+
+	if !serviceManagerAvailable && selfRestartAvailable {
+		if err := m.cfg.Restart.SelfRestart(); err != nil {
+			m.log.Warn("gateway self-restart failed", "err", err)
+			return RestartRequestedError{
+				Code:    GatewayServiceRestartExitCode,
+				Message: fmt.Sprintf("self-restart failed: %v; process will exit and must be restarted manually", err),
+			}
+		}
+		return nil
 	}
 	return RestartRequestedError{
 		Code:    GatewayServiceRestartExitCode,
