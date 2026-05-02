@@ -21638,9 +21638,9 @@
           "items": [
             {
               "name": "Multi-model coordination",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes mixture_of_agents as a gated tool over the native provider router: reference models run in bounded parallel with retry/failure isolation, at least one successful reference is required before aggregation, the aggregator prompt includes all successful references in deterministic order, debug evidence records counts/models/errors without trace spam, and OpenRouter requirements degrade safely when credentials/routing are unavailable.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21710,7 +21710,8 @@
                   "axe:internal/budget/budget.go"
                 ],
                 "note": "Hermes defines MOA behavior; ADK/Nanobot/Axe provide fan-out, tool-output, and budget-evidence pattern references."
-              }
+              },
+              "wired": true
             }
           ]
         },
