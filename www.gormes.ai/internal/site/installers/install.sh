@@ -39,6 +39,7 @@ OLD_BUILD_TAG=""
 BUILD_TAG=""
 PREVIOUS_GATEWAY_PID=""
 NEW_GATEWAY_PID=""
+TMP_DIRS=""
 
 log() { printf '[gormes] %s\n' "$*" >&2; }
 fail() { printf '[gormes] error: %s\n' "$*" >&2; exit 1; }
@@ -848,13 +849,27 @@ verify_install() {
     "$active_bin" version >/dev/null 2>&1 || fail "verification failed: active PATH command ${active_bin} version"
   fi
 
+  build_root=$(build_root_dir 2>/dev/null || managed_checkout_dir)
+  if [ -f "$build_root/go.mod" ]; then
+    log ""
+    if (cd "$build_root" && go run ./cmd/progress validate) >/dev/null 2>&1; then
+      log "  progress ✓"
+    else
+      log "  progress ⚠ (run 'go run ./cmd/progress validate' in ${build_root})"
+    fi
+  fi
+
   if "$published_bin" doctor --offline >/dev/null 2>&1; then
     log "  TUI ✓  Tools ✓  Gateway ✓  Goncho ✓  Web ✓"
   else
     doctor_out=$("$published_bin" doctor --offline 2>&1 || true)
-    log ""
-    log "doctor report:"
-    log "  $doctor_out"
+    printf '%s\n' "$doctor_out" | while IFS= read -r line; do
+      case "$line" in
+        *"[PASS]"*|*"[OK]"*) log "  ✓ ${line}" ;;
+        *"[FAIL]"*|*"[WARN]"*|*"[ERROR]"*) log "  ✗ ${line}" ;;
+        *) log "    ${line}" ;;
+      esac
+    done
     log ""
     log "Free web backends: export CHROME_REMOTE_DEBUGGING_URL=http://localhost:9222 (CDP extract)"
     log "                     Gormes auto-enables DuckDuckGo for search when no API keys are set"
@@ -1048,6 +1063,10 @@ print_summary() {
     esac
   fi
 
+  if [ "${GORMES_SKIP_SERVICE:-0}" != "1" ]; then
+    print_service_instructions
+  fi
+
   log ""
   log "Quick start:"
   log "  gormes --offline        # smoke test TUI"
@@ -1060,6 +1079,102 @@ print_summary() {
   log "           (Chrome needs --remote-debugging-port=9222)"
   log ""
   log "Update: rerun this installer."
+}
+
+print_service_instructions() {
+  if has systemctl && systemctl --user >/dev/null 2>&1; then
+    install_systemd_user_service
+  elif [ "$(platform_name)" = "Darwin" ] && has launchctl; then
+    install_launchd_service
+  fi
+}
+
+install_systemd_user_service() {
+  unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+  service_file="${unit_dir}/gormes-gateway.service"
+  mkdir -p "$unit_dir"
+
+  if [ -f "$service_file" ]; then
+    systemctl --user stop gormes-gateway.service 2>/dev/null || true
+  fi
+
+  build_bin="$(managed_bin_dir)/gormes"
+  cat > "$service_file" <<SYSTEMDUNIT
+[Unit]
+Description=Gormes Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=${build_bin} gateway
+ExecReload=${build_bin} gateway stop && ${build_bin} gateway
+Restart=on-failure
+RestartSec=5
+Environment=GORMES_HOME=$(managed_home_dir)
+
+[Install]
+WantedBy=default.target
+SYSTEMDUNIT
+
+  systemctl --user daemon-reload
+  systemctl --user enable gormes-gateway.service
+
+  log ""
+  log "systemd user service installed:"
+  log "  systemctl --user start gormes-gateway    # start now"
+  log "  systemctl --user status gormes-gateway   # check status"
+  log "  journalctl --user -u gormes-gateway -f   # follow logs"
+  log "  (auto-starts on login; survives reboots)"
+}
+
+install_launchd_service() {
+  plist_dir="${HOME}/Library/LaunchAgents"
+  plist_file="${plist_dir}/com.gormes.gateway.plist"
+  mkdir -p "$plist_dir"
+
+  if [ -f "$plist_file" ]; then
+    launchctl bootout "gui/$(id -u)/com.gormes.gateway" 2>/dev/null || true
+  fi
+
+  build_bin="$(managed_bin_dir)/gormes"
+  cat > "$plist_file" <<PLISTUNIT
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gormes.gateway</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${build_bin}</string>
+        <string>gateway</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>GORMES_HOME</key>
+        <string>$(managed_home_dir)</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$(managed_home_dir)/gateway.log</string>
+    <key>StandardErrorPath</key>
+    <string>$(managed_home_dir)/gateway.log</string>
+</dict>
+</plist>
+PLISTUNIT
+
+  launchctl bootstrap "gui/$(id -u)" "$plist_file" 2>/dev/null || \
+    launchctl load "$plist_file" 2>/dev/null || true
+
+  log ""
+  log "launchd service installed:"
+  log "  launchctl list com.gormes.gateway    # check status"
+  log "  tail -f $(managed_home_dir)/gateway.log   # follow logs"
+  log "  (auto-starts on login; survives reboots)"
 }
 
 print_dry_run() {
@@ -1089,10 +1204,19 @@ acquire_install_lock() {
   fail "another install is already running; remove ${lock} if it is stale"
 }
 
+cleanup_tmp_dirs() {
+  if [ -n "$TMP_DIRS" ]; then
+    for d in $TMP_DIRS; do
+      rm -rf "$d" 2>/dev/null || true
+    done
+  fi
+}
+
 release_install_lock() {
   if [ -n "${INSTALL_LOCK_DIR:-}" ] && [ -d "$INSTALL_LOCK_DIR" ]; then
     rm -rf "$INSTALL_LOCK_DIR"
   fi
+  cleanup_tmp_dirs
 }
 
 main() {
