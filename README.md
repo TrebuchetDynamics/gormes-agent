@@ -6,20 +6,25 @@
 
 Your agents should not crash because of a broken Python environment.
 
-Gormes is a Go-native runtime and rewrite of the Hermes Agent operator surface.
-The release path builds a single static binary for the local terminal UI,
-offline diagnostics, provider-backed turns, local Goncho memory, the htmx
-dashboard, and configured gateway channels. The offline path does not need
-Python, a virtualenv, Node, Docker, or a running Hermes backend.
+Gormes runs AI agents as one Go binary. The release path builds a single static binary.
+
+No Python runtime. No virtualenv repair. No backend service just to open the UI.
+
+It gives you a Go-native runtime with a local terminal UI, offline diagnostics,
+provider-backed turns, Goncho memory, a dashboard, and messaging gateways - all
+from one executable.
 
 **Status: early-stage 0.x release.** The native TUI, `doctor --offline`,
-provider one-shots, Go tool registry, Goncho memory, htmx dashboard, and
-configured Telegram/Discord/Slack gateway paths have implementation and tests.
-Full Hermes parity, broad channel parity, voice/TTS/transcription parity,
-MCP/plugin parity, release signing, package-manager distribution, and TUI polish
-are still in progress.
+provider one-shots, Goncho memory, dashboard, and configured
+Telegram/Discord/Slack gateway paths have implementation and tests. Full Hermes
+parity, broad channel parity, voice/TTS/transcription parity, MCP/plugin parity,
+release signing, package-manager distribution, and TUI polish are still in
+progress.
 
 ![Gormes native TUI running offline](docs/assets/gormes-tui-demo.gif)
+
+The offline TUI starts instantly: no API key, no network calls, no Python, and
+no backend services.
 
 <p align="center">
   <a href="https://docs.gormes.ai/"><img src="https://img.shields.io/badge/Docs-docs.gormes.ai-FFD700?style=for-the-badge" alt="Documentation"></a>
@@ -30,10 +35,12 @@ are still in progress.
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> |
+  <a href="#what-you-can-do-today">What Works</a> |
+  <a href="#why-gormes">Why</a> |
+  <a href="#example-run-a-provider-turn">Example</a> |
   <a href="#operator-commands">Commands</a> |
   <a href="#current-state">Current State</a> |
   <a href="#install-paths">Install</a> |
-  <a href="#auditability--security">Security</a> |
   <a href="#documentation">Docs</a>
 </p>
 
@@ -66,57 +73,14 @@ and exit non-zero when they block the checked surface.
 
 Prerequisites for source builds: Git, Go 1.25+, and Make.
 
-## Operator Commands
+## What You Can Do Today
 
-Once built, `./bin/gormes` owns the current operator surface:
-
-| Goal | Command | Notes |
-|---|---|---|
-| Open the local TUI | `./bin/gormes` | Uses configured provider settings. |
-| Prove local startup | `./bin/gormes --offline` | No credentials or network submit. |
-| Run one turn | `./bin/gormes --oneshot "hi"` | Writes final assistant output and exits. |
-| Diagnose local stack | `./bin/gormes doctor --offline` | Skips provider network health. |
-| Choose model/provider | `./bin/gormes model` | Interactive selector for configured providers. |
-| Manage credentials | `./bin/gormes auth` | Provider credential pool commands. |
-| Run configured gateways | `./bin/gormes gateway` | Telegram, Discord, Slack when configured. |
-| Inspect gateway state | `./bin/gormes gateway status` | Reads configured/runtime channel state. |
-| Inspect Goncho memory | `./bin/gormes goncho doctor --json` | Local SQLite diagnostics. |
-| Inspect session memory | `./bin/gormes memory status` | Persisted memory and extractor state. |
-| Export a transcript | `./bin/gormes session export <id>` | Persisted session transcript. |
-| Start web dashboard | `./bin/gormes dashboard --no-open` | htmx dashboard at a local HTTP port. |
-| Show logs | `./bin/gormes logs` | Gateway API first, local log fallback. |
-| Remove artifacts safely | `./bin/gormes uninstall --dry-run` | Dry-run is the default inspection path. |
-
-Run `./bin/gormes --help` or see [cmd/README.md](cmd/README.md) for the full
-command tree.
-
-## Configure A Provider
-
-For an OpenAI-compatible endpoint, put provider settings in
-`~/.config/gormes/config.toml`:
-
-```toml
-[hermes]
-endpoint = "https://your-provider.example/v1"
-api_key = "..."
-model = "your-model"
-```
-
-Then run:
-
-```bash
-./bin/gormes --oneshot "Summarize this repo in one sentence"
-```
-
-Example output:
-
-```text
-Gormes runs AI agents from one Go runtime with no Python backend.
-```
-
-Use `--provider <name>` and `--model <model>` when a configured provider route
-needs to be explicit. Invocation-only overrides also exist for `--endpoint` and
-`--api-key`; the API key flag is not persisted.
+- Run a local agent UI with zero runtime dependencies on the offline path.
+- Send one-shot prompts to a provider-compatible endpoint.
+- Validate your environment before spending tokens.
+- Operate configured Telegram, Discord, or Slack agents from one binary.
+- Inspect and debug agent memory locally with Goncho.
+- Browse sessions, config, skills, and logs in the local dashboard.
 
 ## Why Gormes
 
@@ -138,48 +102,80 @@ The target operator story is boring on purpose: copy the binary, keep state
 under the Gormes home/config paths, inspect diagnostics locally, and avoid
 repairing a Python runtime before the agent can answer.
 
+## Example: Run A Provider Turn
+
+After the offline path works, configure a provider-compatible endpoint in your
+local config:
+
+```toml
+[hermes]
+endpoint = "https://your-provider.example/v1"
+api_key = "..."
+model = "your-model"
+```
+
+Then run one prompt:
+
+```bash
+./bin/gormes --oneshot "Summarize this repo in one sentence"
+```
+
+Example output:
+
+```text
+Gormes runs AI agents from one Go runtime with no Python backend.
+```
+
+Use `--provider <name>` and `--model <model>` when a configured provider route
+needs to be explicit. Invocation-only overrides also exist for `--endpoint` and
+`--api-key`; the API key flag is not persisted.
+
+## Operator Commands
+
+Once built, `./bin/gormes` owns the current operator surface:
+
+| Goal | Command | Notes |
+|---|---|---|
+| Open the local TUI | `./bin/gormes` | Uses configured provider settings. |
+| Prove local startup | `./bin/gormes --offline` | No credentials or network submit. |
+| Run one turn | `./bin/gormes --oneshot "hi"` | Writes final assistant output and exits. |
+| Diagnose local stack | `./bin/gormes doctor --offline` | Skips provider network health. |
+| Run configured gateways | `./bin/gormes gateway` | Telegram, Discord, Slack when configured. |
+| Inspect gateway state | `./bin/gormes gateway status` | Reads configured/runtime channel state. |
+| Inspect Goncho memory | `./bin/gormes goncho doctor --json` | Local SQLite diagnostics. |
+| Start web dashboard | `./bin/gormes dashboard --no-open` | htmx dashboard at a local HTTP port. |
+| Show logs | `./bin/gormes logs` | Gateway API first, local log fallback. |
+| Remove artifacts safely | `./bin/gormes uninstall --dry-run` | Dry-run is the default inspection path. |
+
+Run `./bin/gormes --help` or see [cmd/README.md](cmd/README.md) for the full
+command tree.
+
 ## Current State
 
 What works today:
 
-- Native CLI and Bubble Tea TUI, including an offline smoke path.
-- `doctor --offline` for local TUI, tools, web/browser, Goncho, gateway, Slack,
-  and provider-endpoint readiness checks.
-- Provider-compatible one-shot turns and TUI startup paths.
-- Configured Telegram and Discord gateway runtime.
-- Slack Socket Mode gateway path when `bot_token`, `app_token`, and enabled
-  channel settings are complete.
-- Goncho memory with local SQLite persistence, session search, and
-  Honcho-compatible tool names such as `honcho_search` and `honcho_context`.
-- htmx dashboard for local sessions, config, skills, and logs.
-- Web tools: DuckDuckGo search fallback by default; Firecrawl, Parallel,
-  Tavily, Exa, Brave, SearXNG, Perplexity, and CDP-backed extraction when
-  configured.
-- Browser tool contracts backed by the Go browser harness bridge when present,
-  with typed unavailable evidence when it is not.
-- Skill read/write tools: `skills_list`, `skill_view`, and `skill_manage`.
-- Gateway busy modes via `/busy interrupt`, `/busy queue`, and `/busy steer`.
-- Release workflow support for static archives, SHA-256 files, SBOMs, and
-  GitHub build-provenance attestations.
-- Progress-driven architecture docs generated from `progress.json`.
+- Native CLI and Bubble Tea TUI, including the offline smoke path.
+- `doctor --offline` for local TUI, tools, web/browser, Goncho, gateways,
+  Slack, and provider-endpoint readiness.
+- Provider-compatible one-shots and TUI startup paths.
+- Configured Telegram and Discord gateways; Slack when Socket Mode credentials
+  are complete.
+- Goncho memory on local SQLite, plus session search and diagnostic commands.
+- htmx dashboard for sessions, config, skills, and logs.
+- Web/browser/search tools with typed unavailable evidence when backends are
+  missing.
+- Skill tools: `skills_list`, `skill_view`, and `skill_manage`.
 
 Current limits:
 
 - Scout release, not production-stable.
 - Brain/provider runtime is active but still hardening.
-- Gateway coverage is partial. Telegram and Discord are the main configured
-  paths; Slack requires complete Socket Mode credentials.
-- WhatsApp, WeChat/WeCom, Yuanbao, Signal, Matrix, and the longer connector
-  backlog are tracked in progress docs unless an operator doc says otherwise.
-- `gateway start`, `gateway restart`, `gateway install`, and
-  `gateway uninstall` are registered as unavailable helper surfaces, not stable
-  service-manager commands.
+- Gateway coverage is partial beyond Telegram, Discord, and Slack.
+- Service-manager helper commands are not stable operator paths yet.
 - Delegation is disabled by default and must be enabled in config before
   `delegate_task` is registered.
-- `text_to_speech` has a tool contract, but production voice/TTS/transcription
-  provider parity is not complete.
-- MCP/plugin surfaces are partial; manifest, OAuth, and tool-host boundaries are
-  still moving toward parity.
+- Voice/TTS/transcription, MCP/plugin parity, and broad channel parity are not
+  complete.
 - Prebuilt release artifacts are not the primary trust path yet.
 - Some docs and package names still preserve Hermes/Honcho wording for
   compatibility and lineage.
@@ -201,8 +197,7 @@ make build
 ### Source-Backed Installer
 
 The installer manages a source checkout, builds `gormes`, and links the command
-into your PATH. The README uses GitHub-hosted script URLs so operators can
-inspect the script before running it.
+into your PATH. Inspect the script first, then run it.
 
 Unix, Linux, macOS, WSL, and Termux:
 
@@ -224,29 +219,11 @@ gormes --offline
 gormes doctor --offline
 ```
 
-Default managed source homes are `~/.gormes/gormes-agent` on Unix-like systems
-and `%LOCALAPPDATA%\gormes\gormes-agent` on Windows. If Go is missing, the
-installer can install or download a managed Go toolchain. The Gormes runtime
-itself does not self-update or fetch and execute secondary runtime binaries.
-
-Installer update controls:
-
-```bash
-sh install.sh --dry-run                 # show the plan only
-sh install.sh --local                   # build the current checkout
-sh install.sh --no-restart              # update without restarting a live gateway
-sh install.sh --restart-gateway always  # start/restart the gateway after update
-```
-
-Reruns behave as updates. The Unix installer uses an install lock, verifies the
-published command before keeping it, rolls back a failed publish, refreshes
-older `gormes` commands found earlier on `PATH`, and writes an install ledger
-to `~/.gormes/install.log.jsonl`. Windows PowerShell exposes the same operator
-controls with `-DryRun`, `-Local`, `-NoRestart`, and `-RestartGateway`.
-
+Installers, managed Go toolchain behavior, update controls, and rollback
+details live in the [install docs](https://docs.gormes.ai/using-gormes/install/).
 Convenience aliases exist at `https://gormes.ai/install.sh` and
-`https://gormes.ai/install.ps1`, but inspect-first source URLs remain the
-recommended README path.
+`https://gormes.ai/install.ps1`, but inspect-first source URLs remain the README
+path.
 
 ### Prebuilt Release Artifacts
 
