@@ -17,6 +17,7 @@ const (
 	defaultExecuteCodeTimeout     = 30 * time.Second
 	defaultExecuteCodeStdoutLimit = 50 * 1024
 	defaultExecuteCodeStderrLimit = 10 * 1024
+	pythonRuntimeDisabledMessage  = "Python runtime execution is disabled in Gormes"
 )
 
 // CodeExecutionRequest is the sandbox contract consumed by execute_code.
@@ -68,11 +69,11 @@ func NewExecuteCodeTool() *ExecuteCodeTool {
 func (*ExecuteCodeTool) Name() string { return "execute_code" }
 
 func (*ExecuteCodeTool) Description() string {
-	return "Run a Python code snippet in a guarded local sandbox with optional language selection, output caps, timeout handling, and filesystem/network guards."
+	return "Run a short POSIX shell snippet in a guarded local sandbox with output caps, timeout handling, and filesystem/network guards."
 }
 
 func (*ExecuteCodeTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"language":{"type":"string","description":"optional runtime to use (defaults to python; currently sh or python)"},"code":{"type":"string","description":"Python code snippet to execute"},"timeout_ms":{"type":"integer","description":"optional per-run timeout in milliseconds"},"stdout_limit_bytes":{"type":"integer","description":"optional stdout capture cap in bytes"},"stderr_limit_bytes":{"type":"integer","description":"optional stderr capture cap in bytes"}},"required":["code"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"language":{"type":"string","enum":["sh","shell"],"description":"optional runtime to use (defaults to sh)"},"code":{"type":"string","description":"POSIX shell snippet to execute"},"timeout_ms":{"type":"integer","description":"optional per-run timeout in milliseconds"},"stdout_limit_bytes":{"type":"integer","description":"optional stdout capture cap in bytes"},"stderr_limit_bytes":{"type":"integer","description":"optional stderr capture cap in bytes"}},"required":["code"]}`)
 }
 
 func (t *ExecuteCodeTool) Timeout() time.Duration {
@@ -96,9 +97,17 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 	if strings.TrimSpace(in.Code) == "" {
 		return nil, fmt.Errorf("execute_code: code is required")
 	}
-	language := strings.TrimSpace(in.Language)
+	language := strings.ToLower(strings.TrimSpace(in.Language))
 	if language == "" {
-		language = "python"
+		language = "sh"
+	}
+	if !executeCodeShellLanguage(language) {
+		return json.Marshal(CodeExecutionResult{
+			Status:   "blocked",
+			Language: language,
+			ExitCode: -1,
+			Error:    fmt.Sprintf("%s; execute_code only supports sh snippets", pythonRuntimeDisabledMessage),
+		})
 	}
 
 	req := CodeExecutionRequest{
@@ -118,6 +127,15 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 		return nil, err
 	}
 	return json.Marshal(result)
+}
+
+func executeCodeShellLanguage(language string) bool {
+	switch language {
+	case "sh", "shell":
+		return true
+	default:
+		return false
+	}
 }
 
 func durationOrDefault(ms int, preferred, fallback time.Duration) time.Duration {
@@ -155,9 +173,8 @@ func NewLocalCodeSandbox() *LocalCodeSandbox {
 	return &LocalCodeSandbox{
 		lookPath: exec.LookPath,
 		languages: map[string]runtimeSpec{
-			"sh":     {Binaries: []string{"sh"}, Extension: ".sh"},
-			"shell":  {Binaries: []string{"sh"}, Extension: ".sh"},
-			"python": {Binaries: []string{"python3", "python"}, Extension: ".py"},
+			"sh":    {Binaries: []string{"sh"}, Extension: ".sh"},
+			"shell": {Binaries: []string{"sh"}, Extension: ".sh"},
 		},
 	}
 }
@@ -273,10 +290,8 @@ func safeSandboxEnv() []string {
 }
 
 var (
-	shellFilesystemPattern  = regexp.MustCompile(`\b(cat|touch|ls|find|mkdir|rm|cp|mv)\b`)
-	shellNetworkPattern     = regexp.MustCompile(`\b(curl|wget|ping|nc|ssh|scp|ftp|dig|host)\b`)
-	pythonFilesystemPattern = regexp.MustCompile(`\b(open|pathlib|os\.open|os\.listdir|os\.remove|Path)\b`)
-	pythonNetworkPattern    = regexp.MustCompile(`\b(socket|urllib|requests|http\.client|websocket)\b`)
+	shellFilesystemPattern = regexp.MustCompile(`\b(cat|touch|ls|find|mkdir|rm|cp|mv)\b`)
+	shellNetworkPattern    = regexp.MustCompile(`\b(curl|wget|ping|nc|ssh|scp|ftp|dig|host)\b`)
 )
 
 func sandboxGuardReason(language, code string) string {
@@ -286,13 +301,6 @@ func sandboxGuardReason(language, code string) string {
 		case shellFilesystemPattern.MatchString(code):
 			return "filesystem access is disabled in sandboxed exec"
 		case shellNetworkPattern.MatchString(code):
-			return "network access is disabled in sandboxed exec"
-		}
-	case "python":
-		switch {
-		case pythonFilesystemPattern.MatchString(code):
-			return "filesystem access is disabled in sandboxed exec"
-		case pythonNetworkPattern.MatchString(code):
 			return "network access is disabled in sandboxed exec"
 		}
 	}

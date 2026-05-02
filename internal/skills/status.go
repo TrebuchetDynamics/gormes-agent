@@ -18,6 +18,7 @@ const (
 	SkillStatusPreprocessingFailed SkillStatusCode = "preprocessing-failed"
 	SkillStatusFrontmatterInvalid  SkillStatusCode = "frontmatter-invalid"
 	SkillStatusConditionExcluded   SkillStatusCode = "condition-excluded"
+	SkillStatusPolicyExcluded      SkillStatusCode = "policy-excluded"
 )
 
 type SkillStatus struct {
@@ -29,6 +30,7 @@ type SkillStatus struct {
 
 type RuntimeOptions struct {
 	DisabledSkillNames map[string]bool
+	AllowedSkillNames  map[string]bool
 	Platform           string
 	Env                map[string]string
 	Preprocess         PreprocessOptions
@@ -46,6 +48,9 @@ func prepareSkills(ctx context.Context, in []Skill, opts RuntimeOptions) ([]Skil
 		case isSkillDisabled(skill, opts.DisabledSkillNames):
 			status.Status = SkillStatusDisabled
 			status.Reason = "skill disabled"
+		case !isSkillAllowed(skill, opts.AllowedSkillNames):
+			status.Status = SkillStatusPolicyExcluded
+			status.Reason = "skill excluded by agent allowlist"
 		case !skillMatchesPlatform(skill, opts.Platform):
 			status.Status = SkillStatusUnsupported
 			status.Reason = "skill unsupported on platform " + resolvedPlatform(opts.Platform)
@@ -81,6 +86,34 @@ func isSkillDisabled(skill Skill, disabled map[string]bool) bool {
 	}
 	name := strings.TrimSpace(skill.Name)
 	return disabled[name] || disabled[strings.ToLower(name)]
+}
+
+func isSkillAllowed(skill Skill, allowed map[string]bool) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, key := range skillPolicyKeys(skill) {
+		if allowed[key] {
+			return true
+		}
+	}
+	return false
+}
+
+func skillPolicyKeys(skill Skill) []string {
+	keys := []string{}
+	add := func(value string) {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value != "" {
+			keys = append(keys, value)
+		}
+	}
+	add(skill.Name)
+	add(normalizeSkillCommandName(skill.Name))
+	if skill.Path != "" {
+		add(filepath.Base(filepath.Dir(skill.Path)))
+	}
+	return keys
 }
 
 func skillConditionsMatch(conditions SkillConditions, availableTools, availableToolsets []string) bool {

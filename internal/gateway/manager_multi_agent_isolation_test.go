@@ -1,15 +1,15 @@
-//go:build planned
-
 package gateway
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,8 +36,8 @@ func TestMultiAgentIsolation_AppliesToolPolicyAndSkillAllowlistPerRoutedAgent(t 
 	})
 
 	skillsRoot := t.TempDir()
-	writeIsolationSkill(t, skillsRoot, "main-skill", "Main skill", "Main-only instructions.")
-	writeIsolationSkill(t, skillsRoot, "alerts-skill", "Alerts skill", "Alerts-only instructions.")
+	writeIsolationSkill(t, skillsRoot, "main-skill", "main-skill", "Main-only instructions.")
+	writeIsolationSkill(t, skillsRoot, "alerts-skill", "alerts-skill", "Alerts-only instructions.")
 	skillRuntime := skills.NewRuntime(skillsRoot, 8*1024, 5, "")
 
 	m := NewManagerWithSubmitter(ManagerConfig{
@@ -122,6 +122,153 @@ func TestMultiAgentIsolation_AppliesToolPolicyAndSkillAllowlistPerRoutedAgent(t 
 	}
 }
 
+func TestMultiAgentIsolation_UsesIndependentRuntimePerRoutedSession(t *testing.T) {
+	ctx := context.Background()
+	tg := newFakeChannel("telegram")
+	base := &fakeKernel{}
+
+	var mu sync.Mutex
+	factoryCalls := []string{}
+	runtimes := map[string]*fakeKernel{}
+	factory := func(_ context.Context, req AgentRuntimeRequest) (KernelSubmitter, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		fk := &fakeKernel{}
+		factoryCalls = append(factoryCalls, req.SessionKey)
+		runtimes[req.SessionKey] = fk
+		return fk, nil
+	}
+	runtimeFor := func(key string) *fakeKernel {
+		mu.Lock()
+		defer mu.Unlock()
+		return runtimes[key]
+	}
+	callCount := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(factoryCalls)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+		SessionMap:   session.NewMemMap(),
+		AgentRouting: AgentRoutingConfig{
+			Enabled: true,
+			Agents: config.AgentsCfg{List: []config.AgentCfg{
+				{ID: "main", Default: true},
+				{ID: "alerts"},
+			}},
+			Bindings: []config.AgentBindingCfg{
+				{AgentID: "alerts", Match: config.AgentBindingMatchCfg{Channel: "telegram", AccountID: "alerts"}},
+				{AgentID: "main", Match: config.AgentBindingMatchCfg{Channel: "telegram"}},
+			},
+		},
+		AgentRuntimeFactory: factory,
+	}, base, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = m.Run(runCtx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", AccountID: "alerts", ChatID: "42", ChatType: "private", UserID: "u1", MsgID: "m1",
+		Kind: EventSubmit, Text: "alerts one",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		rt := runtimeFor("agent:alerts:telegram:42")
+		return rt != nil && len(rt.submitsSnapshot()) == 1
+	})
+	m.clearTurn()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", ChatType: "private", UserID: "u1", MsgID: "m2",
+		Kind: EventSubmit, Text: "main one",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		rt := runtimeFor("agent:main:telegram:42")
+		return rt != nil && len(rt.submitsSnapshot()) == 1
+	})
+	m.clearTurn()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", AccountID: "alerts", ChatID: "42", ChatType: "private", UserID: "u1", MsgID: "m3",
+		Kind: EventSubmit, Text: "alerts two",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		rt := runtimeFor("agent:alerts:telegram:42")
+		return rt != nil && len(rt.submitsSnapshot()) == 2
+	})
+
+	if got := callCount(); got != 2 {
+		t.Fatalf("runtime factory calls = %d, want two routed session runtimes", got)
+	}
+	if got := len(base.submitsSnapshot()); got != 0 {
+		t.Fatalf("base singleton kernel received %d submits, want factory runtimes only", got)
+	}
+}
+
+func TestMultiAgentIsolation_RuntimeFactoryFailureReportsRedactedEvidence(t *testing.T) {
+	ctx := context.Background()
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	status := &isolationStatusWriter{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		SessionMap:    session.NewMemMap(),
+		RuntimeStatus: status,
+		AgentRouting: AgentRoutingConfig{
+			Enabled: true,
+			Agents: config.AgentsCfg{List: []config.AgentCfg{
+				{ID: "main", Default: true},
+				{ID: "alerts"},
+			}},
+			Bindings: []config.AgentBindingCfg{
+				{AgentID: "alerts", Match: config.AgentBindingMatchCfg{Channel: "telegram", AccountID: "alerts"}},
+			},
+		},
+		AgentRuntimeFactory: func(context.Context, AgentRuntimeRequest) (KernelSubmitter, error) {
+			return nil, errors.New("open /tmp/private/auth.json: permission denied")
+		},
+	}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = m.Run(runCtx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", AccountID: "alerts", ChatID: "42", ChatType: "private", UserID: "u1", MsgID: "m1",
+		Kind: EventSubmit, Text: "alerts please",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool { return len(tg.sentSnapshot()) == 1 })
+	if got := tg.sentSnapshot()[0].Text; !strings.Contains(got, "agent_runtime_unavailable") || strings.Contains(got, "/tmp/private") {
+		t.Fatalf("gateway failure message = %q, want redacted agent_runtime_unavailable", got)
+	}
+	if got := len(fk.submitsSnapshot()); got != 0 {
+		t.Fatalf("kernel submits = %d, want blocked before submit", got)
+	}
+	updates := status.snapshot()
+	if len(updates) == 0 {
+		t.Fatal("no runtime status evidence written")
+	}
+	var evidence RuntimeStatusUpdate
+	for _, update := range updates {
+		if strings.Contains(update.ErrorMessage, "agent_runtime_unavailable") {
+			evidence = update
+		}
+	}
+	if evidence.ErrorMessage == "" || !strings.Contains(evidence.ErrorMessage, "agent_id=alerts") {
+		t.Fatalf("runtime status updates = %#v, want redacted agent evidence", updates)
+	}
+	if strings.Contains(evidence.ErrorMessage, "/tmp/private") {
+		t.Fatalf("runtime status leaked private path: %q", evidence.ErrorMessage)
+	}
+}
+
 func writeIsolationSkill(t *testing.T, root, slug, name, body string) {
 	t.Helper()
 	dir := filepath.Join(root, "active", slug)
@@ -143,5 +290,25 @@ func registryDescriptorNames(reg *tools.Registry) []string {
 	for _, desc := range descs {
 		out = append(out, desc.Name)
 	}
+	return out
+}
+
+type isolationStatusWriter struct {
+	mu      sync.Mutex
+	updates []RuntimeStatusUpdate
+}
+
+func (w *isolationStatusWriter) UpdateRuntimeStatus(_ context.Context, update RuntimeStatusUpdate) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.updates = append(w.updates, update)
+	return nil
+}
+
+func (w *isolationStatusWriter) snapshot() []RuntimeStatusUpdate {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	out := make([]RuntimeStatusUpdate, len(w.updates))
+	copy(out, w.updates)
 	return out
 }

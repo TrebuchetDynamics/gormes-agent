@@ -123,6 +123,30 @@ description: Always visible
 	}
 }
 
+func TestRuntimeBuildSkillBlockHonorsAgentAllowlist(t *testing.T) {
+	root := t.TempDir()
+	writeSkillDoc(t, filepath.Join(root, "active", "main-skill", "SKILL.md"), "main-skill", "Main skill", "Main-only instructions.")
+	writeSkillDoc(t, filepath.Join(root, "active", "alerts-skill", "SKILL.md"), "alerts-skill", "Alerts skill", "Alerts-only instructions.")
+	writeSkillDoc(t, filepath.Join(root, "active", "disabled-skill", "SKILL.md"), "disabled-skill", "Disabled skill", "Disabled instructions.")
+
+	runtime := NewRuntime(root, 8*1024, 10, "")
+	block, names, statuses, err := runtime.BuildSkillBlockWithOptions(context.Background(), "skill instructions", RuntimeOptions{
+		AllowedSkillNames:  map[string]bool{"alerts-skill": true, "disabled-skill": true},
+		DisabledSkillNames: map[string]bool{"disabled-skill": true},
+	})
+	if err != nil {
+		t.Fatalf("BuildSkillBlockWithOptions() error = %v", err)
+	}
+	if !reflect.DeepEqual(names, []string{"alerts-skill"}) {
+		t.Fatalf("names = %#v, want alerts skill only", names)
+	}
+	if !strings.Contains(block, "Alerts-only instructions.") || strings.Contains(block, "Main-only instructions.") || strings.Contains(block, "Disabled instructions.") {
+		t.Fatalf("agent allowlist block not isolated:\n%s", block)
+	}
+	assertSkillStatus(t, statuses, "main-skill", SkillStatusPolicyExcluded)
+	assertSkillStatus(t, statuses, "disabled-skill", SkillStatusDisabled)
+}
+
 func writeSkillDoc(t *testing.T, path, name, description, body string) {
 	t.Helper()
 	writeSkillDocWithFrontmatter(t, path, "name: "+name+"\ndescription: "+description, body)

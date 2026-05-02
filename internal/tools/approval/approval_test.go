@@ -25,6 +25,16 @@ func TestCheckHardline_Shutdown(t *testing.T) {
 	}
 }
 
+func TestCheckHardline_PythonRuntime(t *testing.T) {
+	r := CheckHardline("python3 - <<'PY'\nimport urllib.request\nPY")
+	if r.Approved || !r.Hardline {
+		t.Fatalf("CheckHardline(python heredoc) = %+v, want hardline block", r)
+	}
+	if r.Description != "Python runtime execution is disabled in Gormes" {
+		t.Fatalf("description = %q, want Python hardline", r.Description)
+	}
+}
+
 func TestCheckHardline_SafeCommand(t *testing.T) {
 	r := CheckHardline("echo hello")
 	if !r.Approved {

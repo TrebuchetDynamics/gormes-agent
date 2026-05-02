@@ -131,7 +131,7 @@ func DefaultToolEmojis() map[string]string {
 		"mixture_of_agents":  "🧠",
 		"send_message":       "📨",
 		"cronjob":            "⏰",
-		"execute_code":       "🐍",
+		"execute_code":       "💻",
 		"delegate_task":      "🔀",
 	}
 }
@@ -191,14 +191,14 @@ func normalizePromptSymbol(symbol string) string {
 // BuiltinSkins returns all built-in skin definitions keyed by name.
 func BuiltinSkins() map[string]HermesSkin {
 	return map[string]HermesSkin{
-		"default":  DefaultHermesSkin(),
-		"ares":     aresSkin(),
-		"mono":     monoSkin(),
-		"slate":    slateSkin(),
-		"daylight": daylightSkin(),
-		"poseidon":  poseidonSkin(),
-		"sisyphus":  sisyphusSkin(),
-		"charizard": charizardSkin(),
+		"default":        DefaultHermesSkin(),
+		"ares":           aresSkin(),
+		"mono":           monoSkin(),
+		"slate":          slateSkin(),
+		"daylight":       daylightSkin(),
+		"poseidon":       poseidonSkin(),
+		"sisyphus":       sisyphusSkin(),
+		"charizard":      charizardSkin(),
 		"warm-lightmode": warmLightmodeSkin(),
 	}
 }

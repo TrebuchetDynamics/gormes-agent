@@ -84,7 +84,7 @@ Pick the primary intent:
   `gormes-tdd-slice`.
 - **Pasted channel tool-progress blocks** such as
   `📚 skill_view: "plan"` / `📋 todo: "planning 5 task(s)"` /
-  `🐍 execute_code: "..."`: use `gormes-hermes-parity` first. The active
+  `💻 execute_code: "..."`: use `gormes-hermes-parity` first. The active
   contract is Hermes gateway/channel progress, not only the current Ink TUI.
 
 If more than one applies, choose a chain with at most three skills. Do not load every Gormes skill.

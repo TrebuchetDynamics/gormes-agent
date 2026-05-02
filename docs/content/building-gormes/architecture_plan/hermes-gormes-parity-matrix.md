@@ -456,7 +456,7 @@ Classification, Progress row).
   - `📖` read_file
   - `🔧` patch / write_file / fallback
   - `💻` terminal / process
-  - `🐍` execute_code
+  - `💻` execute_code
 - **Gap**: Channel-visible formatting is validated, including
   duplicate collapse, `new/all/off` display modes, bounded previews,
   and suppression of `tool done:` completion noise. The remaining

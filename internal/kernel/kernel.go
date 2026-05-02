@@ -240,9 +240,24 @@ func (k *Kernel) Run(ctx context.Context) error {
 				// Run() exit.
 				func() {
 					prevSessionID := k.sessionID
+					prevTools := k.cfg.Tools
+					prevSkills := k.cfg.Skills
+					prevToolSafety := k.cfg.ToolSafety
 					if e.SessionID != "" {
 						k.sessionID = e.SessionID
 						defer func() { k.sessionID = prevSessionID }()
+					}
+					if e.Tools != nil {
+						k.cfg.Tools = e.Tools
+						defer func() { k.cfg.Tools = prevTools }()
+					}
+					if e.Skills != nil {
+						k.cfg.Skills = e.Skills
+						defer func() { k.cfg.Skills = prevSkills }()
+					}
+					if e.ToolSafety != nil {
+						k.cfg.ToolSafety = ComposeToolSafetyPolicies(e.ToolSafety, prevToolSafety)
+						defer func() { k.cfg.ToolSafety = prevToolSafety }()
 					}
 					k.runTurn(ctx, e.Text, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
 				}()

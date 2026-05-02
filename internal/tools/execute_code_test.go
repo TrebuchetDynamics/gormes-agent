@@ -19,36 +19,36 @@ func (f *fakeCodeSandbox) Execute(_ context.Context, req CodeExecutionRequest) (
 	return f.result, f.err
 }
 
-func TestExecuteCodeTool_UsesRequestedLanguage(t *testing.T) {
+func TestExecuteCodeTool_UsesRequestedShellLanguage(t *testing.T) {
 	sandbox := &fakeCodeSandbox{
-		result: CodeExecutionResult{Status: "success", Language: "python"},
+		result: CodeExecutionResult{Status: "success", Language: "sh"},
 	}
 	tool := &ExecuteCodeTool{Sandbox: sandbox}
 
-	out, err := tool.Execute(context.Background(), json.RawMessage(`{"language":"python","code":"print('hi')"}`))
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"language":"sh","code":"printf hi"}`))
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if sandbox.req.Language != "python" {
-		t.Fatalf("sandbox language = %q, want python", sandbox.req.Language)
+	if sandbox.req.Language != "sh" {
+		t.Fatalf("sandbox language = %q, want sh", sandbox.req.Language)
 	}
-	if !strings.Contains(string(out), `"language":"python"`) {
+	if !strings.Contains(string(out), `"language":"sh"`) {
 		t.Fatalf("output = %s, want language field", out)
 	}
 }
 
-func TestExecuteCodeTool_DefaultsCodeOnlyCallsToPython(t *testing.T) {
+func TestExecuteCodeTool_DefaultsCodeOnlyCallsToShell(t *testing.T) {
 	sandbox := &fakeCodeSandbox{
-		result: CodeExecutionResult{Status: "success", Language: "python"},
+		result: CodeExecutionResult{Status: "success", Language: "sh"},
 	}
 	tool := &ExecuteCodeTool{Sandbox: sandbox}
 
-	_, err := tool.Execute(context.Background(), json.RawMessage(`{"code":"print('hi')"}`))
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"code":"printf hi"}`))
 	if err != nil {
 		t.Fatalf("Execute code-only args: %v", err)
 	}
-	if sandbox.req.Language != "python" {
-		t.Fatalf("sandbox language = %q, want python default for Hermes code-only schema", sandbox.req.Language)
+	if sandbox.req.Language != "sh" {
+		t.Fatalf("sandbox language = %q, want sh default", sandbox.req.Language)
 	}
 
 	var schema struct {
@@ -62,6 +62,35 @@ func TestExecuteCodeTool_DefaultsCodeOnlyCallsToPython(t *testing.T) {
 	}
 	if containsString(schema.Required, "language") {
 		t.Fatalf("schema required = %v, language must be optional for Hermes code-only compatibility", schema.Required)
+	}
+	if strings.Contains(strings.ToLower(string(tool.Schema())), "python") {
+		t.Fatalf("schema = %s, must not advertise Python", tool.Schema())
+	}
+	if strings.Contains(strings.ToLower(tool.Description()), "python") {
+		t.Fatalf("description = %q, must not advertise Python", tool.Description())
+	}
+}
+
+func TestExecuteCodeToolRejectsPythonLanguage(t *testing.T) {
+	sandbox := &fakeCodeSandbox{}
+	tool := &ExecuteCodeTool{Sandbox: sandbox}
+
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"language":"python","code":"print('hi')"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if sandbox.req.Language != "" {
+		t.Fatalf("sandbox language = %q, want sandbox not called", sandbox.req.Language)
+	}
+	var out CodeExecutionResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal %s: %v", raw, err)
+	}
+	if out.Status != "blocked" {
+		t.Fatalf("status = %q, want blocked: %#v", out.Status, out)
+	}
+	if !strings.Contains(out.Error, "Python runtime execution is disabled") {
+		t.Fatalf("error = %q, want Python disabled message", out.Error)
 	}
 }
 

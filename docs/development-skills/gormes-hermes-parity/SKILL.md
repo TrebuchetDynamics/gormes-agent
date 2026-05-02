@@ -258,7 +258,7 @@ When the observed artifact is a channel-visible tool-progress block like:
 📚 skill_view: "plan"
 📋 todo: "planning 5 task(s)"
 📖 read_file: "/path/..."
-🐍 execute_code: "from hermes_tools import terminal, se..."
+💻 execute_code: "printf shell-output"
 ```
 
 pin the contract to Hermes gateway progress, not only the TUI. Start from

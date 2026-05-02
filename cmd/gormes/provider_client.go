@@ -17,6 +17,18 @@ func newProviderHTTPClient(cfg config.Config, provider string) (hermes.Client, e
 }
 
 func resolveProviderHTTPClientCredentials(cfg config.Config, provider string) (endpoint, apiKey string, err error) {
+	return resolveProviderHTTPClientCredentialsWithHome(cfg, provider, "")
+}
+
+func newProviderHTTPClientWithCredentialHome(cfg config.Config, provider, credentialHome string) (hermes.Client, error) {
+	endpoint, apiKey, err := resolveProviderHTTPClientCredentialsWithHome(cfg, provider, credentialHome)
+	if err != nil {
+		return nil, err
+	}
+	return hermes.NewHTTPClientWithProvider(endpoint, apiKey, provider), nil
+}
+
+func resolveProviderHTTPClientCredentialsWithHome(cfg config.Config, provider, credentialHome string) (endpoint, apiKey string, err error) {
 	endpoint = strings.TrimSpace(cfg.Hermes.Endpoint)
 	apiKey = strings.TrimSpace(cfg.Hermes.APIKey)
 	provider = normalizeProviderName(provider)
@@ -47,7 +59,7 @@ func resolveProviderHTTPClientCredentials(cfg config.Config, provider string) (e
 		return "", "", fmt.Errorf("hermes endpoint unconfigured for provider %q: set [hermes].endpoint or GORMES_ENDPOINT to a Hermes-compatible base URL (gormes does not yet ship a native runtime for %q)", provider, provider)
 	}
 
-	pool, evidence, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider})
+	pool, evidence, err := config.LoadCredentialPool(config.CredentialPoolOptions{HermesHome: credentialHome, Provider: config.CodexOAuthProvider})
 	if err != nil {
 		return "", "", fmt.Errorf("%s credential pool unavailable: %s", config.CodexOAuthProvider, evidence.Code)
 	}

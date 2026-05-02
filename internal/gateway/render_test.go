@@ -117,7 +117,7 @@ func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 		{name: "skill_view", event: "tool: skill_view: gormes-hermes-parity", want: `📚 skill_view: "gormes-hermes-parity"`},
 		{name: "skills_list", event: "tool: skills_list", want: `📚 skills_list...`},
 		{name: "todo", event: "tool: todo: planning 5 task(s)", want: `📋 todo: "planning 5 task(s)"`},
-		{name: "execute_code", event: "tool: execute_code: from hermes_tools import terminal, search_files", want: `🐍 execute_code: "from hermes_tools import terminal, se..."`},
+		{name: "execute_code", event: "tool: execute_code: printf shell-output", want: `💻 execute_code: "printf shell-output"`},
 		{name: "cronjob", event: "tool: cronjob: run", want: `⏰ cronjob: "run"`},
 	}
 	for _, tt := range tests {
@@ -164,10 +164,10 @@ func TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence(t *testin
 
 func TestFormatToolProgressPlain_SuppressesLegacyCompletionNoise(t *testing.T) {
 	got := FormatToolProgressPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{
-		{At: time.Now(), Text: "tool: execute_code: print('hi')"},
+		{At: time.Now(), Text: "tool: execute_code: printf hi"},
 		{At: time.Now(), Text: "tool done: execute_code"},
 	}})
-	if !strings.Contains(got, `🐍 execute_code: "print('hi')"`) {
+	if !strings.Contains(got, `💻 execute_code: "printf hi"`) {
 		t.Fatalf("FormatToolProgressPlain = %q, want execute_code start event", got)
 	}
 	if strings.Contains(got, "tool done") || strings.Contains(got, `🔧 tool done`) {
@@ -181,10 +181,10 @@ func TestFormatToolProgressPlain_MineruGatewayTranscriptShape(t *testing.T) {
 		{At: time.Now(), Text: "tool: cronjob: list"},
 		{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
 		{At: time.Now(), Text: "tool: browser_navigate: https://old.reddit.com/r/WebAfterAI/s/example"},
-		{At: time.Now(), Text: "tool: terminal: python3 - <<'PY'\nimport requests\nurl='https://example.test'\nPY"},
+		{At: time.Now(), Text: "tool: terminal: curl -L https://example.test/post.json"},
 		{At: time.Now(), Text: "tool: browser_snapshot"},
-		{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests, url..."},
-		{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests, url..."},
+		{At: time.Now(), Text: "tool: terminal: curl -L https://example.test/post.json"},
+		{At: time.Now(), Text: "tool: terminal: curl -L https://example.test/post.json"},
 	}}
 
 	got := FormatToolProgressPlain(f)
@@ -193,9 +193,9 @@ func TestFormatToolProgressPlain_MineruGatewayTranscriptShape(t *testing.T) {
 		`⏰ cronjob: "list"`,
 		`🌐 browser_navigate: "...www.reddit.com/r/WebAfterAI/s/example"`,
 		`🌐 browser_navigate: "...old.reddit.com/r/WebAfterAI/s/example"`,
-		`💻 terminal: "python3 - <<'PY' import requests url=..."`,
+		`💻 terminal: "curl -L https://example.test/post.json"`,
 		`📸 browser_snapshot...`,
-		`💻 terminal: "python3 - <<'PY' import requests, url..." (×2)`,
+		`💻 terminal: "curl -L https://example.test/post.json" (×2)`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("FormatToolProgressPlain missing %q in:\n%s", want, got)

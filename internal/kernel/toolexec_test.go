@@ -68,7 +68,7 @@ func TestExecuteToolCalls_AppendsToolPreviewSoulEvent(t *testing.T) {
 		{
 			ID:        "c1",
 			Name:      "terminal",
-			Arguments: json.RawMessage(`{"command":"python3 - <<'PY'\nimport requests\nurl='https://example.test'\nPY"}`),
+			Arguments: json.RawMessage(`{"command":"curl -L https://example.test/post.json"}`),
 		},
 		{ID: "c2", Name: "skill_view", Arguments: json.RawMessage(`{"name":"gormes-hermes-parity"}`)},
 		{ID: "c3", Name: "skills_list", Arguments: json.RawMessage(`{}`)},
@@ -78,7 +78,7 @@ func TestExecuteToolCalls_AppendsToolPreviewSoulEvent(t *testing.T) {
 
 	got := soulTexts(k.soul)
 	for _, want := range []string{
-		"tool: terminal: python3 - <<'PY' import requests url='https://example.test' PY",
+		"tool: terminal: curl -L https://example.test/post.json",
 		"tool: skill_view: gormes-hermes-parity",
 		"tool: skills_list",
 		"tool: cronjob: run",

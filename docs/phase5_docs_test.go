@@ -22,7 +22,8 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 	toolExecution := readDoc(t, "content/building-gormes/core-systems/tool-execution.md")
 	for _, want := range []string{
 		"`execute_code`",
-		"`sh`/`python`",
+		"shell-only `execute_code`",
+		"Python runtime",
 		"filesystem/network blocking",
 	} {
 		if !strings.Contains(toolExecution, want) {
