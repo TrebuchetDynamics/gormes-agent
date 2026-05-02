@@ -506,11 +506,12 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 
 	tm := telemetry.New()
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
+	registry := buildDefaultRegistry(rootCtx, cfg, c, modelName)
 	k := kernel.New(kernel.Config{
 		Model:             modelName,
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
-		Tools:             buildDefaultRegistry(rootCtx, cfg, c, modelName),
+		Tools:             registry,
 		MaxToolIterations: kernel.DefaultMaxToolIterations,
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
@@ -555,6 +556,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		MouseTracking: cfg.TUI.MouseTracking,
 		SessionExport: newTUISaveExportFunc(),
 		OfflineSmoke:  offline,
+		Startup:       buildTUIStartupDashboard(cfg, modelName, providerName, registry),
 	})
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated

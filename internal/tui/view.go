@@ -52,6 +52,14 @@ func (m Model) View() string {
 	}
 
 	conv := conversationViewportTail(m.frame, convW, convH)
+	if m.shouldRenderStartupDashboard() {
+		conv = RenderStartupDashboard(StartupDashboardInput{
+			Width:     convW,
+			Height:    convH,
+			Frame:     m.frame,
+			Dashboard: m.startup,
+		})
+	}
 
 	editorW := m.width
 	if editorW < 10 {
@@ -75,6 +83,17 @@ func (m Model) View() string {
 		StatusBar:    statusBar,
 		Prompt:       prompt,
 	})
+}
+
+func (m Model) shouldRenderStartupDashboard() bool {
+	if m.frame.Seq == 0 && !m.startup.hasFacts() {
+		return false
+	}
+	return m.frame.Phase == kernel.PhaseIdle &&
+		len(m.frame.History) == 0 &&
+		m.frame.DraftText == "" &&
+		m.frame.LastError == "" &&
+		len(m.frame.SoulEvents) == 0
 }
 
 func renderHermesHint(f kernel.RenderFrame, mouseStatus, statusMessage string) string {

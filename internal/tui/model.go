@@ -49,6 +49,10 @@ type Options struct {
 	// `gormes --offline` so the demo path proves the native UI without
 	// contacting a provider or enqueueing a kernel turn.
 	OfflineSmoke bool
+	// Startup carries best-effort runtime metadata for the first idle frame.
+	// The dashboard renderer combines these values with kernel.RenderFrame so
+	// live frame data wins when available and placeholders stay explicit.
+	Startup StartupDashboard
 }
 
 // BusyInputVerdict mirrors the cli.BusyInputVerdict shape for callers that
@@ -92,6 +96,7 @@ type Model struct {
 	statusMessage string
 	busyGuard     BusyInputEvaluator
 	offlineSmoke  bool
+	startup       StartupDashboard
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over
@@ -107,8 +112,8 @@ type Model struct {
 	// RenderFrame. These fields are updated by Update() when a frameMsg
 	// arrives so that View() can render the appropriate panel chrome.
 	ApprovalState *kernel.KernelApprovalState
-	ClarifyState *kernel.KernelClarifyState
-	SecretState  *kernel.KernelSecretState
+	ClarifyState  *kernel.KernelClarifyState
+	SecretState   *kernel.KernelSecretState
 }
 
 // NewModel constructs the Bubble Tea model. frames is the kernel's Render()
@@ -143,6 +148,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		busyGuard:     opts.BusyGuard,
 		sessionExport: opts.SessionExport,
 		offlineSmoke:  opts.OfflineSmoke,
+		startup:       opts.Startup,
 		slashRegistry: NewDefaultSlashRegistry(),
 	}
 }
