@@ -24604,6 +24604,135 @@
               "done_signal": [
                 "Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution."
               ]
+            },
+            {
+              "name": "Multi-agent gateway runtime activation",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Wire the validated AgentRouter into live gateway turn handling: inbound messages resolve to agent-specific session keys, workspace/agentDir prompt seams, per-turn model overrides, route evidence in SessionContext and /status, and a resident-kernel reset when the route switches agent session keys so local history does not bleed across agents.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing or unmatched bindings fall back to the configured default agent; missing workspace/agentDir paths omit context files while preserving the routed session key. Per-agent auth/profile stores and tool-policy enforcement are not claimed by this row and remain in the dedicated follow-up row.",
+              "fixture": "internal/gateway/manager_multi_agent_test.go",
+              "source_refs": [
+                "https://docs.openclaw.ai/concepts/multi-agent",
+                "internal/gateway/agent_router.go",
+                "internal/gateway/agent_runtime.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/status_command.go",
+                "cmd/gormes/gateway.go"
+              ],
+              "ready_when": [
+                "OpenClaw multi-agent config and routing core is validated.",
+                "The row is limited to route-scoped gateway turn activation and does not claim full per-agent auth/tool-policy enforcement."
+              ],
+              "not_ready_when": [
+                "The slice duplicates router logic in channel adapters instead of using AgentRouter.",
+                "The slice changes legacy single-agent chat keys when AgentRouting.Enabled is false.",
+                "The slice claims per-agent auth/profile/tool-policy isolation without fixtures."
+              ],
+              "unblocks": [
+                "Multi-agent auth and tool-policy runtime isolation"
+              ],
+              "acceptance": [
+                "Manager fixture proves two Telegram account bindings in one gateway process route to distinct agent-prefixed session keys.",
+                "Manager fixture proves per-agent workspace AGENTS.md and agentDir memory/USER.md are used by the live-turn prompt seams.",
+                "Manager fixture proves per-agent model is forwarded as a per-turn model override.",
+                "Manager fixture proves switching from one agent session key to another resets the resident kernel to avoid local history bleed.",
+                "/status fixture proves routed agent_id and binding tier are visible and resolve the agent-prefixed session map key.",
+                "Production gateway config enables AgentRouting only when multiple agents or bindings are configured, preserving legacy single-agent chat keys by default."
+              ],
+              "note": "Validated 2026-05-02: live gateway turns now use AgentRouter for route-scoped session keys, prompt context, model override, /status evidence, and resident-kernel reset on agent session switches. This closes the first runtime activation slice without pretending per-agent auth/profile stores, tool policies, or independent kernel factories are done.",
+              "write_scope": [
+                "cmd/gormes/gateway.go",
+                "internal/gateway/agent_runtime.go",
+                "internal/gateway/manager_multi_agent_test.go",
+                "internal/gateway/event.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/session_context.go",
+                "internal/gateway/status_command.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run MultiAgent -count=1",
+                "go test ./internal/gateway ./internal/session ./internal/kernel -run 'MultiAgent|Agent' -count=1",
+                "go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway' -count=1",
+                "go test ./internal/gateway -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "One gateway process can route inbound turns to agent-scoped session keys/workspace context with operator route evidence and no local-history bleed on agent switches."
+              ],
+              "evidence": {
+                "implementation": "internal/gateway/agent_runtime.go, internal/gateway/manager.go, internal/gateway/status_command.go, cmd/gormes/gateway.go",
+                "tests": "go test ./internal/gateway -run MultiAgent -count=1; go test ./internal/gateway ./internal/session ./internal/kernel -run 'MultiAgent|Agent' -count=1; go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway' -count=1; go test ./internal/gateway -count=1",
+                "note": "Route-scoped runtime activation only; per-agent auth/profile/tool-policy isolation remains planned."
+              }
+            },
+            {
+              "name": "Multi-agent auth and tool-policy runtime isolation",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Finish OpenClaw-style multi-agent isolation beyond route-scoped turns: construct per-agent auth/profile/model registry snapshots, enforce agents.list[].skills and agents.list[].tools allow/deny policy, and provide independent kernel/runtime factories where local history, tool state, and credentials cannot cross agent boundaries.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "A broken agent auth/profile/tool-policy snapshot disables only that agent route and reports redacted route evidence; other agents and the default route continue operating.",
+              "fixture": "internal/gateway/manager_multi_agent_isolation_test.go",
+              "source_refs": [
+                "https://docs.openclaw.ai/concepts/multi-agent",
+                "internal/gateway/agent_runtime.go",
+                "internal/kernel/",
+                "internal/config/agents.go",
+                "internal/skills/",
+                "internal/tools/"
+              ],
+              "ready_when": [
+                "Multi-agent gateway runtime activation is complete.",
+                "Provider/auth runtime snapshot seams are available or the slice introduces a small factory interface with fixtures."
+              ],
+              "not_ready_when": [
+                "The slice only adds prompt text or session-key routing.",
+                "The slice treats per-agent workspace as a hard sandbox without tool/runtime enforcement.",
+                "The slice shares one resident kernel history across different agent ids without a reset or independent runtime."
+              ],
+              "blocked_by": [
+                "Multi-agent gateway runtime activation"
+              ],
+              "acceptance": [
+                "Fixtures prove two agents can use different auth/profile/model registry snapshots without credential lookup cross-talk.",
+                "Fixtures prove per-agent tool allow/deny policy blocks denied tools before execution.",
+                "Fixtures prove per-agent skills allowlists select different skill surfaces for different routed agents.",
+                "Fixtures prove local kernel history/tool state cannot cross agent ids while preserving same-agent continuation.",
+                "Operator evidence reports agent_id and redacted failure code for a broken agent runtime without leaking secrets."
+              ],
+              "write_scope": [
+                "internal/gateway/",
+                "internal/kernel/",
+                "internal/config/",
+                "internal/skills/",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run MultiAgent.*Isolation -count=1",
+                "go test ./internal/kernel ./internal/skills ./internal/tools -run Agent -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Multi-agent routes are not merely prompt/session scoped; auth, skills, tool policy, and local runtime state are isolated with redacted failure evidence."
+              ]
             }
           ],
           "drift_state": {
