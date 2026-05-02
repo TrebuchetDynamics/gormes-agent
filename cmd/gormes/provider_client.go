@@ -20,6 +20,17 @@ func resolveProviderHTTPClientCredentials(cfg config.Config, provider string) (e
 	endpoint = strings.TrimSpace(cfg.Hermes.Endpoint)
 	apiKey = strings.TrimSpace(cfg.Hermes.APIKey)
 	provider = normalizeProviderName(provider)
+	if provider == "openrouter" || hermes.IsOpenRouterBaseURL(endpoint) {
+		runtime := hermes.ResolveOpenRouterRuntime(hermes.OpenRouterRuntimeRequest{
+			Provider: provider,
+			BaseURL:  endpoint,
+			APIKey:   apiKey,
+		})
+		if runtime.MissingAPIKey {
+			return "", "", fmt.Errorf("openrouter credential unavailable: set OPENROUTER_API_KEY, OPENAI_API_KEY, or [hermes].api_key")
+		}
+		return runtime.BaseURL, runtime.APIKey, nil
+	}
 	if endpoint != "" {
 		return endpoint, apiKey, nil
 	}
