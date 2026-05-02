@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -30,6 +31,10 @@ var gatewayStatusCmd = &cobra.Command{
 	RunE:  runGatewayStatus,
 }
 
+func init() {
+	gatewayStatusCmd.Flags().Bool("json", false, "print gateway status as JSON")
+}
+
 func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -54,6 +59,9 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 	if runtimeSnapshot.Missing {
 		runtimeStatus = gateway.RuntimeStatus{}
 	}
+	if jsonOutput, _ := cmd.Flags().GetBool("json"); jsonOutput {
+		return renderGatewayStatusJSON(cmd, cfg, pairingStatus, runtimeStatus, runtimeSnapshot.Validation, runtimeSnapshot.Missing)
+	}
 
 	output := gateway.RenderStatusSummary(gateway.StatusSummary{
 		Channels: configuredGatewayStatusChannels(cfg),
@@ -66,6 +74,29 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 	}
 	_, err = fmt.Fprint(cmd.OutOrStdout(), output)
 	return err
+}
+
+type gatewayStatusJSON struct {
+	Runtime    gateway.RuntimeStatus            `json:"runtime"`
+	Channels   []gateway.StatusChannel          `json:"channels"`
+	Pairing    gateway.PairingStatus            `json:"pairing"`
+	Validation gateway.RuntimeProcessValidation `json:"validation"`
+	Missing    bool                             `json:"missing"`
+	Slack      string                           `json:"slack"`
+}
+
+func renderGatewayStatusJSON(cmd *cobra.Command, cfg config.Config, pairing gateway.PairingStatus, runtime gateway.RuntimeStatus, validation gateway.RuntimeProcessValidation, missing bool) error {
+	payload := gatewayStatusJSON{
+		Runtime:    runtime,
+		Channels:   configuredGatewayStatusChannels(cfg),
+		Pairing:    pairing,
+		Validation: validation,
+		Missing:    missing,
+		Slack:      doctorSlackGatewayConfig(cfg, runtime).Summary,
+	}
+	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc.SetIndent("", "  ")
+	return enc.Encode(payload)
 }
 
 func renderGatewaySlackDiagnosticLine(cfg config.Config, runtime gateway.RuntimeStatus) string {

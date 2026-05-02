@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,6 +149,65 @@ func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) 
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
 }
 
+func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				StartTime:    100,
+				Generation:   3,
+				Command:      "/home/xel/.gormes/bin/gormes gateway",
+				GatewayState: gateway.GatewayStateRunning,
+				ActiveAgents: 0,
+				Platforms: map[string]gateway.PlatformRuntimeStatus{
+					"telegram": {State: gateway.PlatformStateRunning},
+				},
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status:            gateway.RuntimeProcessValidationLive,
+				Live:              true,
+				PID:               4242,
+				ExpectedStartTime: 100,
+				ActualStartTime:   100,
+				Command:           "/home/xel/.gormes/bin/gormes gateway",
+			},
+		},
+	})
+	defer restoreRuntimeStore()
+
+	stdout, stderr, err := executeGatewayStatusCommand(t, "--json")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	var got struct {
+		Runtime struct {
+			GatewayState string `json:"gateway_state"`
+			PID          int    `json:"pid"`
+			ActiveAgents int    `json:"active_agents"`
+			Command      string `json:"command"`
+		} `json:"runtime"`
+		Validation gateway.RuntimeProcessValidation `json:"validation"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
+	}
+	if got.Runtime.GatewayState != string(gateway.GatewayStateRunning) || got.Runtime.PID != 4242 || got.Runtime.ActiveAgents != 0 {
+		t.Fatalf("json runtime = %+v, want running pid 4242 active_agents 0", got.Runtime)
+	}
+	if got.Runtime.Command != "/home/xel/.gormes/bin/gormes gateway" {
+		t.Fatalf("json runtime command = %q", got.Runtime.Command)
+	}
+	if got.Validation.Status != gateway.RuntimeProcessValidationLive || !got.Validation.Live || got.Validation.PID != 4242 {
+		t.Fatalf("json validation = %+v, want live pid 4242", got.Validation)
+	}
+	if strings.Contains(stdout, "Gateway status") || strings.Contains(stdout, "runtime_validation:") {
+		t.Fatalf("json output mixed human text:\n%s", stdout)
+	}
+	assertGatewayStatusDidNotOpenRuntimeStores(t)
+}
+
 func setupGatewayStatusTestEnv(t *testing.T) {
 	t.Helper()
 	root := t.TempDir()
@@ -168,13 +228,13 @@ func writeGatewayStatusConfig(t *testing.T, data []byte) {
 	}
 }
 
-func executeGatewayStatusCommand(t *testing.T) (string, string, error) {
+func executeGatewayStatusCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCommand()
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"gateway", "status"})
+	cmd.SetArgs(append([]string{"gateway", "status"}, args...))
 	err := cmd.Execute()
 	return stdout.String(), stderr.String(), err
 }
