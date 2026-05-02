@@ -130,6 +130,7 @@ implementation-roadmap.md (this file) ──► decision tree + state + horizons
     ├── fleet-operational-patterns.md ──► cross-fleet ecosystem analysis (sages + OpenClaw)
     ├── fleet-integration-plan.md ──► mapping fleet patterns to phases and progress.json rows
     ├── agent-zero-feature-analysis.md ──► agent0ai/agent-zero architecture study
+    ├── openclaw-platform-parity-audit.md ──► OpenClaw 2026.3.28 full feature surface audit
     ├── contract-readiness.md ──► row-level handoff contract
     ├── porting-a-subsystem.md ──► contribution path for upstream ports
     └── testing.md ──► test strategy and fixture classes

@@ -12468,9 +12468,9 @@
             {
               "name": "Kernel compression-boundary callback binding",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Kernel compression execution calls the validated ContextEngine boundary callback exactly once after a successful compression result is accepted into transcript lineage",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -12549,7 +12549,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:e85b7525 run_agent.py",
                 "note": "Hermes provides the compression-boundary regression; Gormes binds it to kernel lineage only after the Go callback vocabulary and compression execution path are fixture-backed."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {
@@ -15718,9 +15719,9 @@
             {
               "name": "Hermes compatibility namespace retirement boundary",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes splits the current `internal/hermes` parity staging package into durable Gormes-owned runtime packages and a narrow Hermes compatibility namespace after provider/model/tool-call/context fixtures are stable. Hermes-specific import, drift, command/config, provider/platform inventory, and deprecated-shim evidence moves to `internal/compat/hermes`; provider transport/routing, model metadata, tool-call parsing/repair, account usage, prompt/context/compression helpers, and normal-turn runtime contracts move to Gormes-owned packages. `internal/hermes` is allowed only as a temporary import shim during the migration and must be removed or reduced to no public runtime ownership before release readiness.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "provider",
               "trust_class": [
@@ -15799,7 +15800,8 @@
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes owns the package boundary decision; Hermes remains the compatibility contract and upstream drift source, not the permanent internal architecture name."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {
@@ -16301,9 +16303,9 @@
             },
             {
               "name": "Pure core tools first",
-              "status": "planned",
+              "status": "complete",
               "contract": "Umbrella sequencing guard for the first native tool-calling tranche: prioritize schema-backed, credential-free or fake-store tools (Clarify, Todo, Debug helpers, local format/read-only helpers) before browser, network, sandbox, and write-capable tools so the registry, descriptor, debug, and degraded-evidence contracts stabilize without external services.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "source_refs": [
@@ -16345,7 +16347,8 @@
               "no_test_required": "Umbrella sequencing row only; executable behavior is tested by the Todo, Clarify, Debug helpers, and Stateful tool migration queue rows.",
               "done_signal": [
                 "The pure-core tool tranche is represented by concrete child rows and this umbrella is not selected for implementation."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Stateful tool migration queue",
@@ -16947,10 +16950,10 @@
             },
             {
               "name": "Sandbox Policy Explain",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Port OpenClaw's sandbox explain: gormes sandbox explain shows the effective trust class, tool allowlist, filesystem scope, and network policy for any agent context. Make sandbox policy operator-visible, reinforcing the 'visible degraded mode' contract.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -16991,7 +16994,8 @@
               ],
               "done_signal": [
                 "gormes sandbox explain ships with policy inheritance display."
-              ]
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
@@ -20465,9 +20469,9 @@
             {
               "name": "Hindsight memory setup blank-input preservation",
               "priority": "P4",
-              "status": "planned",
+              "status": "complete",
               "contract": "Future Gormes Hindsight memory-plugin setup preserves existing mode, endpoint, model, timeout, idle_timeout, and custom config values when the operator presses Enter through prompts, and never overwrites existing API-key references with blank input",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20518,14 +20522,15 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:64a497bf plugins/memory/hindsight/__init__.py",
                 "note": "Hermes fixed Hindsight setup preservation; Gormes tracks it as future external-plugin compatibility while keeping internal memory under Goncho."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Agent Hooks Registry",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Port OpenClaw's hook registry as gormes hooks with list/enable/disable/check/info subcommands. Hooks are inspectable at runtime from gateway config (HOOK.yaml/BOOT.md). Support enable/disable without restart.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -20567,14 +20572,15 @@
               ],
               "done_signal": [
                 "gormes hooks command ships with list/enable/disable/info."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Plugin Marketplace + Doctor",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Port OpenClaw's plugin management surface: marketplace discovery (ClawHub-compatible), plugin doctor (load issue reporting), plugin inspect (manifest details), and third-party plugin sandboxing (WASM/subprocess isolation).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "tools",
               "trust_class": [
@@ -20618,7 +20624,8 @@
               ],
               "done_signal": [
                 "Plugin marketplace + doctor shipped with third-party sandboxing."
-              ]
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
@@ -23259,10 +23266,10 @@
             },
             {
               "name": "Blocker Policy Integration",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Port the sages-openclaw fleet blocker protocol into Gormes: classify blockages by type (access|infra|dependency|decision|bug|unknown), record evidence in structured format, auto-pivot to unblocked work, and surface active blockers in gormes status output.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23297,23 +23304,39 @@
               "write_scope": [
                 "internal/tools/blocker.go",
                 "internal/tools/blocker_test.go",
+                "internal/progress/progress.go",
+                "internal/progress/health.go",
+                "internal/progress/validate.go",
+                "internal/progress/blocker_test.go",
                 "internal/cli/status.go",
+                "internal/cli/status_test.go",
+                "cmd/gormes/status.go",
+                "cmd/gormes/status_test.go",
+                "cmd/gormes/main.go",
+                "internal/builderloop/candidates.go",
+                "internal/builderloop/candidates_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run TestBlocker -count=1",
+                "go test ./internal/progress -run 'TestProgressBlocker|TestValidateRejectsBlocker' -count=1",
+                "go test ./internal/cli -run TestRenderStatusReport -count=1",
+                "go test ./cmd/gormes -run TestRootStatusCommandShowsProgressBlockers -count=1",
+                "go test ./internal/builderloop -run TestNormalizeCandidatesSkipsRowsWithBlockerMetadataAndPivots -count=1",
                 "go run ./cmd/progress validate"
               ],
+              "note": "Validated 2026-05-01: blocker records normalize/format via internal/tools, progress.json round-trips and validates blocker metadata, gormes status renders blockers and degraded progress access, and builder candidate selection skips blocker-tagged rows by default so it pivots to unblocked work.",
               "done_signal": [
                 "Blocker records appear in status output, planner can mark rows blocked, builder auto-pivots."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Session Health Monitoring",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Port Link's session-health-monitor patterns: track session file sizes with 500KB/2MB tier alerts, monitor heartbeat freshness with 45min/90min tiers, and expose via gormes health command with structured JSON output.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23357,14 +23380,15 @@
               ],
               "done_signal": [
                 "gormes health command ships with session size, heartbeat, and Goncho queue monitoring."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Evidence-Before-Claims Quality Gate",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Port Link's evidence-before-claims pattern: doctor output and build results must include exact counts (pass/fail/skip), not summary claims. Every status line with a count must derive from an actual computation, not a hardcoded narrative.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23406,14 +23430,15 @@
               ],
               "done_signal": [
                 "Doctor output uses computed evidence rather than narrative summaries."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Git Delivery Contract Enforcement",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Enforce the fleet-wide git delivery contract: split commits by concern, commit after each validated slice, push to origin, report hash/branch/push confirmation. gormes-builder skill must include post-commit validation.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23456,14 +23481,15 @@
               ],
               "done_signal": [
                 "Git delivery contract enforced by builder skill and visible in status."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "QMD Hybrid Search",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Port the fleet's shared QMD hybrid search (BM25 + vector) as gormes search. Index all markdown docs in the workspace for offline keyword + semantic retrieval, with BM25-only fallback when no embedding model is configured.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -23507,14 +23533,15 @@
               ],
               "done_signal": [
                 "gormes search ships with BM25 + optional vector hybrid search across workspace docs."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Session Rollover Automation",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Port the fleet's session rollover rule (1500KB threshold -> write handoff summary -> fresh session). gormes session rollover exports current session, writes 5-line handoff summary, starts fresh session. Auto-rollover at configurable threshold.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -23560,7 +23587,8 @@
               ],
               "done_signal": [
                 "gormes session rollover ships with auto-trigger at configurable threshold."
-              ]
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
@@ -27824,10 +27852,10 @@
             },
             {
               "name": "Interactive Onboarding",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Promote gormes onboard from setup alias to full interactive flow: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Match OpenClaw's onboarding depth.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -27870,14 +27898,15 @@
               ],
               "done_signal": [
                 "gormes onboard ships as full interactive first-run flow."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Logs Command",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Port openclaw logs as gormes logs: tail gateway file logs, support follow mode (-f), filter by level, and stream via RPC if gateway is remote.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -27919,7 +27948,8 @@
               ],
               "done_signal": [
                 "gormes logs ships with follow mode and level filtering."
-              ]
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
@@ -30955,9 +30985,9 @@
           "items": [
             {
               "name": "Hybrid lexical + semantic lookup",
-              "status": "planned",
+              "status": "complete",
               "contract": "Reviewed skills are selected by a deterministic lexical plus semantic scorer while disabled and unreviewed drafts remain excluded from prompt injection",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -31016,13 +31046,14 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:f718c59 src/core/search/hybrid.ts",
                 "note": "GBrain informs retrieval scoring; Gormes adapts it to reviewed SKILL.md assets and SQLite/optional embeddings."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Source-aware retrieval damping fixtures",
-              "status": "planned",
+              "status": "complete",
               "contract": "Skill and memory retrieval can prefer curated/reviewed sources over bulky chat or raw imports while preserving high-detail temporal lookup and explaining every source boost or exclusion",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -31082,7 +31113,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:172b55b src/core/search/sql-ranking.ts",
                 "note": "GBrain defines source-swamp resistance; Gormes adapts it as explainable source-tier scoring for skills and memory."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Delta-bounded skill and memory maintenance passes",
@@ -31175,9 +31207,9 @@
             },
             {
               "name": "Code Cathedral II code-context retrieval fixtures",
-              "status": "planned",
+              "status": "complete",
               "contract": "Learning-loop retrieval can consume code-context evidence with parent-scope and call-edge explanations without importing GBrain's TypeScript indexer",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -31228,7 +31260,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:f718c59 docs/designs/CODE_CATHEDRAL_II.md",
                 "note": "GBrain's Code Cathedral II is donor evidence for code-context retrieval, not a subsystem to embed."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {
@@ -31439,10 +31472,10 @@
           "items": [
             {
               "name": "SKILL.md metadata.when/loaded/placement schema",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "YAML frontmatter supports metadata.when (conditional activation), metadata.loaded (auto-load), metadata.placement (system/onscreen/admin); hierarchical routing",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -31477,7 +31510,8 @@
               ],
               "done_signal": [
                 "Metadata tests prove conditional activation, auto-load, placement, and routing"
-              ]
+              ],
+              "wired": true
             }
           ]
         },

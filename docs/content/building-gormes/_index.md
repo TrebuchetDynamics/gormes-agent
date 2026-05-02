@@ -121,7 +121,7 @@ Use the planning docs in this order:
 
 ## Reference groups
 
-**Planning:** [Implementation Roadmap](./implementation-roadmap/), [Must-Have Features](./must-have-features/), [Cross-Project Feature Map](./cross-project-feature-map/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Gormes Completion Plan](./architecture_plan/completion-plan/), [Fleet Operational Patterns](./fleet-operational-patterns/), [Fleet Integration Plan](./fleet-integration-plan/), [Agent-Zero Feature Analysis](./agent-zero-feature-analysis/).
+**Planning:** [Implementation Roadmap](./implementation-roadmap/), [Must-Have Features](./must-have-features/), [Cross-Project Feature Map](./cross-project-feature-map/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Gormes Completion Plan](./architecture_plan/completion-plan/), [Fleet Operational Patterns](./fleet-operational-patterns/), [Fleet Integration Plan](./fleet-integration-plan/), [Agent-Zero Feature Analysis](./agent-zero-feature-analysis/), [OpenClaw Platform Parity Audit](./openclaw-platform-parity-audit/).
 
 **Architecture:** [Architecture Plan](./architecture_plan/), [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Core Systems](./core-systems/), [What Hermes Gets Wrong](./what-hermes-gets-wrong/), [Upstream Lessons](./upstream-lessons/).
 
