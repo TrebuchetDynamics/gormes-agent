@@ -12,6 +12,8 @@ const (
 	SpinnerPulse   SpinnerKind = "pulse"
 	SpinnerBrain   SpinnerKind = "brain"
 	SpinnerSparkle SpinnerKind = "sparkle"
+	SpinnerEmoji   SpinnerKind = "emoji"
+	SpinnerKaomoji SpinnerKind = "kaomoji"
 )
 
 var spinnerFrames = map[SpinnerKind][]string{
@@ -24,6 +26,8 @@ var spinnerFrames = map[SpinnerKind][]string{
 	SpinnerPulse:   {"◜", "◠", "◝", "◞", "◡", "◟"},
 	SpinnerBrain:   {"🧠", "💭", "💡", "✨", "💫", "🌟", "💡", "💭"},
 	SpinnerSparkle: {"⁺", "˚", "*", "✧", "✦", "✧", "*", "˚"},
+	SpinnerEmoji:   {"⚕", "⚌", "🤔", "✨", "🍵", "🔮"},
+	SpinnerKaomoji: {"(｡•́︿•̀｡)", "(◕‿◕✿)", "(≧◡≦)", "٩(◕‿◕｡)۶", "(★ω★)"},
 }
 
 var kawaiiWaitingFaces = []string{

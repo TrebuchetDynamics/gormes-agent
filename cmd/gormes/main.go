@@ -556,7 +556,6 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		MouseTracking: cfg.TUI.MouseTracking,
 		SessionExport: newTUISaveExportFunc(),
 		OfflineSmoke:  offline,
-		Startup:       buildTUIStartupDashboard(cfg, modelName, providerName, registry),
 	})
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated

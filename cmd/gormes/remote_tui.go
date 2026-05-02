@@ -60,11 +60,6 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 
 	model := tui.NewModelWithOptions(frames, submit, cancelTurn, tui.Options{
 		MouseTracking: invocation.Config.TUI.MouseTracking,
-		Startup: buildRemoteTUIStartupDashboard(
-			invocation.Config,
-			invocation.Inference.Model,
-			firstNonEmpty(invocation.Inference.Provider, invocation.Config.Hermes.Provider),
-		),
 	})
 	programOptions := []tea.ProgramOption{tea.WithAltScreen()}
 	if invocation.Config.TUI.MouseTracking {
