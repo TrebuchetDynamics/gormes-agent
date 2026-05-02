@@ -3,6 +3,7 @@ package goncho
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -28,7 +29,7 @@ func (m *mockMemoryToolStore) Retrieve(ctx context.Context, query string, limit 
 	defer m.mu.Unlock()
 	var results []MemoryToolEntry
 	for _, e := range m.entries {
-		if query == "" || containsTag(e.Tags, query) {
+		if query == "" || containsTag(e.Tags, query) || containsMemoryContent(e.Content, query) {
 			results = append(results, e)
 			if len(results) >= limit {
 				break
@@ -64,6 +65,12 @@ func containsTag(tags []string, query string) bool {
 		}
 	}
 	return false
+}
+
+func containsMemoryContent(content string, query string) bool {
+	content = strings.ToLower(content)
+	query = strings.ToLower(query)
+	return strings.Contains(content, query) || strings.Contains(query, content)
 }
 
 func TestStoreMemory(t *testing.T) {

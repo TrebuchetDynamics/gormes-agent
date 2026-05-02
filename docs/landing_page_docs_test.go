@@ -111,7 +111,9 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 		`title: "Gormes Documentation"`,
 		"# Gormes",
 		"[Getting Started](getting-started/)",
-		"Go-native Hermes-compatible agent runtime",
+		"Go-native agent runtime",
+		"## What is Gormes?",
+		"Offline proof path",
 		"Roadmap & Parity",
 	}
 	for _, want := range wants {
