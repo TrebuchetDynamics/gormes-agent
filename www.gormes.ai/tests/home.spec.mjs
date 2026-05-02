@@ -30,7 +30,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Production-stable Go-native runtime, no Hermes process')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Install in one command. Verify everything works.' })).toBeVisible();
   await expect(page.getByText('One command to install')).toBeVisible();
-  await expect(page.locator('#install').getByText('curl -fsSL https://gormes.ai/install.sh | sh', { exact: true })).toBeVisible();
+  await expect(page.locator('#install').getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes --offline', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes doctor --offline', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes goncho doctor --json', { exact: true })).toBeVisible();
@@ -77,7 +77,7 @@ for (const vp of MOBILE_VIEWPORTS) {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'Run AI Agents as One Go Binary.' })).toBeVisible();
-  await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh', { exact: true })).toBeVisible();
+  await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh', { exact: true })).toBeVisible();
 
     const heroLayout = await page.evaluate(() => {
       const content = document.querySelector('.hero-content')?.getBoundingClientRect();

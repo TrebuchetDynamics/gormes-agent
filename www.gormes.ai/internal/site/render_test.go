@@ -44,7 +44,7 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Install in one command. Verify everything works.",
 		"One command to install",
 		"1. INSTALL",
-		"curl -fsSL https://gormes.ai/install.sh | sh",
+		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh",
 		"2. OFFLINE TUI",
 		"gormes --offline",
 		"3. LOCAL DOCTOR",

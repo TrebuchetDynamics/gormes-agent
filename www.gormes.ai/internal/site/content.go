@@ -167,9 +167,9 @@ func DefaultPage() LandingPage {
 		HeroFilterLine:  "Offline TUI, local doctor, provider-backed one-shots, and Goncho memory are ready today.",
 		PrimaryCTA:      Link{Label: "Install", Href: "#install"},
 		SecondaryCTA:    Link{Label: "View on GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
-		InstallIntro:    "One command to install. Review the script first, then run it.",
+		InstallIntro:    "One command to install from the public repo. Review the script first, then run it.",
 		InstallSteps: []InstallStep{
-			{Label: "1. INSTALL", Command: "curl -fsSL https://gormes.ai/install.sh | sh"},
+			{Label: "1. INSTALL", Command: "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh"},
 			{Label: "2. OFFLINE TUI", Command: "gormes --offline"},
 			{Label: "3. LOCAL DOCTOR", Command: "gormes doctor --offline"},
 			{Label: "4. MEMORY AUDIT", Command: "gormes goncho doctor --json"},
@@ -219,7 +219,7 @@ func DefaultPage() LandingPage {
 		},
 		DemoHeadline:     "See it work in 30 seconds",
 		DemoIntro:        "Build from source, run the offline TUI, and verify your local runtime before touching a model.",
-		DemoCommand:      "curl -fsSL https://gormes.ai/install.sh | sh\ngormes --offline\ngormes doctor --offline",
+		DemoCommand:      "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh\ngormes --offline\ngormes doctor --offline",
 		DemoCTA:          Link{Label: "Read the quickstart →", Href: "https://docs.gormes.ai/getting-started/quickstart/"},
 		BuiltForHeadline: "Built for operators who ship",
 		BuiltForItems: []string{
