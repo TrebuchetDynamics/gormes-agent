@@ -67,7 +67,7 @@ type Config struct {
 	ToolAudit audit.Recorder
 	// ToolSafety can deterministically deny interactive or approval-gated tool
 	// calls before registry lookup/execution.
-	ToolSafety ToolSafetyPolicy
+	ToolSafety    ToolSafetyPolicy
 	ContextEngine hermes.ContextEngine
 	Goncho        GonchoStore
 }
@@ -310,7 +310,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	})
 	_, err := k.store.Exec(storeCtx, store.Command{Kind: store.AppendUserTurn, Payload: userPayload})
 	storeCancel()
-			if err != nil {
+	if err != nil {
 		k.phase = PhaseFailed
 		k.lastError = fmt.Sprintf("store ack timeout: %v", err)
 		k.emitFrame(k.lastError)
@@ -638,7 +638,9 @@ toolLoop:
 		}
 		finalPayload, _ := json.Marshal(payload)
 		finalCtx, finalCancel := context.WithTimeout(ctx, StoreAckDeadline)
-		_, _ = k.store.Exec(finalCtx, store.Command{Kind: store.FinalizeAssistantTurn, Payload: finalPayload})
+		if _, err := k.store.Exec(finalCtx, store.Command{Kind: store.FinalizeAssistantTurn, Payload: finalPayload}); err != nil {
+			k.log.Warn("kernel: store exec FinalizeAssistantTurn failed", "err", err)
+		}
 		finalCancel()
 	}
 

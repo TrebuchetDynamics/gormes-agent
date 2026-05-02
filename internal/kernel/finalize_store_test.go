@@ -1,8 +1,11 @@
 package kernel
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -96,6 +99,51 @@ func TestKernel_FinalizeAssistantTurnReachesStore(t *testing.T) {
 	if !foundFinalize {
 		t.Errorf("no FinalizeAssistantTurn command captured; got kinds = %v", kindStrings(cmds))
 	}
+}
+
+func TestKernel_FinalizeAssistantTurnStoreErrorLogged(t *testing.T) {
+	rec := &finalizeFailStore{RecordingStore: store.NewRecording()}
+	mc := hermes.NewMockClient()
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "stored later", TokensOut: 1},
+		{Kind: hermes.EventDone, FinishReason: "stop"},
+	}, "sess-finalize-error")
+
+	var logs bytes.Buffer
+	k := New(Config{
+		Model:     "hermes-agent",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+	}, mc, rec, telemetry.New(), slog.New(slog.NewTextHandler(&logs, nil)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "hi"}); err != nil {
+		t.Fatal(err)
+	}
+
+	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && f.SessionID != ""
+	}, 3*time.Second)
+
+	got := logs.String()
+	if !strings.Contains(got, "FinalizeAssistantTurn failed") {
+		t.Fatalf("finalize store error log = %q, want operator-visible finalize failure evidence", got)
+	}
+}
+
+type finalizeFailStore struct {
+	*store.RecordingStore
+}
+
+func (s *finalizeFailStore) Exec(ctx context.Context, cmd store.Command) (store.Ack, error) {
+	if cmd.Kind == store.FinalizeAssistantTurn {
+		return store.Ack{}, errors.New("finalize store down")
+	}
+	return s.RecordingStore.Exec(ctx, cmd)
 }
 
 func kindStrings(cmds []store.Command) []string {

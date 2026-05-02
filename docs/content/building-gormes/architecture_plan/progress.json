@@ -23332,6 +23332,365 @@
               "wired": true
             },
             {
+              "name": "OpenClaw SecretRef core resolver",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Port OpenClaw's additive SecretRef core into Gormes config: support typed {source,provider,id} refs, implicit default env provider, configured file providers, strict validation, fail-closed missing secret behavior, and redacted resolution evidence without logging secret values.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unsupported exec refs, missing env values, unconfigured providers, insecure file paths, invalid ids, unreadable files, and non-string file values return redacted SecretRef evidence instead of falling back to plaintext or continuing silently.",
+              "fixture": "internal/config/secretref_test.go",
+              "source_refs": [
+                "../openclaw/docs/gateway/secrets.md",
+                "../openclaw/src/config/types.secrets.ts",
+                "../openclaw/src/secrets/ref-contract.ts",
+                "../openclaw/src/secrets/resolve.ts",
+                "internal/config/secretref.go"
+              ],
+              "ready_when": [
+                "Gormes config package can add a provider-neutral resolver without changing live provider startup paths.",
+                "OpenClaw SecretRef env/file validation rules are available as source evidence."
+              ],
+              "not_ready_when": [
+                "The slice tries to implement exec providers before command-side-effect policy exists.",
+                "The slice resolves SecretRefs lazily from hot request paths instead of through explicit resolver calls."
+              ],
+              "unblocks": [
+                "SecretRef runtime snapshot activation",
+                "OpenClaw security audit --deep --fix"
+              ],
+              "acceptance": [
+                "Env refs validate provider alias/id shape and resolve through the implicit default env provider.",
+                "Missing or empty env refs fail closed with redacted evidence and do not leak unrelated secret values.",
+                "File refs validate absolute JSON-pointer ids, reject relative/insecure provider paths by default, and resolve string values from JSON payloads.",
+                "TOML config loads [secrets.defaults] and [secrets.providers.<name>] without storing raw provider secret values."
+              ],
+              "write_scope": [
+                "internal/config/secretref.go",
+                "internal/config/secretref_test.go",
+                "internal/config/config.go",
+                "internal/config/writer.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run TestSecretRef -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "note": "Validated 2026-05-02: Gormes now has a generic SecretRef resolver for env/file providers with OpenClaw-compatible validation shape, redacted evidence codes, fail-closed missing/insecure behavior, JSON pointer file reads, and TOML provider config loading. Exec providers and runtime activation snapshots remain separate P0 rows.",
+              "done_signal": [
+                "SecretRef env/file resolver tests pass and progress records follow-up runtime activation instead of claiming full OpenClaw secrets parity."
+              ],
+              "wired": true
+            },
+            {
+              "name": "SecretRef runtime snapshot activation",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Wire Gormes SecretRefs into startup/reload activation: resolve only effectively active credential surfaces into an in-memory runtime snapshot, fail fast on active unresolved refs, keep last-known-good snapshot on reload failure, and ensure gateway/provider/channel hot paths never re-resolve SecretRefs per request.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Inactive SecretRefs report ignored-inactive-surface diagnostics; active unresolved refs block activation with redacted evidence and do not fall back to stale plaintext config.",
+              "fixture": "internal/config/secretref_runtime_test.go",
+              "source_refs": [
+                "../openclaw/docs/gateway/secrets.md",
+                "../openclaw/src/secrets/runtime.ts",
+                "../openclaw/src/secrets/runtime-gateway-auth-surfaces.ts",
+                "internal/config/secretref.go",
+                "cmd/gormes/gateway.go"
+              ],
+              "ready_when": [
+                "OpenClaw SecretRef core resolver is validated.",
+                "Builder can identify the first active surfaces to wire: provider api_key plus Telegram/Discord/Slack gateway credentials."
+              ],
+              "not_ready_when": [
+                "The slice attempts to support every OpenClaw SecretRef surface in one pass.",
+                "The slice resolves secrets from every send/request path instead of startup/reload activation."
+              ],
+              "blocked_by": [
+                "OpenClaw SecretRef core resolver"
+              ],
+              "acceptance": [
+                "Provider and selected channel credentials can be configured as SecretRefs and resolved into a redacted runtime snapshot before startup.",
+                "Active unresolved SecretRefs fail startup/reload before swapping runtime state.",
+                "Inactive configured SecretRefs do not block startup but appear in diagnostics.",
+                "Operator-visible status uses configured/resolved/unavailable states without printing secret values."
+              ],
+              "write_scope": [
+                "internal/config/",
+                "internal/runtime/",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/doctor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config ./internal/runtime ./cmd/gormes -run 'SecretRef.*Runtime|Gateway.*SecretRef|Doctor.*SecretRef' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway/provider startup fixtures prove active SecretRefs resolve eagerly, inactive refs degrade visibly, and status/doctor never leak secret values."
+              ]
+            },
+            {
+              "name": "OpenClaw security audit --deep --fix",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Port the operator-facing OpenClaw security audit command surface into Gormes: `gormes security audit` and `gormes security audit --deep --fix` inspect config, SecretRefs, filesystem permissions, gateway exposure/auth, tool sandbox/blocklist policy, plugin trust, and channel credentials, then apply only safe deterministic fixes with exact finding counts.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Deep probes that require unavailable SecretRefs, live gateway access, or exec providers degrade to explicit findings instead of skipping silently or logging secrets.",
+              "fixture": "internal/doctor/security_audit_test.go",
+              "source_refs": [
+                "../openclaw/src/cli/security-cli.ts",
+                "../openclaw/src/security/audit.ts",
+                "../openclaw/src/security/fix.ts",
+                "../openclaw/docs/gateway/security/audit-checks.md",
+                "internal/tools/permissions.go",
+                "internal/config/secretref.go"
+              ],
+              "ready_when": [
+                "SecretRef core resolver exists so audit can identify configured/unavailable refs without resolving unsupported exec providers.",
+                "Shell blocklist, filesystem scoping, and loop detector rows remain validated."
+              ],
+              "not_ready_when": [
+                "The slice performs network probes in unit tests.",
+                "The fix path mutates config without previewable finding IDs and before/after evidence."
+              ],
+              "blocked_by": [
+                "OpenClaw SecretRef core resolver"
+              ],
+              "acceptance": [
+                "Audit output includes exact pass/warn/fail/fixed counts derived from real checks.",
+                "Deep mode reports SecretRef availability, gateway auth/exposure, filesystem permissions, loop detector, shell blocklist, and sandbox/tool scope checks.",
+                "--fix applies only safe local remediations such as permissions/config normalization and reports unfixed manual actions.",
+                "All findings redact tokens, API keys, file contents, and provider secret values."
+              ],
+              "write_scope": [
+                "cmd/gormes/security.go",
+                "internal/doctor/security_audit.go",
+                "internal/doctor/security_audit_test.go",
+                "internal/config/",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor ./cmd/gormes -run 'SecurityAudit|SecurityFix' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes security audit --deep --fix ships with fixture-backed findings, counts, redaction, and safe-fix boundaries."
+              ]
+            },
+            {
+              "name": "ACP bridge client compatibility",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Close the OpenClaw ACP bridge gap by adding Gormes client-side ACP connection/proxy behavior in addition to the existing server-facing package, with status/doctor evidence for connected, unavailable, and unsupported remote ACP endpoints.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "Unavailable ACP endpoints report acp_bridge_unavailable with endpoint and auth source redacted; local Gormes operation continues without pretending ACP is connected.",
+              "fixture": "internal/acp/bridge_test.go",
+              "source_refs": [
+                "../openclaw/src/acp/",
+                "internal/acp/",
+                "cmd/gormes/"
+              ],
+              "ready_when": [
+                "Current internal/acp server stubs are audited so the row can distinguish server support from outbound bridge/client support."
+              ],
+              "not_ready_when": [
+                "The slice claims ACP parity from package existence without a client/proxy fixture."
+              ],
+              "acceptance": [
+                "Gormes can configure an outbound ACP endpoint and report connection status.",
+                "Bridge requests are covered by hermetic fake endpoint tests.",
+                "Doctor/status distinguishes server-only support from client bridge support."
+              ],
+              "write_scope": [
+                "internal/acp/",
+                "cmd/gormes/acp.go",
+                "cmd/gormes/doctor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/acp ./cmd/gormes -run 'ACP.*Bridge|ACP.*Status' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "ACP bridge fixtures prove outbound client/proxy behavior or explicitly degraded status."
+              ]
+            },
+            {
+              "name": "Gateway discover/probe command",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Add OpenClaw-style gateway discovery/probe commands for Gormes operators: discover local/remote gateway endpoints, probe auth/health/capabilities, and return redacted structured evidence for unavailable, unauthenticated, and mismatched gateways.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "Probe failures show endpoint, status code, and auth source classification without leaking bearer tokens or gateway passwords.",
+              "fixture": "cmd/gormes/gateway_discover_test.go",
+              "source_refs": [
+                "../openclaw/src/cli/gateway-secret-options.ts",
+                "../openclaw/src/security/audit-gateway-auth-selection.test.ts",
+                "cmd/gormes/gateway.go",
+                "internal/apiserver/server.go"
+              ],
+              "ready_when": [
+                "Gateway status and doctor endpoints are stable enough to probe without live network dependencies in tests."
+              ],
+              "not_ready_when": [
+                "The slice requires a live Telegram or Discord gateway to pass tests."
+              ],
+              "acceptance": [
+                "gormes gateway discover reports candidate local endpoints and active PID/status evidence.",
+                "gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, and malformed response.",
+                "Output redacts tokens/passwords and includes exact probe counts."
+              ],
+              "write_scope": [
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_discover.go",
+                "cmd/gormes/gateway_discover_test.go",
+                "internal/apiserver/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Discover|Gateway.*Probe' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway discover/probe gives operators redacted connection evidence without reading source code."
+              ]
+            },
+            {
+              "name": "OpenClaw system events and heartbeat bus",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Track OpenClaw-style system events, heartbeat state, and presence readouts so operators can see gateway/runtime liveness and event history from Gormes without reading logs.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing event store, disabled heartbeat, or unavailable presence source reports explicit system_event_unavailable evidence instead of silently omitting health state.",
+              "fixture": "internal/gateway/system_events_test.go",
+              "source_refs": [
+                "../openclaw/src/system/",
+                "cmd/gormes/status.go",
+                "internal/gateway/manager.go"
+              ],
+              "ready_when": [
+                "Session health monitoring and runtime status stores can provide heartbeat/presence inputs."
+              ],
+              "not_ready_when": [
+                "The slice introduces a second long-running daemon instead of using existing runtime/gateway state."
+              ],
+              "acceptance": [
+                "Gormes records operator-visible system events with timestamps and redacted metadata.",
+                "Status/doctor surfaces heartbeat freshness and component presence.",
+                "Unavailable event storage degrades with typed evidence."
+              ],
+              "write_scope": [
+                "internal/gateway/",
+                "internal/runtime/",
+                "cmd/gormes/status.go",
+                "cmd/gormes/doctor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/runtime ./cmd/gormes -run 'SystemEvent|Heartbeat|Presence' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "System event and heartbeat fixtures prove visible runtime liveness evidence."
+              ]
+            },
+            {
+              "name": "Safety-critical panic and swallowed-error closeout",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Close the safety code-quality gaps called out by source audit: remove or contain MustRegister panics from runtime/library paths, surface kernel FinalizeAssistantTurn store failures as structured evidence, and replace silent gateway typing-action panic recovery with redacted diagnostics.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Registration collisions, finalize store errors, and typing-action sink panics become visible non-secret evidence without crashing the gateway or silently losing state.",
+              "fixture": "internal/kernel/finalize_store_test.go",
+              "source_refs": [
+                "internal/tools/tool.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/finalize_store_test.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/typing_action_test.go",
+                "internal/gateway/auto_title_wiring.go",
+                "internal/gateway/auto_title_wiring_test.go",
+                "internal/gateway/manager.go"
+              ],
+              "ready_when": [
+                "Builder splits the row into one red-green behavior at a time if the touched packages are too broad for one commit."
+              ],
+              "not_ready_when": [
+                "The implementation hides panics/errors behind logging only or weakens existing tests that expect main-time MustRegister convenience."
+              ],
+              "acceptance": [
+                "Runtime registration paths can return errors instead of panicking while main-time/test convenience still has explicit MustRegister behavior.",
+                "Kernel finalization store errors are observable in frame/status/audit evidence.",
+                "Gateway typing-action panic recovery records redacted evidence and is covered by a panic-injecting test."
+              ],
+              "note": "Partial 2026-05-02: kernel FinalizeAssistantTurn store errors now warn with focused test coverage, typing-action evidence sink panics log typed evidence, and auto-title auxiliary sink panics log typed evidence. MustRegister runtime/library panic retirement remains open, and finalize errors still need stronger frame/status/audit evidence before this row can close.",
+              "write_scope": [
+                "internal/tools/tool.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/finalize_store_test.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/typing_action_test.go",
+                "internal/gateway/auto_title_wiring.go",
+                "internal/gateway/auto_title_wiring_test.go",
+                "internal/gateway/manager.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run TestKernel_FinalizeAssistantTurnStoreErrorLogged -count=1",
+                "go test ./internal/gateway -run 'TestTypingAction_EvidenceSinkPanicLogged|TestAutoTitleWiring_AuxiliarySinkPanicLogged' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Safety-critical panic/error paths are fixture-backed and operator-visible."
+              ]
+            },
+            {
               "name": "Session Health Monitoring",
               "status": "complete",
               "priority": "P0",

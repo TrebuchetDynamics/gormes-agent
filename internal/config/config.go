@@ -39,6 +39,7 @@ type Config struct {
 	Web        WebCfg        `toml:"web" yaml:"web"`
 	Browser    BrowserCfg    `toml:"browser" yaml:"browser"`
 	Security   SecurityCfg   `toml:"security" yaml:"security"`
+	Secrets    SecretsCfg    `toml:"secrets" yaml:"secrets"`
 	Cron       CronCfg       `toml:"cron" yaml:"cron"`
 	Skills     SkillsCfg     `toml:"skills" yaml:"skills"`
 	Delegation DelegationCfg `toml:"delegation" yaml:"delegation"`
@@ -460,6 +461,9 @@ func defaults() Config {
 			WebsiteBlocklist: WebsiteBlocklistCfg{
 				BaseDir: GormesHome(),
 			},
+		},
+		Secrets: SecretsCfg{
+			Defaults: SecretProviderDefaults{Env: DefaultSecretProviderAlias},
 		},
 		Cron: CronCfg{
 			Enabled:        false,
