@@ -126,16 +126,20 @@ func TestMultiAgentIsolation_UsesIndependentRuntimePerRoutedSession(t *testing.T
 	ctx := context.Background()
 	tg := newFakeChannel("telegram")
 	base := &fakeKernel{}
+	mainAgentDir := t.TempDir()
+	alertsAgentDir := t.TempDir()
 
 	var mu sync.Mutex
 	factoryCalls := []string{}
 	runtimes := map[string]*fakeKernel{}
+	requests := map[string]AgentRuntimeRequest{}
 	factory := func(_ context.Context, req AgentRuntimeRequest) (KernelSubmitter, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		fk := &fakeKernel{}
 		factoryCalls = append(factoryCalls, req.SessionKey)
 		runtimes[req.SessionKey] = fk
+		requests[req.SessionKey] = req
 		return fk, nil
 	}
 	runtimeFor := func(key string) *fakeKernel {
@@ -148,6 +152,11 @@ func TestMultiAgentIsolation_UsesIndependentRuntimePerRoutedSession(t *testing.T
 		defer mu.Unlock()
 		return len(factoryCalls)
 	}
+	requestFor := func(key string) AgentRuntimeRequest {
+		mu.Lock()
+		defer mu.Unlock()
+		return requests[key]
+	}
 
 	m := NewManagerWithSubmitter(ManagerConfig{
 		AllowedChats: map[string]string{"telegram": "42"},
@@ -155,8 +164,8 @@ func TestMultiAgentIsolation_UsesIndependentRuntimePerRoutedSession(t *testing.T
 		AgentRouting: AgentRoutingConfig{
 			Enabled: true,
 			Agents: config.AgentsCfg{List: []config.AgentCfg{
-				{ID: "main", Default: true},
-				{ID: "alerts"},
+				{ID: "main", AgentDir: mainAgentDir, Default: true, Model: "gpt-main"},
+				{ID: "alerts", AgentDir: alertsAgentDir, Model: "gpt-alerts"},
 			}},
 			Bindings: []config.AgentBindingCfg{
 				{AgentID: "alerts", Match: config.AgentBindingMatchCfg{Channel: "telegram", AccountID: "alerts"}},
@@ -206,6 +215,17 @@ func TestMultiAgentIsolation_UsesIndependentRuntimePerRoutedSession(t *testing.T
 	}
 	if got := len(base.submitsSnapshot()); got != 0 {
 		t.Fatalf("base singleton kernel received %d submits, want factory runtimes only", got)
+	}
+	alertsReq := requestFor("agent:alerts:telegram:42")
+	if alertsReq.AuthHome != alertsAgentDir || alertsReq.AuthStore != filepath.Join(alertsAgentDir, "auth.json") {
+		t.Fatalf("alerts auth snapshot = home %q store %q, want agent dir auth.json", alertsReq.AuthHome, alertsReq.AuthStore)
+	}
+	if alertsReq.Model != "gpt-alerts" {
+		t.Fatalf("alerts model snapshot = %q, want gpt-alerts", alertsReq.Model)
+	}
+	mainReq := requestFor("agent:main:telegram:42")
+	if mainReq.AuthHome != mainAgentDir || mainReq.Model != "gpt-main" {
+		t.Fatalf("main runtime snapshot = auth %q model %q, want main agent dir/model", mainReq.AuthHome, mainReq.Model)
 	}
 }
 
