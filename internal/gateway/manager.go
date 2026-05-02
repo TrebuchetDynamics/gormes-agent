@@ -2325,7 +2325,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 			m.clearTurn()
 			configHint := gormesHomeHint()
 			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf(
-				"Agent `%s` is unavailable (agent_runtime_unavailable).\n\nCheck your provider config in %s/config.toml → [hermes] endpoint + api_key.",
+				"Agent `%s` is unavailable (agent_runtime_unavailable).\n\nRun: gormes setup provider\nOr edit: %s/config.toml → [hermes] endpoint + api_key.",
 				route.Decision.AgentID, configHint))
 			return false
 		}
