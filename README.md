@@ -6,11 +6,11 @@
 
 Your agents shouldn't crash because of a broken Python environment.
 
-Run AI agents as a single static binary: no Python, no environment drift, no running Hermes backend.
+Build Gormes as one Go binary: no Python runtime, no virtualenv repair, and no running Hermes backend.
 
 Gormes is built for agents that need to stay running across restarts, machines, and flaky networks. It gives you a local terminal UI, offline diagnostics, provider-backed turns, and configured gateway channels from one Go-native runtime.
 
-**Status: early-stage.** The TUI, offline doctor, and provider-backed one-shots work today; the full agent runtime is still in progress.
+**Status: early-stage.** The native TUI, offline doctor, provider-backed one-shots, Go-native tool registry, dashboard, and configured Telegram/Discord/Slack gateway paths have implementation and test coverage. Full Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening are still in progress.
 
 ![Gormes native TUI running offline](docs/assets/gormes-tui-demo.gif)
 
@@ -26,7 +26,7 @@ The offline TUI starts without credentials, provider calls, Python, Node, Docker
 
 ## TL;DR
 
-- One static Go binary runs the TUI, diagnostics, provider turns, and configured gateways.
+- The release build path produces one Go binary for the TUI, diagnostics, provider turns, and configured gateways.
 - `./bin/gormes --offline` proves the runtime works before credentials, network calls, or token spend.
 
 ---
@@ -78,9 +78,9 @@ Python-stack agents are powerful, but production operation is fragile. Gormes mo
 
 | Feature | Python-stack agents | Gormes-Agent (Go) |
 |---|---|---|
-| **Deployment** | Virtualenvs, Docker, Nix | **Single static binary** |
+| **Deployment** | Virtualenvs, Docker, Nix | **One Go binary from `make build`** |
 | **Stability** | Runtime drift across hosts | **Immutable Go artifact** |
-| **Recovery** | Dropped streams kill turns | **Route-B reconnect** |
+| **Recovery** | Dropped streams kill turns | **Typed retry/cancel evidence, still hardening** |
 | **Memory** | Redis, vector DBs, sidecars | **In-binary Goncho SQLite** |
 | **Diagnostics** | Crosses Node/Python/OS bounds | **Built-in `gormes doctor`** |
 
@@ -93,14 +93,13 @@ It also means memory can stay boring and local. Goncho keeps session history, pe
 - Run a local agent UI without installing Python, Node, or Docker at runtime.
 - Send one-shot prompts to any provider-compatible endpoint from one binary.
 - Validate your runtime before spending tokens with `./bin/gormes doctor --offline`.
-- Operate Telegram, Discord, or Slack agents through one gateway runtime.
+- Run Telegram and Discord gateway adapters when configured; Slack is available when bot/app tokens are configured.
 - Browse sessions, config, skills, and logs via the htmx web dashboard (`gormes dashboard`).
 - Develop and debug Goncho memory entirely offline with `./bin/gormes goncho doctor`.
-- **Cross-session memory**: Goncho persists conversation history and durable user context.
-- **9 web backends** with auto-routing: Firecrawl → Tavily → Exa → CDP → DuckDuckGo (free).
-- **Busy input modes**: interrupt, queue, or steer — with `/busy` slash command.
-- **TTS**: configure engine, voice, and speed via `/tts` (OpenAI, ElevenLabs, Edge).
-- **Auto skill extraction**: the agent creates SKILL.md files from conversations.
+- Persist session history and durable user context in local Goncho SQLite.
+- Use web tools with DuckDuckGo search/extract by default; configured backends include Firecrawl, Parallel, Tavily, Exa, Brave, SearXNG, Perplexity, and CDP extraction.
+- Control gateway busy behavior with `/busy interrupt`, `/busy queue`, or `/busy steer`.
+- Manage skills with `skills_list`, `skill_view`, and `skill_manage`; automatic skill extraction/curation is not a default production promise yet.
 
 ## Example: Run A One-Shot Turn
 
@@ -123,7 +122,7 @@ Then run one prompt:
 Example output:
 
 ```text
-Gormes runs AI agents as a single static Go runtime with no Python backend.
+Gormes runs AI agents from one Go runtime with no Python backend.
 ```
 
 Use `./bin/gormes` without `--oneshot` to open the TUI against the same configured runtime. If your provider needs an explicit route, pass `--provider <name>` with an explicit `--model <model>`.
@@ -134,24 +133,26 @@ What works today:
 
 - Native CLI, Bubble Tea TUI, offline smoke test, and doctor diagnostics.
 - Provider-compatible one-shots and TUI startup paths.
-- Configured Telegram, Discord, and Slack gateway runtime.
-- Isolated subagents with durable job metadata.
-- Goncho memory with cross-session persistence (conversation history + durable context).
+- Configured Telegram and Discord gateway runtime; Slack starts only with complete Slack bot/app credentials.
+- Delegation/subagent execution through `delegate_task` when `[delegation].enabled` is set.
+- Goncho memory with local session persistence and durable context storage.
 - HTMX web dashboard: sessions, config, skills, logs pages.
-- 9 web backends with auto-routing (Firecrawl → DuckDuckGo, free CDP extraction).
-- Busy input modes (interrupt/queue/steer) with 30s debounce and `/busy` command.
-- TTS configuration via `/tts` (engine, voice, speed) for OpenAI/ElevenLabs/Edge.
-- Auto skill extraction: `skill_manage` tool creates portable SKILL.md from conversations.
+- Web tools with DuckDuckGo default search/extract, API-backed search/extract/crawl where supported, and CDP extract when Chrome remote debugging is configured.
+- Gateway busy input modes (interrupt/queue/steer) with `/busy`; direct `/queue` remains recognized but unavailable as its own command.
+- TTS tool contracts and gateway `/tts` state commands; full voice/TTS/transcription parity remains a Phase 5 work item.
+- Skill read/write tools: `skills_list`, `skill_view`, and `skill_manage` create or update portable `SKILL.md` files.
 - Progress-driven docs generated from the canonical architecture plan.
 
 Current limits:
 
 - Early-stage scout release, not production-stable.
 - Brain/provider runtime is active but not fully hardened.
-- Gateway coverage is partial across all planned channels; Signal, Matrix pending.
-- WhatsApp, WeChat, and the longer connector backlog are tracked in progress docs.
+- Gateway coverage is partial across all planned channels; many adapters under `internal/channels/*` are contract seams or tests, not live configured runtime paths.
+- WhatsApp, WeChat/WeCom, Yuanbao, Signal, Matrix, and the longer connector backlog are tracked in progress docs unless their operator docs say otherwise.
 - Stable tagged releases and changelog discipline are still pending.
 - TUI visual fidelity: 10+ components still in progress (AgentsOverlay, SkillsHub, etc.).
+- Delegation is disabled by default and must be enabled in config before `delegate_task` is registered.
+- `text_to_speech` is registered as a tool surface, but production provider wiring is still limited and should not be advertised as full OpenAI/ElevenLabs/Edge parity.
 - Some docs still preserve Hermes/Honcho naming where compatibility or lineage matters.
 
 ---
@@ -198,7 +199,7 @@ Pre-compiled binaries are not the primary trust path yet. The release target is 
 
 Gateway setup details stay in the docs. The README-level operator contract is:
 
-- `./bin/gormes gateway` runs configured Telegram, Discord, and Slack channels through the same kernel/tool loop as the TUI.
+- `./bin/gormes gateway` runs configured Telegram and Discord channels, plus Slack when complete Slack credentials are present, through the same kernel/tool loop as the TUI.
 - `./bin/gormes gateway status` reads configured channel state without starting channel clients.
 - `./bin/gormes doctor --offline` reports gateway readiness alongside local tools, provider configuration, and Goncho diagnostics.
 
@@ -207,7 +208,7 @@ Gateway setup details stay in the docs. The README-level operator contract is:
 | **Start chatting** | `./bin/gormes` | Send a message to the paired bot |
 | **Run offline diagnostics** | `./bin/gormes doctor --offline` | CLI only |
 | **Inspect Goncho memory** | `./bin/gormes goncho doctor --json` | Planned |
-| **Persist subagent jobs** | Native execution | Routed through gateway |
+| **Delegated subagent jobs** | Config-gated via `[delegation].enabled` | Config-gated through the same tool registry |
 
 Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-systems/gateway/).
 
@@ -215,10 +216,10 @@ Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-sys
 
 ## Auditability & Security
 
-Gormes is designed for high-trust environments. Auditability comes from source-first builds, zero-CGO static binaries, local-first SQLite memory, and built-in diagnostic tooling.
+Gormes is designed for high-trust environments. Auditability comes from source-first builds, local-first SQLite memory, and built-in diagnostic tooling.
 
 - Source build is the recommended install path. Convenience installers remain inspect-first from GitHub raw URLs rather than `curl | sh` or `irm | iex`.
-- The current build is ~22.0 MB, stripped, static, zero-CGO, and has no hidden shared library dependency.
+- `make build` uses `CGO_ENABLED=0`, `-trimpath`, and stripped linker flags; the recorded release-path benchmark is ~22.0 MB. Plain `go build` is a development path, not the release-size proof.
 - `./bin/gormes doctor --offline` reports local TUI, built-in tools, Goncho, gateway, Slack, and provider-endpoint readiness without contacting a model provider.
 - Network calls go to configured provider or gateway endpoints; offline diagnostics do not contact a model provider.
 - The runtime is a local binary and does not act as a self-updating dropper.
