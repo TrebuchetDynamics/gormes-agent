@@ -37,7 +37,6 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Offline TUI, doctor --offline, provider one-shots, Goncho memory, dashboard, and configured Telegram/Discord/Slack gateway paths have implementation and tests.",
 		// Top nav links to docs, build state, and source.
 		`<a href="https://docs.gormes.ai/">Docs</a>`,
-		`<a href="#install">Install</a>`,
 		`<a href="#roadmap">Roadmap</a>`,
 		`<a href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>`,
 		// Install — source-first build, then verify with offline TUI and doctor.

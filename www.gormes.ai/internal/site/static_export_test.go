@@ -33,7 +33,6 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		`class="hero-note-body"`,
 		// Top nav keeps docs, build state, and source visible.
 		`<a href="https://docs.gormes.ai/">Docs</a>`,
-		`<a href="#install">Install</a>`,
 		`<a href="#roadmap">Roadmap</a>`,
 		`<a href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>`,
 		"Build from source. Prove it offline.",

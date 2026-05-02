@@ -154,7 +154,6 @@ func DefaultPage() LandingPage {
 		Description: "Gormes runs the TUI, doctor, provider turns, memory, dashboard, and configured gateways from one Go-native binary. No Python runtime, virtualenv repair, or running Hermes backend on the offline path.",
 		Nav: []NavLink{
 			{Label: "Docs", Href: "https://docs.gormes.ai/"},
-			{Label: "Install", Href: "#install"},
 			{Label: "Roadmap", Href: "#roadmap"},
 			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		},
