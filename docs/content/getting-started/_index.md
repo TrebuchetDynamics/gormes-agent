@@ -19,6 +19,6 @@ The conservative path is to verify the local runtime before adding model or chan
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
 make build
-./bin/gormes doctor --offline
-./bin/gormes --offline
+gormes doctor --offline
+gormes --offline
 ```

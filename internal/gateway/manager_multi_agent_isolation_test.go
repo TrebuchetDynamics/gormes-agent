@@ -265,8 +265,8 @@ func TestMultiAgentIsolation_RuntimeFactoryFailureReportsRedactedEvidence(t *tes
 		Kind: EventSubmit, Text: "alerts please",
 	})
 	waitFor(t, 200*time.Millisecond, func() bool { return len(tg.sentSnapshot()) == 1 })
-	if got := tg.sentSnapshot()[0].Text; !strings.Contains(got, "agent_runtime_unavailable") || strings.Contains(got, "/tmp/private") {
-		t.Fatalf("gateway failure message = %q, want redacted agent_runtime_unavailable", got)
+	if got := tg.sentSnapshot()[0].Text; !strings.Contains(got, "No provider configured") || strings.Contains(got, "/tmp/private") {
+		t.Fatalf("gateway message = %q, want helpful config guidance without path leak", got)
 	}
 	if got := len(fk.submitsSnapshot()); got != 0 {
 		t.Fatalf("kernel submits = %d, want blocked before submit", got)

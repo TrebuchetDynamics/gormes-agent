@@ -6,6 +6,7 @@
 #   less install.sh
 #   sh install.sh
 #   sh install.sh --branch main
+#   sh install.sh --uninstall
 #
 # Environment overrides:
 #   GORMES_BRANCH        target branch (default: main)
@@ -33,6 +34,8 @@ BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.25.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
 DRY_RUN=0
+UNINSTALL=0
+UNINSTALL_ARGS=""
 LOCAL_SOURCE_DIR=""
 INSTALL_LOCK_DIR=""
 OLD_BUILD_TAG=""
@@ -52,6 +55,7 @@ Usage:
   install.sh [--branch NAME] [--home DIR] [--dir DIR] [--bin-dir DIR]
   install.sh --local [--bin-dir DIR]
   install.sh --dry-run
+  install.sh --uninstall [gormes uninstall flags]
 
 Options:
   --branch NAME  Git branch to install or update (default: main)
@@ -66,6 +70,10 @@ Options:
                  managed source checkout
   --dry-run      Print the resolved plan without cloning, building, publishing,
                  or restarting the gateway
+  --uninstall    Delegate to an existing "gormes uninstall" command and exit.
+                 Flags after --uninstall are passed through, for example:
+                 install.sh --uninstall --dry-run
+                 install.sh --uninstall --dry-run=false --yes
   --restart-gateway auto|always|never
                  Restart a live gateway after update (default: auto)
   --no-restart   Alias for --restart-gateway never
@@ -194,6 +202,35 @@ active_command_path() {
     /*|*/*) printf '%s\n' "$found" ;;
     *) printf '\n' ;;
   esac
+}
+
+uninstall_command_path() {
+  published="$(pick_bin_dir)/gormes"
+  if [ -x "$published" ]; then
+    printf '%s\n' "$published"
+    return
+  fi
+
+  active=$(active_command_path)
+  if [ -n "$active" ] && [ -x "$active" ]; then
+    printf '%s\n' "$active"
+    return
+  fi
+
+  managed="$(managed_bin_dir)/gormes"
+  if [ -x "$managed" ]; then
+    printf '%s\n' "$managed"
+    return
+  fi
+
+  return 1
+}
+
+run_uninstall() {
+  uninstall_bin=$(uninstall_command_path 2>/dev/null || true)
+  [ -n "$uninstall_bin" ] || fail "could not find an installed gormes command; rerun with --bin-dir or put gormes on PATH"
+  log "running ${uninstall_bin} uninstall"
+  "$uninstall_bin" uninstall "$@"
 }
 
 readlink_f() {
@@ -364,6 +401,15 @@ parse_args() {
       --dry-run)
         DRY_RUN=1
         shift
+        ;;
+      --uninstall)
+        UNINSTALL=1
+        shift
+        if [ "${1:-}" = "--" ]; then
+          shift
+        fi
+        UNINSTALL_ARGS="$*"
+        break
         ;;
       --restart-gateway)
         [ "$#" -ge 2 ] || fail "--restart-gateway requires auto, always, or never"
@@ -1221,6 +1267,11 @@ release_install_lock() {
 
 main() {
   parse_args "$@"
+  if [ "$UNINSTALL" -eq 1 ]; then
+    # shellcheck disable=SC2086
+    run_uninstall $UNINSTALL_ARGS
+    return
+  fi
   if [ "$DRY_RUN" -eq 1 ]; then
     print_dry_run
     return

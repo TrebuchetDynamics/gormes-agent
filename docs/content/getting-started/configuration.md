@@ -1,36 +1,111 @@
 ---
 title: "Configuration"
-description: "Understand GORMES_HOME, config.toml, dotenv secrets, and local state."
+description: "GORMES_HOME, config.toml, setup wizard, credential pool, dotenv secrets, and multi-agent config."
 weight: 30
 ---
 
 # Configuration
 
-Gormes uses a native home directory. `GORMES_HOME` wins; otherwise Gormes defaults to `~/.gormes`.
+Gormes uses `GORMES_HOME` (default `~/.gormes`). All state lives there.
+
+## Quick Setup (Recommended)
 
 ```bash
-gormes config path
-gormes config env-path
-gormes config show
-gormes config check
+gormes setup provider       # interactive wizard — no file editing needed
+gormes setup model          # pick your default model
+gormes onboard              # see what's configured
 ```
 
-Default paths:
+## Config Commands
+
+```bash
+gormes config path          # where is config.toml?
+gormes config env-path      # where is .env?
+gormes config show          # current config (secrets redacted)
+gormes config check         # validate schema
+gormes config edit          # open in $EDITOR
+gormes config set <k> <v>   # set a value
+```
+
+## Default Paths
 
 | Item | Default |
 |---|---|
 | Config | `~/.gormes/config.toml` |
-| Secrets dotenv | `~/.gormes/.env` |
+| Secrets | `~/.gormes/.env` |
+| Credential pool | `~/.gormes/auth.json` |
 | Sessions DB | `~/.gormes/sessions.db` |
 | Memory DB | `~/.gormes/memory.db` |
-| Log | `~/.gormes/gormes.log` |
+| Gateway log | `~/.gormes/gateway.log` |
 
-Use `gormes config set` for supported keys. Secret-like keys are routed to `.env` instead of `config.toml`.
+## Provider Credentials
+
+**API key** (goes to `.env`, never in `config.toml`):
 
 ```bash
-gormes config set hermes.provider openai-codex
-gormes config set hermes.model gpt-5.5
-gormes config show
+gormes auth add openai --api-key sk-...
+gormes auth add opencode --api-key <your-key>
 ```
 
-Do not document `~/.hermes` as the active Gormes state root unless the page is explicitly about migrating from Hermes.
+**OAuth** (stored in credential pool with auto-refresh):
+
+```bash
+gormes auth add openai-codex --type oauth
+gormes auth add anthropic --type oauth
+gormes auth add nous --type oauth
+```
+
+**Direct config** (advanced):
+
+```toml
+[hermes]
+endpoint = "https://api.openai.com/v1"
+model = "gpt-4o"
+```
+
+```
+# ~/.gormes/.env
+GORMES_API_KEY=sk-...
+```
+
+## Multi-Agent Configuration
+
+```toml
+[[agents.list]]
+id = "main"
+name = "Main"
+workspace = "/home/xel/.gormes/workspace"
+default = true
+
+[[agents.list]]
+id = "coder"
+name = "Coder"
+workspace = "/home/xel/projects"
+model = "claude-sonnet-4-20250514"
+
+[[bindings]]
+agent_id = "coder"
+[bindings.match]
+channel = "telegram"
+account_id = "my-bot"
+```
+
+Without bindings, all channels route to the default agent (`main`).
+
+## Gateway Channels
+
+```toml
+[telegram]
+bot_token = "123:abc"
+allowed_chat_id = 42
+
+[discord]
+token = "..."
+allowed_channel_id = "..."
+
+[slack]
+bot_token = "xoxb-..."
+app_token = "xapp-..."
+```
+
+Use `gormes gateway status` to verify channel connections.

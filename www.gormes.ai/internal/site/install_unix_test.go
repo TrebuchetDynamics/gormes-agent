@@ -693,6 +693,47 @@ func TestInstallSH_DryRunDoesNotBuildPublishOrRestart(t *testing.T) {
 	}
 }
 
+func TestInstallSH_UninstallDelegatesToPublishedGormesWithoutBuild(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	binDir := filepath.Join(root, "bin")
+	logPath := filepath.Join(root, "uninstall.log")
+	writeExecutable(t, filepath.Join(binDir, "gormes"), `#!/bin/sh
+set -eu
+printf 'gormes' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+if [ "${1:-}" = "uninstall" ]; then
+  printf 'uninstall dry-run: 0 artifact(s)\n'
+  exit 0
+fi
+exit 99
+`)
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--bin-dir", binDir, "--uninstall", "--keep-config", "--dry-run=false", "--yes"},
+		"HOME="+home,
+		"PATH="+binDir,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("uninstall failed: %v\n%s", err, out)
+	}
+	if got, want := readTextFile(t, logPath), "gormes uninstall --keep-config --dry-run=false --yes\n"; got != want {
+		t.Fatalf("uninstall command = %q, want %q", got, want)
+	}
+	if strings.Contains(out, "Gormes installed") || strings.Contains(out, "cloning Gormes") || strings.Contains(out, "building gormes") {
+		t.Fatalf("--uninstall ran install flow:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".gormes", "install.lock")); err == nil {
+		t.Fatalf("--uninstall created install lock")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat install lock: %v", err)
+	}
+}
+
 func TestInstallSH_LocalBuildUsesCurrentCheckoutWithoutGitUpdate(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")

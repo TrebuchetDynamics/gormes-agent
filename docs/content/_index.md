@@ -21,8 +21,8 @@ Build from source, verify the local stack, then open the offline TUI:
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
 make build
-./bin/gormes doctor --offline
-./bin/gormes --offline
+gormes doctor --offline
+gormes --offline
 ```
 
 ## What is Gormes?
@@ -34,7 +34,7 @@ Who is it for? Operators, developers, and agent builders who want a local runtim
 What makes it different?
 
 - **Go-native runtime:** native TUI, doctor, provider turns, tools, memory, dashboard, and configured gateways from one binary.
-- **Offline proof path:** `./bin/gormes --offline` and `./bin/gormes doctor --offline` work before credentials, network calls, or token spend.
+- **Offline proof path:** `gormes --offline` and `gormes doctor --offline` work before credentials, network calls, or token spend.
 - **Local memory:** Goncho keeps sessions and durable context in local SQLite.
 - **Roadmap honesty:** Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening stay visible as active work instead of shipped promises.
 

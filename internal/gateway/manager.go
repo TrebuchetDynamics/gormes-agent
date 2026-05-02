@@ -2325,7 +2325,12 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 			m.clearTurn()
 			configHint := gormesHomeHint()
 			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf(
-				"Agent `%s` is unavailable (agent_runtime_unavailable).\n\nRun: gormes setup provider\nOr edit: %s/config.toml → [hermes] endpoint + api_key.",
+				"No provider configured for agent `%s` (agent_runtime_unavailable).\n\n"+
+					"To fix this, run in your terminal:\n"+
+					"  gormes setup provider\n\n"+
+					"Or see the setup guide:\n"+
+					"  https://docs.gormes.ai/getting-started/first-run/\n\n"+
+					"Config file: %s/config.toml",
 				route.Decision.AgentID, configHint))
 			return false
 		}

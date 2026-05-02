@@ -1,56 +1,108 @@
 ---
 title: "First Run"
-description: "Run local diagnostics, offline TUI mode, and a provider-backed one-shot."
+description: "Run local diagnostics, configure your provider, and complete your first turn."
 weight: 20
 ---
 
 # First Run
 
-## Local Diagnostics
+## 1. Local Diagnostics
 
 ```bash
-./bin/gormes doctor --offline
+gormes doctor --offline
 ```
 
-Offline doctor checks local runtime readiness without contacting a model provider.
+Verifies TUI, tools, gateway, Goncho memory, and web backend — no credentials needed.
 
-## Onboarding Status
+## 2. Onboarding
 
 ```bash
-./bin/gormes onboard
+gormes onboard
 ```
 
-This shows the active `GORMES_HOME`, config path, runtime skills root, bundled
-skill count, and the next commands to run. Runtime skills live under the
-configured skills root, not `docs/development-skills/`; those repo-local skills
-are for agents building Gormes.
+Shows what's configured and what's missing:
+- Provider status (configured vs. needs setup)
+- Agent list with default marker (★) and workspace paths
+- Channel→agent bindings
+- Skills count (local and bundled)
+- Next steps tailored to your state
 
-To inspect runtime skills directly:
+## 3. Provider Setup
+
+The easiest path — interactive wizard:
 
 ```bash
-./bin/gormes skills list
+gormes setup provider
 ```
 
-## Offline TUI
+Select a provider: OpenAI, Anthropic, DeepSeek, Codex, OpenCode, Groq, Ollama, or custom. Enter your API key. Done.
+
+**API keys go to `~/.gormes/.env` (never in config.toml).**
+
+For advanced users, direct config editing works too:
 
 ```bash
-./bin/gormes --offline
+gormes config set hermes.endpoint https://api.openai.com/v1
+gormes config set hermes.api_key sk-...        # → .env
+gormes config set hermes.model gpt-4o
 ```
 
-Offline mode is a smoke test. Typed messages stay local.
-
-## Provider-Backed One-Shot
-
-After configuring provider credentials:
+Or with OAuth (Codex, Anthropic):
 
 ```bash
-./bin/gormes --oneshot "hello from Gormes"
+gormes auth add openai-codex --type oauth
+gormes auth add anthropic --type oauth
 ```
 
-If the one-shot fails, run:
+## 4. Test It
 
 ```bash
-./bin/gormes config show
-./bin/gormes config check
-./bin/gormes doctor
+gormes --oneshot "hello from Gormes"
+```
+
+If successful, you'll see the model's response. If not:
+
+```bash
+gormes config show      # see current config (secrets redacted)
+gormes config check     # validate schema
+gormes doctor           # full diagnostics
+```
+
+## 5. Offline TUI
+
+```bash
+gormes --offline
+```
+
+Offline mode is a smoke test. Typed messages stay local — no network calls.
+
+## 6. Gateway (Optional)
+
+Once provider is configured, run a multi-channel agent:
+
+```bash
+gormes gateway
+```
+
+Or specific platforms:
+
+```bash
+gormes telegram
+```
+
+Configure channel tokens in `config.toml`:
+
+```toml
+[telegram]
+bot_token = "123:abc"
+allowed_chat_id = 42
+```
+
+## What's Next
+
+```bash
+gormes setup model     # pick your default model
+gormes setup agent     # create additional agents
+gormes setup bindings  # route channels to specific agents
+gormes dashboard       # web UI at http://127.0.0.1:43827
 ```
