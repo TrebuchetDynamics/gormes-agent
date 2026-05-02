@@ -56,6 +56,10 @@ type Candidate struct {
 	NoTestRequired string
 	DoneSignal     []string
 	Note           string
+	// Blocker is the fleet-standard blocker metadata attached to this row.
+	// Default selection skips rows with this metadata so the builder pivots
+	// instead of repeatedly claiming known-blocked work.
+	Blocker *progress.BlockerMetadata
 	// Health is the row's autoloop execution-history block, if any. Surfaced
 	// here so the run loop and reporting can consult quarantine / failure
 	// counts without re-loading progress.json.
@@ -176,6 +180,9 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 				if len(blockedBy) > 0 && !opts.IncludeBlocked && !blockersComplete(blockedBy, completed) {
 					continue
 				}
+				if item.Blocker != nil && !opts.IncludeBlocked {
+					continue
+				}
 				if !opts.IncludeUmbrella && sliceSize == "umbrella" {
 					continue
 				}
@@ -204,6 +211,7 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 					NoTestRequired: strings.TrimSpace(item.NoTestRequired),
 					DoneSignal:     trimStringSlice(item.DoneSignal),
 					Note:           strings.TrimSpace(item.Note),
+					Blocker:        cloneBlockerMetadata(item.Blocker),
 				}
 				if !agentQueueCandidate(candidate) {
 					continue
@@ -383,30 +391,31 @@ type progressSubphase struct {
 }
 
 type progressItem struct {
-	ItemName       string   `json:"item_name"`
-	Name           string   `json:"name"`
-	Title          string   `json:"title"`
-	ID             string   `json:"id"`
-	Status         string   `json:"status"`
-	Priority       string   `json:"priority"`
-	Contract       string   `json:"contract"`
-	ContractStatus string   `json:"contract_status"`
-	SliceSize      string   `json:"slice_size"`
-	ExecutionOwner string   `json:"execution_owner"`
-	TrustClass     []string `json:"trust_class"`
-	DegradedMode   string   `json:"degraded_mode"`
-	Fixture        string   `json:"fixture"`
-	SourceRefs     []string `json:"source_refs"`
-	BlockedBy      []string `json:"blocked_by"`
-	Unblocks       []string `json:"unblocks"`
-	ReadyWhen      []string `json:"ready_when"`
-	NotReadyWhen   []string `json:"not_ready_when"`
-	Acceptance     []string `json:"acceptance"`
-	WriteScope     []string `json:"write_scope"`
-	TestCommands   []string `json:"test_commands"`
-	NoTestRequired string   `json:"no_test_required"`
-	DoneSignal     []string `json:"done_signal"`
-	Note           string   `json:"note"`
+	ItemName       string                    `json:"item_name"`
+	Name           string                    `json:"name"`
+	Title          string                    `json:"title"`
+	ID             string                    `json:"id"`
+	Status         string                    `json:"status"`
+	Priority       string                    `json:"priority"`
+	Contract       string                    `json:"contract"`
+	ContractStatus string                    `json:"contract_status"`
+	SliceSize      string                    `json:"slice_size"`
+	ExecutionOwner string                    `json:"execution_owner"`
+	TrustClass     []string                  `json:"trust_class"`
+	DegradedMode   string                    `json:"degraded_mode"`
+	Fixture        string                    `json:"fixture"`
+	SourceRefs     []string                  `json:"source_refs"`
+	BlockedBy      []string                  `json:"blocked_by"`
+	Unblocks       []string                  `json:"unblocks"`
+	ReadyWhen      []string                  `json:"ready_when"`
+	NotReadyWhen   []string                  `json:"not_ready_when"`
+	Acceptance     []string                  `json:"acceptance"`
+	WriteScope     []string                  `json:"write_scope"`
+	TestCommands   []string                  `json:"test_commands"`
+	NoTestRequired string                    `json:"no_test_required"`
+	DoneSignal     []string                  `json:"done_signal"`
+	Note           string                    `json:"note"`
+	Blocker        *progress.BlockerMetadata `json:"blocker,omitempty"`
 	// Health mirrors progress.Item.Health so candidate selection can honor
 	// quarantine and ranking penalties without re-loading the file through
 	// the canonical progress.Load path.
@@ -430,7 +439,17 @@ func (item progressItem) toProgressItem() progress.Item {
 		TestCommands:         append([]string(nil), item.TestCommands...),
 		NoTestRequiredReason: item.NoTestRequired,
 		Fixture:              item.Fixture,
+		Blocker:              cloneBlockerMetadata(item.Blocker),
 	}
+}
+
+func cloneBlockerMetadata(blocker *progress.BlockerMetadata) *progress.BlockerMetadata {
+	if blocker == nil {
+		return nil
+	}
+	clone := *blocker
+	clone.MissingFields = append([]string(nil), blocker.MissingFields...)
+	return &clone
 }
 
 func priorityBoostSet(boosts []string) map[string]struct{} {

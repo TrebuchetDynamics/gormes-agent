@@ -103,18 +103,20 @@ type DriftState struct {
 // optional fields contribute nothing to the digest.
 func ItemSpecHash(item *Item) string {
 	type specView struct {
-		Contract             string         `json:"contract,omitempty"`
-		ContractStatus       ContractStatus `json:"contract_status,omitempty"`
-		BlockedBy            []string       `json:"blocked_by,omitempty"`
-		WriteScope           []string       `json:"write_scope,omitempty"`
-		TestCommands         []string       `json:"test_commands,omitempty"`
-		NoTestRequiredReason string         `json:"no_test_required,omitempty"`
-		Fixture              string         `json:"fixture,omitempty"`
+		Contract             string           `json:"contract,omitempty"`
+		ContractStatus       ContractStatus   `json:"contract_status,omitempty"`
+		BlockedBy            []string         `json:"blocked_by,omitempty"`
+		Blocker              *BlockerMetadata `json:"blocker,omitempty"`
+		WriteScope           []string         `json:"write_scope,omitempty"`
+		TestCommands         []string         `json:"test_commands,omitempty"`
+		NoTestRequiredReason string           `json:"no_test_required,omitempty"`
+		Fixture              string           `json:"fixture,omitempty"`
 	}
 	view := specView{
 		Contract:             item.Contract,
 		ContractStatus:       item.ContractStatus,
 		BlockedBy:            append([]string(nil), item.BlockedBy...),
+		Blocker:              item.Blocker,
 		WriteScope:           append([]string(nil), item.WriteScope...),
 		TestCommands:         append([]string(nil), item.TestCommands...),
 		NoTestRequiredReason: item.NoTestRequiredReason,

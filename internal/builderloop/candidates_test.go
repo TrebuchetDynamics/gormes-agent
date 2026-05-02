@@ -720,6 +720,48 @@ func TestNormalizeCandidatesIncludesRowsWhenBlockersAreComplete(t *testing.T) {
 	}
 }
 
+func TestNormalizeCandidatesSkipsRowsWithBlockerMetadataAndPivots(t *testing.T) {
+	path := writeProgressJSON(t, `{
+		"phases": {
+			"5": {
+				"subphases": {
+					"5.N": {
+						"items": [
+							{
+								"name": "blocked P0 row",
+								"status": "planned",
+								"priority": "P0",
+								"contract": "blocked contract",
+								"contract_status": "draft",
+								"no_test_required": "blocker metadata fixture",
+								"blocker": {
+									"type": "infra",
+									"status": "blocker_active",
+									"blocker": "gateway lock",
+									"evidence": "sessions.db locked",
+									"unblocks_when": "lock exits",
+									"owner": "operator",
+									"pivot": "run next P0 row",
+									"next_check": "2026-05-01T12:30:00-06:00"
+								}
+							},
+							{"name": "pivot row", "status": "planned", "priority": "P1", "contract": "pivot contract", "contract_status": "draft", "no_test_required": "blocker metadata fixture"}
+						]
+					}
+				}
+			}
+		}
+	}`)
+
+	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates() error = %v", err)
+	}
+	if gotNames := candidateNames(got); !reflect.DeepEqual(gotNames, []string{"pivot row"}) {
+		t.Fatalf("candidate names = %#v, want pivot row", gotNames)
+	}
+}
+
 func writeProgressJSON(t *testing.T, content string) string {
 	t.Helper()
 
