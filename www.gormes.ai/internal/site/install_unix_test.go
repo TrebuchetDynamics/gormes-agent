@@ -2,6 +2,7 @@ package site
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,9 +24,26 @@ func runInstallSH(t *testing.T, body string, env ...string) (string, error) {
 }
 
 func runInstallScript(t *testing.T, env ...string) (string, error) {
+	return runInstallScriptWithArgsInDir(t, ".", nil, env...)
+}
+
+func runInstallScriptInDir(t *testing.T, dir string, env ...string) (string, error) {
+	return runInstallScriptWithArgsInDir(t, dir, nil, env...)
+}
+
+func runInstallScriptWithArgs(t *testing.T, args []string, env ...string) (string, error) {
+	return runInstallScriptWithArgsInDir(t, ".", args, env...)
+}
+
+func runInstallScriptWithArgsInDir(t *testing.T, dir string, args []string, env ...string) (string, error) {
 	t.Helper()
-	cmd := exec.Command("sh", canonicalInstallScript)
-	cmd.Dir = "."
+	scriptPath, err := filepath.Abs(canonicalInstallScript)
+	if err != nil {
+		t.Fatalf("Abs(%s): %v", canonicalInstallScript, err)
+	}
+	cmdArgs := append([]string{scriptPath}, args...)
+	cmd := exec.Command("sh", cmdArgs...)
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
@@ -33,6 +51,9 @@ func runInstallScript(t *testing.T, env ...string) (string, error) {
 
 func writeExecutable(t *testing.T, path string, body string) {
 	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
 	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
@@ -126,15 +147,19 @@ if [ "${1:-}" = "build" ]; then
   mkdir -p "$(dirname "$out")"
   cat > "$out" <<'EOF'
 #!/bin/sh
-if [ -n "${GORMES_FAKE_LOG:-}" ]; then
-  printf 'built-gormes' >> "$GORMES_FAKE_LOG"
-  for arg in "$@"; do
+  if [ -n "${GORMES_FAKE_LOG:-}" ]; then
+    printf 'built-gormes' >> "$GORMES_FAKE_LOG"
+    for arg in "$@"; do
     printf ' %%s' "$arg" >> "$GORMES_FAKE_LOG"
   done
   printf '\n' >> "$GORMES_FAKE_LOG"
 fi
 case "${1:-}" in
   version)
+    if [ "${GORMES_FAKE_BUILT_VERSION_FAIL:-}" = "1" ]; then
+      printf 'version failed\n' >&2
+      exit 9
+    fi
     printf 'gormes test-build\n'
     ;;
   doctor)
@@ -145,7 +170,11 @@ case "${1:-}" in
   gateway)
     case "${2:-}" in
       status)
-        printf 'Gateway status\nruntime: running (pid=%%s active_agents=0)\n' "${GORMES_FAKE_GATEWAY_STATUS_PID:-7777}"
+        if [ "${3:-}" = "--json" ]; then
+          printf '{"runtime":{"gateway_state":"running","pid":%%s,"active_agents":0},"validation":{"status":"live","live":true,"pid":%%s}}\n' "${GORMES_FAKE_GATEWAY_STATUS_PID:-7777}" "${GORMES_FAKE_GATEWAY_STATUS_PID:-7777}"
+        else
+          printf 'Gateway status\nruntime: running (pid=%%s active_agents=0)\n' "${GORMES_FAKE_GATEWAY_STATUS_PID:-7777}"
+        fi
         ;;
       stop)
         printf 'gateway stop: stopped\n'
@@ -182,7 +211,7 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 
 func linkBasicUnixTools(t *testing.T, bin string) {
 	t.Helper()
-	for _, name := range []string{"cat", "chmod", "cp", "dirname", "ln", "mkdir", "mv", "rm", "sleep", "uname"} {
+	for _, name := range []string{"cat", "chmod", "cp", "dirname", "ln", "mkdir", "mv", "rm", "sed", "sha256sum", "sleep", "uname"} {
 		realPath, err := exec.LookPath(name)
 		if err != nil {
 			t.Fatalf("look up %s: %v", name, err)
@@ -473,6 +502,9 @@ func TestInstallSH_UpdatesExistingCommandEarlierOnPATH(t *testing.T) {
 	if !strings.Contains(out, "updating active PATH command "+staleCommand) {
 		t.Fatalf("summary/log missing active command update:\n%s", out)
 	}
+	if strings.Contains(out, "older install") {
+		t.Fatalf("refreshed active command was still reported as older:\n%s", out)
+	}
 }
 
 func TestInstallSH_RerunUpdatesManagedCheckoutWithoutCloning(t *testing.T) {
@@ -581,6 +613,226 @@ fi
 			t.Fatalf("install output missing %q\n%s", want, out)
 		}
 	}
+	ledger, err := os.ReadFile(filepath.Join(home, ".gormes", "install.log.jsonl"))
+	if err != nil {
+		t.Fatalf("read install ledger: %v", err)
+	}
+	for _, want := range []string{
+		`"event":"install"`,
+		`"old_gateway_pid":4242`,
+		`"new_gateway_pid":7777`,
+		`"binary_sha256"`,
+	} {
+		if !strings.Contains(string(ledger), want) {
+			t.Fatalf("install ledger missing %q\n%s", want, ledger)
+		}
+	}
+}
+
+func TestInstallSH_NoRestartSkipsLiveGatewayRestart(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	writeMinimalGoModule(t, checkout)
+	activeBin := filepath.Join(root, "activebin")
+	if err := os.MkdirAll(activeBin, 0o755); err != nil {
+		t.Fatalf("mkdir active bin: %v", err)
+	}
+	writeExecutable(t, filepath.Join(activeBin, "gormes"), `#!/bin/sh
+printf 'active-gormes' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"; done
+printf '\n' >> "$GORMES_FAKE_LOG"
+if [ "${1:-}" = "gateway" ] && [ "${2:-}" = "status" ]; then
+  printf '{"runtime":{"gateway_state":"running","pid":4242,"active_agents":0},"validation":{"status":"live","live":true,"pid":4242}}\n'
+fi
+`)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--no-restart"},
+		"HOME="+home,
+		"PATH="+activeBin+string(os.PathListSeparator)+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+	log := readTextFile(t, logPath)
+	if strings.Contains(log, "built-gormes gateway stop") || strings.Contains(log, "built-gormes gateway\n") {
+		t.Fatalf("--no-restart still stopped/started gateway:\n%s", log)
+	}
+	if !strings.Contains(out, "gateway restart skipped by policy=never") {
+		t.Fatalf("--no-restart output missing skip evidence:\n%s", out)
+	}
+}
+
+func TestInstallSH_DryRunDoesNotBuildPublishOrRestart(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--dry-run", "--branch", "development"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("dry-run failed: %v\n%s", err, out)
+	}
+	if got := readTextFile(t, logPath); got != "" {
+		t.Fatalf("dry-run invoked toolchain:\n%s", got)
+	}
+	if !strings.Contains(out, "dry run") || !strings.Contains(out, "branch: development") {
+		t.Fatalf("dry-run summary missing plan:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".gormes")); err == nil {
+		t.Fatalf("dry-run created install home")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat install home: %v", err)
+	}
+}
+
+func TestInstallSH_LocalBuildUsesCurrentCheckoutWithoutGitUpdate(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	local := filepath.Join(root, "local-source")
+	writeMinimalGoModule(t, local)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScriptWithArgsInDir(t, local,
+		[]string{"--local"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("local install failed: %v\n%s", err, out)
+	}
+	log := readTextFile(t, logPath)
+	if strings.Contains(log, "git clone") || strings.Contains(log, "git fetch") || strings.Contains(log, "git pull") {
+		t.Fatalf("--local touched remote git checkout:\n%s", log)
+	}
+	if !strings.Contains(log, "go build -o "+filepath.Join(home, ".gormes", "bin", "gormes")+" ./cmd/gormes") {
+		t.Fatalf("--local did not build gormes:\n%s", log)
+	}
+	if !strings.Contains(out, "source: "+local) {
+		t.Fatalf("--local summary did not name local source:\n%s", out)
+	}
+}
+
+func TestInstallSH_ExistingInstallLockFailsBeforeMutation(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".gormes", "install.lock"), 0o755); err != nil {
+		t.Fatalf("mkdir lock: %v", err)
+	}
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err == nil {
+		t.Fatalf("install with existing lock succeeded\n%s", out)
+	}
+	if got := readTextFile(t, logPath); got != "" {
+		t.Fatalf("locked installer mutated toolchain:\n%s", got)
+	}
+	if !strings.Contains(out, "another install is already running") {
+		t.Fatalf("lock failure missing evidence:\n%s", out)
+	}
+}
+
+func TestInstallSH_RollsBackPublishedCommandWhenVerificationFails(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	writeMinimalGoModule(t, checkout)
+	published := filepath.Join(home, ".local", "bin", "gormes")
+	writeExecutable(t, published, "#!/bin/sh\nprintf 'old-ok\\n'\n")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_BUILT_VERSION_FAIL=1",
+	)
+	if err == nil {
+		t.Fatalf("install succeeded despite verification failure\n%s", out)
+	}
+	body, readErr := os.ReadFile(published)
+	if readErr != nil {
+		t.Fatalf("read published after rollback: %v", readErr)
+	}
+	if !strings.Contains(string(body), "old-ok") {
+		t.Fatalf("published command was not rolled back:\n%s", body)
+	}
+	if !strings.Contains(out, "rolled back") {
+		t.Fatalf("rollback evidence missing:\n%s", out)
+	}
+	if !strings.Contains(readTextFile(t, logPath), "go build") {
+		t.Fatalf("rollback test did not reach build")
+	}
+}
+
+func TestInstallSH_ManagedGoDownloadVerifiesExpectedSHA256(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin := filepath.Join(root, "fakebin")
+	logPath := filepath.Join(root, "toolchain.log")
+	if err := os.MkdirAll(fakebin, 0o755); err != nil {
+		t.Fatalf("mkdir fakebin: %v", err)
+	}
+	linkBasicUnixTools(t, fakebin)
+	writeExecutable(t, filepath.Join(fakebin, "git"), fakeGitScript())
+	writeFakeDownloadTools(t, fakebin)
+	_, _, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.25.0")
+	expected := fmt.Sprintf("%x", sha256.Sum256([]byte("fake go tarball\n")))
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_MANAGED_GO_TEMPLATE="+managedGoTemplate,
+		"GORMES_GO_SHA256="+expected,
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"verifying Go download sha256",
+		"Go download sha256 verified",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("checksum output missing %q\n%s", want, out)
+		}
+	}
+}
+
+func writeMinimalGoModule(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "cmd", "gormes"), 0o755); err != nil {
+		t.Fatalf("mkdir cmd/gormes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.25.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+}
+
+func readTextFile(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(raw)
 }
 
 func TestInstallSH_TermuxInstallsMissingGitAndGo(t *testing.T) {
