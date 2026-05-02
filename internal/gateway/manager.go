@@ -65,6 +65,7 @@ type ManagerConfig struct {
 	// ToolProgressCommandEnabled gates Hermes' /verbose command on messaging
 	// platforms. Hermes defaults this gate off.
 	ToolProgressCommandEnabled bool
+	BusyInputMode              string // interrupt, queue, or steer
 	// PersistToolProgressMode saves /verbose mode changes. Production writes
 	// display.platforms.<platform>.tool_progress into config.yaml.
 	PersistToolProgressMode func(platform, mode string) error
@@ -72,11 +73,14 @@ type ManagerConfig struct {
 	// overrides. Values take precedence over ToolProgressMode for the named platform.
 	ToolProgressModes map[string]string
 	SessionMap        session.Map
-	Hooks             *Hooks
-	RuntimeStatus     RuntimeStatusWriter
-	Restart           RestartConfig
-	SessionExpiry     SessionExpiryConfig
-	Now               func() time.Time
+	// AgentRouting enables OpenClaw-style agent/workspace bindings for live
+	// gateway turns. Zero value preserves legacy single-agent chat keys.
+	AgentRouting  AgentRoutingConfig
+	Hooks         *Hooks
+	RuntimeStatus RuntimeStatusWriter
+	Restart       RestartConfig
+	SessionExpiry SessionExpiryConfig
+	Now           func() time.Time
 	// PersistReasoningGlobal is invoked by /reasoning ... --global to persist
 	// the requested effort beyond the calling session. A nil callback or one
 	// that returns an error causes the command to fall back to a session-only
@@ -165,12 +169,14 @@ type Manager struct {
 	turnCancelled    bool
 	turnFrameSeen    bool
 	turnLastUserText string // captures the last inbound submit text for auto-title
+	kernelSessionKey string
 	shuttingDown     bool
 	followUps        []InboundEvent
 	lastUsageFrame   kernel.RenderFrame
 
 	reasoningMu    sync.Mutex
 	reasoningState map[string]SessionReasoningState
+	ttsConfigs     map[string]TTSConfig
 
 	inboundDedup *MessageDeduplicator
 
@@ -180,6 +186,8 @@ type Manager struct {
 	typingKey  string
 
 	liveTurnPromptSeams liveTurnPromptSeams
+	agentRouter         AgentRouter
+	agentRoutingEnabled bool
 
 	typingActionMu   sync.Mutex
 	typingActionLast map[string]time.Time
@@ -359,6 +367,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	if cfg.AllowedChats == nil {
 		cfg.AllowedChats = map[string]string{}
 	}
+	if cfg.BusyInputMode == "" {
+		cfg.BusyInputMode = "interrupt"
+	}
 	if cfg.AllowDiscovery == nil {
 		cfg.AllowDiscovery = map[string]bool{}
 	}
@@ -396,6 +407,8 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		reasoningState:      map[string]SessionReasoningState{},
 		inboundDedup:        NewMessageDeduplicator(defaultInboundDedupMaxSize),
 		liveTurnPromptSeams: seams,
+		agentRouter:         NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
+		agentRoutingEnabled: cfg.AgentRouting.Enabled,
 		typingActionLast:    map[string]time.Time{},
 	}
 }
@@ -725,8 +738,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 			return nil
 		}
 		if m.cfg.SessionMap != nil {
-			if err := m.cfg.SessionMap.Put(ctx, ev.ChatKey(), ""); err != nil {
-				m.log.Warn("clear session mapping", "key", ev.ChatKey(), "err", err)
+			key := m.sessionKeyForInbound(ev)
+			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
+				m.log.Warn("clear session mapping", "key", key, "err", err)
 			}
 		}
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
@@ -765,6 +779,12 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	case EventReasoning:
 		m.handleReasoningCommand(ctx, ch, ev)
+		return nil
+	case EventBusy:
+		m.handleBusyCommand(ctx, ch, ev)
+		return nil
+	case EventTTS:
+		m.handleTTSCommand(ctx, ch, ev)
 		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
@@ -854,8 +874,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 			return true
 		}
 		if m.cfg.SessionMap != nil {
-			if err := m.cfg.SessionMap.Put(ctx, ev.ChatKey(), ""); err != nil {
-				m.log.Warn("clear session mapping", "key", ev.ChatKey(), "err", err)
+			key := m.sessionKeyForInbound(ev)
+			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
+				m.log.Warn("clear session mapping", "key", key, "err", err)
 			}
 		}
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Session reset. Next message starts fresh.")
@@ -899,18 +920,50 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 	case EventUnknown:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return true
+	case EventTTS:
+		m.handleTTSCommand(ctx, ch, ev)
+		return true
 	default:
 		return false
 	}
 }
 
 func (m *Manager) handleReasoningCommand(ctx context.Context, ch Channel, ev InboundEvent) {
-	reply, err := m.DispatchReasoning(ev.ChatKey(), commandArgs(ev.Text))
+	reply, err := m.DispatchReasoning(m.sessionKeyForInbound(ev), commandArgs(ev.Text))
 	if err != nil {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Reasoning command error: "+err.Error()+"\n\nUsage: /reasoning [low|medium|high|reset|show] [--global]")
 		return
 	}
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, formatReasoningReply(reply))
+}
+
+func (m *Manager) handleBusyCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	args := strings.Fields(ev.Text)
+	mode := m.cfg.BusyInputMode
+	if mode == "" {
+		mode = "interrupt"
+	}
+
+	if len(args) >= 2 {
+		switch strings.ToLower(args[1]) {
+		case "queue", "q":
+			mode = "queue"
+		case "steer", "s":
+			mode = "steer"
+		case "interrupt", "i":
+			mode = "interrupt"
+		case "", "status", "show":
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("⚙ Busy input mode: **%s**\n\n• interrupt — stop current task and respond to new message\n• queue — silently hold message for next turn\n• steer — inject guidance mid-turn", mode))
+			return
+		default:
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "⚠ Usage: /busy [queue|steer|interrupt|status]")
+			return
+		}
+		m.cfg.BusyInputMode = mode
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("✅ Busy input mode set to **%s**", mode))
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("⚙ Busy input mode: **%s**\nUsage: /busy [queue|steer|interrupt|status]", mode))
 }
 
 func commandArgs(body string) []string {
@@ -1158,14 +1211,15 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 
 	switch f.Phase {
 	case kernel.PhaseIdle:
-		finalText, media := m.formatFinalDelivery(platform, f)
+		finalPages, media := m.formatFinalDeliveryPages(platform, f)
 		if *co != nil {
-			(*co).flushImmediateFinal(ctx, finalText, true)
+			(*co).flushImmediateFinal(ctx, finalPages[0], true)
 			(*coCancel)()
 			*co = nil
 			*coCancel = nil
+			m.sendFinalPages(ctx, ch, chatID, "", finalPages[1:])
 		} else {
-			_, _ = m.sendWithHooks(ctx, ch, chatID, finalText)
+			m.sendFinalPages(ctx, ch, chatID, "", finalPages)
 		}
 		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
 		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
@@ -1260,8 +1314,8 @@ func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform
 func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID string) bool {
 	switch f.Phase {
 	case kernel.PhaseIdle:
-		finalText, media := m.formatFinalDelivery(ch.Name(), f)
-		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, finalText)
+		finalPages, media := m.formatFinalDeliveryPages(ch.Name(), f)
+		m.sendFinalPages(ctx, ch, chatID, replyToMsgID, finalPages)
 		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
 		return true
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
@@ -1277,6 +1331,16 @@ func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFra
 
 func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text string) (string, error) {
 	return m.sendWithHooksReply(ctx, ch, chatID, "", text)
+}
+
+func (m *Manager) sendFinalPages(ctx context.Context, ch Channel, chatID, replyToMsgID string, pages []string) {
+	for i, page := range pages {
+		if i == 0 {
+			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, page)
+			continue
+		}
+		_, _ = m.sendWithHooks(ctx, ch, chatID, page)
+	}
 }
 
 func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, replyToMsgID, text string) (string, error) {
@@ -1768,6 +1832,14 @@ func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (st
 	return FormatFinalPlainText(text), content.Media
 }
 
+func (m *Manager) formatFinalDeliveryPages(platform string, f kernel.RenderFrame) ([]string, []OutboundMedia) {
+	text, media := m.formatFinalDelivery(platform, f)
+	if platform == "telegram" {
+		return paginateTelegramText(text), media
+	}
+	return paginatePlainText(text), media
+}
+
 func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID string, media []OutboundMedia) {
 	if len(media) == 0 || ch == nil {
 		return
@@ -2066,14 +2138,14 @@ func resumePendingNote(reason string) string {
 		". The conversation history below is intact. If it contains unfinished tool result(s), process them first and summarize what was accomplished, then address the user's new message below.]"
 }
 
-func (m *Manager) refreshConversationalSessionMetadata(ctx context.Context, ev InboundEvent, resolved resolvedSession, source SessionSource) resolvedSession {
-	key := strings.TrimSpace(ev.ChatKey())
+func (m *Manager) refreshConversationalSessionMetadata(ctx context.Context, ev InboundEvent, sessionKey string, resolved resolvedSession, source SessionSource) resolvedSession {
+	key := strings.TrimSpace(sessionKey)
 	if key == "" || m.cfg.SessionMap == nil {
 		return resolved
 	}
 	sessionID := strings.TrimSpace(resolved.SessionID)
 	if sessionID == "" || sessionID == key {
-		sessionID = generateStatusSessionID(m.now(), ev)
+		sessionID = generateStatusSessionIDForKey(m.now(), ev, key)
 		if err := m.cfg.SessionMap.Put(ctx, key, sessionID); err != nil {
 			m.log.Warn("persist conversational session_id", "key", key, "session_id", sessionID, "err", err)
 			if strings.TrimSpace(resolved.SessionID) != "" {
@@ -2116,9 +2188,14 @@ func (m *Manager) rememberAllowedInboundSource(ctx context.Context, source Sessi
 }
 
 func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent) bool {
-	resolved, err := resolveSession(ctx, m.cfg.SessionMap, ev.ChatKey())
+	route := m.agentRouteForInbound(ev)
+	sessionKey := strings.TrimSpace(route.SessionKey)
+	if sessionKey == "" {
+		sessionKey = ev.ChatKey()
+	}
+	resolved, err := resolveSession(ctx, m.cfg.SessionMap, sessionKey)
 	if err != nil {
-		m.log.Warn("load session mapping", "key", ev.ChatKey(), "err", err)
+		m.log.Warn("load session mapping", "key", sessionKey, "err", err)
 	}
 	source := sessionSourceFromInbound(ev)
 	m.rememberAllowedInboundSource(ctx, source)
@@ -2129,10 +2206,10 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		if meta.NonResumableReason != "" {
 			resolved.NonResumableSessionID = resolved.SessionID
 			resolved.NonResumableReason = meta.NonResumableReason
-			resolved.SessionID = ev.ChatKey()
+			resolved.SessionID = sessionKey
 			clearBlockedMapping = true
 			m.writeNonResumableEvidence(ctx, RuntimeNonResumableEvidence{
-				SessionKey: ev.ChatKey(),
+				SessionKey: sessionKey,
 				SessionID:  resolved.NonResumableSessionID,
 				Source:     source.Platform,
 				ChatID:     source.ChatID,
@@ -2150,13 +2227,14 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		}
 	}
 	if !clearBlockedMapping {
-		resolved = m.refreshConversationalSessionMetadata(ctx, ev, resolved, source)
+		resolved = m.refreshConversationalSessionMetadata(ctx, ev, sessionKey, resolved, source)
 	}
-	m.setPinnedTurnSession(ev.ChatKey(), resolved.SessionID, source)
+	m.setPinnedTurnSession(sessionKey, resolved.SessionID, source)
 	m.setTurnLastUserText(ev.Text)
 	sessionBlock := BuildSessionContextPrompt(SessionContext{
 		Source:                source,
-		SessionKey:            ev.ChatKey(),
+		Agent:                 route.SessionContext(),
+		SessionKey:            sessionKey,
 		SessionID:             resolved.SessionID,
 		RequestedSessionID:    resolved.RequestedSessionID,
 		ResumePath:            resolved.ResumePath,
@@ -2165,10 +2243,17 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
-	sessionContext, _, _ := assembleLiveTurnPrompt(m.liveTurnPromptSeams, submitText, resolved.SessionID, sessionBlock)
+	seams := m.liveTurnPromptSeamsForAgent(route)
+	sessionContext, _, _ := assembleLiveTurnPrompt(seams, submitText, resolved.SessionID, sessionBlock)
+	if err := m.prepareKernelForAgentSession(sessionKey); err != nil {
+		m.clearTurn()
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Busy — try again in a second.")
+		return false
+	}
 	if err := m.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,
+		Model:          route.Decision.Model,
 		SessionID:      resolved.SessionID,
 		SessionContext: sessionContext,
 	}); err != nil {
@@ -2180,8 +2265,8 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		m.clearResumePending(ctx, clearPendingSessionID)
 	}
 	if clearBlockedMapping && m.cfg.SessionMap != nil {
-		if err := m.cfg.SessionMap.Put(ctx, ev.ChatKey(), ""); err != nil {
-			m.log.Warn("clear non-resumable session mapping", "key", ev.ChatKey(), "err", err)
+		if err := m.cfg.SessionMap.Put(ctx, sessionKey, ""); err != nil {
+			m.log.Warn("clear non-resumable session mapping", "key", sessionKey, "err", err)
 		}
 	}
 	return true

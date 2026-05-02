@@ -15,6 +15,11 @@
         <a class="btn btn-primary" href="{{.PrimaryCTA.Href}}">{{.PrimaryCTA.Label}}</a>
         <a class="btn btn-secondary" href="{{.SecondaryCTA.Href}}">{{.SecondaryCTA.Label}}</a>
       </div>
+      {{if .ProofStrip}}
+      <div class="proof-strip">
+        {{range .ProofStrip}}<span class="proof-item">{{.}}</span>{{end}}
+      </div>
+      {{end}}
     </div>
   </div>
 </section>
@@ -23,7 +28,7 @@
   <div class="install-inner">
     <div class="install-header">
       <p class="kicker">INSTALL</p>
-      <h2 class="section-title">Build from source. Smoke test. Audit memory.</h2>
+      <h2 class="section-title">Install in one command. Verify everything works.</h2>
       <p class="install-intro">{{.InstallIntro}}</p>
     </div>
     <div class="install-grid">
@@ -32,6 +37,19 @@
     <p class="install-footnote">{{.InstallFootnote}} <a href="{{.InstallFootnoteHref}}">{{.InstallFootnoteLink}}</a></p>
   </div>
 </section>
+
+{{if .DemoCommand}}
+<section id="demo" class="demo">
+  <div class="demo-inner">
+    <h2 class="section-title">{{.DemoHeadline}}</h2>
+    <p class="demo-intro">{{.DemoIntro}}</p>
+    <div class="demo-terminal">
+      <pre class="cmd"><code>{{.DemoCommand}}</code></pre>
+    </div>
+    <a class="btn btn-secondary" href="{{.DemoCTA.Href}}">{{.DemoCTA.Label}}</a>
+  </div>
+</section>
+{{end}}
 
 <section id="why" class="why">
   <div class="why-inner">
@@ -49,6 +67,17 @@
     </div>
   </div>
 </section>
+
+{{if .BuiltForItems}}
+<section id="built-for" class="built-for">
+  <div class="built-for-inner">
+    <h2 class="section-title">{{.BuiltForHeadline}}</h2>
+    <ul class="built-for-list">
+      {{range .BuiltForItems}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+</section>
+{{end}}
 
 <section id="roadmap" class="roadmap">
   <div class="roadmap-inner">
@@ -80,4 +109,28 @@
     </p>
   </div>
 </section>
+
+{{if .ExploreLinks}}
+<section id="explore" class="explore">
+  <div class="explore-inner">
+    <h2 class="section-title">{{.ExploreHeadline}}</h2>
+    <div class="explore-grid">
+      {{range .ExploreLinks}}<a class="explore-card" href="{{.Href}}">{{.Label}}</a>{{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+{{if .FinalCTAHeadline}}
+<section id="final-cta" class="final-cta">
+  <div class="final-cta-inner">
+    <h2 class="section-title">{{.FinalCTAHeadline}}</h2>
+    <p class="final-cta-body">{{.FinalCTABody}}</p>
+    <div class="final-cta-actions">
+      <a class="btn btn-primary" href="{{.FinalPrimaryCTA.Href}}">{{.FinalPrimaryCTA.Label}}</a>
+      <a class="btn btn-secondary" href="{{.FinalSecondaryCTA.Href}}">{{.FinalSecondaryCTA.Label}}</a>
+    </div>
+  </div>
+</section>
+{{end}}
 {{end}}

@@ -404,7 +404,7 @@ func TestInstallSH_FirstInstallCreatesManagedCheckoutAndPublishedCommand(t *test
 	if _, err := os.Stat(published); err != nil {
 		t.Fatalf("published command missing: %v", err)
 	}
-	if !strings.Contains(out, "Core install: succeeded") {
+	if !strings.Contains(out, "Gormes installed") {
 		t.Fatalf("success summary missing:\n%s", out)
 	}
 	logBody, err := os.ReadFile(logPath)
@@ -450,7 +450,7 @@ func TestInstallSH_UpdatesExistingCommandEarlierOnPATH(t *testing.T) {
 	if target != buildBin {
 		t.Fatalf("active PATH command target = %q, want %q", target, buildBin)
 	}
-	if !strings.Contains(out, "Updated active PATH command: "+staleCommand) {
+	if !strings.Contains(out, "updating active PATH command "+staleCommand) {
 		t.Fatalf("summary/log missing active command update:\n%s", out)
 	}
 }
@@ -536,7 +536,7 @@ func TestInstallSH_TermuxInstallsMissingGitAndGo(t *testing.T) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
 		}
 	}
-	if !strings.Contains(out, "Core install: succeeded") {
+	if !strings.Contains(out, "Gormes installed") {
 		t.Fatalf("success summary missing:\n%s", out)
 	}
 }
@@ -579,7 +579,7 @@ func TestInstallSH_InstallsManagedGoWhenGoIsMissing(t *testing.T) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
 		}
 	}
-	if !strings.Contains(out, "Core install: succeeded") {
+	if !strings.Contains(out, "Gormes installed") {
 		t.Fatalf("success summary missing:\n%s", out)
 	}
 }

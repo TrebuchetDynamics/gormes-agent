@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -122,6 +123,29 @@ func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 				t.Fatalf("FreshFinalAfter = %s, want %s", mgrCfg.FreshFinalAfter, tc.want)
 			}
 		})
+	}
+}
+
+func TestSQLOpenGonchoUsesRegisteredSQLiteDriver(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "goncho.db")
+	db, err := sqlOpenGoncho(path)
+	if err != nil {
+		t.Fatalf("sqlOpenGoncho() error = %v, want registered sqlite driver", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if _, err := db.Exec(`CREATE TABLE smoke (id INTEGER PRIMARY KEY)`); err != nil {
+		t.Fatalf("sqlite smoke table: %v", err)
+	}
+
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.Contains(entry.Name(), "?") {
+			t.Fatalf("sqlOpenGoncho created literal query filename %q", entry.Name())
+		}
 	}
 }
 

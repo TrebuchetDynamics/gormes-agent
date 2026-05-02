@@ -116,6 +116,29 @@ type LandingPage struct {
 	ProgressTracker       string
 	ProgressTrackerURL    string
 
+	// Proof strip: credibility signals (binary size, platforms, license).
+	ProofStrip []string
+
+	// Demo section: terminal block showing the tool in action.
+	DemoHeadline string
+	DemoIntro    string
+	DemoCommand  string
+	DemoCTA      Link
+
+	// BuiltFor section: operator-focused capabilities.
+	BuiltForHeadline string
+	BuiltForItems    []string
+
+	// Explore section: links to docs, quickstart, architecture, GitHub.
+	ExploreHeadline string
+	ExploreLinks    []Link
+
+	// FinalCTA section: last-chance conversion before footer.
+	FinalCTAHeadline  string
+	FinalCTABody      string
+	FinalPrimaryCTA   Link
+	FinalSecondaryCTA Link
+
 	FooterNav []NavLink
 	// FooterLeft is typed as template.HTML so it can carry the anchor
 	// tag linking to the TrebuchetDynamics company site. Must not
@@ -137,23 +160,23 @@ func DefaultPage() LandingPage {
 		HeroHeadline: "Run AI Agents as One Go Binary.",
 		HeroLines: []string{
 			"Gormes is a Go-native runtime for long-running AI agents.",
-			"It targets install drift, runtime fragility, and dropped-stream failures.",
 			"One static binary. No Python runtime. No Hermes process.",
+			"Ship the same binary you test. Run it anywhere.",
 		},
-		HeroFilterStamp: "Early-stage scout release.",
-		HeroFilterLine:  "Not production-stable yet. Use the offline TUI, local doctor, provider-backed one-shots, gateway work, and Goncho memory development today.",
+		HeroFilterStamp: "Early-stage and shipping.",
+		HeroFilterLine:  "Offline TUI, local doctor, provider-backed one-shots, and Goncho memory are ready today.",
 		PrimaryCTA:      Link{Label: "Install", Href: "#install"},
-		SecondaryCTA:    Link{Label: "Build State", Href: "#roadmap"},
-		InstallIntro:    "Build from source first. The installer scripts remain convenience paths while signed binaries and package-manager manifests are still release-hardening work.",
+		SecondaryCTA:    Link{Label: "View on GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
+		InstallIntro:    "One command to install from the public repo. Review the script first, then run it.",
 		InstallSteps: []InstallStep{
-			{Label: "1. SOURCE BUILD", Command: "git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build"},
-			{Label: "2. OFFLINE TUI", Command: "./bin/gormes --offline"},
-			{Label: "3. LOCAL DOCTOR", Command: "./bin/gormes doctor --offline"},
-			{Label: "4. MEMORY AUDIT", Command: "./bin/gormes goncho doctor --json"},
-			{Label: "5. REVIEW INSTALLER", Command: "curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh\nless install.sh\nsh install.sh"},
-			{Label: "6. MODEL-BACKED TURN", Command: "GORMES_ENDPOINT=\"https://your-provider.example/v1\" \\\nGORMES_API_KEY=\"...\" \\\nGORMES_MODEL=\"your-model\" \\\ngormes --oneshot \"hello from Gormes\""},
+			{Label: "1. INSTALL", Command: "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh"},
+			{Label: "2. OFFLINE TUI", Command: "gormes --offline"},
+			{Label: "3. LOCAL DOCTOR", Command: "gormes doctor --offline"},
+			{Label: "4. MEMORY AUDIT", Command: "gormes goncho doctor --json"},
+			{Label: "5. MODEL-BACKED TURN", Command: "GORMES_ENDPOINT=\"https://your-provider.example/v1\" \\\nGORMES_API_KEY=\"...\" \\\nGORMES_MODEL=\"your-model\" \\\ngormes --oneshot \"hello from Gormes\""},
+			{Label: "6. BUILD FROM SOURCE", Command: "git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build"},
 		},
-		InstallFootnote:     "Source-first for now, with no Hermes process required. Convenience gormes.ai installer aliases remain available, but signed releases, checksums, Homebrew, and Scoop/Winget are still hardening targets.",
+		InstallFootnote:     "The installer clones, builds, and links gormes into your PATH. Or build from source if you prefer.",
 		InstallFootnoteLink: "Read the installer source →",
 		InstallFootnoteHref: "https://github.com/TrebuchetDynamics/gormes-agent/tree/main/scripts",
 		DocsLinkLabel:       "docs.gormes.ai →",
@@ -188,6 +211,35 @@ func DefaultPage() LandingPage {
 		ProgressTracker:       progressTrackerLabel(),
 		ProgressTrackerURL:    "https://docs.gormes.ai/building-gormes/architecture_plan/",
 		RoadmapPhases:         buildRoadmapPhases(loadEmbeddedProgress()),
+		ProofStrip: []string{
+			"~" + binarySizeMB() + " MB static binary",
+			"Linux · macOS · Windows",
+			"MIT License",
+			"Zero runtime dependencies",
+		},
+		DemoHeadline:     "See it work in 30 seconds",
+		DemoIntro:        "Build from source, run the offline TUI, and verify your local runtime before touching a model.",
+		DemoCommand:      "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh\ngormes --offline\ngormes doctor --offline",
+		DemoCTA:          Link{Label: "Read the quickstart →", Href: "https://docs.gormes.ai/getting-started/quickstart/"},
+		BuiltForHeadline: "Built for operators who ship",
+		BuiltForItems: []string{
+			"Static binary you can copy to any server",
+			"Offline TUI for local development and testing",
+			"Doctor commands that catch misconfig before tokens burn",
+			"Goncho memory with transparent local storage",
+			"Provider-backed one-shots for CI and automation",
+		},
+		ExploreHeadline: "Explore",
+		ExploreLinks: []Link{
+			{Label: "Quickstart", Href: "https://docs.gormes.ai/getting-started/quickstart/"},
+			{Label: "Architecture", Href: "https://docs.gormes.ai/building-gormes/architecture_plan/"},
+			{Label: "CLI Reference", Href: "https://docs.gormes.ai/reference/cli/"},
+			{Label: "GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
+		},
+		FinalCTAHeadline:  "Ready to try Gormes?",
+		FinalCTABody:      "Build from source in under a minute. No Python runtime. No Hermes process. One static binary.",
+		FinalPrimaryCTA:   Link{Label: "Install Gormes", Href: "#install"},
+		FinalSecondaryCTA: Link{Label: "Star on GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		FooterNav: []NavLink{
 			{Label: "Docs", Href: "https://docs.gormes.ai/"},
 			{Label: "Company", Href: "https://trebuchetdynamics.com/"},

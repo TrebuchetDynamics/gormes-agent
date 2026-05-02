@@ -101,28 +101,30 @@ type Item struct {
 	Status   Status `json:"status"`
 	// Optional contract metadata turns roadmap rows into executable architecture
 	// requirements without forcing every historical item to be rewritten at once.
-	Contract       string         `json:"contract,omitempty"`
-	ContractStatus ContractStatus `json:"contract_status,omitempty"`
-	SliceSize      SliceSize      `json:"slice_size,omitempty"`
-	ExecutionOwner ExecutionOwner `json:"execution_owner,omitempty"`
-	TrustClass     []string       `json:"trust_class,omitempty"`
-	DegradedMode   string         `json:"degraded_mode,omitempty"`
-	Fixture        string         `json:"fixture,omitempty"`
-	SourceRefs     []string       `json:"source_refs,omitempty"`
-	ReadyWhen      []string       `json:"ready_when,omitempty"`
-	NotReadyWhen   []string       `json:"not_ready_when,omitempty"`
-	BlockedBy      []string       `json:"blocked_by,omitempty"`
-	Unblocks       []string       `json:"unblocks,omitempty"`
-	Acceptance     []string       `json:"acceptance,omitempty"`
-	Note           string         `json:"note,omitempty"`
-	WriteScope     []string       `json:"write_scope,omitempty"`
-	TestCommands   []string       `json:"test_commands,omitempty"`
+	Contract       string           `json:"contract,omitempty"`
+	ContractStatus ContractStatus   `json:"contract_status,omitempty"`
+	SliceSize      SliceSize        `json:"slice_size,omitempty"`
+	ExecutionOwner ExecutionOwner   `json:"execution_owner,omitempty"`
+	TrustClass     []string         `json:"trust_class,omitempty"`
+	DegradedMode   string           `json:"degraded_mode,omitempty"`
+	Fixture        string           `json:"fixture,omitempty"`
+	SourceRefs     []string         `json:"source_refs,omitempty"`
+	ReadyWhen      []string         `json:"ready_when,omitempty"`
+	NotReadyWhen   []string         `json:"not_ready_when,omitempty"`
+	BlockedBy      []string         `json:"blocked_by,omitempty"`
+	Unblocks       []string         `json:"unblocks,omitempty"`
+	Acceptance     []string         `json:"acceptance,omitempty"`
+	Note           string           `json:"note,omitempty"`
+	Blocker        *BlockerMetadata `json:"blocker,omitempty"`
+	WriteScope     []string         `json:"write_scope,omitempty"`
+	TestCommands   []string         `json:"test_commands,omitempty"`
 	// NoTestRequiredReason is an explicit planner-owned exception for rows
 	// whose work is documentation-only or otherwise cannot be proven by a
 	// focused row-local command. Builder selection treats rows without
 	// test_commands as unready unless this reason is present.
 	NoTestRequiredReason string   `json:"no_test_required,omitempty"`
 	DoneSignal           []string `json:"done_signal,omitempty"`
+	Wired                bool     `json:"wired,omitempty"`
 	// Optional, reserved, not rendered yet.
 	PR    string `json:"pr,omitempty"`
 	Owner string `json:"owner,omitempty"`
@@ -141,6 +143,24 @@ type Item struct {
 	// origin_type="gormes" for rows with no upstream analog (see Phase D of
 	// docs/superpowers/plans/2026-04-25-planner-divergence-awareness.md).
 	Provenance *Provenance `json:"provenance,omitempty"`
+}
+
+// BlockerMetadata records the fleet-standard blocker protocol directly on a
+// progress row. It intentionally lives in progress.json so blocked work stays
+// in the canonical backlog rather than drifting into a side queue.
+type BlockerMetadata struct {
+	Title         string   `json:"title,omitempty"`
+	Type          string   `json:"type,omitempty"`
+	Status        string   `json:"status,omitempty"`
+	RecordedAt    string   `json:"recorded_at,omitempty"`
+	Blocker       string   `json:"blocker,omitempty"`
+	Evidence      string   `json:"evidence,omitempty"`
+	UnblocksWhen  string   `json:"unblocks_when,omitempty"`
+	Owner         string   `json:"owner,omitempty"`
+	Pivot         string   `json:"pivot,omitempty"`
+	NextCheck     string   `json:"next_check,omitempty"`
+	Degraded      bool     `json:"degraded,omitempty"`
+	MissingFields []string `json:"missing_fields,omitempty"`
 }
 
 type Subphase struct {

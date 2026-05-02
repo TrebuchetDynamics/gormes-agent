@@ -633,6 +633,63 @@ func TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage(t *testing.T)
 	}
 }
 
+func TestManager_Outbound_LongFinalAnswerPaginates(t *testing.T) {
+	tg := newChannelOnlyFake("telegram")
+	frames := make(chan kernel.RenderFrame, 2)
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "42"},
+	}, fk, slog.Default())
+	m.setRenderChan(frames)
+	_ = m.Register(tg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", MsgID: "m1",
+		Kind: EventSubmit, Text: "extract all documentation",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+
+	tail := "TAIL multi agent routing documentation preserved"
+	longAnswer := "Extracted documentation:\n" + strings.Repeat("A", maxMessageLen) + "\n" + tail
+	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseIdle,
+		History: []hermes.Message{
+			{Role: "user", Content: "extract all documentation"},
+			{Role: "assistant", Content: longAnswer},
+		},
+	}
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		sent := tg.sentSnapshot()
+		return len(sent) >= 1
+	})
+	sent := tg.sentSnapshot()
+	if len(sent) != 2 {
+		t.Fatalf("sent messages = %d, want 2 pages; sent=%#v", len(sent), sent)
+	}
+	if !strings.Contains(sent[0].Text, `\(1/2\)`) || !strings.Contains(sent[1].Text, `\(2/2\)`) {
+		t.Fatalf("long final answer missing Telegram-safe page markers; sent=%#v", sent)
+	}
+	if !strings.Contains(sent[1].Text, tail) {
+		t.Fatalf("long final answer dropped tail %q; sent=%#v", tail, sent)
+	}
+	for i, msg := range sent {
+		if got := len([]rune(msg.Text)); got > maxMessageLen {
+			t.Fatalf("page %d length = %d, want <= %d", i+1, got, maxMessageLen)
+		}
+	}
+	if strings.Contains(strings.Join([]string{sent[0].Text, sent[1].Text}, ""), "…") {
+		t.Fatalf("long final answer was ellipsis-truncated instead of paginated; sent=%#v", sent)
+	}
+}
+
 func TestManager_Outbound_FreshFinalAfterSendsFreshFinal(t *testing.T) {
 	tg := &freshFinalFakeChannel{fakeChannel: newFakeChannel("telegram")}
 	frames := make(chan kernel.RenderFrame, 8)

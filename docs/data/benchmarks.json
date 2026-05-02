@@ -1,14 +1,14 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "5172cbf33",
+    "commit": "6aa4139ae",
     "go_version": "1.25+",
     "last_measured": "2026-05-01",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 35524883,
-    "size_mb": "33.9",
+    "size_bytes": 23064738,
+    "size_mb": "22.0",
     "stripped": true
   },
   "history": [

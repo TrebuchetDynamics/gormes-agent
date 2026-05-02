@@ -33,6 +33,38 @@ type ToolDescriptor struct {
 	Schema      json.RawMessage
 }
 
+// OperationSpec declares the behavioral metadata for a tool. Every tool that
+// implements Spec() returns its OperationSpec; tools without it report
+// descriptor_missing in doctor and inherit safe defaults in the executor.
+// This is the contract-first operation catalog from the Phase 5.A row.
+type OperationSpec struct {
+	ToolDescriptor
+	Mutating    bool          // true when the tool modifies state (files, memory, etc.)
+	Idempotent  bool          // true when the tool can be safely retried
+	PromptSafe  bool          // true when the schema contains no secrets
+	TrustClass  []string      // allowed caller roles: operator, child-agent, system
+	AuditKind   string        // audit taxonomy: file, web, terminal, memory, skills
+}
+
+// Spec is an optional interface that tools implement to declare their
+// OperationSpec. Tools that don't implement this get a safe default.
+type Spec interface {
+	Spec() OperationSpec
+}
+
+// DefaultSpec returns a conservative OperationSpec for tools that don't
+// implement the Spec interface. Mutating=true, Idempotent=false, PromptSafe=true.
+func DefaultSpec(name, desc string, schema json.RawMessage) OperationSpec {
+	return OperationSpec{
+		ToolDescriptor: ToolDescriptor{Name: name, Description: desc, Schema: schema},
+		Mutating:       true,
+		Idempotent:     false,
+		PromptSafe:     true,
+		TrustClass:     []string{"operator", "child-agent", "system"},
+		AuditKind:      "tool",
+	}
+}
+
 // MarshalJSON wraps the descriptor in the OpenAI {"type":"function",...} envelope.
 func (d ToolDescriptor) MarshalJSON() ([]byte, error) {
 	inner := struct {

@@ -19,6 +19,39 @@ func TestHugoBuild(t *testing.T) {
 
 	wantPages := []string{
 		"index.html",
+		"getting-started/index.html",
+		"getting-started/installation/index.html",
+		"getting-started/first-run/index.html",
+		"getting-started/configuration/index.html",
+		"getting-started/troubleshooting/index.html",
+		"guides/index.html",
+		"guides/gateway-operations/index.html",
+		"guides/telegram-bot/index.html",
+		"guides/provider-setup/index.html",
+		"guides/web-tools/index.html",
+		"guides/browser-cdp/index.html",
+		"guides/debugging/index.html",
+		"reference/index.html",
+		"reference/cli/index.html",
+		"reference/config/index.html",
+		"reference/environment/index.html",
+		"reference/providers/index.html",
+		"reference/web-backends/index.html",
+		"reference/paths-and-logs/index.html",
+		"architecture/index.html",
+		"architecture/runtime-model/index.html",
+		"architecture/gateway-pipeline/index.html",
+		"architecture/tool-execution/index.html",
+		"architecture/memory-and-sessions/index.html",
+		"architecture/hermes-parity/index.html",
+		"development/index.html",
+		"development/repo-layout/index.html",
+		"development/testing/index.html",
+		"development/parity-workflow/index.html",
+		"parity/index.html",
+		"parity/current-status/index.html",
+		"parity/command-surface/index.html",
+		"parity/roadmap/index.html",
 		"using-gormes/index.html",
 		"using-gormes/quickstart/index.html",
 		"using-gormes/install/index.html",
@@ -94,9 +127,8 @@ func TestHugoBuild(t *testing.T) {
 	}
 }
 
-// TestHugoBuild_IndexHasSidebarSections asserts the rendered home
-// page contains all three colored sidebar group labels and the
-// expected root section links.
+// TestHugoBuild_IndexHasSidebarSections asserts the rendered home page
+// prioritizes user/operator docs before roadmap and upstream archives.
 func TestHugoBuild_IndexHasSidebarSections(t *testing.T) {
 	tmp := t.TempDir()
 	runDocsHugoBuild(t, tmp)
@@ -106,15 +138,21 @@ func TestHugoBuild_IndexHasSidebarSections(t *testing.T) {
 	}
 	text := string(body)
 	for _, want := range []string{
-		"USING GORMES",
-		"BUILDING GORMES",
-		"UPSTREAM HERMES",
+		"START",
+		"OPERATE",
+		"REFERENCE",
+		"ARCHITECTURE",
+		"DEVELOP",
+		"ROADMAP",
 		"docs-nav-group-label-shipped",
 		"docs-nav-group-label-progress",
 		"docs-nav-group-label-next",
-		`href=/using-gormes/`,
-		`href=/building-gormes/`,
-		`href=/upstream-hermes/`,
+		`href=/getting-started/`,
+		`href=/guides/`,
+		`href=/reference/`,
+		`href=/architecture/`,
+		`href=/development/`,
+		`href=/parity/`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("built index.html missing %q", want)

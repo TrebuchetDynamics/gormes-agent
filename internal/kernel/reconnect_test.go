@@ -2,12 +2,15 @@ package kernel
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
 // TestKernel_HandlesMidStreamNetworkDrop exercises the Route-B reconnect
@@ -94,5 +97,48 @@ func TestKernel_HandlesMidStreamNetworkDrop(t *testing.T) {
 	}
 	if assistants[0].Content != "yyyyyyyyyy" {
 		t.Errorf("assistant content = %q, want yyyyyyyyyy (retry replaces preserved draft)", assistants[0].Content)
+	}
+}
+
+// TestKernel_ReconnectTimeBudgetExhausted verifies that the per-stream
+// reconnect time budget (MaxReconnectDuration) caps the total wall-clock
+// time spent reconnecting. When the budget is exceeded, the turn fails.
+func TestKernel_ReconnectTimeBudgetExhausted(t *testing.T) {
+	// Return 429 Too Many Requests (retryable) on every request.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "0")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+
+	client := hermes.NewHTTPClient(srv.URL, "")
+	k := New(Config{
+		Model:                "hermes-agent",
+		Endpoint:             srv.URL,
+		Admission:            Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		MaxReconnectDuration: 1 * time.Millisecond,
+	}, client, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	initial := <-k.Render()
+	if initial.Phase != PhaseIdle {
+		t.Fatalf("initial = %v, want PhaseIdle", initial.Phase)
+	}
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "test"}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	// The kernel will try to connect, fail, retry, and immediately hit
+	// the 1ms time budget → PhaseFailed.
+	failed := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseFailed
+	}, 5*time.Second)
+
+	if failed.LastError != "reconnect time budget exhausted" {
+		t.Errorf("PhaseFailed error = %q, want 'reconnect time budget exhausted'", failed.LastError)
 	}
 }

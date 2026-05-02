@@ -27,22 +27,25 @@ type Config struct {
 	// document. Absent in TOML = treated as 1.
 	ConfigVersion int `toml:"_config_version" yaml:"_config_version"`
 
-	Hermes     HermesCfg     `toml:"hermes" yaml:"hermes"`
-	Gateway    GatewayCfg    `toml:"gateway" yaml:"gateway"`
-	Display    DisplayCfg    `toml:"display" yaml:"display"`
-	TUI        TUICfg        `toml:"tui" yaml:"tui"`
-	Input      InputCfg      `toml:"input" yaml:"input"`
-	Telegram   TelegramCfg   `toml:"telegram" yaml:"telegram"`
-	Discord    DiscordCfg    `toml:"discord" yaml:"discord"`
-	Slack      SlackCfg      `toml:"slack" yaml:"slack"`
-	Yuanbao    YuanbaoCfg    `toml:"yuanbao" yaml:"yuanbao"`
-	Web        WebCfg        `toml:"web" yaml:"web"`
-	Browser    BrowserCfg    `toml:"browser" yaml:"browser"`
-	Security   SecurityCfg   `toml:"security" yaml:"security"`
-	Cron       CronCfg       `toml:"cron" yaml:"cron"`
-	Skills     SkillsCfg     `toml:"skills" yaml:"skills"`
-	Delegation DelegationCfg `toml:"delegation" yaml:"delegation"`
-	Goncho     GonchoCfg     `toml:"goncho" yaml:"goncho"`
+	Hermes     HermesCfg         `toml:"hermes" yaml:"hermes"`
+	Gateway    GatewayCfg        `toml:"gateway" yaml:"gateway"`
+	Display    DisplayCfg        `toml:"display" yaml:"display"`
+	TUI        TUICfg            `toml:"tui" yaml:"tui"`
+	Input      InputCfg          `toml:"input" yaml:"input"`
+	Telegram   TelegramCfg       `toml:"telegram" yaml:"telegram"`
+	Discord    DiscordCfg        `toml:"discord" yaml:"discord"`
+	Slack      SlackCfg          `toml:"slack" yaml:"slack"`
+	Yuanbao    YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
+	Web        WebCfg            `toml:"web" yaml:"web"`
+	Browser    BrowserCfg        `toml:"browser" yaml:"browser"`
+	Security   SecurityCfg       `toml:"security" yaml:"security"`
+	Secrets    SecretsCfg        `toml:"secrets" yaml:"secrets"`
+	Agents     AgentsCfg         `toml:"agents" yaml:"agents"`
+	Bindings   []AgentBindingCfg `toml:"bindings" yaml:"bindings"`
+	Cron       CronCfg           `toml:"cron" yaml:"cron"`
+	Skills     SkillsCfg         `toml:"skills" yaml:"skills"`
+	Delegation DelegationCfg     `toml:"delegation" yaml:"delegation"`
+	Goncho     GonchoCfg         `toml:"goncho" yaml:"goncho"`
 	// Resume is set only via the --resume CLI flag; intentionally not
 	// a TOML field. Empty means "use whatever internal/session had
 	// persisted for this binary's default key."
@@ -460,6 +463,9 @@ func defaults() Config {
 			WebsiteBlocklist: WebsiteBlocklistCfg{
 				BaseDir: GormesHome(),
 			},
+		},
+		Secrets: SecretsCfg{
+			Defaults: SecretProviderDefaults{Env: DefaultSecretProviderAlias},
 		},
 		Cron: CronCfg{
 			Enabled:        false,
@@ -1121,6 +1127,10 @@ func validateConfig(cfg *Config) error {
 	cfg.Slack.BotToken = strings.TrimSpace(cfg.Slack.BotToken)
 	cfg.Slack.AppToken = strings.TrimSpace(cfg.Slack.AppToken)
 	cfg.Slack.AllowedChannelID = strings.TrimSpace(cfg.Slack.AllowedChannelID)
+	cfg.Bindings = normalizeAgentBindings(cfg.Bindings)
+	if err := normalizeAgentsConfig(GormesHome(), &cfg.Agents, cfg.Bindings); err != nil {
+		return err
+	}
 	cfg.Goncho.Workspace = strings.TrimSpace(cfg.Goncho.Workspace)
 	cfg.Goncho.ObserverPeer = strings.TrimSpace(cfg.Goncho.ObserverPeer)
 	cfg.Goncho.DialecticDefaultLevel = strings.ToLower(strings.TrimSpace(cfg.Goncho.DialecticDefaultLevel))

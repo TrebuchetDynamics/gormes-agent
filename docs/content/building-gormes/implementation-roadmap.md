@@ -37,7 +37,28 @@ weight: 12
 
 ---
 
-## Product Hardening Borrow List
+## Fleet Operational Patterns Borrow List
+
+From the [Fleet Operational Patterns](../fleet-operational-patterns/) analysis of the 6-agent sages-openclaw ecosystem plus OpenClaw 2026.3.28 platform. These are Gormes-owned operational quality slices — not Hermes parity blockers, but foundational for production fleet operation.
+
+| Slice | Target | Priority | Phase |
+|-------|--------|----------|-------|
+| Blocker policy | Fleet-standard blocker classification (access/infra/dependency/decision/bug/unknown), dual-record, auto-pivot, surfaced in `gormes status`. | P0 | 5.N |
+| Session health monitoring | `gormes health` with session size tiers (500KB/2MB), heartbeat freshness (45min/90min), Goncho queue depth. | P0 | 5.N |
+| Evidence-before-claims quality gate | Doctor output uses computed exact counts (pass/fail/skip), never hardcoded narrative. | P0 | 5.O |
+| Git delivery contract enforcement | Builder skill enforces clean tree + pushed commits before declaring row complete. | P1 | 5.N |
+| QMD hybrid search | `gormes search` with BM25 + optional vector search across workspace docs. | P1 | 5.N |
+| Session rollover automation | `gormes session rollover` at configurable threshold (default 1500KB) with handoff summary. | P1 | 5.N |
+| Sandbox policy explain | `gormes sandbox explain` showing effective trust class, allowlist, and scope. | P1 | 5.B |
+| ACP bridge | Session-based agent communication protocol for interoperability. | P1 | 5.H |
+| Interactive onboarding | `gormes onboard` full first-run flow: model → provider → auth → gateway → browser → skills → dashboard. | P1 | 5.O |
+| Agent hooks registry | `gormes hooks` with list/enable/disable/check/info at runtime. | P2 | 5.I |
+| Plugin marketplace + doctor | ClawHub-compatible marketplace, plugin load reporting, WASM sandbox for third-party. | P2 | 5.I |
+| Logs command | `gormes logs` with follow mode (`-f`) and level filtering. | P2 | 5.O |
+
+Full implementation plan: [Fleet Integration Plan](../fleet-integration-plan/).
+
+### PicoClaw Product Hardening Borrow List
 
 These are Gormes-owned follow-up slices from the current PicoClaw comparison. They are not Hermes parity blockers, but they matter for distribution quality and constrained-machine adoption.
 
@@ -106,6 +127,10 @@ implementation-roadmap.md (this file) ──► decision tree + state + horizons
     │
     ├── upstream-lessons.md ──► durable contracts from Hermes + GBrain
     ├── what-hermes-gets-wrong.md ──► why Gormes exists
+    ├── fleet-operational-patterns.md ──► cross-fleet ecosystem analysis (sages + OpenClaw)
+    ├── fleet-integration-plan.md ──► mapping fleet patterns to phases and progress.json rows
+    ├── agent-zero-feature-analysis.md ──► agent0ai/agent-zero architecture study
+    ├── openclaw-platform-parity-audit.md ──► OpenClaw 2026.3.28 full feature surface audit
     ├── contract-readiness.md ──► row-level handoff contract
     ├── porting-a-subsystem.md ──► contribution path for upstream ports
     └── testing.md ──► test strategy and fixture classes

@@ -67,9 +67,13 @@ type Config struct {
 	ToolAudit audit.Recorder
 	// ToolSafety can deterministically deny interactive or approval-gated tool
 	// calls before registry lookup/execution.
-	ToolSafety ToolSafetyPolicy
+	ToolSafety    ToolSafetyPolicy
 	ContextEngine hermes.ContextEngine
 	Goncho        GonchoStore
+	// MaxReconnectDuration caps the total wall-clock time spent retrying
+	// per stream attempt (Route-B reconnect). Default 30s when zero.
+	// Exceeding this budget fails the turn with "reconnect time budget exhausted".
+	MaxReconnectDuration time.Duration
 }
 
 type SkillProvider interface {
@@ -310,7 +314,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	})
 	_, err := k.store.Exec(storeCtx, store.Command{Kind: store.AppendUserTurn, Payload: userPayload})
 	storeCancel()
-			if err != nil {
+	if err != nil {
 		k.phase = PhaseFailed
 		k.lastError = fmt.Sprintf("store ack timeout: %v", err)
 		k.emitFrame(k.lastError)
@@ -428,6 +432,11 @@ toolLoop:
 		// Fresh retry budget each tool iteration — reconnect retries are for
 		// network drops, not for multi-round agent reasoning.
 		retryBudget := NewRetryBudget()
+		reconnectStart := time.Now()
+		maxReconnect := k.cfg.MaxReconnectDuration
+		if maxReconnect <= 0 {
+			maxReconnect = 30 * time.Second
+		}
 		var replaceOnNextToken bool
 
 	retryLoop:
@@ -438,7 +447,7 @@ toolLoop:
 			if err != nil {
 				cancelRun()
 				classification := hermes.ClassifyProviderError(err)
-				if classification.Class == hermes.ClassRetryable && !retryBudget.Exhausted() {
+				if classification.Class == hermes.ClassRetryable && !retryBudget.Exhausted() && time.Since(reconnectStart) < maxReconnect {
 					if k.retryInterrupted(ctx) {
 						cancelled = true
 						break toolLoop
@@ -454,6 +463,17 @@ toolLoop:
 					}
 					replaceOnNextToken = true
 					continue retryLoop
+				}
+				if classification.Class == hermes.ClassRetryable && time.Since(reconnectStart) >= maxReconnect {
+					k.retryStatus.LastDecision = RetryDecisionBudgetExhaust
+					k.phase = PhaseFailed
+					k.lastError = "reconnect time budget exhausted"
+					k.emitFrame("reconnect time budget exhausted")
+					k.log.Warn("kernel: reconnect time budget exceeded",
+						"elapsed", time.Since(reconnectStart).String(),
+						"max", maxReconnect.String(),
+					)
+					return
 				}
 				prov.ErrorClass = hermes.Classify(err).String()
 				prov.ErrorText = err.Error()
@@ -493,6 +513,17 @@ toolLoop:
 					k.phase = PhaseFailed
 					k.lastError = "reconnect budget exhausted"
 					k.emitFrame("reconnect budget exhausted")
+					return
+				}
+				if time.Since(reconnectStart) >= maxReconnect {
+					k.retryStatus.LastDecision = RetryDecisionBudgetExhaust
+					k.phase = PhaseFailed
+					k.lastError = "reconnect time budget exhausted"
+					k.emitFrame("reconnect time budget exhausted")
+					k.log.Warn("kernel: reconnect time budget exceeded",
+						"elapsed", time.Since(reconnectStart).String(),
+						"max", maxReconnect.String(),
+					)
 					return
 				}
 				decision := retryBudget.NextDelayDecision(nil)
@@ -638,7 +669,9 @@ toolLoop:
 		}
 		finalPayload, _ := json.Marshal(payload)
 		finalCtx, finalCancel := context.WithTimeout(ctx, StoreAckDeadline)
-		_, _ = k.store.Exec(finalCtx, store.Command{Kind: store.FinalizeAssistantTurn, Payload: finalPayload})
+		if _, err := k.store.Exec(finalCtx, store.Command{Kind: store.FinalizeAssistantTurn, Payload: finalPayload}); err != nil {
+			k.log.Warn("kernel: store exec FinalizeAssistantTurn failed", "err", err)
+		}
 		finalCancel()
 	}
 

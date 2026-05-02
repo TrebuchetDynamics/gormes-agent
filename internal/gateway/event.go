@@ -48,6 +48,10 @@ const (
 	EventSkills
 	// EventReasoning handles /reasoning subcommands (show, set, reset).
 	EventReasoning
+	// EventBusy handles /busy subcommands (queue, steer, interrupt, status).
+	EventBusy
+	// EventTTS handles /tts subcommands (on, off, speed, voice, engine, language).
+	EventTTS
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -87,6 +91,10 @@ func (k EventKind) String() string {
 		return "skills"
 	case EventReasoning:
 		return "reasoning"
+	case EventBusy:
+		return "busy"
+	case EventTTS:
+		return "tts"
 	default:
 		return "unknown"
 	}
@@ -116,15 +124,18 @@ type ThreadLifecycleEvent struct {
 // InboundEvent is the platform-neutral form every channel emits into the
 // shared gateway manager.
 type InboundEvent struct {
-	Platform string
-	ChatID   string
-	ChatName string
-	ChatType string
-	UserID   string
-	UserName string
-	ThreadID string
-	MsgID    string
-	GuildID  string
+	Platform  string
+	AccountID string
+	ChatID    string
+	ChatName  string
+	ChatType  string
+	UserID    string
+	UserName  string
+	ThreadID  string
+	MsgID     string
+	GuildID   string
+	TeamID    string
+	Roles     []string
 	// ParentChatID preserves the containing channel/forum when ChatID and
 	// ThreadID identify a threaded conversation surface.
 	ParentChatID string

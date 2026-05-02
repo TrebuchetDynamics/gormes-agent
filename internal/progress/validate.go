@@ -249,11 +249,43 @@ func validateExecutionMetadata(phKey, spKey string, index int, it Item) []error 
 	if len(it.BlockedBy) > 0 && len(it.ReadyWhen) == 0 {
 		add("blocked item missing ready_when")
 	}
+	if it.Blocker != nil {
+		errs = append(errs, validateBlockerMetadata(phKey, spKey, index, it.Name, it.Blocker)...)
+	}
 	if it.ContractStatus == ContractStatusFixtureReady && !concreteFixtureRef(it.Fixture) {
 		add("fixture_ready item needs concrete fixture path or package, got %q", it.Fixture)
 	}
 	if it.Status == StatusComplete && it.Contract != "" && it.ContractStatus != ContractStatusValidated {
 		add("complete contract row must use contract_status %q", ContractStatusValidated)
+	}
+	return errs
+}
+
+func validateBlockerMetadata(phKey, spKey string, index int, itemName string, blocker *BlockerMetadata) []error {
+	var errs []error
+	add := func(message string, args ...any) {
+		prefix := fmt.Sprintf("progress: phase %s subphase %s item[%d] (%q): ", phKey, spKey, index, itemName)
+		errs = append(errs, fmt.Errorf(prefix+message, args...))
+	}
+	if blocker == nil {
+		return nil
+	}
+	required := []struct {
+		field string
+		value string
+	}{
+		{field: "type", value: blocker.Type},
+		{field: "blocker", value: blocker.Blocker},
+		{field: "evidence", value: blocker.Evidence},
+		{field: "unblocks_when", value: blocker.UnblocksWhen},
+		{field: "owner", value: blocker.Owner},
+		{field: "pivot", value: blocker.Pivot},
+		{field: "next_check", value: blocker.NextCheck},
+	}
+	for _, req := range required {
+		if strings.TrimSpace(req.value) == "" {
+			add("blocker metadata missing %s", req.field)
+		}
 	}
 	return errs
 }

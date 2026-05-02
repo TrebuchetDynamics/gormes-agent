@@ -320,6 +320,7 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 	if c.apiKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
+	ApplyOpenRouterAttributionHeaders(httpReq, c.provider, c.baseURL)
 	c.applyCodexCloudflareHeaders(httpReq)
 	if sessionID != "" {
 		httpReq.Header.Set("X-Hermes-Session-Id", sessionID)

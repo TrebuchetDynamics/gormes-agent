@@ -537,9 +537,11 @@ func TestHugoBuildProducesRenderedContent(t *testing.T) {
 	// routes asserted by TestHugoBuild.
 	checks := map[string][]string{
 		"index.html": {
-			"USING GORMES",
-			"BUILDING GORMES",
-			"UPSTREAM HERMES",
+			"START",
+			"OPERATE",
+			"REFERENCE",
+			"ARCHITECTURE",
+			"ROADMAP",
 		},
 		filepath.Join("why-gormes", "index.html"): {
 			"Operational Moat",

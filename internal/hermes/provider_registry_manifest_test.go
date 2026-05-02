@@ -389,6 +389,11 @@ func TestHermesProviderRegistryManifestRecordsRequiredMetadata(t *testing.T) {
 			if entry.Aggregator != tt.aggregator {
 				t.Fatalf("Aggregator = %v, want %v", entry.Aggregator, tt.aggregator)
 			}
+			if tt.provider == "openrouter" {
+				if !hasString(entry.EnvVars, "OPENROUTER_API_KEY") || !hasString(entry.EnvVars, "OPENAI_API_KEY") {
+					t.Fatalf("OpenRouter EnvVars = %v, want OPENROUTER_API_KEY primary with OPENAI_API_KEY fallback", entry.EnvVars)
+				}
+			}
 		})
 	}
 }

@@ -1,25 +1,27 @@
 {{ define "main" }}
-{{ $using := site.GetPage "/using-gormes" }}
-{{ $building := site.GetPage "/building-gormes" }}
-{{ $upstream := site.GetPage "/upstream-hermes" }}
+{{ $start := site.GetPage "/getting-started" }}
+{{ $guides := site.GetPage "/guides" }}
+{{ $reference := site.GetPage "/reference" }}
+{{ $architecture := site.GetPage "/architecture" }}
 {{ $sections := slice
-  (dict "page" $using "tone" "shipped" "label" "USING GORMES" "heading" "For operators" "blurb" "Install, run, configure. Wire up Telegram. Troubleshoot with the doctor." "ord" "01")
-  (dict "page" $building "tone" "progress" "label" "BUILDING GORMES" "heading" "For contributors" "blurb" "Architecture, roadmap, how to port a subsystem from upstream." "ord" "02")
-  (dict "page" $upstream "tone" "next" "label" "UPSTREAM HERMES" "heading" "For reference" "blurb" "Inherited Hermes guides. What the Python upstream does that Gormes is porting." "ord" "03")
+  (dict "page" $start "tone" "shipped" "label" "START" "heading" "Get running" "blurb" "Install Gormes, run local diagnostics, and complete the first useful run without reading source." "ord" "01")
+  (dict "page" $guides "tone" "shipped" "label" "OPERATE" "heading" "Run it daily" "blurb" "Configure providers, run gateways, inspect browser and web tools, and debug channel failures." "ord" "02")
+  (dict "page" $reference "tone" "progress" "label" "REFERENCE" "heading" "Find exact knobs" "blurb" "Look up CLI commands, config keys, environment variables, provider status, paths, and logs." "ord" "03")
+  (dict "page" $architecture "tone" "next" "label" "ARCHITECTURE" "heading" "Understand the runtime" "blurb" "Trace how CLI, TUI, gateways, providers, tools, sessions, and memory fit together." "ord" "04")
 }}
 
 <article class="docs-home">
   <header class="docs-home-hero">
     <p class="kicker">Gormes · Documentation</p>
-    <h1 class="docs-home-title">The Go operator shell for <em>Hermes.</em></h1>
-    <p class="docs-lede">Install it, run it, understand how it's built. A single binary, no runtime — designed to replace the Python Hermes stack piece by piece.</p>
+    <h1 class="docs-home-title">A Go-native <em>Hermes-compatible</em> agent runtime.</h1>
+    <p class="docs-lede">Install Gormes, run a local TUI, configure providers, and operate persistent chat gateways from one Go runtime. Roadmap and parity work stay visible, but the first path is getting a working agent.</p>
   </header>
 
   <section class="docs-home-quickstart">
     <div class="docs-home-quickstart-text">
-      <p class="kicker docs-home-quickstart-kicker">New here? Start in 60 seconds</p>
-      <h2 class="docs-home-quickstart-title">Install and run</h2>
-      <p>Build the static binary locally, then verify the offline runtime.</p>
+      <p class="kicker docs-home-quickstart-kicker">New here? Start with evidence</p>
+      <h2 class="docs-home-quickstart-title">Build, diagnose, then run</h2>
+      <p>Use the inspectable source path first, then add provider or gateway credentials after local checks pass.</p>
     </div>
     <code class="docs-home-quickstart-cmd">git clone https://github.com/TrebuchetDynamics/gormes-agent.git && cd gormes-agent && make build</code>
   </section>

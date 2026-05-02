@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -10,7 +11,7 @@ import (
 
 // AutoTitleAuxiliarySink receives AutoTitleEvidence for non-complete outcomes
 // (provider failures, blank results, store errors). Implementations must not
-// block or panic; the caller recovers panics and discarded.
+// block or panic; the caller recovers and logs panics.
 type AutoTitleAuxiliarySink func(ctx context.Context, ev session.AutoTitleEvidence)
 
 // runAutoTitle builds a two-turn TitleTurn transcript from lastUserText and
@@ -41,7 +42,11 @@ func runAutoTitle(
 		return
 	}
 	func() {
-		defer func() { recover() }() //nolint:errcheck // sink panics are discarded
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("auto_title_sink_panic", "panic", r)
+			}
+		}()
 		sink(ctx, ev)
 	}()
 }

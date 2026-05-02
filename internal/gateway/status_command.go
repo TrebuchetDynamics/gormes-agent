@@ -26,6 +26,7 @@ func (m *Manager) handleStatusCommand(ctx context.Context, ch Channel, ev Inboun
 
 func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) string {
 	frame := m.lastUsageFrameSnapshot()
+	route := m.agentRouteForInbound(ev)
 	sessionID := m.resolveStatusSession(ctx, ev, frame)
 	if sessionID == "" {
 		sessionID = "(none)"
@@ -77,14 +78,22 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 		"**Last Activity:** " + esc(lastActivity),
 		fmt.Sprintf("**Tokens:** %d", tokens),
 		"**Agent Running:** " + agentRunning,
-		"",
-		"**Connected Platforms:** " + esc(connected),
 	}
+	if route.Enabled {
+		lines = append(lines,
+			"**Agent ID:** `"+strings.TrimSpace(route.Decision.AgentID)+"`",
+			"**Agent Binding:** `"+string(route.Decision.BindingTier)+"`",
+		)
+	}
+	lines = append(lines,
+		"",
+		"**Connected Platforms:** "+esc(connected),
+	)
 	return strings.Join(lines, "\n")
 }
 
 func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, frame kernel.RenderFrame) string {
-	key := strings.TrimSpace(ev.ChatKey())
+	key := strings.TrimSpace(m.sessionKeyForInbound(ev))
 	sessionID := ""
 	if key != "" && m.cfg.SessionMap != nil {
 		stored, err := m.cfg.SessionMap.Get(ctx, key)
@@ -102,20 +111,24 @@ func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, fra
 		sessionID = strings.TrimSpace(frame.SessionID)
 	}
 	if sessionID == "" && key != "" {
-		sessionID = generateStatusSessionID(m.now(), ev)
+		sessionID = generateStatusSessionIDForKey(m.now(), ev, key)
 	}
 	if sessionID == "" {
 		return ""
 	}
-	m.persistStatusSession(ctx, ev, sessionID)
+	m.persistStatusSession(ctx, key, sessionID)
 	m.ensureStatusSessionMetadata(ctx, ev, sessionID)
 	return sessionID
 }
 
 func generateStatusSessionID(now time.Time, ev InboundEvent) string {
+	return generateStatusSessionIDForKey(now, ev, ev.ChatKey())
+}
+
+func generateStatusSessionIDForKey(now time.Time, ev InboundEvent, key string) string {
 	stamp := now.Format("20060102_150405")
 	h := fnv.New32a()
-	_, _ = h.Write([]byte(strings.TrimSpace(ev.ChatKey())))
+	_, _ = h.Write([]byte(strings.TrimSpace(key)))
 	_, _ = h.Write([]byte("\x00"))
 	_, _ = h.Write([]byte(strings.TrimSpace(ev.UserID)))
 	return fmt.Sprintf("%s_%08x", stamp, h.Sum32())
@@ -137,11 +150,11 @@ func formatStatusTime(t time.Time) string {
 	return t.Local().Format("2006-01-02 15:04")
 }
 
-func (m *Manager) persistStatusSession(ctx context.Context, ev InboundEvent, sessionID string) {
+func (m *Manager) persistStatusSession(ctx context.Context, sessionKey, sessionID string) {
 	if m.cfg.SessionMap == nil {
 		return
 	}
-	key := strings.TrimSpace(ev.ChatKey())
+	key := strings.TrimSpace(sessionKey)
 	if key == "" || strings.TrimSpace(sessionID) == "" {
 		return
 	}

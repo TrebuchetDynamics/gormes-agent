@@ -26,6 +26,7 @@ const (
 	ModelPricingSourceNone                 ModelPricingSource = "none"
 	ModelPricingSourceOfficialDocsSnapshot ModelPricingSource = "official_docs_snapshot"
 	ModelPricingSourceModelsDevSnapshot    ModelPricingSource = "models_dev_snapshot"
+	ModelPricingSourceProviderModelsAPI    ModelPricingSource = "provider_models_api"
 )
 
 type ModelRegistrySource string

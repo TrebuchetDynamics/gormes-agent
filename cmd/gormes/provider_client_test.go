@@ -93,7 +93,7 @@ func TestProviderHTTPClient_CodexMissingCredentialFailsBeforeRelativeURL(t *test
 // so the first request to `/v1/responses` had no scheme/host. The fix must
 // surface a setup error at construction time naming the missing endpoint.
 func TestProviderHTTPClient_EmptyEndpointGenericProviderFailsBeforeRelativeURL(t *testing.T) {
-	for _, provider := range []string{"openai", "anthropic", "openrouter"} {
+	for _, provider := range []string{"openai", "anthropic"} {
 		t.Run(provider, func(t *testing.T) {
 			client, err := newProviderHTTPClient(config.Config{Hermes: config.HermesCfg{
 				Model:    "gpt-5.5",
@@ -117,6 +117,108 @@ func TestProviderHTTPClient_EmptyEndpointGenericProviderFailsBeforeRelativeURL(t
 				t.Fatalf("error = %q, want message mentioning the missing endpoint so operators know what to set", got)
 			}
 		})
+	}
+}
+
+func TestProviderHTTPClient_OpenRouterDefaultRuntimeUsesOpenRouterKey(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "or-test-key")
+	t.Setenv("OPENAI_API_KEY", "openai-fallback-key")
+
+	endpoint, apiKey, err := resolveProviderHTTPClientCredentials(config.Config{Hermes: config.HermesCfg{
+		Model:    "anthropic/claude-sonnet-4",
+		Provider: "openrouter",
+	}}, "openrouter")
+	if err != nil {
+		t.Fatalf("resolveProviderHTTPClientCredentials: %v", err)
+	}
+	if endpoint != hermes.OpenRouterDefaultBaseURL {
+		t.Fatalf("endpoint = %q, want OpenRouter default", endpoint)
+	}
+	if apiKey != "or-test-key" {
+		t.Fatalf("apiKey = %q, want OPENROUTER_API_KEY before OPENAI_API_KEY", apiKey)
+	}
+}
+
+func TestProviderHTTPClient_OpenRouterMissingKeyFailsBeforeRelativeURL(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+
+	client, err := newProviderHTTPClient(config.Config{Hermes: config.HermesCfg{
+		Model:    "anthropic/claude-sonnet-4",
+		Provider: "openrouter",
+	}}, "openrouter")
+	if err == nil {
+		t.Fatalf("error = nil, client=%T; want OpenRouter credential setup failure", client)
+	}
+	if client != nil {
+		t.Fatalf("client = %T, want nil on missing OpenRouter key", client)
+	}
+	got := strings.ToLower(err.Error())
+	if !strings.Contains(got, "openrouter") || !strings.Contains(got, "openrouter_api_key") {
+		t.Fatalf("error = %q, want actionable OpenRouter key setup evidence", err)
+	}
+	if got == `post "/v1/chat/completions": unsupported protocol scheme ""` {
+		t.Fatalf("error = %q, want setup evidence before relative URL", err)
+	}
+}
+
+func TestProviderHTTPClient_CustomOpenRouterBaseUsesOpenRouterKey(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "or-test-key")
+
+	endpoint, apiKey, err := resolveProviderHTTPClientCredentials(config.Config{Hermes: config.HermesCfg{
+		Endpoint: "https://openrouter.ai/api/v1",
+		Model:    "anthropic/claude-sonnet-4",
+		Provider: "custom",
+	}}, "custom")
+	if err != nil {
+		t.Fatalf("resolveProviderHTTPClientCredentials: %v", err)
+	}
+	if endpoint != hermes.OpenRouterDefaultBaseURL {
+		t.Fatalf("endpoint = %q, want OpenRouter endpoint preserved", endpoint)
+	}
+	if apiKey != "or-test-key" {
+		t.Fatalf("apiKey = %q, want OPENROUTER_API_KEY for custom OpenRouter base", apiKey)
+	}
+}
+
+func TestProviderHTTPClient_OpenRouterRequestsCarryAttribution(t *testing.T) {
+	var sawAttribution bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/chat/completions" {
+			t.Fatalf("path = %q, want /v1/chat/completions", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer or-test-key" {
+			t.Fatalf("Authorization = %q, want OpenRouter key", r.Header.Get("Authorization"))
+		}
+		if r.Header.Get("HTTP-Referer") == "" || r.Header.Get("X-OpenRouter-Title") == "" || r.Header.Get("X-OpenRouter-Categories") == "" {
+			t.Fatalf("OpenRouter attribution headers missing: %#v", r.Header)
+		}
+		sawAttribution = true
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+
+	client, err := newProviderHTTPClient(config.Config{Hermes: config.HermesCfg{
+		Endpoint: server.URL,
+		APIKey:   "or-test-key",
+		Model:    "anthropic/claude-sonnet-4",
+		Provider: "openrouter",
+	}}, "openrouter")
+	if err != nil {
+		t.Fatalf("newProviderHTTPClient: %v", err)
+	}
+	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+		Model:    "anthropic/claude-sonnet-4",
+		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("OpenStream: %v", err)
+	}
+	defer stream.Close()
+	if !sawAttribution {
+		t.Fatal("OpenRouter request was not observed")
 	}
 }
 

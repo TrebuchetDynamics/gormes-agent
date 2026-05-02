@@ -10,9 +10,9 @@
   </button>
 </div>
 <nav class="docs-nav" aria-label="Documentation navigation">
-  {{ $sections := slice "using-gormes" "building-gormes" "upstream-hermes" }}
-  {{ $toneMap := dict "using-gormes" "shipped" "building-gormes" "progress" "upstream-hermes" "next" }}
-  {{ $labelMap := dict "using-gormes" "USING GORMES" "building-gormes" "BUILDING GORMES" "upstream-hermes" "UPSTREAM HERMES" }}
+  {{ $sections := slice "getting-started" "guides" "reference" "architecture" "development" "parity" }}
+  {{ $toneMap := dict "getting-started" "shipped" "guides" "shipped" "reference" "progress" "architecture" "progress" "development" "next" "parity" "next" }}
+  {{ $labelMap := dict "getting-started" "START" "guides" "OPERATE" "reference" "REFERENCE" "architecture" "ARCHITECTURE" "development" "DEVELOP" "parity" "ROADMAP & PARITY" }}
   {{ range $sections }}
     {{ $section := . }}
     {{ $tone := index $toneMap $section }}

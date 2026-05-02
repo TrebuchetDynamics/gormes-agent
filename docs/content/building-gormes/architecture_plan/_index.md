@@ -87,16 +87,16 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 53/85 subphases shipped · 25 in progress · 7 planned
+**Overall:** 60/92 subphases shipped · 22 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 5/11 subphases |
-| Phase 5 — The Final Purge | 🔨 | 5/20 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 1/9 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 7/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -513,14 +513,14 @@ classification and row-backed implementation queue.
 - [x] Context references stable-handle store
 - [ ] Manual compression feedback + context references
 - [x] ContextEngine compression-boundary callback vocabulary
-- [ ] Kernel compression-boundary callback binding
+- [x] Kernel compression-boundary callback binding
 
-### 4.C — Native Prompt Builder 🔨
+### 4.C — Native Prompt Builder ✅
 
 - [x] Default agent identity / SOUL.md loader
 - [x] Context-file discovery + injection scan
 - [x] Model-specific role and tool-use guidance
-- [ ] Toolset-aware skills prompt snapshot
+- [x] Toolset-aware skills prompt snapshot
 - [x] Memory guidance constant + injection
 - [x] Session search guidance constant + injection
 - [x] Gormes self-help skill/docs prompt guidance
@@ -575,7 +575,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure 🔨
+### 4.I — Native Agent Turn Closure ✅
 
 - [x] Python-free normal agent turn e2e harness
 - [x] Provider-tool-memory golden transcript suite
@@ -585,7 +585,28 @@ classification and row-backed implementation queue.
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
 - [x] Native runtime provider gateway binding
-- [ ] Hermes compatibility namespace retirement boundary
+- [x] Hermes compatibility namespace retirement boundary
+
+### 4.J — Permission-Hardened Tool Execution ✅
+
+- [x] Shell blocklist + filesystem scoping + permission approval
+
+### 4.K — Provider Fallback Chain ✅
+
+- [x] Resilient provider chain dispatch
+
+### 4.L — Safety-Anchored Turn Loop (MOSAIC) ⏳
+
+- [ ] Plan gate hook in agent turn loop
+- [ ] Tool gate pre-execution validation
+- [ ] Refusal-as-action in ReAct cycle
+- [ ] Safety loop end-to-end integration
+
+### 4.M — Advanced Provider Routing ⏳
+
+- [ ] Circuit breaker per provider and API key
+- [ ] P95 latency-aware failover
+- [ ] Capability-based model tier routing
 
 ### 4.J — Permission-Hardened Tool Execution ✅
 
@@ -607,11 +628,11 @@ classification and row-backed implementation queue.
 - [x] Discord tool split + platform-scoped toolsets
 - [x] Discord tool limit coercion helper
 - [x] Home Assistant HASS_TOKEN platform-toolset carveout
-- [ ] Pure core tools first
+- [x] Pure core tools first
 - [x] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
 - [x] Tool output budget persisted artifact pointer
-- [ ] Tool descriptor layer (OperationSpec)
+- [x] Tool descriptor layer (OperationSpec)
 
 ### 5.B — Sandboxing Backends 🔨
 
@@ -623,6 +644,7 @@ classification and row-backed implementation queue.
 - [ ] Modal
 - [ ] Daytona
 - [ ] Singularity
+- [x] Sandbox Policy Explain
 
 ### 5.C — Browser Automation 🔨
 
@@ -641,7 +663,7 @@ classification and row-backed implementation queue.
 - [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
-- [ ] Go browser harness binary repo + integration lane (placeholder)
+- [x] Go browser harness binary repo + integration lane (placeholder)
 
 ### 5.D — Vision + Image Generation 🔨
 
@@ -685,9 +707,10 @@ classification and row-backed implementation queue.
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
 
-### 5.H — ACP Integration ✅
+### 5.H — ACP Integration 🔨
 
 - [x] ACP server side
+- [ ] ACP Client Bridge Mode
 
 ### 5.I — Plugins Architecture 🔨
 
@@ -697,7 +720,10 @@ classification and row-backed implementation queue.
 - [ ] Third-party extensions
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture
-- [ ] Hindsight memory setup blank-input preservation
+- [x] Hindsight memory setup blank-input preservation
+- [x] Agent Hooks Registry
+- [x] Plugin Marketplace + Doctor
+- [ ] Extension Lifecycle Hook System
 
 ### 5.J — Approval / Security Guards 🔨
 
@@ -715,6 +741,8 @@ classification and row-backed implementation queue.
 - [x] Filesystem scoping (folder-level read/write restrictions)
 - [x] Permission approval UX (inline y/n/always)
 - [x] Trust-class enforcement in shared tool executor
+- [ ] Secrets Runtime Controls
+- [ ] Security Audit Command
 
 ### 5.K — Code Execution ✅
 
@@ -728,9 +756,9 @@ classification and row-backed implementation queue.
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
 
-### 5.M — Mixture of Agents ⏳
+### 5.M — Mixture of Agents ✅
 
-- [ ] Multi-model coordination
+- [x] Multi-model coordination
 
 ### 5.N — Misc Operator Tools 🔨
 
@@ -744,7 +772,7 @@ classification and row-backed implementation queue.
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
 - [x] Backend usage-limit stdin health bypass
-- [ ] Cronjob tool API + schedule parser parity
+- [x] Cronjob tool API + schedule parser parity
 - [x] Cron schedule parser + repeat state fixtures
 - [x] Cron recurring next-run failure preservation
 - [x] Cron prompt/script safety + pre-run script contract
@@ -752,9 +780,25 @@ classification and row-backed implementation queue.
 - [x] Cron run resource release contract
 - [x] Cron run resource release executor binding
 - [x] Cron context_from output chaining
-- [ ] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
+- [x] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
 - [x] Goncho serialized write queue + relation candidates
+- [x] Blocker Policy Integration
+- [x] OpenClaw SecretRef core resolver
+- [ ] SecretRef runtime snapshot activation
+- [ ] OpenClaw security audit --deep --fix
+- [ ] ACP bridge client compatibility
+- [ ] Gateway discover/probe command
+- [x] Safety-critical panic and swallowed-error closeout
+- [x] Session Health Monitoring
+- [x] Evidence-Before-Claims Quality Gate
+- [x] Git Delivery Contract Enforcement
+- [x] QMD Hybrid Search
+- [x] Session Rollover Automation
+- [ ] System Events, Heartbeat, and Presence
+- [ ] Gateway Discover and Probe
+- [ ] Channels Capabilities Introspection
+- [ ] Prompt Fragment Include System
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -791,7 +835,7 @@ classification and row-backed implementation queue.
 - [x] Gormes login removed-command typo suggestion contract
 - [x] Gormes model interactive provider/model picker
 - [x] Gormes setup minimal sectioned wizard slice
-- [ ] Gormes uninstall dry-run command contract
+- [x] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default
 - [x] Gormes mcp login browser callback flow
 - [x] Hermes fallback provider chain CLI commands
@@ -825,6 +869,8 @@ classification and row-backed implementation queue.
 - [x] CLI log redactor for known secret shapes
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge
+- [x] Interactive Onboarding
+- [x] Logs Command
 
 ### 5.P — Docker / Packaging 🔨
 
@@ -889,6 +935,19 @@ classification and row-backed implementation queue.
 
 - [x] go-browser-harness doctor subcommand
 
+### 5.U — Fault-Tolerant Sandbox Execution ⏳
+
+- [ ] Pre-execution command classification
+- [ ] Transactional tool execution with snapshot/rollback
+- [ ] Sandbox isolation depth selection
+
+### 5.V — Unified Event Bus ⏳
+
+- [ ] Event bus core: pub/sub interface + in-process implementation
+- [ ] Gateway channel adapters publish to event bus
+- [ ] Agent turn and tool execution events on bus
+- [ ] Event bus integration test: full message flow
+
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
 *Native skill extraction. Compounding intelligence. The feature Hermes doesn't have.*
@@ -897,22 +956,22 @@ classification and row-backed implementation queue.
 
 - [ ] Heuristic or LLM-scored signal
 
-### 6.B — Skill Extractor ⏳
+### 6.B — Skill Extractor ✅
 
-- [ ] LLM-assisted pattern distillation
+- [x] LLM-assisted pattern distillation
 
-### 6.C — Skill Storage Format 🔨
+### 6.C — Skill Storage Format ✅
 
 - [x] SKILL.md frontmatter validation guard
 - [x] Hermes creative skill metadata compatibility
-- [ ] Portable SKILL.md format
+- [x] Portable SKILL.md format
 
-### 6.D — Skill Retrieval + Matching 🔨
+### 6.D — Skill Retrieval + Matching ✅
 
-- [ ] Hybrid lexical + semantic lookup
-- [ ] Source-aware retrieval damping fixtures
+- [x] Hybrid lexical + semantic lookup
+- [x] Source-aware retrieval damping fixtures
 - [x] Delta-bounded skill and memory maintenance passes
-- [ ] Code Cathedral II code-context retrieval fixtures
+- [x] Code Cathedral II code-context retrieval fixtures
 
 ### 6.E — Feedback Loop ⏳
 
@@ -927,13 +986,31 @@ classification and row-backed implementation queue.
 
 - [x] 6 typed memory categories with confidence scoring
 
-### 6.H — Skill Metadata Placement ⏳
+### 6.H — Skill Metadata Placement ✅
 
-- [ ] SKILL.md metadata.when/loaded/placement schema
+- [x] SKILL.md metadata.when/loaded/placement schema
 
-### 6.I — Zero-LLM Knowledge Graph ⏳
+### 6.I — Zero-LLM Knowledge Graph ✅
 
-- [ ] Regex-based auto-link extraction + brain-first lookup
+- [x] Regex-based auto-link extraction + brain-first lookup
+
+### 6.J — Agentic Memory Lifecycle (AgeMem) ⏳
+
+- [ ] Memory operations as agent-callable tools
+- [ ] Agent-controlled memory retention with importance scoring
+- [ ] Cross-session memory continuity
+
+### 6.K — Self-Evolution Engine (GEPA) ⏳
+
+- [ ] Prompt evaluation harness
+- [ ] Iterative prompt mutation and scoring loop
+- [ ] Behavioral pattern extraction from session logs
+
+### 6.L — Composable Skill Execution (Voyager) ⏳
+
+- [ ] Skill code execution runtime
+- [ ] Skill dependency resolution and composition
+- [ ] Skill validation on load with execution proof
 
 ## Phase 7 — Paused Channel Backlog 🔨
 
@@ -973,8 +1050,8 @@ classification and row-backed implementation queue.
 - [x] DingTalk shared-chassis bot seam
 - [x] QQ Bot shared-chassis bot seam
 - [x] Feishu transport/bootstrap layer
-- [ ] Feishu drive-comment rule + pairing seam
-- [ ] Feishu drive-comment reply workflow
+- [x] Feishu drive-comment rule + pairing seam
+- [x] Feishu drive-comment reply workflow
 - [x] DingTalk transport/bootstrap layer
 - [ ] DingTalk real SDK binding
 - [x] DingTalk AI Cards streaming-update contract

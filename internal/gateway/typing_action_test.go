@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -293,5 +294,21 @@ func TestTypingAction_FailureRecordsEvidenceNoRetry(t *testing.T) {
 	}
 	if evidence[0].Code != "typing_action_failed" || evidence[0].Message != "typing action failed" {
 		t.Fatalf("typing evidence = %+v, want redacted failure code/message", evidence[0])
+	}
+}
+
+func TestTypingAction_EvidenceSinkPanicLogged(t *testing.T) {
+	var logs bytes.Buffer
+	m := NewManagerWithSubmitter(ManagerConfig{
+		TypingActionEvidenceSink: func(TypingActionEvidence) {
+			panic("sink boom")
+		},
+	}, nil, slog.New(slog.NewTextHandler(&logs, nil)))
+
+	m.recordTypingActionFailure("telegram")
+
+	got := logs.String()
+	if !strings.Contains(got, "typing_action_evidence_sink_panic") {
+		t.Fatalf("typing sink panic log = %q, want typed panic evidence", got)
 	}
 }

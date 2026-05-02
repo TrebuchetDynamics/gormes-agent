@@ -14,8 +14,31 @@ import (
 )
 
 const (
-	SkillManagerToolName    = "skill_manage"
+	SkillManagerToolName       = "skill_manage"
 	skillManagerDefaultTimeout = 30 * time.Second
+
+	// Portable SKILL.md frontmatter fields for cross-agent skill sharing.
+	// Matching Hermes' skill_manager_tool.py contract with standard metadata.
+	skillFrontmatterRequired = `name|description`
+	skillFrontmatterOptional = `version|author|date|when|category|tags|requires`
+
+	// skillTemplate is the canonical SKILL.md template auto-populated on create
+	// when the agent omits optional fields.
+	skillTemplate = `---
+name: %s
+description: %s
+author: gormes-agent
+date: %s
+version: 1.0.0
+---
+
+## Purpose
+
+## Instructions
+
+## Examples
+
+`
 )
 
 // SkillManagerToolConfig configures the skill management tool surface.
@@ -52,10 +75,10 @@ type skillManageResult struct {
 }
 
 const (
-	maxSkillNameLength     = 64
-	maxDescriptionLength  = 1024
-	maxContentChars       = 100_000
-	validNameRE           = `^[a-z0-9][a-z0-9._-]*$`
+	maxSkillNameLength   = 64
+	maxDescriptionLength = 1024
+	maxContentChars      = 100_000
+	validNameRE          = `^[a-z0-9][a-z0-9._-]*$`
 )
 
 var nameRegex = regexp.MustCompile(validNameRE)
@@ -263,6 +286,9 @@ func (t *SkillManagerTool) handleCreate(in skillManageArgs) skillManageResult {
 		return skillManageResult{Success: false, Error: err}
 	}
 
+	// Auto-populate missing portable SKILL.md frontmatter fields
+	content = ensurePortableFrontmatter(content, name)
+
 	// Check for name collision
 	if existing := findSkill(t.cfg.Root, name); existing != "" {
 		return skillManageResult{
@@ -327,7 +353,7 @@ func (t *SkillManagerTool) handleEdit(in skillManageArgs) skillManageResult {
 	return skillManageResult{
 		Success: true,
 		Message: fmt.Sprintf("Skill %q updated.", name),
-		Path:   skillPath,
+		Path:    skillPath,
 	}
 }
 
@@ -542,4 +568,30 @@ func plural(n int) string {
 		return ""
 	}
 	return "s"
+}
+
+func ensurePortableFrontmatter(content, name string) string {
+	if !strings.HasPrefix(content, "---") {
+		return content
+	}
+	idx := strings.Index(content[3:], "\n---")
+	if idx < 0 {
+		return content
+	}
+	fm := content[3 : 3+idx]
+	rest := content[3+idx+len("\n---"):]
+
+	has := func(field string) bool {
+		return strings.Contains(fm, "\n"+field+":") || strings.HasPrefix(fm, field+":")
+	}
+	if !has("version") {
+		fm += "\nversion: 1.0.0"
+	}
+	if !has("author") {
+		fm += "\nauthor: gormes-agent"
+	}
+	if !has("date") {
+		fm += "\ndate: " + time.Now().UTC().Format("2006-01-02")
+	}
+	return "---" + fm + "\n---" + rest
 }

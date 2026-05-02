@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('docs home hero, quickstart, and three enhanced cards render', async ({ page }) => {
+test('docs home hero, quickstart, and user-first cards render', async ({ page }) => {
   await page.goto('/');
 
   await expect(page).toHaveTitle(/Gormes Docs/);
@@ -15,10 +15,10 @@ test('docs home hero, quickstart, and three enhanced cards render', async ({ pag
   await expect(qs.locator('code')).not.toContainText('curl -fsSL https://gormes.ai/install.sh | sh');
   await expect(qs.locator('code')).not.toContainText('brew install trebuchet/gormes');
 
-  // Three enhanced cards with ordinals and mini-TOCs
+  // User-first cards with ordinals and mini-TOCs
   const cards = page.locator('.docs-home-card');
-  await expect(cards).toHaveCount(3);
-  for (let i = 0; i < 3; i++) {
+  await expect(cards).toHaveCount(4);
+  for (let i = 0; i < 4; i++) {
     const c = cards.nth(i);
     await expect(c.locator('.docs-home-card-ordinal')).toBeVisible();
     await expect(c.locator('.docs-home-card-mini-toc li')).toHaveCount(3);
@@ -26,14 +26,16 @@ test('docs home hero, quickstart, and three enhanced cards render', async ({ pag
   }
 
   // Kickers map to the existing colored labels
-  await expect(page.getByRole('link', { name: /USING GORMES/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /BUILDING GORMES/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /UPSTREAM HERMES/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /START/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /OPERATE/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /REFERENCE/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /ARCHITECTURE/i })).toBeVisible();
 
-  // Sidebar unchanged
-  await expect(page.locator('.docs-nav-group-label-shipped')).toBeVisible();
-  await expect(page.locator('.docs-nav-group-label-progress')).toBeVisible();
-  await expect(page.locator('.docs-nav-group-label-next')).toBeVisible();
+  // Sidebar prioritizes user/operator docs and keeps roadmap/parity last.
+  await expect(page.locator('.docs-nav-group-label-shipped').first()).toBeVisible();
+  await expect(page.locator('.docs-nav-group-label-progress').first()).toBeVisible();
+  await expect(page.locator('.docs-nav-group-label-next').first()).toBeVisible();
+  await expect(page.getByText('ROADMAP & PARITY')).toBeVisible();
 
   // External script budget: pagefind-ui.js + site.js (always) + livereload.js
   // (Hugo dev server only). Filter livereload so the assertion holds in both

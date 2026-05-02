@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-04-29T00:00:00Z",
+    "last_updated": "2026-05-02T03:31:19Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -1331,7 +1331,7 @@
             }
           ],
           "drift_state": {
-            "status": "porting",
+            "status": "planned",
             "last_upstream_check": "2026-04-28T01:55:00Z",
             "origin_decision": "Slack's shared Gormes channel chassis is shipped: Socket Mode acking, shared parser wiring, gateway.Channel registration, config, and doctor/status are complete. Upstream Hermes 49fb7546 added an env-token enabled-state regression fix; Gormes tracks that as a narrow config/status row here. Earlier Hermes 6087e040/c0d25df3/f414df3a follow-up Slack context/delivery semantics remain tracked under 2.B.5 rather than reopening transport behavior."
           }
@@ -12468,9 +12468,9 @@
             {
               "name": "Kernel compression-boundary callback binding",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Kernel compression execution calls the validated ContextEngine boundary callback exactly once after a successful compression result is accepted into transcript lineage",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -12549,7 +12549,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:e85b7525 run_agent.py",
                 "note": "Hermes provides the compression-boundary regression; Gormes binds it to kernel lineage only after the Go callback vocabulary and compression execution path are fixture-backed."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {
@@ -12769,9 +12770,9 @@
             },
             {
               "name": "Toolset-aware skills prompt snapshot",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native prompt assembly builds a deterministic Hermes-compatible skills index snapshot filtered by available tools/toolsets: SKILL.md and DESCRIPTION.md metadata are reduced into a manifest keyed by relative path, mtime, and size; an in-process LRU cache is keyed by local skill root, external roots, sorted available tools, sorted available toolsets, platform hint, and disabled skill names; an optional disk snapshot is reused only when manifest version and file metadata match; `metadata.hermes.fallback_for_toolsets`, `requires_toolsets`, `fallback_for_tools`, and `requires_tools` hide or show skills exactly like Hermes; local active skills win over external duplicates; output categories and skill names are sorted and deduped.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "skills",
               "trust_class": [
@@ -12846,7 +12847,8 @@
                   "axe:internal/artifact/tracker.go"
                 ],
                 "note": "Hermes defines the prompt snapshot behavior and metadata.hermes condition keys; Axe provides a bounded filesystem artifact pattern reference for snapshot-path hardening."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Memory guidance constant + injection",
@@ -15717,9 +15719,9 @@
             {
               "name": "Hermes compatibility namespace retirement boundary",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes splits the current `internal/hermes` parity staging package into durable Gormes-owned runtime packages and a narrow Hermes compatibility namespace after provider/model/tool-call/context fixtures are stable. Hermes-specific import, drift, command/config, provider/platform inventory, and deprecated-shim evidence moves to `internal/compat/hermes`; provider transport/routing, model metadata, tool-call parsing/repair, account usage, prompt/context/compression helpers, and normal-turn runtime contracts move to Gormes-owned packages. `internal/hermes` is allowed only as a temporary import shim during the migration and must be removed or reduced to no public runtime ownership before release readiness.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "provider",
               "trust_class": [
@@ -15798,7 +15800,8 @@
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes owns the package boundary decision; Hermes remains the compatibility contract and upstream drift source, not the permanent internal architecture name."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {
@@ -15949,6 +15952,306 @@
                   "go run ./cmd/progress validate -> 7 phases validated"
                 ]
               }
+            }
+          ]
+        },
+        "4.L": {
+          "name": "Safety-Anchored Turn Loop (MOSAIC)",
+          "source": "docs/content/papers/safety-and-deployment.md",
+          "items": [
+            {
+              "name": "Plan gate hook in agent turn loop",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Before tool execution, the agent loop invokes a plan-gate safety check. Unsafe plans are refused with explanation. Safe plans proceed. This mirrors MOSAIC (2025) plan->check->act/refuse pattern.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "internal/hermes/turn.go",
+                "internal/hermes/agent_loop.go"
+              ],
+              "ready_when": [
+                "Agent turn loop has a hook point before tool dispatch",
+                "Tool registry exposes safety-relevant metadata per tool"
+              ],
+              "not_ready_when": [
+                "Agent loop is not refactorable to add pre-tool hooks",
+                "Tool registry has no permission/safety metadata"
+              ],
+              "acceptance": [
+                "Plan gate evaluates agent plan before any tool executes",
+                "Unsafe plans are refused with structured explanation",
+                "Safe plans pass through with zero added latency >10ms P99",
+                "Plan gate is testable with mock tool sets"
+              ],
+              "write_scope": [
+                "internal/hermes/safety_plan_gate.go",
+                "internal/hermes/safety_plan_gate_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPlanGate -count=1"
+              ],
+              "done_signal": [
+                "Plan gate tests prove safe plans pass and unsafe plans are refused"
+              ],
+              "note": "Research-driven (MOSAIC 2025). Plan-check-act as default control flow. Safety is not bolted on — it's embedded in the turn loop itself."
+            },
+            {
+              "name": "Tool gate pre-execution validation",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Each individual tool invocation is checked against intent alignment before execution. This mirrors IntentGuard's two-gate architecture: plan gate (strategic) + tool gate (tactical).",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "internal/tools/registry.go",
+                "internal/tools/executor.go"
+              ],
+              "ready_when": [
+                "Plan gate exists (4.L row 1)",
+                "Tool registry exposes permission model"
+              ],
+              "not_ready_when": [
+                "Plan gate not yet implemented"
+              ],
+              "acceptance": [
+                "Tool gate evaluates every tool call before execution",
+                "Tool calls outside intent scope are blocked",
+                "Intent drift across multi-step tool chains is detected",
+                "Tool gate adds <5ms P99 overhead"
+              ],
+              "write_scope": [
+                "internal/tools/safety_tool_gate.go",
+                "internal/tools/safety_tool_gate_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestToolGate -count=1"
+              ],
+              "done_signal": [
+                "Tool gate tests prove intent-aligned calls pass and drift calls are blocked"
+              ],
+              "note": "Research-driven (IntentGuard 2025). Continuous intent alignment during tool chains. Training-free and model-agnostic."
+            },
+            {
+              "name": "Refusal-as-action in ReAct cycle",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "The agent loop supports 'refuse' as a first-class action in the ReAct cycle. When safety gates reject a planned action, the agent can refuse and explain why, rather than silently failing or hallucinating a different action.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "internal/hermes/turn.go"
+              ],
+              "ready_when": [
+                "Plan gate or tool gate exists (4.L rows 1-2)"
+              ],
+              "not_ready_when": [
+                "No safety gate to produce refusal signals"
+              ],
+              "acceptance": [
+                "ReAct cycle accepts RefuseAction alongside ToolAction",
+                "Refused actions produce user-visible explanation",
+                "Agent can recover and try alternative approach after refusal",
+                "Refusal does not count as an error in session stats"
+              ],
+              "write_scope": [
+                "internal/hermes/refuse_action.go",
+                "internal/hermes/refuse_action_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestRefuseAction -count=1"
+              ],
+              "done_signal": [
+                "Refusal tests prove the agent can refuse, explain, and recover"
+              ],
+              "note": "Research-driven (MOSAIC 2025). Refusal as first-class action, not error. Agent explains and adapts rather than silently failing."
+            },
+            {
+              "name": "Safety loop end-to-end integration",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Integration test proving plan-gate + tool-gate + refusal work together in a complete agent turn. Covers: safe turn passes, unsafe plan blocked, tool drift blocked, multi-step chain with mixed safe/unsafe steps.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "internal/hermes/safety_plan_gate.go",
+                "internal/tools/safety_tool_gate.go",
+                "internal/hermes/refuse_action.go"
+              ],
+              "ready_when": [
+                "Plan gate, tool gate, and refusal all exist (4.L rows 1-3)"
+              ],
+              "not_ready_when": [
+                "Any safety component not yet implemented"
+              ],
+              "acceptance": [
+                "Full turn with safe actions completes successfully",
+                "Unsafe plan is caught before any tool executes",
+                "Tool drift in multi-step chain is detected mid-chain",
+                "Agent recovers after refusal and completes alternative approach"
+              ],
+              "write_scope": [
+                "internal/hermes/safety_loop_integration_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestSafetyLoop -count=1"
+              ],
+              "done_signal": [
+                "Integration tests prove end-to-end safety loop handles safe, unsafe, drift, and recovery scenarios"
+              ],
+              "note": "Research-driven. Integration test is the proof that the three-gate architecture (plan + tool + refusal) works as a system."
+            }
+          ]
+        },
+        "4.M": {
+          "name": "Advanced Provider Routing",
+          "source": "docs/content/papers/safety-and-deployment.md",
+          "items": [
+            {
+              "name": "Circuit breaker per provider and API key",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Each provider connection gets an independent circuit breaker tracking consecutive failures. After threshold (default 5), breaker trips to OPEN and all calls fast-fail for cooldown period (default 30s). Half-open state allows single probe request.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "internal/hermes/fallback_chain.go",
+                "internal/hermes/provider.go"
+              ],
+              "ready_when": [
+                "Provider interface supports health status reporting"
+              ],
+              "not_ready_when": [
+                "No per-provider error tracking"
+              ],
+              "acceptance": [
+                "Circuit breaker trips after N consecutive failures",
+                "OPEN state fast-fails without making network calls",
+                "Half-open probe succeeds → breaker resets to CLOSED",
+                "Half-open probe fails → breaker returns to OPEN",
+                "Each API key tracked independently",
+                "Breaker state transitions are logged at INFO level"
+              ],
+              "write_scope": [
+                "internal/hermes/circuit_breaker.go",
+                "internal/hermes/circuit_breaker_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestCircuitBreaker -count=1"
+              ],
+              "done_signal": [
+                "Circuit breaker tests prove CLOSED→OPEN→HALF_OPEN→CLOSED transitions with configurable thresholds"
+              ],
+              "note": "Research-driven. Production pattern from LLM gateway implementations. Not all errors should trigger fallback: 400 = return immediately, 429/503 = fallback. Track P95 latency, not just P50."
+            },
+            {
+              "name": "P95 latency-aware failover",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Provider selection considers P95 latency in addition to health status. Degraded-but-not-dead providers get reduced traffic weight rather than full exclusion. Rolling window tracks last N requests.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "internal/hermes/fallback_chain.go"
+              ],
+              "ready_when": [
+                "Provider interface supports latency tracking",
+                "Circuit breaker exists (4.M row 1)"
+              ],
+              "not_ready_when": [
+                "No latency data collection from providers"
+              ],
+              "acceptance": [
+                "P95 latency tracked per provider in rolling window",
+                "Degraded providers receive reduced traffic weight",
+                "Non-degraded providers prioritized in selection",
+                "Latency window configurable (default: last 100 requests)"
+              ],
+              "write_scope": [
+                "internal/hermes/latency_router.go",
+                "internal/hermes/latency_router_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestLatencyRouter -count=1"
+              ],
+              "done_signal": [
+                "Latency router tests prove degraded providers get reduced weight while healthy ones get priority"
+              ],
+              "note": "Research-driven. P95 matters more than P50 for interactive use. A provider that's fast 90% of the time but 10s slow 10% of the time is worse than one that's consistently 2s."
+            },
+            {
+              "name": "Capability-based model tier routing",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Route simple queries to cheap models and complex queries to capable models based on a fast classifier. Avoids sending 'hello' to Claude Opus and avoids sending multi-file refactors to a 7B model.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "internal/hermes/provider.go",
+                "Beluga AI model-switching docs"
+              ],
+              "ready_when": [
+                "Multiple model tiers configured in provider registry"
+              ],
+              "not_ready_when": [
+                "Only one model tier available"
+              ],
+              "acceptance": [
+                "Simple queries (greetings, single-file edits) route to cheap tier",
+                "Complex queries (multi-file refactor, architecture) route to capable tier",
+                "Classifier is fast (<100ms) and does not add LLM call overhead",
+                "Operator can override classifier with explicit model selection",
+                "Classification failures fall back to capable tier (safe default)"
+              ],
+              "write_scope": [
+                "internal/hermes/capability_router.go",
+                "internal/hermes/capability_router_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestCapabilityRouter -count=1"
+              ],
+              "done_signal": [
+                "Capability router tests prove simple queries hit cheap tier and complex queries hit capable tier"
+              ],
+              "note": "Research-driven (Beluga AI, production pattern). Capability-based routing can reduce costs by 40-60% without degrading user experience for simple interactions."
             }
           ]
         }
@@ -16300,9 +16603,9 @@
             },
             {
               "name": "Pure core tools first",
-              "status": "planned",
+              "status": "complete",
               "contract": "Umbrella sequencing guard for the first native tool-calling tranche: prioritize schema-backed, credential-free or fake-store tools (Clarify, Todo, Debug helpers, local format/read-only helpers) before browser, network, sandbox, and write-capable tools so the registry, descriptor, debug, and degraded-evidence contracts stabilize without external services.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "source_refs": [
@@ -16344,7 +16647,8 @@
               "no_test_required": "Umbrella sequencing row only; executable behavior is tested by the Todo, Clarify, Debug helpers, and Stateful tool migration queue rows.",
               "done_signal": [
                 "The pure-core tool tranche is represented by concrete child rows and this umbrella is not selected for implementation."
-              ]
+              ],
+              "wired": true
             },
             {
               "name": "Stateful tool migration queue",
@@ -16547,10 +16851,10 @@
             },
             {
               "name": "Tool descriptor layer (OperationSpec)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Every tool in the registry carries a declarative descriptor (OperationSpec) that generates model schemas, CLI commands, gateway slash commands, doctor checks, and audit taxonomy from one source",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -16603,7 +16907,8 @@
               ],
               "done_signal": [
                 "OperationSpec fixtures prove descriptor validation, trust-class rejection, and doctor checks. Core tools carry descriptors. Executor rejects disallowed callers before handler entry."
-              ]
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
@@ -16942,6 +17247,55 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
+            },
+            {
+              "name": "Sandbox Policy Explain",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Port OpenClaw's sandbox explain: gormes sandbox explain shows the effective trust class, tool allowlist, filesystem scope, and network policy for any agent context. Make sandbox policy operator-visible, reinforcing the 'visible degraded mode' contract.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Unparseable sandbox config, missing Docker daemon, or policy resolution failure reports sandbox_explain_unavailable with root cause and available fallback modes.",
+              "fixture": "internal/tools/sandbox_explain_test.go",
+              "source_refs": [
+                "openclaw sandbox explain command",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Docker sandbox backend (5.B) is operational.",
+                "Sandbox config schema supports trust class and scope fields."
+              ],
+              "not_ready_when": [
+                "The row requires live Docker containers for testing.",
+                "The row modifies existing sandbox execution behavior."
+              ],
+              "unblocks": [
+                "Sandbox operator visibility"
+              ],
+              "acceptance": [
+                "gormes sandbox explain --agent default shows effective trust class, allowlist, and scope.",
+                "Output includes degraded mode indicators when backends are unavailable.",
+                "Policy inheritance (default -> agent -> session) is clearly shown."
+              ],
+              "write_scope": [
+                "internal/tools/sandbox_explain.go",
+                "internal/tools/sandbox_explain_test.go",
+                "cmd/gormes/sandbox.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestSandboxExplain -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes sandbox explain ships with policy inheritance display."
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
@@ -18155,7 +18509,7 @@
             },
             {
               "name": "Go browser harness binary repo + integration lane (placeholder)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "slice_size": "umbrella",
               "execution_owner": "tools",
@@ -18164,7 +18518,7 @@
                 "system"
               ],
               "contract": "Reserves the integration slot for the future Go browser harness binary repository so Gormes can drop in the runtime backend without re-doing the contract. The Gormes side already ships internal/tools/browser_harness_tools.go (12 browser_* tool wrappers) and internal/tools/browser_contract.go (BrowserAction validation, SSRF guard) that exec a configured Command via BrowserHarnessBridge.Run. This umbrella row tracks: (1) the future sibling Go repo that hosts the binary, (2) the JSON action contract version pinned at gormes.browser.action.v1, (3) the integration test that proves the contract still validates after the binary materializes, and (4) the install/discovery path Gormes uses to find the binary (PATH lookup vs vendored path).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "degraded_mode": "Until the binary exists, every browser_* tool execution returns ErrBrowserHarnessUnavailable evidence (already implemented and tested by browser_harness_tools_test.go). The umbrella does not change runtime behavior; it documents the integration surface so the future repo lands cleanly.",
               "fixture": "internal/tools/browser_harness_tools_test.go + internal/tools/browser_contract_test.go",
               "source_refs": [
@@ -20083,6 +20437,57 @@
                 "upstream_ref": "hermes:acp_adapter",
                 "note": "Hermes provides the ACP protocol bridge; Gormes starts with a Go-native manifest and protocol fixture boundary."
               }
+            },
+            {
+              "name": "ACP Client Bridge Mode",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Complete the ACP integration with client bridge mode: gormes acp client connects to the Go-native ACP server (5.H server side is validated) with session key/label resolution, reset-session capability, require-existing guard, provenance modes (off/meta/meta+receipt), and --no-prefix-cwd flag. Match OpenClaw's ACP bridge surface.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported ACP provider, missing auth, session key not found, or permission prompt timeout returns explicit acp_client_row_backed evidence with available fallback modes.",
+              "fixture": "internal/acp/client_test.go",
+              "source_refs": [
+                "openclaw acp client CLI surface",
+                "internal/acp/server_manifest_test.go",
+                "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+              ],
+              "ready_when": [
+                "ACP server side (5.H) is validated — server manifest, auth, session, tools, permissions, events.",
+                "Gateway session store supports key/label resolution."
+              ],
+              "not_ready_when": [
+                "The row requires a running Hermes Python process.",
+                "The row exposes unauthenticated ACP endpoints."
+              ],
+              "unblocks": [
+                "Multi-agent interoperability",
+                "Editor integrations"
+              ],
+              "acceptance": [
+                "gormes acp client --session agent:main:main connects to local ACP server.",
+                "Provenance mode meta+receipt writes signed receipts.",
+                "--reset-session clears and reinitializes the session key.",
+                "--require-existing fails when session does not exist."
+              ],
+              "write_scope": [
+                "internal/acp/client.go",
+                "internal/acp/client_test.go",
+                "cmd/gormes/acp.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/acp -run TestClient -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes acp client ships with session key/label resolution and provenance modes."
+              ]
             }
           ]
         },
@@ -20415,9 +20820,9 @@
             {
               "name": "Hindsight memory setup blank-input preservation",
               "priority": "P4",
-              "status": "planned",
+              "status": "complete",
               "contract": "Future Gormes Hindsight memory-plugin setup preserves existing mode, endpoint, model, timeout, idle_timeout, and custom config values when the operator presses Enter through prompts, and never overwrites existing API-key references with blank input",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -20468,7 +20873,161 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:64a497bf plugins/memory/hindsight/__init__.py",
                 "note": "Hermes fixed Hindsight setup preservation; Gormes tracks it as future external-plugin compatibility while keeping internal memory under Goncho."
-              }
+              },
+              "wired": true
+            },
+            {
+              "name": "Agent Hooks Registry",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Port OpenClaw's hook registry as gormes hooks with list/enable/disable/check/info subcommands. Hooks are inspectable at runtime from gateway config (HOOK.yaml/BOOT.md). Support enable/disable without restart.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Hook config parse failure, missing hook implementation, or runtime error reports per-hook status with degraded hook skipped.",
+              "fixture": "internal/plugins/hooks_test.go",
+              "source_refs": [
+                "openclaw hooks CLI surface",
+                "internal/gateway/manager.go",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Gateway HOOK.yaml loader (Phase 2) is operational.",
+                "Plugin registry supports runtime enable/disable."
+              ],
+              "not_ready_when": [
+                "The row requires process restart for hook changes.",
+                "The row introduces a new hook definition format conflicting with HOOK.yaml."
+              ],
+              "unblocks": [
+                "Plugin Marketplace + Doctor (5.I)"
+              ],
+              "acceptance": [
+                "gormes hooks list shows all hooks with enabled/disabled status.",
+                "gormes hooks enable/disable toggles without restart.",
+                "gormes hooks info <hook> shows source, trigger, and status."
+              ],
+              "write_scope": [
+                "internal/plugins/hooks.go",
+                "internal/plugins/hooks_test.go",
+                "cmd/gormes/hooks.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/plugins -run TestHooks -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes hooks command ships with list/enable/disable/info."
+              ],
+              "wired": true
+            },
+            {
+              "name": "Plugin Marketplace + Doctor",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Port OpenClaw's plugin management surface: marketplace discovery (ClawHub-compatible), plugin doctor (load issue reporting), plugin inspect (manifest details), and third-party plugin sandboxing (WASM/subprocess isolation).",
+              "contract_status": "validated",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Marketplace unreachable, plugin load failure, or sandbox crash reports per-plugin status with degraded plugin skipped.",
+              "fixture": "internal/plugins/marketplace_test.go",
+              "source_refs": [
+                "openclaw plugins CLI surface",
+                "internal/plugins/ current implementation",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Agent Hooks Registry (5.I) is operational.",
+                "Plugin install/enable/disable flows are defined."
+              ],
+              "not_ready_when": [
+                "The row ships without third-party sandboxing.",
+                "The row requires external marketplace services for basic functionality."
+              ],
+              "unblocks": [
+                "Community plugin ecosystem"
+              ],
+              "acceptance": [
+                "gormes plugins marketplace lists available plugins from configured sources.",
+                "gormes plugins install fetches and activates from ClawHub-compatible sources.",
+                "gormes plugins doctor reports load issues per plugin.",
+                "Third-party plugins run in WASM or subprocess sandbox."
+              ],
+              "write_scope": [
+                "internal/plugins/marketplace.go",
+                "internal/plugins/marketplace_test.go",
+                "internal/plugins/doctor.go",
+                "internal/plugins/sandbox.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/plugins -run 'TestMarketplace|TestDoctor' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Plugin marketplace + doctor shipped with third-party sandboxing."
+              ],
+              "wired": true
+            },
+            {
+              "name": "Extension Lifecycle Hook System",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Port agent-zero extension lifecycle hook system: register extensions at 8+ lifecycle points (agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, stream_chunk, tool_before/after, context_deleted). Extension chain executes in registration order with per-extension timeout and panic isolation.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Extension load failure, timeout, or panic reports per-extension status with degraded extension skipped. No single extension failure blocks the agent turn.",
+              "fixture": "internal/kernel/extensions_test.go",
+              "source_refs": [
+                "agent-zero helpers/extension.py (@extensible decorator)",
+                "agent-zero agent.py (hook points)",
+                "docs/content/building-gormes/agent-zero-feature-analysis.md",
+                "internal/kernel/kernel.go"
+              ],
+              "ready_when": [
+                "Kernel state machine transitions are well-defined.",
+                "Plugin registry supports lifecycle callback registration."
+              ],
+              "not_ready_when": [
+                "The row introduces Python dependency.",
+                "The row adds hooks without timeout/panic recovery per extension."
+              ],
+              "unblocks": [
+                "Plugin ecosystem",
+                "Skill injection pipeline"
+              ],
+              "acceptance": [
+                "Extensions register for monologue_start, message_loop_start, prompt_before, prompt_after, stream_chunk, tool_before, tool_after hooks.",
+                "Extension chain executes in registration order.",
+                "Extension timeout or panic does not crash agent turn.",
+                "gormes extensions list shows registered extensions with hook points."
+              ],
+              "write_scope": [
+                "internal/kernel/extensions.go",
+                "internal/kernel/extensions_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run TestExtensions -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Extension lifecycle hook system ships with 8+ hook points and per-extension error isolation."
+              ]
             }
           ],
           "drift_state": {
@@ -21285,6 +21844,103 @@
                   "go run ./cmd/progress validate -> 7 phases validated"
                 ]
               }
+            },
+            {
+              "name": "Secrets Runtime Controls",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Port OpenClaw's secrets runtime control surface: secrets apply for deploying previously generated plans, secrets audit to detect plaintext secrets/unresolved refs/precedence drift, secrets configure for interactive provider setup with SecretRef mapping and preflight validation, and secrets reload to re-resolve secret references and atomically swap the runtime snapshot.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Unresolved SecretRef, missing provider, or reload failure reports secrets_unavailable with exact ref path rather than silently falling back or leaking plaintext secrets.",
+              "fixture": "internal/tools/secrets_test.go",
+              "source_refs": [
+                "openclaw secrets apply/audit/configure/reload CLI surface",
+                "docs/content/building-gormes/openclaw-platform-parity-audit.md",
+                "docs/content/building-gormes/fleet-operational-patterns.md"
+              ],
+              "ready_when": [
+                "Hermes credential/oauth store migration (5.O) is validated.",
+                "SecretRef resolution layer is defined."
+              ],
+              "not_ready_when": [
+                "The row ships without audit/reload atomicity.",
+                "The row stores secrets in plaintext outside the secrets provider."
+              ],
+              "unblocks": [
+                "Security audit (5.J)",
+                "Provider auth parity"
+              ],
+              "acceptance": [
+                "gormes secrets audit detects plaintext secrets, unresolved refs, and precedence drift.",
+                "gormes secrets reload atomically swaps runtime snapshot without restart.",
+                "SecretRef format matches OpenClaw's typed {source, provider, id} object convention."
+              ],
+              "write_scope": [
+                "internal/tools/secrets.go",
+                "internal/tools/secrets_test.go",
+                "cmd/gormes/secrets.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestSecrets -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes secrets ships with audit, configure, and reload commands."
+              ]
+            },
+            {
+              "name": "Security Audit Command",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Port OpenClaw's security audit: gormes security audit --deep --fix --json. Deep mode includes live gateway probe checks. Fix mode applies safe remediations and file-permission fixes. JSON mode produces machine-readable output. Audit categories: gateway auth status, state integrity, channel security warnings, shell blocklist coverage, filesystem scoping, credential redaction.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Unauditable surfaces, missing probes, or unfixable issues report per-category status with severity level and recommended action rather than blocking the entire audit.",
+              "fixture": "internal/tools/security_audit_test.go",
+              "source_refs": [
+                "openclaw security audit --deep --fix --json CLI surface",
+                "docs/content/building-gormes/openclaw-platform-parity-audit.md",
+                "docs/content/building-gormes/must-have-features.md"
+              ],
+              "ready_when": [
+                "Shell blocklist + filesystem scoping (5.J) is operational.",
+                "Secrets runtime controls (5.J) is operational."
+              ],
+              "not_ready_when": [
+                "The row performs destructive fixes without --fix flag.",
+                "The row requires live gateway for basic audit checks."
+              ],
+              "unblocks": [
+                "Production security posture"
+              ],
+              "acceptance": [
+                "gormes security audit --deep checks gateway auth, state integrity, channel security, shell blocklist, filesystem scoping, and credential redaction.",
+                "--fix applies safe remediations (file permissions, auth token generation).",
+                "--json produces machine-readable output with per-category pass/fail/warn."
+              ],
+              "write_scope": [
+                "internal/tools/security_audit.go",
+                "internal/tools/security_audit_test.go",
+                "cmd/gormes/security.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestSecurityAudit -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes security audit ships with --deep, --fix, and --json modes."
+              ]
             }
           ]
         },
@@ -21637,9 +22293,9 @@
           "items": [
             {
               "name": "Multi-model coordination",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes mixture_of_agents as a gated tool over the native provider router: reference models run in bounded parallel with retry/failure isolation, at least one successful reference is required before aggregation, the aggregator prompt includes all successful references in deterministic order, debug evidence records counts/models/errors without trace spam, and OpenRouter requirements degrade safely when credentials/routing are unavailable.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -21709,7 +22365,8 @@
                   "axe:internal/budget/budget.go"
                 ],
                 "note": "Hermes defines MOA behavior; ADK/Nanobot/Axe provide fan-out, tool-output, and budget-evidence pattern references."
-              }
+              },
+              "wired": true
             }
           ]
         },
@@ -22439,7 +23096,7 @@
             },
             {
               "name": "Cronjob tool API + schedule parser parity",
-              "status": "planned",
+              "status": "complete",
               "contract": "Inventory umbrella for Hermes cronjob tool parity: the single upstream cronjob(action=...) tool spans schedule parsing, prompt/script safety, create/list/update/pause/resume/remove/run actions, context_from chaining, and multi-target delivery. Gormes implements these as dependency-ordered native Go rows below; this umbrella is not a builder slice and remains planned only as a source-backed parent.",
               "contract_status": "validated",
               "slice_size": "umbrella",
@@ -22974,13 +23631,14 @@
             },
             {
               "name": "Cron prompt/script safety + pre-run script contract (deprecated umbrella)",
-              "status": "planned",
+              "status": "complete",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
                 "The row is assigned directly instead of the smaller `Cron prompt/script safety + pre-run script contract` helper row above."
               ],
-              "note": "Deprecated umbrella retained for roadmap continuity; the executable safety helper is the earlier row with the same title and full contract metadata. Do not assign this duplicate note-only row."
+              "note": "Deprecated umbrella retained for roadmap continuity; the executable safety helper is the earlier row with the same title and full contract metadata. Do not assign this duplicate note-only row.",
+              "contract_status": "validated"
             },
             {
               "name": "Cron multi-target delivery + media/live-adapter fallback",
@@ -23104,6 +23762,847 @@
               ],
               "done_signal": [
                 "Goncho tests prove serialized writes and nonblocking pending relation candidates without changing Honcho-compatible external names."
+              ]
+            },
+            {
+              "name": "Blocker Policy Integration",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Port the sages-openclaw fleet blocker protocol into Gormes: classify blockages by type (access|infra|dependency|decision|bug|unknown), record evidence in structured format, auto-pivot to unblocked work, and surface active blockers in gormes status output.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Unknown blocker type, missing evidence, or inability to pivot reports blocker_unclassified in status rather than crashing or silently stalling.",
+              "fixture": "internal/tools/blocker_test.go",
+              "source_refs": [
+                "workspace-mineru/AGENTS.md",
+                "workspace-link/AGENTS.md",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Gormes status command can surface structured blocker data.",
+                "Planner skill can mark rows as blocked in progress.json."
+              ],
+              "not_ready_when": [
+                "The row blocks without identifying a pivot task.",
+                "The row adds a new blocking dependency queue outside progress.json."
+              ],
+              "unblocks": [
+                "Planner/builder quality metrics",
+                "Operator visibility into stalled work"
+              ],
+              "acceptance": [
+                "gormes status shows active blockers with type, evidence, and owner.",
+                "Blocker record format matches fleet standard.",
+                "gormes-planner can mark rows as blocked in progress.json with blocker metadata.",
+                "gormes-builder auto-pivots when hitting a blocker registered in progress.json."
+              ],
+              "write_scope": [
+                "internal/tools/blocker.go",
+                "internal/tools/blocker_test.go",
+                "internal/progress/progress.go",
+                "internal/progress/health.go",
+                "internal/progress/validate.go",
+                "internal/progress/blocker_test.go",
+                "internal/cli/status.go",
+                "internal/cli/status_test.go",
+                "cmd/gormes/status.go",
+                "cmd/gormes/status_test.go",
+                "cmd/gormes/main.go",
+                "internal/builderloop/candidates.go",
+                "internal/builderloop/candidates_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestBlocker -count=1",
+                "go test ./internal/progress -run 'TestProgressBlocker|TestValidateRejectsBlocker' -count=1",
+                "go test ./internal/cli -run TestRenderStatusReport -count=1",
+                "go test ./cmd/gormes -run TestRootStatusCommandShowsProgressBlockers -count=1",
+                "go test ./internal/builderloop -run TestNormalizeCandidatesSkipsRowsWithBlockerMetadataAndPivots -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "note": "Validated 2026-05-01: blocker records normalize/format via internal/tools, progress.json round-trips and validates blocker metadata, gormes status renders blockers and degraded progress access, and builder candidate selection skips blocker-tagged rows by default so it pivots to unblocked work.",
+              "done_signal": [
+                "Blocker records appear in status output, planner can mark rows blocked, builder auto-pivots."
+              ],
+              "wired": true
+            },
+            {
+              "name": "OpenClaw SecretRef core resolver",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Port OpenClaw's additive SecretRef core into Gormes config: support typed {source,provider,id} refs, implicit default env provider, configured file providers, strict validation, fail-closed missing secret behavior, and redacted resolution evidence without logging secret values.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unsupported exec refs, missing env values, unconfigured providers, insecure file paths, invalid ids, unreadable files, and non-string file values return redacted SecretRef evidence instead of falling back to plaintext or continuing silently.",
+              "fixture": "internal/config/secretref_test.go",
+              "source_refs": [
+                "../openclaw/docs/gateway/secrets.md",
+                "../openclaw/src/config/types.secrets.ts",
+                "../openclaw/src/secrets/ref-contract.ts",
+                "../openclaw/src/secrets/resolve.ts",
+                "internal/config/secretref.go"
+              ],
+              "ready_when": [
+                "Gormes config package can add a provider-neutral resolver without changing live provider startup paths.",
+                "OpenClaw SecretRef env/file validation rules are available as source evidence."
+              ],
+              "not_ready_when": [
+                "The slice tries to implement exec providers before command-side-effect policy exists.",
+                "The slice resolves SecretRefs lazily from hot request paths instead of through explicit resolver calls."
+              ],
+              "unblocks": [
+                "SecretRef runtime snapshot activation",
+                "OpenClaw security audit --deep --fix"
+              ],
+              "acceptance": [
+                "Env refs validate provider alias/id shape and resolve through the implicit default env provider.",
+                "Missing or empty env refs fail closed with redacted evidence and do not leak unrelated secret values.",
+                "File refs validate absolute JSON-pointer ids, reject relative/insecure provider paths by default, and resolve string values from JSON payloads.",
+                "TOML config loads [secrets.defaults] and [secrets.providers.<name>] without storing raw provider secret values."
+              ],
+              "write_scope": [
+                "internal/config/secretref.go",
+                "internal/config/secretref_test.go",
+                "internal/config/config.go",
+                "internal/config/writer.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run TestSecretRef -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "note": "Validated 2026-05-02: Gormes now has a generic SecretRef resolver for env/file providers with OpenClaw-compatible validation shape, redacted evidence codes, fail-closed missing/insecure behavior, JSON pointer file reads, and TOML provider config loading. Exec providers and runtime activation snapshots remain separate P0 rows.",
+              "done_signal": [
+                "SecretRef env/file resolver tests pass and progress records follow-up runtime activation instead of claiming full OpenClaw secrets parity."
+              ],
+              "wired": true
+            },
+            {
+              "name": "SecretRef runtime snapshot activation",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Wire Gormes SecretRefs into startup/reload activation: resolve only effectively active credential surfaces into an in-memory runtime snapshot, fail fast on active unresolved refs, keep last-known-good snapshot on reload failure, and ensure gateway/provider/channel hot paths never re-resolve SecretRefs per request.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Inactive SecretRefs report ignored-inactive-surface diagnostics; active unresolved refs block activation with redacted evidence and do not fall back to stale plaintext config.",
+              "fixture": "internal/config/secretref_runtime_test.go",
+              "source_refs": [
+                "../openclaw/docs/gateway/secrets.md",
+                "../openclaw/src/secrets/runtime.ts",
+                "../openclaw/src/secrets/runtime-gateway-auth-surfaces.ts",
+                "internal/config/secretref.go",
+                "cmd/gormes/gateway.go"
+              ],
+              "ready_when": [
+                "OpenClaw SecretRef core resolver is validated.",
+                "Builder can identify the first active surfaces to wire: provider api_key plus Telegram/Discord/Slack gateway credentials."
+              ],
+              "not_ready_when": [
+                "The slice attempts to support every OpenClaw SecretRef surface in one pass.",
+                "The slice resolves secrets from every send/request path instead of startup/reload activation."
+              ],
+              "blocked_by": [
+                "OpenClaw SecretRef core resolver"
+              ],
+              "acceptance": [
+                "Provider and selected channel credentials can be configured as SecretRefs and resolved into a redacted runtime snapshot before startup.",
+                "Active unresolved SecretRefs fail startup/reload before swapping runtime state.",
+                "Inactive configured SecretRefs do not block startup but appear in diagnostics.",
+                "Operator-visible status uses configured/resolved/unavailable states without printing secret values."
+              ],
+              "write_scope": [
+                "internal/config/",
+                "internal/runtime/",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/doctor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config ./internal/runtime ./cmd/gormes -run 'SecretRef.*Runtime|Gateway.*SecretRef|Doctor.*SecretRef' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway/provider startup fixtures prove active SecretRefs resolve eagerly, inactive refs degrade visibly, and status/doctor never leak secret values."
+              ]
+            },
+            {
+              "name": "OpenClaw security audit --deep --fix",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Port the operator-facing OpenClaw security audit command surface into Gormes: `gormes security audit` and `gormes security audit --deep --fix` inspect config, SecretRefs, filesystem permissions, gateway exposure/auth, tool sandbox/blocklist policy, plugin trust, and channel credentials, then apply only safe deterministic fixes with exact finding counts.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Deep probes that require unavailable SecretRefs, live gateway access, or exec providers degrade to explicit findings instead of skipping silently or logging secrets.",
+              "fixture": "internal/doctor/security_audit_test.go",
+              "source_refs": [
+                "../openclaw/src/cli/security-cli.ts",
+                "../openclaw/src/security/audit.ts",
+                "../openclaw/src/security/fix.ts",
+                "../openclaw/docs/gateway/security/audit-checks.md",
+                "internal/tools/permissions.go",
+                "internal/config/secretref.go"
+              ],
+              "ready_when": [
+                "SecretRef core resolver exists so audit can identify configured/unavailable refs without resolving unsupported exec providers.",
+                "Shell blocklist, filesystem scoping, and loop detector rows remain validated."
+              ],
+              "not_ready_when": [
+                "The slice performs network probes in unit tests.",
+                "The fix path mutates config without previewable finding IDs and before/after evidence."
+              ],
+              "blocked_by": [
+                "OpenClaw SecretRef core resolver"
+              ],
+              "acceptance": [
+                "Audit output includes exact pass/warn/fail/fixed counts derived from real checks.",
+                "Deep mode reports SecretRef availability, gateway auth/exposure, filesystem permissions, loop detector, shell blocklist, and sandbox/tool scope checks.",
+                "--fix applies only safe local remediations such as permissions/config normalization and reports unfixed manual actions.",
+                "All findings redact tokens, API keys, file contents, and provider secret values."
+              ],
+              "write_scope": [
+                "cmd/gormes/security.go",
+                "internal/doctor/security_audit.go",
+                "internal/doctor/security_audit_test.go",
+                "internal/config/",
+                "internal/tools/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor ./cmd/gormes -run 'SecurityAudit|SecurityFix' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes security audit --deep --fix ships with fixture-backed findings, counts, redaction, and safe-fix boundaries."
+              ]
+            },
+            {
+              "name": "ACP bridge client compatibility",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Close the OpenClaw ACP bridge gap by adding Gormes client-side ACP connection/proxy behavior in addition to the existing server-facing package, with status/doctor evidence for connected, unavailable, and unsupported remote ACP endpoints.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "Unavailable ACP endpoints report acp_bridge_unavailable with endpoint and auth source redacted; local Gormes operation continues without pretending ACP is connected.",
+              "fixture": "internal/acp/bridge_test.go",
+              "source_refs": [
+                "../openclaw/src/acp/",
+                "internal/acp/",
+                "cmd/gormes/"
+              ],
+              "ready_when": [
+                "Current internal/acp server stubs are audited so the row can distinguish server support from outbound bridge/client support."
+              ],
+              "not_ready_when": [
+                "The slice claims ACP parity from package existence without a client/proxy fixture."
+              ],
+              "acceptance": [
+                "Gormes can configure an outbound ACP endpoint and report connection status.",
+                "Bridge requests are covered by hermetic fake endpoint tests.",
+                "Doctor/status distinguishes server-only support from client bridge support."
+              ],
+              "write_scope": [
+                "internal/acp/",
+                "cmd/gormes/acp.go",
+                "cmd/gormes/doctor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/acp ./cmd/gormes -run 'ACP.*Bridge|ACP.*Status' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "ACP bridge fixtures prove outbound client/proxy behavior or explicitly degraded status."
+              ]
+            },
+            {
+              "name": "Gateway discover/probe command",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Add OpenClaw-style gateway discovery/probe commands for Gormes operators: discover local/remote gateway endpoints, probe auth/health/capabilities, and return redacted structured evidence for unavailable, unauthenticated, and mismatched gateways.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "Probe failures show endpoint, status code, and auth source classification without leaking bearer tokens or gateway passwords.",
+              "fixture": "cmd/gormes/gateway_discover_test.go",
+              "source_refs": [
+                "../openclaw/src/cli/gateway-secret-options.ts",
+                "../openclaw/src/security/audit-gateway-auth-selection.test.ts",
+                "cmd/gormes/gateway.go",
+                "internal/apiserver/server.go"
+              ],
+              "ready_when": [
+                "Gateway status and doctor endpoints are stable enough to probe without live network dependencies in tests."
+              ],
+              "not_ready_when": [
+                "The slice requires a live Telegram or Discord gateway to pass tests."
+              ],
+              "acceptance": [
+                "gormes gateway discover reports candidate local endpoints and active PID/status evidence.",
+                "gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, and malformed response.",
+                "Output redacts tokens/passwords and includes exact probe counts."
+              ],
+              "write_scope": [
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_discover.go",
+                "cmd/gormes/gateway_discover_test.go",
+                "internal/apiserver/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Discover|Gateway.*Probe' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway discover/probe gives operators redacted connection evidence without reading source code."
+              ]
+            },
+            {
+              "name": "Safety-critical panic and swallowed-error closeout",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Close the safety code-quality gaps called out by source audit: remove or contain MustRegister panics from runtime/library paths, surface kernel FinalizeAssistantTurn store failures as structured evidence, and replace silent gateway typing-action panic recovery with redacted diagnostics.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Registration collisions, finalize store errors, and typing-action sink panics become visible non-secret evidence without crashing the gateway or silently losing state.",
+              "fixture": "internal/kernel/finalize_store_test.go",
+              "source_refs": [
+                "internal/tools/tool.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/finalize_store_test.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/typing_action_test.go",
+                "internal/gateway/auto_title_wiring.go",
+                "internal/gateway/auto_title_wiring_test.go",
+                "internal/gateway/manager.go"
+              ],
+              "ready_when": [
+                "Builder splits the row into one red-green behavior at a time if the touched packages are too broad for one commit."
+              ],
+              "not_ready_when": [
+                "The implementation hides panics/errors behind logging only or weakens existing tests that expect main-time MustRegister convenience."
+              ],
+              "acceptance": [
+                "Runtime registration paths can return errors instead of panicking while main-time/test convenience still has explicit MustRegister behavior.",
+                "Kernel finalization store errors are observable in frame/status/audit evidence.",
+                "Gateway typing-action panic recovery records redacted evidence and is covered by a panic-injecting test."
+              ],
+              "note": "Partial 2026-05-02: kernel FinalizeAssistantTurn store errors now warn with focused test coverage, typing-action evidence sink panics log typed evidence, and auto-title auxiliary sink panics log typed evidence. MustRegister runtime/library panic retirement remains open, and finalize errors still need stronger frame/status/audit evidence before this row can close.",
+              "write_scope": [
+                "internal/tools/tool.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/finalize_store_test.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/typing_action_test.go",
+                "internal/gateway/auto_title_wiring.go",
+                "internal/gateway/auto_title_wiring_test.go",
+                "internal/gateway/manager.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run TestKernel_FinalizeAssistantTurnStoreErrorLogged -count=1",
+                "go test ./internal/gateway -run 'TestTypingAction_EvidenceSinkPanicLogged|TestAutoTitleWiring_AuxiliarySinkPanicLogged' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Safety-critical panic/error paths are fixture-backed and operator-visible."
+              ],
+              "evidence": {
+                "implementation": "internal/gateway/typing_action.go, internal/gateway/auto_title_wiring.go, internal/kernel/kernel.go",
+                "tests": "go test ./internal/gateway/ ./internal/kernel/ -count=1",
+                "note": "Replaced silent panic recovery with slog.Error logging in typing_action.go and auto_title_wiring.go. Added error logging for store.Exec FinalizeAssistantTurn in kernel.go."
+              }
+            },
+            {
+              "name": "Session Health Monitoring",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Port Link's session-health-monitor patterns: track session file sizes with 500KB/2MB tier alerts, monitor heartbeat freshness with 45min/90min tiers, and expose via gormes health command with structured JSON output.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Missing session files, stale heartbeat, or unreadable metrics report health_unavailable with specific path/error details.",
+              "fixture": "internal/tools/health_test.go",
+              "source_refs": [
+                "workspace-link/skills/session-health-monitor/SKILL.md",
+                "workspace-mineru/skills/fleet-admin/SKILL.md",
+                "internal/goncho/service.go",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Goncho session store exposes session size and heartbeat data.",
+                "CLI health command route is defined in cmd/gormes."
+              ],
+              "not_ready_when": [
+                "The row depends on live provider credentials for health checks.",
+                "The row introduces a new daemon process for monitoring."
+              ],
+              "unblocks": [
+                "Session Rollover Automation (5.N)"
+              ],
+              "acceptance": [
+                "gormes health outputs session sizes with tier labels (ok/warn/critical).",
+                "gormes health outputs heartbeat age with freshness labels (ok/warn/stale).",
+                "JSON mode (--json) produces machine-parseable structured output.",
+                "Goncho extraction queue depth included in health report."
+              ],
+              "write_scope": [
+                "internal/tools/health.go",
+                "internal/tools/health_test.go",
+                "cmd/gormes/health.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestHealth -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes health command ships with session size, heartbeat, and Goncho queue monitoring."
+              ],
+              "wired": true
+            },
+            {
+              "name": "Evidence-Before-Claims Quality Gate",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Port Link's evidence-before-claims pattern: doctor output and build results must include exact counts (pass/fail/skip), not summary claims. Every status line with a count must derive from an actual computation, not a hardcoded narrative.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Uncomputable counts report count_unavailable with the reason (missing data, corrupt store) rather than fabricating a number.",
+              "fixture": "internal/doctor/evidence_test.go",
+              "source_refs": [
+                "workspace-link/skills/deep-research/SKILL.md",
+                "workspace-riju/skills/fecim-physics-validation/SKILL.md",
+                "internal/doctor/doctor.go",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Doctor check registry supports per-check pass/fail/skip/error status.",
+                "Existing doctor output format can be extended with evidence fields."
+              ],
+              "not_ready_when": [
+                "The row rewrites existing doctor checks instead of wrapping them.",
+                "The row claims counts without actual computation."
+              ],
+              "unblocks": [
+                "All CLI parity quality work"
+              ],
+              "acceptance": [
+                "gormes doctor --offline output contains exact pass/fail/skip counts per category.",
+                "No hardcoded 'all checks passed' when counts disagree.",
+                "JSON doctor output includes per-check result objects with pass/fail/skip/error status."
+              ],
+              "write_scope": [
+                "internal/doctor/evidence.go",
+                "internal/doctor/evidence_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor -run TestEvidence -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Doctor output uses computed evidence rather than narrative summaries."
+              ],
+              "wired": true
+            },
+            {
+              "name": "Git Delivery Contract Enforcement",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Enforce the fleet-wide git delivery contract: split commits by concern, commit after each validated slice, push to origin, report hash/branch/push confirmation. gormes-builder skill must include post-commit validation.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Unpushed commits, dirty working tree, or missing remote report git_delivery_incomplete rather than silently failing.",
+              "fixture": "internal/tools/git_delivery_test.go",
+              "source_refs": [
+                "workspace-link/AGENTS.md",
+                "workspace-mineru/AGENTS.md",
+                "SHARED-PROTOCOLS.md",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Builder skill post-commit hook is defined.",
+                "Status command can query git delivery state."
+              ],
+              "not_ready_when": [
+                "The row implements a new version control system.",
+                "The row bypasses existing git tools."
+              ],
+              "unblocks": [
+                "CI/CD integration",
+                "Builder quality metrics"
+              ],
+              "acceptance": [
+                "Builder skill validates working tree is clean and commits are pushed before declaring row complete.",
+                "gormes status reports git delivery state (branch, ahead/behind, unpushed).",
+                "Split-commit discipline documented in AGENTS.md."
+              ],
+              "write_scope": [
+                "internal/tools/git_delivery.go",
+                "internal/tools/git_delivery_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestGitDelivery -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Git delivery contract enforced by builder skill and visible in status."
+              ],
+              "wired": true
+            },
+            {
+              "name": "QMD Hybrid Search",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Port the fleet's shared QMD hybrid search (BM25 + vector) as gormes search. Index all markdown docs in the workspace for offline keyword + semantic retrieval, with BM25-only fallback when no embedding model is configured.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Missing embedding model, corrupt index, or unreadable workspace reports search_unavailable with root cause. Falls back to BM25-only search when vector model unavailable.",
+              "fixture": "internal/tools/qmd_test.go",
+              "source_refs": [
+                "workspace-link/skills/qmd/SKILL.md",
+                "workspace-mineru/skills/qmd/SKILL.md",
+                "internal/goncho/service.go",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Goncho embedding model integration is available.",
+                "Workspace doc discovery can enumerate markdown files."
+              ],
+              "not_ready_when": [
+                "The row requires an external search service.",
+                "The row modifies existing Goncho storage schema."
+              ],
+              "unblocks": [
+                "Interactive Onboarding (5.O)",
+                "Fleet documentation search UX"
+              ],
+              "acceptance": [
+                "gormes search 'how to deploy' returns ranked results from workspace docs.",
+                "BM25 fallback works when no embedding model configured.",
+                "Results include source file path and excerpt context."
+              ],
+              "write_scope": [
+                "internal/tools/qmd.go",
+                "internal/tools/qmd_test.go",
+                "cmd/gormes/search.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestQMD -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes search ships with BM25 + optional vector hybrid search across workspace docs."
+              ],
+              "wired": true
+            },
+            {
+              "name": "Session Rollover Automation",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Port the fleet's session rollover rule (1500KB threshold -> write handoff summary -> fresh session). gormes session rollover exports current session, writes 5-line handoff summary, starts fresh session. Auto-rollover at configurable threshold.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Session file too large to export cleanly, corrupt session state, or rollover failure reports session_rollover_failed with specific path/error and keeps original session intact.",
+              "fixture": "internal/session/rollover_test.go",
+              "source_refs": [
+                "workspace-link/AGENTS.md",
+                "workspace-mineru/AGENTS.md",
+                "internal/session/session.go",
+                "internal/goncho/service.go",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Session health monitoring (5.N) provides size data.",
+                "Session store supports export and fresh creation."
+              ],
+              "not_ready_when": [
+                "The row deletes old sessions without confirmation.",
+                "The row depends on external session management tools."
+              ],
+              "unblocks": [
+                "Session lifecycle management"
+              ],
+              "acceptance": [
+                "gormes session rollover exports and starts fresh session.",
+                "Handoff summary includes: session ID, message count, time range, last 3 actions, blockages.",
+                "Auto-rollover triggers at configurable size threshold (default 1500KB).",
+                "Original session preserved after rollover."
+              ],
+              "write_scope": [
+                "internal/session/rollover.go",
+                "internal/session/rollover_test.go",
+                "cmd/gormes/session_rollover.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/session -run TestRollover -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes session rollover ships with auto-trigger at configurable threshold."
+              ],
+              "wired": true
+            },
+            {
+              "name": "System Events, Heartbeat, and Presence",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Port OpenClaw's system event surface: gormes system event enqueues a system event and optionally triggers a heartbeat; gormes system heartbeat shows and controls heartbeat state; gormes system presence lists system presence entries. Events are written to the audit ledger (JSONL) and surfaced in gormes status.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing audit ledger, event queue full, or heartbeat disabled reports system_unavailable with ledger path/error details.",
+              "fixture": "internal/tools/system_events_test.go",
+              "source_refs": [
+                "openclaw system event/heartbeat/presence CLI surface",
+                "internal/audit/ (JSONL audit log)",
+                "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+              ],
+              "ready_when": [
+                "Audit JSONL ledger (internal/audit/) is operational.",
+                "Session health monitoring (5.N) provides heartbeat data."
+              ],
+              "not_ready_when": [
+                "The row introduces a new event bus or message queue.",
+                "The row depends on external monitoring services."
+              ],
+              "unblocks": [
+                "Operator observability",
+                "Gateway discover/probe diagnostics"
+              ],
+              "acceptance": [
+                "gormes system event 'gateway restart' enqueues event with timestamp.",
+                "gormes system heartbeat shows on/off state and last beat time.",
+                "gormes system presence lists active components with last-seen times."
+              ],
+              "write_scope": [
+                "internal/tools/system_events.go",
+                "internal/tools/system_events_test.go",
+                "cmd/gormes/system.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestSystemEvents -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes system ships with event, heartbeat, and presence subcommands."
+              ]
+            },
+            {
+              "name": "Gateway Discover and Probe",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Port OpenClaw's gateway network discovery: gormes gateway discover finds local gateways via Bonjour/mDNS; gormes gateway probe shows gateway reachability + discovery + health + status summary; gormes gateway usage-cost fetches usage cost summary from session logs.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "No gateways discovered, probe timeout, or usage data unavailable reports per-endpoint status with failure reason.",
+              "fixture": "internal/tools/gateway_discover_test.go",
+              "source_refs": [
+                "openclaw gateway discover/probe/usage-cost CLI surface",
+                "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+              ],
+              "ready_when": [
+                "Gateway status and health commands are operational.",
+                "Session store has usage/cost data accessible."
+              ],
+              "not_ready_when": [
+                "The row requires Tailscale or CoreDNS for basic discovery.",
+                "The row sends unauthenticated probe requests."
+              ],
+              "unblocks": [
+                "Multi-instance fleet management"
+              ],
+              "acceptance": [
+                "gormes gateway discover lists local gateways with addresses and ports.",
+                "gormes gateway probe shows reachability + discovery + health + status.",
+                "gormes gateway usage-cost shows per-session and aggregate token costs."
+              ],
+              "write_scope": [
+                "internal/tools/gateway_discover.go",
+                "internal/tools/gateway_discover_test.go",
+                "cmd/gormes/gateway_discover.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestGatewayDiscover -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes gateway discover/probe/usage-cost ships."
+              ]
+            },
+            {
+              "name": "Channels Capabilities Introspection",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Port OpenClaw's channels capabilities: gormes channels capabilities shows provider capabilities (intents/scopes + supported features) for each configured channel. Enables operators to understand what each channel adapter supports before configuring it.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Unconfigured channel, missing adapter, or capability query failure reports per-channel status with 'unknown' capability rather than crashing.",
+              "fixture": "internal/channels/capabilities_test.go",
+              "source_refs": [
+                "openclaw channels capabilities CLI surface",
+                "internal/channels/* (adapter implementations)",
+                "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+              ],
+              "ready_when": [
+                "Channel adapters expose capability metadata.",
+                "CLI channel command routing is defined."
+              ],
+              "not_ready_when": [
+                "The row hardcodes per-channel capabilities.",
+                "The row requires live channel connections for capability discovery."
+              ],
+              "unblocks": [
+                "Channel configuration UX"
+              ],
+              "acceptance": [
+                "gormes channels capabilities --channel telegram shows intents, scopes, and supported features.",
+                "Output includes media support, command support, and format limitations per channel.",
+                "Unconfigured channels show 'not configured' status."
+              ],
+              "write_scope": [
+                "internal/channels/capabilities.go",
+                "internal/channels/capabilities_test.go",
+                "cmd/gormes/channels_capabilities.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels -run TestCapabilities -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes channels capabilities ships for all configured channel adapters."
+              ]
+            },
+            {
+              "name": "Prompt Fragment Include System",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.",
+              "fixture": "internal/hermes/prompt_fragments_test.go",
+              "source_refs": [
+                "agent-zero prompts/ (72 fragment files)",
+                "agent-zero agent.py:prepare_prompt",
+                "docs/content/building-gormes/agent-zero-feature-analysis.md"
+              ],
+              "ready_when": [
+                "Extension lifecycle hooks (5.I) provide prompt_before/after hook points.",
+                "Skill system supports profile-level prompt overrides."
+              ],
+              "not_ready_when": [
+                "The row hardcodes prompt content in Go strings.",
+                "The row bypasses existing prompt builder contract."
+              ],
+              "unblocks": [
+                "Agent profile customization",
+                "Plugin prompt injection"
+              ],
+              "acceptance": [
+                "{{include agent.system.main.role.md}} resolves through priority search.",
+                "{{include original}} chains through profile > user > default hierarchy.",
+                "Circular includes detected and reported.",
+                "Fragment cache invalidates on file change."
+              ],
+              "write_scope": [
+                "internal/hermes/prompt_fragments.go",
+                "internal/hermes/prompt_fragments_test.go",
+                "prompts/*.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptFragments -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution."
               ]
             }
           ],
@@ -25322,10 +26821,10 @@
             },
             {
               "name": "Gormes uninstall dry-run command contract",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "`gormes uninstall [--dry-run] [--keep-config] [--keep-credentials] [--yes]` enumerates every artifact Gormes wrote (XDG config dir, credential pool, gateway state, session logs, cron registry, MCP OAuth state) and emits a deterministic dry-run manifest by default; the destructive path requires both `--yes` and an absent `--dry-run` to actually delete files. The dry-run output is byte-stable across runs (sorted paths, no clock/uuid leakage) so operators can diff it before acting.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -25384,7 +26883,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/main.py uninstall_parser + claw.py _cmd_cleanup",
                 "note": "Hermes ships an uninstall path tied to the OpenClaw cleanup helper; Gormes lands the dry-run-first contract before any destructive uninstall behavior."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Gormes mcp login interface seam + noninteractive default",
@@ -27364,6 +28864,107 @@
                 "tests": "go test ./cmd/gormes -run TestNewGatewayHermesClient_UsesConfiguredProviderTransport -count=1; go test ./internal/config -count=1",
                 "note": "Extended 2026-04-29 Telegram parity blocker work: gateway now constructs the Gormes-native HTTP client with cfg.Hermes.Provider so Hermes config.yaml model.provider=openai-codex selects the native Responses transport instead of POSTing to the default 127.0.0.1:8642 chat-completions endpoint."
               }
+            },
+            {
+              "name": "Interactive Onboarding",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Promote gormes onboard from setup alias to full interactive flow: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Match OpenClaw's onboarding depth.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Missing provider credentials, gateway config gaps, or browser unavailability reports per-step status and allows skip with explicit warning.",
+              "fixture": "internal/cli/onboard_test.go",
+              "source_refs": [
+                "openclaw onboard command",
+                "cmd/gormes/setup.go",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "QMD Hybrid Search (5.N) is operational for skill discovery step.",
+                "Setup wizard alias exists as scaffold."
+              ],
+              "not_ready_when": [
+                "The row requires live credentials for testing.",
+                "The row replaces existing setup without migration path."
+              ],
+              "unblocks": [
+                "First-run user experience"
+              ],
+              "acceptance": [
+                "gormes onboard walks through model -> provider -> auth -> gateway -> browser -> skills -> dashboard.",
+                "Each step can be skipped with explicit warning.",
+                "Already-configured steps are detected and pre-filled.",
+                "End-to-end testable without live credentials (mock provider, fake channel)."
+              ],
+              "write_scope": [
+                "internal/cli/onboard.go",
+                "internal/cli/onboard_test.go",
+                "cmd/gormes/onboard.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run TestOnboard -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes onboard ships as full interactive first-run flow."
+              ],
+              "wired": true
+            },
+            {
+              "name": "Logs Command",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Port openclaw logs as gormes logs: tail gateway file logs, support follow mode (-f), filter by level, and stream via RPC if gateway is remote.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Missing log file, permission denied, or remote gateway unreachable reports logs_unavailable with root cause.",
+              "fixture": "internal/cli/logs_test.go",
+              "source_refs": [
+                "openclaw logs command",
+                "docs/content/building-gormes/must-have-features.md",
+                "docs/content/building-gormes/fleet-operational-patterns.md",
+                "docs/content/building-gormes/fleet-integration-plan.md"
+              ],
+              "ready_when": [
+                "Gateway file logging is operational.",
+                "CLI command route is defined in cmd/gormes."
+              ],
+              "not_ready_when": [
+                "The row introduces a new logging framework.",
+                "The row requires live gateway for testing."
+              ],
+              "unblocks": [
+                "Operator observability"
+              ],
+              "acceptance": [
+                "gormes logs shows recent gateway log entries.",
+                "gormes logs -f follows live logs.",
+                "gormes logs --level error filters by severity."
+              ],
+              "write_scope": [
+                "internal/cli/logs.go",
+                "internal/cli/logs_test.go",
+                "cmd/gormes/logs.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run TestLogs -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "gormes logs ships with follow mode and level filtering."
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
@@ -30092,6 +31693,331 @@
               }
             }
           ]
+        },
+        "5.U": {
+          "name": "Fault-Tolerant Sandbox Execution",
+          "source": "docs/content/papers/safety-and-deployment.md",
+          "items": [
+            {
+              "name": "Pre-execution command classification",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Classify every tool command as safe (whitelist), unsafe (blacklist), or uncertain (needs sandbox snapshot) before execution. Safe commands run directly. Unsafe commands are blocked. Uncertain commands trigger snapshot/rollback wrapper.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025)",
+                "internal/tools/executor.go"
+              ],
+              "ready_when": [
+                "Tool execution path is interceptable",
+                "Sandbox filesystem supports snapshots"
+              ],
+              "not_ready_when": [
+                "Tool execution cannot be intercepted",
+                "No sandbox filesystem available"
+              ],
+              "acceptance": [
+                "Commands classified as safe/unsafe/uncertain before execution",
+                "Safe commands execute directly with <1ms overhead",
+                "Unsafe commands are blocked with audit log entry",
+                "Uncertain commands trigger snapshot before execution",
+                "Classification rules are configurable per session"
+              ],
+              "write_scope": [
+                "internal/tools/command_classifier.go",
+                "internal/tools/command_classifier_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestCommandClassifier -count=1"
+              ],
+              "done_signal": [
+                "Classifier tests prove safe/unsafe/uncertain classification for representative command sets"
+              ],
+              "note": "Research-driven (Fault-Tolerant Sandboxing, arXiv:2512.12806, 2025). The middle path between unsafe local execution and heavyweight VM isolation. 100% high-risk interception, ~14.5% overhead."
+            },
+            {
+              "name": "Transactional tool execution with snapshot/rollback",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Wrap each uncertain tool call as an atomic transaction with ACID properties. Filesystem snapshot before execution; rollback on failure, error, or policy violation. Guarantees system consistency regardless of agent behavior.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025)",
+                "internal/tools/executor.go",
+                "internal/tools/sandbox.go"
+              ],
+              "ready_when": [
+                "Command classifier exists (5.U row 1)",
+                "Sandbox filesystem supports snapshot/rollback"
+              ],
+              "not_ready_when": [
+                "No snapshot mechanism available on target OS"
+              ],
+              "acceptance": [
+                "Uncertain tool calls create filesystem snapshot before execution",
+                "Failed tool calls roll back to pre-execution state",
+                "Successful tool calls commit snapshot changes",
+                "Rollback is atomic — no partial state after failure",
+                "Snapshot overhead <2s per transaction on typical project",
+                "Audit log records snapshot/rollback/commit events"
+              ],
+              "write_scope": [
+                "internal/tools/transactional_executor.go",
+                "internal/tools/transactional_executor_test.go",
+                "internal/tools/snapshot.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestTransactionalExecutor -count=1",
+                "go test ./internal/tools -run TestSnapshot -count=1"
+              ],
+              "done_signal": [
+                "Transactional executor tests prove rollback on failure and commit on success with filesystem integrity"
+              ],
+              "note": "Research-driven (Fault-Tolerant Sandboxing, 2025). Transactional approach: 100% rollback success rate in research. The missing middle between unsafe local exec and Docker isolation."
+            },
+            {
+              "name": "Sandbox isolation depth selection",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Operator can select sandbox isolation depth: process-level (fast, weaker isolation), container-level (Docker/gVisor, balanced), or VM-level (Firecracker, strongest isolation). Default is process-level with transactional rollback.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/safety-and-deployment.md",
+                "OpenSandbox (github.com/alibaba/OpenSandbox)",
+                "internal/tools/sandbox.go"
+              ],
+              "ready_when": [
+                "Transactional executor exists (5.U row 2)"
+              ],
+              "not_ready_when": [
+                "No sandbox backend available"
+              ],
+              "acceptance": [
+                "Process-level isolation is the default and requires zero setup",
+                "Docker/gVisor isolation selectable via config",
+                "Firecracker VM isolation selectable via config",
+                "Isolation depth is per-session configurable",
+                "Deeper isolation correctly fails if backend not available"
+              ],
+              "write_scope": [
+                "internal/tools/isolation_depth.go",
+                "internal/tools/isolation_depth_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestIsolationDepth -count=1"
+              ],
+              "done_signal": [
+                "Isolation depth tests prove all three levels selectable and process-level works without Docker"
+              ],
+              "note": "Research-driven (OpenSandbox, Alibaba). Three-tier isolation matching threat model. Gormes' zero-dependency ethos means process-level must work standalone."
+            }
+          ]
+        },
+        "5.V": {
+          "name": "Unified Event Bus",
+          "source": "docs/content/papers/agentic-os-design.md",
+          "items": [
+            {
+              "name": "Event bus core: pub/sub interface + in-process implementation",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "A unified pub/sub event bus decoupling all subsystems (TUI, gateway channels, agent loop, tools, memory). Events are typed, timestamped, and carry provenance. Core implementation is in-process with topic-based routing. No external dependency (no Kafka/Redis required for default).",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "docs/content/papers/safety-and-deployment.md",
+                "OpenCode event bus architecture",
+                "internal/gateway/router.go",
+                "internal/hermes/turn.go"
+              ],
+              "ready_when": [
+                "Minimal viable: at least two subsystems that would benefit from decoupling"
+              ],
+              "not_ready_when": [
+                "No clear subscriber needs identified"
+              ],
+              "acceptance": [
+                "EventBus interface: Publish(topic, event) and Subscribe(topic, handler)",
+                "In-process implementation with topic-based routing",
+                "Events carry: type, timestamp, source, payload, trace_id",
+                "Subscriber backpressure: slow consumers do not block publishers",
+                "Zero external dependencies for default implementation",
+                "Pluggable backend (future: NATS/Kafka) via interface"
+              ],
+              "write_scope": [
+                "internal/events/bus.go",
+                "internal/events/bus_test.go",
+                "internal/events/types.go"
+              ],
+              "test_commands": [
+                "go test ./internal/events -run TestEventBus -count=1"
+              ],
+              "done_signal": [
+                "Event bus tests prove pub/sub routing, backpressure handling, and typed event delivery"
+              ],
+              "note": "Research-driven. OpenCode's event-driven architecture is a production reference. Event bus decouples I/O from processing — the terminal is just one subscriber. Unifies TUI, gateway, and agent loop events."
+            },
+            {
+              "name": "Gateway channel adapters publish to event bus",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Each gateway channel adapter (Telegram, Discord, Slack, WhatsApp, WeChat) publishes incoming messages as standardized events on the bus, and subscribes to outgoing message events. Channel-specific translation lives in adapters; the bus carries channel-neutral events.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "internal/events/bus.go",
+                "internal/channels/telegram/adapter.go",
+                "internal/channels/discord/adapter.go",
+                "internal/channels/slack/adapter.go"
+              ],
+              "ready_when": [
+                "Event bus exists (5.V row 1)",
+                "Channel adapters are refactorable to add bus hooks"
+              ],
+              "not_ready_when": [
+                "Event bus not yet implemented",
+                "Channel adapters too tightly coupled to refactor"
+              ],
+              "acceptance": [
+                "Incoming Telegram message → MessageReceived event on bus",
+                "Incoming Discord message → MessageReceived event on bus",
+                "Incoming Slack message → MessageReceived event on bus",
+                "Outgoing reply event → channel-specific delivery by adapter subscriber",
+                "Channel adapter failures are isolated — one channel crash doesn't affect others",
+                "Message events carry channel provenance (source, channel_id, user_id)"
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bus_adapter.go",
+                "internal/channels/discord/bus_adapter.go",
+                "internal/channels/slack/bus_adapter.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event_dispatch_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestEventDispatch -count=1",
+                "go test ./internal/channels/telegram -run TestBusAdapter -count=1"
+              ],
+              "done_signal": [
+                "Integration tests prove messages flow from channel→bus→agent and back through all adapter types"
+              ],
+              "note": "Research-driven. Production pattern from OpenClaw, Pantalk, and Roger. Each channel adapter is an event publisher + subscriber. Adding a new channel means adding an adapter, not modifying the kernel."
+            },
+            {
+              "name": "Agent turn and tool execution events on bus",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Agent turns (start, thought, action, observation, complete, error) and tool executions (start, progress, complete, error) are published as structured events on the bus. Enables TUI, web dashboard, and audit log to observe agent activity without polling.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "internal/events/bus.go",
+                "internal/hermes/turn.go",
+                "internal/tools/executor.go"
+              ],
+              "ready_when": [
+                "Event bus exists (5.V row 1)",
+                "Agent loop has hook points for event emission"
+              ],
+              "not_ready_when": [
+                "Event bus not yet implemented",
+                "Agent loop cannot be refactored for hooks"
+              ],
+              "acceptance": [
+                "TurnStart event emitted when agent begins processing",
+                "Thought event emitted for each reasoning step",
+                "ToolCall event emitted when tool is invoked",
+                "ToolResult event emitted when tool completes",
+                "TurnComplete event emitted with summary",
+                "All events carry trace_id linking them to a session turn"
+              ],
+              "write_scope": [
+                "internal/hermes/turn_events.go",
+                "internal/hermes/turn_events_test.go",
+                "internal/tools/tool_events.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestTurnEvents -count=1",
+                "go test ./internal/tools -run TestToolEvents -count=1"
+              ],
+              "done_signal": [
+                "Event tests prove turn lifecycle emits all expected events with correct trace_id linking"
+              ],
+              "note": "Research-driven. OpenCode uses a global pub/sub event bus to decouple logic execution from terminal rendering. Gormes can do the same: TUI, web dashboard, and audit log become independent event subscribers."
+            },
+            {
+              "name": "Event bus integration test: full message flow",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "End-to-end test proving a Telegram message flows through: channel adapter → event bus → agent turn processing → tool execution → reply event → channel adapter → delivery. Validates decoupling: TUI subscriber also receives all events without modifying agent or gateway code.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go"
+              ],
+              "ready_when": [
+                "Event bus, gateway adapters, and turn events all exist (5.V rows 1-3)"
+              ],
+              "not_ready_when": [
+                "Any event bus component not yet implemented"
+              ],
+              "acceptance": [
+                "Telegram message → MessageReceived event → agent turn → tool execution → reply → delivery",
+                "TUI subscriber receives same events as gateway without coupling",
+                "Adding a subscriber does not require modifying event producers",
+                "Event ordering preserved within a session",
+                "Test runs without real Telegram/Discord credentials"
+              ],
+              "write_scope": [
+                "internal/gateway/event_bus_integration_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestEventBusIntegration -count=1"
+              ],
+              "done_signal": [
+                "Integration test proves full message lifecycle through event bus with multiple subscribers"
+              ],
+              "note": "Research-driven. This test is the proof that event-driven architecture works end-to-end. After this, adding a new subscriber (e.g., webhook, analytics) requires zero changes to agent or gateway."
+            }
+          ]
         }
       }
     },
@@ -30123,9 +32049,9 @@
           "items": [
             {
               "name": "LLM-assisted pattern distillation",
-              "status": "planned",
+              "status": "complete",
               "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, and preserve a clear no-op escape path before any generated draft can be promoted",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -30176,7 +32102,8 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:76042f58 run_agent.py",
                 "note": "Hermes defines the class-first review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
-              }
+              },
+              "wired": true
             }
           ]
         },
@@ -30320,9 +32247,9 @@
             },
             {
               "name": "Portable SKILL.md format",
-              "status": "planned",
+              "status": "complete",
               "contract": "Reviewed skill-as-code storage format",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "skills",
               "trust_class": [
@@ -30383,7 +32310,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:891c28b skills/frontmatter-guard/SKILL.md",
                 "note": "GBrain supplies skill/frontmatter quality gates; Gormes owns the Go-native SKILL.md storage and review-state contract."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {
@@ -30397,9 +32325,9 @@
           "items": [
             {
               "name": "Hybrid lexical + semantic lookup",
-              "status": "planned",
+              "status": "complete",
               "contract": "Reviewed skills are selected by a deterministic lexical plus semantic scorer while disabled and unreviewed drafts remain excluded from prompt injection",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -30458,13 +32386,14 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:f718c59 src/core/search/hybrid.ts",
                 "note": "GBrain informs retrieval scoring; Gormes adapts it to reviewed SKILL.md assets and SQLite/optional embeddings."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Source-aware retrieval damping fixtures",
-              "status": "planned",
+              "status": "complete",
               "contract": "Skill and memory retrieval can prefer curated/reviewed sources over bulky chat or raw imports while preserving high-detail temporal lookup and explaining every source boost or exclusion",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -30524,7 +32453,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:172b55b src/core/search/sql-ranking.ts",
                 "note": "GBrain defines source-swamp resistance; Gormes adapts it as explainable source-tier scoring for skills and memory."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Delta-bounded skill and memory maintenance passes",
@@ -30617,9 +32547,9 @@
             },
             {
               "name": "Code Cathedral II code-context retrieval fixtures",
-              "status": "planned",
+              "status": "complete",
               "contract": "Learning-loop retrieval can consume code-context evidence with parent-scope and call-edge explanations without importing GBrain's TypeScript indexer",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -30670,7 +32600,8 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "gbrain:f718c59 docs/designs/CODE_CATHEDRAL_II.md",
                 "note": "GBrain's Code Cathedral II is donor evidence for code-context retrieval, not a subsystem to embed."
-              }
+              },
+              "wired": true
             }
           ],
           "drift_state": {
@@ -30881,10 +32812,10 @@
           "items": [
             {
               "name": "SKILL.md metadata.when/loaded/placement schema",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "YAML frontmatter supports metadata.when (conditional activation), metadata.loaded (auto-load), metadata.placement (system/onscreen/admin); hierarchical routing",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -30919,7 +32850,8 @@
               ],
               "done_signal": [
                 "Metadata tests prove conditional activation, auto-load, placement, and routing"
-              ]
+              ],
+              "wired": true
             }
           ]
         },
@@ -30928,10 +32860,10 @@
           "items": [
             {
               "name": "Regex-based auto-link extraction + brain-first lookup",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Markdown links, wikilinks, qualified wikilinks auto-extracted; typed inference; brain-first 5-step lookup",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "memory",
               "trust_class": [
@@ -30971,7 +32903,436 @@
               ],
               "done_signal": [
                 "Auto-link tests prove markdown/wikilink/typed extraction; brain-first tests prove 5-step lookup"
-              ]
+              ],
+              "wired": true
+            }
+          ]
+        },
+        "6.J": {
+          "name": "Agentic Memory Lifecycle (AgeMem)",
+          "source": "docs/content/papers/agent-memory-systems.md",
+          "items": [
+            {
+              "name": "Memory operations as agent-callable tools",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Expose memory operations as tools the agent can call directly: store_memory, retrieve_memory, update_memory, summarize_memories, forget_memory. The agent decides what to remember, not a heuristic pipeline. This is the core AgeMem (2026) pattern.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/agent-memory-systems.md",
+                "arXiv:2601.01885 (AgeMem 2026)",
+                "internal/goncho/store.go",
+                "internal/goncho/retrieve.go",
+                "internal/tools/registry.go"
+              ],
+              "ready_when": [
+                "Goncho store supports CRUD operations with metadata",
+                "Tool registry supports dynamic tool registration"
+              ],
+              "not_ready_when": [
+                "Goncho store is read-only or has no metadata support"
+              ],
+              "acceptance": [
+                "store_memory(content, tags, importance) persists to Goncho",
+                "retrieve_memory(query, limit) returns ranked results",
+                "update_memory(id, content) modifies existing entry",
+                "summarize_memories(filter) compresses related entries",
+                "forget_memory(id) removes from active index (soft delete)",
+                "All operations are tool-descriptor compatible (MCP-style schema)",
+                "Agent can chain operations (retrieve → summarize → store)"
+              ],
+              "write_scope": [
+                "internal/goncho/memory_tools.go",
+                "internal/goncho/memory_tools_test.go",
+                "internal/tools/memory_tool_descriptors.go"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run TestMemoryTools -count=1",
+                "go test ./internal/tools -run TestMemoryToolDescriptors -count=1"
+              ],
+              "done_signal": [
+                "Memory tool tests prove agent can store/retrieve/update/summarize/forget via tool calls with correct metadata"
+              ],
+              "note": "Research-driven (AgeMem 2026). The shift from passive storage to agentic memory. Memory management becomes a learned behavior, not engineered heuristics. This is the single biggest research-identified gap in Gormes."
+            },
+            {
+              "name": "Agent-controlled memory retention with importance scoring",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "The agent assigns importance scores to memories at store time and can adjust them later. Retention policy uses importance × recency decay curve. Low-importance old memories are candidates for summarization or forgetting. The agent periodically reviews and prunes.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/agent-memory-systems.md",
+                "arXiv:2601.01885 (AgeMem 2026)",
+                "Generative Agents (Park et al. 2023) recency+importance+relevance retrieval",
+                "internal/goncho/store.go"
+              ],
+              "ready_when": [
+                "Memory tools exist (6.J row 1)",
+                "Goncho supports importance scoring on entries"
+              ],
+              "not_ready_when": [
+                "No importance metadata on memory entries"
+              ],
+              "acceptance": [
+                "Agent assigns importance 0.0-1.0 at storage time",
+                "Retrieval scoring: α·recency + β·importance + γ·relevance",
+                "Decay curve reduces importance over time unless reinforced",
+                "Periodic review identifies low-importance candidates",
+                "Agent can promote/demote importance via update_memory tool"
+              ],
+              "write_scope": [
+                "internal/goncho/importance_scorer.go",
+                "internal/goncho/importance_scorer_test.go",
+                "internal/goncho/decay.go"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run TestImportanceScorer -count=1",
+                "go test ./internal/goncho -run TestDecayCurve -count=1"
+              ],
+              "done_signal": [
+                "Importance tests prove scoring affects retrieval ranking and decay reduces old unused memories"
+              ],
+              "note": "Research-driven (Generative Agents 2023 + AgeMem 2026). The retrieval formula from Park et al. with agent-controlled importance from AgeMem. Agent decides what matters, not static rules."
+            },
+            {
+              "name": "Cross-session memory continuity",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Memories persist across sessions with continuity guarantees. When a new session starts, the agent retrieves relevant past memories automatically (not all memories — relevance-filtered). Agent detects contradictions between old and new information and resolves them.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/agent-memory-systems.md",
+                "Generative Agents memory stream (Park et al. 2023)",
+                "Hermes Agent MEMORY.md persistence model",
+                "internal/goncho/session.go",
+                "internal/goncho/store.go"
+              ],
+              "ready_when": [
+                "Memory tools exist (6.J row 1)",
+                "Goncho supports session-scoped queries"
+              ],
+              "not_ready_when": [
+                "Memory is session-scoped only (no cross-session persistence)"
+              ],
+              "acceptance": [
+                "New session auto-loads top-K relevant memories from prior sessions",
+                "Agent can query 'what do I know about X' across all sessions",
+                "Contradiction detection: new fact conflicts with stored fact → agent prompted to resolve",
+                "Memory writes are session-attributed with provenance",
+                "Session deletion can optionally preserve or cascade-delete memories"
+              ],
+              "write_scope": [
+                "internal/goncho/cross_session.go",
+                "internal/goncho/cross_session_test.go",
+                "internal/goncho/contradiction_detector.go"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run TestCrossSession -count=1",
+                "go test ./internal/goncho -run TestContradictionDetection -count=1"
+              ],
+              "done_signal": [
+                "Cross-session tests prove memories survive session boundaries and new sessions auto-load relevant context"
+              ],
+              "note": "Research-driven. The Generative Agents memory stream pattern applied to Goncho. Hermes' MEMORY.md is the production reference — a file that grows with usage and is loaded on startup."
+            }
+          ]
+        },
+        "6.K": {
+          "name": "Self-Evolution Engine (GEPA)",
+          "source": "docs/content/papers/agentic-os-design.md",
+          "items": [
+            {
+              "name": "Prompt evaluation harness",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "A harness that evaluates agent prompt/behavior variants against a set of test scenarios. Produces quantitative scores (task success, tool selection accuracy, response quality) for each variant. Enables data-driven prompt optimization without LLM-as-judge circularity.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "Hermes Agent GEPA engine (hermes-agent/agent/)",
+                "internal/hermes/prompt.go",
+                "internal/hermes/agent_loop.go"
+              ],
+              "ready_when": [
+                "Agent loop is deterministic enough for reproducible evaluation",
+                "Test scenarios exist with known-good outcomes"
+              ],
+              "not_ready_when": [
+                "Agent loop is non-deterministic or cannot be replayed",
+                "No test scenario corpus available"
+              ],
+              "acceptance": [
+                "Harness runs agent with prompt variant N against M test scenarios",
+                "Produces per-scenario scores: task_success (bool), tool_accuracy (%), response_quality (1-5)",
+                "Aggregate score across all scenarios for variant comparison",
+                "Evaluation is deterministic (same variant + scenario = same score)",
+                "Harness runs <60s for 10 scenarios (fast enough for iterative optimization)"
+              ],
+              "write_scope": [
+                "internal/hermes/prompt_evaluator.go",
+                "internal/hermes/prompt_evaluator_test.go",
+                "internal/hermes/eval_scenarios.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptEvaluator -count=1"
+              ],
+              "done_signal": [
+                "Evaluator tests prove deterministic scoring of prompt variants against known scenarios"
+              ],
+              "note": "Research-driven (GEPA, Hermes Agent). GEPA achieves policy iteration in 100-500 evaluations vs. 10,000+ for traditional RL. The key enabler is a fast, deterministic evaluation harness."
+            },
+            {
+              "name": "Iterative prompt mutation and scoring loop",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Given a base prompt and evaluation harness, automatically generate prompt variants (mutations), score them, and select the best. Iterate until convergence or budget. Mutations target: tool selection heuristics, response style, task decomposition strategies.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "Hermes Agent GEPA engine",
+                "internal/hermes/prompt_evaluator.go"
+              ],
+              "ready_when": [
+                "Prompt evaluation harness exists (6.K row 1)"
+              ],
+              "not_ready_when": [
+                "No evaluation harness to score variants"
+              ],
+              "acceptance": [
+                "Mutation generates N variants from base prompt",
+                "Each variant scored by evaluation harness",
+                "Best variant selected as next base for further mutation",
+                "Loop terminates when improvement < threshold or max iterations reached",
+                "Final best prompt is at least 10% better than base on aggregate score",
+                "Optimization does not require LLM API calls (uses harness scores)"
+              ],
+              "write_scope": [
+                "internal/hermes/prompt_optimizer.go",
+                "internal/hermes/prompt_optimizer_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptOptimizer -count=1"
+              ],
+              "done_signal": [
+                "Optimizer tests prove mutation+scoring loop converges to measurably better prompt variants"
+              ],
+              "note": "Research-driven (GEPA). The key insight from GEPA: you don't need gradient descent to optimize prompts. Iterative mutation + fast evaluation works. 100-500 evals vs 10,000+ for RL."
+            },
+            {
+              "name": "Behavioral pattern extraction from session logs",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Mine session logs and tool execution audits for behavioral patterns: which tool sequences succeed vs fail, which reasoning patterns precede good outcomes, which response styles correlate with user satisfaction. Patterns feed into the self-evolution loop as candidate mutations.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "Hermes Agent GEPA engine",
+                "Generative Agents reflection mechanism (Park et al. 2023)",
+                "internal/goncho/extractor.go",
+                "internal/hermes/turn.go"
+              ],
+              "ready_when": [
+                "Session logs are structured and queryable",
+                "Tool execution audit log exists (Phase 3.E.2)"
+              ],
+              "not_ready_when": [
+                "No structured session data available",
+                "Tool audit log not yet implemented"
+              ],
+              "acceptance": [
+                "Pattern extractor identifies tool sequences with >80% success rate",
+                "Identifies tool sequences with <30% success rate (anti-patterns)",
+                "Extracts reasoning patterns preceding successful tool calls",
+                "Patterns stored in Goncho as structured behavioral knowledge",
+                "Pattern extraction is offline (does not run during agent turns)"
+              ],
+              "write_scope": [
+                "internal/hermes/pattern_extractor.go",
+                "internal/hermes/pattern_extractor_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPatternExtractor -count=1"
+              ],
+              "done_signal": [
+                "Pattern extractor tests prove successful and failed patterns are correctly identified from log data"
+              ],
+              "note": "Research-driven (GEPA + Generative Agents reflection). The agent learns from its own history. Patterns that work are reinforced; patterns that fail are flagged for mutation. This closes the feedback loop."
+            }
+          ]
+        },
+        "6.L": {
+          "name": "Composable Skill Execution (Voyager)",
+          "source": "docs/content/papers/foundational-architectures.md",
+          "items": [
+            {
+              "name": "Skill code execution runtime",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Skills are not just markdown instructions — they contain executable code that can be run in a sandboxed environment. This mirrors Voyager's code-as-action pattern: skills are validated, sandboxed, and can be composed by the agent at runtime.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/foundational-architectures.md",
+                "Voyager (arXiv:2305.16291)",
+                "internal/skills/loader.go",
+                "internal/skills/executor.go",
+                "internal/tools/sandbox.go"
+              ],
+              "ready_when": [
+                "Skill loader parses structured skill files",
+                "Sandbox execution exists for tool calls"
+              ],
+              "not_ready_when": [
+                "Skill files are plain text only (no code blocks)",
+                "No sandbox isolation available"
+              ],
+              "acceptance": [
+                "Skill files with code blocks are executable in sandbox",
+                "Execution is sandboxed with the same isolation as tool calls",
+                "Skill code has access to skill-defined dependencies",
+                "Execution timeout prevents runaway skills",
+                "Execution output is captured and returned to agent",
+                "Skill can define input parameters accepted from agent"
+              ],
+              "write_scope": [
+                "internal/skills/code_executor.go",
+                "internal/skills/code_executor_test.go",
+                "internal/skills/skill_runtime.go"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run TestCodeExecutor -count=1",
+                "go test ./internal/skills -run TestSkillRuntime -count=1"
+              ],
+              "done_signal": [
+                "Code executor tests prove skills with code blocks execute in sandbox with input/output contract"
+              ],
+              "note": "Research-driven (Voyager 2023). Using code as the action space enables composition, reuse, and interpretability. Skills become executable artifacts, not static instructions."
+            },
+            {
+              "name": "Skill dependency resolution and composition",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Skills can declare dependencies on other skills. The runtime resolves the dependency graph before execution. The agent can compose skills by chaining: output of Skill A feeds into input of Skill B. Dependencies are validated at load time.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/foundational-architectures.md",
+                "Voyager skill library composition",
+                "internal/skills/loader.go",
+                "internal/skills/registry.go"
+              ],
+              "ready_when": [
+                "Skill code execution exists (6.L row 1)",
+                "Skills have structured metadata with dependency declarations"
+              ],
+              "not_ready_when": [
+                "Skills have no dependency model",
+                "Code execution runtime not available"
+              ],
+              "acceptance": [
+                "Skill dependency graph resolved at load time",
+                "Circular dependencies detected and rejected with clear error",
+                "Missing dependencies reported with skill name and missing dep",
+                "Agent can chain Skill A output → Skill B input",
+                "Composition failures surface which step in the chain failed",
+                "Load-time validation catches 100% of dependency errors before execution"
+              ],
+              "write_scope": [
+                "internal/skills/dependency_resolver.go",
+                "internal/skills/dependency_resolver_test.go",
+                "internal/skills/composer.go"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run TestDependencyResolver -count=1",
+                "go test ./internal/skills -run TestComposer -count=1"
+              ],
+              "done_signal": [
+                "Dependency tests prove circular deps rejected and chained composition works with error attribution"
+              ],
+              "note": "Research-driven (Voyager 2023). Skill composition is what makes Voyager's skill library powerful: 3.3x more unique items, 15.3x faster progress through composable code skills."
+            },
+            {
+              "name": "Skill validation on load with execution proof",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "When a skill is loaded or created, run a lightweight validation: parse code blocks, execute in sandbox with a canary input, verify output contract. Skills that fail validation are marked as broken and not offered to the agent. Passing skills carry a 'validated' trust marker.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "system"
+              ],
+              "source_refs": [
+                "docs/content/papers/foundational-architectures.md",
+                "Voyager iterative prompting with execution feedback",
+                "internal/skills/loader.go"
+              ],
+              "ready_when": [
+                "Skill code execution exists (6.L row 1)"
+              ],
+              "not_ready_when": [
+                "No sandbox execution available for validation"
+              ],
+              "acceptance": [
+                "Skills validated on load before appearing in agent's tool list",
+                "Canary execution with minimal input verifies basic functionality",
+                "Broken skills marked with error details (not silently skipped)",
+                "Validation is fast (<500ms per skill, runs in background goroutine)",
+                "Operator can force-load a broken skill with explicit override flag",
+                "Validation results visible in skill registry status"
+              ],
+              "write_scope": [
+                "internal/skills/validator.go",
+                "internal/skills/validator_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run TestValidator -count=1"
+              ],
+              "done_signal": [
+                "Validator tests prove broken skills are caught at load time with clear error messages"
+              ],
+              "note": "Research-driven (Voyager 2023). Voyager validates skills through execution feedback. Gormes should catch broken skills before the agent tries to use them — fail at load time, not at run time."
             }
           ]
         }
@@ -31695,9 +34056,9 @@
             },
             {
               "name": "Feishu drive-comment rule + pairing seam",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes Feishu drive-comment rule resolution before comment replies can invoke an agent: config loads comments policy and per-document rules, exact document rules beat wiki rules, wiki rules beat wildcard/top defaults when supplied, each enabled/policy/allow_from field falls back independently, explicit empty allow_from does not fall through, invalid policies default to pairing, and pairing add/remove/list uses an atomic temp-root store.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -31764,13 +34125,14 @@
                   "axe:internal/artifact/tracker.go"
                 ],
                 "note": "Hermes defines Feishu comment rule behavior; Engram/Axe provide write-queue and filesystem evidence patterns."
-              }
+              },
+              "wired": true
             },
             {
               "name": "Feishu drive-comment reply workflow",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes freezes Hermes Feishu drive-comment reply workflow behind fake clients before live SDK binding: parse `drive.notice.comment_add_v1`, accept only add_comment/add_reply events, reject self/wrong-receiver/empty-to-open-id/disabled-or-denied users without side effects, sanitize comment text with ampersand-first HTML escaping, optionally reverse-lookup wiki tokens before applying wildcard/top comment rules, fetch document metadata and comment batches through a fake Drive client, add an OK reaction before agent invocation, build whole-document versus local-thread prompt envelopes, and fall back from local `reply_to_comment` to whole-document `add_whole_comment` on Feishu code `1069302` with evidence.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -31844,7 +34206,8 @@
                   "engram:internal/mcp/activity.go"
                 ],
                 "note": "Hermes defines Feishu comment workflow behavior; Go donors supply callback and activity-evidence shapes."
-              }
+              },
+              "wired": true
             },
             {
               "name": "DingTalk transport/bootstrap layer",

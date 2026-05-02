@@ -74,7 +74,9 @@ func (m *Manager) recordTypingActionFailure(platform string) {
 		return
 	}
 	defer func() {
-		_ = recover()
+		if r := recover(); r != nil {
+			m.log.Error("typing_action_evidence_sink_panic", "panic", r)
+		}
 	}()
 	m.cfg.TypingActionEvidenceSink(ev)
 }
