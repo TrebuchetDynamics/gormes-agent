@@ -41,6 +41,8 @@ copying Python mega-files or TypeScript database gravity.
 | Reuse gateway adapter ideas | [Gateway Donor Map](./gateway-donor-map/) | [Shared Adapter Patterns](./gateway-donor-map/shared-adapter-patterns/), then the channel dossier |
 | Find a Go donor for a non-gateway subsystem (runtime, tools, memory, utilities) before writing code | `gormes-references` skill (`docs/development-skills/gormes-references/SKILL.md`) | `references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md` for provider/auth/streaming, then `gormes-tdd-slice` |
 | Continue Goncho/Honcho memory work | [Goncho Honcho Memory](./goncho_honcho_memory/) | [Prompts](./goncho_honcho_memory/01-prompts/), [Tool Schemas](./goncho_honcho_memory/02-tool-schemas/) |
+| Study operational fleet patterns | [Fleet Operational Patterns](./fleet-operational-patterns/) | [Fleet Integration Plan](./fleet-integration-plan/), [Implementation Roadmap](./implementation-roadmap/) |
+| Plan fleet-derived features | [Fleet Integration Plan](./fleet-integration-plan/) | `docs/content/building-gormes/architecture_plan/progress.json`, [Implementation Roadmap](./implementation-roadmap/) |
 
 ## Planning rules
 
@@ -119,7 +121,7 @@ Use the planning docs in this order:
 
 ## Reference groups
 
-**Planning:** [Implementation Roadmap](./implementation-roadmap/), [Must-Have Features](./must-have-features/), [Cross-Project Feature Map](./cross-project-feature-map/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Gormes Completion Plan](./architecture_plan/completion-plan/).
+**Planning:** [Implementation Roadmap](./implementation-roadmap/), [Must-Have Features](./must-have-features/), [Cross-Project Feature Map](./cross-project-feature-map/), [Completion Lane Roadmap](./architecture_plan/lane-roadmap/), [Gormes Completion Plan](./architecture_plan/completion-plan/), [Fleet Operational Patterns](./fleet-operational-patterns/), [Fleet Integration Plan](./fleet-integration-plan/), [Agent-Zero Feature Analysis](./agent-zero-feature-analysis/).
 
 **Architecture:** [Architecture Plan](./architecture_plan/), [Hermes/Honcho To Gormes Go Runtime Plan](./architecture_plan/hermes-honcho-go-runtime-plan/), [Hermes And Honcho Feature Map](./architecture_plan/hermes-honcho-feature-map/), [Upstream Coverage Ledger](./architecture_plan/upstream-coverage-ledger/), [Swarm Feature Parity Audit](./architecture_plan/swarm-feature-parity-audit/), [Core Systems](./core-systems/), [What Hermes Gets Wrong](./what-hermes-gets-wrong/), [Upstream Lessons](./upstream-lessons/).
 
