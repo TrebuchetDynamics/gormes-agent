@@ -69,7 +69,7 @@ jobs:
         working-directory: www.gormes.ai
         run: |
           grep -F "Run Agents From One Go Binary." dist/index.html >/dev/null
-          grep -F "One static binary for the TUI, doctor, provider turns, memory, dashboard, and gateways." dist/index.html >/dev/null
+          grep -F "Gormes runs AI agents as a single static binary." dist/index.html >/dev/null
           grep -F 'href="/static/favicon.ico"' dist/index.html >/dev/null
           grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
           ! grep -F "Run AI Agents as One Go Binary." dist/index.html >/dev/null
