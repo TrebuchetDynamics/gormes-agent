@@ -608,14 +608,6 @@ classification and row-backed implementation queue.
 - [ ] P95 latency-aware failover
 - [ ] Capability-based model tier routing
 
-### 4.J — Permission-Hardened Tool Execution ✅
-
-- [x] Shell blocklist + filesystem scoping + permission approval
-
-### 4.K — Provider Fallback Chain ✅
-
-- [x] Resilient provider chain dispatch
-
 ## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
@@ -799,6 +791,8 @@ classification and row-backed implementation queue.
 - [ ] Gateway Discover and Probe
 - [ ] Channels Capabilities Introspection
 - [ ] Prompt Fragment Include System
+- [x] Multi-agent gateway runtime activation
+- [ ] Multi-agent auth and tool-policy runtime isolation
 
 ### 5.O — Hermes CLI Parity 🔨
 

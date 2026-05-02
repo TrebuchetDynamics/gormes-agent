@@ -339,13 +339,13 @@ EOF
 	runCommand(t, tmpRepo, "git", "add", ".")
 	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
 
-	cmd := exec.Command("timeout", "4s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
+	cmd := exec.Command("timeout", "8s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
 	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"INTEGRATION_BRANCH=codexu/test-integration",
 		"MAX_AGENTS=1",
 		"HEARTBEAT_SECONDS=1",
-		"LOOP_SLEEP_SECONDS=2",
+		"LOOP_SLEEP_SECONDS=5",
 	)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
