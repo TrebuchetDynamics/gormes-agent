@@ -5,6 +5,13 @@ description: Use when running a recurring or periodic Gormes-vs-Hermes parity sw
 
 # Gormes Hermes Parity
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Run a bounded recurring parity sweep that keeps Gormes pointed at the real

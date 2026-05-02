@@ -5,6 +5,13 @@ description: Design deep Go interfaces for Gormes subsystems before implementati
 
 # Gormes Interface Designer
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Choose Gormes interfaces that make Hermes-in-Go easier to finish: small caller-facing surfaces, strong compatibility, hermetic tests, and implementation complexity hidden behind useful modules.

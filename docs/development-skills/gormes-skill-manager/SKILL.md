@@ -5,6 +5,13 @@ description: Select the right repo-local Gormes skill or skill chain for buildin
 
 # Gormes Skill Manager
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Route Gormes work to the smallest effective skill chain. Gormes is finished only when it is Hermes in Go with Goncho as the Honcho-compatible Go port inside Gormes; skill selection should serve that delivery goal, not create process theater.

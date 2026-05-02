@@ -5,6 +5,13 @@ description: Use when fixing or implementing Gormes provider, auth, credential, 
 
 # Gormes Provider Parity
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 Use this skill whenever Gormes has provider, auth, credential, endpoint, model-routing, streaming, account-usage, rate-limit, retry, or Telegram-visible provider error problems.
 
 Do not use this skill as a catch-all for every "tool calling is bad" report.

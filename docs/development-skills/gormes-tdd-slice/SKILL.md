@@ -5,6 +5,13 @@ description: Implement one Gormes progress.json row using tracer-bullet test-dri
 
 # Gormes TDD Slice
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Ship one narrow Gormes behavior with a red-green-refactor loop. Tests must verify public behavior, not implementation details.
@@ -121,7 +128,7 @@ Only refactor after tests pass. Prefer deep modules: small interface, substantia
 Run row `test_commands`, focused package tests, `go run ./cmd/progress
 validate`, and the gates in `references/gates.md`.
 
-If the worktree contains unrelated user or parallel-agent changes, do not
+If the working tree contains unrelated user or parallel-agent changes, do not
 revert them. Run the focused tests for the selected behavior first, then broaden
 only as far as the current tree permits. If unrelated failures block a full
 gate, report them separately with file paths and failure commands.

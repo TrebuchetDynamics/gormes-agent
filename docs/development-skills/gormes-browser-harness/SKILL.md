@@ -5,6 +5,13 @@ description: Use when planning, auditing, or implementing Gormes browser automat
 
 # Gormes Browser Harness
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Make Gormes browser automation track Hermes behavior while targeting

@@ -5,7 +5,15 @@ description: Improve README.md from current Gormes repository evidence with accu
 
 # Gormes README
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
+
 Keep `README.md` accurate as Gormes moves toward Hermes-in-Go parity. This
 skill turns current repo evidence into bounded README improvements. It is not a
 runtime implementation path and must not create a parallel backlog.
