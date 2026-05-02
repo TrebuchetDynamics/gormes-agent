@@ -34,6 +34,8 @@ var allowedTOMLSections = map[string]struct{}{
 	"browser":    {},
 	"security":   {},
 	"secrets":    {},
+	"agents":     {},
+	"bindings":   {},
 	"cron":       {},
 	"skills":     {},
 	"delegation": {},

@@ -23589,6 +23589,124 @@
               ]
             },
             {
+              "name": "OpenClaw multi-agent config and routing core",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Add the OpenClaw-style multi-agent core to Gormes: config loads typed agents/defaults/bindings, defaults single-agent mode to main, preserves per-agent workspace/agentDir/model/skills/sandbox/tools metadata, and gateway routing resolves deterministic most-specific bindings to agent id, workspace, agent dir, and agent-prefixed session keys.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Invalid agent ids, duplicate defaults, bindings without channels, and bindings pointing at unknown agents fail config validation; the pure router falls back to the default agent when no binding matches and does not claim runtime process or auth-store isolation.",
+              "fixture": "internal/config/agents_test.go; internal/gateway/agent_router_test.go",
+              "source_refs": [
+                "https://docs.openclaw.ai/concepts/multi-agent",
+                "internal/config/config.go",
+                "internal/gateway/agent_router.go"
+              ],
+              "ready_when": [
+                "OpenClaw multi-agent docs define agents as workspace + agentDir + sessions + auth scope.",
+                "Gormes config loading is centralized in internal/config and can add typed sections without changing gateway manager runtime yet.",
+                "Gateway routing can be proven as a pure deterministic resolver before channel fan-out and per-agent kernel activation are wired."
+              ],
+              "not_ready_when": [
+                "The slice claims live per-agent auth stores, per-agent provider registries, or multiple running kernels in the gateway.",
+                "Bindings are evaluated from channel code directly instead of through one tested resolver.",
+                "Session keys are not prefixed with agent:<agentId>:<mainKey>."
+              ],
+              "unblocks": [
+                "Multi-agent gateway runtime activation"
+              ],
+              "acceptance": [
+                "Config tests prove default single-agent mode creates main with GORMES_HOME/workspace and GORMES_HOME/agents/main/agent.",
+                "Config tests prove TOML agents/defaults/bindings load per-agent workspace, agentDir, model, skills, and tool policy metadata.",
+                "Router tests prove peer bindings beat default-account and wildcard bindings, unmatched requests fall back to the configured default agent, and session keys are agent-prefixed.",
+                "Router tests prove omitted account_id is default-account scoped and beats account_id=\"*\" channel fallback."
+              ],
+              "note": "Validated 2026-05-02: Gormes now has OpenClaw-style typed agents/defaults/bindings config plus a pure gateway AgentRouter for most-specific route decisions and agent-prefixed session keys. This is the config/routing core only; live gateway runtime activation, per-agent auth/profile stores, channel account fan-out, and manager wiring remain separate rows.",
+              "write_scope": [
+                "internal/config/agents.go",
+                "internal/config/agents_test.go",
+                "internal/config/config.go",
+                "internal/config/writer.go",
+                "internal/gateway/agent_router.go",
+                "internal/gateway/agent_router_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run TestLoad_Agents -count=1",
+                "go test ./internal/gateway -run TestAgentRouter -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Config and router fixtures prove Gormes can represent multiple focused agents/workspaces and select the right agent for an inbound channel request without live channel dependencies."
+              ],
+              "evidence": {
+                "implementation": "internal/config/agents.go, internal/gateway/agent_router.go",
+                "tests": "go test ./internal/config -run TestLoad_Agents -count=1; go test ./internal/gateway -run TestAgentRouter -count=1",
+                "note": "Core only: no manager/channel fan-out or per-agent runtime activation is claimed."
+              }
+            },
+            {
+              "name": "Multi-agent gateway runtime activation",
+              "status": "planned",
+              "priority": "P0",
+              "contract": "Wire the validated AgentRouter into live gateway/channel handling so inbound messages select an agent-specific workspace, agentDir, session store key, auth/profile scope, model defaults, skills/tool policy, and group mention policy before starting or resuming a turn.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing agent runtime resources produce a visible route/runtime error for that agent only; one broken agent must not poison the default agent or other bindings.",
+              "fixture": "internal/gateway/manager_multi_agent_test.go",
+              "source_refs": [
+                "https://docs.openclaw.ai/concepts/multi-agent",
+                "internal/gateway/agent_router.go",
+                "internal/gateway/manager.go",
+                "internal/session/"
+              ],
+              "ready_when": [
+                "OpenClaw multi-agent config and routing core is validated.",
+                "Current gateway manager/session ownership changes in parallel work are settled enough to avoid overwriting active edits."
+              ],
+              "not_ready_when": [
+                "The slice changes global gateway command behavior without proving single-agent default compatibility.",
+                "Per-agent workspaces are treated as hard sandboxes without sandbox enforcement.",
+                "The slice duplicates router logic in channel adapters instead of using AgentRouter."
+              ],
+              "blocked_by": [
+                "OpenClaw multi-agent config and routing core"
+              ],
+              "acceptance": [
+                "Telegram or channel fixture proves two bindings route to two distinct agent-prefixed session keys in one gateway process.",
+                "Default single-agent mode preserves existing session behavior except for internal agent prefixing where explicitly migrated.",
+                "Per-agent workspace and agentDir are applied before kernel/session/auth/profile construction.",
+                "Operator status/debug output reports route agent_id and binding tier without leaking credentials."
+              ],
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_multi_agent_test.go",
+                "internal/session/",
+                "internal/kernel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run MultiAgent -count=1",
+                "go test ./internal/session ./internal/kernel -run Agent -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "One gateway process can run isolated focused agents selected by bindings, with route evidence and no cross-agent session/auth collision in fixtures."
+              ]
+            },
+            {
               "name": "OpenClaw system events and heartbeat bus",
               "status": "planned",
               "priority": "P1",
