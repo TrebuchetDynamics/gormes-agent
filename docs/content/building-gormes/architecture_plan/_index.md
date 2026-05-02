@@ -608,6 +608,14 @@ classification and row-backed implementation queue.
 - [ ] P95 latency-aware failover
 - [ ] Capability-based model tier routing
 
+### 4.J — Permission-Hardened Tool Execution ✅
+
+- [x] Shell blocklist + filesystem scoping + permission approval
+
+### 4.K — Provider Fallback Chain ✅
+
+- [x] Resilient provider chain dispatch
+
 ## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
