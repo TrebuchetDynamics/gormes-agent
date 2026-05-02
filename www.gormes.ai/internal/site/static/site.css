@@ -1040,11 +1040,16 @@ a:focus-visible,
   }
   .install-inner,
   .why-inner,
-  .roadmap-inner {
+  .roadmap-inner,
+  .demo-inner,
+  .built-for-inner,
+  .explore-inner,
+  .final-cta-inner {
     padding: 42px var(--pad);
   }
   .features-grid,
-  .roadmap-summary {
+  .roadmap-summary,
+  .explore-grid {
     grid-template-columns: 1fr;
   }
   .footer-inner {
@@ -1103,7 +1108,10 @@ a:focus-visible,
      the existing 24-32 range so sections don't get floaty. */
   .install-inner,
   .why-inner,
-  .audience-inner,
+  .demo-inner,
+  .built-for-inner,
+  .explore-inner,
+  .final-cta-inner,
   .roadmap-inner {
     padding: 96px var(--pad);
   }

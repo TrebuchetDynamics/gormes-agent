@@ -94,7 +94,13 @@ It also means memory can stay boring and local. Goncho keeps session history, pe
 - Send one-shot prompts to any provider-compatible endpoint from one binary.
 - Validate your runtime before spending tokens with `./bin/gormes doctor --offline`.
 - Operate Telegram, Discord, or Slack agents through one gateway runtime.
+- Browse sessions, config, skills, and logs via the htmx web dashboard (`gormes dashboard`).
 - Develop and debug Goncho memory entirely offline with `./bin/gormes goncho doctor`.
+- **Cross-session memory**: Goncho persists conversation history and durable user context.
+- **9 web backends** with auto-routing: Firecrawl → Tavily → Exa → CDP → DuckDuckGo (free).
+- **Busy input modes**: interrupt, queue, or steer — with `/busy` slash command.
+- **TTS**: configure engine, voice, and speed via `/tts` (OpenAI, ElevenLabs, Edge).
+- **Auto skill extraction**: the agent creates SKILL.md files from conversations.
 
 ## Example: Run A One-Shot Turn
 
@@ -130,16 +136,22 @@ What works today:
 - Provider-compatible one-shots and TUI startup paths.
 - Configured Telegram, Discord, and Slack gateway runtime.
 - Isolated subagents with durable job metadata.
-- Goncho memory diagnostics and Honcho-style local memory tools inside the binary.
+- Goncho memory with cross-session persistence (conversation history + durable context).
+- HTMX web dashboard: sessions, config, skills, logs pages.
+- 9 web backends with auto-routing (Firecrawl → DuckDuckGo, free CDP extraction).
+- Busy input modes (interrupt/queue/steer) with 30s debounce and `/busy` command.
+- TTS configuration via `/tts` (engine, voice, speed) for OpenAI/ElevenLabs/Edge.
+- Auto skill extraction: `skill_manage` tool creates portable SKILL.md from conversations.
 - Progress-driven docs generated from the canonical architecture plan.
 
 Current limits:
 
 - Early-stage scout release, not production-stable.
 - Brain/provider runtime is active but not fully hardened.
-- Gateway coverage is partial across all planned channels.
-- WhatsApp, WeChat, and the longer connector backlog are tracked in progress docs, not exposed as production-ready README setup paths.
+- Gateway coverage is partial across all planned channels; Signal, Matrix pending.
+- WhatsApp, WeChat, and the longer connector backlog are tracked in progress docs.
 - Stable tagged releases and changelog discipline are still pending.
+- TUI visual fidelity: 10+ components still in progress (AgentsOverlay, SkillsHub, etc.).
 - Some docs still preserve Hermes/Honcho naming where compatibility or lineage matters.
 
 ---
