@@ -13,6 +13,9 @@ func newProviderHTTPClient(cfg config.Config, provider string) (hermes.Client, e
 	if err != nil {
 		return nil, err
 	}
+	if providerUsesAnthropicMessages(provider) {
+		return hermes.NewAnthropicClient(normalizeAnthropicMessagesEndpoint(endpoint), apiKey), nil
+	}
 	return hermes.NewHTTPClientWithProvider(endpoint, apiKey, provider), nil
 }
 
@@ -25,7 +28,20 @@ func newProviderHTTPClientWithCredentialHome(cfg config.Config, provider, creden
 	if err != nil {
 		return nil, err
 	}
+	if providerUsesAnthropicMessages(provider) {
+		return hermes.NewAnthropicClient(normalizeAnthropicMessagesEndpoint(endpoint), apiKey), nil
+	}
 	return hermes.NewHTTPClientWithProvider(endpoint, apiKey, provider), nil
+}
+
+func providerUsesAnthropicMessages(provider string) bool {
+	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+	return ok && entry.TransportFamily == "anthropic_messages"
+}
+
+func normalizeAnthropicMessagesEndpoint(endpoint string) string {
+	endpoint = strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	return strings.TrimSuffix(endpoint, "/v1")
 }
 
 func resolveProviderHTTPClientCredentialsWithHome(cfg config.Config, provider, credentialHome string) (endpoint, apiKey string, err error) {

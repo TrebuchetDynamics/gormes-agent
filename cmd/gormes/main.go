@@ -111,8 +111,106 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 	}
 	resetGonchoDoctorFlags()
 	root := &cobra.Command{
-		Use:          "gormes",
-		Short:        "Go-native Hermes-compatible agent runtime",
+		Use:   "gormes",
+		Short: "Go-native Hermes-compatible agent runtime",
+		Long: `Gormes runs AI agents as a single static Go binary — no Python, no Docker, no Hermes process.
+
+═══════════════════════════════════════════════════════════
+  GETTING STARTED
+═══════════════════════════════════════════════════════════
+
+  First-time setup:
+    gormes onboard                          see what's configured and what's next
+    gormes setup provider                   guided interactive provider setup
+    gormes setup model                      pick your default model
+    gormes --oneshot "hello"                test with a single turn
+
+  Daily use:
+    gormes                                  open the TUI (terminal user interface)
+    gormes --offline                        smoke test without provider calls
+    gormes doctor --offline                 check everything is working
+    gormes dashboard                        web UI at http://127.0.0.1:43827
+
+═══════════════════════════════════════════════════════════
+  CONFIGURATION
+═══════════════════════════════════════════════════════════
+
+    gormes config edit                      open config.toml in your editor
+    gormes config set <key> <value>         set a config value
+    gormes config show                      see current config (secrets redacted)
+    gormes setup provider                   interactive provider setup wizard
+    gormes setup model                      interactive model picker
+    gormes auth add <provider>              add provider credentials
+    gormes logout <provider>                clear stored auth for a provider
+
+═══════════════════════════════════════════════════════════
+  GATEWAY — MULTI-CHANNEL MESSAGING
+═══════════════════════════════════════════════════════════
+
+    gormes gateway                          start the multi-channel gateway
+    gormes gateway status                   check gateway runtime state
+    gormes gateway stop                     stop a running gateway
+    gormes telegram                         start Telegram-only mode
+    gormes logs                             view recent gateway logs
+
+  Configure a channel:
+    Edit config.toml → [telegram] bot_token, [discord] token, [slack] tokens
+    Each channel can be assigned to a specific agent via [bindings].
+
+═══════════════════════════════════════════════════════════
+  MULTI-AGENT & WORKSPACES
+═══════════════════════════════════════════════════════════
+
+    gormes agent list                       list configured agents
+    gormes agent create <name>              create a new agent template
+    gormes agent edit <name>                edit an agent's template
+    gormes profile list                     list available profiles
+    gormes profile use <name>               switch active profile
+
+  Assign channels to specific agents in config.toml:
+    [[bindings]]
+    agent_id = "alerts"
+    [bindings.match]
+    channel = "telegram"
+    account_id = "my-bot"
+
+═══════════════════════════════════════════════════════════
+  MEMORY & SESSIONS
+═══════════════════════════════════════════════════════════
+
+    gormes memory status                    inspect memory store
+    gormes session list                     list past sessions
+    gormes session export <id>              export a session transcript
+    gormes goncho doctor --json             inspect Goncho memory storage
+
+═══════════════════════════════════════════════════════════
+  TOOLS & SKILLS
+═══════════════════════════════════════════════════════════
+
+    gormes skills list                      list installed skills
+    gormes skills install <url>             install a skill from a URL
+    gormes mcp list                         list configured MCP servers
+    gormes mcp add <name> <command>         add an MCP server
+
+═══════════════════════════════════════════════════════════
+  MAINTENANCE
+═══════════════════════════════════════════════════════════
+
+    gormes status                           show runtime and progress
+    gormes usage                            show provider account usage
+    gormes migrate hermes                   import state from Hermes (dry-run)
+    gormes version                          print version
+    gormes uninstall                        remove Gormes from this system
+
+═══════════════════════════════════════════════════════════
+
+  ENVIRONMENT VARIABLES
+    GORMES_HOME         runtime home (default ~/.gormes)
+    GORMES_API_KEY      provider API key
+    GORMES_ENDPOINT     provider endpoint URL
+    GORMES_SKILLS_ROOT  custom skills directory
+
+  Full docs: https://docs.gormes.ai`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRootCommand(cmd, args, runtime)

@@ -26894,7 +26894,7 @@
               "name": "Gormes setup minimal sectioned wizard slice",
               "status": "complete",
               "priority": "P2",
-              "contract": "`gormes setup [section] [--non-interactive] [--reset] [--reconfigure] [--quick]` runs a deliberately minimal sectioned wizard: with no `section`, prints the section list and exits without running prompts; with `section=model`, dispatches to the shared model picker (same path as `gormes model`); with any other section, returns setup_section_unsupported and the operator-facing recommended command. `--non-interactive` uses defaults/env and never prompts; `--reset` and `--reconfigure` are accepted but rejected as setup_full_wizard_unsupported in this initial slice.",
+              "contract": "`gormes setup [section] [--non-interactive] [--reset] [--reconfigure] [--quick]` runs a deliberately minimal sectioned wizard: with no `section`, prints the section list and exits without running prompts; with `section=provider`, writes provider endpoint/model to config.toml and the API key to the Gormes dotenv file; with `section=model`, dispatches to the shared model picker (same path as `gormes model`); with `section=agent`, `section=workspace`, and `section=bindings`, returns bounded operator guidance/defaults without mutating unsupported nested config; with unsupported sections, returns setup_section_unsupported and the operator-facing recommended command. `--non-interactive` uses defaults/env and never prompts; `--reset` and `--reconfigure` are accepted but rejected as setup_full_wizard_unsupported in this initial slice.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -26902,7 +26902,7 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Unknown sections return setup_section_unsupported with the canonical section list (model|tts|terminal|gateway|tools|agent); --reset/--reconfigure return setup_full_wizard_unsupported and link the operator to `gormes config edit` and provider/auth rows; non-TTY without --non-interactive returns setup_requires_tty.",
+              "degraded_mode": "Unknown sections return setup_section_unsupported with the canonical section list (provider|model|agent|workspace|bindings|tts|terminal|gateway|tools); --reset/--reconfigure return setup_full_wizard_unsupported and link the operator to `gormes config edit` and provider/auth rows; non-TTY without --non-interactive returns setup_requires_tty.",
               "fixture": "cmd/gormes/setup_minimal_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/main.py:8089-8123:setup_parser",
@@ -26919,8 +26919,8 @@
                 "Tests can inject a fake TTY/menu seam and a fake config writer; no live provider, browser, or terminal probing is required."
               ],
               "not_ready_when": [
-                "The slice ports the full Hermes setup wizard (tts, terminal, gateway, tools, agent sections) — those remain explicit row-backed follow-ups.",
-                "The slice writes provider tokens, auth.json entries, or platform-keychain values during a setup invocation.",
+                "The slice ports the full Hermes setup wizard (tts, terminal, gateway, tools, live channel probes, or persistent binding mutation) — those remain explicit row-backed follow-ups.",
+                "The slice writes provider tokens to config.toml, auth.json entries, or platform-keychain values during a setup invocation; API keys must route to the Gormes dotenv file.",
                 "The slice silently runs the model picker when `gormes setup` is invoked with no section (must print the section list and exit).",
                 "The slice duplicates the model picker code path instead of delegating to the `Gormes model interactive provider/model picker` row."
               ],
@@ -26930,32 +26930,38 @@
               ],
               "acceptance": [
                 "TestSetupNoSectionPrintsSectionList proves `gormes setup` with no positional argument prints the canonical section list and exits 0 without invoking the model picker.",
+                "TestSetupProviderNonInteractiveWritesConfigAndDotenv proves `gormes setup provider --non-interactive` reads GORMES_ENDPOINT/GORMES_API_KEY plus optional GORMES_MODEL, writes endpoint/model to config.toml, routes the API key to .env, and redacts command output.",
+                "TestSetupProviderInteractiveWritesSelectedProvider proves `gormes setup provider` writes the selected provider, endpoint, default model, and dotenv secret without leaking the raw key.",
+                "TestSetupProviderRequiresTTYWithoutNonInteractive proves non-TTY provider setup returns setup_requires_tty with a noninteractive env-var path.",
                 "TestSetupModelSectionDelegatesToPicker proves `gormes setup model` invokes the same picker entry point as `gormes model` with the same redaction and TTY guards.",
-                "TestSetupOtherSectionsReturnUnsupported proves `gormes setup tts`, `gormes setup terminal`, `gormes setup gateway`, `gormes setup tools`, and `gormes setup agent` each return setup_section_unsupported with exit code 2 and the canonical section list.",
+                "TestSetupAgentWorkspaceBindingsSectionsAreImplemented proves `gormes setup agent --non-interactive`, `gormes setup workspace --non-interactive`, and `gormes setup bindings --non-interactive` return safe operator guidance without invoking model picker work or writing unsupported nested TOML.",
+                "TestSetupOtherSectionsReturnUnsupported proves `gormes setup tts`, `gormes setup terminal`, `gormes setup gateway`, and `gormes setup tools` each return setup_section_unsupported with exit code 2 and the canonical section list.",
                 "TestSetupResetReconfigureRejected proves `gormes setup --reset` and `gormes setup --reconfigure` return setup_full_wizard_unsupported and point operators to `gormes config edit` plus the auth/provider rows.",
                 "TestSetupNonInteractiveUsesDefaults proves `gormes setup model --non-interactive` falls back to env/config defaults without prompting and does not invoke the menu seam.",
                 "TestSetupModelRequiresTTYWithoutNonInteractive proves `gormes setup model` without a TTY returns setup_requires_tty and points operators at --non-interactive instead of leaking lower-level picker evidence."
               ],
-              "note": "Complete 2026-04-30: added `cmd/gormes setup` with Hermes-compatible section flags, section-list-only default UX, model-section delegation to the shared model picker, noninteractive env/config default resolution, full-wizard --reset/--reconfigure rejection, and typed unsupported evidence for tts/terminal/gateway/tools/agent. Bounded by design: only the model section delegates; tts/terminal/gateway/tools/agent stay row-backed.",
+              "note": "Complete 2026-04-30 and extended 2026-05-02: added `cmd/gormes setup` with Hermes-compatible section flags, section-list-only default UX, provider setup for endpoint/model plus dotenv secret storage, Anthropic Messages client routing for configured anthropic provider setup, model-section delegation to the shared model picker, noninteractive env/config default resolution, safe noninteractive guidance for agent/workspace/bindings sections, full-wizard --reset/--reconfigure rejection, and typed unsupported evidence for tts/terminal/gateway/tools. Bounded by design: provider/model mutate only their supported config surface; workspace/bindings guidance avoids unsupported nested TOML/table-of-table writes.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/setup_minimal_test.go",
+                "cmd/gormes/provider_client.go",
+                "cmd/gormes/provider_client_test.go",
                 "cmd/gormes/main.go",
                 "cmd/gormes/hermes_cli_parity.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestSetup' -count=1",
+                "go test ./cmd/gormes -run '^(TestSetup|TestProviderHTTPClient_AnthropicProviderUsesMessagesAPI)' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Setup minimal-slice fixtures prove section-list-only default, model-section delegation, unsupported-section evidence for non-model sections, --reset/--reconfigure rejection, non-interactive defaults, and TTY guidance."
+                "Setup minimal-slice fixtures prove section-list-only default, provider config/dotenv writes, Anthropic Messages routing, model-section delegation, safe agent/workspace/bindings guidance, unsupported-section evidence for remaining sections, --reset/--reconfigure rejection, non-interactive defaults, and TTY guidance."
               ],
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/main.py:8089-8123 setup_parser + hermes_cli/setup.py setup_model_provider",
-                "note": "Hermes ships a full sectioned wizard; Gormes lands the model section first and explicitly defers tts/terminal/gateway/tools/agent."
+                "note": "Hermes ships a full sectioned wizard; Gormes lands provider/model plus safe agent/workspace/bindings guidance first and explicitly defers tts/terminal/gateway/tools plus persistent binding mutation."
               }
             },
             {
@@ -29016,7 +29022,7 @@
                 "operator"
               ],
               "degraded_mode": "Current partial onboarding reports first-run status, runtime skills root, bundled/local skill counts, and partial learning-loop state with next-step commands. The future full wizard must report missing provider credentials, gateway config gaps, or browser unavailability per step and allow skip with explicit warning.",
-              "fixture": "cmd/gormes/skills_onboard_test.go::TestOnboardExplainsRuntimeSkillsAndLearningState; future full wizard: internal/cli/onboard_test.go",
+              "fixture": "cmd/gormes/skills_onboard_test.go::TestOnboardExplainsRuntimeSkillsAndLearningState,TestOnboardShowsConfiguredProviderDetails; future full wizard: internal/cli/onboard_test.go",
               "source_refs": [
                 "openclaw onboard command",
                 "cmd/gormes/setup.go",
@@ -29038,6 +29044,7 @@
                 "gormes onboard is a real top-level command, not a setup alias.",
                 "Current output separates runtime skills from docs/development-skills and points users to gormes skills list.",
                 "Current output states that skill capture is manual/prompted and full automatic distill/promote/maintain is partial.",
+                "Configured provider output shows provider id, endpoint, and model instead of collapsing the setup state into one URL.",
                 "Future full wizard walks through model -> provider -> auth -> gateway -> browser -> skills -> dashboard.",
                 "Each future wizard step can be skipped with explicit warning.",
                 "Already-configured future wizard steps are detected and pre-filled.",
@@ -29065,7 +29072,7 @@
               "evidence": {
                 "implementation": "cmd/gormes/onboard.go, cmd/gormes/skills.go, cmd/gormes/main.go, cmd/gormes/setup.go, internal/skills/list.go",
                 "tests": "go test ./cmd/gormes -run 'TestRootSkills|TestOnboard|TestSetup|TestHermesCLIParityManifest' -count=1",
-                "note": "Partial shipped 2026-05-02: gormes onboard is now a real top-level first-run status command instead of the setup alias; it reports GORMES_HOME/config path, runtime skills root, local/bundled skill counts, separates runtime skills from docs/development-skills, and states that full automatic skill distill/promote/maintain remains partial. Root gormes skills is now registered and reads the same runtime skills root used by the model-facing tools. The full interactive wizard remains in progress."
+                "note": "Partial shipped 2026-05-02: gormes onboard is now a real top-level first-run status command instead of the setup alias; it reports GORMES_HOME/config path, runtime skills root, local/bundled skill counts, separates runtime skills from docs/development-skills, shows configured provider id/endpoint/model, and states that full automatic skill distill/promote/maintain remains partial. Root gormes skills is now registered and reads the same runtime skills root used by the model-facing tools. The full interactive wizard remains in progress."
               },
               "wired": true
             },

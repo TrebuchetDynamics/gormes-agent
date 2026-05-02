@@ -59,6 +59,42 @@ func TestOnboardExplainsRuntimeSkillsAndLearningState(t *testing.T) {
 	}
 }
 
+func TestOnboardShowsConfiguredProviderDetails(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'groq'\nendpoint = 'https://api.groq.com/openai/v1'\nmodel = 'llama-3.3-70b-versatile'\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".env"), []byte("GORMES_API_KEY=sk-onboard-test\n"), 0o600); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"onboard"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"Provider: groq",
+		"Endpoint: https://api.groq.com/openai/v1",
+		"Model: llama-3.3-70b-versatile",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("onboard output missing %q:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "No provider configured yet") {
+		t.Fatalf("onboard treated configured provider as missing:\n%s", output)
+	}
+}
+
 func writeRootCommandSkill(t *testing.T, root, name string) {
 	t.Helper()
 	dir := filepath.Join(root, "active", name)
