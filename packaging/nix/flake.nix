@@ -18,7 +18,7 @@
       packages = eachSystem (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          gormesVersion = "0.2.0-scout";
+          gormesVersion = "0.1.0";
         in
         {
           default = self.packages.${system}.gormes;

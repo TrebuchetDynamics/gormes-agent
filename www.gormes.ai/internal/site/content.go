@@ -247,7 +247,7 @@ func DefaultPage() LandingPage {
 			{Label: "Docs", Href: "https://docs.gormes.ai/"},
 			{Label: "Company", Href: "https://trebuchetdynamics.com/"},
 		},
-		FooterLeft:  `Gormes 0.2.0-scout · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
+		FooterLeft:  `Gormes 0.1.0 · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
 		FooterRight: "MIT License · 2026",
 	}
 }

@@ -12,7 +12,7 @@ offline diagnostics, provider-backed turns, local Goncho memory, the htmx
 dashboard, and configured gateway channels. The offline path does not need
 Python, a virtualenv, Node, Docker, or a running Hermes backend.
 
-**Status: early-stage scout release.** The native TUI, `doctor --offline`,
+**Status: early-stage 0.x release.** The native TUI, `doctor --offline`,
 provider one-shots, Go tool registry, Goncho memory, htmx dashboard, and
 configured Telegram/Discord/Slack gateway paths have implementation and tests.
 Full Hermes parity, broad channel parity, voice/TTS/transcription parity,
@@ -228,6 +228,21 @@ Default managed source homes are `~/.gormes/gormes-agent` on Unix-like systems
 and `%LOCALAPPDATA%\gormes\gormes-agent` on Windows. If Go is missing, the
 installer can install or download a managed Go toolchain. The Gormes runtime
 itself does not self-update or fetch and execute secondary runtime binaries.
+
+Installer update controls:
+
+```bash
+sh install.sh --dry-run                 # show the plan only
+sh install.sh --local                   # build the current checkout
+sh install.sh --no-restart              # update without restarting a live gateway
+sh install.sh --restart-gateway always  # start/restart the gateway after update
+```
+
+Reruns behave as updates. The Unix installer uses an install lock, verifies the
+published command before keeping it, rolls back a failed publish, refreshes
+older `gormes` commands found earlier on `PATH`, and writes an install ledger
+to `~/.gormes/install.log.jsonl`. Windows PowerShell exposes the same operator
+controls with `-DryRun`, `-Local`, `-NoRestart`, and `-RestartGateway`.
 
 Convenience aliases exist at `https://gormes.ai/install.sh` and
 `https://gormes.ai/install.ps1`, but inspect-first source URLs remain the

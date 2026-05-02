@@ -111,7 +111,7 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		// Structural class anchors
 		"roadmap-phase",
 		// Footer — brand text + company anchor + license
-		`Gormes 0.2.0-scout · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
+		`Gormes 0.1.0 · <a href="https://trebuchetdynamics.com/">TrebuchetDynamics</a>`,
 		`<nav class="footer-nav" aria-label="Secondary">`,
 		// v6: · separator now lives in the actual HTML (not just CSS
 		// pseudo-elements) so screen readers / text-extraction views
