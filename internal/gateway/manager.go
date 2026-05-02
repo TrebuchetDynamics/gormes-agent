@@ -2316,13 +2316,17 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	if m.cfg.AgentRuntimeFactory != nil && route.Enabled {
 		runtime, err := m.agentRuntimeForRoute(ctx, route, snapshot)
 		if err != nil {
+			errMsg := "agent_runtime_unavailable agent_id=" + route.Decision.AgentID
 			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 				Platform:      ev.Platform,
 				PlatformState: PlatformStateRunning,
-				ErrorMessage:  "agent_runtime_unavailable agent_id=" + route.Decision.AgentID,
+				ErrorMessage:  errMsg,
 			})
 			m.clearTurn()
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Agent runtime unavailable for `"+route.Decision.AgentID+"` (agent_runtime_unavailable).")
+			configHint := gormesHomeHint()
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf(
+				"Agent `%s` is unavailable (agent_runtime_unavailable).\n\nCheck your provider config in %s/config.toml → [hermes] endpoint + api_key.",
+				route.Decision.AgentID, configHint))
 			return false
 		}
 		submitter = runtime
@@ -2362,4 +2366,8 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		}
 	}
 	return true
+}
+
+func gormesHomeHint() string {
+	return config.GormesHome()
 }
