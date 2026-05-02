@@ -20,6 +20,10 @@ Research covers English and Chinese (中文) academic sources across 2022–2026
 | [Agent Memory Systems](agent-memory-systems/) | AgeMem, Synapse, A-Mem, H-MEM, MemGen | Episodic, semantic, hierarchical memory |
 | [Multi-Agent & Tools](multi-agent-and-tools/) | MetaGPT, CAMEL, MCP, ToolACE | Orchestration & tool ecosystems |
 | [Safety & Deployment](safety-and-deployment/) | MOSAIC, Agent-C, OpenSandbox, production patterns | Guardrails & production reliability |
+| [Benchmarks Landscape](benchmarks-landscape/) | SWE-bench, GAIA, τ-bench, BFCL, TravelPlanner, AgentHarm | Complete evaluation landscape |
+| [Agent Infrastructure](infrastructure-papers/) | Context mgmt, model serving, state, observability, scaling | Production infrastructure |
+| [European Research](european-research/) | DFKI, Fraunhofer, INRIA, ETH Zurich, Oxford, EU projects | German, French, Swiss, UK, EU |
+| [Asian Research (日韓)](asian-research/) | Sakana AI, KAIST, Naver, Kakao, Preferred Networks | Japanese & Korean research |
 | [Chinese Research (中文综述)](chinese-research/) | 智能体操作系统、多智能体协作、工具学习 | Complete Chinese-language survey |
 | [Reading List](reading-list/) | Curated priority reading order | Where to start |
 

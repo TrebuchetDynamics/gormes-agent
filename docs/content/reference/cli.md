@@ -23,9 +23,11 @@ Snapshot from `gormes --help` in this workspace:
 | `gormes memory` | Inspect memory and extractor state. |
 | `gormes migrate` | Migrate state from upstream agents. |
 | `gormes model` | Select model/provider. |
+| `gormes onboard` | Show first-run setup status, runtime skills root, and next steps. |
 | `gormes profile` | Inspect and switch profiles. |
 | `gormes session` | Inspect and export sessions. |
-| `gormes setup`, `gormes onboard` | Configure runtime sections. Full wizard behavior is not complete in this slice. |
+| `gormes setup` | Configure runtime sections. Full wizard behavior is not complete in this slice. |
+| `gormes skills` | List runtime and bundled skills, or install a direct `SKILL.md` URL. |
 | `gormes telegram` | Run the direct Telegram adapter. |
 | `gormes usage` | Show runtime/provider account usage. |
 | `gormes version` | Print version. |

@@ -6,20 +6,16 @@
 
 Your agents should not crash because of a broken Python environment.
 
-Gormes runs AI agents as one Go binary. The release path builds a single static binary.
+Gormes runs AI agents as a single static binary.
 
 No Python runtime. No virtualenv repair. No backend service just to open the UI.
 
-It gives you a Go-native runtime with a local terminal UI, offline diagnostics,
-provider-backed turns, Goncho memory, a dashboard, and messaging gateways - all
-from one executable.
+Start offline. Prove the machine works. Add provider and gateway credentials
+later.
 
-**Status: early-stage 0.x release.** The native TUI, `doctor --offline`,
-provider one-shots, Goncho memory, dashboard, and configured
-Telegram/Discord/Slack gateway paths have implementation and tests. Full Hermes
-parity, broad channel parity, voice/TTS/transcription parity, MCP/plugin parity,
-release signing, package-manager distribution, and TUI polish are still in
-progress.
+Under the hood, Gormes is a Go-native runtime for local TUI work, offline
+diagnostics, provider-backed turns, Goncho memory, a dashboard, and messaging
+gateways.
 
 ![Gormes native TUI running offline](docs/assets/gormes-tui-demo.gif)
 
@@ -84,23 +80,21 @@ Prerequisites for source builds: Git, Go 1.25+, and Make.
 
 ## Why Gormes
 
-Python-stack agents are powerful, but production operation can fail before the
-agent ever reaches its model: virtualenv drift, host Python changes, wheel
-issues, Node bootstraps, sidecar databases, or a missing backend process.
-Gormes keeps the operator-facing runtime in one inspectable Go artifact.
+Python-stack agents are powerful. Operating them is the fragile part.
 
-| Surface | Python-stack agents | Gormes-Agent |
+Gormes removes the boring failure class: broken virtualenvs, host Python drift,
+Node bootstraps, sidecar memory stores, and missing backend processes.
+
+| Surface | Python-stack agents | Gormes |
 |---|---|---|
-| Deployment | Virtualenvs, Docker, Nix, sidecars | One static Go binary from `make build` |
-| Offline proof | Often crosses Python/Node/provider setup | `gormes --offline` and `gormes doctor --offline` |
-| Provider turns | Backend process and SDK stack | Native provider-compatible Go client paths |
-| Memory | Redis/vector DB/service sidecars | In-binary Goncho on local SQLite |
-| Diagnostics | Spread across runtime layers | Built-in `gormes doctor` |
-| Recovery | Dropped streams and process drift are still common | Typed retry/cancel evidence, still hardening |
+| Startup | Runtime and service setup first | `./bin/gormes --offline` |
+| Deployment | Virtualenvs, Docker, Nix, sidecars | One Go artifact from `make build` |
+| Diagnostics | Spread across layers | Built-in `gormes doctor` |
+| Memory | Redis/vector DB/service sidecars | Local Goncho SQLite |
 
-The target operator story is boring on purpose: copy the binary, keep state
-under the Gormes home/config paths, inspect diagnostics locally, and avoid
-repairing a Python runtime before the agent can answer.
+The target operator story is boring on purpose: copy the binary, keep state in
+Gormes paths, inspect diagnostics locally, and avoid repairing a language
+runtime before the agent can answer.
 
 ## Example: Run A Provider Turn
 
@@ -126,13 +120,16 @@ Example output:
 Gormes runs AI agents from one Go runtime with no Python backend.
 ```
 
-Use `--provider <name>` and `--model <model>` when a configured provider route
-needs to be explicit. Invocation-only overrides also exist for `--endpoint` and
-`--api-key`; the API key flag is not persisted.
+Use `--provider <name>` and `--model <model>` when the route needs to be
+explicit. Full provider setup lives in the
+[configuration docs](https://docs.gormes.ai/using-gormes/configuration/).
 
 ## Operator Commands
 
-Once built, `./bin/gormes` owns the current operator surface:
+Once built, `./bin/gormes` owns the current operator surface.
+
+<details>
+<summary>Show common commands</summary>
 
 | Goal | Command | Notes |
 |---|---|---|
@@ -150,9 +147,13 @@ Once built, `./bin/gormes` owns the current operator surface:
 Run `./bin/gormes --help` or see [cmd/README.md](cmd/README.md) for the full
 command tree.
 
+</details>
+
 ## Current State
 
-What works today:
+**Status: early-stage 0.x release.** Useful today, not production-stable yet.
+
+What works:
 
 - Native CLI and Bubble Tea TUI, including the offline smoke path.
 - `doctor --offline` for local TUI, tools, web/browser, Goncho, gateways,
@@ -164,16 +165,12 @@ What works today:
 - htmx dashboard for sessions, config, skills, and logs.
 - Web/browser/search tools with typed unavailable evidence when backends are
   missing.
-- Skill tools: `skills_list`, `skill_view`, and `skill_manage`.
 
-Current limits:
+What is still in progress:
 
-- Scout release, not production-stable.
-- Brain/provider runtime is active but still hardening.
+- Full Hermes parity and production hardening.
 - Gateway coverage is partial beyond Telegram, Discord, and Slack.
 - Service-manager helper commands are not stable operator paths yet.
-- Delegation is disabled by default and must be enabled in config before
-  `delegate_task` is registered.
 - Voice/TTS/transcription, MCP/plugin parity, and broad channel parity are not
   complete.
 - Prebuilt release artifacts are not the primary trust path yet.
@@ -227,26 +224,10 @@ path.
 
 ### Prebuilt Release Artifacts
 
-The release workflow can produce static archives for Linux, macOS, and Windows,
-with SHA-256 files, SBOMs, and GitHub build-provenance attestations. Stable
-signed releases, Windows code signing, detached signatures, and package-manager
-distribution are still release-hardening work. Treat source builds as the
-primary trust path until those are complete.
-
-## Gateway Operator Surface
-
-`./bin/gormes gateway` runs every configured channel through the same
-`gateway.Manager` and kernel/tool loop used by the TUI.
-
-| Action | Native CLI / TUI | Configured gateway |
-|---|---|---|
-| Start chatting | `./bin/gormes` | Send a message to the paired bot |
-| Run offline diagnostics | `./bin/gormes doctor --offline` | CLI only |
-| Inspect runtime state | `./bin/gormes gateway status` | CLI read-model |
-| Inspect Goncho memory | `./bin/gormes goncho doctor --json` | Planned gateway operator surface |
-| Delegated jobs | Config-gated via `[delegation].enabled` | Same registry once enabled |
-
-Deep dive: [Gateway core system](https://docs.gormes.ai/building-gormes/core-systems/gateway/).
+Static release archives, SHA-256 files, SBOMs, and GitHub build-provenance
+attestations exist in the release workflow. Signed stable releases and
+package-manager distribution are still hardening work, so source builds remain
+the primary trust path.
 
 ## Auditability & Security
 
@@ -267,28 +248,6 @@ what will run.
 
 Release integrity details and remaining production-stable hardening targets also
 live in [SECURITY.md](SECURITY.md).
-
-## How It Works
-
-Gormes keeps the operator-facing runtime in Go:
-
-- `cmd/gormes` owns the CLI, TUI, doctor, gateway, memory, Goncho, dashboard,
-  auth, setup, model, status, logs, and uninstall commands.
-- `internal/hermes` owns provider-compatible stream contracts and adapters. The
-  package name is compatibility lineage, not a backend process dependency.
-- `internal/kernel` drives turns, tool calls, retries, admission limits, and
-  render frames.
-- `internal/goncho` and `internal/gonchotools` provide in-binary
-  Honcho-compatible memory surfaces on local SQLite.
-- `internal/gateway` and `internal/channels/*` route messaging events through
-  shared channel contracts.
-- `internal/tools` owns Go-native tools for files, terminal, web, browser,
-  skills, TTS contracts, MCP seams, and provider-specific utilities.
-- `docs/content/building-gormes/architecture_plan/progress.json` is the
-  canonical roadmap and progress source.
-
-Architecture depth belongs in the docs: [Core systems](https://docs.gormes.ai/building-gormes/core-systems/)
-and [Architecture plan](https://docs.gormes.ai/building-gormes/architecture_plan/).
 
 ## Coming From Python Hermes
 
