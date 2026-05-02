@@ -367,7 +367,8 @@ func TestHermesProviderRegistryManifestRecordsRequiredMetadata(t *testing.T) {
 		{"google-gemini-cli", "openai_chat", "oauth_external", "owned", false},
 		{"copilot-acp", "codex_responses", "external_process", "row_backed", false},
 		{"openrouter", "openai_chat", "api_key", "implemented", true},
-		{"opencode-zen", "openai_chat", "api_key", "row_backed", true},
+		{"opencode-zen", "openai_chat", "api_key", "implemented", true},
+		{"opencode-go", "openai_chat", "api_key", "implemented", true},
 		{"kilocode", "openai_chat", "api_key", "row_backed", true},
 		{"aws", "bedrock_converse", "aws_sdk", "implemented", false},
 	}

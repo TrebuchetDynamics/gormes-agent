@@ -25,10 +25,13 @@ const (
 
 var knownProviderEndpoints = map[string]string{
 	providerOpenAI:    "https://api.openai.com/v1",
-	providerAnthropic: "https://api.anthropic.com",
+	providerAnthropic: "https://api.anthropic.com/v1",
 	providerDeepSeek:  "https://api.deepseek.com/v1",
 	providerGroq:      "https://api.groq.com/openai/v1",
 	providerOllama:    "http://localhost:11434/v1",
+	"openai-codex":    "https://chatgpt.com/backend-api/codex",
+	"opencode":        "https://opencode.ai/zen/v1",
+	"opencode-go":     "https://opencode.ai/zen/go/v1",
 }
 
 var knownProviderModels = map[string]string{
@@ -37,6 +40,9 @@ var knownProviderModels = map[string]string{
 	providerDeepSeek:  "deepseek-chat",
 	providerGroq:      "llama-3.3-70b-versatile",
 	providerOllama:    "llama3",
+	"openai-codex":    "gpt-5.2",
+	"opencode":        "gpt-5.2",
+	"opencode-go":     "gpt-5.2",
 }
 
 type setupCommandSeams struct {
@@ -157,7 +163,7 @@ func setupProviderInteractive(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "\nSelect a provider or enter a custom endpoint:")
 	fmt.Fprintln(out)
-	for _, p := range []string{providerOpenAI, providerAnthropic, providerDeepSeek, providerGroq, providerOllama} {
+	for _, p := range []string{providerOpenAI, providerAnthropic, providerDeepSeek, "openai-codex", "opencode", providerGroq, providerOllama} {
 		fmt.Fprintf(out, "  %-12s %s\n", p, knownProviderEndpoints[p])
 	}
 	fmt.Fprintln(out, "  custom       enter your own endpoint URL")
