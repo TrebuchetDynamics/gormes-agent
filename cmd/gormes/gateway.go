@@ -285,6 +285,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		PersistToolProgressMode:    config.SetHermesDisplayPlatformToolProgress,
 		ToolProgressModes:          gatewayToolProgressModes(cfg),
 		SessionMap:                 smap,
+		AgentRouting:               gatewayAgentRoutingConfig(cfg),
 		TitleStore:                 titleStore,
 		TitleModel:                 titleModel,
 		Hooks:                      hooks,
@@ -309,6 +310,18 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: http.DefaultClient}, func() time.Time { return time.Now().UTC() })
 			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
+	}
+}
+
+func gatewayAgentRoutingConfig(cfg config.Config) gateway.AgentRoutingConfig {
+	enabled := len(cfg.Bindings) > 0 || len(cfg.Agents.List) > 1
+	if !enabled {
+		return gateway.AgentRoutingConfig{}
+	}
+	return gateway.AgentRoutingConfig{
+		Enabled:  true,
+		Agents:   cfg.Agents,
+		Bindings: cfg.Bindings,
 	}
 }
 
@@ -491,11 +504,24 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 }
 
 func sqlOpenGoncho(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path+"?mode=rwc&_journal_mode=WAL&_busy_timeout=5000")
+	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
-	return db, db.Ping()
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	for _, stmt := range []string{
+		"PRAGMA journal_mode = WAL",
+		"PRAGMA busy_timeout = 5000",
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			_ = db.Close()
+			return nil, err
+		}
+	}
+	return db, nil
 }
 
 func newGonchoAdapter(svc *goncho.Service) kernel.GonchoStore {

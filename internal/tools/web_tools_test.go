@@ -895,6 +895,138 @@ func TestWebExtractToolUsesDuckDuckGoInstantAnswer(t *testing.T) {
 	}
 }
 
+func TestWebExtractToolFetchesDuckDuckGoDirectTextDocument(t *testing.T) {
+	const docsURL = "https://docs.openclaw.ai/llms.txt"
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		header: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
+		body:   "# OpenClaw\n\nSelf-hosted gateway documentation index.\n\n- Telegram\n- WhatsApp\n",
+	}}}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["`+docsURL+`"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one direct document fetch", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.String() != docsURL {
+		t.Fatalf("request = %s %s, want direct GET %s", req.Method, req.URL.String(), docsURL)
+	}
+	if accept := req.Header.Get("Accept"); !strings.Contains(accept, "text/plain") || !strings.Contains(accept, "text/markdown") {
+		t.Fatalf("Accept = %q, want direct text document media types", accept)
+	}
+
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results len = %d, want one extracted document", len(payload.Results))
+	}
+	got := payload.Results[0]
+	if got.URL != docsURL || got.Title != "llms.txt" || !strings.Contains(got.Content, "Self-hosted gateway documentation index") {
+		t.Fatalf("result = %+v, want direct text document content", got)
+	}
+	if strings.Contains(got.Content, "No instant answer") {
+		t.Fatalf("content = %q, want direct document content instead of DuckDuckGo fallback", got.Content)
+	}
+}
+
+func TestWebExtractToolFetchesDuckDuckGoDirectHTMLDocument(t *testing.T) {
+	const docsURL = "https://docs.openclaw.ai/concepts/presence"
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		header: map[string]string{"Content-Type": "text/html; charset=utf-8"},
+		body: `<html>
+<head><title>Presence - OpenClaw</title></head>
+<body>
+<nav>Navigation should not be extracted</nav>
+<main>
+  <h1>Presence</h1>
+  <p>OpenClaw presence is a lightweight best-effort view.</p>
+  <h2>Debugging tips</h2>
+  <ul><li>Call <code>system-presence</code> against the Gateway.</li></ul>
+  <p>See <a href="/concepts/typing-indicators">Typing indicators</a>.</p>
+</main>
+</body>
+</html>`,
+	}}}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["`+docsURL+`"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one direct document fetch", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.String() != docsURL {
+		t.Fatalf("request = %s %s, want direct GET %s", req.Method, req.URL.String(), docsURL)
+	}
+	if accept := req.Header.Get("Accept"); !strings.Contains(accept, "text/html") || !strings.Contains(accept, "text/plain") {
+		t.Fatalf("Accept = %q, want direct HTML/text media types", accept)
+	}
+
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results len = %d, want one extracted document", len(payload.Results))
+	}
+	got := payload.Results[0]
+	for _, want := range []string{"# Presence", "OpenClaw presence is a lightweight", "## Debugging tips", "- Call system-presence", "Typing indicators (https://docs.openclaw.ai/concepts/typing-indicators)"} {
+		if !strings.Contains(got.Content, want) {
+			t.Fatalf("content missing %q:\n%s", want, got.Content)
+		}
+	}
+	if strings.Contains(got.Content, "Navigation should not be extracted") || strings.Contains(got.Content, "No instant answer") {
+		t.Fatalf("content used nav or Instant Answer fallback:\n%s", got.Content)
+	}
+	if got.URL != docsURL || got.Title != "Presence - OpenClaw" {
+		t.Fatalf("result metadata = %+v, want URL/title from direct HTML", got)
+	}
+}
+
+func TestWebExtractToolDefaultDirectTextClientBlocksPrivateRedirects(t *testing.T) {
+	tool := NewWebExtractTool(WebToolsConfig{
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	}).(*webTool)
+	client, ok := tool.directTextDocumentHTTPClient().(*http.Client)
+	if !ok || client.CheckRedirect == nil {
+		t.Fatalf("directTextDocumentHTTPClient() = %T, want default *http.Client with redirect guard", tool.directTextDocumentHTTPClient())
+	}
+	redirect, err := http.NewRequest(http.MethodGet, "http://127.0.0.1/secret.txt", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	if err := client.CheckRedirect(redirect, []*http.Request{{}}); err == nil {
+		t.Fatal("CheckRedirect allowed private redirect, want blocked")
+	}
+}
+
 func TestWebSearchToolCallsPerplexityBackend(t *testing.T) {
 	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
 		status: http.StatusOK,
@@ -1971,6 +2103,7 @@ func (p *recordingWebContentProcessor) ProcessWebContent(_ context.Context, req 
 
 type recordedWebResponse struct {
 	status int
+	header map[string]string
 	body   string
 }
 
@@ -1993,9 +2126,13 @@ func (c *recordingWebHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if resp.status == 0 {
 		resp.status = http.StatusOK
 	}
+	header := make(http.Header)
+	for k, v := range resp.header {
+		header.Set(k, v)
+	}
 	return &http.Response{
 		StatusCode: resp.status,
-		Header:     make(http.Header),
+		Header:     header,
 		Body:       io.NopCloser(strings.NewReader(resp.body)),
 	}, nil
 }

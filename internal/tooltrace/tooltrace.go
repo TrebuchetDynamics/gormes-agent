@@ -30,12 +30,12 @@ func FormatPlain(text string) string {
 				if arg == "" {
 					return "🔧 tool_progress..."
 				}
-				return "🔧 tool_progress: " + quoteAndTruncate(arg, 40)
+				return "🔧 tool_progress: " + quoteAndTruncate(name, arg, 40)
 			}
 			if arg == "" {
 				return toolTraceIcon(name) + " " + name + "..."
 			}
-			return toolTraceIcon(name) + " " + name + ": " + quoteAndTruncate(arg, 40)
+			return toolTraceIcon(name) + " " + name + ": " + quoteAndTruncate(name, arg, 40)
 		}
 		name = strings.TrimSpace(payload)
 		if isKnownToolTraceName(name) {
@@ -170,18 +170,36 @@ func toolTraceIcon(name string) string {
 	}
 }
 
-func quoteAndTruncate(s string, limit int) string {
+func quoteAndTruncate(toolName, s string, limit int) string {
 	s = strings.ReplaceAll(strings.TrimSpace(s), "\n", " ")
 	s = strings.Join(strings.Fields(s), " ")
 	if limit > 0 {
 		runes := []rune(s)
 		if len(runes) > limit {
 			if limit <= 3 {
-				s = string(runes[:limit])
+				if rightEdgePreviewTool(toolName) {
+					s = string(runes[len(runes)-limit:])
+				} else {
+					s = string(runes[:limit])
+				}
 			} else {
-				s = string(runes[:limit-3]) + "..."
+				kept := limit - 3
+				if rightEdgePreviewTool(toolName) {
+					s = "..." + string(runes[len(runes)-kept:])
+				} else {
+					s = string(runes[:kept]) + "..."
+				}
 			}
 		}
 	}
 	return `"` + s + `"`
+}
+
+func rightEdgePreviewTool(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "web_search", "web_extract", "web_crawl", "browser_navigate", "read_file", "write_file", "patch":
+		return true
+	default:
+		return false
+	}
 }

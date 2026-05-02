@@ -124,15 +124,18 @@ type ThreadLifecycleEvent struct {
 // InboundEvent is the platform-neutral form every channel emits into the
 // shared gateway manager.
 type InboundEvent struct {
-	Platform string
-	ChatID   string
-	ChatName string
-	ChatType string
-	UserID   string
-	UserName string
-	ThreadID string
-	MsgID    string
-	GuildID  string
+	Platform  string
+	AccountID string
+	ChatID    string
+	ChatName  string
+	ChatType  string
+	UserID    string
+	UserName  string
+	ThreadID  string
+	MsgID     string
+	GuildID   string
+	TeamID    string
+	Roles     []string
 	// ParentChatID preserves the containing channel/forum when ChatID and
 	// ThreadID identify a threaded conversation surface.
 	ParentChatID string

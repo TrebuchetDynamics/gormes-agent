@@ -30,6 +30,7 @@ type SessionSource struct {
 // targets are available.
 type SessionContext struct {
 	Source                SessionSource
+	Agent                 AgentContext
 	SessionKey            string
 	SessionID             string
 	RequestedSessionID    string
@@ -38,6 +39,16 @@ type SessionContext struct {
 	NonResumableSessionID string
 	NonResumableReason    string
 	ConnectedPlatforms    []string
+}
+
+// AgentContext is redacted route evidence for a multi-agent gateway turn.
+// It intentionally contains only operator-safe identifiers and local paths.
+type AgentContext struct {
+	ID          string
+	Name        string
+	Workspace   string
+	AgentDir    string
+	BindingTier string
 }
 
 type resolvedSession struct {
@@ -172,6 +183,21 @@ func BuildSessionContextPrompt(ctx SessionContext) string {
 	}
 	if messageID := strings.TrimSpace(source.MessageID); messageID != "" {
 		lines = append(lines, "**Message ID:** `"+messageID+"`")
+	}
+	if agentID := strings.TrimSpace(ctx.Agent.ID); agentID != "" {
+		lines = append(lines, "**Agent ID:** `"+agentID+"`")
+	}
+	if agentName := strings.TrimSpace(ctx.Agent.Name); agentName != "" && agentName != strings.TrimSpace(ctx.Agent.ID) {
+		lines = append(lines, "**Agent Name:** "+agentName)
+	}
+	if tier := strings.TrimSpace(ctx.Agent.BindingTier); tier != "" {
+		lines = append(lines, "**Agent Binding:** `"+tier+"`")
+	}
+	if workspace := strings.TrimSpace(ctx.Agent.Workspace); workspace != "" {
+		lines = append(lines, "**Agent Workspace:** `"+workspace+"`")
+	}
+	if agentDir := strings.TrimSpace(ctx.Agent.AgentDir); agentDir != "" {
+		lines = append(lines, "**Agent Dir:** `"+agentDir+"`")
 	}
 	if key := strings.TrimSpace(ctx.SessionKey); key != "" {
 		lines = append(lines, "**Session Key:** `"+key+"`")

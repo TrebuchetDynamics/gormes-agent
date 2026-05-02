@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -356,7 +357,7 @@ func duckDuckGoBackendResolution(read func(string) string) WebBackendResolution 
 		Available: true,
 		Evidence:  WebEvidenceOK,
 		Source:    "free",
-		Note:      "free web_search via DuckDuckGo HTML/Lite parsing; web_extract uses Instant Answer only; no crawl or full-page scrape support",
+		Note:      "free web_search via DuckDuckGo HTML/Lite parsing; web_extract fetches document paths directly and otherwise uses Instant Answer; no crawl or full-page scrape support",
 	}
 }
 
@@ -1430,10 +1431,25 @@ func webSearchCandidates(raw map[string]any) []any {
 	return nil
 }
 
-// duckDuckGoExtract queries the DDG Instant Answer API for facts about URLs.
-// This provides basic extraction capability when no API backends are configured.
+// duckDuckGoExtract provides basic extraction when no API backends are
+// configured. Text-like documents are fetched directly; general web pages fall
+// back to the DDG Instant Answer API.
 func (t *webTool) duckDuckGoExtract(ctx context.Context, urls []string) (map[string]any, error) {
-	raw, err := t.getRaw(ctx, fmt.Sprintf("https://api.duckduckgo.com/?q=%s&format=json&no_html=1&skip_disambig=1", url.QueryEscape(strings.Join(urls, " "))), map[string]string{
+	results := make([]map[string]any, 0, len(urls))
+	pendingInstantAnswer := make([]string, 0, len(urls))
+	for _, rawURL := range urls {
+		result, ok := t.directDocumentExtract(ctx, rawURL)
+		if ok {
+			results = append(results, webExtractResultProviderRow(result))
+			continue
+		}
+		pendingInstantAnswer = append(pendingInstantAnswer, rawURL)
+	}
+	if len(pendingInstantAnswer) == 0 {
+		return map[string]any{"results": results}, nil
+	}
+
+	raw, err := t.getRaw(ctx, fmt.Sprintf("https://api.duckduckgo.com/?q=%s&format=json&no_html=1&skip_disambig=1", url.QueryEscape(strings.Join(pendingInstantAnswer, " "))), map[string]string{
 		"Accept":     "application/json",
 		"User-Agent": webDefaultUserAgent,
 	})
@@ -1451,17 +1467,354 @@ func (t *webTool) duckDuckGoExtract(ctx context.Context, urls []string) (map[str
 		return nil, fmt.Errorf("web: invalid ddg response: %w", err)
 	}
 	if ddg.AbstractText == "" && ddg.Answer == "" {
-		return map[string]any{"results": []map[string]any{{
+		results = append(results, map[string]any{
 			"title":   "DuckDuckGo Instant Answer",
 			"content": "No instant answer available for this query.",
-			"url":     strings.Join(urls, " "),
-		}}}, nil
+			"url":     strings.Join(pendingInstantAnswer, " "),
+		})
+		return map[string]any{"results": results}, nil
 	}
-	return map[string]any{"results": []map[string]any{{
+	results = append(results, map[string]any{
 		"title":   firstNonEmpty(ddg.Heading, ddg.AbstractSource, "DuckDuckGo Instant Answer"),
 		"content": firstNonEmpty(ddg.Answer, ddg.AbstractText),
-		"url":     firstNonEmpty(ddg.AbstractURL, strings.Join(urls, " ")),
-	}}}, nil
+		"url":     firstNonEmpty(ddg.AbstractURL, strings.Join(pendingInstantAnswer, " ")),
+	})
+	return map[string]any{"results": results}, nil
+}
+
+func (t *webTool) directDocumentExtract(ctx context.Context, rawURL string) (webExtractResult, bool) {
+	if !webLikelyDirectDocumentURL(rawURL) {
+		return webExtractResult{}, false
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, t.cfg.timeout())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return webExtractResult{}, false
+	}
+	req.Header.Set("Accept", "text/markdown,text/plain,text/html,application/xhtml+xml,text/*;q=0.9,application/json;q=0.8,application/xml;q=0.8,*/*;q=0.1")
+	req.Header.Set("User-Agent", webDefaultUserAgent)
+
+	resp, err := t.directTextDocumentHTTPClient().Do(req)
+	if err != nil {
+		return webExtractResult{}, false
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxWebResponseBytes))
+	if err != nil {
+		return webExtractResult{}, false
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return webExtractResult{}, false
+	}
+
+	finalURL := rawURL
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
+	if result, blocked := t.blockedWebExtractRequestResult(finalURL); blocked {
+		return result, true
+	}
+
+	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	if mediaType == "text/html" || mediaType == "application/xhtml+xml" {
+		title, content := webExtractHTMLToMarkdown(data, finalURL)
+		if strings.TrimSpace(content) == "" {
+			return webExtractResult{}, false
+		}
+		return webExtractResult{
+			URL:     finalURL,
+			Title:   webDirectHTMLTitle(finalURL, title, content),
+			Content: content,
+		}, true
+	}
+	if !webDirectTextContentAllowed(mediaType, rawURL, data) {
+		return webExtractResult{}, false
+	}
+	content := strings.TrimPrefix(string(data), "\ufeff")
+	return webExtractResult{
+		URL:     finalURL,
+		Title:   webDirectTextDocumentTitle(finalURL, content),
+		Content: content,
+	}, true
+}
+
+func (t *webTool) directTextDocumentHTTPClient() WebHTTPClient {
+	if t.cfg.Client != nil {
+		return t.cfg.Client
+	}
+	return &http.Client{
+		Timeout: t.cfg.timeout(),
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("web: too many redirects")
+			}
+			if _, blocked := t.blockedWebExtractRequestResult(req.URL.String()); blocked {
+				return fmt.Errorf("web: redirected to blocked URL")
+			}
+			return nil
+		},
+	}
+}
+
+func webLikelyDirectDocumentURL(rawURL string) bool {
+	if webLikelyDirectTextDocumentURL(rawURL) {
+		return true
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	pathValue := strings.TrimSpace(parsed.EscapedPath())
+	return pathValue != "" && pathValue != "/"
+}
+
+func webLikelyDirectTextDocumentURL(rawURL string) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	ext := strings.ToLower(path.Ext(parsed.Path))
+	switch ext {
+	case ".txt", ".md", ".markdown", ".mdx", ".rst", ".adoc", ".csv", ".tsv", ".json", ".jsonl", ".yaml", ".yml", ".toml", ".xml", ".rss", ".atom", ".log":
+		return true
+	default:
+		return false
+	}
+}
+
+func webExtractHTMLToMarkdown(data []byte, rawURL string) (string, string) {
+	htmlText := string(data)
+	title := webExtractHTMLTitle(htmlText)
+	htmlText = webPreferredHTMLContent(htmlText)
+	htmlText = webStripHTMLNoise(htmlText)
+	htmlText = webRenderHTMLLinks(htmlText, rawURL)
+	htmlText = webRenderHTMLBlocks(htmlText)
+	htmlText = webHTMLTagPattern.ReplaceAllString(htmlText, "")
+	htmlText = html.UnescapeString(htmlText)
+	content := webCleanMarkdownLines(htmlText)
+	return title, content
+}
+
+func webExtractHTMLTitle(htmlText string) string {
+	match := regexp.MustCompile(`(?is)<title\b[^>]*>(.*?)</title>`).FindStringSubmatch(htmlText)
+	if len(match) < 2 {
+		return ""
+	}
+	return webCleanHTMLInline(match[1])
+}
+
+func webPreferredHTMLContent(htmlText string) string {
+	for _, tag := range []string{"main", "article", "body"} {
+		re := regexp.MustCompile(`(?is)<` + tag + `\b[^>]*>(.*?)</` + tag + `>`)
+		if match := re.FindStringSubmatch(htmlText); len(match) >= 2 {
+			return match[1]
+		}
+	}
+	return htmlText
+}
+
+func webStripHTMLNoise(htmlText string) string {
+	for _, tag := range []string{"script", "style", "svg", "canvas", "noscript", "template", "nav", "header", "footer", "aside", "form", "button"} {
+		re := regexp.MustCompile(`(?is)<` + tag + `\b[^>]*>.*?</` + tag + `>`)
+		htmlText = re.ReplaceAllString(htmlText, "")
+	}
+	return htmlText
+}
+
+func webRenderHTMLLinks(htmlText, baseURL string) string {
+	re := regexp.MustCompile(`(?is)<a\b([^>]*)>(.*?)</a>`)
+	return re.ReplaceAllStringFunc(htmlText, func(match string) string {
+		parts := re.FindStringSubmatch(match)
+		if len(parts) < 3 {
+			return ""
+		}
+		label := webCleanHTMLInline(parts[2])
+		if label == "" {
+			return ""
+		}
+		href := webResolveHTMLHref(baseURL, webHTMLAttr(parts[1], "href"))
+		if href == "" {
+			return label
+		}
+		return label + " (" + href + ")"
+	})
+}
+
+func webRenderHTMLBlocks(htmlText string) string {
+	for level := 6; level >= 1; level-- {
+		re := regexp.MustCompile(fmt.Sprintf(`(?is)<h%d\b[^>]*>(.*?)</h%d>`, level, level))
+		prefix := strings.Repeat("#", level)
+		htmlText = re.ReplaceAllStringFunc(htmlText, func(match string) string {
+			parts := re.FindStringSubmatch(match)
+			if len(parts) < 2 {
+				return ""
+			}
+			heading := webCleanHTMLInline(parts[1])
+			if heading == "" {
+				return ""
+			}
+			return "\n\n" + prefix + " " + heading + "\n\n"
+		})
+	}
+	preRe := regexp.MustCompile(`(?is)<pre\b[^>]*>(.*?)</pre>`)
+	htmlText = preRe.ReplaceAllStringFunc(htmlText, func(match string) string {
+		parts := preRe.FindStringSubmatch(match)
+		if len(parts) < 2 {
+			return ""
+		}
+		code := strings.TrimSpace(html.UnescapeString(webHTMLTagPattern.ReplaceAllString(parts[1], "")))
+		if code == "" {
+			return ""
+		}
+		return "\n\n```\n" + code + "\n```\n\n"
+	})
+	liRe := regexp.MustCompile(`(?is)<li\b[^>]*>(.*?)</li>`)
+	htmlText = liRe.ReplaceAllStringFunc(htmlText, func(match string) string {
+		parts := liRe.FindStringSubmatch(match)
+		if len(parts) < 2 {
+			return ""
+		}
+		item := webCleanHTMLInline(parts[1])
+		if item == "" {
+			return ""
+		}
+		return "\n- " + item + "\n"
+	})
+	htmlText = regexp.MustCompile(`(?is)<br\s*/?>`).ReplaceAllString(htmlText, "\n")
+	htmlText = regexp.MustCompile(`(?is)</?(p|div|section|ul|ol|table|tr|blockquote)\b[^>]*>`).ReplaceAllString(htmlText, "\n\n")
+	return htmlText
+}
+
+func webHTMLAttr(attrs, key string) string {
+	re := regexp.MustCompile(`(?is)\b` + regexp.QuoteMeta(key) + `\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))`)
+	match := re.FindStringSubmatch(attrs)
+	if len(match) == 0 {
+		return ""
+	}
+	for _, value := range match[2:] {
+		if value != "" {
+			return html.UnescapeString(strings.TrimSpace(value))
+		}
+	}
+	return ""
+}
+
+func webResolveHTMLHref(baseURL, href string) string {
+	href = strings.TrimSpace(href)
+	if href == "" || strings.HasPrefix(href, "#") || strings.HasPrefix(strings.ToLower(href), "javascript:") {
+		return ""
+	}
+	parsed, err := url.Parse(href)
+	if err != nil {
+		return ""
+	}
+	if parsed.IsAbs() {
+		if parsed.Scheme == "http" || parsed.Scheme == "https" {
+			return parsed.String()
+		}
+		return ""
+	}
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+	resolved := base.ResolveReference(parsed)
+	if resolved.Scheme != "http" && resolved.Scheme != "https" {
+		return ""
+	}
+	return resolved.String()
+}
+
+func webCleanHTMLInline(raw string) string {
+	text := webHTMLTagPattern.ReplaceAllString(raw, "")
+	text = html.UnescapeString(text)
+	return strings.Join(strings.Fields(text), " ")
+}
+
+func webCleanMarkdownLines(raw string) string {
+	lines := strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
+	out := make([]string, 0, len(lines))
+	blank := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			if !blank && len(out) > 0 {
+				out = append(out, "")
+				blank = true
+			}
+			continue
+		}
+		trimmed = strings.Join(strings.Fields(trimmed), " ")
+		out = append(out, trimmed)
+		blank = false
+	}
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+	return strings.Join(out, "\n")
+}
+
+func webDirectHTMLTitle(rawURL, title, content string) string {
+	if strings.TrimSpace(title) != "" {
+		return strings.TrimSpace(title)
+	}
+	return webDirectTextDocumentTitle(rawURL, content)
+}
+
+func webDirectTextContentAllowed(mediaType, rawURL string, data []byte) bool {
+	switch mediaType {
+	case "text/html", "application/xhtml+xml":
+		return false
+	case "text/plain", "text/markdown", "text/x-markdown", "text/csv", "text/tab-separated-values", "text/xml",
+		"application/markdown", "application/x-markdown", "application/json", "application/ld+json", "application/xml",
+		"application/yaml", "application/x-yaml", "text/yaml", "application/toml":
+		return true
+	}
+	if strings.HasPrefix(mediaType, "text/") {
+		return true
+	}
+	if mediaType != "" && mediaType != "application/octet-stream" {
+		return false
+	}
+	if !webLikelyDirectTextDocumentURL(rawURL) {
+		return false
+	}
+	if bytes.Contains(data, []byte{0}) {
+		return false
+	}
+	sniffed := strings.ToLower(http.DetectContentType(data))
+	return strings.HasPrefix(sniffed, "text/plain") || strings.Contains(sniffed, "json") || strings.Contains(sniffed, "xml")
+}
+
+func webDirectTextDocumentTitle(rawURL, content string) string {
+	if parsed, err := url.Parse(rawURL); err == nil {
+		if base := path.Base(parsed.Path); base != "." && base != "/" && base != "" {
+			return base
+		}
+	}
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return rawURL
+}
+
+func webExtractResultProviderRow(result webExtractResult) map[string]any {
+	row := map[string]any{
+		"url":     result.URL,
+		"title":   result.Title,
+		"content": result.Content,
+	}
+	if result.Error != "" {
+		row["error"] = result.Error
+	}
+	return row
 }
 
 var (

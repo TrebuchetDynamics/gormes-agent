@@ -130,6 +130,25 @@ func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 	}
 }
 
+func TestFormatToolProgressPlain_TruncatedWebPreviewsKeepRightEdge(t *testing.T) {
+	f := kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{
+		{At: time.Now(), Text: "tool: web_extract: https://docs.openclaw.ai/concepts/multi-agent"},
+		{At: time.Now(), Text: "tool: browser_navigate: https://docs.openclaw.ai/concepts/multi-agent"},
+		{At: time.Now(), Text: "tool: web_search: site:docs.openclaw.ai/concepts/multi-agent strings in tools"},
+	}}
+
+	got := FormatToolProgressPlain(f)
+	for _, want := range []string{
+		`📄 web_extract: "...docs.openclaw.ai/concepts/multi-agent"`,
+		`🌐 browser_navigate: "...docs.openclaw.ai/concepts/multi-agent"`,
+		`🔍 web_search: "...concepts/multi-agent strings in tools"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatToolProgressPlain missing right-edge preview %q in:\n%s", want, got)
+		}
+	}
+}
+
 func TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence(t *testing.T) {
 	got := FormatToolProgressPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{{At: time.Now(), Text: "tool: custom_provider_debug: " + strings.Repeat("payload ", 40)}}})
 	if !strings.Contains(got, `🔧 tool_progress: "payload payload`) {
@@ -172,8 +191,8 @@ func TestFormatToolProgressPlain_MineruGatewayTranscriptShape(t *testing.T) {
 	for _, want := range []string{
 		`📚 skill_view: "gormes-hermes-parity"`,
 		`⏰ cronjob: "list"`,
-		`🌐 browser_navigate: "https://www.reddit.com/r/WebAfterAI/s..."`,
-		`🌐 browser_navigate: "https://old.reddit.com/r/WebAfterAI/s..."`,
+		`🌐 browser_navigate: "...www.reddit.com/r/WebAfterAI/s/example"`,
+		`🌐 browser_navigate: "...old.reddit.com/r/WebAfterAI/s/example"`,
 		`💻 terminal: "python3 - <<'PY' import requests url=..."`,
 		`📸 browser_snapshot...`,
 		`💻 terminal: "python3 - <<'PY' import requests, url..." (×2)`,
@@ -193,6 +212,58 @@ func TestFormatFinalPlain_LastAssistant(t *testing.T) {
 	}
 	if got := FormatFinalPlain(f); got != "the answer" {
 		t.Errorf("FormatFinalPlain = %q", got)
+	}
+}
+
+func TestFormatFinalTelegramText_RendersMarkdownDocumentForTelegram(t *testing.T) {
+	input := "```markdown\n# Multi-agent routing\n\nRun multiple _isolated_ agents with `agentDir`.\n\n- Workspace files\n1. Restart gateway\n\nSee [OpenClaw](https://docs.openclaw.ai/concepts/multi-agent) and [Skills](/tools/skills).\n\n```bash\nopenclaw agents list --bindings\n```\n```"
+
+	got := FormatFinalTelegramText(input)
+
+	for _, forbidden := range []string{"```markdown", "# Multi-agent routing", "- Workspace files", "[Skills](/tools/skills)"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatFinalTelegramText leaked raw Markdown %q in:\n%s", forbidden, got)
+		}
+	}
+	for _, want := range []string{
+		`*Multi\-agent routing*`,
+		`_isolated_`,
+		"`agentDir`",
+		`• Workspace files`,
+		`1\. Restart gateway`,
+		`[OpenClaw](https://docs\.openclaw\.ai/concepts/multi\-agent)`,
+		`Skills \(/tools/skills\)`,
+		"```\nopenclaw agents list --bindings\n```",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatFinalTelegramText missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFormatFinalTelegramText_EscapesLinkURLsForMarkdownV2(t *testing.T) {
+	input := "Extracted docs from: https://docs.openclaw.ai/concepts/presence\n\n- [Typing indicators](https://docs.openclaw.ai/concepts/typing-indicators)"
+
+	got := FormatFinalTelegramText(input)
+
+	for _, want := range []string{
+		`https://docs\.openclaw\.ai/concepts/presence`,
+		`[Typing indicators](https://docs\.openclaw\.ai/concepts/typing\-indicators)`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatFinalTelegramText missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, `(https://docs.openclaw.ai`) {
+		t.Fatalf("FormatFinalTelegramText left unescaped link URL in:\n%s", got)
+	}
+}
+
+func TestFormatFinalTelegramText_EscapesPlainTextWithoutMarkdownEntities(t *testing.T) {
+	got := FormatFinalTelegramText("Use a_b(c)! 3.14")
+	want := `Use a\_b\(c\)\! 3\.14`
+	if got != want {
+		t.Fatalf("FormatFinalTelegramText plain = %q, want %q", got, want)
 	}
 }
 
