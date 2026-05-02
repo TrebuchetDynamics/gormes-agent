@@ -80,7 +80,7 @@ func (b *InProcessEventBus) Subscribe(topic string, handler EventHandler) func()
 	s := &subscriber{
 		handler: handler,
 		buffer:  make(chan Event, b.bufferSize),
-		done:    make(chan struct{}),
+		done:    make(chan struct{}, 1),
 	}
 
 	b.mu.Lock()

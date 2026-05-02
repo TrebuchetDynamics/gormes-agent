@@ -6,7 +6,7 @@
 
 Your agents shouldn't crash because of a broken Python environment.
 
-Build Gormes as one Go binary: no Python runtime, no virtualenv repair, and no running Hermes backend.
+Build Gormes as one Go binary through the single static binary release path: no Python runtime, no virtualenv repair, and no running Hermes backend.
 
 Gormes is built for agents that need to stay running across restarts, machines, and flaky networks. It gives you a local terminal UI, offline diagnostics, provider-backed turns, and configured gateway channels from one Go-native runtime.
 
