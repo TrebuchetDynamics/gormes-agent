@@ -12,7 +12,7 @@ class Gormes < Formula
   desc "Self-improving AI agent runtime in Go — Hermes-in-Go, no Python backend"
   homepage "https://gormes.ai"
   license "MIT"
-  version "0.2.0-scout"
+  version "0.1.0"
 
   on_macos do
     on_intel do

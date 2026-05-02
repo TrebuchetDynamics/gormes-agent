@@ -17,6 +17,8 @@
 #                        default (non-root): $HOME/.local/bin
 #                        default (root Linux): /usr/local/bin
 #   GORMES_PREFIX        compatibility prefix; publishes into $GORMES_PREFIX/bin
+#   GORMES_RESTART_GATEWAY restart policy: auto, always, never (default: auto)
+#   GORMES_GO_SHA256      optional expected SHA-256 for managed Go download
 #
 # Native Windows shells are not supported here. Use:
 #   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
@@ -29,6 +31,14 @@ REPO_URL_SSH="${GORMES_REPO_URL_SSH:-git@github.com:TrebuchetDynamics/gormes-age
 REPO_URL_HTTPS="${GORMES_REPO_URL_HTTPS:-https://github.com/TrebuchetDynamics/gormes-agent.git}"
 BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.25.0}"
+RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
+DRY_RUN=0
+LOCAL_SOURCE_DIR=""
+INSTALL_LOCK_DIR=""
+OLD_BUILD_TAG=""
+BUILD_TAG=""
+PREVIOUS_GATEWAY_PID=""
+NEW_GATEWAY_PID=""
 
 log() { printf '[gormes] %s\n' "$*" >&2; }
 fail() { printf '[gormes] error: %s\n' "$*" >&2; exit 1; }
@@ -39,6 +49,8 @@ Gormes Unix installer
 
 Usage:
   install.sh [--branch NAME] [--home DIR] [--dir DIR] [--bin-dir DIR]
+  install.sh --local [--bin-dir DIR]
+  install.sh --dry-run
 
 Options:
   --branch NAME  Git branch to install or update (default: main)
@@ -49,6 +61,13 @@ Options:
   --bin-dir DIR  Published command directory
                    default (non-root): $HOME/.local/bin
                    default (root Linux): /usr/local/bin
+  --local        Build from the current checkout instead of updating the
+                 managed source checkout
+  --dry-run      Print the resolved plan without cloning, building, publishing,
+                 or restarting the gateway
+  --restart-gateway auto|always|never
+                 Restart a live gateway after update (default: auto)
+  --no-restart   Alias for --restart-gateway never
   -h, --help     Show this help
 
 Root Linux installs use an FHS layout like Hermes Agent: code under
@@ -176,6 +195,109 @@ active_command_path() {
   esac
 }
 
+readlink_f() {
+  if has readlink; then
+    readlink -f "$1" 2>/dev/null && return
+  fi
+  printf '%s\n' "$1"
+}
+
+file_sha256() {
+  path="$1"
+  if has sha256sum; then
+    sum=$(sha256sum "$path")
+    printf '%s\n' "${sum%% *}"
+    return
+  fi
+  if has shasum; then
+    sum=$(shasum -a 256 "$path")
+    printf '%s\n' "${sum%% *}"
+    return
+  fi
+  return 1
+}
+
+same_binary() {
+  a="$1"
+  b="$2"
+  [ -n "$a" ] && [ -n "$b" ] || return 1
+  [ -e "$a" ] || [ -L "$a" ] || return 1
+  [ -e "$b" ] || [ -L "$b" ] || return 1
+  areal=$(readlink_f "$a")
+  breal=$(readlink_f "$b")
+  if [ "$areal" = "$breal" ]; then
+    return 0
+  fi
+  asum=$(file_sha256 "$a" 2>/dev/null || true)
+  bsum=$(file_sha256 "$b" 2>/dev/null || true)
+  [ -n "$asum" ] && [ "$asum" = "$bsum" ]
+}
+
+running_gateway_pid_from_status() {
+  status="$1"
+  case "$status" in
+    *'"gateway_state"'*'"running"'*'"pid"'*)
+      rest=${status#*'"pid"'}
+      rest=${rest#*:}
+      while :; do
+        case "$rest" in
+          [0123456789]*) break ;;
+          "") return 1 ;;
+          *) rest=${rest#?} ;;
+        esac
+      done
+      pid=${rest%%[!0123456789]*}
+      case "$pid" in
+        ""|*[!0123456789]*) return 1 ;;
+        *) printf '%s\n' "$pid" ;;
+      esac
+      ;;
+    *"runtime: running (pid="*)
+      rest=${status#*"runtime: running (pid="}
+      pid=${rest%%[!0123456789]*}
+      case "$pid" in
+        ""|*[!0123456789]*) return 1 ;;
+        *) printf '%s\n' "$pid" ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+gateway_status_output() {
+  status_bin=$(active_command_path)
+  if [ -z "$status_bin" ]; then
+    status_bin="$(pick_bin_dir)/gormes"
+  fi
+  [ -x "$status_bin" ] || return 1
+  "$status_bin" gateway status --json 2>/dev/null && return 0
+  "$status_bin" gateway status 2>/dev/null || return 1
+}
+
+running_gateway_pid() {
+  status=$(gateway_status_output 2>/dev/null || true)
+  [ -n "$status" ] || return 1
+  running_gateway_pid_from_status "$status"
+}
+
+pid_is_running() {
+  [ -n "${1:-}" ] || return 1
+  kill -0 "$1" 2>/dev/null
+}
+
+wait_for_pid_exit() {
+  pid="$1"
+  i=0
+  while [ "$i" -lt 5 ]; do
+    if ! pid_is_running "$pid"; then
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  return 1
+}
+
 check_platform() {
   case "$(platform_name)" in
     Linux*|Darwin*) ;;
@@ -234,6 +356,23 @@ parse_args() {
         export GORMES_BIN_DIR
         shift 2
         ;;
+      --local)
+        LOCAL_SOURCE_DIR=$(pwd)
+        shift
+        ;;
+      --dry-run)
+        DRY_RUN=1
+        shift
+        ;;
+      --restart-gateway)
+        [ "$#" -ge 2 ] || fail "--restart-gateway requires auto, always, or never"
+        RESTART_GATEWAY="$2"
+        shift 2
+        ;;
+      --no-restart)
+        RESTART_GATEWAY="never"
+        shift
+        ;;
       -h|--help)
         usage
         exit 0
@@ -242,6 +381,10 @@ parse_args() {
         fail "unknown option: $1" ;;
     esac
   done
+  case "$RESTART_GATEWAY" in
+    auto|always|never) ;;
+    *) fail "--restart-gateway must be auto, always, or never" ;;
+  esac
 }
 
 ensure_prerequisites() {
@@ -252,6 +395,7 @@ ensure_prerequisites() {
   need mv
   need cp
   need chmod
+  need sleep
 
   check_platform
 
@@ -445,6 +589,7 @@ install_managed_go() {
   mkdir -p "$tarball_dir"
   log "downloading Go ${GO_VERSION} for ${os}/${arch}"
   download_file "$url" "$tarball" || fail "could not download Go ${GO_VERSION}"
+  verify_managed_go_download "$tarball"
 
   rm -rf "${home}/go"
   tar -C "$home" -xzf "$tarball" || fail "could not extract Go ${GO_VERSION}"
@@ -452,6 +597,24 @@ install_managed_go() {
   PATH="${home}/go/bin:${PATH}"
   export PATH
   has go || fail "managed Go install completed but go is not on PATH"
+}
+
+verify_managed_go_download() {
+  tarball="$1"
+  expected="${GORMES_GO_SHA256:-}"
+  if [ -z "$expected" ]; then
+    log "Go download sha256 verification skipped; set GORMES_GO_SHA256 to enforce it"
+    return 0
+  fi
+  log "verifying Go download sha256"
+  actual=$(file_sha256 "$tarball" 2>/dev/null || true)
+  if [ -z "$actual" ]; then
+    fail "could not compute sha256 for ${tarball}"
+  fi
+  if [ "$actual" != "$expected" ]; then
+    fail "Go download sha256 mismatch: expected ${expected}, got ${actual}"
+  fi
+  log "Go download sha256 verified"
 }
 
 clone_checkout() {
@@ -502,6 +665,14 @@ update_checkout() {
 }
 
 ensure_checkout() {
+  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+    if [ ! -f "$LOCAL_SOURCE_DIR/go.mod" ] || [ ! -d "$LOCAL_SOURCE_DIR/cmd/gormes" ]; then
+      fail "--local must be run from a Gormes source checkout"
+    fi
+    log "using local source checkout ${LOCAL_SOURCE_DIR}"
+    return
+  fi
+
   checkout_dir=$(managed_checkout_dir)
 
   if [ -d "$checkout_dir" ]; then
@@ -517,6 +688,11 @@ ensure_checkout() {
 }
 
 build_root_dir() {
+  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+    printf '%s\n' "$LOCAL_SOURCE_DIR"
+    return
+  fi
+
   checkout_dir=$(managed_checkout_dir)
 
   if [ -f "$checkout_dir/go.mod" ] && [ -d "$checkout_dir/cmd/gormes" ]; then
@@ -536,12 +712,14 @@ build_gormes() {
   build_bin="$(managed_bin_dir)/gormes"
   build_root=$(build_root_dir)
   cache_tag=$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  BUILD_TAG="$cache_tag"
 
   if [ -x "$build_bin" ]; then
     cached_tag=""
     if [ -f "${build_bin}.build-tag" ]; then
       cached_tag=$(cat "${build_bin}.build-tag" 2>/dev/null || true)
     fi
+    OLD_BUILD_TAG="$cached_tag"
     if [ "$cached_tag" = "$cache_tag" ]; then
       log "binary up to date (${cache_tag}); skipping rebuild"
       return
@@ -575,6 +753,7 @@ publish_built_binary() {
   build_bin="$1"
   published_bin="$2"
   bin_dir=$(parent_dir "$published_bin")
+  backup="${published_bin}.rollback.$$"
 
   [ ! -d "$published_bin" ] || fail "cannot replace directory with gormes command: ${published_bin}"
   mkdir -p "$bin_dir"
@@ -587,6 +766,12 @@ publish_built_binary() {
     return
   fi
 
+  existed=0
+  if [ -e "$published_bin" ] || [ -L "$published_bin" ]; then
+    cp -P "$published_bin" "$backup" || fail "could not prepare rollback for ${published_bin}"
+    existed=1
+  fi
+
   tmp="${published_bin}.tmp.$$"
   rm -f "$tmp"
   if ln -s "$build_bin" "$tmp" 2>/dev/null; then
@@ -596,19 +781,60 @@ publish_built_binary() {
     chmod +x "$tmp"
   fi
   mv -f "$tmp" "$published_bin" || fail "could not publish ${published_bin}"
+  if ! "$published_bin" version >/dev/null 2>&1; then
+    if [ "$existed" -eq 1 ]; then
+      mv -f "$backup" "$published_bin" || true
+    else
+      rm -f "$published_bin"
+    fi
+    fail "published command verification failed for ${published_bin}; rolled back"
+  fi
+  rm -f "$backup"
 }
 
 update_active_command() {
   build_bin="$1"
   published_bin="$2"
+  paths=""
+  if has which; then
+    paths=$(which -a gormes 2>/dev/null || true)
+  fi
   active_bin=$(active_command_path)
+  if [ -n "$active_bin" ]; then
+    paths="${paths}${paths:+
+}${active_bin}"
+  fi
+  for candidate in "$HOME/.local/bin/gormes" "$HOME/go/bin/gormes"; do
+    if [ -e "$candidate" ] || [ -L "$candidate" ]; then
+      paths="${paths}${paths:+
+}${candidate}"
+    fi
+  done
 
-  [ -n "$active_bin" ] || return 0
-  [ "$active_bin" != "$published_bin" ] || return 0
-  [ "$active_bin" != "$build_bin" ] || return 0
-
-  log "updating active PATH command ${active_bin}"
-  publish_built_binary "$build_bin" "$active_bin"
+  seen=""
+  printf '%s\n' "$paths" | while IFS= read -r active_bin; do
+    [ -n "$active_bin" ] || continue
+    case "$active_bin" in
+      */gormes) ;;
+      *) continue ;;
+    esac
+    case "
+$seen
+" in
+      *"
+$active_bin
+"*) continue ;;
+    esac
+    seen="${seen}${seen:+
+}${active_bin}"
+    [ "$active_bin" != "$published_bin" ] || continue
+    [ "$active_bin" != "$build_bin" ] || continue
+    if same_binary "$active_bin" "$build_bin"; then
+      continue
+    fi
+    log "updating active PATH command ${active_bin}"
+    publish_built_binary "$build_bin" "$active_bin"
+  done
 }
 
 verify_install() {
@@ -634,6 +860,131 @@ verify_install() {
     log "                     Gormes auto-enables DuckDuckGo for search when no API keys are set"
     log "Paid API backends: export FIRECRAWL_API_KEY=fc-xxx for full search+extract+crawl"
     log "Run 'gormes doctor' for detailed diagnostics"
+  fi
+}
+
+json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+install_ledger_path() {
+  printf '%s/install.log.jsonl\n' "$(managed_home_dir)"
+}
+
+append_install_ledger() {
+  ledger=$(install_ledger_path)
+  mkdir -p "$(parent_dir "$ledger")"
+  build_bin="$(managed_bin_dir)/gormes"
+  hash=$(file_sha256 "$build_bin" 2>/dev/null || true)
+  source=$(build_root_dir 2>/dev/null || managed_checkout_dir)
+  timestamp=""
+  if has date; then
+    timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)
+  fi
+  {
+    printf '{'
+    printf '"event":"install"'
+    [ -n "$timestamp" ] && printf ',"timestamp":"%s"' "$(json_escape "$timestamp")"
+    printf ',"source":"%s"' "$(json_escape "$source")"
+    printf ',"branch":"%s"' "$(json_escape "$BRANCH")"
+    printf ',"old_commit":"%s"' "$(json_escape "$OLD_BUILD_TAG")"
+    printf ',"new_commit":"%s"' "$(json_escape "$BUILD_TAG")"
+    printf ',"binary_sha256":"%s"' "$(json_escape "$hash")"
+    if [ -n "$PREVIOUS_GATEWAY_PID" ]; then
+      printf ',"old_gateway_pid":%s' "$PREVIOUS_GATEWAY_PID"
+    fi
+    if [ -n "$NEW_GATEWAY_PID" ]; then
+      printf ',"new_gateway_pid":%s' "$NEW_GATEWAY_PID"
+    fi
+    printf ',"restart_gateway":"%s"' "$(json_escape "$RESTART_GATEWAY")"
+    printf '}\n'
+  } >> "$ledger"
+}
+
+stop_gateway_for_restart() {
+  old_pid="$1"
+  stop_bin=$(active_command_path)
+  if [ -z "$stop_bin" ] || [ ! -x "$stop_bin" ]; then
+    stop_bin="$(managed_bin_dir)/gormes"
+  fi
+  [ -x "$stop_bin" ] || return 1
+  "$stop_bin" gateway stop >/dev/null 2>&1 || return 1
+  wait_for_pid_exit "$old_pid" || return 1
+}
+
+start_gateway_for_restart() {
+  build_bin="$(managed_bin_dir)/gormes"
+  home="$(managed_home_dir)"
+  log_path="${home}/gateway.log"
+
+  [ -x "$build_bin" ] || return 1
+  mkdir -p "$home"
+
+  if has setsid; then
+    setsid -f "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null
+    return
+  fi
+  if has nohup; then
+    nohup "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
+    return
+  fi
+  "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
+}
+
+wait_for_gateway_restart() {
+  old_pid="$1"
+  build_bin="$(managed_bin_dir)/gormes"
+  i=0
+  while [ "$i" -lt 8 ]; do
+    status=$("$build_bin" gateway status --json 2>/dev/null || "$build_bin" gateway status 2>/dev/null || true)
+    new_pid=$(running_gateway_pid_from_status "$status" 2>/dev/null || true)
+    if [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ]; then
+      printf '%s\n' "$new_pid"
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  return 1
+}
+
+restart_gateway_if_running() {
+  old_pid="$1"
+  case "$RESTART_GATEWAY" in
+    never)
+      log "gateway restart skipped by policy=never"
+      return 0
+      ;;
+    auto)
+      [ -n "$old_pid" ] || return 0
+      ;;
+    always)
+      ;;
+  esac
+
+  if [ -n "$old_pid" ]; then
+    log "restarting live gateway pid=${old_pid}"
+    if ! stop_gateway_for_restart "$old_pid"; then
+      log "gateway restart skipped: could not stop pid=${old_pid}"
+      return 0
+    fi
+  else
+    log "starting gateway by policy=always"
+  fi
+  if ! start_gateway_for_restart; then
+    log "gateway restart failed: could not start $(managed_bin_dir)/gormes gateway"
+    return 0
+  fi
+  new_pid=$(wait_for_gateway_restart "$old_pid" || true)
+  NEW_GATEWAY_PID="$new_pid"
+  if [ -n "$new_pid" ]; then
+    if [ -n "$old_pid" ]; then
+      log "gateway restarted pid=${old_pid} -> ${new_pid}"
+    else
+      log "gateway started pid=${new_pid}"
+    fi
+  else
+    log "gateway restart requested; status did not report a new live pid yet"
   fi
 }
 
@@ -677,10 +1028,10 @@ print_summary() {
   log ""
   log "═══ Gormes installed ═══"
   log "  binary: ${published_bin}"
-  log "  source: $(managed_checkout_dir)"
+  log "  source: $(build_root_dir 2>/dev/null || managed_checkout_dir)"
   log "  config: $(managed_home_dir)/config.toml"
   active_bin=$(active_command_path)
-  if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ]; then
+  if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ] && ! same_binary "$active_bin" "$published_bin"; then
     log "  active: ${active_bin} (older install; run 'hash -r' or restart shell)"
   fi
 
@@ -711,14 +1062,55 @@ print_summary() {
   log "Update: rerun this installer."
 }
 
+print_dry_run() {
+  log "dry run"
+  log "  branch: ${BRANCH}"
+  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+    log "  source: ${LOCAL_SOURCE_DIR}"
+  else
+    log "  source: $(managed_checkout_dir)"
+  fi
+  log "  install_home: $(managed_home_dir)"
+  log "  managed_binary: $(managed_bin_dir)/gormes"
+  log "  published_binary: $(pick_bin_dir)/gormes"
+  log "  restart_gateway: ${RESTART_GATEWAY}"
+}
+
+acquire_install_lock() {
+  home=$(managed_home_dir)
+  lock="${home}/install.lock"
+  mkdir -p "$home"
+  if mkdir "$lock" 2>/dev/null; then
+    INSTALL_LOCK_DIR="$lock"
+    printf '%s\n' "$$" > "${lock}/pid" 2>/dev/null || true
+    trap release_install_lock EXIT INT TERM
+    return 0
+  fi
+  fail "another install is already running; remove ${lock} if it is stale"
+}
+
+release_install_lock() {
+  if [ -n "${INSTALL_LOCK_DIR:-}" ] && [ -d "$INSTALL_LOCK_DIR" ]; then
+    rm -rf "$INSTALL_LOCK_DIR"
+  fi
+}
+
 main() {
   parse_args "$@"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    print_dry_run
+    return
+  fi
+  acquire_install_lock
+  PREVIOUS_GATEWAY_PID=$(running_gateway_pid 2>/dev/null || true)
   ensure_prerequisites
   ensure_checkout
   build_gormes
   publish_command
   bootstrap_config
   verify_install
+  restart_gateway_if_running "$PREVIOUS_GATEWAY_PID"
+  append_install_ledger
   print_summary
 }
 

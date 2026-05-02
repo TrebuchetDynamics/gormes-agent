@@ -4,9 +4,11 @@ All notable changes to Gormes-Agent are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
-for the numeric portion. Pre-stable releases use the `-scout` suffix.
+inside the 0.x compatibility window.
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-05-01
 
 ### Added
 - Hermes-in-Go parity wave: 11 P0/P1 rows implemented
@@ -20,15 +22,26 @@ for the numeric portion. Pre-stable releases use the `-scout` suffix.
 - Cross-project feature mapping (8 projects) + synthesis plan
 - Progress.json now has zero incomplete P0/P1 rows
 - Release automation with changelog, version bump, and artifact attestation
+- Source-backed Unix and Windows installers with dry-run/local modes, install
+  locking, publish rollback, managed Go checksum enforcement, JSONL install
+  ledgers, and live gateway restart policy controls.
+- `gormes gateway status --json` for stable installer and operator parsing.
+- Safe bounded audit logging for tool arguments and errors.
 
 ### Changed
 - Improved CI workflow with build isolation tests for kernel package
 - Merged main branch updates into development, resolving 52 file conflicts
+- README and public release metadata now describe a conservative 0.1.0
+  source-first release path instead of overstating connector or TTS parity.
 
 ### Fixed
 - apiserver SSE fields missing after merge (sseMu, sseClients)
 - Kernel/goncho integration import cycle resolved
 - Build isolation violations (kernel no longer transitively imports session/memory/sqlite3)
+- Telegram message dedupe now falls back to `MsgID` when a channel surface does
+  not populate `MessageID`.
+- Tool preview and audit logging preserve the right edge of truncated URLs and
+  command-like fields.
 
 ## [0.2.0-scout] - 2025-01-15
 
@@ -49,6 +62,7 @@ for the numeric portion. Pre-stable releases use the `-scout` suffix.
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.0-scout...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.0
 [0.2.0-scout]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0-scout...v0.2.0-scout
 [0.1.0-scout]: https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.0-scout

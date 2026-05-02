@@ -181,6 +181,48 @@ func TestHugoBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	}
 }
 
+func TestHugoBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
+	tmp := t.TempDir()
+	runDocsHugoBuild(t, tmp)
+
+	body, err := os.ReadFile(filepath.Join(tmp, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	for _, want := range []string{
+		"Run agents from one Go-native runtime.",
+		"Primary documentation paths",
+		"Get Started",
+		"Run Doctor",
+		"Operate Gateways",
+		"What is Gormes?",
+		"A self-hosted agent runtime for machines that need to keep working.",
+		"Gormes Runtime",
+		"Build, diagnose, then run offline",
+		"./bin/gormes doctor --offline",
+		"./bin/gormes --offline",
+		"Current operator surface",
+		"Dashboard",
+		"Configuration",
+		"Docs by job",
+		"Architecture and parity stay visible.",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("built index.html missing operator-first docs token %q", want)
+		}
+	}
+	for _, reject := range []string{
+		"connect a Hermes backend",
+		"Run Hermes Through a Go Operator Console",
+		"curl -fsSL https://gormes.ai/install.sh | sh",
+	} {
+		if strings.Contains(text, reject) {
+			t.Fatalf("built index.html contains stale token %q", reject)
+		}
+	}
+}
+
 func runDocsHugoBuild(t *testing.T, dest string) {
 	t.Helper()
 	cmd := exec.Command("go", "run", "github.com/gohugoio/hugo@v0.160.1", "--minify", "-d", dest)

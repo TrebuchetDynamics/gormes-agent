@@ -11,7 +11,7 @@
 #   # feed the formula's url + sha256 fields. Static Go binary only — no
 #   # Python source-archive packaging, no Python-wheel build, no PyPI flow.
 #   set -eu
-#   GORMES_VERSION="${GORMES_VERSION:?set e.g. 0.2.0-scout}"
+#   GORMES_VERSION="${GORMES_VERSION:?set e.g. 0.1.0}"
 #   for target in darwin-arm64 darwin-amd64 linux-amd64 linux-arm64; do
 #     goos="${target%-*}"; goarch="${target##*-}"
 #     out="dist/gormes-${GORMES_VERSION}-${target}"
@@ -28,8 +28,8 @@
 class GormesAgent < Formula
   desc "Self-improving AI agent that creates skills from experience (Go-native Hermes port)"
   homepage "https://gormes.ai"
-  url "https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v0.2.0-scout/gormes-0.2.0-scout-darwin-arm64.tar.gz"
-  version "0.2.0-scout"
+  url "https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v0.1.0/gormes-0.1.0-darwin-arm64.tar.gz"
+  version "0.1.0"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
 

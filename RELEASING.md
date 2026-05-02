@@ -10,12 +10,14 @@ This document describes how maintainers ship a new Gormes-Agent release.
 
 ## Versioning
 
-Gormes uses SemVer for the numeric portion and a `-scout` suffix for pre-stable releases.
+Gormes uses SemVer. The project is still in the `0.x` compatibility window;
+older internal preview lines used a `-scout` suffix, but public release tags
+should use the exact version string from `cmd/gormes/version.go`.
 
 Examples:
-- `0.2.0-scout` — current scout line
-- `0.2.1` — patch release
-- `0.3.0-scout` — next minor scout
+- `0.1.0` — first source-first public release line
+- `0.1.1` — patch release
+- `0.2.0-scout` — optional future preview line
 
 ## Release Methods
 
@@ -74,12 +76,12 @@ Users can verify releases:
 
 ```bash
 # Verify SHA-256
-curl -LO https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v0.2.0-scout/gormes-0.2.0-scout-linux-amd64.tar.gz
-curl -LO https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v0.2.0-scout/gormes-0.2.0-scout-linux-amd64.tar.gz.sha256
-sha256sum -c gormes-0.2.0-scout-linux-amd64.tar.gz.sha256
+curl -LO https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v0.1.0/gormes-0.1.0-linux-amd64.tar.gz
+curl -LO https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v0.1.0/gormes-0.1.0-linux-amd64.tar.gz.sha256
+sha256sum -c gormes-0.1.0-linux-amd64.tar.gz.sha256
 
 # Verify build provenance (requires gh CLI)
-gh attestation verify gormes-0.2.0-scout-linux-amd64.tar.gz \
+gh attestation verify gormes-0.1.0-linux-amd64.tar.gz \
   --repo TrebuchetDynamics/gormes-agent
 ```
 

@@ -44,7 +44,7 @@ jobs:
           current=$(grep 'var Version =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
           echo "current=$current"
 
-          # Parse current version (e.g., 0.2.0-scout -> 0.2.0)
+          # Parse current version (e.g., 0.1.0 or 0.2.0-scout -> 0.1.0/0.2.0)
           base="${current%%-*}"
           IFS='.' read -r major minor patch <<< "$base"
 
@@ -60,6 +60,7 @@ jobs:
           fi
 
           echo "next=$next"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "next=$next" >> "$GITHUB_OUTPUT"
 
       - name: Validate before bump
@@ -88,9 +89,10 @@ jobs:
             { print }
           ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
 
-          # Update comparison links at the bottom
-          sed -i "s|...v0.2.0-scout...HEAD|...v${next}...HEAD|" CHANGELOG.md
-          echo "[${next}]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.0-scout...v${next}" >> CHANGELOG.md
+          # Update comparison links at the bottom from the resolved source version.
+          previous="${{ steps.version.outputs.current }}"
+          sed -i "s|compare/v${previous}...HEAD|compare/v${next}...HEAD|" CHANGELOG.md
+          echo "[${next}]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v${previous}...v${next}" >> CHANGELOG.md
 
       - name: Regenerate progress docs
         run: go run ./cmd/progress write

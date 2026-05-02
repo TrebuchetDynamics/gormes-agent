@@ -1,6 +1,6 @@
 .PHONY: build build-slim run test test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
 
-VERSION ?= 0.2.0-scout
+VERSION ?= 0.1.0
 BUILD_FLAGS := -trimpath -ldflags="-s -w -X main.Version=$(VERSION)"
 BINARY_PATH := bin/gormes
 SLIM_BINARY_PATH := bin/gormes-slim
