@@ -126,6 +126,13 @@ if [ "${1:-}" = "build" ]; then
   mkdir -p "$(dirname "$out")"
   cat > "$out" <<'EOF'
 #!/bin/sh
+if [ -n "${GORMES_FAKE_LOG:-}" ]; then
+  printf 'built-gormes' >> "$GORMES_FAKE_LOG"
+  for arg in "$@"; do
+    printf ' %%s' "$arg" >> "$GORMES_FAKE_LOG"
+  done
+  printf '\n' >> "$GORMES_FAKE_LOG"
+fi
 case "${1:-}" in
   version)
     printf 'gormes test-build\n'
@@ -134,6 +141,19 @@ case "${1:-}" in
     if [ "${2:-}" = "--offline" ]; then
       printf 'doctor ok\n'
     fi
+    ;;
+  gateway)
+    case "${2:-}" in
+      status)
+        printf 'Gateway status\nruntime: running (pid=%%s active_agents=0)\n' "${GORMES_FAKE_GATEWAY_STATUS_PID:-7777}"
+        ;;
+      stop)
+        printf 'gateway stop: stopped\n'
+        ;;
+      "")
+        printf 'gateway started\n'
+        ;;
+    esac
     ;;
 esac
 EOF
@@ -162,7 +182,7 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 
 func linkBasicUnixTools(t *testing.T, bin string) {
 	t.Helper()
-	for _, name := range []string{"cat", "chmod", "cp", "dirname", "ln", "mkdir", "mv", "rm", "uname"} {
+	for _, name := range []string{"cat", "chmod", "cp", "dirname", "ln", "mkdir", "mv", "rm", "sleep", "uname"} {
 		realPath, err := exec.LookPath(name)
 		if err != nil {
 			t.Fatalf("look up %s: %v", name, err)
@@ -491,6 +511,75 @@ func TestInstallSH_RerunUpdatesManagedCheckoutWithoutCloning(t *testing.T) {
 	}
 	if strings.Contains(log, "git clone") {
 		t.Fatalf("rerun cloned instead of updating:\n%s", log)
+	}
+}
+
+func TestInstallSH_RerunRestartsLiveGatewayWithPublishedBinary(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	if err := os.MkdirAll(filepath.Join(checkout, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir checkout: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(checkout, "cmd", "gormes"), 0o755); err != nil {
+		t.Fatalf("mkdir cmd/gormes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(checkout, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.25.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	activeBin := filepath.Join(root, "activebin")
+	activeCommand := filepath.Join(activeBin, "gormes")
+	if err := os.MkdirAll(activeBin, 0o755); err != nil {
+		t.Fatalf("mkdir active bin: %v", err)
+	}
+	writeExecutable(t, activeCommand, `#!/bin/sh
+set -eu
+printf 'active-gormes' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+if [ "${1:-}" = "gateway" ] && [ "${2:-}" = "status" ]; then
+  printf 'Gateway status\nruntime: running (pid=4242 active_agents=0)\n'
+fi
+`)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+activeBin+string(os.PathListSeparator)+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_GATEWAY_STATUS_PID=7777",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+
+	logBody, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read fake log: %v", err)
+	}
+	log := string(logBody)
+	for _, want := range []string{
+		"active-gormes gateway status",
+		"built-gormes gateway stop",
+		"built-gormes gateway\n",
+		"built-gormes gateway status",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("toolchain log missing %q\n%s", want, log)
+		}
+	}
+	if strings.Index(log, "built-gormes gateway stop") > strings.Index(log, "built-gormes gateway\n") {
+		t.Fatalf("gateway start occurred before stop:\n%s", log)
+	}
+	for _, want := range []string{
+		"restarting live gateway pid=4242",
+		"gateway restarted pid=4242 -> 7777",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("install output missing %q\n%s", want, out)
+		}
 	}
 }
 

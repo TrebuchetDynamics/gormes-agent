@@ -176,6 +176,54 @@ active_command_path() {
   esac
 }
 
+running_gateway_pid_from_status() {
+  status="$1"
+  case "$status" in
+    *"runtime: running (pid="*)
+      rest=${status#*"runtime: running (pid="}
+      pid=${rest%%[!0123456789]*}
+      case "$pid" in
+        ""|*[!0123456789]*) return 1 ;;
+        *) printf '%s\n' "$pid" ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+gateway_status_output() {
+  status_bin=$(active_command_path)
+  if [ -z "$status_bin" ]; then
+    status_bin="$(pick_bin_dir)/gormes"
+  fi
+  [ -x "$status_bin" ] || return 1
+  "$status_bin" gateway status 2>/dev/null || return 1
+}
+
+running_gateway_pid() {
+  status=$(gateway_status_output 2>/dev/null || true)
+  [ -n "$status" ] || return 1
+  running_gateway_pid_from_status "$status"
+}
+
+pid_is_running() {
+  [ -n "${1:-}" ] || return 1
+  kill -0 "$1" 2>/dev/null
+}
+
+wait_for_pid_exit() {
+  pid="$1"
+  i=0
+  while [ "$i" -lt 5 ]; do
+    if ! pid_is_running "$pid"; then
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  return 1
+}
+
 check_platform() {
   case "$(platform_name)" in
     Linux*|Darwin*) ;;
@@ -252,6 +300,7 @@ ensure_prerequisites() {
   need mv
   need cp
   need chmod
+  need sleep
 
   check_platform
 
@@ -637,6 +686,74 @@ verify_install() {
   fi
 }
 
+stop_gateway_for_restart() {
+  old_pid="$1"
+  stop_bin=$(active_command_path)
+  if [ -z "$stop_bin" ] || [ ! -x "$stop_bin" ]; then
+    stop_bin="$(managed_bin_dir)/gormes"
+  fi
+  [ -x "$stop_bin" ] || return 1
+  "$stop_bin" gateway stop >/dev/null 2>&1 || return 1
+  wait_for_pid_exit "$old_pid" || return 1
+}
+
+start_gateway_for_restart() {
+  build_bin="$(managed_bin_dir)/gormes"
+  home="$(managed_home_dir)"
+  log_path="${home}/gateway.log"
+
+  [ -x "$build_bin" ] || return 1
+  mkdir -p "$home"
+
+  if has setsid; then
+    setsid -f "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null
+    return
+  fi
+  if has nohup; then
+    nohup "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
+    return
+  fi
+  "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
+}
+
+wait_for_gateway_restart() {
+  old_pid="$1"
+  build_bin="$(managed_bin_dir)/gormes"
+  i=0
+  while [ "$i" -lt 8 ]; do
+    status=$("$build_bin" gateway status 2>/dev/null || true)
+    new_pid=$(running_gateway_pid_from_status "$status" 2>/dev/null || true)
+    if [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ]; then
+      printf '%s\n' "$new_pid"
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  return 1
+}
+
+restart_gateway_if_running() {
+  old_pid="$1"
+  [ -n "$old_pid" ] || return 0
+
+  log "restarting live gateway pid=${old_pid}"
+  if ! stop_gateway_for_restart "$old_pid"; then
+    log "gateway restart skipped: could not stop pid=${old_pid}"
+    return 0
+  fi
+  if ! start_gateway_for_restart; then
+    log "gateway restart failed: could not start $(managed_bin_dir)/gormes gateway"
+    return 0
+  fi
+  new_pid=$(wait_for_gateway_restart "$old_pid" || true)
+  if [ -n "$new_pid" ]; then
+    log "gateway restarted pid=${old_pid} -> ${new_pid}"
+  else
+    log "gateway restart requested; status did not report a new live pid yet"
+  fi
+}
+
 bootstrap_config() {
   home=$(managed_home_dir)
   config="${home}/config.toml"
@@ -713,12 +830,14 @@ print_summary() {
 
 main() {
   parse_args "$@"
+  previous_gateway_pid=$(running_gateway_pid 2>/dev/null || true)
   ensure_prerequisites
   ensure_checkout
   build_gormes
   publish_command
   bootstrap_config
   verify_install
+  restart_gateway_if_running "$previous_gateway_pid"
   print_summary
 }
 
