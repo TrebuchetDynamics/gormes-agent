@@ -32,6 +32,14 @@ const cmdPos = `(?:^|[;&|\n` + "`" + `]|\$\()` +
 // log line. Patterns are matched case-insensitively.
 var HardlinePatterns = []HardlinePattern{
 	{
+		Regex:       cmdPos + `(?:[\w./-]*/)?(?:python(?:[23](?:\.\d+)?)?|pypy3?)(?:\s|$)`,
+		Description: pythonRuntimeDisabledMessage,
+	},
+	{
+		Regex:       cmdPos + `uv\s+run(?:\s+[^\s]+)*\s+(?:[\w./-]*/)?(?:python(?:[23](?:\.\d+)?)?|pypy3?)(?:\s|$)`,
+		Description: pythonRuntimeDisabledMessage,
+	},
+	{
 		Regex:       `\brm\s+(-[^\s]*\s+)*(/|/\*|/ \*)(\s|$)`,
 		Description: "recursive delete of root filesystem",
 	},

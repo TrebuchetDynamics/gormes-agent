@@ -164,7 +164,7 @@ func toolTraceIcon(name string) string {
 	case "terminal", "process":
 		return "💻"
 	case "execute_code":
-		return "🐍"
+		return "💻"
 	default:
 		return "🔧"
 	}

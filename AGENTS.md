@@ -12,14 +12,20 @@ agent in this workspace, including workspace-mineru / workspace-mimeru agents.
 
 - `main` is protected release-trunk state. Do not do feature, docs, roadmap, or
   repair work directly on `main` after the bootstrap that created this rule.
-- Develop only on the `development` branch, or on a short-lived branch created
-  from `development`.
+- Work directly on the existing `development` branch only. Do not create or use
+  short-lived branches, feature branches, or git worktrees for Gormes work.
+- Before editing, confirm the current branch is `development`. If it is not,
+  stop before changing files and switch safely to `development` or report the
+  blocker; never create another branch or worktree as the workaround.
 - Changes reach `main` only through a GitHub pull request into `main`.
 - Before opening or updating a PR to `main`, run the same gate as CI:
   `go test ./... -count=1`, `go run ./cmd/progress validate`, and
   `git diff --check`.
-- If `main` is red, stop normal feature work and fix `main` first. Do not
-  branch new work from a red `main`.
+- If `main` is red, stop normal feature work and repair through the
+  `development` branch and PR path. Do not check out `main` for edits and do
+  not branch new work from a red `main`.
+- This branch rule overrides any generic agent or skill workflow that suggests
+  temporary branches or git worktrees.
 - GitHub rules for `main` must require pull requests and the required CI status
   check. Do not bypass them unless the user explicitly asks for emergency
   repository recovery.

@@ -21950,7 +21950,7 @@
             {
               "name": "Sandboxed exec",
               "status": "complete",
-              "note": "TDD landed: Go-native `execute_code` now runs guarded `sh`/`python` snippets through a local sandbox contract with runtime selection, stdout/stderr caps, timeout status, and pre-exec filesystem/network blocking while broader backend-specific sandboxes remain Phase 5.B work. 2026-04-30 Hermes schema follow-up: RED `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestExecuteCodeTool_DefaultsCodeOnlyCallsToPython -count=1` failed because Gormes required `language`; GREEN `GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestExecuteCodeTool_(DefaultsCodeOnlyCallsToPython|UsesRequestedLanguage)' -count=1` passed after code-only calls defaulted to Python and `language` became optional in the schema, matching `../hermes-agent/tools/code_execution_tool.py:execute_code` and `build_execute_code_schema`."
+              "note": "TDD landed: Go-native `execute_code` now runs guarded shell snippets through a local sandbox contract with stdout/stderr caps, timeout status, and pre-exec filesystem/network blocking while broader backend-specific sandboxes remain Phase 5.B work. 2026-05-01 follow-up: RED `go test ./internal/tools ./internal/tools/approval -run 'TestTerminalToolHardBlocksPythonRuntimeEvenWhenApprovalsOff|TestDetectHardlinePythonRuntime|TestExecuteCodeTool_(UsesRequestedShellLanguage|DefaultsCodeOnlyCallsToShell|RejectsPythonLanguage)|TestCheckHardline_PythonRuntime' -count=1` failed because terminal could run a Python heredoc and code-only `execute_code` defaulted to Python; GREEN passed after `execute_code` became shell-only and Python interpreters moved to the unconditional hardline blocklist."
             }
           ]
         },
@@ -24693,10 +24693,13 @@
               "source_refs": [
                 "https://docs.openclaw.ai/concepts/multi-agent",
                 "internal/gateway/agent_runtime.go",
+                "internal/gateway/agent_isolation.go",
                 "internal/kernel/",
                 "internal/config/agents.go",
                 "internal/skills/",
-                "internal/tools/"
+                "internal/tools/",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/provider_client.go"
               ],
               "ready_when": [
                 "Multi-agent gateway runtime activation is complete.",
@@ -24711,7 +24714,7 @@
                 "Multi-agent gateway runtime activation"
               ],
               "acceptance": [
-                "Fixtures prove two agents can use different auth/profile/model registry snapshots without credential lookup cross-talk.",
+                "Fixtures prove routed agents receive different auth-home/auth-store/model runtime snapshots without singleton-kernel cross-talk.",
                 "Fixtures prove per-agent tool allow/deny policy blocks denied tools before execution.",
                 "Fixtures prove per-agent skills allowlists select different skill surfaces for different routed agents.",
                 "Fixtures prove local kernel history/tool state cannot cross agent ids while preserving same-agent continuation.",
@@ -24723,6 +24726,8 @@
                 "internal/config/",
                 "internal/skills/",
                 "internal/tools/",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/provider_client.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -24732,7 +24737,12 @@
               ],
               "done_signal": [
                 "Multi-agent routes are not merely prompt/session scoped; auth, skills, tool policy, and local runtime state are isolated with redacted failure evidence."
-              ]
+              ],
+              "evidence": {
+                "implementation": "internal/gateway/agent_isolation.go, internal/gateway/manager.go, internal/gateway/agent_router.go, internal/kernel/frame.go, internal/kernel/kernel.go, internal/kernel/tool_safety.go, internal/skills/status.go, internal/tools/tool.go, cmd/gormes/gateway.go, cmd/gormes/provider_client.go",
+                "tests": "go test ./internal/gateway -run MultiAgent.*Isolation -count=1; go test ./internal/kernel ./internal/skills ./internal/tools -run Agent -count=1; go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway|ProviderHTTPClient' -count=1",
+                "note": "Validated 2026-05-02: gateway can build/reuse independent routed runtimes keyed by agent session, hand each runtime a policy-filtered tool registry, per-agent tool safety policy, per-agent skill allowlist, auth-home/auth-store/model snapshot, and redacted failure evidence. Provider credential-pool lookup can use the agent auth home; providers that currently rely only on global static endpoint/api_key config remain bound by their provider adapter until explicit per-agent static credential fields are added."
+              }
             }
           ],
           "drift_state": {

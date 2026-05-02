@@ -5,6 +5,13 @@ description: Use when running, installing, rebuilding, or validating local Gorme
 
 # Gormes Dev Runtime
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Keep three execution surfaces distinct: the dirty development checkout, the local
@@ -30,10 +37,13 @@ fixtures; do not hard-code `/home/xel/...` paths into product code or tests.
   then `./bin/gormes`.
 - Shell-wide command: `scripts/install.sh`, or manual publish after a build.
 
-`install.sh` is source-backed for final users. By default it clones or updates
-`$HOME/.gormes/gormes-agent`, uses `GORMES_BRANCH=main`, builds
-`./cmd/gormes`, publishes to `$HOME/.local/bin/gormes`, and refreshes any older
-active `gormes` command that appears earlier on PATH.
+`install.sh` is source-backed for final users. Its release defaults may clone
+or update `$HOME/.gormes/gormes-agent` from `main`; that is not the agent
+development surface. For Gormes agent work, use the current `development`
+checkout or set `GORMES_BRANCH=development` when intentionally testing the
+installer-managed path. It builds `./cmd/gormes`, publishes to
+`$HOME/.local/bin/gormes`, and refreshes any older active `gormes` command that
+appears earlier on PATH.
 
 Root Linux defaults are `/usr/local/lib/gormes-agent` and
 `/usr/local/bin/gormes`. Override with `GORMES_INSTALL_DIR`,
@@ -45,15 +55,16 @@ Root Linux defaults are `/usr/local/lib/gormes-agent` and
 - Use `go run ./cmd/gormes` to prove source changes before install; use
   `./bin/gormes` to prove the rebuilt local binary; use plain `gormes` only
   after verifying the installed command path.
-- Do not ask for a push to `main` to validate development behavior. A push is
-  relevant only when testing the installer-managed branch path; local work is
-  proven from the checkout or rebuilt binary.
+- Do not ask for a push to `main` to validate development behavior. Agent work
+  stays on `development`; local behavior is proven from the checkout or rebuilt
+  binary.
 - For side-by-side smoke tests, use an isolated home:
   `GORMES_HOME="$(mktemp -d)" go run ./cmd/gormes --offline`. Reuse the real
   home only when validating persisted sessions, migration, or operator state.
-- Plain `install.sh` tests the managed branch, not the dirty checkout. Do not
-  use it to prove uncommitted changes unless an explicit local-source mode is
-  implemented.
+- Plain `install.sh` tests the managed branch, not the dirty checkout. For
+  Gormes work, set that managed branch to `development` or use the local
+  checkout; do not use it to prove uncommitted changes unless an explicit
+  local-source mode is implemented.
 - If using `GORMES_INSTALL_DIR` against an existing checkout, remember the
   installer may stash local changes, fetch, checkout, and pull the branch.
 - After publishing binaries, verify `which -a gormes`, `readlink -f`, and
@@ -104,7 +115,7 @@ wrong-home bugs until this checklist says otherwise.
 ## Common Mistakes
 
 - Assuming plain `install.sh` builds the dirty repo.
-- Forgetting that final-user installs default to `main`.
+- Using a final-user `main` install path to validate agent development work.
 - Testing `gormes` while `$HOME/go/bin/gormes` shadows the freshly published
   command.
 - Killing random processes instead of using `gormes gateway status` and

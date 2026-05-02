@@ -120,6 +120,39 @@ func TestDetectHardlineKillAll(t *testing.T) {
 	}
 }
 
+func TestDetectHardlinePythonRuntime(t *testing.T) {
+	matchCases := []string{
+		"python -c 'print(1)'",
+		"python3 - <<'PY'\nprint(1)\nPY",
+		"/usr/bin/python3.11 script.py",
+		"uv run python3 script.py",
+	}
+	noMatchCases := []string{
+		"grep python README.md",
+		"echo python3 -c print",
+		"python-helper --version",
+	}
+	for _, cmd := range matchCases {
+		t.Run("match/"+cmd, func(t *testing.T) {
+			ok, desc := DetectHardline(cmd)
+			if !ok {
+				t.Fatalf("DetectHardline(%q) = false, want true", cmd)
+			}
+			if !strings.Contains(desc, "Python runtime execution is disabled") {
+				t.Fatalf("DetectHardline(%q) desc = %q, want Python disabled description", cmd, desc)
+			}
+		})
+	}
+	for _, cmd := range noMatchCases {
+		t.Run("nomatch/"+cmd, func(t *testing.T) {
+			ok, desc := DetectHardline(cmd)
+			if ok {
+				t.Fatalf("DetectHardline(%q) = true (desc=%q), want false", cmd, desc)
+			}
+		})
+	}
+}
+
 func TestDetectHardlineBenign(t *testing.T) {
 	cases := []struct {
 		name string

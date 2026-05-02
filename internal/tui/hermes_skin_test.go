@@ -125,7 +125,7 @@ func TestHermesSkin_ToolEmojis(t *testing.T) {
 		{"read_file", "📖"},
 		{"write_file", "✍️"},
 		{"memory", "🧠"},
-		{"execute_code", "🐍"},
+		{"execute_code", "💻"},
 		{"delegate_task", "🔀"},
 		{"unknown_tool", "⚡"},
 	}

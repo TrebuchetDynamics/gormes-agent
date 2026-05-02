@@ -172,7 +172,13 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		ServiceManagerAvailable: gateway.EnvironmentServiceManagerAvailable,
 		DrainTimeout:            kernel.ShutdownBudget,
 	}
-	mgr := gateway.NewManager(gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg), k, slog.Default())
+	mgrCfg := gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg)
+	mgrCfg.ToolRegistry = reg
+	mgrCfg.SkillRuntime = skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
+	if mgrCfg.AgentRouting.Enabled {
+		mgrCfg.AgentRuntimeFactory = newGatewayAgentRuntimeFactory(rootCtx, cfg, mstore, gonchoStore)
+	}
+	mgr := gateway.NewManager(mgrCfg, k, slog.Default())
 
 	registeredChannels, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, defaultGatewayChannelFactories(), runtimeStatus, slog.Default())
 	if err != nil {
@@ -199,6 +205,37 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 
 func newGatewayHermesClient(cfg config.Config) (hermes.Client, error) {
 	return newProviderHTTPClient(cfg, cfg.Hermes.Provider)
+}
+
+func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, mstore *memory.SqliteStore, gonchoStore kernel.GonchoStore) gateway.AgentRuntimeFactory {
+	return func(_ context.Context, req gateway.AgentRuntimeRequest) (gateway.KernelSubmitter, error) {
+		agentCfg := cfg
+		model := firstUsageString(req.Model, cfg.Hermes.Model)
+		agentCfg.Hermes.Model = model
+		hc, err := newProviderHTTPClientWithCredentialHome(agentCfg, agentCfg.Hermes.Provider, req.AuthHome)
+		if err != nil {
+			return nil, err
+		}
+		reg := req.Tools
+		if reg == nil {
+			reg = buildDefaultRegistry(rootCtx, agentCfg, hc, model).FilterPolicy(req.ToolPolicy.Allow, req.ToolPolicy.Deny)
+		}
+		k := kernel.New(kernel.Config{
+			Model:             model,
+			Endpoint:          agentCfg.Hermes.Endpoint,
+			Admission:         kernel.Admission{MaxBytes: agentCfg.Input.MaxBytes, MaxLines: agentCfg.Input.MaxLines},
+			Tools:             reg,
+			Skills:            req.Skills,
+			ToolSafety:        req.ToolSafety,
+			MaxToolIterations: kernel.DefaultMaxToolIterations,
+			MaxToolDuration:   30 * time.Second,
+			ChatKey:           req.SessionKey,
+			ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
+			Goncho:            gonchoStore,
+		}, hc, mstore, telemetry.New(), slog.Default())
+		go k.Run(rootCtx)
+		return k, nil
+	}
 }
 
 func defaultGatewayChannelFactories() gatewayChannelFactories {

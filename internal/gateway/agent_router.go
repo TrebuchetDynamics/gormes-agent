@@ -39,6 +39,8 @@ type AgentRouteDecision struct {
 	Workspace    string
 	AgentDir     string
 	Model        string
+	Skills       []string
+	Tools        config.AgentToolPolicy
 	BindingIndex int
 	BindingTier  AgentBindingTier
 	MainKey      string
@@ -96,9 +98,18 @@ func (r AgentRouter) Resolve(req AgentRouteRequest) AgentRouteDecision {
 		Workspace:    agent.Workspace,
 		AgentDir:     agent.AgentDir,
 		Model:        agent.Model,
+		Skills:       append([]string(nil), agent.Skills...),
+		Tools:        cloneAgentToolPolicy(agent.Tools),
 		BindingIndex: bestIndex,
 		BindingTier:  bestTier,
 		MainKey:      req.MainKey,
+	}
+}
+
+func cloneAgentToolPolicy(policy config.AgentToolPolicy) config.AgentToolPolicy {
+	return config.AgentToolPolicy{
+		Allow: append([]string(nil), policy.Allow...),
+		Deny:  append([]string(nil), policy.Deny...),
 	}
 }
 

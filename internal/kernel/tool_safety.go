@@ -45,6 +45,114 @@ type OneshotToolSafetyPolicy struct {
 	approvalBypass bool
 }
 
+type compositeToolSafetyPolicy struct {
+	policies []ToolSafetyPolicy
+}
+
+type AgentToolSafetyOptions struct {
+	AgentID string
+	Allow   []string
+	Deny    []string
+}
+
+type AgentToolSafetyPolicy struct {
+	agentID string
+	allow   map[string]struct{}
+	deny    map[string]struct{}
+}
+
+func ComposeToolSafetyPolicies(policies ...ToolSafetyPolicy) ToolSafetyPolicy {
+	clean := make([]ToolSafetyPolicy, 0, len(policies))
+	for _, policy := range policies {
+		if policy != nil {
+			clean = append(clean, policy)
+		}
+	}
+	switch len(clean) {
+	case 0:
+		return nil
+	case 1:
+		return clean[0]
+	default:
+		return compositeToolSafetyPolicy{policies: clean}
+	}
+}
+
+func NewAgentToolSafetyPolicy(opts AgentToolSafetyOptions) ToolSafetyPolicy {
+	allow := toolNameSet(opts.Allow)
+	deny := toolNameSet(opts.Deny)
+	if len(allow) == 0 && len(deny) == 0 {
+		return nil
+	}
+	agentID := strings.TrimSpace(opts.AgentID)
+	if agentID == "" {
+		agentID = "main"
+	}
+	return AgentToolSafetyPolicy{
+		agentID: agentID,
+		allow:   allow,
+		deny:    deny,
+	}
+}
+
+func (p compositeToolSafetyPolicy) DecideToolCall(call hermes.ToolCall) ToolSafetyDecision {
+	for _, policy := range p.policies {
+		if policy == nil {
+			continue
+		}
+		decision := policy.DecideToolCall(call)
+		if !decision.Allow {
+			return decision
+		}
+	}
+	return ToolSafetyDecision{Allow: true}
+}
+
+func (p AgentToolSafetyPolicy) DecideToolCall(call hermes.ToolCall) ToolSafetyDecision {
+	name := normalizeToolPolicyName(call.Name)
+	if name == "" {
+		return ToolSafetyDecision{Allow: true}
+	}
+	if _, denied := p.deny[name]; denied {
+		return p.denyDecision(call, "tool denied by agent policy")
+	}
+	if len(p.allow) > 0 {
+		if _, allowed := p.allow[name]; !allowed {
+			return p.denyDecision(call, "tool not in agent allowlist")
+		}
+	}
+	return ToolSafetyDecision{Allow: true}
+}
+
+func (p AgentToolSafetyPolicy) denyDecision(call hermes.ToolCall, reason string) ToolSafetyDecision {
+	payload, _ := json.Marshal(map[string]any{
+		"status":   "agent_tool_policy_denied",
+		"agent_id": p.agentID,
+		"tool":     strings.TrimSpace(call.Name),
+		"reason":   reason,
+	})
+	return ToolSafetyDecision{
+		Allow:   false,
+		Status:  "agent_tool_policy_denied",
+		Content: payload,
+		Err:     errors.New("agent tool policy denied " + strings.TrimSpace(call.Name)),
+	}
+}
+
+func toolNameSet(values []string) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, value := range values {
+		if name := normalizeToolPolicyName(value); name != "" {
+			out[name] = struct{}{}
+		}
+	}
+	return out
+}
+
+func normalizeToolPolicyName(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
 func NewOneshotToolSafetyPolicy(opts OneshotToolSafetyOptions) (*OneshotToolSafetyPolicy, error) {
 	trustClass := opts.TrustClass
 	if trustClass == "" {

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,11 +40,11 @@ type ToolDescriptor struct {
 // This is the contract-first operation catalog from the Phase 5.A row.
 type OperationSpec struct {
 	ToolDescriptor
-	Mutating    bool          // true when the tool modifies state (files, memory, etc.)
-	Idempotent  bool          // true when the tool can be safely retried
-	PromptSafe  bool          // true when the schema contains no secrets
-	TrustClass  []string      // allowed caller roles: operator, child-agent, system
-	AuditKind   string        // audit taxonomy: file, web, terminal, memory, skills
+	Mutating   bool     // true when the tool modifies state (files, memory, etc.)
+	Idempotent bool     // true when the tool can be safely retried
+	PromptSafe bool     // true when the schema contains no secrets
+	TrustClass []string // allowed caller roles: operator, child-agent, system
+	AuditKind  string   // audit taxonomy: file, web, terminal, memory, skills
 }
 
 // Spec is an optional interface that tools implement to declare their
@@ -147,6 +148,34 @@ func (r *Registry) Descriptors() []ToolDescriptor {
 	return out
 }
 
+// FilterPolicy returns a registry view that exposes only tools allowed by the
+// supplied allow/deny policy. Deny wins. An empty allow list means all tools
+// remain eligible unless denied.
+func (r *Registry) FilterPolicy(allow, deny []string) *Registry {
+	if r == nil {
+		return nil
+	}
+	allowSet := registryPolicySet(allow)
+	denySet := registryPolicySet(deny)
+	out := NewRegistry()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for name, tool := range r.tools {
+		key := registryPolicyName(name)
+		if _, denied := denySet[key]; denied {
+			continue
+		}
+		if len(allowSet) > 0 {
+			if _, allowed := allowSet[key]; !allowed {
+				continue
+			}
+		}
+		out.tools[name] = tool
+	}
+	out.pluginCapabilities = clonePluginCapabilities(r.pluginCapabilities)
+	return out
+}
+
 // RecordPluginInventory records plugin capability status rows without
 // registering executable tool handlers. This keeps plugin discovery metadata
 // visible while runtime execution remains disabled.
@@ -202,4 +231,18 @@ func sortPluginCapabilities(rows []plugins.CapabilityStatus) {
 		}
 		return rows[i].Name < rows[j].Name
 	})
+}
+
+func registryPolicySet(values []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if name := registryPolicyName(value); name != "" {
+			out[name] = struct{}{}
+		}
+	}
+	return out
+}
+
+func registryPolicyName(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }

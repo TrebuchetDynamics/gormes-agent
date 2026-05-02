@@ -6,6 +6,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 // ErrResetDuringTurn is returned by Kernel.ResetSession when the kernel is
@@ -60,8 +61,8 @@ type RenderFrame struct {
 	// at a time; when multiple are set the TUI follows the priority order:
 	// Approval > Clarify > Secret.
 	ApprovalState *KernelApprovalState
-	ClarifyState *KernelClarifyState
-	SecretState  *KernelSecretState
+	ClarifyState  *KernelClarifyState
+	SecretState   *KernelSecretState
 }
 
 type SoulEntry struct {
@@ -99,6 +100,17 @@ const (
 type PlatformEvent struct {
 	Kind PlatformEventKind
 	Text string
+	// Tools, when non-nil, overrides Config.Tools for this submit event only.
+	// Gateway multi-agent routing uses this to expose the routed agent's
+	// policy-filtered tool registry without mutating the resident kernel.
+	Tools *tools.Registry
+	// Skills, when non-nil, overrides Config.Skills for this submit event only.
+	// Gateway multi-agent routing uses this to inject the routed agent's
+	// skill allowlist while preserving the global runtime default.
+	Skills SkillProvider
+	// ToolSafety, when non-nil, is composed ahead of Config.ToolSafety for this
+	// submit event only. A denial by either policy blocks execution.
+	ToolSafety ToolSafetyPolicy
 	// Model, when non-empty after trimming whitespace, overrides Config.Model
 	// for this submit event only. The resident kernel configuration is not
 	// mutated, so following turns fall back to Config.Model unless they carry
@@ -156,13 +168,13 @@ const (
 // KernelApprovalState is the approval panel data the kernel sends to the TUI.
 // The TUI's hermes_panels.go converts this to ApprovalPanelState for rendering.
 type KernelApprovalState struct {
-	Description   string
-	Command       string
-	Choices       []ApprovalChoice
-	Selected      ApprovalChoice
-	ViewExpanded  bool
-	Width         int
-	Height        int
+	Description  string
+	Command      string
+	Choices      []ApprovalChoice
+	Selected     ApprovalChoice
+	ViewExpanded bool
+	Width        int
+	Height       int
 }
 
 // =====================================================================

@@ -5,6 +5,13 @@ description: Audit upstream Hermes, Honcho, and GBrain behavior against current 
 
 # Gormes Parity Auditor
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Find what prevents Gormes from being Hermes in Go, with Goncho as the Honcho-compatible Go port. Output builder-ready gaps, not a vague research report.

@@ -20,6 +20,8 @@ type CheckResult struct {
 
 var (
 	hardlinePatterns = []PatternMatch{
+		{_cmdPos + `(?:[\w./-]*/)?(?:python(?:[23](?:\.\d+)?)?|pypy3?)(?:\s|$)`, "Python runtime execution is disabled in Gormes"},
+		{_cmdPos + `uv\s+run(?:\s+[^\s]+)*\s+(?:[\w./-]*/)?(?:python(?:[23](?:\.\d+)?)?|pypy3?)(?:\s|$)`, "Python runtime execution is disabled in Gormes"},
 		{`\brm\s+(-[^\s]*\s+)*(/|/\*|/ \*)(\s|$)`, "recursive delete of root filesystem"},
 		{`\brm\s+(-[^\s]*\s+)*(/home|/home/\*|/root|/root/\*|/etc|/etc/\*|/usr|/usr/\*|/var|/var/\*|/bin|/bin/\*|/sbin|/sbin/\*|/boot|/boot/\*|/lib|/lib/\*)(\s|$)`, "recursive delete of system directory"},
 		{`\brm\s+(-[^\s]*\s+)*(~|\$HOME)(/?|/\*)?(\s|$)`, "recursive delete of home directory"},

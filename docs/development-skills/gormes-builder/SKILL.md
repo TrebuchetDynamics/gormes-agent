@@ -5,6 +5,13 @@ description: Build Gormes from progress.json rows toward full Hermes-in-Go parit
 
 # Gormes Builder
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
 
 Build Gormes until it is Hermes in Go, with Goncho as the in-repo Honcho-compatible Go port. No smaller "MVP" is the final goal. Each builder pass still works as one bounded, test-proven slice.
@@ -177,7 +184,7 @@ For complex rows, use `gormes-tdd-slice` for the red-green loop. For uncertain A
 
 If tests fail from your own changes, fix them before reporting done. If the selected row is unbuildable because the contract is wrong, update/refine the row or report the exact blocker.
 
-If the worktree is dirty before you start, preserve existing changes. Do not revert user or previous-agent work. Work with the current tree and mention any verification limits caused by unrelated changes.
+If the working tree is dirty before you start, preserve existing changes. Do not revert user or previous-agent work. Work with the current `development` checkout and mention any verification limits caused by unrelated changes.
 
 If `git push origin development` is rejected because another worker advanced the branch, fetch and inspect the upstream commit before rebasing. When upstream already updated the same `progress.json` row or generated progress/docs/site surfaces, treat upstream generated surfaces as the source of truth during conflict resolution: keep the current slice's code/tests, preserve any stronger upstream acceptance/write-scope evidence, rerun `go run ./cmd/progress write`, and commit only the remaining coherent code/test delta if generated files no longer differ. Do not reapply stale generated progress/site hunks from the pre-rebase commit just to match local notes.
 

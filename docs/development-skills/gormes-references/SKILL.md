@@ -5,6 +5,13 @@ description: When stuck implementing a Go feature for Gormes, jump to the right 
 
 # Gormes References
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 Use this skill whenever you are about to write Gormes Go code and you are not sure which shape to use, which library to consult, or how a similar agent system solved the same problem. It is a research/lookup skill — not a planner, builder, or TDD skill. After consulting references, hand off to `gormes-builder` / `gormes-tdd-slice` for implementation.
 
 ## When To Use
@@ -131,7 +138,7 @@ The provider/auth/streaming map already lives in `references/go-agent-os/GORMES-
 |---|---|---|
 | Await-user-reply / pause-and-resume | `trpc-agent-go/agent/await_user_reply.go` | Resume-token contract, callback-context shape, no-leak design |
 | Provider/agent callback pipeline | `trpc-agent-go/model/callbacks.go`, `trpc-agent-go/agent/callbacks.go` | Before/after split from core turn |
-| Per-session worker fan-out (worktree-style) | `uzi` (patterns only) | Tmux fanout, session worktree state |
+| Per-session worker fan-out | `uzi` (patterns only) | Tmux fanout, isolated session state; do not use git worktrees for Gormes work |
 
 ### Utility primitives
 

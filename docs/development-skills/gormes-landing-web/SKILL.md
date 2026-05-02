@@ -5,7 +5,15 @@ description: Improve the www.gormes.ai landing page content, UI, visual hierarch
 
 # Gormes Landing Web
 
+## Repository Branch Rule
+
+For Gormes work, stay on the existing `development` branch. Do not create or
+use feature branches, short-lived branches, or git worktrees. If the checkout
+is not on `development`, stop before editing and switch safely or report the
+blocker.
+
 ## Mission
+
 Keep `www.gormes.ai` clear, accurate, and usable for strangers. This skill is
 for landing-page content and UI passes, not runtime feature implementation or
 roadmap invention.

@@ -559,7 +559,7 @@ func TestManager_Outbound_ToolProgressPersistsAsSeparateMessage(t *testing.T) {
 		Phase: kernel.PhaseStreaming,
 		SoulEvents: []kernel.SoulEntry{
 			{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
-			{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests url='https://example.test'"},
+			{At: time.Now(), Text: "tool: terminal: curl -L https://example.test/post.json"},
 		},
 	}
 	frames <- kernel.RenderFrame{
@@ -611,7 +611,7 @@ func TestManager_Outbound_ToolProgressOffSuppressesSeparateMessage(t *testing.T)
 		Phase: kernel.PhaseStreaming,
 		SoulEvents: []kernel.SoulEntry{
 			{At: time.Now(), Text: "tool: browser_navigate: https://www.reddit.com/r/WebAfterAI/s/example"},
-			{At: time.Now(), Text: "tool: terminal: python3 - <<'PY' import requests url='https://example.test'"},
+			{At: time.Now(), Text: "tool: terminal: curl -L https://example.test/post.json"},
 		},
 	}
 	frames <- kernel.RenderFrame{

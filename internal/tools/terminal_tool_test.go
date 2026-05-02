@@ -35,6 +35,21 @@ func TestTerminalToolBlocksDangerousCommandWithoutApproval(t *testing.T) {
 	}
 }
 
+func TestTerminalToolHardBlocksPythonRuntimeEvenWhenApprovalsOff(t *testing.T) {
+	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir(), ApprovalMode: ApprovalModeOff})
+	out := executeTerminalTool(t, tool, `{"command":"python3 - <<'PY'\nimport urllib.request\nPY"}`)
+
+	if out["status"] != "blocked" {
+		t.Fatalf("status = %v, want blocked: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "Python runtime execution is disabled") {
+		t.Fatalf("error = %v, want Python hardline description", out["error"])
+	}
+	if out["exit_code"] != float64(-1) {
+		t.Fatalf("exit_code = %v, want -1", out["exit_code"])
+	}
+}
+
 func TestTerminalToolRejectsBackgroundUntilProcessRegistryPort(t *testing.T) {
 	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir()})
 	out := executeTerminalTool(t, tool, `{"command":"sleep 10","background":true}`)

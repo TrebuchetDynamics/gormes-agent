@@ -14,6 +14,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 var startGreeting = gatewayHelpText()
@@ -75,12 +77,22 @@ type ManagerConfig struct {
 	SessionMap        session.Map
 	// AgentRouting enables OpenClaw-style agent/workspace bindings for live
 	// gateway turns. Zero value preserves legacy single-agent chat keys.
-	AgentRouting  AgentRoutingConfig
-	Hooks         *Hooks
-	RuntimeStatus RuntimeStatusWriter
-	Restart       RestartConfig
-	SessionExpiry SessionExpiryConfig
-	Now           func() time.Time
+	AgentRouting AgentRoutingConfig
+	// ToolRegistry is the full process registry. Agent-routed turns receive a
+	// policy-filtered view of this registry when agents.list[].tools is set.
+	ToolRegistry *tools.Registry
+	// SkillRuntime is the full process skills runtime. Agent-routed turns
+	// receive an allowlist wrapper when agents.list[].skills is set.
+	SkillRuntime *skills.Runtime
+	// AgentRuntimeFactory optionally returns an independent kernel/runtime for
+	// the routed agent session. When nil, Manager falls back to the legacy
+	// singleton kernel with per-turn policy overrides.
+	AgentRuntimeFactory AgentRuntimeFactory
+	Hooks               *Hooks
+	RuntimeStatus       RuntimeStatusWriter
+	Restart             RestartConfig
+	SessionExpiry       SessionExpiryConfig
+	Now                 func() time.Time
 	// PersistReasoningGlobal is invoked by /reasoning ... --global to persist
 	// the requested effort beyond the calling session. A nil callback or one
 	// that returns an error causes the command to fall back to a session-only
@@ -144,10 +156,31 @@ type ManagerConfig struct {
 	TypingActionEvidenceSink TypingActionEvidenceSink
 }
 
-type kernelSubmitter interface {
+type KernelSubmitter interface {
 	Submit(ev kernel.PlatformEvent) error
 	ResetSession() error
 	Render() <-chan kernel.RenderFrame
+}
+
+type kernelSubmitter = KernelSubmitter
+
+type AgentRuntimeFactory func(context.Context, AgentRuntimeRequest) (KernelSubmitter, error)
+
+type AgentRuntimeRequest struct {
+	AgentID     string
+	Name        string
+	SessionKey  string
+	Workspace   string
+	AgentDir    string
+	AuthHome    string
+	AuthStore   string
+	Model       string
+	BindingTier string
+	ToolPolicy  config.AgentToolPolicy
+	SkillNames  []string
+	Tools       *tools.Registry
+	Skills      kernel.SkillProvider
+	ToolSafety  kernel.ToolSafetyPolicy
 }
 
 // Manager owns cross-channel gateway mechanics for one binary instance.
@@ -169,6 +202,7 @@ type Manager struct {
 	turnCancelled    bool
 	turnFrameSeen    bool
 	turnLastUserText string // captures the last inbound submit text for auto-title
+	turnKernel       KernelSubmitter
 	kernelSessionKey string
 	shuttingDown     bool
 	followUps        []InboundEvent
@@ -188,6 +222,9 @@ type Manager struct {
 	liveTurnPromptSeams liveTurnPromptSeams
 	agentRouter         AgentRouter
 	agentRoutingEnabled bool
+	agentRuntimeMu      sync.Mutex
+	agentRuntimes       map[string]KernelSubmitter
+	agentRuntimeRender  chan kernel.RenderFrame
 
 	typingActionMu   sync.Mutex
 	typingActionLast map[string]time.Time
@@ -409,6 +446,8 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		liveTurnPromptSeams: seams,
 		agentRouter:         NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
 		agentRoutingEnabled: cfg.AgentRouting.Enabled,
+		agentRuntimes:       map[string]KernelSubmitter{},
+		agentRuntimeRender:  make(chan kernel.RenderFrame, kernel.RenderMailboxCap),
 		typingActionLast:    map[string]time.Time{},
 	}
 }
@@ -641,6 +680,9 @@ func (m *Manager) safeChannelDisconnect(ctx context.Context, ch Channel) {
 
 func (m *Manager) runOutbound(ctx context.Context) {
 	frames := m.renderChan
+	if frames == nil && m.cfg.AgentRuntimeFactory != nil {
+		frames = m.agentRuntimeRender
+	}
 	if frames == nil && m.kernel != nil {
 		frames = m.kernel.Render()
 	}
@@ -721,8 +763,8 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	case EventCancel:
 		m.markTurnCancelled()
-		if m.kernel != nil {
-			_ = m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
+		if k := m.activeTurnKernel(); k != nil {
+			_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 		}
 		return nil
 	case EventReset:
@@ -790,7 +832,7 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
 			return nil
 		}
-		if m.kernel == nil {
+		if m.kernel == nil && m.cfg.AgentRuntimeFactory == nil {
 			return nil
 		}
 		if m.dropDuplicateInboundSubmit(ev) {
@@ -857,8 +899,8 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventCancel:
 		m.markTurnCancelled()
-		if m.kernel != nil {
-			_ = m.kernel.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
+		if k := m.activeTurnKernel(); k != nil {
+			_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 		}
 		return true
 	case EventReset:
@@ -1650,6 +1692,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.turnKernel = nil
 	m.resetToolProgress()
 }
 
@@ -1665,6 +1708,7 @@ func (m *Manager) clearTurn() {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.turnKernel = nil
 	m.resetToolProgress()
 }
 
@@ -2245,14 +2289,40 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	})
 	seams := m.liveTurnPromptSeamsForAgent(route)
 	sessionContext, _, _ := assembleLiveTurnPrompt(seams, submitText, resolved.SessionID, sessionBlock)
-	if err := m.prepareKernelForAgentSession(sessionKey); err != nil {
+	snapshot := m.agentRuntimeSnapshot(route)
+	submitter := KernelSubmitter(m.kernel)
+	if m.cfg.AgentRuntimeFactory != nil && route.Enabled {
+		runtime, err := m.agentRuntimeForRoute(ctx, route, snapshot)
+		if err != nil {
+			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+				Platform:      ev.Platform,
+				PlatformState: PlatformStateRunning,
+				ErrorMessage:  "agent_runtime_unavailable agent_id=" + route.Decision.AgentID,
+			})
+			m.clearTurn()
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Agent runtime unavailable for `"+route.Decision.AgentID+"` (agent_runtime_unavailable).")
+			return false
+		}
+		submitter = runtime
+	} else {
+		if err := m.prepareKernelForAgentSession(sessionKey); err != nil {
+			m.clearTurn()
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Busy — try again in a second.")
+			return false
+		}
+	}
+	if submitter == nil {
 		m.clearTurn()
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Busy — try again in a second.")
 		return false
 	}
-	if err := m.kernel.Submit(kernel.PlatformEvent{
+	m.setPinnedTurnKernel(submitter)
+	if err := submitter.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,
+		Tools:          snapshot.Tools,
+		Skills:         snapshot.Skills,
+		ToolSafety:     snapshot.ToolSafety,
 		Model:          route.Decision.Model,
 		SessionID:      resolved.SessionID,
 		SessionContext: sessionContext,
