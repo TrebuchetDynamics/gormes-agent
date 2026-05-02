@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 53/85 subphases shipped · 25 in progress · 7 planned
+**Overall:** 55/85 subphases shipped · 24 in progress · 6 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -96,7 +96,7 @@ classification and row-backed implementation queue.
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 5/11 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/20 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 1/9 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 3/9 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -897,15 +897,15 @@ classification and row-backed implementation queue.
 
 - [ ] Heuristic or LLM-scored signal
 
-### 6.B — Skill Extractor ⏳
+### 6.B — Skill Extractor ✅
 
-- [ ] LLM-assisted pattern distillation
+- [x] LLM-assisted pattern distillation
 
-### 6.C — Skill Storage Format 🔨
+### 6.C — Skill Storage Format ✅
 
 - [x] SKILL.md frontmatter validation guard
 - [x] Hermes creative skill metadata compatibility
-- [ ] Portable SKILL.md format
+- [x] Portable SKILL.md format
 
 ### 6.D — Skill Retrieval + Matching 🔨
 
