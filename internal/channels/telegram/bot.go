@@ -140,6 +140,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		ChatID:      strconv.FormatInt(chatID, 10),
 		UserID:      userID,
 		MsgID:       strconv.Itoa(u.Message.MessageID),
+		MessageID:   strconv.Itoa(u.Message.MessageID),
 		Kind:        kind,
 		Text:        body,
 		Attachments: attachments,

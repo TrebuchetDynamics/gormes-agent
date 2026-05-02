@@ -16,10 +16,14 @@ type InboundDedupKeyResult struct {
 
 // InboundDedupKey derives the key used to track inbound platform message IDs.
 func InboundDedupKey(ev InboundEvent) InboundDedupKeyResult {
-	if ev.MessageID == "" {
+	messageID := strings.TrimSpace(ev.MessageID)
+	if messageID == "" {
+		messageID = strings.TrimSpace(ev.MsgID)
+	}
+	if messageID == "" {
 		return InboundDedupKeyResult{Evidence: MessageDeduplicatorEvidenceMissingMessageID}
 	}
-	return InboundDedupKeyResult{Key: inboundDedupKeyParts(ev.Platform, ev.ChatID, ev.ThreadID, ev.MessageID)}
+	return InboundDedupKeyResult{Key: inboundDedupKeyParts(ev.Platform, ev.ChatID, ev.ThreadID, messageID)}
 }
 
 func inboundDedupKeyParts(parts ...string) string {

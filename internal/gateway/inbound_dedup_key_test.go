@@ -2,11 +2,29 @@ package gateway
 
 import "testing"
 
-func TestInboundDedupKey_MissingMessageIDDegrades(t *testing.T) {
+func TestInboundDedupKey_UsesMsgIDFallbackWhenMessageIDMissing(t *testing.T) {
 	result := InboundDedupKey(InboundEvent{
 		Platform:  "telegram",
 		ChatID:    "chat-1",
 		ThreadID:  "thread-1",
+		MsgID:     "gateway-msg-1",
+		MessageID: "",
+	})
+
+	if result.Evidence != "" {
+		t.Fatalf("InboundDedupKey MsgID fallback evidence = %q, want none", result.Evidence)
+	}
+	if result.Key == "" {
+		t.Fatal("InboundDedupKey MsgID fallback key is empty")
+	}
+}
+
+func TestInboundDedupKey_MissingBothMessageIDsDegrades(t *testing.T) {
+	result := InboundDedupKey(InboundEvent{
+		Platform:  "telegram",
+		ChatID:    "chat-1",
+		ThreadID:  "thread-1",
+		MsgID:     "",
 		MessageID: "",
 	})
 

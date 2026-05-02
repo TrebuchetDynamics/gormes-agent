@@ -125,7 +125,7 @@ func TestGatewayInboundDedup_ScopesByChannelChatAndThread(t *testing.T) {
 	}
 }
 
-func TestGatewayInboundDedup_MissingMessageIDDegrades(t *testing.T) {
+func TestGatewayInboundDedup_MissingBothMessageIDsDegrades(t *testing.T) {
 	ctx := context.Background()
 	tg := newFakeChannel("telegram")
 	fk := &fakeKernel{}
@@ -143,7 +143,7 @@ func TestGatewayInboundDedup_MissingMessageIDDegrades(t *testing.T) {
 			Platform:  "telegram",
 			ChatID:    "chat-1",
 			ThreadID:  "thread-1",
-			MsgID:     "gateway-" + text,
+			MsgID:     "",
 			MessageID: "",
 			Kind:      EventSubmit,
 			Text:      text,
@@ -163,6 +163,51 @@ func TestGatewayInboundDedup_MissingMessageIDDegrades(t *testing.T) {
 		}
 	}
 	assertGatewayDedupEvidence(t, status, "telegram", MessageDeduplicatorEvidenceMissingMessageID)
+}
+
+func TestGatewayInboundDedup_UsesMsgIDFallbackWhenMessageIDMissing(t *testing.T) {
+	ctx := context.Background()
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	status := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "chat-1"},
+		RuntimeStatus: status,
+	}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	for _, text := range []string{"first", "second"} {
+		if err := m.handleInbound(ctx, InboundEvent{
+			Platform:  "telegram",
+			ChatID:    "chat-1",
+			ThreadID:  "thread-1",
+			MsgID:     "gateway-msg-1",
+			MessageID: "",
+			Kind:      EventSubmit,
+			Text:      text,
+		}); err != nil {
+			t.Fatalf("%s handleInbound: %v", text, err)
+		}
+	}
+	m.drainNextFollowUp(ctx)
+
+	submits := fk.submitsSnapshot()
+	if len(submits) != 1 {
+		t.Fatalf("kernel submits = %d, want duplicate MsgID dropped; submits=%#v", len(submits), submits)
+	}
+	if submits[0].Text != "first" {
+		t.Fatalf("submit[0].Text = %q, want first; submits=%#v", submits[0].Text, submits)
+	}
+
+	gotStatus, err := status.ReadRuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	if got := gotStatus.Platforms["telegram"].ErrorMessage; got == string(MessageDeduplicatorEvidenceMissingMessageID) {
+		t.Fatalf("telegram runtime status retained missing-message evidence with MsgID fallback: %q", got)
+	}
 }
 
 func assertGatewayDedupEvidence(t *testing.T, status *RuntimeStatusStore, platform string, want MessageDeduplicatorEvidence) {

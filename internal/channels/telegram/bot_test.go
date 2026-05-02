@@ -559,6 +559,9 @@ func TestTelegramBot_StatusReplyThreadsToTriggeringMessage(t *testing.T) {
 	if ev.MsgID != "42" {
 		t.Fatalf("ev.MsgID = %q, want \"42\"", ev.MsgID)
 	}
+	if ev.MessageID != "42" {
+		t.Fatalf("ev.MessageID = %q, want \"42\"", ev.MessageID)
+	}
 
 	// Now exercise SendReply with the captured MsgID; assert the outbound
 	// MessageConfig carries ReplyToMessageID=42.

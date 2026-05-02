@@ -1139,7 +1139,7 @@ func toolProgressModeDescription(mode string) string {
 	case "new":
 		return "⚙️ Tool progress: **NEW** — shown when tool changes (preview length: `display.tool_preview_length`, default 40)."
 	case "verbose":
-		return "⚙️ Tool progress: **VERBOSE** — every tool call with full arguments."
+		return "⚙️ Tool progress: **VERBOSE** — every tool call with safe bounded arguments."
 	default:
 		return "⚙️ Tool progress: **ALL** — every tool call shown (preview length: `display.tool_preview_length`, default 40)."
 	}
