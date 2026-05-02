@@ -10876,9 +10876,9 @@
             },
             {
               "name": "Gemini Cloud Code request/stream mapper",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports the pure OpenAI-to-Code-Assist Gemini mapper from Hermes: message content becomes Gemini contents with systemInstruction separation, tool calls and tool results preserve ID/name/JSON arguments, tool_choice becomes Gemini toolConfig, Code Assist envelopes wrap requests with model/project metadata, non-stream responses normalize back into ChatResponse, and stream events unwrap into shared text/tool/error chunks.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -11029,9 +11029,9 @@
             },
             {
               "name": "Google Code Assist project/quota resolver",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports the Google Code Assist control-plane helpers that Gemini Cloud Code depends on: build Google API headers from a token provider, discover/load Code Assist tier and managed project, run onboarding with free-vs-paid project requirements, retrieve quota buckets for /gquota-style status, resolve configured/env/managed project context, and classify VPC-SC/quota/Retry-After errors safely.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
