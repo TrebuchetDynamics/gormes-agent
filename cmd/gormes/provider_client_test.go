@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -117,6 +118,47 @@ func TestProviderHTTPClient_EmptyEndpointGenericProviderFailsBeforeRelativeURL(t
 				t.Fatalf("error = %q, want message mentioning the missing endpoint so operators know what to set", got)
 			}
 		})
+	}
+}
+
+func TestProviderHTTPClient_AnthropicProviderUsesMessagesAPI(t *testing.T) {
+	var sawMessagesPath bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/messages" {
+			t.Fatalf("request path = %q, want /v1/messages", r.URL.Path)
+		}
+		if got := r.Header.Get("x-api-key"); got != "sk-ant-api-test" {
+			t.Fatalf("x-api-key = %q, want sk-ant-api-test", got)
+		}
+		if got := r.Header.Get("anthropic-version"); got == "" {
+			t.Fatalf("anthropic-version header missing")
+		}
+		sawMessagesPath = true
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n")
+	}))
+	defer server.Close()
+
+	client, err := newProviderHTTPClient(config.Config{Hermes: config.HermesCfg{
+		Endpoint: server.URL + "/v1",
+		Model:    "claude-sonnet-4",
+		APIKey:   "sk-ant-api-test",
+		Provider: "anthropic",
+	}}, "anthropic")
+	if err != nil {
+		t.Fatalf("newProviderHTTPClient: %v", err)
+	}
+	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+		Model:     "claude-sonnet-4",
+		MaxTokens: 512,
+		Messages:  []hermes.Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("OpenStream error = %v", err)
+	}
+	defer stream.Close()
+	if !sawMessagesPath {
+		t.Fatal("Anthropic Messages endpoint was not called")
 	}
 }
 

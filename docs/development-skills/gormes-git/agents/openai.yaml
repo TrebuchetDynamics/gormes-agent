@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Git"
-  short_description: "Commit, push, and green-check development."
-  default_prompt: "Use $gormes-git to validate, commit all dirty Gormes changes, push development, and report the resulting git state."
+  short_description: "Commit, push, PR-merge development."
+  default_prompt: "Use $gormes-git to validate, commit all dirty Gormes changes, push development, handle the development-to-main PR when requested, and report the resulting git state."
