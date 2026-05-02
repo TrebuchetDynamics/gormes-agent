@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -28,6 +29,7 @@ const (
 type RestartConfig struct {
 	MarkerStore             *RestartTakeoverStore
 	ServiceManagerAvailable func() bool
+	SelfRestart             func() error
 	DrainTimeout            time.Duration
 }
 
@@ -93,6 +95,17 @@ func EnvironmentServiceManagerAvailable() bool {
 		strings.TrimSpace(os.Getenv("LAUNCHD_JOB")) != "" ||
 		strings.EqualFold(strings.TrimSpace(os.Getenv("GORMES_GATEWAY_SERVICE_MANAGER")), "1") ||
 		strings.EqualFold(strings.TrimSpace(os.Getenv("GORMES_GATEWAY_SERVICE_MANAGER")), "true")
+}
+
+// SelfRestartViaExec replaces the current process with a new instance of
+// the same executable, preserving arguments and environment. This is the
+// default self-restart mechanism when no service manager is available.
+func SelfRestartViaExec() error {
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable: %w", err)
+	}
+	return syscall.Exec(executable, os.Args, os.Environ())
 }
 
 func (s *RestartTakeoverStore) Write(ctx context.Context, marker RestartTakeoverMarker) error {

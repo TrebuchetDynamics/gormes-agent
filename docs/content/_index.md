@@ -7,7 +7,11 @@ slug: "/"
 
 # Gormes
 
-Gormes is a Go-native agent runtime for local TUI work, offline diagnostics, provider-backed turns, tools, Goncho memory, dashboard inspection, and configured chat gateways.
+Gormes runs AI agents as one Go-native agent runtime.
+
+No Python runtime. No virtualenv repair. No backend service just to open the UI.
+
+Start offline, prove the machine works, then add provider and gateway credentials.
 
 ## Get started
 
@@ -34,9 +38,18 @@ What makes it different?
 - **Local memory:** Goncho keeps sessions and durable context in local SQLite.
 - **Roadmap honesty:** Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening stay visible as active work instead of shipped promises.
 
+## What you can do today
+
+- Run a local agent UI with zero runtime dependencies on the offline path.
+- Send one-shot prompts to a provider-compatible endpoint.
+- Validate your environment before spending tokens.
+- Operate configured Telegram, Discord, or Slack agents from one binary.
+- Inspect and debug agent memory locally with Goncho.
+- Browse sessions, config, skills, and logs in the local dashboard.
+
 ## How it works
 
-The Gormes runtime is the local source of truth for TUI sessions, provider-backed turns, tools, Goncho memory, dashboard views, and configured gateway status. Operator docs separate what is ready today from architecture and parity pages that track deeper Hermes/Honcho compatibility.
+The Gormes binary is the local source of truth for TUI sessions, provider turns, tools, Goncho memory, dashboard views, and configured gateway status. Operator docs separate what is ready today from architecture and parity pages that track deeper Hermes/Honcho compatibility.
 
 ## What lives here?
 

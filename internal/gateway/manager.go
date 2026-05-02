@@ -1474,16 +1474,18 @@ func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev Inbou
 		ActiveAgents:     &activeAgents,
 	})
 
-	if !m.restartServiceManagerAvailable() {
+	serviceManagerAvailable := m.restartServiceManagerAvailable()
+	selfRestartAvailable := m.cfg.Restart.SelfRestart != nil
+	if !serviceManagerAvailable && !m.restartMarkerStoreAvailable() && !selfRestartAvailable {
 		evidence := RuntimeServiceManagerUnavailableEvidence{
 			Source:   ev.Platform,
 			ChatID:   ev.ChatID,
 			ThreadID: ev.ThreadID,
-			Reason:   "service-manager restart exit path is unavailable",
+			Reason:   "restart marker store and service-manager restart exit path are unavailable",
 			At:       now.Format(time.RFC3339Nano),
 		}
 		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{ServiceManagerUnavailableEvidence: &evidence})
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Restart requested but no service manager is available — the gateway will restart on its own if it exits. Send `/stop` first if a turn is active.")
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Restart unavailable: no restart manager is configured. Restart the gateway process manually or rerun install.sh with gateway restart enabled.")
 		return nil
 	}
 
@@ -1497,16 +1499,20 @@ func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev Inbou
 			At:       now.Format(time.RFC3339Nano),
 		}
 		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{ServiceManagerUnavailableEvidence: &evidence})
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Restart marker could not be written — the gateway will restart on its own if it exits.")
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Restart marker could not be written; restart was not started. Fix runtime state permissions or restart the gateway process manually.")
 		return nil
 	}
-	takeoverEvidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusWritten, now)
-	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{TakeoverMarkerEvidence: &takeoverEvidence})
+	if m.restartMarkerStoreAvailable() {
+		takeoverEvidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusWritten, now)
+		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{TakeoverMarkerEvidence: &takeoverEvidence})
+	}
 
 	if activeAgents > 0 {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("restart_requested: draining %d active agent(s) before restart.", activeAgents))
-	} else {
+	} else if serviceManagerAvailable {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "restart_requested: handing off to service manager.")
+	} else {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "restart_requested: handing off to gateway restart path.")
 	}
 
 	drainCtx, cancel := context.WithTimeout(context.Background(), m.restartDrainTimeout())
@@ -1515,6 +1521,17 @@ func (m *Manager) handleRestartCommand(ctx context.Context, ch Channel, ev Inbou
 		!errors.Is(err, context.DeadlineExceeded) &&
 		!errors.Is(err, context.Canceled) {
 		m.log.Warn("gateway restart drain", "err", err)
+	}
+
+	if !serviceManagerAvailable && selfRestartAvailable {
+		if err := m.cfg.Restart.SelfRestart(); err != nil {
+			m.log.Warn("gateway self-restart failed", "err", err)
+			return RestartRequestedError{
+				Code:    GatewayServiceRestartExitCode,
+				Message: fmt.Sprintf("self-restart failed: %v; process will exit and must be restarted manually", err),
+			}
+		}
+		return nil
 	}
 	return RestartRequestedError{
 		Code:    GatewayServiceRestartExitCode,
@@ -1555,6 +1572,11 @@ func (m *Manager) restartServiceManagerAvailable() bool {
 		return false
 	}
 	return m.cfg.Restart.ServiceManagerAvailable()
+}
+
+func (m *Manager) restartMarkerStoreAvailable() bool {
+	store := m.cfg.Restart.MarkerStore
+	return store != nil && strings.TrimSpace(store.path) != ""
 }
 
 func (m *Manager) restartDrainTimeout() time.Duration {

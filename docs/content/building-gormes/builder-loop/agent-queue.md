@@ -69,7 +69,28 @@ selection.
 - Unblocks: Production security posture
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. ACP Client Bridge Mode
+## 3. Interactive Onboarding
+
+- Phase: 5 / 5.O
+- Owner: `tools`
+- Size: `medium`
+- Status: `in_progress`
+- Priority: `P1`
+- Contract: Promote gormes onboard from setup alias into a truthful first-run command now, then complete the full interactive flow: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Match OpenClaw's onboarding depth without pretending partial onboarding is complete.
+- Trust class: operator
+- Ready when: QMD Hybrid Search (5.N) is operational for skill discovery step., Setup wizard alias exists as scaffold.
+- Not ready when: The row requires live credentials for testing., The row replaces existing setup without migration path.
+- Degraded mode: Current partial onboarding reports first-run status, runtime skills root, bundled/local skill counts, and partial learning-loop state with next-step commands. The future full wizard must report missing provider credentials, gateway config gaps, or browser unavailability per step and allow skip with explicit warning.
+- Fixture: `cmd/gormes/skills_onboard_test.go::TestOnboardExplainsRuntimeSkillsAndLearningState; future full wizard: internal/cli/onboard_test.go`
+- Write scope: `cmd/gormes/main.go`, `cmd/gormes/setup.go`, `cmd/gormes/onboard.go`, `cmd/gormes/skills.go`, `cmd/gormes/skills_onboard_test.go`, `internal/skills/list.go`, `internal/cli/onboard.go`, `internal/cli/onboard_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes -run 'TestRootSkills\|TestOnboard\|TestSetup\|TestHermesCLIParityManifest' -count=1`, `go test ./internal/cli -run TestOnboard -count=1`, `go run ./cmd/progress validate`
+- Done signal: gormes onboard ships as full interactive first-run flow.
+- Acceptance: gormes onboard is a real top-level command, not a setup alias., Current output separates runtime skills from docs/development-skills and points users to gormes skills list., Current output states that skill capture is manual/prompted and full automatic distill/promote/maintain is partial., Future full wizard walks through model -> provider -> auth -> gateway -> browser -> skills -> dashboard., Each future wizard step can be skipped with explicit warning., Already-configured future wizard steps are detected and pre-filled., End-to-end future wizard is testable without live credentials (mock provider, fake channel).
+- Source refs: openclaw onboard command, cmd/gormes/setup.go, docs/content/building-gormes/fleet-operational-patterns.md, docs/content/building-gormes/fleet-integration-plan.md
+- Unblocks: First-run user experience
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 4. ACP Client Bridge Mode
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -90,7 +111,7 @@ selection.
 - Unblocks: Multi-agent interoperability, Editor integrations
 - Why now: Unblocks Multi-agent interoperability, Editor integrations.
 
-## 4. Extension Lifecycle Hook System
+## 5. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -111,7 +132,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 5. System Events, Heartbeat, and Presence
+## 6. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -132,7 +153,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 6. Gateway Discover and Probe
+## 7. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -153,7 +174,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 7. Channels Capabilities Introspection
+## 8. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -174,7 +195,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 8. Prompt Fragment Include System
+## 9. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -195,7 +216,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 9. Plan gate hook in agent turn loop
+## 10. Plan gate hook in agent turn loop
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -213,26 +234,6 @@ selection.
 - Done signal: Plan gate tests prove safe plans pass and unsafe plans are refused
 - Acceptance: Plan gate evaluates agent plan before any tool executes, Unsafe plans are refused with structured explanation, Safe plans pass through with zero added latency >10ms P99, Plan gate is testable with mock tool sets
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Tool gate pre-execution validation
-
-- Phase: 4 / 4.L
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Each individual tool invocation is checked against intent alignment before execution. This mirrors IntentGuard's two-gate architecture: plan gate (strategic) + tool gate (tactical).
-- Trust class: operator, system
-- Ready when: Plan gate exists (4.L row 1), Tool registry exposes permission model
-- Not ready when: Plan gate not yet implemented
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/tools/safety_tool_gate.go`, `internal/tools/safety_tool_gate_test.go`
-- Test commands: `go test ./internal/tools -run TestToolGate -count=1`
-- Done signal: Tool gate tests prove intent-aligned calls pass and drift calls are blocked
-- Acceptance: Tool gate evaluates every tool call before execution, Tool calls outside intent scope are blocked, Intent drift across multi-step tool chains is detected, Tool gate adds <5ms P99 overhead
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

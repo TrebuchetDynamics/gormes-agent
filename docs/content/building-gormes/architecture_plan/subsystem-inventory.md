@@ -313,7 +313,7 @@ Upstream uses `~/.hermes/` as the state root (overridable via `HERMES_HOME`). Go
 | `~/.hermes/sessions/` | Per-session exports + transcripts (JSONL) | 3.E.3 | Planned — Transcript Export Command |
 | `~/.hermes/auth/` | Per-provider OAuth tokens | 4.G | Planned — token vault |
 | `~/.hermes/memories/` | Per-backend memory plugin storage (8 backends) | 5.I | Planned — plugin directories |
-| `~/.hermes/skills/` | Installed skills (26 upstream categories) | 5.F | Planned — `~/.local/share/gormes/skills/` |
+| `~/.hermes/skills/` | Installed skills (26 upstream categories) | 5.F | Partial — runtime skills now resolve under `GORMES_HOME/skills` (default `~/.gormes/skills`) with `GORMES_SKILLS_ROOT` override; full hub/sync/guard parity remains row-backed |
 | `~/.hermes/optional-skills/` | Optional skill packs (10+ categories) | 5.F | Planned |
 | `~/.hermes/plugins/` | Plugin installs (context_engine, memory/*, example-dashboard) | 5.I | Planned |
 | `$XDG_DATA_HOME/gormes/hooks/` | User hook scripts (per-event `HOOK.yaml` + executable commands) | 2.F | ✅ live manifest loading and built-in `BOOT.md` startup queuing landed |

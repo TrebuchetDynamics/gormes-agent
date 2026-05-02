@@ -79,6 +79,8 @@ Pick the primary intent:
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.
 - **Audit README or public repo messaging**: use `gormes-readme`.
 - **Improve landing page content or UI**: use `gormes-landing-web`.
+- **Commit, validate, and push the dirty `development` branch**: use
+  `gormes-git`.
 - **Create or improve skills**: use system `skill-creator` plus this manager.
   Fold repeated mistakes into existing class-level skills before creating a
   new one, and keep the update as process guidance rather than a session diary.

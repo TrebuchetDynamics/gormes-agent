@@ -863,7 +863,7 @@ classification and row-backed implementation queue.
 - [x] CLI log redactor for known secret shapes
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge
-- [x] Interactive Onboarding
+- [ ] Interactive Onboarding
 - [x] Logs Command
 
 ### 5.P — Docker / Packaging 🔨

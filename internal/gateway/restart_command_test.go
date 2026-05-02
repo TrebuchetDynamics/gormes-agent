@@ -181,6 +181,43 @@ func TestGatewayRestartCommand_ServiceManagerUnavailableReportsDegradedWithoutEx
 	now := time.Date(2026, 4, 25, 17, 42, 0, 0, time.UTC)
 	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
 	statusStore.now = func() time.Time { return now }
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: statusStore,
+		Restart: RestartConfig{
+			ServiceManagerAvailable: func() bool { return false },
+			DrainTimeout:            time.Second,
+		},
+		Now: func() time.Time { return now },
+	}, &fakeKernel{}, nil)
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", MsgID: "msg-1", Kind: EventRestart}); err != nil {
+		t.Fatalf("handleInbound unavailable service manager = %v, want nil", err)
+	}
+	status, err := statusStore.ReadRuntimeStatus(ctx)
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	if !status.RestartRequested {
+		t.Fatalf("RestartRequested = false, want degraded request evidence")
+	}
+	if len(status.ServiceManagerUnavailable) != 1 {
+		t.Fatalf("ServiceManagerUnavailable = %+v, want one evidence row", status.ServiceManagerUnavailable)
+	}
+	if sent := ch.sentSnapshot(); len(sent) != 1 || !strings.Contains(sent[0].Text, "Restart unavailable") {
+		t.Fatalf("service-manager unavailable reply = %#v, want restart unavailable evidence", sent)
+	}
+}
+
+func TestGatewayRestartCommand_NoServiceManagerUsesMarkerExitPath(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 4, 25, 17, 42, 30, 0, time.UTC)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	statusStore.now = func() time.Time { return now }
 	markerStore := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
 	markerStore.now = func() time.Time { return now }
 	ch := newFakeChannel("telegram")
@@ -198,24 +235,91 @@ func TestGatewayRestartCommand_ServiceManagerUnavailableReportsDegradedWithoutEx
 		t.Fatalf("Register: %v", err)
 	}
 
-	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", MsgID: "msg-1", Kind: EventRestart}); err != nil {
-		t.Fatalf("handleInbound unavailable service manager = %v, want nil", err)
+	err := m.handleInbound(ctx, InboundEvent{
+		Platform:  "telegram",
+		ChatID:    "42",
+		ThreadID:  "thread-7",
+		MsgID:     "msg-1",
+		MessageID: "update-1",
+		Kind:      EventRestart,
+		Text:      "/restart",
+	})
+	if err == nil {
+		t.Fatal("handleInbound(/restart) returned nil, want restart exit error even without service manager env")
 	}
-	if _, err := os.Stat(markerStore.path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("marker stat = %v, want no marker when service manager is unavailable", err)
+	var exitErr interface{ ExitCode() int }
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != GatewayServiceRestartExitCode {
+		t.Fatalf("restart error = %v, exit code %d, want %d", err, commandExitCodeForGatewayTest(err), GatewayServiceRestartExitCode)
+	}
+
+	marker := readRestartMarkerFixture(t, markerStore.path)
+	if marker.SourcePlatform != "telegram" || marker.ChatID != "42" || marker.ThreadID != "thread-7" {
+		t.Fatalf("marker source = %+v, want telegram/42/thread-7", marker)
+	}
+	if marker.UpdateID != "update-1" || marker.MessageID != "msg-1" {
+		t.Fatalf("marker IDs = update %q message %q, want update-1/msg-1", marker.UpdateID, marker.MessageID)
+	}
+
+	status, err := statusStore.ReadRuntimeStatus(ctx)
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	if !status.RestartRequested {
+		t.Fatalf("RestartRequested = false, want true: %+v", status)
+	}
+	if len(status.TakeoverMarkers) != 1 || status.TakeoverMarkers[0].Status != RestartTakeoverMarkerStatusWritten {
+		t.Fatalf("TakeoverMarkers = %+v, want one written marker evidence", status.TakeoverMarkers)
+	}
+	if len(status.ServiceManagerUnavailable) != 0 {
+		t.Fatalf("ServiceManagerUnavailable = %+v, want none when marker exit path is available", status.ServiceManagerUnavailable)
+	}
+	if sent := ch.sentSnapshot(); len(sent) != 1 || !strings.Contains(sent[0].Text, "gateway restart path") {
+		t.Fatalf("restart reply = %#v, want gateway restart path handoff", sent)
+	}
+}
+
+func TestGatewayRestartCommand_NoServiceManagerUsesSelfRestartHook(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 4, 25, 17, 42, 45, 0, time.UTC)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	statusStore.now = func() time.Time { return now }
+	ch := newFakeChannel("telegram")
+	selfRestarts := 0
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: statusStore,
+		Restart: RestartConfig{
+			ServiceManagerAvailable: func() bool { return false },
+			SelfRestart: func() error {
+				selfRestarts++
+				return nil
+			},
+			DrainTimeout: time.Second,
+		},
+		Now: func() time.Time { return now },
+	}, &fakeKernel{}, nil)
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", MsgID: "msg-1", Kind: EventRestart}); err != nil {
+		t.Fatalf("handleInbound(/restart) with self-restart hook = %v, want nil", err)
+	}
+	if selfRestarts != 1 {
+		t.Fatalf("self restarts = %d, want 1", selfRestarts)
 	}
 	status, err := statusStore.ReadRuntimeStatus(ctx)
 	if err != nil {
 		t.Fatalf("ReadRuntimeStatus: %v", err)
 	}
 	if !status.RestartRequested {
-		t.Fatalf("RestartRequested = false, want degraded request evidence")
+		t.Fatalf("RestartRequested = false, want true: %+v", status)
 	}
-	if len(status.ServiceManagerUnavailable) != 1 {
-		t.Fatalf("ServiceManagerUnavailable = %+v, want one evidence row", status.ServiceManagerUnavailable)
+	if len(status.ServiceManagerUnavailable) != 0 {
+		t.Fatalf("ServiceManagerUnavailable = %+v, want none when self-restart hook is available", status.ServiceManagerUnavailable)
 	}
-	if sent := ch.sentSnapshot(); len(sent) != 1 || !strings.Contains(sent[0].Text, "no service manager") {
-		t.Fatalf("service-manager unavailable reply = %#v, want 'no service manager' evidence", sent)
+	if sent := ch.sentSnapshot(); len(sent) != 1 || !strings.Contains(sent[0].Text, "gateway restart path") {
+		t.Fatalf("restart reply = %#v, want gateway restart path handoff", sent)
 	}
 }
 
@@ -358,4 +462,57 @@ func commandExitCodeForGatewayTest(err error) int {
 		return exitErr.ExitCode()
 	}
 	return 0
+}
+
+func TestGatewayRestartCommand_SelfRestartCalledWhenNoServiceManager(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	statusStore.now = func() time.Time { return now }
+	if err := statusStore.UpdateRuntimeStatus(ctx, RuntimeStatusUpdate{GatewayState: GatewayStateRunning}); err != nil {
+		t.Fatalf("seed runtime status: %v", err)
+	}
+
+	markerStore := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	markerStore.now = func() time.Time { return now }
+
+	selfRestartCalled := false
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: statusStore,
+		Restart: RestartConfig{
+			MarkerStore:             markerStore,
+			ServiceManagerAvailable: func() bool { return false },
+			SelfRestart: func() error {
+				selfRestartCalled = true
+				return nil
+			},
+			DrainTimeout: time.Second,
+		},
+		Now: func() time.Time { return now },
+	}, &fakeKernel{}, nil)
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	err := m.handleInbound(ctx, InboundEvent{
+		Platform:  "telegram",
+		ChatID:    "42",
+		MsgID:     "msg-restart",
+		MessageID: "update-restart",
+		Kind:      EventRestart,
+		Text:      "/restart",
+	})
+	if err != nil {
+		t.Fatalf("handleInbound self-restart returned error: %v", err)
+	}
+	if !selfRestartCalled {
+		t.Fatal("SelfRestart was not called when no service manager is available")
+	}
+
+	marker := readRestartMarkerFixture(t, markerStore.path)
+	if marker.SourcePlatform != "telegram" || marker.ChatID != "42" {
+		t.Fatalf("marker source = %+v, want telegram/42", marker)
+	}
 }

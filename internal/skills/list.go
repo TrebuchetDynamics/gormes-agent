@@ -34,7 +34,14 @@ type skillListMeta struct {
 }
 
 func ListInstalledSkills(opts ListOptions, disabled map[string]struct{}) []SkillRow {
-	rows := installedSkillRows()
+	return ListInstalledSkillsFromRoots(defaultSkillsRoot(), bundledSkillsRoot(), opts, disabled)
+}
+
+// ListInstalledSkillsFromRoots returns installed skills from an explicit
+// runtime root plus an optional bundled catalog root. CLI and gateway callers
+// use this when config has already resolved the runtime skills root.
+func ListInstalledSkillsFromRoots(root, bundledRoot string, opts ListOptions, disabled map[string]struct{}) []SkillRow {
+	rows := installedSkillRows(root, bundledRoot)
 	source := normalizedListSource(opts.Source)
 	disabledNames := normalizedDisabledSet(disabled)
 
@@ -63,8 +70,8 @@ func ListInstalledSkills(opts ListOptions, disabled map[string]struct{}) []Skill
 	return out
 }
 
-func installedSkillRows() []SkillRow {
-	store := NewStore(defaultSkillsRoot(), 0)
+func installedSkillRows(root, bundledRoot string) []SkillRow {
+	store := NewStore(root, 0)
 	snapshot, err := store.SnapshotActive()
 	if err != nil {
 		return nil
@@ -74,7 +81,7 @@ func installedSkillRows() []SkillRow {
 	for _, skill := range snapshot.Skills {
 		rows = append(rows, activeSkillRow(store.ActiveDir(), skill))
 	}
-	rows = append(rows, bundledSkillRows()...)
+	rows = append(rows, bundledSkillRows(bundledRoot)...)
 	return rows
 }
 
@@ -87,8 +94,7 @@ func activeSkillRow(activeDir string, skill Skill) SkillRow {
 	return row
 }
 
-func bundledSkillRows() []SkillRow {
-	root := bundledSkillsRoot()
+func bundledSkillRows(root string) []SkillRow {
 	if root == "" {
 		return nil
 	}
@@ -223,14 +229,14 @@ func defaultSkillsRoot() string {
 	if root := strings.TrimSpace(os.Getenv("GORMES_SKILLS_ROOT")); root != "" {
 		return root
 	}
-	if xdg := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); xdg != "" {
-		return filepath.Join(xdg, "gormes", "skills")
+	if home := strings.TrimSpace(os.Getenv("GORMES_HOME")); home != "" {
+		return filepath.Join(home, "skills")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return filepath.Join(".local", "share", "gormes", "skills")
+		return filepath.Join(".gormes", "skills")
 	}
-	return filepath.Join(home, ".local", "share", "gormes", "skills")
+	return filepath.Join(home, ".gormes", "skills")
 }
 
 // DefaultRoot returns the default user-writable skills root.

@@ -30,7 +30,7 @@
   <header class="docs-home-hero">
     <p class="kicker">Gormes · Documentation</p>
     <h1 class="docs-home-title">Run agents from one Go-native runtime.</h1>
-    <p class="docs-lede">Gormes gives operators a native terminal UI, offline diagnostics, provider-backed turns, local Goncho memory, the htmx dashboard, and configured gateway paths from one release binary.</p>
+    <p class="docs-lede">Gormes runs AI agents from one Go-native runtime: native terminal UI, offline diagnostics, provider-backed turns, local Goncho memory, dashboard, and configured gateway paths from one binary.</p>
     <div class="docs-home-actions" aria-label="Primary documentation paths">
       {{ range $actions }}
       <a class="docs-home-action" href="{{ .href }}">
@@ -45,7 +45,7 @@
     <div class="docs-home-explain-copy">
       <p class="kicker">What is Gormes?</p>
       <h2 id="what-is-gormes">A self-hosted agent runtime for machines that need to keep working.</h2>
-      <p>Gormes is the Go-native rewrite of the Hermes-Agent architecture. It does not need a running Hermes backend for the native smoke path, and it keeps the operator surface inspectable: one binary, local files, explicit diagnostics, and source-backed release evidence.</p>
+      <p>Gormes is the Go-native rewrite of the Hermes-Agent architecture. It starts offline without credentials, network calls, Python, Node, Docker, or a Hermes backend, then grows into provider-backed turns and configured gateways.</p>
       <ul class="docs-home-checks">
         <li>Built for agents that restart, move machines, and cross flaky networks.</li>
         <li>Useful today for offline TUI checks, provider one-shots, dashboard inspection, gateway status, and Goncho memory diagnostics.</li>

@@ -51,6 +51,17 @@
 </section>
 {{end}}
 
+{{if .BuiltForItems}}
+<section id="built-for" class="built-for">
+  <div class="built-for-inner">
+    <h2 class="section-title">{{.BuiltForHeadline}}</h2>
+    <ul class="built-for-list">
+      {{range .BuiltForItems}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+</section>
+{{end}}
+
 <section id="why" class="why">
   <div class="why-inner">
     <p class="kicker">{{.WhyLabel}}</p>
@@ -67,17 +78,6 @@
     </div>
   </div>
 </section>
-
-{{if .BuiltForItems}}
-<section id="built-for" class="built-for">
-  <div class="built-for-inner">
-    <h2 class="section-title">{{.BuiltForHeadline}}</h2>
-    <ul class="built-for-list">
-      {{range .BuiltForItems}}<li>{{.}}</li>{{end}}
-    </ul>
-  </div>
-</section>
-{{end}}
 
 <section id="roadmap" class="roadmap">
   <div class="roadmap-inner">
