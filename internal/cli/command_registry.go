@@ -126,6 +126,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "debug", Description: "Upload debug report and get shareable links", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "deny", Description: "Deny a pending dangerous command", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "fast", Description: "Toggle fast mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "goal", Description: "Set a standing goal Gormes works on across turns until achieved", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable, Subcommands: []string{"pause", "resume", "clear", "status"}},
 	{Name: "history", Description: "Show conversation history", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "image", Description: "Attach a local image file for your next prompt", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "insights", Description: "Show usage insights and analytics", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

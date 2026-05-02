@@ -75,6 +75,7 @@ func TestCommandRegistryPolicyResolveSlash(t *testing.T) {
 		{raw: "/start", want: "help", ok: true},
 		{raw: "/new", want: "new", ok: true},
 		{raw: "/reset", want: "new", ok: true},
+		{raw: "/goal status", want: "goal", ok: true},
 		{raw: "/no-such-command-xyzzy", want: "", ok: false},
 		{raw: "", want: "", ok: false},
 	}
@@ -89,6 +90,25 @@ func TestCommandRegistryPolicyResolveSlash(t *testing.T) {
 		}
 		if got.Name != tc.want {
 			t.Errorf("ResolveCommandPolicy(%q).Name = %q, want %q", tc.raw, got.Name, tc.want)
+		}
+	}
+}
+
+func TestCommandRegistryGoalCommandTracksHermesRegistry(t *testing.T) {
+	cmd, ok := ResolveCommandPolicy("/goal status")
+	if !ok {
+		t.Fatal("ResolveCommandPolicy(/goal status) not found")
+	}
+	if cmd.ActiveTurnPolicy != ActiveTurnPolicyUnavailable {
+		t.Fatalf("/goal policy = %q, want %q until persistent-goal loop lands", cmd.ActiveTurnPolicy, ActiveTurnPolicyUnavailable)
+	}
+	want := []string{"pause", "resume", "clear", "status"}
+	if len(cmd.Subcommands) != len(want) {
+		t.Fatalf("/goal Subcommands = %v, want %v", cmd.Subcommands, want)
+	}
+	for i, sub := range want {
+		if cmd.Subcommands[i] != sub {
+			t.Errorf("/goal Subcommands[%d] = %q, want %q (full=%v)", i, cmd.Subcommands[i], sub, cmd.Subcommands)
 		}
 	}
 }
