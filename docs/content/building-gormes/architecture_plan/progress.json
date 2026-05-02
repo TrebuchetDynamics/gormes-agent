@@ -16547,10 +16547,10 @@
             },
             {
               "name": "Tool descriptor layer (OperationSpec)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Every tool in the registry carries a declarative descriptor (OperationSpec) that generates model schemas, CLI commands, gateway slash commands, doctor checks, and audit taxonomy from one source",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -16603,7 +16603,8 @@
               ],
               "done_signal": [
                 "OperationSpec fixtures prove descriptor validation, trust-class rejection, and doctor checks. Core tools carry descriptors. Executor rejects disallowed callers before handler entry."
-              ]
+              ],
+              "wired": true
             }
           ],
           "drift_state": {
