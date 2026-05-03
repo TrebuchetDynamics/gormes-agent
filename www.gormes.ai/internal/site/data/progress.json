@@ -25754,9 +25754,9 @@
             {
               "name": "CLI contextual first-touch onboarding hint renderers",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "internal/cli exposes pure constants and renderers for Hermes-compatible contextual onboarding hints: BusyInputPromptFlag = `busy_input_prompt`, ToolProgressPromptFlag = `tool_progress_prompt`, BusyInputHint(surface, mode string) string for interrupt/queue/steer modes, and ToolProgressHint(surface string) string for long-running tool progress. CLI text is plain ASCII and gateway text may use channel-friendly wording, but both preserve the operator contract: explain what just happened, name `/busy` or `/verbose` follow-up commands, and state that the tip only shows once.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -25811,6 +25811,29 @@
               "done_signal": [
                 "internal/cli fixtures prove busy-input and tool-progress onboarding flag constants plus CLI/gateway hint text for all modes, with no config, TTY, gateway, or tool-execution side effects."
               ],
+              "note": "Complete 2026-05-03: internal/cli now exposes pure first-touch hint constants and renderers for busy-input and tool-progress guidance. BusyInputHint covers interrupt, queue, steer, and unknown-mode fallback for CLI and channel-safe gateway surfaces; ToolProgressHint covers CLI/gateway /verbose guidance and the all -> new -> off cycle. The helpers are dependency-free, do not mention Hermes or raw config keys, do not read/write config, and do not mutate onboarding.seen state.",
+              "evidence": {
+                "implementation": [
+                  "internal/cli/onboarding_hints.go defines BusyInputPromptFlag and ToolProgressPromptFlag while preserving OpenClawResidueCleanupFlag in onboarding_state.go.",
+                  "internal/cli/onboarding_hints.go:BusyInputHint renders CLI-safe or gateway-safe hints for interrupt, queue, steer, and unknown busy-input modes.",
+                  "internal/cli/onboarding_hints.go:ToolProgressHint renders CLI/gateway /verbose guidance with the all -> new -> off mode cycle.",
+                  "internal/cli/onboarding_hints.go contains no config, TTY, gateway, active-turn, or tool execution dependencies."
+                ],
+                "tests": [
+                  "internal/cli/onboarding_hints_test.go:TestOnboardingHintFlagsMatchHermes",
+                  "internal/cli/onboarding_hints_test.go:TestBusyInputHintCLIByMode",
+                  "internal/cli/onboarding_hints_test.go:TestBusyInputHintGatewayByMode",
+                  "internal/cli/onboarding_hints_test.go:TestToolProgressHintCLIAndGateway",
+                  "internal/cli/onboarding_hints_test.go:TestOnboardingHintsUnknownInputsDegrade",
+                  "internal/cli/onboarding_state_test.go:TestOnboardingSeen_*",
+                  "internal/cli/onboarding_state_test.go:TestMarkOnboardingSeen_InMemoryPreservesOtherFlags"
+                ],
+                "verification": [
+                  "go test ./internal/cli -run '^TestOnboardingHint|^TestBusyInputHint|^TestToolProgressHint' -count=1 -> ok",
+                  "go test ./internal/cli -run '^TestOnboardingSeen|^TestMarkOnboardingSeen' -count=1 -> ok",
+                  "go test ./internal/cli -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:agent/onboarding.py BUSY_INPUT_FLAG, TOOL_PROGRESS_FLAG, busy_input_hint_*, tool_progress_hint_*",

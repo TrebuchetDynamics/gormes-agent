@@ -810,7 +810,7 @@ classification and row-backed implementation queue.
 - [x] CLI deterministic tip selector
 - [x] CLI OpenClaw residue detection and hint text
 - [x] CLI onboarding seen-state map helpers
-- [ ] CLI contextual first-touch onboarding hint renderers
+- [x] CLI contextual first-touch onboarding hint renderers
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
 - [x] CLI webhook URL normalizer

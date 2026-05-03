@@ -89,28 +89,7 @@ selection.
 - Unblocks: Production security posture
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 4. CLI contextual first-touch onboarding hint renderers
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: internal/cli exposes pure constants and renderers for Hermes-compatible contextual onboarding hints: BusyInputPromptFlag = `busy_input_prompt`, ToolProgressPromptFlag = `tool_progress_prompt`, BusyInputHint(surface, mode string) string for interrupt/queue/steer modes, and ToolProgressHint(surface string) string for long-running tool progress. CLI text is plain ASCII and gateway text may use channel-friendly wording, but both preserve the operator contract: explain what just happened, name `/busy` or `/verbose` follow-up commands, and state that the tip only shows once.
-- Trust class: operator, gateway, system
-- Ready when: CLI onboarding seen-state map helpers are complete and preserve arbitrary onboarding.seen flags., This row only adds pure hint constants/renderers; gateway/TUI/CLI startup binding remains row-backed., Tests use string fixtures and do not require config files, TTYs, channels, gateway managers, active turns, or tool execution.
-- Not ready when: The slice persists onboarding.seen flags, reads config.toml, starts a gateway, inspects active turns, or emits channel messages., The slice changes busy-input policy, tool-progress rendering, slash-command behavior, or TUI state machines., The helper text mentions Hermes product commands or upstream config paths instead of Gormes-compatible operator guidance.
-- Degraded mode: Unknown busy-input modes fall back to interrupt wording; unknown surfaces return CLI/plain text. The helpers do not read or write config and do not decide whether a hint has already been seen.
-- Fixture: `internal/cli/onboarding_hints_test.go`
-- Write scope: `internal/cli/onboarding_hints.go`, `internal/cli/onboarding_hints_test.go`, `internal/cli/onboarding_state.go`, `internal/cli/onboarding_state_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/cli -run '^TestOnboardingHint\|^TestBusyInputHint\|^TestToolProgressHint' -count=1`, `go test ./internal/cli -run '^TestOnboardingSeen\|^TestMarkOnboardingSeen' -count=1`, `go run ./cmd/progress validate`
-- Done signal: internal/cli fixtures prove busy-input and tool-progress onboarding flag constants plus CLI/gateway hint text for all modes, with no config, TTY, gateway, or tool-execution side effects.
-- Acceptance: TestOnboardingHintFlagsMatchHermes proves BusyInputPromptFlag is `busy_input_prompt`, ToolProgressPromptFlag is `tool_progress_prompt`, and OpenClawResidueCleanupFlag remains `openclaw_residue_cleanup`., TestBusyInputHintCLIByMode proves interrupt, queue, and steer CLI hints mention the actual behavior, `/busy` follow-up commands, and `only shows once` without markdown-only wording., TestBusyInputHintGatewayByMode proves gateway hints for interrupt, queue, and steer are channel-safe, mention `/busy status` or the relevant `/busy` mode command, and do not include raw config keys., TestToolProgressHintCLIAndGateway proves tool-progress hints mention `/verbose`, the mode cycle `all -> new -> off`, and one-time display behavior., TestOnboardingHintsUnknownInputsDegrade proves unknown mode and surface inputs return non-empty CLI-safe fallback text without panic., Existing TestOnboardingSeen and TestMarkOnboardingSeen fixtures remain green, proving renderers do not change seen-state semantics.
-- Source refs: ../hermes-agent/agent/onboarding.py:BUSY_INPUT_FLAG,TOOL_PROGRESS_FLAG,busy_input_hint_gateway,busy_input_hint_cli,tool_progress_hint_gateway,tool_progress_hint_cli,is_seen,mark_seen, ../hermes-agent/tests/agent/test_onboarding.py, internal/cli/onboarding_state.go, internal/cli/onboarding_state_test.go, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli
-- Unblocks: Busy-input first-touch hint binding, Tool-progress first-touch hint binding
-- Why now: Unblocks Busy-input first-touch hint binding, Tool-progress first-touch hint binding.
-
-## 5. ACP Client Bridge Mode
+## 4. ACP Client Bridge Mode
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -131,7 +110,7 @@ selection.
 - Unblocks: Multi-agent interoperability, Editor integrations
 - Why now: Unblocks Multi-agent interoperability, Editor integrations.
 
-## 6. Extension Lifecycle Hook System
+## 5. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -152,7 +131,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 7. System Events, Heartbeat, and Presence
+## 6. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -173,7 +152,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 8. Gateway Discover and Probe
+## 7. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -194,7 +173,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 9. Channels Capabilities Introspection
+## 8. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -215,7 +194,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 10. Prompt Fragment Include System
+## 9. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -235,5 +214,25 @@ selection.
 - Source refs: agent-zero prompts/ (72 fragment files), agent-zero agent.py:prepare_prompt, docs/content/building-gormes/agent-zero-feature-analysis.md
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
+
+## 10. Plan gate hook in agent turn loop
+
+- Phase: 4 / 4.L
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Before tool execution, the agent loop invokes a plan-gate safety check. Unsafe plans are refused with explanation. Safe plans proceed. This mirrors MOSAIC (2025) plan->check->act/refuse pattern.
+- Trust class: operator, system
+- Ready when: Agent turn loop has a hook point before tool dispatch, Tool registry exposes safety-relevant metadata per tool
+- Not ready when: Agent loop is not refactorable to add pre-tool hooks, Tool registry has no permission/safety metadata
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/safety_plan_gate.go`, `internal/hermes/safety_plan_gate_test.go`
+- Test commands: `go test ./internal/hermes -run TestPlanGate -count=1`
+- Done signal: Plan gate tests prove safe plans pass and unsafe plans are refused
+- Acceptance: Plan gate evaluates agent plan before any tool executes, Unsafe plans are refused with structured explanation, Safe plans pass through with zero added latency >10ms P99, Plan gate is testable with mock tool sets
+- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
