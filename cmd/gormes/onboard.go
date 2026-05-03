@@ -5,12 +5,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/spf13/cobra"
 )
 
 func newOnboardCommand() *cobra.Command {
+	var wizard bool
+	var nonInteractive bool
 	cmd := &cobra.Command{
 		Use:          "onboard",
 		Short:        "First-run status — see what's configured and what to do next",
@@ -20,17 +23,22 @@ func newOnboardCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if wizard {
+				printOnboardWizardPlan(cmd, cfg, nonInteractive || !isStdinTTY())
+				return nil
+			}
 			printOnboardStatus(cmd, cfg)
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&wizard, "wizard", false, "show the first-run wizard plan")
+	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "render the wizard without prompts or external launches")
 	return cmd
 }
 
 func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	skillsRoot := cfg.SkillsRoot()
-	rows := skills.ListInstalledSkillsFromRoots(skillsRoot, skills.BundledRoot(), skills.ListOptions{}, nil)
-	local, builtin := countOnboardSkills(rows)
+	local, builtin := onboardSkillCounts(cfg)
 
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Gormes onboarding")
@@ -114,12 +122,49 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	}
 }
 
+func printOnboardWizardPlan(cmd *cobra.Command, cfg config.Config, nonInteractive bool) {
+	local, builtin := onboardSkillCounts(cfg)
+	plan := cli.BuildOnboardPlan(cli.OnboardPlanInput{
+		Provider:       cfg.Hermes.Provider,
+		Endpoint:       cfg.Hermes.Endpoint,
+		Model:          cfg.Hermes.Model,
+		APIKeyPresent:  cfg.Hermes.APIKey != "",
+		GatewayTargets: onboardGatewayTargets(cfg),
+		BrowserCDPURL:  cfg.Browser.CDPURL,
+		LocalSkills:    local,
+		BundledSkills:  builtin,
+	})
+
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Gormes first-run wizard")
+	if nonInteractive {
+		fmt.Fprintln(out, "Mode: non-interactive plan; no prompts, browser probes, gateway starts, or dashboard launch will run.")
+	} else {
+		fmt.Fprintln(out, "Mode: wizard plan; prompts and external launches remain row-backed, so this view only reports the ordered flow.")
+	}
+	fmt.Fprintln(out)
+	for i, step := range plan.Steps {
+		fmt.Fprintf(out, "%d. %s: %s\n", i+1, step.Title, step.Status)
+		fmt.Fprintf(out, "   %s\n", step.Detail)
+		fmt.Fprintf(out, "   Next: %s\n", step.NextCommand)
+		fmt.Fprintf(out, "   Skip warning: %s\n", step.SkipWarning)
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Full interactive prompting remains in progress; this plan is safe to run in CI and first-run diagnostics.")
+}
+
 func onboardProviderLabel(cfg config.Config) string {
 	provider := strings.TrimSpace(cfg.Hermes.Provider)
 	if provider == "" {
 		return "custom"
 	}
 	return provider
+}
+
+func onboardSkillCounts(cfg config.Config) (local int, builtin int) {
+	skillsRoot := cfg.SkillsRoot()
+	rows := skills.ListInstalledSkillsFromRoots(skillsRoot, skills.BundledRoot(), skills.ListOptions{}, nil)
+	return countOnboardSkills(rows)
 }
 
 func countOnboardSkills(rows []skills.SkillRow) (local int, builtin int) {
@@ -132,4 +177,24 @@ func countOnboardSkills(rows []skills.SkillRow) (local int, builtin int) {
 		}
 	}
 	return local, builtin
+}
+
+func onboardGatewayTargets(cfg config.Config) []string {
+	var targets []string
+	if cfg.Gateway.ProxyURL != "" || cfg.Gateway.ProxyKey != "" {
+		targets = append(targets, "gateway proxy")
+	}
+	if cfg.Telegram.BotToken != "" {
+		targets = append(targets, "telegram")
+	}
+	if cfg.Discord.Enabled() {
+		targets = append(targets, "discord")
+	}
+	if cfg.Slack.Enabled || cfg.Slack.BotToken != "" || cfg.Slack.AppToken != "" || cfg.Slack.AllowedChannelID != "" {
+		targets = append(targets, "slack")
+	}
+	if len(cfg.Bindings) > 0 {
+		targets = append(targets, "bindings")
+	}
+	return targets
 }

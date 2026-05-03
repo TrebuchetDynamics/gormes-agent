@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Secrets Runtime Controls
+## 1. GONCHO local-first markdown MCP memory requirement
+
+- Phase: 3 / 3.F
+- Owner: `memory`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P0`
+- Contract: GONCHO must support a local-first memory mode that answers the OpenClaw community pain point: no cloud dependency, no mandatory API key, user-readable/editable markdown memory files, MCP-compatible access from any agent framework, optional local embeddings via Ollama, and restart-persistent storage.
+- Trust class: operator, system
+- Ready when: Existing Goncho service/tool contracts are audited for where markdown export/import, local embedding configuration, and MCP tool catalog behavior should attach., The implementation plan preserves Honcho-compatible external tool names while branding the internal subsystem as GONCHO.
+- Not ready when: The design requires mem0, Zep, a hosted vector database, a cloud API key, or an opaque-only binary store to start., Markdown files are treated only as one-way exports instead of user-editable source material that can be reloaded safely.
+- Degraded mode: If Ollama or embeddings are unavailable, GONCHO still persists and serves markdown-backed lexical/SQLite recall locally without requiring network access or a hosted memory provider.
+- Fixture: `internal/goncho/local_markdown_mcp_test.go; internal/gonchotools/mcp_catalog_test.go; internal/memory/markdown_store_test.go`
+- Write scope: `internal/goncho/`, `internal/gonchotools/`, `internal/memory/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/`, `docs/superpowers/specs/`
+- Test commands: `go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1`, `go test ./cmd/gormes -run Goncho -count=1`, `go run ./cmd/progress validate`
+- Done signal: Docs and tests demonstrate local markdown-backed GONCHO memory over MCP with no cloud/API-key dependency and restart persistence.
+- Acceptance: A fresh local Gormes install can enable GONCHO memory without cloud credentials or a paid API key., Memories can be stored, inspected, edited, and reloaded as plain markdown files with deterministic conflict handling against SQLite/source-of-truth state., GONCHO exposes MCP-compatible memory tools/catalog entries usable by non-Gormes agent frameworks while keeping Honcho-compatible tool contracts where parity requires them., Optional Ollama embeddings are configurable and never required for basic persistence/recall., Memory survives process and machine restarts with documented on-disk paths and read-only diagnostics.
+- Source refs: User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO., internal/goncho/, internal/gonchotools/, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md, docs/content/building-gormes/architecture_plan/progress.json, Phase 5.G MCP Integration / Goncho MCP tool catalog
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Secrets Runtime Controls
 
 - Phase: 5 / 5.J
 - Owner: `tools`
@@ -48,7 +68,7 @@ selection.
 - Unblocks: Security audit (5.J), Provider auth parity
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Security Audit Command
+## 3. Security Audit Command
 
 - Phase: 5 / 5.J
 - Owner: `tools`
@@ -69,28 +89,49 @@ selection.
 - Unblocks: Production security posture
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Interactive Onboarding
+## 4. CLI contextual first-touch onboarding hint renderers
+
+- Phase: 5 / 5.O
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: internal/cli exposes pure constants and renderers for Hermes-compatible contextual onboarding hints: BusyInputPromptFlag = `busy_input_prompt`, ToolProgressPromptFlag = `tool_progress_prompt`, BusyInputHint(surface, mode string) string for interrupt/queue/steer modes, and ToolProgressHint(surface string) string for long-running tool progress. CLI text is plain ASCII and gateway text may use channel-friendly wording, but both preserve the operator contract: explain what just happened, name `/busy` or `/verbose` follow-up commands, and state that the tip only shows once.
+- Trust class: operator, gateway, system
+- Ready when: CLI onboarding seen-state map helpers are complete and preserve arbitrary onboarding.seen flags., This row only adds pure hint constants/renderers; gateway/TUI/CLI startup binding remains row-backed., Tests use string fixtures and do not require config files, TTYs, channels, gateway managers, active turns, or tool execution.
+- Not ready when: The slice persists onboarding.seen flags, reads config.toml, starts a gateway, inspects active turns, or emits channel messages., The slice changes busy-input policy, tool-progress rendering, slash-command behavior, or TUI state machines., The helper text mentions Hermes product commands or upstream config paths instead of Gormes-compatible operator guidance.
+- Degraded mode: Unknown busy-input modes fall back to interrupt wording; unknown surfaces return CLI/plain text. The helpers do not read or write config and do not decide whether a hint has already been seen.
+- Fixture: `internal/cli/onboarding_hints_test.go`
+- Write scope: `internal/cli/onboarding_hints.go`, `internal/cli/onboarding_hints_test.go`, `internal/cli/onboarding_state.go`, `internal/cli/onboarding_state_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/cli -run '^TestOnboardingHint\|^TestBusyInputHint\|^TestToolProgressHint' -count=1`, `go test ./internal/cli -run '^TestOnboardingSeen\|^TestMarkOnboardingSeen' -count=1`, `go run ./cmd/progress validate`
+- Done signal: internal/cli fixtures prove busy-input and tool-progress onboarding flag constants plus CLI/gateway hint text for all modes, with no config, TTY, gateway, or tool-execution side effects.
+- Acceptance: TestOnboardingHintFlagsMatchHermes proves BusyInputPromptFlag is `busy_input_prompt`, ToolProgressPromptFlag is `tool_progress_prompt`, and OpenClawResidueCleanupFlag remains `openclaw_residue_cleanup`., TestBusyInputHintCLIByMode proves interrupt, queue, and steer CLI hints mention the actual behavior, `/busy` follow-up commands, and `only shows once` without markdown-only wording., TestBusyInputHintGatewayByMode proves gateway hints for interrupt, queue, and steer are channel-safe, mention `/busy status` or the relevant `/busy` mode command, and do not include raw config keys., TestToolProgressHintCLIAndGateway proves tool-progress hints mention `/verbose`, the mode cycle `all -> new -> off`, and one-time display behavior., TestOnboardingHintsUnknownInputsDegrade proves unknown mode and surface inputs return non-empty CLI-safe fallback text without panic., Existing TestOnboardingSeen and TestMarkOnboardingSeen fixtures remain green, proving renderers do not change seen-state semantics.
+- Source refs: ../hermes-agent/agent/onboarding.py:BUSY_INPUT_FLAG,TOOL_PROGRESS_FLAG,busy_input_hint_gateway,busy_input_hint_cli,tool_progress_hint_gateway,tool_progress_hint_cli,is_seen,mark_seen, ../hermes-agent/tests/agent/test_onboarding.py, internal/cli/onboarding_state.go, internal/cli/onboarding_state_test.go, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli
+- Unblocks: Busy-input first-touch hint binding, Tool-progress first-touch hint binding
+- Why now: Unblocks Busy-input first-touch hint binding, Tool-progress first-touch hint binding.
+
+## 5. Gormes onboard interactive action runner
 
 - Phase: 5 / 5.O
 - Owner: `tools`
 - Size: `medium`
-- Status: `in_progress`
+- Status: `planned`
 - Priority: `P1`
-- Contract: Promote gormes onboard from setup alias into a truthful first-run command now, then complete the full interactive flow: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Match OpenClaw's onboarding depth without pretending partial onboarding is complete.
-- Trust class: operator
-- Ready when: QMD Hybrid Search (5.N) is operational for skill discovery step., Setup wizard alias exists as scaffold.
-- Not ready when: The row requires live credentials for testing., The row replaces existing setup without migration path.
-- Degraded mode: Current partial onboarding reports first-run status, runtime skills root, bundled/local skill counts, and partial learning-loop state with next-step commands. The future full wizard must report missing provider credentials, gateway config gaps, or browser unavailability per step and allow skip with explicit warning.
-- Fixture: `cmd/gormes/skills_onboard_test.go::TestOnboardExplainsRuntimeSkillsAndLearningState,TestOnboardShowsConfiguredProviderDetails; future full wizard: internal/cli/onboard_test.go`
-- Write scope: `cmd/gormes/main.go`, `cmd/gormes/setup.go`, `cmd/gormes/onboard.go`, `cmd/gormes/skills.go`, `cmd/gormes/skills_onboard_test.go`, `internal/skills/list.go`, `internal/cli/onboard.go`, `internal/cli/onboard_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run 'TestRootSkills\|TestOnboard\|TestSetup\|TestHermesCLIParityManifest' -count=1`, `go test ./internal/cli -run TestOnboard -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes onboard ships as full interactive first-run flow.
-- Acceptance: gormes onboard is a real top-level command, not a setup alias., Current output separates runtime skills from docs/development-skills and points users to gormes skills list., Current output states that skill capture is manual/prompted and full automatic distill/promote/maintain is partial., Configured provider output shows provider id, endpoint, and model instead of collapsing the setup state into one URL., Future full wizard walks through model -> provider -> auth -> gateway -> browser -> skills -> dashboard., Each future wizard step can be skipped with explicit warning., Already-configured future wizard steps are detected and pre-filled., End-to-end future wizard is testable without live credentials (mock provider, fake channel).
-- Source refs: openclaw onboard command, cmd/gormes/setup.go, docs/content/building-gormes/fleet-operational-patterns.md, docs/content/building-gormes/fleet-integration-plan.md
-- Unblocks: First-run user experience
-- Why now: Already active; contract metadata keeps execution bounded.
+- Contract: `gormes onboard --wizard` in an interactive TTY turns the existing deterministic first-run plan into an action runner. It renders the same model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard steps, shows each step's configured/missing status and skip warning before any action, and lets the operator run, skip, or review each step. Selected actions delegate through fakeable command seams to existing setup/model/auth/gateway/browser/skills/dashboard surfaces; tests must never start live providers, gateways, browsers, dashboards, TTS downloads, or vendor probes.
+- Trust class: operator, system
+- Ready when: Interactive Onboarding has the deterministic `gormes onboard --wizard --non-interactive` plan builder and configured-state prefill fixtures., Gormes setup top-level chooser menu and full-wizard shell rows are complete so model/provider/setup steps have existing command targets., Tests can inject action seams, prompt answers, configured-state input, and output buffers without relying on a real TTY, provider credential, gateway process, browser, or dashboard server.
+- Not ready when: The slice starts live external services, opens a browser, contacts a provider, probes Browser/CDP, launches the dashboard server, or starts a messaging gateway in tests., The slice duplicates provider/model/auth setup logic instead of delegating to existing command seams., The slice removes or changes the noninteractive wizard plan output already used for CI diagnostics., The slice treats `gormes onboard` as strict Hermes command parity; upstream has `hermes setup`, while this command is a Gormes-owned diagnostic/action wrapper.
+- Degraded mode: Non-TTY or `--non-interactive` invocations keep the current deterministic plan output and do not prompt. If an action seam is unavailable, the wizard returns onboard_action_row_backed with the step id and recommended command while preserving the remaining plan.
+- Fixture: `cmd/gormes/onboard_wizard_test.go; internal/cli/onboard_test.go::TestOnboardPlan*`
+- Write scope: `cmd/gormes/onboard.go`, `cmd/gormes/onboard_wizard_test.go`, `cmd/gormes/skills_onboard_test.go`, `internal/cli/onboard.go`, `internal/cli/onboard_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes -run '^TestOnboardWizard' -count=1`, `go test ./internal/cli -run TestOnboard -count=1`, `go run ./cmd/progress validate`
+- Done signal: Onboard wizard fixtures prove interactive action prompting, skip-warning rendering, configured-state defaults, delegated/row-backed step handlers, and noninteractive no-prompt behavior without live external services.
+- Acceptance: TestOnboardWizardInteractivePromptsForStepActions proves interactive `gormes onboard --wizard` renders all seven plan steps in order and asks run/skip/review for each step through an injected prompt seam., TestOnboardWizardSkipWarningsBeforeSkip proves skipping a missing step prints that step's skip warning before continuing., TestOnboardWizardConfiguredStepsArePrefilled proves configured provider/model/auth/gateway/browser state changes the step status/detail and defaults the action to review or skip instead of blindly reconfiguring., TestOnboardWizardDelegatesSelectedActions proves selected model/provider/auth/gateway/browser/skills/dashboard steps call injected action handlers with the step id and recommended command., TestOnboardWizardRowBackedActionEvidence proves unavailable handlers return onboard_action_row_backed with the step id and recommended command without aborting the whole plan., TestOnboardWizardNonInteractiveStillDoesNotPrompt proves `--non-interactive` and non-TTY invocations keep the deterministic plan and never invoke prompt or action seams., Existing TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings and internal/cli TestOnboardPlan* fixtures remain green.
+- Source refs: ../hermes-agent/hermes_cli/main.py:8369-8403:setup_parser, ../hermes-agent/hermes_cli/setup.py:217-253:prompt_choice, ../hermes-agent/hermes_cli/setup.py:2953-3245:run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup, ../hermes-agent/agent/onboarding.py:busy_input_hint_cli,tool_progress_hint_cli,openclaw_residue_hint_cli, cmd/gormes/onboard.go, internal/cli/onboard.go, cmd/gormes/setup.go, cmd/gormes/auth.go, cmd/gormes/dashboard.go
+- Unblocks: First-run user experience, Interactive Onboarding
+- Why now: Unblocks First-run user experience, Interactive Onboarding.
 
-## 4. ACP Client Bridge Mode
+## 6. ACP Client Bridge Mode
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -111,7 +152,7 @@ selection.
 - Unblocks: Multi-agent interoperability, Editor integrations
 - Why now: Unblocks Multi-agent interoperability, Editor integrations.
 
-## 5. Extension Lifecycle Hook System
+## 7. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -132,7 +173,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 6. System Events, Heartbeat, and Presence
+## 8. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -153,7 +194,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 7. Gateway Discover and Probe
+## 9. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -174,7 +215,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 8. Channels Capabilities Introspection
+## 10. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -194,46 +235,5 @@ selection.
 - Source refs: openclaw channels capabilities CLI surface, internal/channels/* (adapter implementations), docs/content/building-gormes/openclaw-platform-parity-audit.md
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
-
-## 9. Prompt Fragment Include System
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time.
-- Trust class: operator, system
-- Ready when: Extension lifecycle hooks (5.I) provide prompt_before/after hook points., Skill system supports profile-level prompt overrides.
-- Not ready when: The row hardcodes prompt content in Go strings., The row bypasses existing prompt builder contract.
-- Degraded mode: Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.
-- Fixture: `internal/hermes/prompt_fragments_test.go`
-- Write scope: `internal/hermes/prompt_fragments.go`, `internal/hermes/prompt_fragments_test.go`, `prompts/*.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run TestPromptFragments -count=1`, `go run ./cmd/progress validate`
-- Done signal: Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution.
-- Acceptance: {{include agent.system.main.role.md}} resolves through priority search., {{include original}} chains through profile > user > default hierarchy., Circular includes detected and reported., Fragment cache invalidates on file change.
-- Source refs: agent-zero prompts/ (72 fragment files), agent-zero agent.py:prepare_prompt, docs/content/building-gormes/agent-zero-feature-analysis.md
-- Unblocks: Agent profile customization, Plugin prompt injection
-- Why now: Unblocks Agent profile customization, Plugin prompt injection.
-
-## 10. Plan gate hook in agent turn loop
-
-- Phase: 4 / 4.L
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Before tool execution, the agent loop invokes a plan-gate safety check. Unsafe plans are refused with explanation. Safe plans proceed. This mirrors MOSAIC (2025) plan->check->act/refuse pattern.
-- Trust class: operator, system
-- Ready when: Agent turn loop has a hook point before tool dispatch, Tool registry exposes safety-relevant metadata per tool
-- Not ready when: Agent loop is not refactorable to add pre-tool hooks, Tool registry has no permission/safety metadata
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/safety_plan_gate.go`, `internal/hermes/safety_plan_gate_test.go`
-- Test commands: `go test ./internal/hermes -run TestPlanGate -count=1`
-- Done signal: Plan gate tests prove safe plans pass and unsafe plans are refused
-- Acceptance: Plan gate evaluates agent plan before any tool executes, Unsafe plans are refused with structured explanation, Safe plans pass through with zero added latency >10ms P99, Plan gate is testable with mock tool sets
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

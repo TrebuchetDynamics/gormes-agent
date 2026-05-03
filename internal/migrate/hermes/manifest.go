@@ -46,19 +46,19 @@ type Options struct {
 // Manifest is the deterministic dry-run plan. It is JSON-serializable
 // and contains zero secret bytes.
 type Manifest struct {
-	Source SourceReport   `json:"source"`
-	Config []ConfigEntry  `json:"config"`
-	Env    []EnvEntry     `json:"env"`
-	Errors []ErrorEntry   `json:"errors,omitempty"`
-	Counts Counts         `json:"counts"`
+	Source SourceReport  `json:"source"`
+	Config []ConfigEntry `json:"config"`
+	Env    []EnvEntry    `json:"env"`
+	Errors []ErrorEntry  `json:"errors,omitempty"`
+	Counts Counts        `json:"counts"`
 }
 
 // SourceReport records every candidate path the resolver considered
 // plus the one that was actually selected.
 type SourceReport struct {
-	Selected     string             `json:"selected"`
-	SelectedPath string             `json:"selected_path"`
-	Candidates   []SourceCandidate  `json:"candidates"`
+	Selected     string            `json:"selected"`
+	SelectedPath string            `json:"selected_path"`
+	Candidates   []SourceCandidate `json:"candidates"`
 }
 
 // SourceCandidate captures one candidate Hermes home directory.
@@ -112,7 +112,7 @@ var supportedConfigKeys = map[string]string{
 	"providers":       "hermes.providers",
 	"custom_provider": "hermes.custom_provider",
 	"terminal":        "terminal",
-	"display":         "tui.display",
+	"display":         "display",
 	"gateway":         "gateway",
 	"memory":          "memory",
 }
@@ -130,13 +130,13 @@ var archivedConfigKeys = map[string]string{
 // preserved verbatim under the same name when not in this explicit
 // map.
 var supportedEnvKeys = map[string]string{
-	"TELEGRAM_TOKEN":      "GORMES_TELEGRAM_TOKEN",
-	"TELEGRAM_CHAT_ID":    "GORMES_TELEGRAM_CHAT_ID",
-	"DISCORD_TOKEN":       "GORMES_DISCORD_TOKEN",
-	"DISCORD_CHANNEL_ID":  "GORMES_DISCORD_CHANNEL_ID",
-	"SLACK_BOT_TOKEN":     "GORMES_SLACK_BOT_TOKEN",
-	"SLACK_APP_TOKEN":     "GORMES_SLACK_APP_TOKEN",
-	"SLACK_CHANNEL_ID":    "GORMES_SLACK_CHANNEL_ID",
+	"TELEGRAM_TOKEN":     "GORMES_TELEGRAM_TOKEN",
+	"TELEGRAM_CHAT_ID":   "GORMES_TELEGRAM_CHAT_ID",
+	"DISCORD_TOKEN":      "GORMES_DISCORD_TOKEN",
+	"DISCORD_CHANNEL_ID": "GORMES_DISCORD_CHANNEL_ID",
+	"SLACK_BOT_TOKEN":    "GORMES_SLACK_BOT_TOKEN",
+	"SLACK_APP_TOKEN":    "GORMES_SLACK_APP_TOKEN",
+	"SLACK_CHANNEL_ID":   "GORMES_SLACK_CHANNEL_ID",
 }
 
 // BuildManifest builds the deterministic dry-run manifest from a
@@ -221,14 +221,17 @@ func loadConfigYAML(m *Manifest, root string) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		entry := classifyConfigKey(k)
+		entry := classifyConfigKey(k, raw[k])
 		m.Config = append(m.Config, entry)
 	}
 }
 
-func classifyConfigKey(key string) ConfigEntry {
+func classifyConfigKey(key string, value any) ConfigEntry {
 	if reason, archived := archivedConfigKeys[key]; archived {
 		return ConfigEntry{HermesKey: key, Disposition: "archived", Reason: reason}
+	}
+	if key == "model" && hermesMapValue(value) != nil {
+		return ConfigEntry{HermesKey: key, Disposition: "importable", GormesPath: "hermes.model,hermes.provider"}
 	}
 	if target, ok := supportedConfigKeys[key]; ok {
 		return ConfigEntry{HermesKey: key, Disposition: "importable", GormesPath: target}
@@ -237,6 +240,21 @@ func classifyConfigKey(key string) ConfigEntry {
 		HermesKey:   key,
 		Disposition: "skipped",
 		Reason:      "not in supported migration set for this slice; revisit when a writer row covers it",
+	}
+}
+
+func hermesMapValue(value any) map[string]any {
+	switch v := value.(type) {
+	case map[string]any:
+		return v
+	case map[any]any:
+		out := map[string]any{}
+		for k, vv := range v {
+			out[fmt.Sprintf("%v", k)] = vv
+		}
+		return out
+	default:
+		return nil
 	}
 }
 

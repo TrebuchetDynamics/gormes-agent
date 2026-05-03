@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -75,32 +72,5 @@ func runMCPLoginCommand(ctx context.Context, cmd *cobra.Command, runtime mcpLogi
 }
 
 func loadDefaultMCPConfig() (tools.MCPConfigResolution, error) {
-	paths := defaultHermesConfigCandidates()
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		return tools.ParseMCPConfigYAML(data, tools.MCPConfigOptions{})
-	}
 	return tools.MCPConfigResolution{}, nil
-}
-
-func defaultHermesConfigCandidates() []string {
-	var paths []string
-	hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME"))
-	if hermesHome == "" {
-		if home, err := os.UserHomeDir(); err == nil {
-			hermesHome = filepath.Join(home, ".hermes")
-		}
-	}
-	profile := strings.TrimSpace(os.Getenv("HERMES_PROFILE"))
-	if profile == "" {
-		profile = "mineru"
-	}
-	if hermesHome != "" {
-		paths = append(paths, filepath.Join(hermesHome, "profiles", profile, "config.yaml"))
-		paths = append(paths, filepath.Join(hermesHome, "config.yaml"))
-	}
-	return paths
 }

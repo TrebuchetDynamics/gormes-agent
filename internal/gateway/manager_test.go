@@ -146,15 +146,16 @@ func TestManager_Inbound_VerboseDisabledSendsHermesGateGuidance(t *testing.T) {
 	got := tg.sentSnapshot()[0].Text
 	for _, want := range []string{
 		"The `/verbose` command is not enabled for messaging platforms.",
-		"display:",
-		"tool_progress_command: true",
+		"Gormes `config.toml`",
+		"[display]",
+		"tool_progress_command = true",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("/verbose disabled response missing %q in %q", want, got)
 		}
 	}
 	if strings.Contains(got, "unavailable in this build") {
-		t.Fatalf("/verbose disabled response = %q, want Hermes gated guidance instead of unavailable text", got)
+		t.Fatalf("/verbose disabled response = %q, want Gormes config guidance instead of unavailable text", got)
 	}
 }
 

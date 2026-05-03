@@ -161,6 +161,71 @@ func TestHermesConfigWriter_AppliesImportableConfig(t *testing.T) {
 	}
 }
 
+func TestHermesConfigWriter_MapsModelObjectAndDisplayToNativeConfig(t *testing.T) {
+	root := t.TempDir()
+	srcDir := filepath.Join(root, "hermes-src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("mkdir src: %v", err)
+	}
+	cfgBody := []byte(`model:
+  default: gpt-5.5
+  provider: openai-codex
+display:
+  tool_progress: new
+  tool_progress_command: true
+  platforms:
+    telegram:
+      tool_progress: false
+  tool_progress_overrides:
+    discord: verbose
+`)
+	if err := os.WriteFile(filepath.Join(srcDir, "config.yaml"), cfgBody, 0o600); err != nil {
+		t.Fatalf("write config.yaml: %v", err)
+	}
+	t.Setenv("HERMES_HOME", "")
+	manifest, err := BuildManifest(Options{Source: srcDir})
+	if err != nil {
+		t.Fatalf("BuildManifest: %v", err)
+	}
+	cfgDir, envFile := writerDestPaths(t, root)
+
+	_, err = ApplyManifest(WriteRequest{
+		Manifest:          *manifest,
+		DestConfigDir:     cfgDir,
+		DestEnvFile:       envFile,
+		SourceConfigBytes: map[string][]byte{"config.yaml": cfgBody},
+		Yes:               true,
+	})
+	if err != nil {
+		t.Fatalf("ApplyManifest: %v", err)
+	}
+
+	body, err := os.ReadFile(filepath.Join(cfgDir, "config.toml"))
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	got := string(body)
+	for _, want := range []string{
+		"[hermes]",
+		"model = 'gpt-5.5'",
+		"provider = 'openai-codex'",
+		"[display]",
+		"tool_progress = 'new'",
+		"tool_progress_command = true",
+		"[display.platforms.discord]",
+		"tool_progress = 'verbose'",
+		"[display.platforms.telegram]",
+		"tool_progress = 'off'",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("config.toml missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "[tui]") || strings.Contains(got, "tool_progress_overrides") {
+		t.Fatalf("config.toml kept legacy display destination/shape:\n%s", got)
+	}
+}
+
 func TestHermesConfigWriter_BackupBeforeOverwrite(t *testing.T) {
 	manifest, src, root := buildWriterFixtureManifest(t, nil)
 	cfgDir, envFile := writerDestPaths(t, root)

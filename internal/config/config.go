@@ -411,9 +411,6 @@ func providerRequiresExplicitModelError(commandLabel string, source InferenceVal
 func Load(args []string) (Config, error) {
 	loadDotenvFiles() // populates os.Setenv for unset keys BEFORE loadEnv reads them
 	cfg := defaults()
-	if err := loadHermesConfigYAML(&cfg); err != nil {
-		return cfg, err
-	}
 	if err := loadFile(&cfg); err != nil {
 		return cfg, err
 	}
@@ -622,91 +619,6 @@ type hermesStreamingConfigYAML struct {
 	FreshFinalAfterSeconds *float64 `yaml:"fresh_final_after_seconds"`
 }
 
-func loadHermesConfigYAML(cfg *Config) error {
-	path := hermesConfigPath()
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("read %s: %w", path, err)
-	}
-	var hc hermesConfigYAML
-	if err := yaml.Unmarshal(data, &hc); err != nil {
-		return fmt.Errorf("decode %s: %w", path, err)
-	}
-	applyHermesModelConfig(cfg, hc.Model)
-	applyHermesWebConfig(cfg, hc.Web)
-	applyHermesBrowserConfig(cfg, hc.Browser)
-	applyHermesDisplayConfig(cfg, hc.Display)
-	applyHermesSecurityConfig(cfg, hc.Security)
-	applyHermesTelegramConfig(cfg, hc.Platforms["telegram"], hc.Streaming)
-	applyHermesDiscordConfig(cfg, hc.Platforms["discord"])
-	applyHermesSlackConfig(cfg, hc.Platforms["slack"])
-	return nil
-}
-
-func applyHermesModelConfig(cfg *Config, model hermesModelConfigYAML) {
-	if defaultModel := strings.TrimSpace(model.Default); defaultModel != "" {
-		cfg.Hermes.Model = defaultModel
-	}
-	if provider := strings.TrimSpace(model.Provider); provider != "" {
-		cfg.Hermes.Provider = provider
-	}
-}
-
-func applyHermesWebConfig(cfg *Config, web hermesWebConfigYAML) {
-	if backend := strings.ToLower(strings.TrimSpace(web.Backend)); backend != "" {
-		cfg.Web.Backend = backend
-	}
-	if web.UseGateway {
-		cfg.Web.UseGateway = true
-	}
-}
-
-func applyHermesBrowserConfig(cfg *Config, browser hermesBrowserConfigYAML) {
-	if cdpURL := strings.TrimSpace(browser.CDPURL); cdpURL != "" {
-		cfg.Browser.CDPURL = cdpURL
-	}
-}
-
-func applyHermesDisplayConfig(cfg *Config, display hermesDisplayConfigYAML) {
-	if mode, ok := normalizeHermesToolProgressMode(display.ToolProgress); ok {
-		cfg.Display.ToolProgress = mode
-	}
-	cfg.Display.ToolProgressCommand = display.ToolProgressCommand
-	for platform, platformDisplay := range display.Platforms {
-		if mode, ok := normalizeHermesToolProgressMode(platformDisplay.ToolProgress); ok {
-			putDisplayPlatformToolProgress(&cfg.Display, platform, mode)
-		}
-	}
-	for platform, rawMode := range display.ToolProgressOverrides {
-		key := normalizeDisplayPlatformKey(platform)
-		if key == "" {
-			continue
-		}
-		if existing, ok := cfg.Display.Platforms[key]; ok && strings.TrimSpace(existing.ToolProgress) != "" {
-			continue
-		}
-		if mode, ok := normalizeHermesToolProgressMode(rawMode); ok {
-			putDisplayPlatformToolProgress(&cfg.Display, key, mode)
-		}
-	}
-}
-
-func putDisplayPlatformToolProgress(display *DisplayCfg, platform, mode string) {
-	key := normalizeDisplayPlatformKey(platform)
-	if key == "" {
-		return
-	}
-	if display.Platforms == nil {
-		display.Platforms = map[string]DisplayPlatformCfg{}
-	}
-	entry := display.Platforms[key]
-	entry.ToolProgress = mode
-	display.Platforms[key] = entry
-}
-
 func normalizeDisplayPlatformKey(platform string) string {
 	return strings.ToLower(strings.TrimSpace(platform))
 }
@@ -745,81 +657,6 @@ func normalizeHermesToolProgressMode(raw interface{}) (string, bool) {
 	}
 }
 
-func applyHermesSecurityConfig(cfg *Config, security hermesSecurityConfigYAML) {
-	blocklist := security.WebsiteBlocklist
-	if blocklist.Enabled || len(blocklist.Domains) > 0 || len(blocklist.SharedFiles) > 0 {
-		cfg.Security.WebsiteBlocklist.BaseDir = filepath.Dir(hermesConfigPath())
-	}
-	if blocklist.Enabled {
-		cfg.Security.WebsiteBlocklist.Enabled = true
-	}
-	if len(blocklist.Domains) > 0 {
-		cfg.Security.WebsiteBlocklist.Domains = append([]string(nil), blocklist.Domains...)
-	}
-	if len(blocklist.SharedFiles) > 0 {
-		cfg.Security.WebsiteBlocklist.SharedFiles = append([]string(nil), blocklist.SharedFiles...)
-	}
-}
-
-func applyHermesTelegramConfig(cfg *Config, platform hermesPlatformConfigYAML, streaming hermesStreamingConfigYAML) {
-	if token := strings.TrimSpace(firstNonEmpty(platform.Token, platform.APIKey)); token != "" {
-		cfg.Telegram.BotToken = token
-	}
-	if chatID, ok := coerceHermesChatID(platform.HomeChannel.ChatID); ok {
-		cfg.Telegram.AllowedChatID = chatID
-	}
-	if v, ok := boolFromInterface(platform.Extra["require_mention"]); ok {
-		cfg.Telegram.RequireMention = v
-	}
-	if username := strings.TrimSpace(stringFromInterface(platform.Extra["bot_username"])); username != "" {
-		cfg.Telegram.BotUsername = username
-	}
-	if streaming.FreshFinalAfterSeconds != nil {
-		cfg.Telegram.FreshFinalAfterSeconds = *streaming.FreshFinalAfterSeconds
-	}
-}
-
-func applyHermesDiscordConfig(cfg *Config, platform hermesPlatformConfigYAML) {
-	if token := strings.TrimSpace(firstNonEmpty(platform.Token, platform.APIKey)); token != "" {
-		cfg.Discord.Token = token
-	}
-	if chatID := strings.TrimSpace(hermesChatIDString(platform.HomeChannel.ChatID)); chatID != "" {
-		cfg.Discord.AllowedChannelID = chatID
-	}
-	if v, ok := boolFromInterface(platform.Extra["first_run_discovery"]); ok {
-		cfg.Discord.FirstRunDiscovery = v
-	}
-}
-
-func applyHermesSlackConfig(cfg *Config, platform hermesPlatformConfigYAML) {
-	if platform.Enabled {
-		cfg.Slack.Enabled = true
-	}
-	if token := strings.TrimSpace(firstNonEmpty(platform.Token, platform.APIKey)); token != "" {
-		cfg.Slack.BotToken = token
-	}
-	if appToken := strings.TrimSpace(stringFromInterface(platform.Extra["app_token"])); appToken != "" {
-		cfg.Slack.AppToken = appToken
-	}
-	if chatID := strings.TrimSpace(hermesChatIDString(platform.HomeChannel.ChatID)); chatID != "" {
-		cfg.Slack.AllowedChannelID = chatID
-	}
-	if v, ok := boolFromInterface(platform.Extra["first_run_discovery"]); ok {
-		cfg.Slack.FirstRunDiscovery = v
-	}
-}
-
-func hermesConfigPath() string {
-	if hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME")); hermesHome != "" {
-		return filepath.Join(hermesHome, "config.yaml")
-	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return ""
-	}
-	return filepath.Join(home, ".hermes", "config.yaml")
-}
-
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -827,65 +664,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func coerceHermesChatID(value interface{}) (int64, bool) {
-	switch v := value.(type) {
-	case int:
-		return int64(v), true
-	case int64:
-		return v, true
-	case float64:
-		return int64(v), v == float64(int64(v))
-	case string:
-		parsed, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
-		return parsed, err == nil
-	default:
-		return 0, false
-	}
-}
-
-func hermesChatIDString(value interface{}) string {
-	switch v := value.(type) {
-	case string:
-		return strings.TrimSpace(v)
-	case int:
-		return strconv.FormatInt(int64(v), 10)
-	case int64:
-		return strconv.FormatInt(v, 10)
-	case float64:
-		if v == float64(int64(v)) {
-			return strconv.FormatInt(int64(v), 10)
-		}
-		return ""
-	case fmt.Stringer:
-		return strings.TrimSpace(v.String())
-	default:
-		return ""
-	}
-}
-
-func boolFromInterface(value interface{}) (bool, bool) {
-	switch v := value.(type) {
-	case bool:
-		return v, true
-	case string:
-		parsed, err := strconv.ParseBool(strings.TrimSpace(v))
-		return parsed, err == nil
-	default:
-		return false, false
-	}
-}
-
-func stringFromInterface(value interface{}) string {
-	switch v := value.(type) {
-	case string:
-		return v
-	case fmt.Stringer:
-		return v.String()
-	default:
-		return ""
-	}
 }
 
 // migrateConfig applies version-gated schema migrations in sequence,
@@ -1330,29 +1108,4 @@ func (d DelegationCfg) ResolvedRunLogPath() string {
 		return d.RunLogPath
 	}
 	return filepath.Join(GormesHome(), "subagents", "runs.jsonl")
-}
-
-// LegacyHermesHome reports an upstream Hermes state directory if one is
-// discoverable. Returns the path and true when either $HERMES_HOME is
-// set OR ~/.hermes/ exists. Gormes does NOT read state from this path at
-// runtime; it uses GormesHome instead. Surfacing the detection at startup lets
-// operators know their Hermes state wasn't silently ignored.
-//
-// Planned: Phase 5.O will add a `gormes migrate --from-hermes` command
-// that copies relevant state (sessions, memory snapshots) across.
-// Until then, operators see a one-line info log and can migrate
-// manually.
-func LegacyHermesHome() (string, bool) {
-	if v := strings.TrimSpace(os.Getenv("HERMES_HOME")); v != "" {
-		return v, true
-	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return "", false
-	}
-	candidate := filepath.Join(home, ".hermes")
-	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-		return candidate, true
-	}
-	return "", false
 }

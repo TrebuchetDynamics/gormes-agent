@@ -320,7 +320,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		FreshFinalAfter:            gatewayFreshFinalAfter(cfg),
 		ToolProgressMode:           cfg.Display.ToolProgress,
 		ToolProgressCommandEnabled: cfg.Display.ToolProgressCommand,
-		PersistToolProgressMode:    config.SetHermesDisplayPlatformToolProgress,
+		PersistToolProgressMode:    config.SetGormesDisplayPlatformToolProgress,
 		ToolProgressModes:          gatewayToolProgressModes(cfg),
 		SessionMap:                 smap,
 		AgentRouting:               gatewayAgentRoutingConfig(cfg),

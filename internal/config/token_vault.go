@@ -96,19 +96,15 @@ type TokenVaultConfigResult struct {
 func NewTokenVault(opts TokenVaultOptions) (*TokenVault, error) {
 	home := strings.TrimSpace(opts.HermesHome)
 	if home == "" {
-		var err error
-		home, err = hermesHomeDir()
-		if err != nil {
-			return nil, err
-		}
+		home = GormesHome()
 	}
 	absHome, err := filepath.Abs(home)
 	if err != nil {
-		return nil, fmt.Errorf("token vault hermes home: %w", err)
+		return nil, fmt.Errorf("token vault home: %w", err)
 	}
 	realHome, err := filepath.EvalSymlinks(absHome)
 	if err != nil {
-		return nil, fmt.Errorf("token vault hermes home: %w", err)
+		return nil, fmt.Errorf("token vault home: %w", err)
 	}
 	containerHome := strings.TrimRight(strings.TrimSpace(opts.ContainerHermesHome), "/")
 	if containerHome == "" {
@@ -262,26 +258,12 @@ func credentialFilesFromHermesConfig(configPath string) ([]string, error) {
 	return cfg.Terminal.CredentialFiles, nil
 }
 
-func hermesHomeDir() (string, error) {
-	if hermesHome := strings.TrimSpace(os.Getenv("HERMES_HOME")); hermesHome != "" {
-		return hermesHome, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	if home == "" {
-		return "", fmt.Errorf("home directory is empty")
-	}
-	return filepath.Join(home, ".hermes"), nil
-}
-
 func tokenVaultReasonMessage(reason TokenVaultReason) string {
 	switch reason {
 	case TokenVaultReasonEmptyPath:
 		return "credential file path is empty"
 	case TokenVaultReasonAbsolutePath:
-		return "credential file path must be relative to the active Hermes profile"
+		return "credential file path must be relative to the active credential root"
 	case TokenVaultReasonTraversal:
 		return "credential file path may not traverse outside the active Hermes profile"
 	case TokenVaultReasonMissing:
@@ -289,7 +271,7 @@ func tokenVaultReasonMessage(reason TokenVaultReason) string {
 	case TokenVaultReasonUnreadable:
 		return "credential file is unreadable"
 	case TokenVaultReasonSymlinkEscape:
-		return "credential file resolves outside the active Hermes profile"
+		return "credential file resolves outside the active credential root"
 	default:
 		return "credential file rejected"
 	}

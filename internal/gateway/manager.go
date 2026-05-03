@@ -75,7 +75,7 @@ type ManagerConfig struct {
 	//   "off"   — no outbound message is threaded as a reply
 	ReplyMode string
 	// PersistToolProgressMode saves /verbose mode changes. Production writes
-	// display.platforms.<platform>.tool_progress into config.yaml.
+	// display.platforms.<platform>.tool_progress into Gormes config.toml.
 	PersistToolProgressMode func(platform, mode string) error
 	// ToolProgressModes mirrors Hermes display.platforms.<platform>.tool_progress
 	// overrides. Values take precedence over ToolProgressMode for the named platform.
@@ -1060,7 +1060,7 @@ func formatReasoningReply(reply ReasoningReply) string {
 
 func (m *Manager) handleVerboseCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	if !m.cfg.ToolProgressCommandEnabled {
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "The `/verbose` command is not enabled for messaging platforms.\n\nEnable it in `config.yaml`:\n```yaml\ndisplay:\n  tool_progress_command: true\n```")
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "The `/verbose` command is not enabled for messaging platforms.\n\nEnable it in Gormes `config.toml`:\n```toml\n[display]\ntool_progress_command = true\n```")
 		return
 	}
 	platform := strings.ToLower(strings.TrimSpace(ev.Platform))

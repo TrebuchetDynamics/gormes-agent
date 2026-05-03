@@ -102,7 +102,7 @@ var configTOMLSectionRoutes = map[string]string{
 	"providers":       "hermes",
 	"custom_provider": "hermes",
 	"terminal":        "terminal",
-	"display":         "tui",
+	"display":         "display",
 	"gateway":         "gateway",
 	"memory":          "memory",
 }
@@ -389,13 +389,29 @@ func writeDestTOML(path string, doc map[string]any) error {
 
 func applyConfigValue(doc map[string]any, section, hermesKey string, value any) error {
 	if section == "hermes" && hermesKey == "model" {
+		if modelCfg, ok := coerceTOMLValue(value).(map[string]any); ok {
+			if model := strings.TrimSpace(fmt.Sprint(modelCfg["default"])); model != "" && model != "<nil>" {
+				if err := setTOMLLeaf(doc, section, "model", model); err != nil {
+					return err
+				}
+			}
+			if provider := strings.TrimSpace(fmt.Sprint(modelCfg["provider"])); provider != "" && provider != "<nil>" {
+				if err := setTOMLLeaf(doc, section, "provider", provider); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		return setTOMLLeaf(doc, section, "model", coerceScalar(value))
 	}
 	if section == "hermes" && (hermesKey == "providers" || hermesKey == "custom_provider") {
 		return setTOMLLeaf(doc, section, hermesKey, coerceTOMLValue(value))
 	}
+	if section == "display" && hermesKey == "display" {
+		return applyDisplayConfigValue(doc, value)
+	}
 	// All other supported keys are top-level sections (terminal, gateway,
-	// memory, display->tui). We replace the section with the source map
+	// memory). We replace the section with the source map
 	// after coercion. This is the simplest safe behavior; merge semantics
 	// can be added in a future row.
 	coerced := coerceTOMLValue(value)
@@ -405,6 +421,56 @@ func applyConfigValue(doc map[string]any, section, hermesKey string, value any) 
 		return setTOMLLeaf(doc, section, hermesKey, coerced)
 	}
 	doc[section] = mergeTables(asTable(doc[section]), mapped)
+	return nil
+}
+
+func applyDisplayConfigValue(doc map[string]any, value any) error {
+	source, ok := coerceTOMLValue(value).(map[string]any)
+	if !ok {
+		return setTOMLLeaf(doc, "display", "display", coerceScalar(value))
+	}
+	display := asTable(doc["display"])
+	if mode, ok := normalizeMigratedToolProgressMode(source["tool_progress"]); ok {
+		display["tool_progress"] = mode
+	}
+	if command, ok := boolValue(source["tool_progress_command"]); ok {
+		display["tool_progress_command"] = command
+	}
+	platforms := asTable(display["platforms"])
+	if sourcePlatforms := asTable(source["platforms"]); len(sourcePlatforms) > 0 {
+		for platform, rawPlatform := range sourcePlatforms {
+			key := strings.ToLower(strings.TrimSpace(platform))
+			if key == "" {
+				continue
+			}
+			platformCfg := asTable(rawPlatform)
+			if mode, ok := normalizeMigratedToolProgressMode(platformCfg["tool_progress"]); ok {
+				entry := asTable(platforms[key])
+				entry["tool_progress"] = mode
+				platforms[key] = entry
+			}
+		}
+	}
+	if overrides := asTable(source["tool_progress_overrides"]); len(overrides) > 0 {
+		for platform, rawMode := range overrides {
+			key := strings.ToLower(strings.TrimSpace(platform))
+			if key == "" {
+				continue
+			}
+			entry := asTable(platforms[key])
+			if strings.TrimSpace(fmt.Sprint(entry["tool_progress"])) != "" && fmt.Sprint(entry["tool_progress"]) != "<nil>" {
+				continue
+			}
+			if mode, ok := normalizeMigratedToolProgressMode(rawMode); ok {
+				entry["tool_progress"] = mode
+				platforms[key] = entry
+			}
+		}
+	}
+	if len(platforms) > 0 {
+		display["platforms"] = platforms
+	}
+	doc["display"] = display
 	return nil
 }
 
@@ -431,6 +497,34 @@ func mergeTables(base, overlay map[string]any) map[string]any {
 		out[k] = coerceTOMLValue(v)
 	}
 	return out
+}
+
+func boolValue(value any) (bool, bool) {
+	v, ok := value.(bool)
+	return v, ok
+}
+
+func normalizeMigratedToolProgressMode(raw any) (string, bool) {
+	switch v := raw.(type) {
+	case nil:
+		return "", false
+	case bool:
+		if v {
+			return "all", true
+		}
+		return "off", true
+	default:
+		mode := strings.ToLower(strings.TrimSpace(fmt.Sprint(v)))
+		if mode == "" || mode == "<nil>" {
+			return "", false
+		}
+		switch mode {
+		case "off", "new", "all", "verbose":
+			return mode, true
+		default:
+			return "all", true
+		}
+	}
 }
 
 // coerceTOMLValue converts yaml-decoded values into TOML-serializable
