@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -185,9 +184,15 @@ func TestMemoryToolAddWaitsForHermesLockFile(t *testing.T) {
 		t.Fatalf("open lock file: %v", err)
 	}
 	defer lock.Close()
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := lockMemoryFile(lock)
+	if err != nil {
 		t.Fatalf("lock fixture: %v", err)
 	}
+	defer func() {
+		if unlock != nil {
+			_ = unlock()
+		}
+	}()
 
 	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir})
 	started := make(chan struct{})
@@ -230,9 +235,10 @@ func TestMemoryToolAddWaitsForHermesLockFile(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_UN); err != nil {
+	if err := unlock(); err != nil {
 		t.Fatalf("unlock fixture: %v", err)
 	}
+	unlock = nil
 	select {
 	case got := <-done:
 		if got.err != nil {

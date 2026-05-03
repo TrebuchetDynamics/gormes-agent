@@ -1,10 +1,8 @@
 package tools
 
 import (
-	"errors"
 	"sort"
 	"sync"
-	"syscall"
 )
 
 // MCPStdioCleanupStatus is operator-visible evidence from MCP stdio cleanup.
@@ -206,19 +204,4 @@ func sortedMCPStdioPIDs(in map[int]string) []int {
 	}
 	sort.Ints(pids)
 	return pids
-}
-
-func defaultMCPStdioPIDAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	err := syscall.Kill(pid, syscall.Signal(0))
-	return err == nil || errors.Is(err, syscall.EPERM)
-}
-
-func defaultMCPStdioKillPID(pid int) error {
-	if pid <= 0 {
-		return nil
-	}
-	return syscall.Kill(pid, syscall.SIGTERM)
 }
