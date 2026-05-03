@@ -87,13 +87,13 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 60/92 subphases shipped · 22 in progress · 10 planned
+**Overall:** 59/92 subphases shipped · 23 in progress · 10 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
-| Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 14/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 7/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
@@ -339,7 +339,7 @@ classification and row-backed implementation queue.
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
 
-## Phase 3 — The Black Box (Memory) ✅
+## Phase 3 — The Black Box (Memory) 🔨
 
 *SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries*
 
@@ -427,7 +427,7 @@ classification and row-backed implementation queue.
 - [x] Lineage-aware source-filtered search hits
 - [x] Operator-auditable search evidence
 
-### 3.F — Goncho Honcho Memory Parity ✅
+### 3.F — Goncho Honcho Memory Parity 🔨
 
 - [x] Goncho context representation options
 - [x] Goncho search filter grammar
@@ -446,6 +446,7 @@ classification and row-backed implementation queue.
 - [x] Goncho empty peer-card hint contract
 - [x] Hermes memory tool over Goncho/local durable store
 - [x] Goncho memory provider lifecycle adapter
+- [ ] GONCHO local-first markdown MCP memory requirement
 
 ### 3.G — Goncho Drop-In Compatibility Closure ✅
 
@@ -777,6 +778,7 @@ classification and row-backed implementation queue.
 - [x] Goncho serialized write queue + relation candidates
 - [x] Blocker Policy Integration
 - [x] OpenClaw SecretRef core resolver
+- [x] Cross-agent config isolation
 - [ ] SecretRef runtime snapshot activation
 - [ ] OpenClaw security audit --deep --fix
 - [ ] ACP bridge client compatibility
@@ -808,6 +810,7 @@ classification and row-backed implementation queue.
 - [x] CLI deterministic tip selector
 - [x] CLI OpenClaw residue detection and hint text
 - [x] CLI onboarding seen-state map helpers
+- [x] CLI contextual first-touch onboarding hint renderers
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
 - [x] CLI webhook URL normalizer
@@ -831,8 +834,8 @@ classification and row-backed implementation queue.
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
 - [x] Gormes setup full-wizard shell and branded summary
-- [ ] Gormes setup tools checklist command binding
-- [ ] Gormes setup gateway platform checklist command binding
+- [x] Gormes setup tools checklist command binding
+- [x] Gormes setup gateway platform checklist command binding
 - [x] Gormes setup terminal TTS and agent-settings section bindings
 - [x] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default
@@ -868,7 +871,8 @@ classification and row-backed implementation queue.
 - [x] CLI log redactor for known secret shapes
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge
-- [ ] Interactive Onboarding
+- [x] Interactive Onboarding
+- [x] Gormes onboard interactive action runner
 - [x] Logs Command
 
 ### 5.P — Docker / Packaging 🔨

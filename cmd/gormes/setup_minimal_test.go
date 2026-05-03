@@ -19,8 +19,10 @@ type setupCommandFakeSeams struct {
 	modelPickerCalls int
 	loadedCurrent    int
 
-	chooseSetupAction func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	runFullWizard     func(*cobra.Command, bool) error
+	chooseSetupAction  func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	runFullWizard      func(*cobra.Command, bool) error
+	runSetupGateway    func(*cobra.Command, bool) error
+	runGatewayPlatform func(*cobra.Command, string) error
 }
 
 func (f *setupCommandFakeSeams) seams() setupCommandSeams {
@@ -40,8 +42,10 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 			f.loadedCurrent++
 			return f.current, nil
 		},
-		ChooseSetupAction: f.chooseSetupAction,
-		RunFullWizard:     f.runFullWizard,
+		ChooseSetupAction:  f.chooseSetupAction,
+		RunFullWizard:      f.runFullWizard,
+		RunSetupGateway:    f.runSetupGateway,
+		RunGatewayPlatform: f.runGatewayPlatform,
 	}
 }
 

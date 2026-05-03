@@ -126,6 +126,53 @@ func TestGatewayFreshFinalAfter_TelegramOnly(t *testing.T) {
 	}
 }
 
+func TestGatewayVerbosePersistsGormesDisplayPlatformOnly(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, "gormes")
+	hermesHome := filepath.Join(root, "hermes")
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.MkdirAll(hermesHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hermesPath := filepath.Join(hermesHome, "config.yaml")
+	if err := os.WriteFile(hermesPath, []byte("display:\n  tool_progress: off\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	mgrCfg := gatewayManagerConfig(
+		config.Config{Display: config.DisplayCfg{ToolProgress: "all", ToolProgressCommand: true}},
+		map[string]string{},
+		map[string]bool{},
+		nil,
+		nil,
+		nil,
+		nil,
+		gateway.RestartConfig{},
+	)
+	if mgrCfg.PersistToolProgressMode == nil {
+		t.Fatal("PersistToolProgressMode = nil, want production native persistence hook")
+	}
+	if err := mgrCfg.PersistToolProgressMode("Telegram", "new"); err != nil {
+		t.Fatalf("PersistToolProgressMode: %v", err)
+	}
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "new" {
+		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want native persisted new", got)
+	}
+	hermesBody, err := os.ReadFile(hermesPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(hermesBody), "Telegram") || strings.Contains(string(hermesBody), "new") {
+		t.Fatalf("Hermes config.yaml mutated by gateway /verbose persistence:\n%s", hermesBody)
+	}
+}
+
 func TestSQLOpenGonchoUsesRegisteredSQLiteDriver(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "goncho.db")
 	db, err := sqlOpenGoncho(path)

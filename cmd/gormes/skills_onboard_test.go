@@ -95,6 +95,91 @@ func TestOnboardShowsConfiguredProviderDetails(t *testing.T) {
 	}
 }
 
+func TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"onboard", "--wizard", "--non-interactive"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"Gormes first-run wizard",
+		"Mode: non-interactive plan",
+		"1. Model:",
+		"2. Provider:",
+		"3. Auth:",
+		"4. Gateway:",
+		"5. Browser/CDP:",
+		"6. Skills:",
+		"7. Dashboard:",
+		"Skip warning:",
+		"gormes setup model",
+		"gormes setup provider",
+		"gormes auth add",
+		"gormes setup gateway",
+		"gormes doctor --offline",
+		"gormes skills list",
+		"gormes dashboard",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("onboard wizard output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestOnboardWizardPrefillsConfiguredProviderAndAuth(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'groq'\nendpoint = 'https://api.groq.com/openai/v1'\nmodel = 'llama-3.3-70b-versatile'\n[browser]\ncdp_url = 'http://127.0.0.1:9222'\n[telegram]\nbot_token = 'telegram-token'\nallowed_chat_id = 42\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".env"), []byte("GORMES_API_KEY=sk-onboard-test\n"), 0o600); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"onboard", "--wizard", "--non-interactive"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"Model: configured",
+		"llama-3.3-70b-versatile",
+		"Provider: configured",
+		"groq",
+		"https://api.groq.com/openai/v1",
+		"Auth: configured",
+		"credential present",
+		"Gateway: configured",
+		"telegram",
+		"Browser/CDP: configured",
+		"http://127.0.0.1:9222",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("onboard wizard output missing %q:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "No provider configured yet") {
+		t.Fatalf("wizard reused status missing-provider copy:\n%s", output)
+	}
+}
+
 func writeRootCommandSkill(t *testing.T, root, name string) {
 	t.Helper()
 	dir := filepath.Join(root, "active", name)

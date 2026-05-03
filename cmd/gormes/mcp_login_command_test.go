@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -93,6 +95,43 @@ func TestMCPLoginCommandInjectedFailure(t *testing.T) {
 	}
 	if !strings.Contains(stdout+stderr, "mcp_login_flow_failed") || strings.Contains(stdout+stderr, "plain-secret") || strings.Contains(stdout+stderr, "access_token") {
 		t.Fatalf("failure output unsafe or missing evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+func TestMCPLoginDefaultIgnoresHermesConfig(t *testing.T) {
+	root := t.TempDir()
+	hermesHome := filepath.Join(root, "hermes")
+	t.Setenv("HERMES_HOME", hermesHome)
+	t.Setenv("HOME", filepath.Join(root, "home"))
+	if err := os.MkdirAll(hermesHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+mcp_servers:
+  oauth:
+    transport: http
+    url: https://mcp.example/oauth
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	flow := &commandMCPLoginFlow{session: &tools.MCPSession{AccessToken: "plain-access-token"}}
+	cmd := newMCPCommandWithRuntime(mcpLoginRuntime{
+		store: tools.NewMCPOAuthStore(),
+		flow:  flow,
+	})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "login", "oauth")
+	if err == nil || exitCodeFromError(err) != 2 {
+		t.Fatalf("err=%v exit=%d stdout=%s stderr=%s, want exit 2", err, exitCodeFromError(err), stdout, stderr)
+	}
+	if flow.calls != 0 {
+		t.Fatalf("default MCP login read Hermes config and invoked flow %d times", flow.calls)
+	}
+	if !strings.Contains(stdout+stderr, "mcp_server_unknown") {
+		t.Fatalf("output missing mcp_server_unknown:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "noninteractive_required") || strings.Contains(stdout+stderr, "mcp_login_saved") {
+		t.Fatalf("default MCP login used Hermes server config:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 

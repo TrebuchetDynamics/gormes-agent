@@ -32,6 +32,32 @@ func TestTokenVaultRegisterCredentialFile(t *testing.T) {
 	}
 }
 
+func TestTokenVaultDefaultUsesGormesHomeNotHermesHome(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, "gormes")
+	hermesHome := filepath.Join(root, "hermes")
+	writeFixtureCredential(t, gormesHome, "credentials/native.txt", "plain-gormes-token")
+	writeFixtureCredential(t, hermesHome, "credentials/native.txt", "plain-hermes-token")
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("HERMES_HOME", hermesHome)
+
+	vault, err := NewTokenVault(TokenVaultOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mount, err := vault.RegisterCredentialFile("credentials/native.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.HasPrefix(mount.HostPath, gormesHome+string(os.PathSeparator)) {
+		t.Fatalf("HostPath = %q, want under Gormes home %q", mount.HostPath, gormesHome)
+	}
+	if strings.HasPrefix(mount.HostPath, hermesHome+string(os.PathSeparator)) {
+		t.Fatalf("HostPath = %q, want not under poisoned Hermes home %q", mount.HostPath, hermesHome)
+	}
+}
+
 func TestTokenVaultRejectsUnsafePaths(t *testing.T) {
 	hermesHome := t.TempDir()
 	writeFixtureCredential(t, hermesHome, "safe.txt", "plain-existing-token")

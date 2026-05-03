@@ -149,7 +149,7 @@ func TestHermesMigrationManifest_ConfigYAMLClassifiesSupportedKeys(t *testing.T)
 		"providers":       "hermes.providers",
 		"custom_provider": "hermes.custom_provider",
 		"terminal":        "terminal",
-		"display":         "tui.display",
+		"display":         "display",
 		"gateway":         "gateway",
 		"memory":          "memory",
 	}
@@ -175,6 +175,42 @@ func TestHermesMigrationManifest_ConfigYAMLClassifiesSupportedKeys(t *testing.T)
 	}
 	if !strings.Contains(strings.ToLower(unknown.Reason), "not in supported migration set") {
 		t.Fatalf("unknown reason missing supported-set evidence: %q", unknown.Reason)
+	}
+}
+
+func TestHermesMigrationManifest_ModelProviderAndDisplayNativeTargets(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src")
+	writeFile(t, filepath.Join(src, "config.yaml"), `
+model:
+  default: gpt-5.5
+  provider: openai-codex
+display:
+  tool_progress: new
+  tool_progress_command: true
+`)
+	t.Setenv("HERMES_HOME", "")
+
+	m, err := BuildManifest(Options{Source: src})
+	if err != nil {
+		t.Fatalf("BuildManifest: %v", err)
+	}
+	model := findConfigEntry(m, "model")
+	if model == nil {
+		t.Fatalf("missing model entry")
+	}
+	if model.Disposition != "importable" {
+		t.Fatalf("model disposition = %q, want importable", model.Disposition)
+	}
+	if model.GormesPath != "hermes.model,hermes.provider" {
+		t.Fatalf("model gormes_path = %q, want hermes.model,hermes.provider", model.GormesPath)
+	}
+	display := findConfigEntry(m, "display")
+	if display == nil {
+		t.Fatalf("missing display entry")
+	}
+	if display.GormesPath != "display" {
+		t.Fatalf("display gormes_path = %q, want display", display.GormesPath)
 	}
 }
 

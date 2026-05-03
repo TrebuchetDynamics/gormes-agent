@@ -360,13 +360,52 @@ func TestLoad_TelegramEnvOverride(t *testing.T) {
 	}
 }
 
-func TestLoad_HermesConfigYAMLTelegramTokenParity(t *testing.T) {
+func TestLoad_IgnoresHermesConfigYAML(t *testing.T) {
 	cfgHome := t.TempDir()
 	hermesHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
 	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
 	t.Setenv("HERMES_HOME", hermesHome)
+	t.Setenv("GORMES_ENDPOINT", "")
+	t.Setenv("GORMES_MODEL", "")
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("GORMES_WEB_BACKEND", "")
+	t.Setenv("GORMES_WEB_USE_GATEWAY", "")
+	t.Setenv("GORMES_BROWSER_CDP_URL", "")
+	t.Setenv("BROWSER_CDP_URL", "")
+	t.Setenv("CHROME_REMOTE_DEBUGGING_URL", "")
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("GORMES_DISCORD_TOKEN", "")
+	t.Setenv("GORMES_DISCORD_CHANNEL_ID", "")
+	t.Setenv("GORMES_SLACK_ENABLED", "")
+	t.Setenv("GORMES_SLACK_BOT_TOKEN", "")
+	t.Setenv("GORMES_SLACK_APP_TOKEN", "")
+	t.Setenv("GORMES_SLACK_CHANNEL_ID", "")
 	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
+model:
+  default: yaml-model
+  provider: yaml-provider
+web:
+  backend: parallel
+  use_gateway: true
+browser:
+  cdp_url: ws://yaml-browser
+display:
+  tool_progress_command: true
+  tool_progress: new
+  platforms:
+    telegram:
+      tool_progress: false
+  tool_progress_overrides:
+    discord: off
+security:
+  website_blocklist:
+    enabled: true
+    domains:
+      - example.com
+    shared_files:
+      - community-blocklist.txt
 platforms:
   telegram:
     enabled: true
@@ -376,39 +415,6 @@ platforms:
     extra:
       require_mention: true
       bot_username: gormes_bot
-streaming:
-  fresh_final_after_seconds: 17.5
-`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Telegram.BotToken != "yaml-token" {
-		t.Fatalf("Telegram.BotToken = %q, want Hermes config.yaml token", cfg.Telegram.BotToken)
-	}
-	if cfg.Telegram.AllowedChatID != 123456 {
-		t.Fatalf("Telegram.AllowedChatID = %d, want home_channel chat_id", cfg.Telegram.AllowedChatID)
-	}
-	if !cfg.Telegram.RequireMention {
-		t.Fatal("Telegram.RequireMention = false, want true from Hermes config.yaml extra.require_mention")
-	}
-	if cfg.Telegram.BotUsername != "gormes_bot" {
-		t.Fatalf("Telegram.BotUsername = %q, want gormes_bot", cfg.Telegram.BotUsername)
-	}
-	if cfg.Telegram.FreshFinalAfterSeconds != 17.5 {
-		t.Fatalf("Telegram.FreshFinalAfterSeconds = %v, want 17.5", cfg.Telegram.FreshFinalAfterSeconds)
-	}
-}
-
-func TestLoad_HermesConfigYAMLChannelHomeParity(t *testing.T) {
-	hermesHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HERMES_HOME", hermesHome)
-	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
-platforms:
   discord:
     enabled: true
     token: discord-token
@@ -421,6 +427,8 @@ platforms:
       chat_id: C-home
     extra:
       app_token: slack-app-token
+streaming:
+  fresh_final_after_seconds: 17.5
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -429,79 +437,63 @@ platforms:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Discord.Token != "discord-token" {
-		t.Fatalf("Discord.Token = %q, want Hermes config.yaml token", cfg.Discord.Token)
+	if cfg.Hermes.Model != "hermes-agent" {
+		t.Fatalf("Hermes.Model = %q, want built-in default instead of Hermes config.yaml", cfg.Hermes.Model)
 	}
-	if cfg.Discord.AllowedChannelID != "D-home" {
-		t.Fatalf("Discord.AllowedChannelID = %q, want home_channel chat_id", cfg.Discord.AllowedChannelID)
+	if cfg.Hermes.Provider != "" || cfg.Hermes.Endpoint != "" {
+		t.Fatalf("Hermes provider/endpoint = %q/%q, want no Hermes config.yaml import", cfg.Hermes.Provider, cfg.Hermes.Endpoint)
 	}
-	if !cfg.Slack.Enabled {
-		t.Fatal("Slack.Enabled = false, want true from Hermes config.yaml platforms.slack.enabled")
+	if cfg.Telegram.BotToken != "" || cfg.Telegram.AllowedChatID != 0 || cfg.Telegram.RequireMention || cfg.Telegram.BotUsername != "" {
+		t.Fatalf("Telegram config imported from Hermes YAML: %+v", cfg.Telegram)
 	}
-	if cfg.Slack.BotToken != "slack-bot-token" {
-		t.Fatalf("Slack.BotToken = %q, want Hermes config.yaml token", cfg.Slack.BotToken)
+	if cfg.Telegram.FreshFinalAfterSeconds != 60 {
+		t.Fatalf("Telegram.FreshFinalAfterSeconds = %v, want default 60", cfg.Telegram.FreshFinalAfterSeconds)
 	}
-	if cfg.Slack.AppToken != "slack-app-token" {
-		t.Fatalf("Slack.AppToken = %q, want Hermes config.yaml extra.app_token", cfg.Slack.AppToken)
+	if cfg.Discord.Token != "" || cfg.Discord.AllowedChannelID != "" {
+		t.Fatalf("Discord config imported from Hermes YAML: %+v", cfg.Discord)
 	}
-	if cfg.Slack.AllowedChannelID != "C-home" {
-		t.Fatalf("Slack.AllowedChannelID = %q, want home_channel chat_id", cfg.Slack.AllowedChannelID)
+	if cfg.Slack.Enabled || cfg.Slack.BotToken != "" || cfg.Slack.AppToken != "" || cfg.Slack.AllowedChannelID != "" {
+		t.Fatalf("Slack config imported from Hermes YAML: %+v", cfg.Slack)
+	}
+	if cfg.Display.ToolProgress != "" || cfg.Display.ToolProgressCommand || len(cfg.Display.Platforms) != 0 {
+		t.Fatalf("Display config imported from Hermes YAML: %+v", cfg.Display)
+	}
+	if cfg.Web.Backend != "" || cfg.Web.UseGateway {
+		t.Fatalf("Web config imported from Hermes YAML: %+v", cfg.Web)
+	}
+	if cfg.Browser.CDPURL != "" {
+		t.Fatalf("Browser.CDPURL = %q, want no Hermes config.yaml import", cfg.Browser.CDPURL)
+	}
+	if cfg.Security.WebsiteBlocklist.Enabled || len(cfg.Security.WebsiteBlocklist.Domains) != 0 || len(cfg.Security.WebsiteBlocklist.SharedFiles) != 0 {
+		t.Fatalf("Security website blocklist imported from Hermes YAML: %+v", cfg.Security.WebsiteBlocklist)
 	}
 }
 
-func TestLoad_HermesConfigYAMLDisplayToolProgressParity(t *testing.T) {
+func TestSetGormesDisplayPlatformToolProgressWritesNativePlatformOverride(t *testing.T) {
+	cfgHome := t.TempDir()
 	hermesHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	gormesHome := filepath.Join(cfgHome, "gormes")
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", gormesHome)
 	t.Setenv("HERMES_HOME", hermesHome)
+	if err := os.MkdirAll(gormesHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(ConfigPath(), []byte(`
+[display]
+tool_progress = "all"
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
 display:
-  tool_progress_command: true
-  tool_progress: new
-  platforms:
-    telegram:
-      tool_progress: false
-    slack:
-      tool_progress: verbose
-  tool_progress_overrides:
-    discord: off
+  tool_progress: off
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Display.ToolProgress != "new" {
-		t.Fatalf("Display.ToolProgress = %q, want global Hermes display.tool_progress", cfg.Display.ToolProgress)
-	}
-	if !cfg.Display.ToolProgressCommand {
-		t.Fatal("Display.ToolProgressCommand = false, want true from Hermes display.tool_progress_command")
-	}
-	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "off" {
-		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want bool false normalized to off", got)
-	}
-	if got := cfg.Display.Platforms["slack"].ToolProgress; got != "verbose" {
-		t.Fatalf("Display.Platforms[slack].ToolProgress = %q, want verbose", got)
-	}
-	if got := cfg.Display.Platforms["discord"].ToolProgress; got != "off" {
-		t.Fatalf("Display.Platforms[discord].ToolProgress = %q, want legacy override", got)
-	}
-}
-
-func TestSetHermesDisplayPlatformToolProgressWritesPlatformOverride(t *testing.T) {
-	hermesHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HERMES_HOME", hermesHome)
-	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
-display:
-  tool_progress: all
-`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := SetHermesDisplayPlatformToolProgress("Telegram", "new"); err != nil {
-		t.Fatalf("SetHermesDisplayPlatformToolProgress: %v", err)
+	if err := SetGormesDisplayPlatformToolProgress("Telegram", "new"); err != nil {
+		t.Fatalf("SetGormesDisplayPlatformToolProgress: %v", err)
 	}
 
 	cfg, err := Load(nil)
@@ -509,136 +501,17 @@ display:
 		t.Fatal(err)
 	}
 	if cfg.Display.ToolProgress != "all" {
-		t.Fatalf("Display.ToolProgress = %q, want existing global mode preserved", cfg.Display.ToolProgress)
+		t.Fatalf("Display.ToolProgress = %q, want existing native global mode preserved", cfg.Display.ToolProgress)
 	}
 	if got := cfg.Display.Platforms["telegram"].ToolProgress; got != "new" {
-		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want persisted new override", got)
+		t.Fatalf("Display.Platforms[telegram].ToolProgress = %q, want persisted native override", got)
 	}
-}
-
-func TestLoad_HermesConfigYAMLModelProviderParity(t *testing.T) {
-	hermesHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HERMES_HOME", hermesHome)
-	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
-model:
-  default: gpt-5.5
-  provider: openai-codex
-`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	cfg, err := Load(nil)
+	hermesBody, err := os.ReadFile(filepath.Join(hermesHome, "config.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Hermes.Model != "gpt-5.5" {
-		t.Fatalf("Hermes.Model = %q, want model.default from Hermes config.yaml", cfg.Hermes.Model)
-	}
-	if cfg.Hermes.Provider != "openai-codex" {
-		t.Fatalf("Hermes.Provider = %q, want model.provider from Hermes config.yaml", cfg.Hermes.Provider)
-	}
-
-	resolved, err := ResolveInference(InferenceRequest{Config: cfg, CommandLabel: "gormes gateway"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resolved.Model != "gpt-5.5" || resolved.ModelSource != InferenceValueSourceConfig {
-		t.Fatalf("resolved model/source = %q/%s, want gpt-5.5/config", resolved.Model, resolved.ModelSource)
-	}
-	if resolved.Provider != "openai-codex" || resolved.ProviderSource != InferenceValueSourceConfig {
-		t.Fatalf("resolved provider/source = %q/%s, want openai-codex/config", resolved.Provider, resolved.ProviderSource)
-	}
-	if resolved.ProviderAutoDetectRequired {
-		t.Fatal("ProviderAutoDetectRequired = true, want false when provider comes from Hermes config.yaml")
-	}
-}
-
-func TestLoad_GormesEnvOverridesHermesConfigYAML(t *testing.T) {
-	hermesHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HERMES_HOME", hermesHome)
-	t.Setenv("GORMES_TELEGRAM_TOKEN", "env-token")
-	t.Setenv("GORMES_MODEL", "env-model")
-	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
-model:
-  default: yaml-model
-  provider: yaml-provider
-platforms:
-  telegram:
-    token: yaml-token
-`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Telegram.BotToken != "env-token" {
-		t.Fatalf("Telegram.BotToken = %q, want env override", cfg.Telegram.BotToken)
-	}
-	if cfg.Hermes.Model != "env-model" {
-		t.Fatalf("Hermes.Model = %q, want env override", cfg.Hermes.Model)
-	}
-	if cfg.Hermes.Provider != "yaml-provider" {
-		t.Fatalf("Hermes.Provider = %q, want Hermes config.yaml provider when no Gormes override is set", cfg.Hermes.Provider)
-	}
-}
-
-func TestLoad_HermesConfigYAMLWebBackend(t *testing.T) {
-	hermesHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HERMES_HOME", hermesHome)
-	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
-web:
-  backend: parallel
-  use_gateway: true
-`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Web.Backend != "parallel" {
-		t.Fatalf("Web.Backend = %q, want parallel from Hermes config.yaml", cfg.Web.Backend)
-	}
-	if !cfg.Web.UseGateway {
-		t.Fatal("Web.UseGateway = false, want true from Hermes config.yaml")
-	}
-}
-
-func TestLoad_HermesConfigYAMLWebsiteBlocklist(t *testing.T) {
-	hermesHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HERMES_HOME", hermesHome)
-	if err := os.WriteFile(filepath.Join(hermesHome, "config.yaml"), []byte(`
-security:
-  website_blocklist:
-    enabled: true
-    domains:
-      - example.com
-      - https://www.evil.test/path
-    shared_files:
-      - community-blocklist.txt
-`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	cfg, err := Load(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !cfg.Security.WebsiteBlocklist.Enabled {
-		t.Fatal("Security.WebsiteBlocklist.Enabled = false, want true")
-	}
-	if got, want := strings.Join(cfg.Security.WebsiteBlocklist.Domains, ","), "example.com,https://www.evil.test/path"; got != want {
-		t.Fatalf("WebsiteBlocklist.Domains = %q, want %q", got, want)
-	}
-	if got, want := strings.Join(cfg.Security.WebsiteBlocklist.SharedFiles, ","), "community-blocklist.txt"; got != want {
-		t.Fatalf("WebsiteBlocklist.SharedFiles = %q, want %q", got, want)
+	if strings.Contains(string(hermesBody), "Telegram") || strings.Contains(string(hermesBody), "new") {
+		t.Fatalf("Hermes config.yaml mutated by native display writer:\n%s", hermesBody)
 	}
 }
 
@@ -1180,50 +1053,6 @@ func TestDelegationCfgResolvedRunLogPathDefaultsToGormesHome(t *testing.T) {
 	want := "/tmp/gormes-home/subagents/runs.jsonl"
 	if got := cfg.ResolvedRunLogPath(); got != want {
 		t.Errorf("ResolvedRunLogPath() = %q, want %q", got, want)
-	}
-}
-
-func TestLegacyHermesHome_HermesHomeEnvWins(t *testing.T) {
-	t.Setenv("HERMES_HOME", "/some/custom/hermes/path")
-	got, ok := LegacyHermesHome()
-	if !ok {
-		t.Fatal("expected detection when HERMES_HOME set")
-	}
-	if got != "/some/custom/hermes/path" {
-		t.Errorf("got = %q, want the HERMES_HOME value", got)
-	}
-}
-
-func TestLegacyHermesHome_FallsBackToDefaultHomeDir(t *testing.T) {
-	fakeHome := t.TempDir()
-	t.Setenv("HERMES_HOME", "")
-	t.Setenv("HOME", fakeHome)
-
-	// Without ~/.hermes, should not detect.
-	if _, ok := LegacyHermesHome(); ok {
-		t.Errorf("expected no detection when ~/.hermes absent")
-	}
-
-	// Create ~/.hermes — should detect.
-	if err := os.MkdirAll(filepath.Join(fakeHome, ".hermes"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	got, ok := LegacyHermesHome()
-	if !ok {
-		t.Fatal("expected detection when ~/.hermes exists")
-	}
-	if got != filepath.Join(fakeHome, ".hermes") {
-		t.Errorf("got = %q, want ~/.hermes path", got)
-	}
-}
-
-func TestLegacyHermesHome_NotDetectedWhenNothingIsThere(t *testing.T) {
-	fakeHome := t.TempDir()
-	t.Setenv("HERMES_HOME", "")
-	t.Setenv("HOME", fakeHome)
-	// ~/.hermes does not exist inside fakeHome.
-	if _, ok := LegacyHermesHome(); ok {
-		t.Errorf("expected no detection in empty fakeHome")
 	}
 }
 

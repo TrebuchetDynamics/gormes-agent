@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Secrets Runtime Controls
+## 1. GONCHO local-first markdown MCP memory requirement
+
+- Phase: 3 / 3.F
+- Owner: `memory`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P0`
+- Contract: GONCHO must support a local-first memory mode that answers the OpenClaw community pain point: no cloud dependency, no mandatory API key, user-readable/editable markdown memory files, MCP-compatible access from any agent framework, optional local embeddings via Ollama, and restart-persistent storage.
+- Trust class: operator, system
+- Ready when: Existing Goncho service/tool contracts are audited for where markdown export/import, local embedding configuration, and MCP tool catalog behavior should attach., The implementation plan preserves Honcho-compatible external tool names while branding the internal subsystem as GONCHO.
+- Not ready when: The design requires mem0, Zep, a hosted vector database, a cloud API key, or an opaque-only binary store to start., Markdown files are treated only as one-way exports instead of user-editable source material that can be reloaded safely.
+- Degraded mode: If Ollama or embeddings are unavailable, GONCHO still persists and serves markdown-backed lexical/SQLite recall locally without requiring network access or a hosted memory provider.
+- Fixture: `internal/goncho/local_markdown_mcp_test.go; internal/gonchotools/mcp_catalog_test.go; internal/memory/markdown_store_test.go`
+- Write scope: `internal/goncho/`, `internal/gonchotools/`, `internal/memory/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/`, `docs/superpowers/specs/`
+- Test commands: `go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1`, `go test ./cmd/gormes -run Goncho -count=1`, `go run ./cmd/progress validate`
+- Done signal: Docs and tests demonstrate local markdown-backed GONCHO memory over MCP with no cloud/API-key dependency and restart persistence.
+- Acceptance: A fresh local Gormes install can enable GONCHO memory without cloud credentials or a paid API key., Memories can be stored, inspected, edited, and reloaded as plain markdown files with deterministic conflict handling against SQLite/source-of-truth state., GONCHO exposes MCP-compatible memory tools/catalog entries usable by non-Gormes agent frameworks while keeping Honcho-compatible tool contracts where parity requires them., Optional Ollama embeddings are configurable and never required for basic persistence/recall., Memory survives process and machine restarts with documented on-disk paths and read-only diagnostics.
+- Source refs: User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO., internal/goncho/, internal/gonchotools/, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md, docs/content/building-gormes/architecture_plan/progress.json, Phase 5.G MCP Integration / Goncho MCP tool catalog
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Secrets Runtime Controls
 
 - Phase: 5 / 5.J
 - Owner: `tools`
@@ -48,7 +68,7 @@ selection.
 - Unblocks: Security audit (5.J), Provider auth parity
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Security Audit Command
+## 3. Security Audit Command
 
 - Phase: 5 / 5.J
 - Owner: `tools`
@@ -68,27 +88,6 @@ selection.
 - Source refs: openclaw security audit --deep --fix --json CLI surface, docs/content/building-gormes/openclaw-platform-parity-audit.md, docs/content/building-gormes/must-have-features.md
 - Unblocks: Production security posture
 - Why now: P0 handoff; needs contract proof before closeout.
-
-## 3. Interactive Onboarding
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `medium`
-- Status: `in_progress`
-- Priority: `P1`
-- Contract: Promote gormes onboard from setup alias into a truthful first-run command now, then complete the full interactive flow: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Match OpenClaw's onboarding depth without pretending partial onboarding is complete.
-- Trust class: operator
-- Ready when: QMD Hybrid Search (5.N) is operational for skill discovery step., Setup wizard alias exists as scaffold.
-- Not ready when: The row requires live credentials for testing., The row replaces existing setup without migration path.
-- Degraded mode: Current partial onboarding reports first-run status, runtime skills root, bundled/local skill counts, and partial learning-loop state with next-step commands. The future full wizard must report missing provider credentials, gateway config gaps, or browser unavailability per step and allow skip with explicit warning.
-- Fixture: `cmd/gormes/skills_onboard_test.go::TestOnboardExplainsRuntimeSkillsAndLearningState,TestOnboardShowsConfiguredProviderDetails; future full wizard: internal/cli/onboard_test.go`
-- Write scope: `cmd/gormes/main.go`, `cmd/gormes/setup.go`, `cmd/gormes/onboard.go`, `cmd/gormes/skills.go`, `cmd/gormes/skills_onboard_test.go`, `internal/skills/list.go`, `internal/cli/onboard.go`, `internal/cli/onboard_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run 'TestRootSkills\|TestOnboard\|TestSetup\|TestHermesCLIParityManifest' -count=1`, `go test ./internal/cli -run TestOnboard -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes onboard ships as full interactive first-run flow.
-- Acceptance: gormes onboard is a real top-level command, not a setup alias., Current output separates runtime skills from docs/development-skills and points users to gormes skills list., Current output states that skill capture is manual/prompted and full automatic distill/promote/maintain is partial., Configured provider output shows provider id, endpoint, and model instead of collapsing the setup state into one URL., Future full wizard walks through model -> provider -> auth -> gateway -> browser -> skills -> dashboard., Each future wizard step can be skipped with explicit warning., Already-configured future wizard steps are detected and pre-filled., End-to-end future wizard is testable without live credentials (mock provider, fake channel).
-- Source refs: openclaw onboard command, cmd/gormes/setup.go, docs/content/building-gormes/fleet-operational-patterns.md, docs/content/building-gormes/fleet-integration-plan.md
-- Unblocks: First-run user experience
-- Why now: Already active; contract metadata keeps execution bounded.
 
 ## 4. ACP Client Bridge Mode
 

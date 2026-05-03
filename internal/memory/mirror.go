@@ -30,7 +30,7 @@ import (
 type MirrorConfig struct {
 	// Enabled turns the mirror on/off. Default: true.
 	Enabled bool
-	// Path is the destination Markdown file. Default: "~/.hermes/memory/USER.md"
+	// Path is the destination Markdown file. Default: "$GORMES_HOME/memory/USER.md"
 	Path string
 	// Interval is the sync period. Default: 30s.
 	Interval time.Duration
@@ -40,13 +40,20 @@ type MirrorConfig struct {
 
 // DefaultMirrorConfig returns production defaults.
 func DefaultMirrorConfig() MirrorConfig {
-	home, _ := os.UserHomeDir()
 	return MirrorConfig{
 		Enabled:  true,
-		Path:     filepath.Join(home, ".hermes", "memory", "USER.md"),
+		Path:     filepath.Join(defaultGormesHome(), "memory", "USER.md"),
 		Interval: 30 * time.Second,
 		Logger:   nil,
 	}
+}
+
+func defaultGormesHome() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_HOME")); v != "" {
+		return v
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".gormes")
 }
 
 // Mirror manages the background USER.md sync.

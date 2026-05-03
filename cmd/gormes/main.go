@@ -452,10 +452,6 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	}
 
 	cfg := invocation.Config
-	if p, ok := config.LegacyHermesHome(); ok {
-		slog.Info("detected upstream Hermes home — Gormes uses GormesHome and does NOT read state from it; run `gormes migrate --from-hermes` (planned Phase 5.O) to import sessions and memory", "hermes_home", p)
-	}
-
 	modelName := invocation.Inference.Model
 	if modelName == "" {
 		modelName = cfg.Hermes.Model
