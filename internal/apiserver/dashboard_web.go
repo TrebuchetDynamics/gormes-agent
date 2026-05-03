@@ -11,5 +11,5 @@ var staticFS embed.FS
 
 func staticHandler() http.Handler {
 	sub, _ := fs.Sub(staticFS, "static")
-	return http.FileServer(http.FS(sub))
+	return http.StripPrefix("/static/", http.FileServer(http.FS(sub)))
 }

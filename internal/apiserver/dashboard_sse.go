@@ -46,7 +46,6 @@ func (s *Server) unregisterSSEClient(ch chan string) {
 	for i, c := range s.sseClients {
 		if c == ch {
 			s.sseClients = append(s.sseClients[:i], s.sseClients[i+1:]...)
-			close(ch)
 			return
 		}
 	}
