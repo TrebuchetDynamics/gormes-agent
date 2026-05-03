@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode/utf8"
 )
@@ -163,10 +162,11 @@ func withMemoryFileLock(path string, fn func() MemoryToolResult) MemoryToolResul
 		return memoryError(MemoryEvidenceStoreUnavailable, "open memory lock")
 	}
 	defer lock.Close()
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := lockMemoryFile(lock)
+	if err != nil {
 		return memoryError(MemoryEvidenceStoreUnavailable, "acquire memory lock")
 	}
-	defer func() { _ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN) }()
+	defer func() { _ = unlock() }()
 	return fn()
 }
 
