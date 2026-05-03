@@ -28,6 +28,7 @@ type Config struct {
 	ConfigVersion int `toml:"_config_version" yaml:"_config_version"`
 
 	Hermes     HermesCfg         `toml:"hermes" yaml:"hermes"`
+	Runtime    RuntimeCfg        `toml:"runtime" yaml:"runtime"`
 	Gateway    GatewayCfg        `toml:"gateway" yaml:"gateway"`
 	Display    DisplayCfg        `toml:"display" yaml:"display"`
 	TUI        TUICfg            `toml:"tui" yaml:"tui"`
@@ -253,6 +254,17 @@ type HermesCfg struct {
 	Provider string `toml:"provider" yaml:"provider"`
 }
 
+type RuntimeCfg struct {
+	MaxToolIterations         int     `toml:"max_tool_iterations" yaml:"max_tool_iterations"`
+	TerminalBackend           string  `toml:"terminal_backend" yaml:"terminal_backend"`
+	TTSProvider               string  `toml:"tts_provider" yaml:"tts_provider"`
+	CompressionThreshold      float64 `toml:"compression_threshold" yaml:"compression_threshold"`
+	SessionResetPolicy        string  `toml:"session_reset_policy" yaml:"session_reset_policy"`
+	SessionResetAfterMinutes  int     `toml:"session_reset_after_minutes" yaml:"session_reset_after_minutes"`
+	SessionResetDailyHour     int     `toml:"session_reset_daily_hour" yaml:"session_reset_daily_hour"`
+	SessionResetMemorySummary bool    `toml:"session_reset_memory_summary" yaml:"session_reset_memory_summary"`
+}
+
 type GatewayCfg struct {
 	ProxyURL string `toml:"proxy_url" yaml:"proxy_url"`
 	ProxyKey string `toml:"proxy_key" yaml:"proxy_key"`
@@ -422,6 +434,15 @@ func defaults() Config {
 		ConfigVersion: CurrentConfigVersion,
 		Hermes: HermesCfg{
 			Model: "hermes-agent",
+		},
+		Runtime: RuntimeCfg{
+			MaxToolIterations:         90,
+			TerminalBackend:           "local",
+			TTSProvider:               "edge",
+			CompressionThreshold:      0.5,
+			SessionResetPolicy:        "inactivity",
+			SessionResetAfterMinutes:  1440,
+			SessionResetMemorySummary: true,
 		},
 		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},

@@ -162,7 +162,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             reg,
-		MaxToolIterations: kernel.DefaultMaxToolIterations,
+		MaxToolIterations: configuredMaxToolIterations(cfg),
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		Recall:            recallProv,
