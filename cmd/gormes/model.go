@@ -10,6 +10,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -78,11 +79,14 @@ func defaultModelCommandSeams() modelCommandSeams {
 }
 
 func isStdinTTY() bool {
-	info, err := os.Stdin.Stat()
-	if err != nil {
+	return stdinIsTerminal(os.Stdin)
+}
+
+func stdinIsTerminal(file *os.File) bool {
+	if file == nil {
 		return false
 	}
-	return (info.Mode() & os.ModeCharDevice) != 0
+	return term.IsTerminal(int(file.Fd()))
 }
 
 func defaultModelProviderEntries() ([]cli.ProviderMenuEntry, error) {

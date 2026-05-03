@@ -63,6 +63,29 @@ func TestDoctorCustomEndpointMissingAPIKey(t *testing.T) {
 	if apiKey.Note != "missing" {
 		t.Fatalf("api_key item Note = %q, want %q", apiKey.Note, "missing")
 	}
+	if got.Summary != "configured endpoint=https://example.invalid missing=api_key" {
+		t.Fatalf("Summary = %q, want missing field name", got.Summary)
+	}
+}
+
+func TestDoctorCustomEndpointDefaultModelMissingEndpointAndKey(t *testing.T) {
+	cfg := config.Config{
+		Hermes: config.HermesCfg{
+			Model: "hermes-agent",
+		},
+	}
+
+	got := doctorCustomEndpointReadiness(cfg)
+
+	if got.Status != doctor.StatusWarn {
+		t.Fatalf("Status = %v, want %v", got.Status, doctor.StatusWarn)
+	}
+	if got.Summary != "setup incomplete: missing endpoint, api_key" {
+		t.Fatalf("Summary = %q, want setup guidance", got.Summary)
+	}
+	if strings.Contains(got.Summary, "endpoint=") || strings.Contains(got.Summary, "missing=2") {
+		t.Fatalf("Summary kept ambiguous first-run wording: %q", got.Summary)
+	}
 }
 
 func TestDoctorCustomEndpointMissingModel(t *testing.T) {
