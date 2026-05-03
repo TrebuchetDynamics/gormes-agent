@@ -41,12 +41,10 @@ func TestDoctorBrowserRuntimeRecommendsChromeInstallWhenUnavailable(t *testing.T
 	}
 }
 
-func TestDoctorBrowserRuntimeReportsReadyWhenHarnessAndCDPAreReachable(t *testing.T) {
+func TestDoctorBrowserRuntimeReportsReadyWhenChromeAndCDPAreReachable(t *testing.T) {
 	got := doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{
 		lookPath: func(name string) (string, error) {
 			switch name {
-			case "go-browser-harness":
-				return "/usr/local/bin/go-browser-harness", nil
 			case "google-chrome":
 				return "/usr/bin/google-chrome", nil
 			default:
@@ -70,7 +68,7 @@ func TestDoctorBrowserRuntimeReportsReadyWhenHarnessAndCDPAreReachable(t *testin
 	if got.Status != doctor.StatusPass {
 		t.Fatalf("Status = %v, want %v\n%s", got.Status, doctor.StatusPass, got.Format())
 	}
-	for _, name := range []string{"harness", "chrome", "cdp"} {
+	for _, name := range []string{"chrome", "cdp"} {
 		item, ok := findItem(got.Items, name)
 		if !ok {
 			t.Fatalf("missing %s item in %+v", name, got.Items)
@@ -78,6 +76,9 @@ func TestDoctorBrowserRuntimeReportsReadyWhenHarnessAndCDPAreReachable(t *testin
 		if item.Status != doctor.StatusPass {
 			t.Fatalf("%s item = %+v, want PASS", name, item)
 		}
+	}
+	if item, ok := findItem(got.Items, "harness"); ok {
+		t.Fatalf("unexpected external harness item after in-process browser runtime migration: %+v", item)
 	}
 	if !strings.Contains(got.Summary, "local_cdp_ready") {
 		t.Fatalf("Summary = %q, want local_cdp_ready", got.Summary)
@@ -88,7 +89,7 @@ func TestDoctorBrowserRuntimeAcceptsHermesBrowserCDPURL(t *testing.T) {
 	got := doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{
 		lookPath: func(name string) (string, error) {
 			switch name {
-			case "go-browser-harness", "google-chrome":
+			case "google-chrome":
 				return "/bin/" + name, nil
 			default:
 				return "", errors.New("not found")
@@ -117,7 +118,7 @@ func TestDoctorBrowserRuntimeWarnsWhenCDPEndpointIsConfiguredButUnreachable(t *t
 	got := doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{
 		lookPath: func(name string) (string, error) {
 			switch name {
-			case "go-browser-harness", "google-chrome":
+			case "google-chrome":
 				return "/bin/" + name, nil
 			default:
 				return "", errors.New("not found")

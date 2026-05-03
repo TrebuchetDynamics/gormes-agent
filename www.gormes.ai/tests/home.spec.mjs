@@ -41,7 +41,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('#install').getByText('./bin/gormes doctor --offline', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('./bin/gormes goncho doctor --json', { exact: true })).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);
-  await expect(page.locator('#install').getByText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh')).toHaveCount(0);
+  await expect(page.locator('#install').getByText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh')).toHaveCount(0);
   await expect(page.getByText('Provider setup, gateway setup, and convenience installers come after the offline proof.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Single Static Binary' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Offline Proof' })).toBeVisible();
@@ -59,7 +59,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Run Hermes Through a Go Operator Console.')).toHaveCount(0);
   await expect(page.getByText('Why Hermes breaks in production')).toHaveCount(0);
   await expect(page.getByText('irm https://gormes.ai/install.ps1 | iex')).toHaveCount(0);
-  await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh')).toHaveCount(0);
+  await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(1);
   // Copy buttons require a tiny inline clipboard script — bounded to the three-step offline proof.

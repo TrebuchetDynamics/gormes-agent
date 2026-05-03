@@ -39,30 +39,34 @@ func TestBrowserHarnessToolsExposeHermesNames(t *testing.T) {
 }
 
 func TestBrowserHarnessNavigateUsesNewTabAndEnvelope(t *testing.T) {
-	runner := &recordingHarnessRunner{
-		result: BrowserHarnessProcessResult{Stdout: []byte(`{"url":"https://example.com","title":"Example","interactive":[{"ref":"@e1","text":"Docs"}]}`)},
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Evidence:      BrowserHarnessEvidenceActionAccepted,
+			Kind:          BrowserActionNavigate,
+			URL:           "https://example.com",
+			Title:         "Example",
+			Interactive:   []BrowserHarnessElement{{Ref: "@e1", Text: "Docs"}},
+		},
 	}
 	tool := NewBrowserHarnessTool("browser_navigate", BrowserHarnessToolsConfig{
-		Runner: runner,
-		Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+		Backend: backend,
+		Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 	})
 
 	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://example.com","task_id":"Browser Task"}`))
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if got, wantPrefix := strings.Join(runner.argv[:2], "\x00"), "go-browser-harness\x00--action-json"; got != wantPrefix {
-		t.Fatalf("argv prefix = %q, want %q", got, wantPrefix)
-	}
-	action := decodeHarnessAction(t, runner.argv[2])
+	action := backend.req
 	if action.SchemaVersion != browserHarnessActionSchemaVersion || action.Kind != BrowserActionNavigate || action.URL != "https://example.com" {
 		t.Fatalf("navigate action = %#v", action)
 	}
 	if !action.NewTab {
 		t.Fatalf("navigate action must request a new tab: %#v", action)
 	}
-	if runner.env["BU_NAME"] != "gormes_Browser_Task" {
-		t.Fatalf("BU_NAME = %q, want sanitized task id", runner.env["BU_NAME"])
+	if backend.env["BU_NAME"] != "gormes_Browser_Task" {
+		t.Fatalf("BU_NAME = %q, want sanitized task id", backend.env["BU_NAME"])
 	}
 	var out BrowserHarnessToolResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -97,10 +101,10 @@ func TestBrowserHarnessClickAndTypeUseSnapshotRefs(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name+"_"+strings.ReplaceAll(tc.args, `"`, ""), func(t *testing.T) {
-			runner := &recordingHarnessRunner{result: BrowserHarnessProcessResult{Stdout: []byte(`{"ok":true}`)}}
+			backend := &recordingBrowserHarnessBackend{result: BrowserHarnessActionResult{SchemaVersion: browserHarnessActionSchemaVersion, Evidence: BrowserHarnessEvidenceActionAccepted}}
 			tool := NewBrowserHarnessTool(tc.name, BrowserHarnessToolsConfig{
-				Runner: runner,
-				Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+				Backend: backend,
+				Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 			})
 			_, err := tool.Execute(context.Background(), json.RawMessage(tc.args))
 			if tc.shouldDeny {
@@ -112,7 +116,7 @@ func TestBrowserHarnessClickAndTypeUseSnapshotRefs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Execute: %v", err)
 			}
-			action := decodeHarnessAction(t, runner.argv[2])
+			action := backend.req
 			if action.Kind != tc.wantAction.Kind || action.Ref != tc.wantAction.Ref || action.Text != tc.wantAction.Text || action.TaskID != tc.wantAction.TaskID {
 				t.Fatalf("action = %#v, want %#v", action, tc.wantAction)
 			}
@@ -174,15 +178,15 @@ func TestBrowserHarnessCDPConsoleAndVisionBuildExpectedActions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runner := &recordingHarnessRunner{result: BrowserHarnessProcessResult{Stdout: []byte(`{"ok":true}`)}}
+			backend := &recordingBrowserHarnessBackend{result: BrowserHarnessActionResult{SchemaVersion: browserHarnessActionSchemaVersion, Evidence: BrowserHarnessEvidenceActionAccepted}}
 			tool := NewBrowserHarnessTool(tt.name, BrowserHarnessToolsConfig{
-				Runner: runner,
-				Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+				Backend: backend,
+				Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 			})
 			if _, err := tool.Execute(context.Background(), json.RawMessage(tt.args)); err != nil {
 				t.Fatalf("Execute: %v", err)
 			}
-			action := decodeHarnessAction(t, runner.argv[2])
+			action := backend.req
 			if action.Kind != tt.wantKind {
 				t.Fatalf("action kind = %q, want %q: %#v", action.Kind, tt.wantKind, action)
 			}
@@ -225,17 +229,21 @@ func decodeHarnessAction(t *testing.T, raw string) BrowserHarnessActionRequest {
 // New tests required by the chromedp backend row
 // ---------------------------------------------------------------------------
 
-// TestBrowserHarness_NavigateEmitsNewTabActionJSON proves browser_navigate
-// emits --action-json with new_tab=true and does NOT emit Python snippets.
-func TestBrowserHarness_NavigateEmitsNewTabActionJSON(t *testing.T) {
-	runner := &recordingHarnessRunner{
-		result: BrowserHarnessProcessResult{
-			Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","task_id":"nav-task","url":"https://gormes.ai"}`),
+// TestBrowserHarness_NavigateUsesInternalAction proves browser_navigate sends
+// typed action data to the in-process backend with new_tab=true.
+func TestBrowserHarness_NavigateUsesInternalAction(t *testing.T) {
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Evidence:      BrowserHarnessEvidenceActionAccepted,
+			Kind:          BrowserActionNavigate,
+			TaskID:        "nav-task",
+			URL:           "https://gormes.ai",
 		},
 	}
 	tool := NewBrowserHarnessTool(BrowserToolNavigate, BrowserHarnessToolsConfig{
-		Runner: runner,
-		Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+		Backend: backend,
+		Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 	})
 
 	_, err := tool.Execute(context.Background(), json.RawMessage(`{"url":"https://gormes.ai","task_id":"nav-task"}`))
@@ -243,39 +251,19 @@ func TestBrowserHarness_NavigateEmitsNewTabActionJSON(t *testing.T) {
 		t.Fatalf("Execute: %v", err)
 	}
 
-	// argv[0] must be "go-browser-harness", argv[1] must be "--action-json"
-	if len(runner.argv) < 3 {
-		t.Fatalf("argv too short: %v", runner.argv)
-	}
-	if runner.argv[0] != defaultBrowserHarnessCommand {
-		t.Fatalf("argv[0] = %q, want %q (not Python browser-harness)", runner.argv[0], defaultBrowserHarnessCommand)
-	}
-	if runner.argv[1] != "--action-json" {
-		t.Fatalf("argv[1] = %q, want --action-json", runner.argv[1])
-	}
-
-	// Decode the action JSON and verify new_tab=true.
-	action := decodeHarnessAction(t, runner.argv[2])
+	action := backend.req
 	if !action.NewTab {
-		t.Fatalf("browser_navigate action JSON must have new_tab=true; got: %#v", action)
+		t.Fatalf("browser_navigate action must have new_tab=true; got: %#v", action)
 	}
 	if action.URL != "https://gormes.ai" {
 		t.Fatalf("action.URL = %q, want https://gormes.ai", action.URL)
 	}
-
-	// Must NOT contain Python snippets.
-	actionJSONStr := runner.argv[2]
-	for _, pyMarker := range []string{"import json", "new_tab(", "goto_url(", "wait_for_load(", "browser-harness"} {
-		if strings.Contains(actionJSONStr, pyMarker) {
-			t.Fatalf("action JSON contains Python snippet %q; must use Go-native action JSON only", pyMarker)
-		}
-	}
 }
 
-// TestBrowserHarness_DefaultBackendIsGoNotPython proves that under default
-// config (no Command/Protocol override), the harness routes through
-// go-browser-harness --action-json and never emits browser-harness -c Python code.
-func TestBrowserHarness_DefaultBackendIsGoNotPython(t *testing.T) {
+// TestBrowserHarness_DefaultBackendIsInternalNotPython proves that under
+// default config (no Command/Protocol override), the harness routes through an
+// internal backend and never emits browser-harness -c Python code.
+func TestBrowserHarness_DefaultBackendIsInternalNotPython(t *testing.T) {
 	for _, toolName := range []string{
 		BrowserToolNavigate,
 		BrowserToolSnapshot,
@@ -283,9 +271,7 @@ func TestBrowserHarness_DefaultBackendIsGoNotPython(t *testing.T) {
 		BrowserToolScroll,
 	} {
 		t.Run(toolName, func(t *testing.T) {
-			runner := &recordingHarnessRunner{
-				result: BrowserHarnessProcessResult{Stdout: []byte(`{"ok":true}`)},
-			}
+			backend := &recordingBrowserHarnessBackend{result: BrowserHarnessActionResult{SchemaVersion: browserHarnessActionSchemaVersion, Evidence: BrowserHarnessEvidenceActionAccepted}}
 			argsByTool := map[string]string{
 				BrowserToolNavigate: `{"url":"https://example.com","task_id":"default-test"}`,
 				BrowserToolSnapshot: `{"task_id":"default-test"}`,
@@ -293,28 +279,16 @@ func TestBrowserHarness_DefaultBackendIsGoNotPython(t *testing.T) {
 				BrowserToolScroll:   `{"direction":"down","task_id":"default-test"}`,
 			}
 			tool := NewBrowserHarnessTool(toolName, BrowserHarnessToolsConfig{
-				// Deliberately empty Command/Protocol — default routing must choose go-browser-harness.
-				Runner: runner,
-				Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+				// Deliberately empty Command/Protocol: default routing is internal.
+				Backend: backend,
+				Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 			})
 			_, err := tool.Execute(context.Background(), json.RawMessage(argsByTool[toolName]))
 			if err != nil {
 				t.Fatalf("[%s] Execute: %v", toolName, err)
 			}
-			if len(runner.argv) < 2 {
-				t.Fatalf("[%s] argv too short: %v", toolName, runner.argv)
-			}
-			if runner.argv[0] != defaultBrowserHarnessCommand {
-				t.Fatalf("[%s] argv[0] = %q, want %q (default must be go-browser-harness, not Python)", toolName, runner.argv[0], defaultBrowserHarnessCommand)
-			}
-			if runner.argv[1] != "--action-json" {
-				t.Fatalf("[%s] argv[1] = %q, want --action-json", toolName, runner.argv[1])
-			}
-			// Must not have Python code as argv[2].
-			if len(runner.argv) >= 3 {
-				if strings.Contains(runner.argv[2], "import json") || strings.Contains(runner.argv[2], "browser-harness") {
-					t.Fatalf("[%s] argv[2] contains Python code: %q", toolName, runner.argv[2])
-				}
+			if backend.req.Kind == "" {
+				t.Fatalf("[%s] backend did not receive an action", toolName)
 			}
 		})
 	}

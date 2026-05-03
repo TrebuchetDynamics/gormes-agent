@@ -147,7 +147,7 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"01 / INSTALL HERMES",
 		"Install in one command. Verify everything works.",
 		"One command to install",
-		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh",
+		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh",
 		"Run AI Agents as One Go Binary.",
 		"Why Hermes users switch",
 		"Inspect the Machine",

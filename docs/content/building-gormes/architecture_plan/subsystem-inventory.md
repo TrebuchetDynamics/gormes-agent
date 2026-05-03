@@ -256,7 +256,7 @@ The upstream `hermes_cli/` has 49 Python files. Grouped by capability:
 | PTY bridge | `hermes_cli/pty_bridge.py`, `tests/hermes_cli/test_pty_bridge.py` | 5.O / 5.Q | ⏳ planned — freeze the subprocess/terminal bridge protocol before dashboard or CLI sidecars depend on it |
 | Tools config | `hermes_cli/tools_config.py` | 5.O | ⏳ planned |
 | Dockerfile / packaging | `Dockerfile`, `docker/{entrypoint.sh,SOUL.md}`, `packaging/homebrew`, `nix/`, `flake.nix` | 5.P | ⏳ planned |
-| Install scripts | `scripts/{install.sh,install.cmd,install.ps1,release.py,build_skills_index.py}` | 5.P | ⏳ planned |
+| Install scripts | `install.sh`, `scripts/{install.cmd,install.ps1,release.py,build_skills_index.py}` | 5.P | ⏳ planned |
 | MANIFEST / constraints | `MANIFEST.in`, `constraints-termux.txt` | 5.P | ⏳ planned |
 | Benchmarks | `environments/benchmarks/` | 5.M | ⏳ deferred (research) |
 | SWE / terminal test envs | `environments/hermes_swe_env/`, `environments/terminal_test_env/` | 5.M | ⏳ deferred (research) |
@@ -271,7 +271,7 @@ These upstream paths exist but are not part of the runtime that Gormes must abso
 - `ui-tui/`, `web/`, `website/` — Node.js/TypeScript frontends are not ported wholesale. Gormes has its own Go `cmd/gormes/tui` Bubble Tea UI (shipped Phase 1) and `www.gormes.ai/` Go-templated landing page, while upstream React dashboard endpoint and stream expectations are tracked as Phase 5.Q API-contract slices.
 - `tinker-atropos/` — upstream research sandbox (currently empty); no runtime content.
 - `datagen-config-examples/` — RL/data-generation research examples; deferred to 5.M.
-- `scripts/` (selectively) — `scripts/{install.sh,install.cmd,install.ps1,release.py,build_skills_index.py}` ARE ported in 5.P; `scripts/{contributor_audit.py,discord-voice-doctor.py,kill_modal.sh,lib/}` remain upstream-only contributor tooling.
+- `scripts/` (selectively) — repo-root `install.sh` plus `scripts/{install.cmd,install.ps1,release.py,build_skills_index.py}` ARE ported in 5.P; `scripts/{contributor_audit.py,discord-voice-doctor.py,kill_modal.sh,lib/}` remain upstream-only contributor tooling.
 - `plans/` (upstream plans directory), `package.json`, `package-lock.json`, `flake.lock`, `flake.nix` — build/packaging metadata; partially mirrored at Phase 5.P.
 - `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `GOOD-PRACTICES.md`, `hermes-already-has-routines.md` — upstream contributor docs; not runtime.
 

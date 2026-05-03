@@ -797,6 +797,7 @@ func (t *webTool) runCDPExtractURL(ctx context.Context, rawURL string) (webExtra
 		Command:  cfg.Command,
 		Protocol: cfg.Protocol,
 		Runner:   cfg.Runner,
+		Backend:  cfg.Backend,
 	}
 	commandResult, err := bridge.Run(ctx, BrowserHarnessCommandRequest{
 		Command:    cfg.Command,
@@ -808,9 +809,10 @@ func (t *webTool) runCDPExtractURL(ctx context.Context, rawURL string) (webExtra
 			TaskID: WebToolExtract,
 			URL:    rawURL,
 		},
+		Backend:   cfg.Backend,
 		Env:       cfg.Env,
 		Timeout:   cfg.Timeout,
-		MediaType: firstNonEmpty(cfg.MediaType, "text/plain"),
+		MediaType: firstNonEmpty(cfg.MediaType, "application/json"),
 		Budget:    cfg.Budget,
 	})
 	if err != nil {

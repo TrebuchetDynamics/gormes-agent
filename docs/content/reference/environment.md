@@ -54,9 +54,10 @@ All provider credentials can also be managed via `gormes auth add <provider>`.
 
 | Variable | Purpose |
 |---|---|
-| `GORMES_BRANCH` | Git branch for install.sh (default `main`). |
+| `GORMES_BRANCH` | Git branch used when `install.sh` falls back to a source build (default `main`). |
+| `GORMES_RELEASE_TAG` | Release tag for `install.sh`; defaults to the latest GitHub release. |
 | `GORMES_INSTALL_HOME` | Managed install home (default `~/.gormes`). |
-| `GORMES_INSTALL_DIR` | Managed checkout directory override. |
+| `GORMES_INSTALL_DIR` | Compatibility checkout path helper; default source fallback uses a temporary clone. |
 | `GORMES_BIN_DIR` | Published binary directory override. |
 | `GORMES_RESTART_GATEWAY` | Restart policy: `auto`, `always`, `never`. |
 | `GORMES_GO_VERSION` | Go version for managed Go download (default `1.25.0`). |

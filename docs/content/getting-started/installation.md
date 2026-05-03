@@ -21,15 +21,19 @@ This is the primary trust path while Gormes is moving quickly: inspect the sourc
 ## Inspectable Installer
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh
+curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
 less install.sh
 sh install.sh
 ```
 
-The installer manages a user-scoped Gormes checkout and binary. Re-run it to update the managed install.
+The installer downloads the latest compatible release archive and publishes a
+user-scoped `gormes` command. If no release exists yet, or no compatible Unix
+archive is available, it clones the requested branch into a temporary directory,
+builds from source, publishes the binary, and removes the temporary checkout.
 
 ## Requirements
 
-The current module declares Go 1.25.0. Use the Go version required by the branch you are building and prefer `./bin/gormes` while validating a source checkout so PATH shadowing cannot hide an older binary.
-
-Precompiled release artifacts and package-manager installs should be documented only after signed artifacts, checksums, and release URLs are verified for the current release.
+Release installs need `curl` or `wget` plus `tar`. Source fallback needs Git and
+Go 1.25+; the installer can download a managed Go toolchain when local Go is
+missing. Prefer `./bin/gormes` while validating a source checkout so PATH
+shadowing cannot hide an older binary.

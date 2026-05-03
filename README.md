@@ -22,7 +22,8 @@
 curl -fsSLO https://gormes.ai/install.sh && sh install.sh
 ```
 
-That's it. No Python. No pip. No Docker.
+That's it. A single static binary. No Python. No pip. No Docker.
+Gormes is a Go-native runtime for Hermes-Agent, with upstream Git history preserved for attribution; `gormes doctor` reports local readiness before you add credentials.
 
 ### First run
 

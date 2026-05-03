@@ -28,10 +28,11 @@ const (
 )
 
 // BrowserHarnessToolsConfig wires Hermes-visible browser_* tools onto the
-// Go browser harness command bridge. Runner stays injectable so required tests
-// do not launch Chrome, browser-harness, Browser Use cloud, or CDP sockets.
+// in-process Gormes browser backend. Runner stays for explicit legacy
+// browser-harness compatibility tests.
 type BrowserHarnessToolsConfig struct {
 	Runner    BrowserHarnessProcessRunner
+	Backend   BrowserHarnessActionBackend
 	Command   string
 	Protocol  string
 	Env       map[string]string
@@ -53,8 +54,7 @@ type BrowserHarnessToolResponse struct {
 }
 
 // BrowserHarnessActionRequest is the Go-native action JSON contract consumed
-// by go-browser-harness. It mirrors the sibling harness package without adding
-// a module dependency from Gormes to the CLI repo.
+// by Gormes' in-process browser backend.
 type BrowserHarnessActionRequest struct {
 	SchemaVersion string         `json:"schema_version"`
 	Kind          string         `json:"kind"`
@@ -74,8 +74,8 @@ type BrowserHarnessActionRequest struct {
 	Question      string         `json:"question,omitempty"`
 }
 
-// BrowserHarnessTool is one Hermes-visible browser_* tool backed by
-// go-browser-harness by default. It preserves public tool names while hiding
+// BrowserHarnessTool is one Hermes-visible browser_* tool backed by Gormes'
+// internal browser runtime. It preserves public tool names while hiding
 // protocol generation and result budgeting behind the shared Tool interface.
 type BrowserHarnessTool struct {
 	name   string
@@ -84,7 +84,7 @@ type BrowserHarnessTool struct {
 	desc   string
 }
 
-// NewBrowserHarnessTools returns the go-browser-harness backed Hermes browser
+// NewBrowserHarnessTools returns the Gormes-backed Hermes browser
 // tool surface in stable sorted-by-name order for deterministic descriptors.
 func NewBrowserHarnessTools(cfg BrowserHarnessToolsConfig) []Tool {
 	names := []string{
@@ -146,6 +146,7 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 		Command:  t.cfg.Command,
 		Protocol: t.cfg.Protocol,
 		Runner:   t.cfg.Runner,
+		Backend:  t.cfg.Backend,
 	}
 	request.Command = t.cfg.Command
 	request.Protocol = t.cfg.Protocol
@@ -162,6 +163,7 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 		ActionJSON: request.ActionJSON,
 		TaskID:     request.TaskID,
 		Action:     request.Action,
+		Backend:    t.cfg.Backend,
 		Env:        request.Env,
 		Timeout:    request.Timeout,
 		MediaType:  request.MediaType,
@@ -182,7 +184,7 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 }
 
 func (t *BrowserHarnessTool) buildCommandRequest(args map[string]any) (BrowserHarnessCommandRequest, BrowserAction, error) {
-	protocol := normalizeBrowserHarnessProtocol(t.cfg.Protocol, firstNonEmpty(t.cfg.Command, defaultBrowserHarnessCommand))
+	protocol := normalizeBrowserHarnessProtocol(t.cfg.Protocol, t.cfg.Command)
 	if protocol == BrowserHarnessProtocolLegacy {
 		code, action, err := t.buildCode(args)
 		return BrowserHarnessCommandRequest{Code: code}, action, err
@@ -425,7 +427,7 @@ func (t *BrowserHarnessTool) buildCode(args map[string]any) (string, BrowserActi
 func browserHarnessToolDescriptor(name string) (string, json.RawMessage) {
 	switch name {
 	case BrowserToolNavigate:
-		return "Navigate to a URL in the browser using go-browser-harness. Opens a new tab and returns a compact snapshot with @e refs.", json.RawMessage(`{"type":"object","properties":{"url":{"type":"string"},"task_id":{"type":"string"}},"required":["url"]}`)
+		return "Navigate to a URL in the browser. Opens a new tab and returns a compact snapshot with @e refs.", json.RawMessage(`{"type":"object","properties":{"url":{"type":"string"},"task_id":{"type":"string"}},"required":["url"]}`)
 	case BrowserToolSnapshot:
 		return "Get a text snapshot of the current browser page with @e refs for follow-up click/type actions.", json.RawMessage(`{"type":"object","properties":{"full":{"type":"boolean"},"task_id":{"type":"string"}},"required":[]}`)
 	case BrowserToolClick:
@@ -443,9 +445,9 @@ func browserHarnessToolDescriptor(name string) (string, json.RawMessage) {
 	case BrowserToolGetImages:
 		return "List images on the current page with src, alt, and dimensions.", json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string"}},"required":[]}`)
 	case BrowserToolVision:
-		return "Capture a screenshot through go-browser-harness and return the artifact path for visual inspection.", json.RawMessage(`{"type":"object","properties":{"question":{"type":"string"},"annotate":{"type":"boolean"},"task_id":{"type":"string"}},"required":["question"]}`)
+		return "Capture a screenshot through the browser runtime and return the artifact path for visual inspection.", json.RawMessage(`{"type":"object","properties":{"question":{"type":"string"},"annotate":{"type":"boolean"},"task_id":{"type":"string"}},"required":["question"]}`)
 	case BrowserToolCDP:
-		return "Send a raw Chrome DevTools Protocol command through go-browser-harness.", json.RawMessage(`{"type":"object","properties":{"method":{"type":"string"},"params":{"type":"object"},"task_id":{"type":"string"}},"required":["method"]}`)
+		return "Send a raw Chrome DevTools Protocol command through the browser runtime.", json.RawMessage(`{"type":"object","properties":{"method":{"type":"string"},"params":{"type":"object"},"task_id":{"type":"string"}},"required":["method"]}`)
 	case BrowserToolDialog:
 		return "Accept or dismiss the current JavaScript dialog.", json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","enum":["accept","dismiss"]},"prompt_text":{"type":"string"},"task_id":{"type":"string"}},"required":["action"]}`)
 	default:

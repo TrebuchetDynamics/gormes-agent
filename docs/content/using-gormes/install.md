@@ -24,17 +24,25 @@ memory diagnostics before adding provider credentials.
 
 Requires Go 1.25+.
 
-## Convenience: inspectable source installer
+## Convenience: release-first installer
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh
+curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
 less install.sh
 sh install.sh
 ```
 
-The installer manages a source checkout, builds `gormes`, publishes a user-scoped `gormes` command, and can update in place on rerun. Convenience aliases exist at `https://gormes.ai/install.sh` and `https://gormes.ai/install.ps1`, but the inspect-first GitHub source path is preferred until signed binary releases and package-manager manifests land.
+The Unix installer downloads the latest compatible GitHub release archive,
+verifies its `.sha256`, and publishes a user-scoped `gormes` command. If no
+release exists yet, or no compatible archive is available, it clones the
+requested branch into a temporary directory, builds from source, publishes the
+binary, and removes the temporary checkout. Convenience aliases exist at
+`https://gormes.ai/install.sh` and `https://gormes.ai/install.ps1`, but the
+inspect-first GitHub source path remains the clearest trust path.
 
-The source-backed installers can download a managed Go toolchain when local Go is missing; production release hardening is tracking Homebrew, Scoop/Winget, checksums, and signatures so operators can avoid bootstrap scripts.
+The source fallback can download a managed Go toolchain when local Go is
+missing; production release hardening is tracking Homebrew, Scoop/Winget, and
+signatures so operators can avoid bootstrap scripts.
 
 ## Windows PowerShell
 
@@ -54,9 +62,8 @@ go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest
 
 Tagged releases build `gormes-${version}-${os}-${arch}.tar.gz` archives for
 Linux, macOS, and Windows on amd64 and arm64, each with a `.sha256` checksum.
-These artifacts are the path toward PicoClaw-style one-click installs, but the
-early-stage trust path is still source inspection plus local build until
-signing and package-manager manifests are complete.
+The Unix installer consumes these artifacts first and falls back to a temporary
+source build only when no compatible release artifact exists.
 
 ## Platform matrix
 

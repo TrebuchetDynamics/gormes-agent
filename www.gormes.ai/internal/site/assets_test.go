@@ -91,6 +91,8 @@ func TestServer_ServesInstallScript(t *testing.T) {
 	for _, want := range []string{
 		"git@github.com:TrebuchetDynamics/gormes-agent.git",
 		"https://github.com/TrebuchetDynamics/gormes-agent.git",
+		"https://api.github.com/repos/${RELEASE_REPO}/releases/latest",
+		"https://github.com/${RELEASE_REPO}/releases/download",
 		`go build -o "$build_bin" ./cmd/gormes`,
 		"GORMES_INSTALL_HOME",
 	} {
@@ -101,7 +103,6 @@ func TestServer_ServesInstallScript(t *testing.T) {
 	for _, reject := range []string{
 		"XelHaku/golang-hermes-agent",
 		"XelHaku/gormes-agent",
-		"releases/latest",
 		`go install "${MODULE}@${VERSION}"`,
 	} {
 		if strings.Contains(body, reject) {

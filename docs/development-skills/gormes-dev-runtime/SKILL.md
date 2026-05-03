@@ -35,7 +35,7 @@ fixtures; do not hard-code `/home/xel/...` paths into product code or tests.
 - Current checkout, including uncommitted edits: `go run ./cmd/gormes`.
 - Compiled binary from this checkout: `go build -o bin/gormes ./cmd/gormes`,
   then `./bin/gormes`.
-- Shell-wide command: `scripts/install.sh`, or manual publish after a build.
+- Shell-wide command: `install.sh`, or manual publish after a build.
 
 `install.sh` is source-backed for final users. Its release defaults may clone
 or update `$HOME/.gormes/gormes-agent` from `main`; that is not the agent

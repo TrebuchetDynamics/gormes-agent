@@ -7,7 +7,7 @@ on:
       - 'www.gormes.ai/**'
       - 'benchmarks.json'
       - 'docs/content/building-gormes/architecture_plan/progress.json'
-      - 'scripts/install.sh'
+      - 'install.sh'
       - 'scripts/install.ps1'
       - 'scripts/install.cmd'
       - '.github/workflows/deploy-gormes-www.yml'
